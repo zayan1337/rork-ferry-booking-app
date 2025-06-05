@@ -1,0 +1,158 @@
+import React, { useState } from 'react';
+import { 
+  View, 
+  TextInput, 
+  Text, 
+  StyleSheet, 
+  ViewStyle, 
+  TextStyle,
+  TouchableOpacity,
+  Platform
+} from 'react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
+import Colors from '@/constants/colors';
+
+type InputProps = {
+  label?: string;
+  placeholder?: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  secureTextEntry?: boolean;
+  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  error?: string;
+  disabled?: boolean;
+  multiline?: boolean;
+  numberOfLines?: number;
+  style?: ViewStyle;
+  inputStyle?: TextStyle;
+  labelStyle?: TextStyle;
+  required?: boolean;
+};
+
+const Input: React.FC<InputProps> = ({
+  label,
+  placeholder,
+  value,
+  onChangeText,
+  secureTextEntry = false,
+  keyboardType = 'default',
+  autoCapitalize = 'none',
+  error,
+  disabled = false,
+  multiline = false,
+  numberOfLines = 1,
+  style,
+  inputStyle,
+  labelStyle,
+  required = false,
+}) => {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible(!isPasswordVisible);
+  };
+  
+  return (
+    <View style={[styles.container, style]}>
+      {label && (
+        <Text style={[styles.label, labelStyle]}>
+          {label} {required && <Text style={styles.required}>*</Text>}
+        </Text>
+      )}
+      
+      <View style={[
+        styles.inputContainer,
+        error ? styles.inputError : null,
+        disabled ? styles.inputDisabled : null,
+        multiline ? styles.inputMultiline : null
+      ]}>
+        <TextInput
+          style={[
+            styles.input,
+            multiline ? styles.textMultiline : null,
+            inputStyle
+          ]}
+          placeholder={placeholder}
+          value={value}
+          onChangeText={onChangeText}
+          secureTextEntry={secureTextEntry && !isPasswordVisible}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          editable={!disabled}
+          multiline={multiline}
+          numberOfLines={multiline ? numberOfLines : 1}
+          placeholderTextColor={Colors.textSecondary}
+        />
+        
+        {secureTextEntry && (
+          <TouchableOpacity 
+            style={styles.iconContainer} 
+            onPress={togglePasswordVisibility}
+          >
+            {isPasswordVisible ? (
+              <EyeOff size={20} color={Colors.textSecondary} />
+            ) : (
+              <Eye size={20} color={Colors.textSecondary} />
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      {error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    marginBottom: 6,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  required: {
+    color: Colors.error,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    backgroundColor: Colors.card,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    color: Colors.text,
+  },
+  textMultiline: {
+    textAlignVertical: 'top',
+  },
+  inputMultiline: {
+    minHeight: 100,
+  },
+  iconContainer: {
+    padding: 10,
+  },
+  inputError: {
+    borderColor: Colors.error,
+  },
+  inputDisabled: {
+    backgroundColor: Colors.inactive,
+    opacity: 0.7,
+  },
+  errorText: {
+    color: Colors.error,
+    fontSize: 14,
+    marginTop: 4,
+  },
+});
+
+export default Input;
