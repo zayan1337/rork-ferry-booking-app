@@ -36,5 +36,4 @@ yarn-error.*
 *.tsbuildinfo
 .vercel
 
-# New additions from the code block
-.env
+
