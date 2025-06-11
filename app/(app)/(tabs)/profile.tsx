@@ -1,20 +1,21 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
   Alert,
-  Switch
+  Switch,
+  ActivityIndicator
 } from 'react-native';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  Lock, 
-  Bell, 
+import {
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  Lock,
+  Bell,
   LogOut,
   ChevronRight
 } from 'lucide-react-native';
@@ -25,10 +26,33 @@ import Card from '@/components/Card';
 import Button from '@/components/Button';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuthStore();
+  const { user, signOut, isLoading, error } = useAuthStore();
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(true);
-  
+
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error);
+    }
+   
+  }, [error]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Please log in to view your profile</Text>
+      </View>
+    );
+  }
+
   const handleLogout = () => {
     Alert.alert(
       "Logout",
@@ -41,7 +65,7 @@ export default function ProfileScreen() {
         {
           text: "Logout",
           onPress: () => {
-            logout();
+            signOut();
             router.replace('/');
           },
           style: "destructive"
@@ -49,7 +73,7 @@ export default function ProfileScreen() {
       ]
     );
   };
-  
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -58,7 +82,7 @@ export default function ProfileScreen() {
       year: 'numeric'
     });
   };
-  
+
   const handleExportCSV = () => {
     Alert.alert(
       "Export Data",
@@ -66,7 +90,7 @@ export default function ProfileScreen() {
       [{ text: "OK" }]
     );
   };
-  
+
   const handleExportPDF = () => {
     Alert.alert(
       "Export Data",
@@ -74,36 +98,38 @@ export default function ProfileScreen() {
       [{ text: "OK" }]
     );
   };
-  
+
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
       <View style={styles.profileHeader}>
         <View style={styles.profileAvatar}>
           <Text style={styles.profileInitials}>
-            {user?.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}
+            {user?.profile?.full_name
+              ? user?.profile?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+              : '?'}
           </Text>
         </View>
-        <Text style={styles.profileName}>{user?.fullName}</Text>
-        <Text style={styles.profileUsername}>@{user?.username}</Text>
+        <Text style={styles.profileName}>{user?.profile?.full_name || 'Guest User'}</Text>
+        <Text style={styles.profileUsername}>@{user?.profile?.username || 'guest'}</Text>
       </View>
-      
+
       <Card variant="elevated" style={styles.section}>
         <Text style={styles.sectionTitle}>Personal Information</Text>
-        
+
         <View style={styles.infoItem}>
           <View style={styles.infoIcon}>
             <User size={20} color={Colors.primary} />
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Full Name</Text>
-            <Text style={styles.infoValue}>{user?.fullName}</Text>
+            <Text style={styles.infoValue}>{user?.profile?.full_name}</Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
         </View>
-        
+
         <View style={styles.infoItem}>
           <View style={styles.infoIcon}>
             <Mail size={20} color={Colors.primary} />
@@ -114,33 +140,33 @@ export default function ProfileScreen() {
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
         </View>
-        
+
         <View style={styles.infoItem}>
           <View style={styles.infoIcon}>
             <Phone size={20} color={Colors.primary} />
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Mobile Number</Text>
-            <Text style={styles.infoValue}>{user?.mobileNumber}</Text>
+            <Text style={styles.infoValue}>{user?.profile?.mobile_number}</Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
         </View>
-        
+
         <View style={styles.infoItem}>
           <View style={styles.infoIcon}>
             <Calendar size={20} color={Colors.primary} />
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Date of Birth</Text>
-            <Text style={styles.infoValue}>{formatDate(user?.dateOfBirth || '')}</Text>
+            <Text style={styles.infoValue}>{formatDate(user?.profile?.date_of_birth || '')}</Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
         </View>
       </Card>
-      
+
       <Card variant="elevated" style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
-        
+
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingIcon}>
             <Lock size={20} color={Colors.primary} />
@@ -150,7 +176,7 @@ export default function ProfileScreen() {
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
         </TouchableOpacity>
-        
+
         <View style={styles.settingItem}>
           <View style={styles.settingIcon}>
             <Bell size={20} color={Colors.primary} />
@@ -165,7 +191,7 @@ export default function ProfileScreen() {
             thumbColor={Colors.card}
           />
         </View>
-        
+
         <View style={styles.settingItem}>
           <View style={styles.settingIcon}>
             <Bell size={20} color={Colors.primary} />
@@ -181,7 +207,7 @@ export default function ProfileScreen() {
           />
         </View>
       </Card>
-      
+
       <Card variant="elevated" style={styles.section}>
         <Text style={styles.sectionTitle}>Export Data</Text>
         <Text style={styles.exportText}>
@@ -204,7 +230,7 @@ export default function ProfileScreen() {
           />
         </View>
       </Card>
-      
+
       <Button
         title="Logout"
         variant="outline"
@@ -325,5 +351,23 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     color: Colors.error,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    padding: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: Colors.error,
+    textAlign: 'center',
   },
 });

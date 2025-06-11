@@ -75,7 +75,7 @@ export default function HomeScreen() {
       <View style={styles.welcomeSection}>
         <View>
           <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.userName}>{user?.fullName}</Text>
+          <Text style={styles.userName}>{user?.profile?.full_name}</Text>
         </View>
         <TouchableOpacity 
           style={styles.searchButton}

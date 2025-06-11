@@ -11,24 +11,7 @@ import {
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-
-type InputProps = {
-  label?: string;
-  placeholder?: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  error?: string;
-  disabled?: boolean;
-  multiline?: boolean;
-  numberOfLines?: number;
-  style?: ViewStyle;
-  inputStyle?: TextStyle;
-  labelStyle?: TextStyle;
-  required?: boolean;
-};
+import { InputProps } from '@/types/components';
 
 const Input: React.FC<InputProps> = ({
   label,

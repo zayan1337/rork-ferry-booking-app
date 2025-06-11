@@ -2,13 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { ChevronRight, Calendar, Clock, MapPin, Users } from 'lucide-react-native';
 import { Booking } from '@/types';
+import { BookingCardProps } from '@/types/components';
 import Colors from '@/constants/colors';
 import Card from './Card';
-
-type BookingCardProps = {
-  booking: Booking;
-  onPress: (booking: Booking) => void;
-};
 
 const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
   const formatDate = (dateString: string) => {

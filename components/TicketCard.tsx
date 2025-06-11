@@ -2,12 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Calendar, Clock, MapPin, Users } from 'lucide-react-native';
 import { Booking } from '@/types';
+import { TicketCardProps } from '@/types/components';
 import Colors from '@/constants/colors';
 import Card from './Card';
-
-type TicketCardProps = {
-  booking: Booking;
-};
 
 const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
   const formatDate = (dateString: string) => {

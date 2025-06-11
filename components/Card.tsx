@@ -1,13 +1,7 @@
 import React, { ReactNode } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import Colors from '@/constants/colors';
-
-type CardProps = {
-  children: ReactNode;
-  style?: ViewStyle;
-  variant?: 'default' | 'elevated' | 'outlined';
-  padding?: 'none' | 'small' | 'medium' | 'large';
-};
+import { CardProps } from '@/types/components';
 
 const Card: React.FC<CardProps> = ({
   children,

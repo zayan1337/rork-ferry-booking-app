@@ -8,14 +8,8 @@ import {
   Dimensions
 } from 'react-native';
 import { Seat } from '@/types';
+import { SeatSelectorProps } from '@/types/components';
 import Colors from '@/constants/colors';
-
-type SeatSelectorProps = {
-  seats: Seat[];
-  selectedSeats: Seat[];
-  onSeatToggle: (seat: Seat) => void;
-  maxSeats?: number;
-};
 
 const SeatSelector: React.FC<SeatSelectorProps> = ({
   seats,

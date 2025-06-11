@@ -6,32 +6,33 @@ import {
   KeyboardAvoidingView, 
   Platform,
   ScrollView,
-  TouchableOpacity
+  TouchableOpacity,
+  BackHandler
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
-import DatePicker from '@/components/DatePicker';
 import Card from '@/components/Card';
+import { DateSelector } from '@/components/DateSelector';
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
-    fullName: '',
-    mobileNumber: '',
+    fullname: '',
+    phone: '',
     email: '',
-    dateOfBirth: null as string | null,
+    dateofbirth: null as string | null,
     username: '',
     password: '',
     confirmPassword: '',
   });
   
   const [errors, setErrors] = useState({
-    fullName: '',
-    mobileNumber: '',
+    fullname: '',
+    phone: '',
     email: '',
-    dateOfBirth: '',
+    dateofbirth: '',
     username: '',
     password: '',
     confirmPassword: '',
@@ -39,17 +40,34 @@ export default function RegisterScreen() {
   
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsError, setTermsError] = useState('');
+  const [isNavigating, setIsNavigating] = useState(false);
   
-  const { register, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+  const { signUp, isAuthenticated, isLoading, error, clearError } = useAuthStore();
   
   useEffect(() => {
     // If user is already authenticated, redirect to app
-    if (isAuthenticated) {
+    if (isAuthenticated && !isNavigating) {
+      setIsNavigating(true);
       router.replace('/(app)/(tabs)');
     }
   }, [isAuthenticated]);
+
+  // Prevent going back if authenticated or navigating
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isAuthenticated || isNavigating) {
+        return true; // Prevent going back
+      }
+      return false;
+    });
+
+    return () => {
+      backHandler.remove();
+      setIsNavigating(false); // Reset navigation state when unmounting
+    };
+  }, [isAuthenticated, isNavigating]);
   
-  const updateFormData = (field: string, value: string | null) => {
+  const updateFormData = (field: keyof typeof formData, value: string | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear error for this field
@@ -63,17 +81,17 @@ export default function RegisterScreen() {
     const newErrors = { ...errors };
     
     // Validate full name
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
+    if (!formData.fullname.trim()) {
+      newErrors.fullname = 'Full name is required';
       isValid = false;
     }
     
     // Validate mobile number
-    if (!formData.mobileNumber.trim()) {
-      newErrors.mobileNumber = 'Mobile number is required';
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Mobile number is required';
       isValid = false;
-    } else if (!/^\+?[0-9]{7,15}$/.test(formData.mobileNumber)) {
-      newErrors.mobileNumber = 'Enter a valid mobile number';
+    } else if (!/^\+?[0-9]{7,15}$/.test(formData.phone)) {
+      newErrors.phone = 'Enter a valid mobile number';
       isValid = false;
     }
     
@@ -87,8 +105,8 @@ export default function RegisterScreen() {
     }
     
     // Validate date of birth
-    if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = 'Date of birth is required';
+    if (!formData.dateofbirth) {
+      newErrors.dateofbirth = 'Date of birth is required';
       isValid = false;
     }
     
@@ -127,8 +145,20 @@ export default function RegisterScreen() {
     setErrors(newErrors);
     return isValid;
   };
+
+  const handleNavigation = (path: '/') => {
+    if (!isNavigating && !isLoading) {
+      setIsNavigating(true);
+      router.push(path);
+    }
+  };
   
   const handleRegister = async () => {
+    // Prevent multiple attempts while loading or navigating
+    if (isLoading || isNavigating) {
+      return;
+    }
+
     // Clear any previous errors
     clearError();
     
@@ -137,15 +167,24 @@ export default function RegisterScreen() {
       return;
     }
     
-    // Attempt registration
-    await register({
-      fullName: formData.fullName,
-      mobileNumber: formData.mobileNumber,
-      email: formData.email,
-      dateOfBirth: formData.dateOfBirth || '',
-      username: formData.username,
-      password: formData.password,
-    });
+    try {
+      // Attempt registration with enhanced signUp
+      await signUp({
+        email_address: formData.email,
+        password: formData.password,
+        full_name: formData.fullname,
+        mobile_number: formData.phone,
+        date_of_birth: formData.dateofbirth || '',
+        username: formData.username,
+        accepted_terms: termsAccepted
+      });
+
+      // If successful, the auth store will handle the redirection
+    } catch (err) {
+      // Reset navigation state if registration fails
+      setIsNavigating(false);
+      console.error('Registration error:', err);
+    }
   };
   
   return (
@@ -170,21 +209,21 @@ export default function RegisterScreen() {
           <Input
             label="Full Name"
             placeholder="Enter your full name"
-            value={formData.fullName}
-            onChangeText={(text) => updateFormData('fullName', text)}
-            error={errors.fullName}
-            disabled={isLoading}
+            value={formData.fullname}
+            onChangeText={(text) => updateFormData('fullname', text)}
+            error={errors.fullname}
+            disabled={isLoading || isNavigating}
             required
           />
           
           <Input
             label="Mobile Number"
             placeholder="+9607XXXXXXX"
-            value={formData.mobileNumber}
-            onChangeText={(text) => updateFormData('mobileNumber', text)}
+            value={formData.phone}
+            onChangeText={(text) => updateFormData('phone', text)}
             keyboardType="phone-pad"
-            error={errors.mobileNumber}
-            disabled={isLoading}
+            error={errors.phone}
+            disabled={isLoading || isNavigating}
             required
           />
           
@@ -195,17 +234,17 @@ export default function RegisterScreen() {
             onChangeText={(text) => updateFormData('email', text)}
             keyboardType="email-address"
             error={errors.email}
-            disabled={isLoading}
+            disabled={isLoading || isNavigating}
             required
           />
           
-          <DatePicker
+          <DateSelector
             label="Date of Birth"
-            value={formData.dateOfBirth}
-            onChange={(date) => updateFormData('dateOfBirth', date)}
+            value={formData.dateofbirth}
+            onChange={(date) => updateFormData('dateofbirth', date)}
             maxDate={new Date().toISOString().split('T')[0]}
-            error={errors.dateOfBirth}
-            disabled={isLoading}
+            error={errors.dateofbirth}
+            isDateOfBirth={true}
             required
           />
           
@@ -215,7 +254,7 @@ export default function RegisterScreen() {
             value={formData.username}
             onChangeText={(text) => updateFormData('username', text)}
             error={errors.username}
-            disabled={isLoading}
+            disabled={isLoading || isNavigating}
             required
           />
           
@@ -226,7 +265,7 @@ export default function RegisterScreen() {
             onChangeText={(text) => updateFormData('password', text)}
             secureTextEntry
             error={errors.password}
-            disabled={isLoading}
+            disabled={isLoading || isNavigating}
             required
           />
           
@@ -237,7 +276,7 @@ export default function RegisterScreen() {
             onChangeText={(text) => updateFormData('confirmPassword', text)}
             secureTextEntry
             error={errors.confirmPassword}
-            disabled={isLoading}
+            disabled={isLoading || isNavigating}
             required
           />
           
@@ -248,7 +287,7 @@ export default function RegisterScreen() {
                 setTermsAccepted(!termsAccepted);
                 if (termsError) setTermsError('');
               }}
-              disabled={isLoading}
+              disabled={isLoading || isNavigating}
             >
               <View style={[
                 styles.checkboxInner,
@@ -268,19 +307,20 @@ export default function RegisterScreen() {
           <Button
             title="Create Account"
             onPress={handleRegister}
-            loading={isLoading}
-            disabled={isLoading}
+            loading={isLoading || isNavigating}
+            disabled={isLoading || isNavigating}
             fullWidth
             style={styles.registerButton}
           />
           
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Already have an account? </Text>
-            <Link href="/" asChild>
-              <TouchableOpacity disabled={isLoading}>
-                <Text style={styles.loginLink}>Login</Text>
-              </TouchableOpacity>
-            </Link>
+            <TouchableOpacity 
+              disabled={isLoading || isNavigating}
+              onPress={() => handleNavigation('/')}
+            >
+              <Text style={styles.loginLink}>Login</Text>
+            </TouchableOpacity>
           </View>
         </Card>
       </ScrollView>

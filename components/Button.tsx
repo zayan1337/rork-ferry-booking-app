@@ -8,18 +8,7 @@ import {
   TextStyle
 } from 'react-native';
 import Colors from '@/constants/colors';
-
-type ButtonProps = {
-  title: string;
-  onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'text';
-  size?: 'small' | 'medium' | 'large';
-  disabled?: boolean;
-  loading?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
-  fullWidth?: boolean;
-};
+import { ButtonProps } from '@/types/components';
 
 const Button: React.FC<ButtonProps> = ({
   title,

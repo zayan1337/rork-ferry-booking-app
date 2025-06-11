@@ -8,9 +8,10 @@ import {
   KeyboardAvoidingView, 
   Platform,
   ScrollView,
-  ActivityIndicator
+  ActivityIndicator,
+  BackHandler
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link, router, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Input from '@/components/Input';
@@ -18,43 +19,89 @@ import Button from '@/components/Button';
 import Card from '@/components/Card';
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [usernameError, setUsernameError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+  });
+  
+  const [errors, setErrors] = useState({
+    username: '',
+    password: '',
+  });
   
   const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+  const [isNavigating, setIsNavigating] = useState(false);
   
+  // Reset navigation state when screen receives focus
+  useFocusEffect(
+    React.useCallback(() => {
+      setIsNavigating(false);
+      return () => {};
+    }, [])
+  );
+
   useEffect(() => {
     // If user is already authenticated, redirect to app
-    if (isAuthenticated) {
+    if (isAuthenticated && !isNavigating) {
+      setIsNavigating(true);
       router.replace('/(app)/(tabs)');
     }
   }, [isAuthenticated]);
+
+  // Prevent going back if authenticated
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isAuthenticated || isNavigating) {
+        return true; // Prevent going back
+      }
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [isAuthenticated, isNavigating]);
+  
+  const updateFormData = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error for this field
+    if (errors[field as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
   
   const validateForm = () => {
     let isValid = true;
+    const newErrors = { ...errors };
     
-    // Reset errors
-    setUsernameError('');
-    setPasswordError('');
-    
-    // Validate username
-    if (!username.trim()) {
-      setUsernameError('Username is required');
+    // Validate username (email or phone)
+    if (!formData.username.trim()) {
+      newErrors.username = 'Email or phone number is required';
       isValid = false;
+    } else {
+      const isEmail = /\S+@\S+\.\S+/.test(formData.username);
+      const isPhone = /^\+?[0-9]{7,15}$/.test(formData.username);
+      if (!isEmail && !isPhone) {
+        newErrors.username = 'Enter a valid email or phone number';
+        isValid = false;
+      }
     }
     
     // Validate password
-    if (!password) {
-      setPasswordError('Password is required');
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
       isValid = false;
     }
     
+    setErrors(newErrors);
     return isValid;
   };
   
   const handleLogin = async () => {
+    // Prevent multiple attempts while loading or navigating
+    if (isLoading || isNavigating) {
+      return;
+    }
+
     // Clear any previous errors
     clearError();
     
@@ -64,7 +111,19 @@ export default function LoginScreen() {
     }
     
     // Attempt login
-    await login(username, password);
+    try {
+      await login(formData.username, formData.password);
+    } catch (err) {
+      // Reset navigation state if login fails
+      setIsNavigating(false);
+    }
+  };
+
+  const handleNavigation = (path: '/' | '/register' | '/forgotPassword') => {
+    if (!isNavigating && !isLoading) {
+      setIsNavigating(true);
+      router.push(path);
+    }
   };
   
   return (
@@ -96,55 +155,55 @@ export default function LoginScreen() {
           )}
           
           <Input
-            label="Username"
-            placeholder="Enter your username"
-            value={username}
-            onChangeText={(text) => {
-              setUsername(text);
-              if (usernameError) setUsernameError('');
-            }}
-            error={usernameError}
+            label="Email or Phone"
+            placeholder="Enter your email or phone number"
+            value={formData.username}
+            onChangeText={(text) => updateFormData('username', text)}
+            error={errors.username}
             autoCapitalize="none"
-            disabled={isLoading}
+            keyboardType="email-address"
+            disabled={isLoading || isNavigating}
             required
           />
           
           <Input
             label="Password"
             placeholder="Enter your password"
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              if (passwordError) setPasswordError('');
-            }}
+            value={formData.password}
+            onChangeText={(text) => updateFormData('password', text)}
             secureTextEntry
-            error={passwordError}
-            disabled={isLoading}
+            error={errors.password}
+            disabled={isLoading || isNavigating}
             required
           />
+          
+          <TouchableOpacity 
+            style={styles.forgotPasswordContainer} 
+            disabled={isLoading || isNavigating}
+            onPress={() => handleNavigation('/forgotPassword')}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
           
           <Button
             title="Login"
             onPress={handleLogin}
-            loading={isLoading}
-            disabled={isLoading}
+            loading={isLoading || isNavigating}
+            disabled={isLoading || isNavigating}
             fullWidth
             style={styles.loginButton}
           />
           
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Don't have an account? </Text>
-            <Link href="/register" asChild>
-              <TouchableOpacity disabled={isLoading}>
-                <Text style={styles.registerLink}>Sign Up</Text>
-              </TouchableOpacity>
-            </Link>
+            <TouchableOpacity 
+              disabled={isLoading || isNavigating}
+              onPress={() => handleNavigation('/register')}
+            >
+              <Text style={styles.registerLink}>Sign Up</Text>
+            </TouchableOpacity>
           </View>
         </Card>
-        
-        <View style={styles.demoContainer}>
-          <Text style={styles.demoText}>Demo credentials: username: demo, password: password</Text>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -227,5 +286,15 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 14,
     textAlign: 'center',
+  },
+  forgotPasswordContainer: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  forgotPasswordText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
