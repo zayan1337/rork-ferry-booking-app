@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
   TouchableOpacity,
   RefreshControl
 } from 'react-native';
 import { router } from 'expo-router';
 import { Search, Filter } from 'lucide-react-native';
 import { useBookingStore } from '@/store/bookingStore';
-import { Booking, BookingStatus } from '@/types';
+import type { Booking, BookingStatus } from '@/types';
 import Colors from '@/constants/colors';
 import BookingCard from '@/components/BookingCard';
 import Input from '@/components/Input';
@@ -19,37 +19,37 @@ export default function BookingsScreen() {
   const { bookings, fetchUserBookings, isLoading } = useBookingStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
-  
+
   useEffect(() => {
     fetchUserBookings();
   }, []);
-  
+
   const handleRefresh = () => {
     fetchUserBookings();
   };
-  
+
   const handleViewBooking = (booking: Booking) => {
     router.push(`/booking-details/${booking.id}`);
   };
-  
+
   // Filter bookings based on search query and status filter
   const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = 
-      searchQuery === '' || 
+    const matchesSearch =
+      searchQuery === '' ||
       booking.bookingNumber.includes(searchQuery) ||
       booking.route.fromIsland.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       booking.route.toIsland.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
-  
+
   // Sort bookings by date (newest first)
-  const sortedBookings = [...filteredBookings].sort((a, b) => 
+  const sortedBookings = [...filteredBookings].sort((a, b) =>
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
@@ -64,7 +64,7 @@ export default function BookingsScreen() {
           />
         </View>
       </View>
-      
+
       <View style={styles.filtersContainer}>
         <Text style={styles.filtersLabel}>Filter by status:</Text>
         <View style={styles.filterButtons}>
@@ -75,7 +75,7 @@ export default function BookingsScreen() {
             ]}
             onPress={() => setStatusFilter('all')}
           >
-            <Text 
+            <Text
               style={[
                 styles.filterButtonText,
                 statusFilter === 'all' && styles.filterButtonTextActive
@@ -84,7 +84,7 @@ export default function BookingsScreen() {
               All
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.filterButton,
@@ -92,7 +92,7 @@ export default function BookingsScreen() {
             ]}
             onPress={() => setStatusFilter('confirmed')}
           >
-            <Text 
+            <Text
               style={[
                 styles.filterButtonText,
                 statusFilter === 'confirmed' && styles.filterButtonTextActive
@@ -101,7 +101,7 @@ export default function BookingsScreen() {
               Confirmed
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.filterButton,
@@ -109,7 +109,7 @@ export default function BookingsScreen() {
             ]}
             onPress={() => setStatusFilter('completed')}
           >
-            <Text 
+            <Text
               style={[
                 styles.filterButtonText,
                 statusFilter === 'completed' && styles.filterButtonTextActive
@@ -118,7 +118,7 @@ export default function BookingsScreen() {
               Completed
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.filterButton,
@@ -126,7 +126,7 @@ export default function BookingsScreen() {
             ]}
             onPress={() => setStatusFilter('cancelled')}
           >
-            <Text 
+            <Text
               style={[
                 styles.filterButtonText,
                 statusFilter === 'cancelled' && styles.filterButtonTextActive
@@ -137,12 +137,12 @@ export default function BookingsScreen() {
           </TouchableOpacity>
         </View>
       </View>
-      
+
       <FlatList
         data={sortedBookings}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <BookingCard booking={item} onPress={handleViewBooking} />
+          <BookingCard booking={item} onPress={() => handleViewBooking(item)} />
         )}
         contentContainerStyle={styles.listContent}
         refreshControl={

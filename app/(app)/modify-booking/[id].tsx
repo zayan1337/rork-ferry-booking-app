@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
   Alert,
   TextInputProps,
   ViewStyle,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Calendar, ArrowRight } from 'lucide-react-native';
-import { useBookingStore } from '@/store/bookingStore';
+import { useBookingStore } from '@/store/bookingStore2';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -41,7 +41,7 @@ const generateMockSeats = () => {
   const rows = ['A', 'B', 'C', 'D', 'E', 'F'];
   const seatsPerRow = 6;
   const seats: Seat[] = [];
-  
+
   for (let i = 0; i < rows.length; i++) {
     for (let j = 1; j <= seatsPerRow; j++) {
       const seatNumber = `${rows[i]}${j}`;
@@ -52,14 +52,14 @@ const generateMockSeats = () => {
       });
     }
   }
-  
+
   return seats;
 };
 
 export default function ModifyBookingScreen() {
   const { id } = useLocalSearchParams();
   const { bookings, isLoading } = useBookingStore();
-  
+
   const [mockSeats] = useState<Seat[]>(generateMockSeats());
   const [newDepartureDate, setNewDepartureDate] = useState<string | null>(null);
   const [newReturnDate, setNewReturnDate] = useState<string | null>(null);
@@ -73,36 +73,36 @@ export default function ModifyBookingScreen() {
     seats: '',
     reason: '',
   });
-  
+
   // Find the booking by id
   const booking = bookings.find(b => b.id === id);
-  
+
   useEffect(() => {
     if (booking) {
       setNewDepartureDate(booking.departureDate);
       setNewReturnDate(booking.returnDate || null);
       setSelectedSeats(booking.seats);
       setReturnSelectedSeats(booking.returnSeats || []);
-      
+
       // Calculate a random fare difference for demo purposes
       const randomDiff = Math.floor(Math.random() * 40) - 20; // Between -20 and 20
       setFareDifference(randomDiff);
     }
   }, [booking]);
-  
+
   if (!booking) {
     return (
       <View style={styles.notFoundContainer}>
         <Text style={styles.notFoundText}>Booking not found</Text>
-        <Button 
-          title="Go Back" 
-          onPress={() => router.back()} 
+        <Button
+          title="Go Back"
+          onPress={() => router.back()}
           style={styles.notFoundButton}
         />
       </View>
     );
   }
-  
+
   const toggleSeatSelection = (seat: Seat, isReturn = false) => {
     if (isReturn) {
       const isSelected = returnSelectedSeats.some(s => s.id === seat.id);
@@ -119,102 +119,101 @@ export default function ModifyBookingScreen() {
         setSelectedSeats([...selectedSeats, { ...seat, isSelected: true }]);
       }
     }
-    
+
     if (errors.seats) {
       setErrors({ ...errors, seats: '' });
     }
   };
-  
+
   const validateForm = () => {
     let isValid = true;
     const newErrors = { ...errors };
-    
+
     if (!newDepartureDate) {
       newErrors.departureDate = 'Please select a departure date';
       isValid = false;
     }
-    
+
     if (booking.tripType === 'round_trip' && !newReturnDate) {
       newErrors.returnDate = 'Please select a return date';
       isValid = false;
     }
-    
+
     if (selectedSeats.length === 0) {
       newErrors.seats = 'Please select at least one seat';
       isValid = false;
     }
-    
+
     if (booking.tripType === 'round_trip' && returnSelectedSeats.length === 0) {
       newErrors.seats = 'Please select at least one return seat';
       isValid = false;
     }
-    
-    if (booking.tripType === 'round_trip' && 
-        selectedSeats.length !== returnSelectedSeats.length) {
+
+    if (booking.tripType === 'round_trip' &&
+      selectedSeats.length !== returnSelectedSeats.length) {
       newErrors.seats = 'Number of departure and return seats must match';
       isValid = false;
     }
-    
+
     if (!modificationReason.trim()) {
       newErrors.reason = 'Please provide a reason for modification';
       isValid = false;
     }
-    
+
     setErrors(newErrors);
     return isValid;
   };
-  
+
   const handleModify = () => {
     if (!validateForm()) {
       return;
     }
-    
+
     // In a real app, this would call an API to modify the booking
     Alert.alert(
       "Booking Modified",
-      `Your booking has been modified successfully. ${
-        fareDifference > 0 
-          ? `An additional payment of MVR ${fareDifference.toFixed(2)} is required.` 
-          : fareDifference < 0 
-            ? `A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed.` 
-            : "No fare difference to process."
+      `Your booking has been modified successfully. ${fareDifference > 0
+        ? `An additional payment of MVR ${fareDifference.toFixed(2)} is required.`
+        : fareDifference < 0
+          ? `A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed.`
+          : "No fare difference to process."
       }`,
       [
-        { 
-          text: "OK", 
-          onPress: () => router.replace('/bookings') 
+        {
+          text: "OK",
+          onPress: () => router.replace('/bookings')
         }
       ]
     );
   };
-  
+
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
       <Card variant="elevated" style={styles.bookingCard}>
         <Text style={styles.cardTitle}>Current Booking</Text>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Booking Number:</Text>
           <Text style={styles.detailValue}>{booking.bookingNumber}</Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Route:</Text>
           <Text style={styles.detailValue}>
             {booking.route.fromIsland.name} → {booking.route.toIsland.name}
           </Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Current Date:</Text>
           <Text style={styles.detailValue}>
             {new Date(booking.departureDate).toLocaleDateString()}
           </Text>
         </View>
-        
+
         {booking.tripType === 'round_trip' && booking.returnDate && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Return Date:</Text>
@@ -223,14 +222,14 @@ export default function ModifyBookingScreen() {
             </Text>
           </View>
         )}
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Current Seats:</Text>
           <Text style={styles.detailValue}>
             {booking.seats.map(seat => seat.number).join(', ')}
           </Text>
         </View>
-        
+
         {booking.tripType === 'round_trip' && booking.returnSeats && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Return Seats:</Text>
@@ -240,10 +239,10 @@ export default function ModifyBookingScreen() {
           </View>
         )}
       </Card>
-      
+
       <Card variant="elevated" style={styles.modifyCard}>
         <Text style={styles.cardTitle}>Modify Booking</Text>
-        
+
         <DatePicker
           label="New Departure Date"
           value={newDepartureDate}
@@ -255,7 +254,7 @@ export default function ModifyBookingScreen() {
           error={errors.departureDate}
           required
         />
-        
+
         {booking.tripType === 'round_trip' && (
           <DatePicker
             label="New Return Date"
@@ -269,7 +268,7 @@ export default function ModifyBookingScreen() {
             required
           />
         )}
-        
+
         <Text style={styles.seatSectionTitle}>Select New Departure Seats</Text>
         <SeatSelector
           seats={mockSeats}
@@ -277,7 +276,7 @@ export default function ModifyBookingScreen() {
           onSeatToggle={(seat) => toggleSeatSelection(seat)}
           maxSeats={booking.passengers.length}
         />
-        
+
         {booking.tripType === 'round_trip' && (
           <>
             <Text style={styles.seatSectionTitle}>Select New Return Seats</Text>
@@ -289,11 +288,11 @@ export default function ModifyBookingScreen() {
             />
           </>
         )}
-        
+
         {errors.seats ? (
           <Text style={styles.errorText}>{errors.seats}</Text>
         ) : null}
-        
+
         <View style={styles.reasonContainer}>
           <Text style={styles.reasonLabel}>Reason for Modification</Text>
           <View style={styles.reasonInput}>
@@ -313,18 +312,18 @@ export default function ModifyBookingScreen() {
             <Text style={styles.errorText}>{errors.reason}</Text>
           ) : null}
         </View>
-        
+
         <View style={styles.fareDifferenceContainer}>
           <Text style={styles.fareDifferenceTitle}>Fare Difference</Text>
-          
+
           <View style={styles.fareRow}>
             <View style={styles.fareColumn}>
               <Text style={styles.fareLabel}>Original Fare</Text>
               <Text style={styles.fareValue}>MVR {booking.totalFare.toFixed(2)}</Text>
             </View>
-            
+
             <ArrowRight size={20} color={Colors.textSecondary} />
-            
+
             <View style={styles.fareColumn}>
               <Text style={styles.fareLabel}>New Fare</Text>
               <Text style={styles.fareValue}>
@@ -332,10 +331,10 @@ export default function ModifyBookingScreen() {
               </Text>
             </View>
           </View>
-          
+
           <View style={styles.differenceRow}>
             <Text style={styles.differenceLabel}>Difference:</Text>
-            <Text 
+            <Text
               style={[
                 styles.differenceValue,
                 fareDifference > 0 ? styles.additionalPayment : styles.refundAmount
@@ -344,17 +343,17 @@ export default function ModifyBookingScreen() {
               {fareDifference > 0 ? '+' : ''}{fareDifference.toFixed(2)} MVR
             </Text>
           </View>
-          
+
           <Text style={styles.differenceNote}>
-            {fareDifference > 0 
-              ? "Additional payment required" 
-              : fareDifference < 0 
-                ? "Refund will be processed to your original payment method" 
+            {fareDifference > 0
+              ? "Additional payment required"
+              : fareDifference < 0
+                ? "Refund will be processed to your original payment method"
                 : "No additional payment or refund required"}
           </Text>
         </View>
       </Card>
-      
+
       <View style={styles.buttonContainer}>
         <Button
           title="Cancel"
@@ -362,7 +361,7 @@ export default function ModifyBookingScreen() {
           variant="outline"
           style={styles.cancelButton}
         />
-        
+
         <Button
           title="Confirm Changes"
           onPress={handleModify}
@@ -376,11 +375,11 @@ export default function ModifyBookingScreen() {
 }
 
 // TextInput component for the reason field
-const TextInput = ({ 
-  placeholder, 
-  value, 
-  onChangeText, 
-  multiline, 
+const TextInput = ({
+  placeholder,
+  value,
+  onChangeText,
+  multiline,
   numberOfLines,
   style
 }: CustomTextInputProps) => {
@@ -392,7 +391,7 @@ const TextInput = ({
           multiline && { height: numberOfLines ? numberOfLines * 20 : 60 },
           !value && styles.placeholder
         ]}
-        onPress={() => {}}
+        onPress={() => { }}
       >
         {value || placeholder}
       </Text>

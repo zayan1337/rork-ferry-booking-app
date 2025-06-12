@@ -1,22 +1,22 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  Share, 
-  Alert 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Share,
+  Alert
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Users, 
-  Share2, 
-  Edit, 
-  XCircle 
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Users,
+  Share2,
+  Edit,
+  XCircle
 } from 'lucide-react-native';
 import { useBookingStore } from '@/store/bookingStore';
 import Colors from '@/constants/colors';
@@ -27,23 +27,23 @@ import TicketCard from '@/components/TicketCard';
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
   const { bookings } = useBookingStore();
-  
+
   // Find the booking by id
   const booking = bookings.find(b => b.id === id);
-  
+
   if (!booking) {
     return (
       <View style={styles.notFoundContainer}>
         <Text style={styles.notFoundText}>Booking not found</Text>
-        <Button 
-          title="Go Back" 
-          onPress={() => router.back()} 
+        <Button
+          title="Go Back"
+          onPress={() => router.back()}
           style={styles.notFoundButton}
         />
       </View>
     );
   }
-  
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -53,7 +53,7 @@ export default function BookingDetailsScreen() {
       year: 'numeric'
     });
   };
-  
+
   const handleShareTicket = async () => {
     try {
       await Share.share({
@@ -70,13 +70,13 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
       Alert.alert('Error', 'Could not share the ticket');
     }
   };
-  
+
   const handleModifyBooking = () => {
     // Check if booking is eligible for modification (72 hours rule)
     const departureDate = new Date(booking.departureDate);
     const now = new Date();
     const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
+
     if (hoursDifference < 72) {
       Alert.alert(
         "Cannot Modify",
@@ -84,16 +84,16 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
       );
       return;
     }
-    
+
     router.push(`/modify-booking/${booking.id}`);
   };
-  
+
   const handleCancelBooking = () => {
     // Check if booking is eligible for cancellation (72 hours rule)
     const departureDate = new Date(booking.departureDate);
     const now = new Date();
     const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
+
     if (hoursDifference < 72) {
       Alert.alert(
         "Cannot Cancel",
@@ -101,29 +101,29 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
       );
       return;
     }
-    
+
     router.push(`/cancel-booking/${booking.id}`);
   };
-  
+
   const isModifiable = () => {
     // Check if booking is eligible for modification (72 hours rule and status)
     if (booking.status !== 'confirmed') return false;
-    
+
     const departureDate = new Date(booking.departureDate);
     const now = new Date();
     const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
+
     return hoursDifference >= 72;
   };
-  
+
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
       <View style={styles.header}>
         <Text style={styles.bookingNumber}>Booking #{booking.bookingNumber}</Text>
-        <View 
+        <View
           style={[
             styles.statusBadge,
             booking.status === 'confirmed' && styles.statusConfirmed,
@@ -131,7 +131,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
             booking.status === 'cancelled' && styles.statusCancelled,
           ]}
         >
-          <Text 
+          <Text
             style={[
               styles.statusText,
               booking.status === 'confirmed' && styles.statusTextConfirmed,
@@ -143,14 +143,14 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
           </Text>
         </View>
       </View>
-      
+
       {/* Ticket Card */}
       <TicketCard booking={booking} />
-      
+
       {/* Booking Details */}
       <Card variant="elevated" style={styles.detailsCard}>
         <Text style={styles.cardTitle}>Booking Details</Text>
-        
+
         <View style={styles.detailRow}>
           <View style={styles.detailIcon}>
             <Calendar size={20} color={Colors.primary} />
@@ -160,7 +160,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
             <Text style={styles.detailValue}>{formatDate(booking.departureDate)}</Text>
           </View>
         </View>
-        
+
         <View style={styles.detailRow}>
           <View style={styles.detailIcon}>
             <Clock size={20} color={Colors.primary} />
@@ -170,7 +170,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
             <Text style={styles.detailValue}>{booking.departureTime}</Text>
           </View>
         </View>
-        
+
         {booking.tripType === 'round_trip' && booking.returnDate && (
           <>
             <View style={styles.detailRow}>
@@ -182,7 +182,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
                 <Text style={styles.detailValue}>{formatDate(booking.returnDate)}</Text>
               </View>
             </View>
-            
+
             <View style={styles.detailRow}>
               <View style={styles.detailIcon}>
                 <Clock size={20} color={Colors.primary} />
@@ -194,7 +194,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
             </View>
           </>
         )}
-        
+
         <View style={styles.detailRow}>
           <View style={styles.detailIcon}>
             <MapPin size={20} color={Colors.primary} />
@@ -206,7 +206,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
             </Text>
           </View>
         </View>
-        
+
         {booking.tripType === 'round_trip' && booking.returnRoute && (
           <View style={styles.detailRow}>
             <View style={styles.detailIcon}>
@@ -220,7 +220,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
             </View>
           </View>
         )}
-        
+
         <View style={styles.detailRow}>
           <View style={styles.detailIcon}>
             <Users size={20} color={Colors.primary} />
@@ -231,11 +231,11 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
           </View>
         </View>
       </Card>
-      
+
       {/* Passenger Details */}
       <Card variant="elevated" style={styles.passengersCard}>
         <Text style={styles.cardTitle}>Passenger Details</Text>
-        
+
         {booking.passengers.map((passenger, index) => (
           <View key={index} style={styles.passengerItem}>
             <View style={styles.passengerHeader}>
@@ -244,11 +244,11 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
                 Seat: {booking.seats[index]?.number}
               </Text>
             </View>
-            
+
             {passenger.idNumber && (
               <Text style={styles.passengerDetail}>ID: {passenger.idNumber}</Text>
             )}
-            
+
             {passenger.specialAssistance && (
               <Text style={styles.passengerDetail}>
                 Special Assistance: {passenger.specialAssistance}
@@ -257,38 +257,46 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
           </View>
         ))}
       </Card>
-      
+
       {/* Payment Details */}
       <Card variant="elevated" style={styles.paymentCard}>
         <Text style={styles.cardTitle}>Payment Details</Text>
-        
-        <View style={styles.paymentRow}>
-          <Text style={styles.paymentLabel}>Payment Method</Text>
-          <Text style={styles.paymentValue}>
-            {booking.paymentMethod?.replace('_', ' ').toUpperCase()}
-          </Text>
-        </View>
-        
-        <View style={styles.paymentRow}>
-          <Text style={styles.paymentLabel}>Payment Status</Text>
-          <Text 
-            style={[
-              styles.paymentValue,
-              booking.paymentStatus === 'paid' && styles.paymentPaid,
-              booking.paymentStatus === 'pending' && styles.paymentPending,
-              booking.paymentStatus === 'failed' && styles.paymentFailed,
-            ]}
-          >
-            {booking.paymentStatus.toUpperCase()}
-          </Text>
-        </View>
-        
+
+        {booking.payment ? (
+          <>
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Payment Method</Text>
+              <Text style={styles.paymentValue}>
+                {booking.payment.method.split('_').map(word =>
+                  word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ')}
+              </Text>
+            </View>
+
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Payment Status</Text>
+              <Text
+                style={[
+                  styles.paymentValue,
+                  booking.payment.status === 'completed' && styles.paymentPaid,
+                  booking.payment.status === 'pending' && styles.paymentPending,
+                  booking.payment.status === 'failed' && styles.paymentFailed,
+                ]}
+              >
+                {booking.payment.status.toUpperCase()}
+              </Text>
+            </View>
+          </>
+        ) : (
+          <Text style={styles.paymentValue}>No payment information available</Text>
+        )}
+
         <View style={styles.paymentRow}>
           <Text style={styles.paymentLabel}>Total Amount</Text>
           <Text style={styles.totalAmount}>MVR {booking.totalFare.toFixed(2)}</Text>
         </View>
       </Card>
-      
+
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
         <Button
@@ -299,23 +307,23 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
           textStyle={styles.actionButtonText}
           fullWidth
         />
-        
+
         {isModifiable() && (
           <>
             <Button
               title="Modify Booking"
               onPress={handleModifyBooking}
               variant="outline"
-              style={[styles.actionButton, styles.modifyButton]}
+              style={styles.actionButton}
               textStyle={styles.modifyButtonText}
               fullWidth
             />
-            
+
             <Button
               title="Cancel Booking"
               onPress={handleCancelBooking}
               variant="outline"
-              style={[styles.actionButton, styles.cancelButton]}
+              style={styles.actionButton}
               textStyle={styles.cancelButtonText}
               fullWidth
             />

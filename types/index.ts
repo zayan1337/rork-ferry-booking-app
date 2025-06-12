@@ -7,38 +7,42 @@ export type User = {
   username: string;
 };
 
-export type Island = {
+export interface Island {
   id: string;
   name: string;
-  zone: string;
-};
+  zone: 'A' | 'B';
+}
 
-export type Route = {
+export interface Route {
   id: string;
   fromIsland: Island;
   toIsland: Island;
   baseFare: number;
-  duration: string;
-};
+  duration?: string; // Optional since it's not in DB
+}
 
-export type Seat = {
+export interface Seat {
   id: string;
   number: string;
+  rowNumber: number;
+  isWindow: boolean;
+  isAisle: boolean;
   isAvailable: boolean;
   isSelected?: boolean;
-};
+}
 
-export type Passenger = {
+export interface Passenger {
+  id?: string;
   fullName: string;
   idNumber?: string;
   specialAssistance?: string;
-};
+}
 
-export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+export type BookingStatus = 'reserved' | 'pending_payment' | 'confirmed' | 'checked_in' | 'completed' | 'modified' | 'cancelled';
 
-export type PaymentMethod = 'bank_transfer' | 'bml' | 'mib' | 'ooredoo' | 'fahipay';
+export type PaymentMethod = 'bank_transfer' | 'bml' | 'mib' | 'ooredoo_m_faisa' | 'fahipay' | 'wallet';
 
-export type PaymentStatus = 'paid' | 'pending' | 'failed';
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'partially_refunded';
 
 export type Booking = {
   id: string;
@@ -55,11 +59,22 @@ export type Booking = {
   passengers: Passenger[];
   totalFare: number;
   status: BookingStatus;
-  paymentStatus: PaymentStatus;
-  paymentMethod?: PaymentMethod;
+  qrCodeUrl?: string;
+  checkInStatus: boolean;
   createdAt: string;
+  updatedAt: string;
+  vessel: {
+    id: string;
+    name: string;
+  };
+  payment?: {
+    method: PaymentMethod;
+    status: PaymentStatus;
+  };
 };
 
 export * from './components';
 export * from './auth';
 export * from './pages';
+export * from './database';
+export * from './store';

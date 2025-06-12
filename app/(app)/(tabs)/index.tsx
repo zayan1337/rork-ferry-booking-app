@@ -1,18 +1,18 @@
 import React, { useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
   TouchableOpacity,
   Image,
   RefreshControl
 } from 'react-native';
 import { router } from 'expo-router';
-import { 
-  Calendar, 
-  MapPin, 
-  ArrowRight, 
+import {
+  Calendar,
+  MapPin,
+  ArrowRight,
   Search,
   Ticket,
   Clock,
@@ -26,45 +26,45 @@ import Button from '@/components/Button';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
-  const { 
-    bookings, 
-    fetchUserBookings, 
-    isLoading, 
-    resetCurrentBooking 
+  const {
+    bookings,
+    fetchUserBookings,
+    isLoading,
+    resetCurrentBooking
   } = useBookingStore();
-  
+
   useEffect(() => {
     // Fetch user bookings when component mounts
     fetchUserBookings();
   }, []);
-  
+
   const handleRefresh = () => {
     fetchUserBookings();
   };
-  
+
   const handleStartBooking = () => {
     // Reset current booking state before starting a new booking
     resetCurrentBooking();
     router.push('/book');
   };
-  
+
   const handleViewBooking = (bookingId: string) => {
     router.push(`/booking-details/${bookingId}`);
   };
-  
+
   // Get upcoming bookings (confirmed status and future date)
   const upcomingBookings = bookings
-    .filter(booking => 
-      booking.status === 'confirmed' && 
+    .filter(booking =>
+      booking.status === 'pending_payment' &&
       new Date(booking.departureDate) >= new Date()
     )
-    .sort((a, b) => 
+    .sort((a, b) =>
       new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime()
     )
     .slice(0, 2); // Show only the next 2 upcoming bookings
-  
+
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
       refreshControl={
@@ -77,20 +77,20 @@ export default function HomeScreen() {
           <Text style={styles.welcomeText}>Welcome back,</Text>
           <Text style={styles.userName}>{user?.profile?.full_name}</Text>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.searchButton}
           onPress={() => router.push('/validate-ticket')}
         >
           <Search size={20} color={Colors.text} />
         </TouchableOpacity>
       </View>
-      
+
       {/* Quick Booking Card */}
       <Card variant="elevated" style={styles.quickBookingCard}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>Book a Ferry</Text>
         </View>
-        
+
         <View style={styles.bookingForm}>
           <View style={styles.formRow}>
             <View style={styles.formIcon}>
@@ -101,11 +101,11 @@ export default function HomeScreen() {
               <Text style={styles.formPlaceholder}>Select departure island</Text>
             </View>
           </View>
-          
+
           <View style={styles.formDivider}>
             <ArrowRight size={16} color={Colors.textSecondary} />
           </View>
-          
+
           <View style={styles.formRow}>
             <View style={styles.formIcon}>
               <MapPin size={20} color={Colors.secondary} />
@@ -115,9 +115,9 @@ export default function HomeScreen() {
               <Text style={styles.formPlaceholder}>Select destination island</Text>
             </View>
           </View>
-          
+
           <View style={styles.formDivider} />
-          
+
           <View style={styles.formRow}>
             <View style={styles.formIcon}>
               <Calendar size={20} color={Colors.primary} />
@@ -128,7 +128,7 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
-        
+
         <Button
           title="Start Booking"
           onPress={handleStartBooking}
@@ -136,7 +136,7 @@ export default function HomeScreen() {
           style={styles.bookButton}
         />
       </Card>
-      
+
       {/* Upcoming Trips Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Upcoming Trips</Text>
@@ -144,10 +144,10 @@ export default function HomeScreen() {
           <Text style={styles.sectionLink}>View All</Text>
         </TouchableOpacity>
       </View>
-      
+
       {upcomingBookings.length > 0 ? (
         upcomingBookings.map(booking => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={booking.id}
             onPress={() => handleViewBooking(booking.id)}
             activeOpacity={0.7}
@@ -167,7 +167,7 @@ export default function HomeScreen() {
                   <Text style={styles.tripBadgeText}>#{booking.bookingNumber}</Text>
                 </View>
               </View>
-              
+
               <View style={styles.tripDetails}>
                 <View style={styles.tripDetail}>
                   <Calendar size={16} color={Colors.textSecondary} style={styles.tripIcon} />
@@ -179,18 +179,18 @@ export default function HomeScreen() {
                     })}
                   </Text>
                 </View>
-                
+
                 <View style={styles.tripDetail}>
                   <Clock size={16} color={Colors.textSecondary} style={styles.tripIcon} />
                   <Text style={styles.tripText}>{booking.departureTime}</Text>
                 </View>
-                
+
                 <View style={styles.tripDetail}>
                   <Ticket size={16} color={Colors.textSecondary} style={styles.tripIcon} />
                   <Text style={styles.tripText}>{booking.passengers.length} passenger(s)</Text>
                 </View>
               </View>
-              
+
               <View style={styles.tripFooter}>
                 <Button
                   title="View Ticket"
@@ -214,14 +214,14 @@ export default function HomeScreen() {
           />
         </Card>
       )}
-      
+
       {/* Quick Actions Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
       </View>
-      
+
       <View style={styles.quickActionsGrid}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.quickActionCard}
           onPress={() => router.push('/validate-ticket')}
         >
@@ -230,8 +230,8 @@ export default function HomeScreen() {
           </View>
           <Text style={styles.quickActionText}>Validate Ticket</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.quickActionCard}
           onPress={() => router.push('/bookings')}
         >
@@ -240,8 +240,8 @@ export default function HomeScreen() {
           </View>
           <Text style={styles.quickActionText}>My Bookings</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.quickActionCard}
           onPress={() => router.push('/support')}
         >
@@ -251,7 +251,7 @@ export default function HomeScreen() {
           <Text style={styles.quickActionText}>Support</Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Featured Image */}
       <Card variant="elevated" style={styles.featuredCard}>
         <Image

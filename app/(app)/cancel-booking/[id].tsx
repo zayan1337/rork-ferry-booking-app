@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  Alert 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { AlertTriangle } from 'lucide-react-native';
-import { useBookingStore } from '@/store/bookingStore';
+import { useBookingStore } from '@/store/bookingStore2';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
@@ -17,7 +17,7 @@ import Button from '@/components/Button';
 export default function CancelBookingScreen() {
   const { id } = useLocalSearchParams();
   const { bookings, cancelBooking, isLoading } = useBookingStore();
-  
+
   const [reason, setReason] = useState('');
   const [bankDetails, setBankDetails] = useState({
     accountNumber: '',
@@ -30,66 +30,66 @@ export default function CancelBookingScreen() {
     accountName: '',
     bankName: '',
   });
-  
+
   // Find the booking by id
   const booking = bookings.find(b => b.id === id);
-  
+
   if (!booking) {
     return (
       <View style={styles.notFoundContainer}>
         <Text style={styles.notFoundText}>Booking not found</Text>
-        <Button 
-          title="Go Back" 
-          onPress={() => router.back()} 
+        <Button
+          title="Go Back"
+          onPress={() => router.back()}
           style={styles.notFoundButton}
         />
       </View>
     );
   }
-  
+
   const validateForm = () => {
     let isValid = true;
     const newErrors = { ...errors };
-    
+
     if (!reason.trim()) {
       newErrors.reason = 'Please provide a cancellation reason';
       isValid = false;
     }
-    
+
     if (!bankDetails.accountNumber.trim()) {
       newErrors.accountNumber = 'Account number is required';
       isValid = false;
     }
-    
+
     if (!bankDetails.accountName.trim()) {
       newErrors.accountName = 'Account name is required';
       isValid = false;
     }
-    
+
     if (!bankDetails.bankName.trim()) {
       newErrors.bankName = 'Bank name is required';
       isValid = false;
     }
-    
+
     setErrors(newErrors);
     return isValid;
   };
-  
+
   const handleCancel = async () => {
     if (!validateForm()) {
       return;
     }
-    
+
     try {
       await cancelBooking(booking.id, reason);
-      
+
       Alert.alert(
         "Booking Cancelled",
         "Your booking has been cancelled successfully. A refund of 50% will be processed within 72 hours.",
         [
-          { 
-            text: "OK", 
-            onPress: () => router.replace('/bookings') 
+          {
+            text: "OK",
+            onPress: () => router.replace('/bookings')
           }
         ]
       );
@@ -100,12 +100,12 @@ export default function CancelBookingScreen() {
       );
     }
   };
-  
+
   // Calculate refund amount (50% of total fare)
   const refundAmount = booking.totalFare * 0.5;
-  
+
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
@@ -123,43 +123,43 @@ export default function CancelBookingScreen() {
           <Text style={styles.policyItem}>• This action cannot be undone</Text>
         </View>
       </Card>
-      
+
       <Card variant="elevated" style={styles.bookingCard}>
         <Text style={styles.cardTitle}>Booking Details</Text>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Booking Number:</Text>
           <Text style={styles.detailValue}>{booking.bookingNumber}</Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Route:</Text>
           <Text style={styles.detailValue}>
             {booking.route.fromIsland.name} → {booking.route.toIsland.name}
           </Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Date:</Text>
           <Text style={styles.detailValue}>
             {new Date(booking.departureDate).toLocaleDateString()}
           </Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Total Fare:</Text>
           <Text style={styles.detailValue}>MVR {booking.totalFare.toFixed(2)}</Text>
         </View>
-        
+
         <View style={styles.refundRow}>
           <Text style={styles.refundLabel}>Refund Amount (50%):</Text>
           <Text style={styles.refundValue}>MVR {refundAmount.toFixed(2)}</Text>
         </View>
       </Card>
-      
+
       <Card variant="elevated" style={styles.formCard}>
         <Text style={styles.cardTitle}>Cancellation Reason</Text>
-        
+
         <Input
           label="Reason for Cancellation"
           placeholder="Please provide a reason for cancellation"
@@ -173,9 +173,9 @@ export default function CancelBookingScreen() {
           error={errors.reason}
           required
         />
-        
+
         <Text style={styles.cardTitle}>Refund Bank Details</Text>
-        
+
         <Input
           label="Account Number"
           placeholder="Enter your bank account number"
@@ -187,7 +187,7 @@ export default function CancelBookingScreen() {
           error={errors.accountNumber}
           required
         />
-        
+
         <Input
           label="Account Holder Name"
           placeholder="Enter account holder name"
@@ -199,7 +199,7 @@ export default function CancelBookingScreen() {
           error={errors.accountName}
           required
         />
-        
+
         <Input
           label="Bank Name"
           placeholder="Enter bank name"
@@ -212,7 +212,7 @@ export default function CancelBookingScreen() {
           required
         />
       </Card>
-      
+
       <View style={styles.buttonContainer}>
         <Button
           title="Go Back"
@@ -220,7 +220,7 @@ export default function CancelBookingScreen() {
           variant="outline"
           style={styles.backButton}
         />
-        
+
         <Button
           title="Confirm Cancellation"
           onPress={handleCancel}

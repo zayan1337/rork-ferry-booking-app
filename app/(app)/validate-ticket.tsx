@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
   TextInput,
   ScrollView,
   Platform
 } from 'react-native';
 import { router } from 'expo-router';
 import { Search, CheckCircle, XCircle } from 'lucide-react-native';
-import { useBookingStore } from '@/store/bookingStore';
+import { useBookingStore } from '@/store/bookingStore2';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -48,30 +48,30 @@ export default function ValidateTicketScreen() {
   const [bookingNumber, setBookingNumber] = useState('');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  
+
   const { bookings } = useBookingStore();
-  
+
   const handleValidate = () => {
     if (!bookingNumber.trim()) {
       return;
     }
-    
+
     setIsValidating(true);
-    
+
     // Simulate API call delay
     setTimeout(() => {
       const booking = bookings.find(b => b.bookingNumber === bookingNumber);
-      
+
       if (booking) {
         // Check if booking is valid (confirmed status and future/current date)
-        const isValid = booking.status === 'confirmed' && 
-                        new Date(booking.departureDate) >= new Date(new Date().setHours(0, 0, 0, 0));
-        
+        const isValid = booking.status === 'confirmed' &&
+          new Date(booking.departureDate) >= new Date(new Date().setHours(0, 0, 0, 0));
+
         setValidationResult({
           isValid,
           booking,
-          message: isValid 
-            ? "Ticket is valid for travel today" 
+          message: isValid
+            ? "Ticket is valid for travel today"
             : "Ticket is not valid for travel"
         });
       } else {
@@ -81,30 +81,30 @@ export default function ValidateTicketScreen() {
           message: "Booking not found"
         });
       }
-      
+
       setIsValidating(false);
     }, 1500);
   };
-  
+
   const handleScanQR = () => {
     // In a real app, this would open the camera for QR scanning
     // For this demo, we'll just set a mock booking number
     setBookingNumber('1234567');
   };
-  
+
   const handleViewBooking = () => {
     if (validationResult?.booking) {
       router.push(`/booking-details/${validationResult.booking.id}`);
     }
   };
-  
+
   const handleClear = () => {
     setBookingNumber('');
     setValidationResult(null);
   };
-  
+
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
       keyboardShouldPersistTaps="handled"
@@ -113,7 +113,7 @@ export default function ValidateTicketScreen() {
       <Text style={styles.subtitle}>
         Enter booking number or scan QR code to validate a ticket
       </Text>
-      
+
       <Card variant="elevated" style={styles.inputCard}>
         <View style={styles.inputContainer}>
           <TextInput
@@ -126,15 +126,15 @@ export default function ValidateTicketScreen() {
             autoCapitalize="none"
           />
           {bookingNumber ? (
-            <TouchableOpacity 
-              style={styles.clearButton} 
+            <TouchableOpacity
+              style={styles.clearButton}
               onPress={handleClear}
             >
               <XCircle size={20} color={Colors.textSecondary} />
             </TouchableOpacity>
           ) : null}
         </View>
-        
+
         <View style={styles.buttonContainer}>
           <Button
             title="Validate"
@@ -143,7 +143,7 @@ export default function ValidateTicketScreen() {
             disabled={!bookingNumber.trim() || isValidating}
             style={styles.validateButton}
           />
-          
+
           <Button
             title="Scan QR"
             onPress={handleScanQR}
@@ -152,10 +152,10 @@ export default function ValidateTicketScreen() {
           />
         </View>
       </Card>
-      
+
       {validationResult && (
-        <Card 
-          variant="elevated" 
+        <Card
+          variant="elevated"
           style={[
             styles.resultCard,
             validationResult.isValid ? styles.validCard : styles.invalidCard
@@ -167,7 +167,7 @@ export default function ValidateTicketScreen() {
             ) : (
               <XCircle size={24} color={Colors.error} style={styles.resultIcon} />
             )}
-            <Text 
+            <Text
               style={[
                 styles.resultMessage,
                 validationResult.isValid ? styles.validMessage : styles.invalidMessage
@@ -176,41 +176,41 @@ export default function ValidateTicketScreen() {
               {validationResult.message}
             </Text>
           </View>
-          
+
           {validationResult.booking && (
             <>
               <View style={styles.divider} />
-              
+
               <View style={styles.bookingSummary}>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Booking #:</Text>
                   <Text style={styles.summaryValue}>{validationResult.booking.bookingNumber}</Text>
                 </View>
-                
+
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Route:</Text>
                   <Text style={styles.summaryValue}>
                     {validationResult.booking.route.fromIsland.name} → {validationResult.booking.route.toIsland.name}
                   </Text>
                 </View>
-                
+
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Date:</Text>
                   <Text style={styles.summaryValue}>
                     {new Date(validationResult.booking.departureDate).toLocaleDateString()}
                   </Text>
                 </View>
-                
+
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Time:</Text>
                   <Text style={styles.summaryValue}>{validationResult.booking.departureTime}</Text>
                 </View>
-                
+
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Passengers:</Text>
                   <Text style={styles.summaryValue}>{validationResult.booking.passengers.length}</Text>
                 </View>
-                
+
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Seats:</Text>
                   <Text style={styles.summaryValue}>
@@ -218,7 +218,7 @@ export default function ValidateTicketScreen() {
                   </Text>
                 </View>
               </View>
-              
+
               <Button
                 title="View Full Ticket"
                 onPress={handleViewBooking}
