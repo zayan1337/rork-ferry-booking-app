@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Image, 
-  TouchableOpacity, 
-  KeyboardAvoidingView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   BackHandler
@@ -22,7 +22,7 @@ export default function ForgotPasswordScreen() {
   const [emailError, setEmailError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
-  
+
   const { resetPassword, isLoading, error, clearError } = useAuthStore();
 
   // Prevent going back if navigating
@@ -39,7 +39,27 @@ export default function ForgotPasswordScreen() {
       setIsNavigating(false); // Reset navigation state when unmounting
     };
   }, [isNavigating]);
-  
+
+  // Handle auto-navigation after success
+  useEffect(() => {
+    let navigationTimer: ReturnType<typeof setTimeout>;
+
+    if (isSuccess) {
+      navigationTimer = setTimeout(() => {
+        if (!isNavigating) {
+          setIsNavigating(true);
+          router.push('/');
+        }
+      }, 5000);
+    }
+
+    return () => {
+      if (navigationTimer) {
+        clearTimeout(navigationTimer);
+      }
+    };
+  }, [isSuccess]);
+
   const validateEmail = () => {
     if (!email.trim()) {
       setEmailError('Email is required');
@@ -58,7 +78,7 @@ export default function ForgotPasswordScreen() {
       router.push(path);
     }
   };
-  
+
   const handleResetPassword = async () => {
     // Prevent multiple attempts while loading or navigating
     if (isLoading || isNavigating) {
@@ -68,29 +88,33 @@ export default function ForgotPasswordScreen() {
     // Clear any previous errors
     clearError();
     setEmailError('');
-    
+
     // Validate email
     if (!validateEmail()) {
       return;
     }
-    
+
     try {
       await resetPassword(email);
+      // Clear the email field after success
+      setEmail('');
+      // Set success state
       setIsSuccess(true);
     } catch (err) {
-      // Reset navigation state if reset fails
+      // Reset states if reset fails
       setIsNavigating(false);
+      setIsSuccess(false);
       console.error('Password reset error:', err);
     }
   };
-  
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -102,23 +126,29 @@ export default function ForgotPasswordScreen() {
           <Text style={styles.appName}>Ferry Booking</Text>
           <Text style={styles.tagline}>Your gateway to island adventures</Text>
         </View>
-        
+
         <Card variant="elevated" style={styles.card}>
           <Text style={styles.title}>Reset Password</Text>
-          
-          {error && (
+
+          {error && !isSuccess && (
             <View style={styles.errorContainer}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+              <Text style={styles.errorTitle}>Error</Text>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
-          
+
           {isSuccess ? (
             <View style={styles.successContainer}>
+              <Text style={styles.successIcon}>✓</Text>
               <Text style={styles.successTitle}>Check Your Email</Text>
               <Text style={styles.successText}>
                 We've sent password reset instructions to your email address. Please check your inbox and follow the instructions to reset your password.
               </Text>
-              <TouchableOpacity 
+              <Text style={styles.successNote}>
+                You will be redirected to the login page in 5 seconds...
+              </Text>
+              <TouchableOpacity
                 style={styles.backToLoginButton}
                 onPress={() => handleNavigation('/')}
                 disabled={isNavigating}
@@ -131,7 +161,7 @@ export default function ForgotPasswordScreen() {
               <Text style={styles.description}>
                 Enter your email address and we'll send you instructions to reset your password.
               </Text>
-              
+
               <Input
                 label="Email Address"
                 placeholder="Enter your email address"
@@ -146,7 +176,7 @@ export default function ForgotPasswordScreen() {
                 disabled={isLoading || isNavigating}
                 required
               />
-              
+
               <Button
                 title="Reset Password"
                 onPress={handleResetPassword}
@@ -155,10 +185,10 @@ export default function ForgotPasswordScreen() {
                 fullWidth
                 style={styles.resetButton}
               />
-              
+
               <View style={styles.loginContainer}>
                 <Text style={styles.loginText}>Remember your password? </Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   disabled={isLoading || isNavigating}
                   onPress={() => handleNavigation('/')}
                 >
@@ -222,9 +252,20 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     backgroundColor: '#ffebee',
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
     marginBottom: 16,
+    alignItems: 'center',
+  },
+  errorIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.error,
+    marginBottom: 8,
   },
   errorText: {
     color: Colors.error,
@@ -233,7 +274,15 @@ const styles = StyleSheet.create({
   },
   successContainer: {
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
+    backgroundColor: '#e8f5e9',
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  successIcon: {
+    fontSize: 32,
+    color: Colors.success,
+    marginBottom: 12,
   },
   successTitle: {
     fontSize: 20,
@@ -245,7 +294,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  successNote: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    marginBottom: 16,
   },
   resetButton: {
     marginTop: 8,

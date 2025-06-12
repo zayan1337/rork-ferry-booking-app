@@ -113,7 +113,7 @@ export default function ProfileScreen() {
           </Text>
         </View>
         <Text style={styles.profileName}>{user?.profile?.full_name || 'Guest User'}</Text>
-        <Text style={styles.profileUsername}>@{user?.profile?.username || 'guest'}</Text>
+        <Text style={styles.profileUsername}>{user?.email || 'guest@example.com'}</Text>
       </View>
 
       <Card variant="elevated" style={styles.section}>

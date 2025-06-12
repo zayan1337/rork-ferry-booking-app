@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Image, 
-  TouchableOpacity, 
-  KeyboardAvoidingView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   ActivityIndicator,
@@ -23,20 +23,20 @@ export default function LoginScreen() {
     username: '',
     password: '',
   });
-  
+
   const [errors, setErrors] = useState({
     username: '',
     password: '',
   });
-  
+
   const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
   const [isNavigating, setIsNavigating] = useState(false);
-  
+
   // Reset navigation state when screen receives focus
   useFocusEffect(
     React.useCallback(() => {
       setIsNavigating(false);
-      return () => {};
+      return () => { };
     }, [])
   );
 
@@ -59,20 +59,20 @@ export default function LoginScreen() {
 
     return () => backHandler.remove();
   }, [isAuthenticated, isNavigating]);
-  
+
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error for this field
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
-  
+
   const validateForm = () => {
     let isValid = true;
     const newErrors = { ...errors };
-    
+
     // Validate username (email or phone)
     if (!formData.username.trim()) {
       newErrors.username = 'Email or phone number is required';
@@ -85,17 +85,17 @@ export default function LoginScreen() {
         isValid = false;
       }
     }
-    
+
     // Validate password
     if (!formData.password) {
       newErrors.password = 'Password is required';
       isValid = false;
     }
-    
+
     setErrors(newErrors);
     return isValid;
   };
-  
+
   const handleLogin = async () => {
     // Prevent multiple attempts while loading or navigating
     if (isLoading || isNavigating) {
@@ -104,12 +104,12 @@ export default function LoginScreen() {
 
     // Clear any previous errors
     clearError();
-    
+
     // Validate form
     if (!validateForm()) {
       return;
     }
-    
+
     // Attempt login
     try {
       await login(formData.username, formData.password);
@@ -125,14 +125,14 @@ export default function LoginScreen() {
       router.push(path);
     }
   };
-  
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -144,19 +144,19 @@ export default function LoginScreen() {
           <Text style={styles.appName}>Ferry Booking</Text>
           <Text style={styles.tagline}>Your gateway to island adventures</Text>
         </View>
-        
+
         <Card variant="elevated" style={styles.card}>
           <Text style={styles.title}>Welcome Back</Text>
-          
+
           {error && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
-          
+
           <Input
-            label="Email or Phone"
-            placeholder="Enter your email or phone number"
+            label="Email"
+            placeholder="Enter your email"
             value={formData.username}
             onChangeText={(text) => updateFormData('username', text)}
             error={errors.username}
@@ -165,7 +165,7 @@ export default function LoginScreen() {
             disabled={isLoading || isNavigating}
             required
           />
-          
+
           <Input
             label="Password"
             placeholder="Enter your password"
@@ -176,15 +176,15 @@ export default function LoginScreen() {
             disabled={isLoading || isNavigating}
             required
           />
-          
-          <TouchableOpacity 
-            style={styles.forgotPasswordContainer} 
+
+          <TouchableOpacity
+            style={styles.forgotPasswordContainer}
             disabled={isLoading || isNavigating}
             onPress={() => handleNavigation('/forgotPassword')}
           >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
-          
+
           <Button
             title="Login"
             onPress={handleLogin}
@@ -193,10 +193,10 @@ export default function LoginScreen() {
             fullWidth
             style={styles.loginButton}
           />
-          
+
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Don't have an account? </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               disabled={isLoading || isNavigating}
               onPress={() => handleNavigation('/register')}
             >

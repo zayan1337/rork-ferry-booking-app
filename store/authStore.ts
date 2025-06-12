@@ -10,7 +10,7 @@ interface AuthState {
   isLoading: boolean;
   user: AuthUser | null;
   error: string | null;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   signUp: (userData: RegisterData) => Promise<void>;
   signOut: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -40,9 +40,9 @@ export const useAuthStore = create<AuthState>()(
           
           if (session?.user) {
             const { data: userProfile } = await supabase
-              .from('users')
+              .from('user_profiles')
               .select('*')
-              .eq('email_address', session.user.email)
+              .eq('id', session.user.id)
               .single();
 
             set({ 
@@ -72,43 +72,22 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      login: async (username: string, password: string) => {
+      login: async (email: string, password: string) => {
         try {
           set({ isLoading: true, error: null });
           
-          const isEmail = /\S+@\S+\.\S+/.test(username);
-          
-          let loginIdentifier = username;
-
-          // First try to find the user in our database
-          if (isEmail) {
-            const { data: profile } = await supabase
-              .from('users')
-              .select('email_address')
-              .eq('email_address', username)
-              .single();
-            if (profile) loginIdentifier = profile.email_address;
-          } else {
-            const { data: profile } = await supabase
-              .from('users')
-              .select('email_address')
-              .eq('username', username)
-              .single();
-            if (profile) loginIdentifier = profile.email_address;
-          }
-
           const { data, error } = await supabase.auth.signInWithPassword({
-            email: loginIdentifier,
+            email,
             password
           });
           
           if (error) throw error;
-          if (!data.user?.email) throw new Error('User data is missing');
+          if (!data.user) throw new Error('User data is missing');
 
           const { data: profile, error: profileError } = await supabase
-            .from('users')
+            .from('user_profiles')
             .select('*')
-            .eq('email_address', data.user.email)
+            .eq('id', data.user.id)
             .single();
 
           if (profileError) throw new Error('Failed to fetch user profile: ' + profileError.message);
@@ -144,43 +123,32 @@ export const useAuthStore = create<AuthState>()(
           const { data, error } = await supabase.auth.signUp({
             email: email_address,
             password,
+            options: {
+              data: {
+                full_name: profileData.full_name,
+                mobile_number: profileData.mobile_number,
+                date_of_birth: profileData.date_of_birth
+              }
+            }
           });
           
           if (error) throw error;
           if (!data.user?.id) throw new Error('User data is missing');
 
-          // Then create the user profile
-          const { error: profileError } = await supabase
-            .from('users')
-            .insert([
-              {
-                id: data.user.id,
-                email_address,
-                ...profileData,
-                role: 'customer',
-                is_email_verified: false,
-                is_active: true
-              }
-            ]);
+          // Profile creation is handled by the database trigger
+          const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
 
-          if (profileError) throw new Error('Failed to create user profile: ' + profileError.message);
-
-          const userProfile: UserProfile = {
-            id: data.user.id,
-            email_address,
-            ...profileData,
-            role: 'customer',
-            created_at: new Date().toISOString(),
-            is_email_verified: false,
-            is_active: true,
-            accepted_terms: userData.accepted_terms
-          };
+          if (profileError) throw new Error('Failed to fetch user profile: ' + profileError.message);
 
           set({ 
-            isAuthenticated: false,
+            isAuthenticated: false, // Keep false until email verification
             user: {
               ...data.user,
-              profile: userProfile
+              profile: profile || undefined
             },
             isLoading: false,
             error: null
@@ -266,7 +234,7 @@ export const useAuthStore = create<AuthState>()(
           if (!user?.id) throw new Error('No authenticated user');
 
           const { error } = await supabase
-            .from('users')
+            .from('user_profiles')
             .update(profile)
             .eq('id', user.id);
 
