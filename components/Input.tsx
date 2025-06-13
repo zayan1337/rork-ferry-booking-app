@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  TextInput, 
-  Text, 
-  StyleSheet, 
-  ViewStyle, 
+import {
+  View,
+  TextInput,
+  Text,
+  StyleSheet,
+  ViewStyle,
   TextStyle,
   TouchableOpacity,
   Platform
@@ -29,13 +29,14 @@ const Input: React.FC<InputProps> = ({
   inputStyle,
   labelStyle,
   required = false,
+  onFocus,
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  
+
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
   };
-  
+
   return (
     <View style={[styles.container, style]}>
       {label && (
@@ -43,7 +44,7 @@ const Input: React.FC<InputProps> = ({
           {label} {required && <Text style={styles.required}>*</Text>}
         </Text>
       )}
-      
+
       <View style={[
         styles.inputContainer,
         error ? styles.inputError : null,
@@ -59,6 +60,7 @@ const Input: React.FC<InputProps> = ({
           placeholder={placeholder}
           value={value}
           onChangeText={onChangeText}
+          onFocus={onFocus}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -67,10 +69,10 @@ const Input: React.FC<InputProps> = ({
           numberOfLines={multiline ? numberOfLines : 1}
           placeholderTextColor={Colors.textSecondary}
         />
-        
+
         {secureTextEntry && (
-          <TouchableOpacity 
-            style={styles.iconContainer} 
+          <TouchableOpacity
+            style={styles.iconContainer}
             onPress={togglePasswordVisibility}
           >
             {isPasswordVisible ? (
@@ -81,7 +83,7 @@ const Input: React.FC<InputProps> = ({
           </TouchableOpacity>
         )}
       </View>
-      
+
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );

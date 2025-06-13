@@ -1,9 +1,9 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
   ScrollView,
   Dimensions
 } from 'react-native';
@@ -19,38 +19,44 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 }) => {
   // Group seats by row (assuming seat numbers like A1, A2, B1, B2, etc.)
   const groupedSeats: Record<string, Seat[]> = {};
-  
+
   seats.forEach(seat => {
+    // Safety check for seat.number
+    if (!seat.number || typeof seat.number !== 'string') {
+      console.warn('Seat has invalid number:', seat);
+      return;
+    }
+
     const row = seat.number.charAt(0);
     if (!groupedSeats[row]) {
       groupedSeats[row] = [];
     }
     groupedSeats[row].push(seat);
   });
-  
+
   // Sort rows alphabetically
   const sortedRows = Object.keys(groupedSeats).sort();
-  
+
   // Check if a seat is selected
   const isSeatSelected = (seatId: string) => {
     return selectedSeats.some(seat => seat.id === seatId);
   };
-  
+
   // Check if max seats are selected
   const isMaxSeatsSelected = selectedSeats.length >= maxSeats;
-  
+
   // Handle seat selection
   const handleSeatPress = (seat: Seat) => {
     if (!seat.isAvailable) return;
-    
+
     const isSelected = isSeatSelected(seat.id);
-    
+
     // If not selected and max seats are already selected, don't allow selection
     if (!isSelected && isMaxSeatsSelected) return;
-    
+
     onSeatToggle(seat);
   };
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.legend}>
@@ -67,12 +73,12 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
           <Text style={styles.legendText}>Unavailable</Text>
         </View>
       </View>
-      
+
       <View style={styles.cabinContainer}>
         <View style={styles.frontLabel}>
           <Text style={styles.frontLabelText}>FRONT</Text>
         </View>
-        
+
         <ScrollView style={styles.seatMapContainer}>
           {sortedRows.map(row => (
             <View key={row} style={styles.row}>
@@ -92,7 +98,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                       onPress={() => handleSeatPress(seat)}
                       disabled={!seat.isAvailable}
                     >
-                      <Text 
+                      <Text
                         style={[
                           styles.seatNumber,
                           isSelected && styles.selectedSeatNumber,
@@ -108,12 +114,12 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
             </View>
           ))}
         </ScrollView>
-        
+
         <View style={styles.rearLabel}>
           <Text style={styles.rearLabelText}>REAR</Text>
         </View>
       </View>
-      
+
       <View style={styles.selectionInfo}>
         <Text style={styles.selectionText}>
           Selected: {selectedSeats.length}/{maxSeats} seats

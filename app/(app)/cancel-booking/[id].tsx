@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Alert
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { AlertTriangle } from 'lucide-react-native';
-import { useBookingStore } from '@/store/bookingStore2';
+import { useBookingStore } from '@/store/bookingStore';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
@@ -17,6 +20,16 @@ import Button from '@/components/Button';
 export default function CancelBookingScreen() {
   const { id } = useLocalSearchParams();
   const { bookings, cancelBooking, isLoading } = useBookingStore();
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [activeInput, setActiveInput] = useState<string | null>(null);
+  const inputRefs = useRef({
+    reason: null as any,
+    accountNumber: null as any,
+    accountName: null as any,
+    bankName: null as any,
+  });
 
   const [reason, setReason] = useState('');
   const [bankDetails, setBankDetails] = useState({
@@ -30,6 +43,54 @@ export default function CancelBookingScreen() {
     accountName: '',
     bankName: '',
   });
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        // Scroll to active input when keyboard appears
+        if (activeInput) {
+          scrollToInput(activeInput);
+        }
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+        setActiveInput(null);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, [activeInput]);
+
+  const scrollToInput = (inputKey: string) => {
+    setTimeout(() => {
+      const inputRef = inputRefs.current[inputKey as keyof typeof inputRefs.current];
+      if (inputRef && scrollViewRef.current) {
+        inputRef.measureLayout(
+          scrollViewRef.current,
+          (x: number, y: number) => {
+            const scrollOffset = y - 100; // Position input 100px from top
+            scrollViewRef.current?.scrollTo({
+              x: 0,
+              y: Math.max(0, scrollOffset),
+              animated: true,
+            });
+          },
+          () => {
+            // Fallback if measureLayout fails
+            console.log('measureLayout failed for', inputKey);
+          }
+        );
+      }
+    }, 100); // Small delay for smooth animation
+  };
 
   // Find the booking by id
   const booking = bookings.find(b => b.id === id);
@@ -81,7 +142,7 @@ export default function CancelBookingScreen() {
     }
 
     try {
-      await cancelBooking(booking.id, reason);
+      await cancelBooking(booking.id, reason, bankDetails);
 
       Alert.alert(
         "Booking Cancelled",
@@ -105,132 +166,174 @@ export default function CancelBookingScreen() {
   const refundAmount = booking.totalFare * 0.5;
 
   return (
-    <ScrollView
+    <KeyboardAvoidingView
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}
+      enabled
     >
-      <Card variant="elevated" style={styles.warningCard}>
-        <View style={styles.warningHeader}>
-          <AlertTriangle size={24} color={Colors.warning} style={styles.warningIcon} />
-          <Text style={styles.warningTitle}>Cancellation Policy</Text>
-        </View>
-        <Text style={styles.warningText}>
-          You are about to cancel your booking. Please note that:
-        </Text>
-        <View style={styles.policyList}>
-          <Text style={styles.policyItem}>• Only 50% of the fare will be refunded</Text>
-          <Text style={styles.policyItem}>• Refund will be processed within 72 hours</Text>
-          <Text style={styles.policyItem}>• This action cannot be undone</Text>
-        </View>
-      </Card>
-
-      <Card variant="elevated" style={styles.bookingCard}>
-        <Text style={styles.cardTitle}>Booking Details</Text>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Booking Number:</Text>
-          <Text style={styles.detailValue}>{booking.bookingNumber}</Text>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Route:</Text>
-          <Text style={styles.detailValue}>
-            {booking.route.fromIsland.name} → {booking.route.toIsland.name}
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        contentContainerStyle={[styles.contentContainer, { flexGrow: 1 }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Card variant="elevated" style={styles.warningCard}>
+          <View style={styles.warningHeader}>
+            <AlertTriangle size={24} color={Colors.warning} style={styles.warningIcon} />
+            <Text style={styles.warningTitle}>Cancellation Policy</Text>
+          </View>
+          <Text style={styles.warningText}>
+            You are about to cancel your booking. Please note that:
           </Text>
+          <View style={styles.policyList}>
+            <Text style={styles.policyItem}>• Only 50% of the fare will be refunded</Text>
+            <Text style={styles.policyItem}>• Refund will be processed within 72 hours</Text>
+            <Text style={styles.policyItem}>• This action cannot be undone</Text>
+          </View>
+        </Card>
+
+        <Card variant="elevated" style={styles.bookingCard}>
+          <Text style={styles.cardTitle}>Booking Details</Text>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Booking Number:</Text>
+            <Text style={styles.detailValue}>{booking.bookingNumber}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Route:</Text>
+            <Text style={styles.detailValue}>
+              {booking.route.fromIsland.name} → {booking.route.toIsland.name}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Date:</Text>
+            <Text style={styles.detailValue}>
+              {new Date(booking.departureDate).toLocaleDateString()}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Total Fare:</Text>
+            <Text style={styles.detailValue}>MVR {booking.totalFare.toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.refundRow}>
+            <Text style={styles.refundLabel}>Refund Amount (50%):</Text>
+            <Text style={styles.refundValue}>MVR {refundAmount.toFixed(2)}</Text>
+          </View>
+        </Card>
+
+        <Card variant="elevated" style={styles.formCard}>
+          <Text style={styles.cardTitle}>Cancellation Reason</Text>
+
+          <View
+            ref={(ref) => { inputRefs.current.reason = ref; }}
+          >
+            <Input
+              label="Reason for Cancellation"
+              placeholder="Please provide a reason for cancellation"
+              value={reason}
+              onChangeText={(text) => {
+                setReason(text);
+                if (errors.reason) setErrors({ ...errors, reason: '' });
+              }}
+              onFocus={() => {
+                setActiveInput('reason');
+                scrollToInput('reason');
+              }}
+              multiline
+              numberOfLines={3}
+              error={errors.reason}
+              required
+            />
+          </View>
+
+          <Text style={styles.cardTitle}>Refund Bank Details</Text>
+
+          <View
+            ref={(ref) => { inputRefs.current.accountNumber = ref; }}
+          >
+            <Input
+              label="Account Number"
+              placeholder="Enter your bank account number"
+              value={bankDetails.accountNumber}
+              onChangeText={(text) => {
+                setBankDetails({ ...bankDetails, accountNumber: text });
+                if (errors.accountNumber) setErrors({ ...errors, accountNumber: '' });
+              }}
+              onFocus={() => {
+                setActiveInput('accountNumber');
+                scrollToInput('accountNumber');
+              }}
+              error={errors.accountNumber}
+              required
+            />
+          </View>
+
+          <View
+            ref={(ref) => { inputRefs.current.accountName = ref; }}
+          >
+            <Input
+              label="Account Holder Name"
+              placeholder="Enter account holder name"
+              value={bankDetails.accountName}
+              onChangeText={(text) => {
+                setBankDetails({ ...bankDetails, accountName: text });
+                if (errors.accountName) setErrors({ ...errors, accountName: '' });
+              }}
+              onFocus={() => {
+                setActiveInput('accountName');
+                scrollToInput('accountName');
+              }}
+              error={errors.accountName}
+              required
+            />
+          </View>
+
+          <View
+            ref={(ref) => { inputRefs.current.bankName = ref; }}
+          >
+            <Input
+              label="Bank Name"
+              placeholder="Enter bank name"
+              value={bankDetails.bankName}
+              onChangeText={(text) => {
+                setBankDetails({ ...bankDetails, bankName: text });
+                if (errors.bankName) setErrors({ ...errors, bankName: '' });
+              }}
+              onFocus={() => {
+                setActiveInput('bankName');
+                scrollToInput('bankName');
+              }}
+              error={errors.bankName}
+              required
+            />
+          </View>
+        </Card>
+
+        <View style={styles.buttonContainer}>
+          <Button
+            title="Go Back"
+            onPress={() => router.back()}
+            variant="outline"
+            style={styles.backButton}
+          />
+
+          <Button
+            title="Confirm Cancellation"
+            onPress={handleCancel}
+            loading={isLoading}
+            disabled={isLoading}
+            style={styles.cancelButton}
+            textStyle={styles.cancelButtonText}
+          />
         </View>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Date:</Text>
-          <Text style={styles.detailValue}>
-            {new Date(booking.departureDate).toLocaleDateString()}
-          </Text>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Total Fare:</Text>
-          <Text style={styles.detailValue}>MVR {booking.totalFare.toFixed(2)}</Text>
-        </View>
-
-        <View style={styles.refundRow}>
-          <Text style={styles.refundLabel}>Refund Amount (50%):</Text>
-          <Text style={styles.refundValue}>MVR {refundAmount.toFixed(2)}</Text>
-        </View>
-      </Card>
-
-      <Card variant="elevated" style={styles.formCard}>
-        <Text style={styles.cardTitle}>Cancellation Reason</Text>
-
-        <Input
-          label="Reason for Cancellation"
-          placeholder="Please provide a reason for cancellation"
-          value={reason}
-          onChangeText={(text) => {
-            setReason(text);
-            if (errors.reason) setErrors({ ...errors, reason: '' });
-          }}
-          multiline
-          numberOfLines={3}
-          error={errors.reason}
-          required
-        />
-
-        <Text style={styles.cardTitle}>Refund Bank Details</Text>
-
-        <Input
-          label="Account Number"
-          placeholder="Enter your bank account number"
-          value={bankDetails.accountNumber}
-          onChangeText={(text) => {
-            setBankDetails({ ...bankDetails, accountNumber: text });
-            if (errors.accountNumber) setErrors({ ...errors, accountNumber: '' });
-          }}
-          error={errors.accountNumber}
-          required
-        />
-
-        <Input
-          label="Account Holder Name"
-          placeholder="Enter account holder name"
-          value={bankDetails.accountName}
-          onChangeText={(text) => {
-            setBankDetails({ ...bankDetails, accountName: text });
-            if (errors.accountName) setErrors({ ...errors, accountName: '' });
-          }}
-          error={errors.accountName}
-          required
-        />
-
-        <Input
-          label="Bank Name"
-          placeholder="Enter bank name"
-          value={bankDetails.bankName}
-          onChangeText={(text) => {
-            setBankDetails({ ...bankDetails, bankName: text });
-            if (errors.bankName) setErrors({ ...errors, bankName: '' });
-          }}
-          error={errors.bankName}
-          required
-        />
-      </Card>
-
-      <View style={styles.buttonContainer}>
-        <Button
-          title="Go Back"
-          onPress={() => router.back()}
-          variant="outline"
-          style={styles.backButton}
-        />
-
-        <Button
-          title="Confirm Cancellation"
-          onPress={handleCancel}
-          loading={isLoading}
-          disabled={isLoading}
-          style={styles.cancelButton}
-          textStyle={styles.cancelButtonText}
-        />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -238,6 +341,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   contentContainer: {
     padding: 16,
@@ -322,6 +428,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 16,
   },
   backButton: {
     flex: 1,

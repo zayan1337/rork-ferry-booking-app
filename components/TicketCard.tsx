@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Calendar, Clock, MapPin, Users } from 'lucide-react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { Booking } from '@/types';
 import { TicketCardProps } from '@/types/components';
 import Colors from '@/constants/colors';
@@ -16,27 +17,32 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
       year: 'numeric'
     });
   };
-  
-  // Mock QR code image URL
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${booking.bookingNumber}`;
-  
+
   return (
     <Card variant="elevated" style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.title}>Ferry Ticket</Text>
         <Text style={styles.bookingNumber}>#{booking.bookingNumber}</Text>
       </View>
-      
+
       <View style={styles.qrContainer}>
-        <Image 
-          source={{ uri: qrCodeUrl }} 
-          style={styles.qrCode}
-          resizeMode="contain"
-        />
+        {booking.qrCodeUrl ? (
+          <QRCode
+            value={booking.qrCodeUrl}
+            size={150}
+            color={Colors.text}
+            backgroundColor={Colors.card}
+          />
+        ) : (
+          <View style={styles.qrPlaceholder}>
+            <Text style={styles.qrPlaceholderText}>QR Code</Text>
+            <Text style={styles.qrPlaceholderText}>#{booking.bookingNumber}</Text>
+          </View>
+        )}
       </View>
-      
+
       <View style={styles.divider} />
-      
+
       <View style={styles.routeContainer}>
         <View style={styles.routeRow}>
           <View style={styles.routePoint}>
@@ -50,7 +56,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
           </View>
         </View>
       </View>
-      
+
       <View style={styles.infoContainer}>
         <View style={styles.infoRow}>
           <View style={styles.infoItem}>
@@ -58,21 +64,21 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
             <Text style={styles.infoLabel}>Date</Text>
             <Text style={styles.infoValue}>{formatDate(booking.departureDate)}</Text>
           </View>
-          
+
           <View style={styles.infoItem}>
             <Clock size={16} color={Colors.textSecondary} style={styles.infoIcon} />
             <Text style={styles.infoLabel}>Time</Text>
             <Text style={styles.infoValue}>{booking.departureTime}</Text>
           </View>
         </View>
-        
+
         <View style={styles.infoRow}>
           <View style={styles.infoItem}>
             <MapPin size={16} color={Colors.textSecondary} style={styles.infoIcon} />
             <Text style={styles.infoLabel}>Zone</Text>
             <Text style={styles.infoValue}>{booking.route.fromIsland.zone}</Text>
           </View>
-          
+
           <View style={styles.infoItem}>
             <Users size={16} color={Colors.textSecondary} style={styles.infoIcon} />
             <Text style={styles.infoLabel}>Passengers</Text>
@@ -80,14 +86,14 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
           </View>
         </View>
       </View>
-      
+
       <View style={styles.seatsContainer}>
         <Text style={styles.seatsLabel}>Seats:</Text>
         <Text style={styles.seatsValue}>
           {booking.seats.map(seat => seat.number).join(', ')}
         </Text>
       </View>
-      
+
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           Please present this ticket when boarding
@@ -125,6 +131,22 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     backgroundColor: '#fff',
+  },
+  qrPlaceholder: {
+    width: 150,
+    height: 150,
+    backgroundColor: Colors.highlight,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  qrPlaceholderText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
   },
   divider: {
     height: 1,

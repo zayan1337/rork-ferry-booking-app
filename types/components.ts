@@ -28,6 +28,7 @@ export type InputProps = {
   inputStyle?: TextStyle;
   labelStyle?: TextStyle;
   required?: boolean;
+  onFocus?: () => void;
 };
 
 export type DropdownItem = {

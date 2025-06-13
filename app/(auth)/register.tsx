@@ -40,6 +40,7 @@ export default function RegisterScreen() {
   const [termsError, setTermsError] = useState('');
   const [isNavigating, setIsNavigating] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(5);
 
   const { signUp, isAuthenticated, isLoading, error, clearError } = useAuthStore();
 
@@ -65,6 +66,30 @@ export default function RegisterScreen() {
       setIsNavigating(false); // Reset navigation state when unmounting
     };
   }, [isAuthenticated, isNavigating]);
+
+  // Handle countdown timer when success state is true
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval>;
+    if (isSuccess && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    } else if (isSuccess && countdown === 0 && !isNavigating) {
+      setIsNavigating(true);
+      // Navigate based on authentication state
+      if (isAuthenticated) {
+        router.replace('/(app)/(tabs)');
+      } else {
+        router.replace('/');
+      }
+    }
+
+    return () => {
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [isSuccess, countdown, isNavigating, isAuthenticated]);
 
   const updateFormData = (field: keyof typeof formData, value: string | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -168,16 +193,9 @@ export default function RegisterScreen() {
         accepted_terms: termsAccepted
       });
 
-      // Show success message
+      // Show success message with countdown
       setIsSuccess(true);
-
-      // Redirect after a short delay
-      setTimeout(() => {
-        if (!isNavigating) {
-          setIsNavigating(true);
-          router.replace('/(app)/(tabs)');
-        }
-      }, 2000);
+      setCountdown(5);
 
     } catch (err) {
       // Reset navigation state if registration fails
@@ -206,16 +224,24 @@ export default function RegisterScreen() {
             </View>
           )}
 
-          {isSuccess && (
+          {isSuccess ? (
             <View style={styles.successContainer}>
               <Text style={styles.successTitle}>Registration Successful!</Text>
               <Text style={styles.successText}>
-                Your account has been created successfully. You will be redirected shortly...
+                Your account has been created successfully.
               </Text>
+              <Text style={styles.countdownText}>
+                Redirecting {isAuthenticated ? 'to home page' : 'to login'} in {countdown} seconds...
+              </Text>
+              <Button
+                title={`Skip (${countdown}s)`}
+                onPress={() => setCountdown(0)}
+                disabled={isNavigating}
+                fullWidth
+                style={styles.skipButton}
+              />
             </View>
-          )}
-
-          {!isSuccess && (
+          ) : (
             <>
               <Input
                 label="Full Name"
@@ -307,24 +333,28 @@ export default function RegisterScreen() {
             </>
           )}
 
-          <Button
-            title="Create Account"
-            onPress={handleRegister}
-            loading={isLoading || isNavigating}
-            disabled={isLoading || isNavigating}
-            fullWidth
-            style={styles.registerButton}
-          />
+          {!isSuccess && (
+            <>
+              <Button
+                title="Create Account"
+                onPress={handleRegister}
+                loading={isLoading || isNavigating}
+                disabled={isLoading || isNavigating}
+                fullWidth
+                style={styles.registerButton}
+              />
 
-          <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity
-              disabled={isLoading || isNavigating}
-              onPress={() => handleNavigation('/')}
-            >
-              <Text style={styles.loginLink}>Login</Text>
-            </TouchableOpacity>
-          </View>
+              <View style={styles.loginContainer}>
+                <Text style={styles.loginText}>Already have an account? </Text>
+                <TouchableOpacity
+                  disabled={isLoading || isNavigating}
+                  onPress={() => router.push('/')}
+                >
+                  <Text style={styles.loginLink}>Login</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </Card>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -434,5 +464,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
+    marginBottom: 12,
+  },
+  countdownText: {
+    fontSize: 16,
+    color: Colors.primary,
+    fontWeight: '500',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  skipButton: {
+    marginTop: 8,
+    backgroundColor: Colors.secondary,
   },
 });

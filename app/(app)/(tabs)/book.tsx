@@ -91,6 +91,7 @@ export default function BookScreen() {
     returnTrips,
     isLoading,
     confirmBooking,
+    resetCurrentBooking,
   } = useBookingStore();
 
   // Fetch initial data
@@ -221,6 +222,26 @@ export default function BookScreen() {
     if (validateStep(5)) {
       try {
         const booking = await confirmBooking(paymentMethod);
+
+        // Reset the booking state after successful booking
+        resetCurrentBooking();
+        setCurrentStep(1);
+        setPaymentMethod('');
+        setTermsAccepted(false);
+        setErrors({
+          tripType: '',
+          departureDate: '',
+          returnDate: '',
+          route: '',
+          returnRoute: '',
+          seats: '',
+          passengers: '',
+          paymentMethod: '',
+          terms: '',
+          trip: '',
+          returnTrip: '',
+        });
+
         Alert.alert(
           "Booking Confirmed",
           `Your booking has been confirmed. Booking number: ${booking.booking_number}`,
@@ -239,6 +260,7 @@ export default function BookScreen() {
           "Booking Failed",
           "There was an error processing your booking. Please try again."
         );
+        // Do not reset state on error
       }
     }
   };

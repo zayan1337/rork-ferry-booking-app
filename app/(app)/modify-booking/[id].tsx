@@ -1,30 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Alert,
-  TextInputProps,
+  TextInput as RNTextInput,
+  TouchableOpacity,
   ViewStyle,
-  TextStyle
+  TextStyle,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Calendar, ArrowRight } from 'lucide-react-native';
-import { useBookingStore } from '@/store/bookingStore2';
+import { useBookingStore } from '@/store/bookingStore';
+import { Seat } from '@/types';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import DatePicker from '@/components/DatePicker';
 import SeatSelector from '@/components/SeatSelector';
-
-// Define interface for seat object
-interface Seat {
-  id: string;
-  number: string;
-  isAvailable: boolean;
-  isSelected?: boolean;
-}
 
 // Define interface for custom TextInput props
 interface CustomTextInputProps {
@@ -33,46 +30,96 @@ interface CustomTextInputProps {
   onChangeText: (text: string) => void;
   multiline?: boolean;
   numberOfLines?: number;
-  style?: ViewStyle | TextStyle;
+  style?: ViewStyle;
 }
-
-// Mock seat data
-const generateMockSeats = () => {
-  const rows = ['A', 'B', 'C', 'D', 'E', 'F'];
-  const seatsPerRow = 6;
-  const seats: Seat[] = [];
-
-  for (let i = 0; i < rows.length; i++) {
-    for (let j = 1; j <= seatsPerRow; j++) {
-      const seatNumber = `${rows[i]}${j}`;
-      seats.push({
-        id: seatNumber,
-        number: seatNumber,
-        isAvailable: Math.random() > 0.3, // 70% of seats are available
-      });
-    }
-  }
-
-  return seats;
-};
 
 export default function ModifyBookingScreen() {
   const { id } = useLocalSearchParams();
-  const { bookings, isLoading } = useBookingStore();
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  const [mockSeats] = useState<Seat[]>(generateMockSeats());
+  // Enhanced keyboard handling
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [activeInput, setActiveInput] = useState<string | null>(null);
+  const inputRefs = useRef({
+    reason: null as any,
+  });
+
+  const {
+    bookings,
+    modifyBooking,
+    isLoading,
+    availableRoutes,
+    trips,
+    returnTrips,
+    availableSeats,
+    availableReturnSeats,
+    fetchTrips,
+    fetchAvailableSeats
+  } = useBookingStore();
   const [newDepartureDate, setNewDepartureDate] = useState<string | null>(null);
   const [newReturnDate, setNewReturnDate] = useState<string | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [returnSelectedSeats, setReturnSelectedSeats] = useState<Seat[]>([]);
   const [modificationReason, setModificationReason] = useState('');
   const [fareDifference, setFareDifference] = useState(0);
+  const [selectedTrip, setSelectedTrip] = useState<any>(null);
+  const [selectedReturnTrip, setSelectedReturnTrip] = useState<any>(null);
   const [errors, setErrors] = useState({
     departureDate: '',
     returnDate: '',
     seats: '',
     reason: '',
+    trip: '',
   });
+
+  // Enhanced keyboard event listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        // Scroll to active input when keyboard appears
+        if (activeInput) {
+          scrollToInput(activeInput);
+        }
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+        setActiveInput(null);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, [activeInput]);
+
+  // Enhanced scroll to input function
+  const scrollToInput = (inputKey: string) => {
+    setTimeout(() => {
+      const inputRef = inputRefs.current[inputKey as keyof typeof inputRefs.current];
+      if (inputRef && scrollViewRef.current) {
+        inputRef.measureLayout(
+          scrollViewRef.current,
+          (x: number, y: number) => {
+            const scrollOffset = y - 100; // Position input 100px from top
+            scrollViewRef.current?.scrollTo({
+              x: 0,
+              y: Math.max(0, scrollOffset),
+              animated: true,
+            });
+          },
+          () => {
+            console.log('measureLayout failed for', inputKey);
+          }
+        );
+      }
+    }, 100);
+  };
 
   // Find the booking by id
   const booking = bookings.find(b => b.id === id);
@@ -89,6 +136,36 @@ export default function ModifyBookingScreen() {
       setFareDifference(randomDiff);
     }
   }, [booking]);
+
+  // Fetch trips when date or route changes
+  useEffect(() => {
+    if (booking?.route && newDepartureDate) {
+      fetchTrips(booking.route.id, newDepartureDate, false);
+    }
+  }, [booking?.route, newDepartureDate, fetchTrips]);
+
+  useEffect(() => {
+    if (booking?.returnRoute && newReturnDate) {
+      fetchTrips(booking.returnRoute.id, newReturnDate, true);
+    }
+  }, [booking?.returnRoute, newReturnDate, fetchTrips]);
+
+  // Fetch available seats when trip is selected
+  useEffect(() => {
+    if (selectedTrip?.id) {
+      fetchAvailableSeats(selectedTrip.id, false);
+      // Clear previously selected seats when changing trip
+      setSelectedSeats([]);
+    }
+  }, [selectedTrip?.id, fetchAvailableSeats]);
+
+  useEffect(() => {
+    if (selectedReturnTrip?.id) {
+      fetchAvailableSeats(selectedReturnTrip.id, true);
+      // Clear previously selected return seats when changing trip
+      setReturnSelectedSeats([]);
+    }
+  }, [selectedReturnTrip?.id, fetchAvailableSeats]);
 
   if (!booking) {
     return (
@@ -109,14 +186,18 @@ export default function ModifyBookingScreen() {
       if (isSelected) {
         setReturnSelectedSeats(returnSelectedSeats.filter(s => s.id !== seat.id));
       } else {
-        setReturnSelectedSeats([...returnSelectedSeats, { ...seat, isSelected: true }]);
+        if (returnSelectedSeats.length < booking.passengers.length) {
+          setReturnSelectedSeats([...returnSelectedSeats, { ...seat, isSelected: true }]);
+        }
       }
     } else {
       const isSelected = selectedSeats.some(s => s.id === seat.id);
       if (isSelected) {
         setSelectedSeats(selectedSeats.filter(s => s.id !== seat.id));
       } else {
-        setSelectedSeats([...selectedSeats, { ...seat, isSelected: true }]);
+        if (selectedSeats.length < booking.passengers.length) {
+          setSelectedSeats([...selectedSeats, { ...seat, isSelected: true }]);
+        }
       }
     }
 
@@ -139,19 +220,18 @@ export default function ModifyBookingScreen() {
       isValid = false;
     }
 
-    if (selectedSeats.length === 0) {
-      newErrors.seats = 'Please select at least one seat';
+    if (!selectedTrip) {
+      newErrors.trip = 'Please select a departure trip';
       isValid = false;
     }
 
-    if (booking.tripType === 'round_trip' && returnSelectedSeats.length === 0) {
-      newErrors.seats = 'Please select at least one return seat';
+    if (selectedSeats.length !== booking.passengers.length) {
+      newErrors.seats = `Please select exactly ${booking.passengers.length} seat(s)`;
       isValid = false;
     }
 
-    if (booking.tripType === 'round_trip' &&
-      selectedSeats.length !== returnSelectedSeats.length) {
-      newErrors.seats = 'Number of departure and return seats must match';
+    if (booking.tripType === 'round_trip' && returnSelectedSeats.length !== booking.passengers.length) {
+      newErrors.seats = `Please select exactly ${booking.passengers.length} return seat(s)`;
       isValid = false;
     }
 
@@ -164,249 +244,306 @@ export default function ModifyBookingScreen() {
     return isValid;
   };
 
-  const handleModify = () => {
+  const handleModify = async () => {
     if (!validateForm()) {
       return;
     }
 
-    // In a real app, this would call an API to modify the booking
-    Alert.alert(
-      "Booking Modified",
-      `Your booking has been modified successfully. ${fareDifference > 0
-        ? `An additional payment of MVR ${fareDifference.toFixed(2)} is required.`
-        : fareDifference < 0
-          ? `A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed.`
-          : "No fare difference to process."
-      }`,
-      [
-        {
-          text: "OK",
-          onPress: () => router.replace('/bookings')
-        }
-      ]
-    );
+    try {
+      await modifyBooking(booking.id, {
+        newTripId: selectedTrip?.id,
+        newReturnTripId: selectedReturnTrip?.id,
+        newDepartureDate,
+        newReturnDate,
+        selectedSeats,
+        returnSelectedSeats,
+        modificationReason,
+        fareDifference,
+      });
+
+      Alert.alert(
+        "Booking Modified",
+        `Your booking has been modified successfully. ${fareDifference > 0
+          ? `An additional payment of MVR ${fareDifference.toFixed(2)} is required.`
+          : fareDifference < 0
+            ? `A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed.`
+            : "No fare difference to process."
+        }`,
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace('/bookings')
+          }
+        ]
+      );
+    } catch (error) {
+      Alert.alert("Error", "Failed to modify booking. Please try again.");
+    }
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoidingView}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}
+      enabled
     >
-      <Card variant="elevated" style={styles.bookingCard}>
-        <Text style={styles.cardTitle}>Current Booking</Text>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Card variant="elevated" style={styles.bookingCard}>
+          <Text style={styles.cardTitle}>Current Booking</Text>
 
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Booking Number:</Text>
-          <Text style={styles.detailValue}>{booking.bookingNumber}</Text>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Route:</Text>
-          <Text style={styles.detailValue}>
-            {booking.route.fromIsland.name} → {booking.route.toIsland.name}
-          </Text>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Current Date:</Text>
-          <Text style={styles.detailValue}>
-            {new Date(booking.departureDate).toLocaleDateString()}
-          </Text>
-        </View>
-
-        {booking.tripType === 'round_trip' && booking.returnDate && (
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Return Date:</Text>
+            <Text style={styles.detailLabel}>Booking Number:</Text>
+            <Text style={styles.detailValue}>{booking.bookingNumber}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Route:</Text>
             <Text style={styles.detailValue}>
-              {new Date(booking.returnDate).toLocaleDateString()}
+              {booking.route.fromIsland.name} → {booking.route.toIsland.name}
             </Text>
           </View>
-        )}
 
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Current Seats:</Text>
-          <Text style={styles.detailValue}>
-            {booking.seats.map(seat => seat.number).join(', ')}
-          </Text>
-        </View>
-
-        {booking.tripType === 'round_trip' && booking.returnSeats && (
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Return Seats:</Text>
+            <Text style={styles.detailLabel}>Current Date:</Text>
             <Text style={styles.detailValue}>
-              {booking.returnSeats.map(seat => seat.number).join(', ')}
+              {new Date(booking.departureDate).toLocaleDateString()}
             </Text>
           </View>
-        )}
-      </Card>
 
-      <Card variant="elevated" style={styles.modifyCard}>
-        <Text style={styles.cardTitle}>Modify Booking</Text>
-
-        <DatePicker
-          label="New Departure Date"
-          value={newDepartureDate}
-          onChange={(date) => {
-            setNewDepartureDate(date);
-            if (errors.departureDate) setErrors({ ...errors, departureDate: '' });
-          }}
-          minDate={new Date().toISOString().split('T')[0]}
-          error={errors.departureDate}
-          required
-        />
-
-        {booking.tripType === 'round_trip' && (
-          <DatePicker
-            label="New Return Date"
-            value={newReturnDate}
-            onChange={(date) => {
-              setNewReturnDate(date);
-              if (errors.returnDate) setErrors({ ...errors, returnDate: '' });
-            }}
-            minDate={newDepartureDate || new Date().toISOString().split('T')[0]}
-            error={errors.returnDate}
-            required
-          />
-        )}
-
-        <Text style={styles.seatSectionTitle}>Select New Departure Seats</Text>
-        <SeatSelector
-          seats={mockSeats}
-          selectedSeats={selectedSeats}
-          onSeatToggle={(seat) => toggleSeatSelection(seat)}
-          maxSeats={booking.passengers.length}
-        />
-
-        {booking.tripType === 'round_trip' && (
-          <>
-            <Text style={styles.seatSectionTitle}>Select New Return Seats</Text>
-            <SeatSelector
-              seats={mockSeats}
-              selectedSeats={returnSelectedSeats}
-              onSeatToggle={(seat) => toggleSeatSelection(seat, true)}
-              maxSeats={booking.passengers.length}
-            />
-          </>
-        )}
-
-        {errors.seats ? (
-          <Text style={styles.errorText}>{errors.seats}</Text>
-        ) : null}
-
-        <View style={styles.reasonContainer}>
-          <Text style={styles.reasonLabel}>Reason for Modification</Text>
-          <View style={styles.reasonInput}>
-            <TextInput
-              placeholder="Please provide a reason for modifying your booking"
-              value={modificationReason}
-              onChangeText={(text: string) => {
-                setModificationReason(text);
-                if (errors.reason) setErrors({ ...errors, reason: '' });
-              }}
-              multiline
-              numberOfLines={3}
-              style={styles.reasonTextInput}
-            />
-          </View>
-          {errors.reason ? (
-            <Text style={styles.errorText}>{errors.reason}</Text>
-          ) : null}
-        </View>
-
-        <View style={styles.fareDifferenceContainer}>
-          <Text style={styles.fareDifferenceTitle}>Fare Difference</Text>
-
-          <View style={styles.fareRow}>
-            <View style={styles.fareColumn}>
-              <Text style={styles.fareLabel}>Original Fare</Text>
-              <Text style={styles.fareValue}>MVR {booking.totalFare.toFixed(2)}</Text>
-            </View>
-
-            <ArrowRight size={20} color={Colors.textSecondary} />
-
-            <View style={styles.fareColumn}>
-              <Text style={styles.fareLabel}>New Fare</Text>
-              <Text style={styles.fareValue}>
-                MVR {(booking.totalFare + fareDifference).toFixed(2)}
+          {booking.tripType === 'round_trip' && booking.returnDate && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Return Date:</Text>
+              <Text style={styles.detailValue}>
+                {new Date(booking.returnDate).toLocaleDateString()}
               </Text>
             </View>
-          </View>
+          )}
 
-          <View style={styles.differenceRow}>
-            <Text style={styles.differenceLabel}>Difference:</Text>
-            <Text
-              style={[
-                styles.differenceValue,
-                fareDifference > 0 ? styles.additionalPayment : styles.refundAmount
-              ]}
-            >
-              {fareDifference > 0 ? '+' : ''}{fareDifference.toFixed(2)} MVR
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Current Seats:</Text>
+            <Text style={styles.detailValue}>
+              {booking.seats.map(seat => seat.number).join(', ')}
             </Text>
           </View>
 
-          <Text style={styles.differenceNote}>
-            {fareDifference > 0
-              ? "Additional payment required"
-              : fareDifference < 0
-                ? "Refund will be processed to your original payment method"
-                : "No additional payment or refund required"}
-          </Text>
+          {booking.tripType === 'round_trip' && booking.returnSeats && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Return Seats:</Text>
+              <Text style={styles.detailValue}>
+                {booking.returnSeats.map(seat => seat.number).join(', ')}
+              </Text>
+            </View>
+          )}
+        </Card>
+
+        <Card variant="elevated" style={styles.modifyCard}>
+          <Text style={styles.cardTitle}>Modify Booking</Text>
+
+          <DatePicker
+            label="New Departure Date"
+            value={newDepartureDate}
+            onChange={(date) => {
+              setNewDepartureDate(date);
+              setSelectedTrip(null);
+              if (errors.departureDate) setErrors({ ...errors, departureDate: '' });
+            }}
+            minDate={new Date().toISOString().split('T')[0]}
+            error={errors.departureDate}
+            required
+          />
+
+          {trips.length > 0 && (
+            <View style={styles.tripSelection}>
+              <Text style={styles.sectionTitle}>Select Departure Trip</Text>
+              {trips.map((trip) => (
+                <TouchableOpacity
+                  key={trip.id}
+                  style={[
+                    styles.tripOption,
+                    selectedTrip?.id === trip.id && styles.tripOptionSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedTrip(trip);
+                    if (errors.trip) setErrors({ ...errors, trip: '' });
+                  }}
+                >
+                  <Text style={styles.tripTime}>{trip.departure_time}</Text>
+                  <Text style={styles.tripVessel}>{trip.vessel_name}</Text>
+                  <Text style={styles.tripSeats}>{trip.available_seats} seats available</Text>
+                </TouchableOpacity>
+              ))}
+              {errors.trip ? (
+                <Text style={styles.errorText}>{errors.trip}</Text>
+              ) : null}
+            </View>
+          )}
+
+          {booking.tripType === 'round_trip' && (
+            <DatePicker
+              label="New Return Date"
+              value={newReturnDate}
+              onChange={(date) => {
+                setNewReturnDate(date);
+                setSelectedReturnTrip(null);
+                if (errors.returnDate) setErrors({ ...errors, returnDate: '' });
+              }}
+              minDate={newDepartureDate || new Date().toISOString().split('T')[0]}
+              error={errors.returnDate}
+              required
+            />
+          )}
+
+          <Text style={styles.seatSectionTitle}>Select New Departure Seats ({selectedSeats.length}/{booking.passengers.length})</Text>
+          {!selectedTrip ? (
+            <Text style={styles.noSeatsText}>Please select a departure trip first</Text>
+          ) : isLoading ? (
+            <Text style={styles.loadingText}>Loading available seats...</Text>
+          ) : availableSeats.length > 0 ? (
+            <SeatSelector
+              seats={availableSeats}
+              selectedSeats={selectedSeats}
+              onSeatToggle={(seat) => toggleSeatSelection(seat)}
+              maxSeats={booking.passengers.length}
+            />
+          ) : (
+            <Text style={styles.noSeatsText}>No seats available for this trip</Text>
+          )}
+
+          {booking.tripType === 'round_trip' && (
+            <>
+              <Text style={styles.seatSectionTitle}>Select New Return Seats ({returnSelectedSeats.length}/{booking.passengers.length})</Text>
+              {!selectedReturnTrip ? (
+                <Text style={styles.noSeatsText}>Please select a return trip first</Text>
+              ) : isLoading ? (
+                <Text style={styles.loadingText}>Loading available return seats...</Text>
+              ) : availableReturnSeats.length > 0 ? (
+                <SeatSelector
+                  seats={availableReturnSeats}
+                  selectedSeats={returnSelectedSeats}
+                  onSeatToggle={(seat) => toggleSeatSelection(seat, true)}
+                  maxSeats={booking.passengers.length}
+                />
+              ) : (
+                <Text style={styles.noSeatsText}>No return seats available for this trip</Text>
+              )}
+            </>
+          )}
+
+          {errors.seats ? (
+            <Text style={styles.errorText}>{errors.seats}</Text>
+          ) : null}
+
+          <View
+            ref={(el) => {
+              inputRefs.current.reason = el;
+            }}
+            style={styles.reasonContainer}
+          >
+            <Text style={styles.reasonLabel}>Reason for Modification *</Text>
+            <View style={styles.reasonInput}>
+              <RNTextInput
+                style={styles.reasonTextInput}
+                placeholder="Please provide a reason for modifying your booking"
+                value={modificationReason}
+                onChangeText={(text: string) => {
+                  setModificationReason(text);
+                  if (errors.reason) setErrors({ ...errors, reason: '' });
+                }}
+                onFocus={() => {
+                  setActiveInput('reason');
+                  scrollToInput('reason');
+                }}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
+            {errors.reason ? (
+              <Text style={styles.errorText}>{errors.reason}</Text>
+            ) : null}
+          </View>
+
+          <View style={styles.fareDifferenceContainer}>
+            <Text style={styles.fareDifferenceTitle}>Fare Difference</Text>
+
+            <View style={styles.fareRow}>
+              <View style={styles.fareColumn}>
+                <Text style={styles.fareLabel}>Original Fare</Text>
+                <Text style={styles.fareValue}>MVR {booking.totalFare.toFixed(2)}</Text>
+              </View>
+
+              <ArrowRight size={20} color={Colors.textSecondary} />
+
+              <View style={styles.fareColumn}>
+                <Text style={styles.fareLabel}>New Fare</Text>
+                <Text style={styles.fareValue}>
+                  MVR {(booking.totalFare + fareDifference).toFixed(2)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.differenceRow}>
+              <Text style={styles.differenceLabel}>Difference:</Text>
+              <Text
+                style={[
+                  styles.differenceValue,
+                  fareDifference > 0 ? styles.additionalPayment : styles.refundAmount
+                ]}
+              >
+                {fareDifference > 0 ? '+' : ''}{fareDifference.toFixed(2)} MVR
+              </Text>
+            </View>
+
+            <Text style={styles.differenceNote}>
+              {fareDifference > 0
+                ? "Additional payment required"
+                : fareDifference < 0
+                  ? "Refund will be processed to your original payment method"
+                  : "No additional payment or refund required"}
+            </Text>
+          </View>
+        </Card>
+
+        <View style={styles.buttonContainer}>
+          <Button
+            title="Cancel"
+            onPress={() => router.back()}
+            variant="outline"
+            style={styles.cancelButton}
+          />
+
+          <Button
+            title="Confirm Changes"
+            onPress={handleModify}
+            loading={isLoading}
+            disabled={isLoading}
+            style={styles.confirmButton}
+          />
         </View>
-      </Card>
-
-      <View style={styles.buttonContainer}>
-        <Button
-          title="Cancel"
-          onPress={() => router.back()}
-          variant="outline"
-          style={styles.cancelButton}
-        />
-
-        <Button
-          title="Confirm Changes"
-          onPress={handleModify}
-          loading={isLoading}
-          disabled={isLoading}
-          style={styles.confirmButton}
-        />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
-// TextInput component for the reason field
-const TextInput = ({
-  placeholder,
-  value,
-  onChangeText,
-  multiline,
-  numberOfLines,
-  style
-}: CustomTextInputProps) => {
-  return (
-    <View style={[styles.textInputContainer, style]}>
-      <Text
-        style={[
-          styles.textInput,
-          multiline && { height: numberOfLines ? numberOfLines * 20 : 60 },
-          !value && styles.placeholder
-        ]}
-        onPress={() => { }}
-      >
-        {value || placeholder}
-      </Text>
-    </View>
-  );
-};
-
 const styles = StyleSheet.create({
-  container: {
+  keyboardAvoidingView: {
     flex: 1,
+  },
+  container: {
+    flexGrow: 1,
     backgroundColor: Colors.background,
   },
   contentContainer: {
     padding: 16,
     paddingBottom: 32,
+    flexGrow: 1,
   },
   bookingCard: {
     marginBottom: 16,
@@ -539,6 +676,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingBottom: 32,
   },
   cancelButton: {
     flex: 1,
@@ -566,5 +704,55 @@ const styles = StyleSheet.create({
   },
   notFoundButton: {
     minWidth: 120,
+  },
+  tripSelection: {
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  tripOption: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  tripOptionSelected: {
+    backgroundColor: Colors.highlight,
+    borderColor: Colors.primary,
+  },
+  tripTime: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  tripVessel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  tripSeats: {
+    fontSize: 14,
+    color: Colors.primary,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
+  },
+  noSeatsText: {
+    fontSize: 14,
+    color: Colors.error,
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
   },
 });

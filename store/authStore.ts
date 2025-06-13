@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
           const { data: { session } } = await supabase.auth.getSession();
-          
+
           if (session?.user) {
             const { data: userProfile } = await supabase
               .from('user_profiles')
@@ -45,27 +45,27 @@ export const useAuthStore = create<AuthState>()(
               .eq('id', session.user.id)
               .single();
 
-            set({ 
-              isAuthenticated: true, 
+            set({
+              isAuthenticated: true,
               user: {
                 ...session.user,
                 profile: userProfile || undefined
               },
-              isLoading: false 
+              isLoading: false
             });
           } else {
-            set({ 
-              isAuthenticated: false, 
+            set({
+              isAuthenticated: false,
               user: null,
-              isLoading: false 
+              isLoading: false
             });
           }
         } catch (error) {
           console.error('Auth check error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Authentication check failed';
-          set({ 
-            isAuthenticated: false, 
-            user: null, 
+          set({
+            isAuthenticated: false,
+            user: null,
             isLoading: false,
             error: errorMessage
           });
@@ -75,12 +75,12 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string) => {
         try {
           set({ isLoading: true, error: null });
-          
+
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password
           });
-          
+
           if (error) throw error;
           if (!data.user) throw new Error('User data is missing');
 
@@ -93,8 +93,8 @@ export const useAuthStore = create<AuthState>()(
           if (profileError) throw new Error('Failed to fetch user profile: ' + profileError.message);
           if (!profile) throw new Error('User profile not found');
 
-          set({ 
-            isAuthenticated: true, 
+          set({
+            isAuthenticated: true,
             user: {
               ...data.user,
               profile
@@ -105,7 +105,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('Login error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Login failed';
-          set({ 
+          set({
             isLoading: false,
             error: errorMessage
           });
@@ -116,7 +116,7 @@ export const useAuthStore = create<AuthState>()(
       signUp: async (userData: RegisterData) => {
         try {
           set({ isLoading: true, error: null });
-          
+
           const { email_address, password, ...profileData } = userData;
 
           // First create the auth user
@@ -131,7 +131,7 @@ export const useAuthStore = create<AuthState>()(
               }
             }
           });
-          
+
           if (error) throw error;
           if (!data.user?.id) throw new Error('User data is missing');
 
@@ -144,8 +144,8 @@ export const useAuthStore = create<AuthState>()(
 
           if (profileError) throw new Error('Failed to fetch user profile: ' + profileError.message);
 
-          set({ 
-            isAuthenticated: false, // Keep false until email verification
+          set({
+            isAuthenticated: true, // Changed to true since we want to auto-login
             user: {
               ...data.user,
               profile: profile || undefined
@@ -156,7 +156,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('Signup error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Signup failed';
-          set({ 
+          set({
             isLoading: false,
             error: errorMessage
           });
@@ -169,9 +169,9 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, error: null });
           const { error } = await supabase.auth.signOut();
           if (error) throw error;
-          
-          set({ 
-            isAuthenticated: false, 
+
+          set({
+            isAuthenticated: false,
             user: null,
             isLoading: false,
             error: null
@@ -179,7 +179,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('Signout error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Sign out failed';
-          set({ 
+          set({
             isLoading: false,
             error: errorMessage
           });
@@ -193,13 +193,13 @@ export const useAuthStore = create<AuthState>()(
           const { error } = await supabase.auth.resetPasswordForEmail(email, {
             redirectTo: 'myapp://reset-password',
           });
-          
+
           if (error) throw error;
           set({ isLoading: false });
         } catch (error) {
           console.error('Reset password error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Password reset failed';
-          set({ 
+          set({
             isLoading: false,
             error: errorMessage
           });
@@ -213,13 +213,13 @@ export const useAuthStore = create<AuthState>()(
           const { error } = await supabase.auth.updateUser({
             password: newPassword
           });
-          
+
           if (error) throw error;
           set({ isLoading: false });
         } catch (error) {
           console.error('Update password error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Password update failed';
-          set({ 
+          set({
             isLoading: false,
             error: errorMessage
           });
@@ -253,7 +253,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('Update profile error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Profile update failed';
-          set({ 
+          set({
             isLoading: false,
             error: errorMessage
           });
