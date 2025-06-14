@@ -98,7 +98,20 @@ export default function BookScreen() {
   useEffect(() => {
     fetchAvailableIslands();
     fetchAvailableRoutes();
+
+    // Set default trip type if none is selected
+    if (!currentBooking.tripType) {
+      setTripType('one_way');
+    }
   }, []);
+
+  // Handle pre-populated data and step advancement in a separate effect
+  useEffect(() => {
+    // If route and date are already selected from quick booking, advance to step 2
+    if (currentBooking.route && currentBooking.departureDate) {
+      setCurrentStep(2);
+    }
+  }, [currentBooking.route, currentBooking.departureDate]);
 
   // Fetch trips when route or date changes
   useEffect(() => {

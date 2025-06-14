@@ -117,6 +117,7 @@ export interface BookingState {
   cancelBooking: (bookingId: string, reason: string, bankDetails: { accountNumber: string; accountName: string; bankName: string }) => Promise<void>;
   modifyBooking: (bookingId: string, { newDepartureDate, newReturnDate, selectedSeats, returnSelectedSeats, modificationReason, fareDifference }: any) => Promise<void>;
   validateTicket: (bookingNumber: string) => Promise<{ isValid: boolean; booking: Booking | null; message: string }>;
+  setQuickBookingData: (route: Route, departureDate: string) => void;
 }
 
 export const useBookingStore = create<BookingState>((set, get) => ({
@@ -156,6 +157,24 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         route: null,
         returnRoute: null,
         departureDate: null,
+        returnDate: null,
+        trip: null,
+        returnTrip: null,
+        passengers: [],
+        selectedSeats: [],
+        returnSelectedSeats: [],
+        totalFare: 0,
+      }
+    }));
+  },
+
+  setQuickBookingData: (route: Route, departureDate: string) => {
+    set((state) => ({
+      currentBooking: {
+        tripType: 'one_way',
+        route,
+        returnRoute: null,
+        departureDate,
         returnDate: null,
         trip: null,
         returnTrip: null,
