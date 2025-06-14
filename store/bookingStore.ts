@@ -1073,6 +1073,36 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
       if (newBookingError) throw newBookingError;
 
+      // Fetch trip details for QR code generation
+      const { data: tripData, error: tripError } = await supabase
+        .from('trips')
+        .select('departure_time')
+        .eq('id', newTripId)
+        .single();
+
+      if (tripError) throw tripError;
+
+      // Generate QR code data for new booking
+      const qrCodeData = JSON.stringify({
+        bookingNumber: newBooking.booking_number,
+        bookingId: newBooking.id,
+        tripId: newTripId,
+        departureDate: newDepartureDate,
+        departureTime: tripData?.departure_time || '',
+        passengers: booking.passengers.length,
+        seats: selectedSeats.map((seat: any) => seat.number),
+        totalFare: newTotalFare,
+        timestamp: new Date().toISOString()
+      });
+
+      // Update booking with QR code data
+      const { error: qrUpdateError } = await supabase
+        .from('bookings')
+        .update({ qr_code_url: qrCodeData })
+        .eq('id', newBooking.id);
+
+      if (qrUpdateError) throw qrUpdateError;
+
       // 2. Insert new passengers with new seat assignments
       const passengerInserts = booking.passengers.map((passenger, index) => ({
         booking_id: newBooking.id,
@@ -1114,6 +1144,37 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           .single();
 
         if (returnBookingError) throw returnBookingError;
+
+        // Fetch return trip details for QR code generation
+        const { data: returnTripData, error: returnTripError } = await supabase
+          .from('trips')
+          .select('departure_time')
+          .eq('id', newReturnTripId)
+          .single();
+
+        if (returnTripError) throw returnTripError;
+
+        // Generate QR code data for return booking
+        const returnQrCodeData = JSON.stringify({
+          bookingNumber: newReturnBooking.booking_number,
+          bookingId: newReturnBooking.id,
+          tripId: newReturnTripId,
+          departureDate: newReturnDate,
+          departureTime: returnTripData?.departure_time || '',
+          passengers: booking.passengers.length,
+          seats: returnSelectedSeats.map((seat: any) => seat.number),
+          totalFare: newTotalFare,
+          isReturn: true,
+          timestamp: new Date().toISOString()
+        });
+
+        // Update return booking with QR code data
+        const { error: returnQrUpdateError } = await supabase
+          .from('bookings')
+          .update({ qr_code_url: returnQrCodeData })
+          .eq('id', newReturnBooking.id);
+
+        if (returnQrUpdateError) throw returnQrUpdateError;
 
         // Update new booking with return reference
         await supabase

@@ -93,28 +93,24 @@ export default function HomeScreen() {
       return;
     }
 
-    // If user has selected route info, try to find matching route and pre-populate
-    if (selectedFromIsland && selectedToIsland && selectedDate) {
-      const matchingRoute = availableRoutes.find(route =>
-        route.fromIsland.name === selectedFromIsland &&
-        route.toIsland.name === selectedToIsland
-      );
+    // Check if the selected route combination exists in the database
+    const matchingRoute = availableRoutes.find(route =>
+      route.fromIsland.name === selectedFromIsland &&
+      route.toIsland.name === selectedToIsland
+    );
 
-      if (matchingRoute) {
-        // Use the new function to set quick booking data
-        setQuickBookingData(matchingRoute, selectedDate);
-
-        // Small delay to ensure state is updated before navigation
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Navigate to the booking page
-        router.push('/book');
-        return;
-      }
+    if (!matchingRoute) {
+      setErrorMessage(`No ferry route available from ${selectedFromIsland} to ${selectedToIsland}. Please select a different destination.`);
+      return;
     }
 
-    // If no pre-selection or no matching route found, reset and navigate normally
-    resetCurrentBooking();
+    // Use the new function to set quick booking data
+    setQuickBookingData(matchingRoute, selectedDate);
+
+    // Small delay to ensure state is updated before navigation
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Navigate to the booking page
     router.push('/book');
   };
 
@@ -122,12 +118,15 @@ export default function HomeScreen() {
     router.push(`/booking-details/${bookingId}`);
   };
 
-  // Get unique island names for selection, filtered based on current selection
-  const fromIslands = [...new Set(availableRoutes.map(route => route.fromIsland.name))]
-    .filter(island => island !== selectedToIsland);
+  // Get unique island names for selection, filtered based on current selection and available routes
+  const fromIslands = [...new Set(availableRoutes.map(route => route.fromIsland.name))];
 
-  const toIslands = [...new Set(availableRoutes.map(route => route.toIsland.name))]
-    .filter(island => island !== selectedFromIsland);
+  // Only show destination islands that have actual routes from the selected departure island
+  const toIslands = selectedFromIsland
+    ? [...new Set(availableRoutes
+      .filter(route => route.fromIsland.name === selectedFromIsland)
+      .map(route => route.toIsland.name))]
+    : [];
 
   // Generate date options for the next 30 days
   const generateDateOptions = () => {
@@ -219,7 +218,13 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.formRow}
-            onPress={() => setShowToModal(true)}
+            onPress={() => {
+              if (!selectedFromIsland) {
+                setErrorMessage("Please select a departure island first");
+                return;
+              }
+              setShowToModal(true);
+            }}
           >
             <View style={styles.formIcon}>
               <MapPin size={20} color={Colors.secondary} />
@@ -230,7 +235,7 @@ export default function HomeScreen() {
                 styles.formPlaceholder,
                 selectedToIsland && styles.formValue
               ]}>
-                {selectedToIsland || 'Select destination island'}
+                {selectedToIsland || (selectedFromIsland ? 'Select destination island' : 'Select departure island first')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -305,10 +310,8 @@ export default function HomeScreen() {
                 ]}
                 onPress={() => {
                   setSelectedFromIsland(island);
-                  // Clear the "To" selection if it's the same as the new "From" selection
-                  if (selectedToIsland === island) {
-                    setSelectedToIsland('');
-                  }
+                  // Clear the "To" selection since available destinations will change
+                  setSelectedToIsland('');
                   // Clear error message when user makes a selection
                   setErrorMessage('');
                   setShowFromModal(false);
