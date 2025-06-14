@@ -32,19 +32,18 @@ export default function LoginScreen() {
   const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
   const [isNavigating, setIsNavigating] = useState(false);
 
-  // Reset navigation state when screen receives focus
-  useFocusEffect(
-    React.useCallback(() => {
-      setIsNavigating(false);
-      return () => { };
-    }, [])
-  );
+  // Reset navigation state when component mounts
+  useEffect(() => {
+    setIsNavigating(false);
+  }, []);
 
   useEffect(() => {
     // If user is already authenticated, redirect to app
     if (isAuthenticated && !isNavigating) {
       setIsNavigating(true);
-      router.replace('/(app)/(tabs)');
+      setTimeout(() => {
+        router.replace('/(app)/(tabs)');
+      }, 200);
     }
   }, [isAuthenticated]);
 
@@ -75,13 +74,13 @@ export default function LoginScreen() {
 
     // Validate username (email or phone)
     if (!formData.username.trim()) {
-      newErrors.username = 'Email or phone number is required';
+      newErrors.username = 'Email is required';
       isValid = false;
     } else {
       const isEmail = /\S+@\S+\.\S+/.test(formData.username);
       const isPhone = /^\+?[0-9]{7,15}$/.test(formData.username);
       if (!isEmail && !isPhone) {
-        newErrors.username = 'Enter a valid email or phone number';
+        newErrors.username = 'Enter a valid email';
         isValid = false;
       }
     }
@@ -121,7 +120,6 @@ export default function LoginScreen() {
 
   const handleNavigation = (path: '/' | '/register' | '/forgotPassword') => {
     if (!isNavigating && !isLoading) {
-      setIsNavigating(true);
       router.push(path);
     }
   };

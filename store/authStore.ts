@@ -10,6 +10,7 @@ interface AuthState {
   isLoading: boolean;
   user: AuthUser | null;
   error: string | null;
+  preventRedirect: boolean;
   login: (email: string, password: string) => Promise<void>;
   signUp: (userData: RegisterData) => Promise<void>;
   signOut: () => Promise<void>;
@@ -19,6 +20,7 @@ interface AuthState {
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
+  setPreventRedirect: (prevent: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -28,10 +30,13 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       user: null,
       error: null,
+      preventRedirect: false,
 
       setError: (error: string) => set({ error }),
 
       clearError: () => set({ error: null }),
+
+      setPreventRedirect: (prevent: boolean) => set({ preventRedirect: prevent }),
 
       checkAuth: async () => {
         try {
@@ -145,11 +150,8 @@ export const useAuthStore = create<AuthState>()(
           if (profileError) throw new Error('Failed to fetch user profile: ' + profileError.message);
 
           set({
-            isAuthenticated: true, // Changed to true since we want to auto-login
-            user: {
-              ...data.user,
-              profile: profile || undefined
-            },
+            isAuthenticated: false, // Don't auto-authenticate after registration
+            user: null, // Clear user data to require login
             isLoading: false,
             error: null
           });
@@ -158,7 +160,8 @@ export const useAuthStore = create<AuthState>()(
           const errorMessage = error instanceof Error ? error.message : 'Signup failed';
           set({
             isLoading: false,
-            error: errorMessage
+            error: errorMessage,
+            preventRedirect: false
           });
           throw error;
         }
@@ -174,7 +177,8 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             user: null,
             isLoading: false,
-            error: null
+            error: null,
+            preventRedirect: false
           });
         } catch (error) {
           console.error('Signout error:', error);

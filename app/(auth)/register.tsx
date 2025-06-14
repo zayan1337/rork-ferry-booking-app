@@ -39,49 +39,25 @@ export default function RegisterScreen() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsError, setTermsError] = useState('');
   const [isNavigating, setIsNavigating] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [countdown, setCountdown] = useState(5);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(10);
 
-  const { signUp, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+  const { signUp, isAuthenticated, isLoading, error, clearError, setPreventRedirect } = useAuthStore();
 
-  useEffect(() => {
-    // If user is already authenticated, redirect to app
-    if (isAuthenticated && !isNavigating) {
-      setIsNavigating(true);
-      router.replace('/(app)/(tabs)');
-    }
-  }, [isAuthenticated]);
-
-  // Prevent going back if authenticated or navigating
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isAuthenticated || isNavigating) {
-        return true; // Prevent going back
-      }
-      return false;
-    });
-
-    return () => {
-      backHandler.remove();
-      setIsNavigating(false); // Reset navigation state when unmounting
-    };
-  }, [isAuthenticated, isNavigating]);
-
-  // Handle countdown timer when success state is true
+  // Handle countdown timer when success is shown
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
-    if (isSuccess && countdown > 0) {
+    if (showSuccess && countdown > 0) {
       timer = setInterval(() => {
         setCountdown((prev) => prev - 1);
       }, 1000);
-    } else if (isSuccess && countdown === 0 && !isNavigating) {
+    } else if (showSuccess && countdown === 0 && !isNavigating) {
       setIsNavigating(true);
-      // Navigate based on authentication state
-      if (isAuthenticated) {
-        router.replace('/(app)/(tabs)');
-      } else {
+      setPreventRedirect(false);
+      setShowSuccess(false);
+      setTimeout(() => {
         router.replace('/');
-      }
+      }, 100);
     }
 
     return () => {
@@ -89,7 +65,15 @@ export default function RegisterScreen() {
         clearInterval(timer);
       }
     };
-  }, [isSuccess, countdown, isNavigating, isAuthenticated]);
+  }, [showSuccess, countdown, isNavigating, setPreventRedirect]);
+
+  // Clear success message and reset form when component unmounts or navigates away
+  useEffect(() => {
+    return () => {
+      setPreventRedirect(false);
+      setShowSuccess(false);
+    };
+  }, [setPreventRedirect]);
 
   const updateFormData = (field: keyof typeof formData, value: string | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -161,16 +145,9 @@ export default function RegisterScreen() {
     return isValid;
   };
 
-  const handleNavigation = (path: '/') => {
-    if (!isNavigating && !isLoading) {
-      setIsNavigating(true);
-      router.push(path);
-    }
-  };
-
   const handleRegister = async () => {
     // Prevent multiple attempts while loading or navigating
-    if (isLoading || isNavigating) {
+    if (isLoading || isNavigating || showSuccess) {
       return;
     }
 
@@ -183,7 +160,10 @@ export default function RegisterScreen() {
     }
 
     try {
-      // Attempt registration with enhanced signUp
+      // Prevent redirects during success message
+      setPreventRedirect(true);
+
+      // Attempt registration
       await signUp({
         email_address: formData.email,
         password: formData.password,
@@ -193,15 +173,26 @@ export default function RegisterScreen() {
         accepted_terms: termsAccepted
       });
 
-      // Show success message with countdown
-      setIsSuccess(true);
-      setCountdown(5);
+      // Show success message
+      setShowSuccess(true);
+      setCountdown(10);
 
     } catch (err) {
-      // Reset navigation state if registration fails
-      setIsNavigating(false);
-      setIsSuccess(false);
+      // Reset states if registration fails
+      setPreventRedirect(false);
+      setShowSuccess(false);
       console.error('Registration error:', err);
+    }
+  };
+
+  const handleSkipCountdown = () => {
+    if (!isNavigating) {
+      setIsNavigating(true);
+      setPreventRedirect(false);
+      setShowSuccess(false);
+      setTimeout(() => {
+        router.replace('/');
+      }, 100);
     }
   };
 
@@ -224,137 +215,133 @@ export default function RegisterScreen() {
             </View>
           )}
 
-          {isSuccess ? (
+          <Input
+            label="Full Name"
+            placeholder="Enter your full name"
+            value={formData.fullname}
+            onChangeText={(text) => updateFormData('fullname', text)}
+            error={errors.fullname}
+            disabled={isLoading || isNavigating || showSuccess}
+            required
+          />
+
+          <Input
+            label="Mobile Number"
+            placeholder="+9607XXXXXXX"
+            value={formData.phone}
+            onChangeText={(text) => updateFormData('phone', text)}
+            keyboardType="phone-pad"
+            error={errors.phone}
+            disabled={isLoading || isNavigating || showSuccess}
+            required
+          />
+
+          <Input
+            label="Email Address"
+            placeholder="your.email@example.com"
+            value={formData.email}
+            onChangeText={(text) => updateFormData('email', text)}
+            keyboardType="email-address"
+            error={errors.email}
+            disabled={isLoading || isNavigating || showSuccess}
+            required
+          />
+
+          <DateSelector
+            label="Date of Birth"
+            value={formData.dateofbirth}
+            onChange={(date) => updateFormData('dateofbirth', date)}
+            maxDate={new Date().toISOString().split('T')[0]}
+            error={errors.dateofbirth}
+            isDateOfBirth={true}
+            required
+          />
+
+          <Input
+            label="Password"
+            placeholder="Create a password"
+            value={formData.password}
+            onChangeText={(text) => updateFormData('password', text)}
+            secureTextEntry
+            error={errors.password}
+            disabled={isLoading || isNavigating || showSuccess}
+            required
+          />
+
+          <Input
+            label="Confirm Password"
+            placeholder="Confirm your password"
+            value={formData.confirmPassword}
+            onChangeText={(text) => updateFormData('confirmPassword', text)}
+            secureTextEntry
+            error={errors.confirmPassword}
+            disabled={isLoading || isNavigating || showSuccess}
+            required
+          />
+
+          <View style={styles.termsContainer}>
+            <TouchableOpacity
+              style={styles.checkbox}
+              onPress={() => {
+                setTermsAccepted(!termsAccepted);
+                if (termsError) setTermsError('');
+              }}
+              disabled={isLoading || isNavigating || showSuccess}
+            >
+              <View style={[
+                styles.checkboxInner,
+                termsAccepted && styles.checkboxChecked
+              ]} />
+            </TouchableOpacity>
+            <Text style={styles.termsText}>
+              I accept the{' '}
+              <Text style={styles.termsLink}>Terms and Conditions</Text>
+            </Text>
+          </View>
+
+          {termsError ? (
+            <Text style={styles.termsError}>{termsError}</Text>
+          ) : null}
+
+          <Button
+            title="Create Account"
+            onPress={handleRegister}
+            loading={isLoading}
+            disabled={isLoading || isNavigating || showSuccess}
+            fullWidth
+            style={styles.registerButton}
+          />
+
+          {/* Success Message - Shows under the form */}
+          {showSuccess && (
             <View style={styles.successContainer}>
-              <Text style={styles.successTitle}>Registration Successful!</Text>
+              <Text style={styles.successTitle}>Registration Successful! ✅</Text>
               <Text style={styles.successText}>
-                Your account has been created successfully.
+                Confirmation mail sent to {formData.email}. Please check your email and confirm your account.
               </Text>
               <Text style={styles.countdownText}>
-                Redirecting {isAuthenticated ? 'to home page' : 'to login'} in {countdown} seconds...
+                Redirecting to login page in {countdown} seconds...
               </Text>
               <Button
-                title={`Skip (${countdown}s)`}
-                onPress={() => setCountdown(0)}
+                title={`Go to Login Now (${countdown}s)`}
+                onPress={handleSkipCountdown}
                 disabled={isNavigating}
                 fullWidth
+                variant="secondary"
                 style={styles.skipButton}
               />
             </View>
-          ) : (
-            <>
-              <Input
-                label="Full Name"
-                placeholder="Enter your full name"
-                value={formData.fullname}
-                onChangeText={(text) => updateFormData('fullname', text)}
-                error={errors.fullname}
-                disabled={isLoading || isNavigating}
-                required
-              />
-
-              <Input
-                label="Mobile Number"
-                placeholder="+9607XXXXXXX"
-                value={formData.phone}
-                onChangeText={(text) => updateFormData('phone', text)}
-                keyboardType="phone-pad"
-                error={errors.phone}
-                disabled={isLoading || isNavigating}
-                required
-              />
-
-              <Input
-                label="Email Address"
-                placeholder="your.email@example.com"
-                value={formData.email}
-                onChangeText={(text) => updateFormData('email', text)}
-                keyboardType="email-address"
-                error={errors.email}
-                disabled={isLoading || isNavigating}
-                required
-              />
-
-              <DateSelector
-                label="Date of Birth"
-                value={formData.dateofbirth}
-                onChange={(date) => updateFormData('dateofbirth', date)}
-                maxDate={new Date().toISOString().split('T')[0]}
-                error={errors.dateofbirth}
-                isDateOfBirth={true}
-                required
-              />
-
-              <Input
-                label="Password"
-                placeholder="Create a password"
-                value={formData.password}
-                onChangeText={(text) => updateFormData('password', text)}
-                secureTextEntry
-                error={errors.password}
-                disabled={isLoading || isNavigating}
-                required
-              />
-
-              <Input
-                label="Confirm Password"
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                onChangeText={(text) => updateFormData('confirmPassword', text)}
-                secureTextEntry
-                error={errors.confirmPassword}
-                disabled={isLoading || isNavigating}
-                required
-              />
-
-              <View style={styles.termsContainer}>
-                <TouchableOpacity
-                  style={styles.checkbox}
-                  onPress={() => {
-                    setTermsAccepted(!termsAccepted);
-                    if (termsError) setTermsError('');
-                  }}
-                  disabled={isLoading || isNavigating}
-                >
-                  <View style={[
-                    styles.checkboxInner,
-                    termsAccepted && styles.checkboxChecked
-                  ]} />
-                </TouchableOpacity>
-                <Text style={styles.termsText}>
-                  I accept the{' '}
-                  <Text style={styles.termsLink}>Terms and Conditions</Text>
-                </Text>
-              </View>
-
-              {termsError ? (
-                <Text style={styles.termsError}>{termsError}</Text>
-              ) : null}
-            </>
           )}
 
-          {!isSuccess && (
-            <>
-              <Button
-                title="Create Account"
-                onPress={handleRegister}
-                loading={isLoading || isNavigating}
-                disabled={isLoading || isNavigating}
-                fullWidth
-                style={styles.registerButton}
-              />
-
-              <View style={styles.loginContainer}>
-                <Text style={styles.loginText}>Already have an account? </Text>
-                <TouchableOpacity
-                  disabled={isLoading || isNavigating}
-                  onPress={() => router.push('/')}
-                >
-                  <Text style={styles.loginLink}>Login</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
+          <View style={styles.loginContainer}>
+            <Text style={styles.loginText}>Already have an account? </Text>
+            <TouchableOpacity
+              disabled={isLoading || isNavigating || showSuccess}
+              onPress={() => router.push('/')}
+            >
+              <Text style={[styles.loginLink, (showSuccess || isLoading) && styles.disabledLink]}>Login</Text>
+            </TouchableOpacity>
+          </View>
         </Card>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -432,11 +419,47 @@ const styles = StyleSheet.create({
   },
   registerButton: {
     marginTop: 8,
+    marginBottom: 16,
+  },
+  successContainer: {
+    backgroundColor: '#e8f5e9',
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#4caf50',
+  },
+  successTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2e7d32',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  successText: {
+    fontSize: 14,
+    color: '#388e3c',
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  countdownText: {
+    fontSize: 16,
+    color: Colors.primary,
+    fontWeight: '500',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  skipButton: {
+    backgroundColor: Colors.primary,
+    borderWidth: 0,
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 8,
   },
   loginText: {
     color: Colors.textSecondary,
@@ -447,34 +470,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  successContainer: {
-    backgroundColor: '#e8f5e9',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  successTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.success,
-    marginBottom: 8,
-  },
-  successText: {
-    fontSize: 14,
+  disabledLink: {
     color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  countdownText: {
-    fontSize: 16,
-    color: Colors.primary,
-    fontWeight: '500',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  skipButton: {
-    marginTop: 8,
-    backgroundColor: Colors.secondary,
+    opacity: 0.5,
   },
 });

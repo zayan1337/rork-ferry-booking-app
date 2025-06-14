@@ -48,7 +48,9 @@ export default function ForgotPasswordScreen() {
       navigationTimer = setTimeout(() => {
         if (!isNavigating) {
           setIsNavigating(true);
-          router.push('/');
+          setTimeout(() => {
+            router.push('/');
+          }, 100);
         }
       }, 5000);
     }
@@ -150,7 +152,14 @@ export default function ForgotPasswordScreen() {
               </Text>
               <TouchableOpacity
                 style={styles.backToLoginButton}
-                onPress={() => handleNavigation('/')}
+                onPress={() => {
+                  if (!isNavigating) {
+                    setIsNavigating(true);
+                    setTimeout(() => {
+                      router.push('/');
+                    }, 100);
+                  }
+                }}
                 disabled={isNavigating}
               >
                 <Text style={styles.backToLoginText}>Back to Login</Text>
@@ -190,7 +199,14 @@ export default function ForgotPasswordScreen() {
                 <Text style={styles.loginText}>Remember your password? </Text>
                 <TouchableOpacity
                   disabled={isLoading || isNavigating}
-                  onPress={() => handleNavigation('/')}
+                  onPress={() => {
+                    if (!isNavigating && !isLoading) {
+                      setIsNavigating(true);
+                      setTimeout(() => {
+                        router.push('/');
+                      }, 100);
+                    }
+                  }}
                 >
                   <Text style={styles.loginLink}>Login</Text>
                 </TouchableOpacity>
