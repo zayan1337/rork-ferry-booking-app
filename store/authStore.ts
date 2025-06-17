@@ -150,8 +150,6 @@ export const useAuthStore = create<AuthState>()(
           if (profileError) throw new Error('Failed to fetch user profile: ' + profileError.message);
 
           set({
-            isAuthenticated: false, // Don't auto-authenticate after registration
-            user: null, // Clear user data to require login
             isLoading: false,
             error: null
           });

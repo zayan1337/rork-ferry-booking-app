@@ -88,6 +88,7 @@ export default function BookScreen() {
     fetchAvailableRoutes,
     fetchTrips,
     fetchAvailableSeats,
+    refreshAvailableSeatsSilently,
     availableIslands,
     availableRoutes,
     trips,
@@ -185,12 +186,12 @@ export default function BookScreen() {
   useEffect(() => {
     if (currentStep === 3) {
       const refreshInterval = setInterval(() => {
-        // Refresh seat availability every 30 seconds when on seat selection step
+        // Refresh seat availability every 30 seconds without showing loading
         if (currentBooking.trip?.id) {
-          fetchAvailableSeats(currentBooking.trip.id, false);
+          refreshAvailableSeatsSilently(currentBooking.trip.id, false);
         }
         if (currentBooking.returnTrip?.id) {
-          fetchAvailableSeats(currentBooking.returnTrip.id, true);
+          refreshAvailableSeatsSilently(currentBooking.returnTrip.id, true);
         }
       }, 30000); // 30 seconds
 
@@ -294,10 +295,10 @@ export default function BookScreen() {
       // Refresh seat availability when user reaches seat selection step
       if (nextStep === 3) {
         if (currentBooking.trip?.id) {
-          fetchAvailableSeats(currentBooking.trip.id, false);
+          refreshAvailableSeatsSilently(currentBooking.trip.id, false);
         }
         if (currentBooking.returnTrip?.id) {
-          fetchAvailableSeats(currentBooking.returnTrip.id, true);
+          refreshAvailableSeatsSilently(currentBooking.returnTrip.id, true);
         }
       }
     }
@@ -355,7 +356,7 @@ export default function BookScreen() {
         // Refresh seat availability to show current status
         if (currentBooking.trip?.id) {
           try {
-            await fetchAvailableSeats(currentBooking.trip.id, false);
+            await refreshAvailableSeatsSilently(currentBooking.trip.id, false);
           } catch (refreshError) {
             console.error('Error refreshing departure seats after booking error:', refreshError);
           }
@@ -363,7 +364,7 @@ export default function BookScreen() {
 
         if (currentBooking.returnTrip?.id) {
           try {
-            await fetchAvailableSeats(currentBooking.returnTrip.id, true);
+            await refreshAvailableSeatsSilently(currentBooking.returnTrip.id, true);
           } catch (refreshError) {
             console.error('Error refreshing return seats after booking error:', refreshError);
           }

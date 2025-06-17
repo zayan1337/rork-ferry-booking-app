@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
@@ -6,22 +6,17 @@ import Colors from '@/constants/colors';
 export default function AppLayout() {
   const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
-  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     // If user is not authenticated and we're not loading, redirect to auth
-    if (!isAuthenticated && !isLoading && !isNavigating) {
-      console.log('User not authenticated, redirecting to auth');
-      setIsNavigating(true);
-      setTimeout(() => {
-        router.replace('/(auth)');
-      }, 100);
+    if (!isAuthenticated && !isLoading) {
+      router.replace('/(auth)');
     }
-  }, [isAuthenticated, isLoading, isNavigating]);
+  }, [isAuthenticated, isLoading]);
 
-  // If user is not authenticated, show loading or nothing while redirecting
+  // If user is not authenticated, show nothing while redirecting
   if (!isAuthenticated) {
-    return null; // or a loading spinner
+    return null;
   }
 
   return (

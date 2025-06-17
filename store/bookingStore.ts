@@ -106,6 +106,7 @@ export interface BookingState {
   fetchRoutes: () => Promise<void>;
   fetchTrips: (routeId: string, date: string, isReturn?: boolean) => Promise<void>;
   fetchAvailableSeats: (tripId: string, isReturn?: boolean) => Promise<void>;
+  refreshAvailableSeatsSilently: (tripId: string, isReturn?: boolean) => Promise<void>;
   fetchAvailableIslands: () => Promise<void>;
   fetchAvailableRoutes: () => Promise<void>;
   fetchSeats: (vesselId: string) => Promise<void>;
@@ -500,7 +501,18 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     setLoading(true);
     setError(null);
 
+    try {
+      await get().refreshAvailableSeatsSilently(tripId, isReturn);
+    } catch (error: any) {
+      console.error('Error fetching available seats:', error);
+      setError('Failed to fetch seats. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  },
 
+  // New function to refresh seats without loading state - used for real-time updates and periodic refresh
+  refreshAvailableSeatsSilently: async (tripId: string, isReturn = false) => {
     try {
       // First, get the trip details to find the vessel
       const { data: tripData, error: tripError } = await supabase
@@ -510,7 +522,6 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         .single();
 
       if (tripError) throw tripError;
-
 
       // Get all seats for this vessel
       const { data: allVesselSeats, error: seatsError } = await supabase
@@ -522,10 +533,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
       if (seatsError) throw seatsError;
 
-
       if (!allVesselSeats || allVesselSeats.length === 0) {
         console.warn(`No seats found for vessel ${tripData.vessel_id}`);
-        setError('No seats found for this vessel. Please contact administrator.');
         set(state => ({
           [isReturn ? 'availableReturnSeats' : 'availableSeats']: []
         }));
@@ -584,8 +593,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       // Create a map of seat reservations for quick lookup
       const reservationMap = new Map();
       seatReservations.forEach(reservation => {
-        if (reservation.seat) {
-          reservationMap.set(reservation.seat.id, reservation);
+        if (reservation.seat && typeof reservation.seat === 'object' && 'id' in reservation.seat) {
+          reservationMap.set((reservation.seat as any).id, reservation);
         }
       });
 
@@ -648,10 +657,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       }));
 
     } catch (error: any) {
-      console.error('Error fetching available seats:', error);
-
-    } finally {
-      setLoading(false);
+      console.error('Error refreshing available seats silently:', error);
+      // Don't set global error state for silent refresh
     }
   },
 

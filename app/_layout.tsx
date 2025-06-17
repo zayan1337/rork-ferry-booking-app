@@ -7,10 +7,6 @@ import { StatusBar } from "expo-status-bar";
 import Colors from "@/constants/colors";
 import { useAuthStore } from "../store/authStore";
 
-export const unstable_settings = {
-  initialRouteName: "(auth)",
-};
-
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
@@ -40,11 +36,11 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const { checkAuth } = useAuthStore();
+  const { checkAuth, isAuthenticated, isLoading } = useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Only check auth once on startup - no redirects at layout level
+    // Only check auth once on startup
     if (!authChecked) {
       const initAuth = async () => {
         try {
@@ -55,26 +51,25 @@ function RootLayoutNav() {
       };
       initAuth();
     }
-  }, []); // Empty dependencies to run only once
+  }, []);
+
+  // Show loading screen while checking authentication
+  if (!authChecked || isLoading) {
+    return null; // Keep splash screen visible
+  }
 
   return (
     <>
       <StatusBar style="dark" />
-      <Stack>
-        <Stack.Screen
-          name="(auth)"
-          options={{
-            headerShown: false,
-            gestureEnabled: false
-          }}
-        />
-        <Stack.Screen
-          name="(app)"
-          options={{
-            headerShown: false,
-            gestureEnabled: false
-          }}
-        />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          gestureEnabled: false
+        }}
+        initialRouteName={isAuthenticated ? "(app)" : "(auth)"}
+      >
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(app)" />
       </Stack>
     </>
   );

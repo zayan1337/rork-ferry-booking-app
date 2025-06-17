@@ -41,9 +41,7 @@ export default function LoginScreen() {
     // If user is already authenticated, redirect to app
     if (isAuthenticated && !isNavigating) {
       setIsNavigating(true);
-      setTimeout(() => {
-        router.replace('/(app)/(tabs)');
-      }, 200);
+      router.replace('/(app)/(tabs)');
     }
   }, [isAuthenticated]);
 
@@ -118,7 +116,7 @@ export default function LoginScreen() {
     }
   };
 
-  const handleNavigation = (path: '/' | '/register' | '/forgotPassword') => {
+  const handleNavigation = (path: 'register' | 'forgotPassword') => {
     if (!isNavigating && !isLoading) {
       router.push(path);
     }
@@ -178,7 +176,7 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={styles.forgotPasswordContainer}
             disabled={isLoading || isNavigating}
-            onPress={() => handleNavigation('/forgotPassword')}
+            onPress={() => handleNavigation('forgotPassword')}
           >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
@@ -196,7 +194,7 @@ export default function LoginScreen() {
             <Text style={styles.registerText}>Don't have an account? </Text>
             <TouchableOpacity
               disabled={isLoading || isNavigating}
-              onPress={() => handleNavigation('/register')}
+              onPress={() => handleNavigation('register')}
             >
               <Text style={styles.registerLink}>Sign Up</Text>
             </TouchableOpacity>

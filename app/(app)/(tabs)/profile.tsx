@@ -34,7 +34,7 @@ export default function ProfileScreen() {
     if (error) {
       Alert.alert('Error', error);
     }
-   
+
   }, [error]);
 
   if (isLoading) {
@@ -64,9 +64,13 @@ export default function ProfileScreen() {
         },
         {
           text: "Logout",
-          onPress: () => {
-            signOut();
-            router.replace('/');
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace('/(auth)');
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
           },
           style: "destructive"
         }

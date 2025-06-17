@@ -19,14 +19,14 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
   maxSeats = 10,
   isLoading = false,
 }) => {
-  // Show loading state if seats are being fetched
-  if (isLoading || !seats || seats.length === 0) {
+  // Show loading state only when there are no seats AND we're loading
+  if (!seats || seats.length === 0) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>
-            {isLoading ? 'Loading seat availability...' : seats?.length === 0 ? 'No seats available for this trip' : 'Loading...'}
+            {isLoading ? 'Loading seat availability...' : 'No seats available for this trip'}
           </Text>
         </View>
       </View>
