@@ -8,8 +8,9 @@ export type TicketCardProps = {
 export type SeatSelectorProps = {
   seats: Seat[];
   selectedSeats: Seat[];
-  onSeatToggle: (seat: Seat) => void;
+  onSeatToggle: (seat: Seat) => Promise<void> | void;
   maxSeats?: number;
+  isLoading?: boolean;
 };
 
 export type InputProps = {

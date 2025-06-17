@@ -72,6 +72,8 @@ export default function BookScreen() {
   const {
     currentBooking,
     seats,
+    availableSeats,
+    availableReturnSeats,
     fetchSeats,
     setTripType,
     setDepartureDate,
@@ -85,6 +87,7 @@ export default function BookScreen() {
     fetchAvailableIslands,
     fetchAvailableRoutes,
     fetchTrips,
+    fetchAvailableSeats,
     availableIslands,
     availableRoutes,
     trips,
@@ -92,6 +95,9 @@ export default function BookScreen() {
     isLoading,
     confirmBooking,
     resetCurrentBooking,
+    subscribeSeatUpdates,
+    unsubscribeSeatUpdates,
+    cleanupAllSeatSubscriptions,
   } = useBookingStore();
 
   // Fetch initial data
@@ -128,10 +134,69 @@ export default function BookScreen() {
 
   // Fetch seats when trip is selected
   useEffect(() => {
-    if (currentBooking.trip?.vessel_id) {
-      fetchSeats(currentBooking.trip.vessel_id);
+    const initializeSeatsForTrip = async () => {
+      if (currentBooking.trip?.id) {
+        try {
+          // Fetch available seats from seat_reservations table
+          await fetchAvailableSeats(currentBooking.trip.id, false);
+          // Subscribe to real-time updates for this trip
+          subscribeSeatUpdates(currentBooking.trip.id, false);
+        } catch (error) {
+          console.error('Error fetching seats for trip:', error);
+        }
+      }
+    };
+
+    const initializeSeatsForReturnTrip = async () => {
+      if (currentBooking.returnTrip?.id) {
+        try {
+          // Fetch available seats for return trip from seat_reservations table
+          await fetchAvailableSeats(currentBooking.returnTrip.id, true);
+          // Subscribe to real-time updates for return trip
+          subscribeSeatUpdates(currentBooking.returnTrip.id, true);
+        } catch (error) {
+          console.error('Error fetching seats for return trip:', error);
+        }
+      }
+    };
+
+    initializeSeatsForTrip();
+    initializeSeatsForReturnTrip();
+
+    // Cleanup subscriptions when trips change
+    return () => {
+      if (currentBooking.trip?.id) {
+        unsubscribeSeatUpdates(currentBooking.trip.id);
+      }
+      if (currentBooking.returnTrip?.id) {
+        unsubscribeSeatUpdates(currentBooking.returnTrip.id);
+      }
+    };
+  }, [currentBooking.trip?.id, currentBooking.returnTrip?.id]);
+
+  // Cleanup all subscriptions when component unmounts
+  useEffect(() => {
+    return () => {
+      cleanupAllSeatSubscriptions();
+    };
+  }, []);
+
+  // Periodic seat refresh when on seat selection step (as fallback for real-time updates)
+  useEffect(() => {
+    if (currentStep === 3) {
+      const refreshInterval = setInterval(() => {
+        // Refresh seat availability every 30 seconds when on seat selection step
+        if (currentBooking.trip?.id) {
+          fetchAvailableSeats(currentBooking.trip.id, false);
+        }
+        if (currentBooking.returnTrip?.id) {
+          fetchAvailableSeats(currentBooking.returnTrip.id, true);
+        }
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(refreshInterval);
     }
-  }, [currentBooking.trip?.vessel_id]);
+  }, [currentStep, currentBooking.trip?.id, currentBooking.returnTrip?.id]);
 
   const validateStep = (step: number) => {
     const newErrors = { ...errors };
@@ -223,7 +288,18 @@ export default function BookScreen() {
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(currentStep + 1);
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+
+      // Refresh seat availability when user reaches seat selection step
+      if (nextStep === 3) {
+        if (currentBooking.trip?.id) {
+          fetchAvailableSeats(currentBooking.trip.id, false);
+        }
+        if (currentBooking.returnTrip?.id) {
+          fetchAvailableSeats(currentBooking.returnTrip.id, true);
+        }
+      }
     }
   };
 
@@ -268,12 +344,30 @@ export default function BookScreen() {
             }
           ]
         );
-      } catch (error) {
+      } catch (error: any) {
+        const errorMessage = error?.message || 'There was an error processing your booking. Please try again.';
+
         Alert.alert(
           "Booking Failed",
-          "There was an error processing your booking. Please try again."
+          errorMessage
         );
-        // Do not reset state on error
+
+        // Refresh seat availability to show current status
+        if (currentBooking.trip?.id) {
+          try {
+            await fetchAvailableSeats(currentBooking.trip.id, false);
+          } catch (refreshError) {
+            console.error('Error refreshing departure seats after booking error:', refreshError);
+          }
+        }
+
+        if (currentBooking.returnTrip?.id) {
+          try {
+            await fetchAvailableSeats(currentBooking.returnTrip.id, true);
+          } catch (refreshError) {
+            console.error('Error refreshing return seats after booking error:', refreshError);
+          }
+        }
       }
     }
   };
@@ -521,24 +615,26 @@ export default function BookScreen() {
 
             <Text style={styles.seatSectionTitle}>Departure Seats</Text>
             <SeatSelector
-              seats={seats}
+              seats={availableSeats}
               selectedSeats={currentBooking.selectedSeats}
-              onSeatToggle={(seat) => {
-                toggleSeatSelection(seat);
+              onSeatToggle={async (seat) => {
+                await toggleSeatSelection(seat);
                 if (errors.seats) setErrors({ ...errors, seats: '' });
               }}
+              isLoading={isLoading}
             />
 
             {currentBooking.tripType === 'round_trip' && (
               <>
                 <Text style={styles.seatSectionTitle}>Return Seats</Text>
                 <SeatSelector
-                  seats={seats}
+                  seats={availableReturnSeats}
                   selectedSeats={currentBooking.returnSelectedSeats}
-                  onSeatToggle={(seat) => {
-                    toggleSeatSelection(seat, true);
+                  onSeatToggle={async (seat) => {
+                    await toggleSeatSelection(seat, true);
                     if (errors.seats) setErrors({ ...errors, seats: '' });
                   }}
+                  isLoading={isLoading}
                 />
               </>
             )}
@@ -546,6 +642,8 @@ export default function BookScreen() {
             {errors.seats ? (
               <Text style={styles.errorText}>{errors.seats}</Text>
             ) : null}
+
+
 
             {currentBooking.selectedSeats.length > 0 && (
               <View style={styles.fareContainer}>

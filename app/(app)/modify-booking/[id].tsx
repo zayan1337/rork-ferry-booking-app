@@ -16,6 +16,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { Calendar, ArrowRight } from 'lucide-react-native';
 import { useBookingStore } from '@/store/bookingStore';
+import { supabase } from '@/utils/supabase';
 import { Seat } from '@/types';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
@@ -56,6 +57,9 @@ export default function ModifyBookingScreen() {
     fetchTrips,
     fetchAvailableSeats
   } = useBookingStore();
+
+  // State to track actual seat availability for each trip
+  const [tripSeatCounts, setTripSeatCounts] = useState<Record<string, number>>({});
   const [newDepartureDate, setNewDepartureDate] = useState<string | null>(null);
   const [newReturnDate, setNewReturnDate] = useState<string | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
@@ -137,6 +141,31 @@ export default function ModifyBookingScreen() {
     }
   }, [booking]);
 
+  // Function to fetch actual seat availability for a trip
+  const fetchTripSeatAvailability = async (tripId: string) => {
+    try {
+      const { data: seatReservations, error } = await supabase
+        .from('seat_reservations')
+        .select('is_available, booking_id')
+        .eq('trip_id', tripId);
+
+      if (error) {
+        console.error('Error fetching seat availability:', error);
+        return 0;
+      }
+
+      // Count available seats (is_available = true AND booking_id is null)
+      const availableCount = seatReservations?.filter(
+        reservation => reservation.is_available && !reservation.booking_id
+      ).length || 0;
+
+      return availableCount;
+    } catch (error) {
+      console.error('Error in fetchTripSeatAvailability:', error);
+      return 0;
+    }
+  };
+
   // Fetch trips when date or route changes
   useEffect(() => {
     if (booking?.route && newDepartureDate) {
@@ -144,11 +173,53 @@ export default function ModifyBookingScreen() {
     }
   }, [booking?.route, newDepartureDate, fetchTrips]);
 
+  // Fetch seat availability for all trips when trips are loaded
+  useEffect(() => {
+    const updateTripSeatCounts = async () => {
+      if (trips.length > 0) {
+        const newCounts: Record<string, number> = {};
+
+        // Fetch seat availability for each trip
+        await Promise.all(
+          trips.map(async (trip) => {
+            const availableCount = await fetchTripSeatAvailability(trip.id);
+            newCounts[trip.id] = availableCount;
+          })
+        );
+
+        setTripSeatCounts(newCounts);
+      }
+    };
+
+    updateTripSeatCounts();
+  }, [trips]);
+
   useEffect(() => {
     if (booking?.returnRoute && newReturnDate) {
       fetchTrips(booking.returnRoute.id, newReturnDate, true);
     }
   }, [booking?.returnRoute, newReturnDate, fetchTrips]);
+
+  // Fetch seat availability for return trips when they are loaded
+  useEffect(() => {
+    const updateReturnTripSeatCounts = async () => {
+      if (returnTrips.length > 0) {
+        const newCounts: Record<string, number> = {};
+
+        // Fetch seat availability for each return trip
+        await Promise.all(
+          returnTrips.map(async (trip) => {
+            const availableCount = await fetchTripSeatAvailability(trip.id);
+            newCounts[trip.id] = availableCount;
+          })
+        );
+
+        setTripSeatCounts(prev => ({ ...prev, ...newCounts }));
+      }
+    };
+
+    updateReturnTripSeatCounts();
+  }, [returnTrips]);
 
   // Fetch available seats when trip is selected
   useEffect(() => {
@@ -376,7 +447,9 @@ export default function ModifyBookingScreen() {
                 >
                   <Text style={styles.tripTime}>{trip.departure_time}</Text>
                   <Text style={styles.tripVessel}>{trip.vessel_name}</Text>
-                  <Text style={styles.tripSeats}>{trip.available_seats} seats available</Text>
+                  <Text style={styles.tripSeats}>
+                    {tripSeatCounts[trip.id] !== undefined ? tripSeatCounts[trip.id] : '...'} seats available
+                  </Text>
                 </TouchableOpacity>
               ))}
               {errors.trip ? (
@@ -398,6 +471,30 @@ export default function ModifyBookingScreen() {
               error={errors.returnDate}
               required
             />
+          )}
+
+          {booking.tripType === 'round_trip' && returnTrips.length > 0 && (
+            <View style={styles.tripSelection}>
+              <Text style={styles.sectionTitle}>Select Return Trip</Text>
+              {returnTrips.map((trip) => (
+                <TouchableOpacity
+                  key={trip.id}
+                  style={[
+                    styles.tripOption,
+                    selectedReturnTrip?.id === trip.id && styles.tripOptionSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedReturnTrip(trip);
+                  }}
+                >
+                  <Text style={styles.tripTime}>{trip.departure_time}</Text>
+                  <Text style={styles.tripVessel}>{trip.vessel_name}</Text>
+                  <Text style={styles.tripSeats}>
+                    {tripSeatCounts[trip.id] !== undefined ? tripSeatCounts[trip.id] : '...'} seats available
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
 
           <Text style={styles.seatSectionTitle}>Select New Departure Seats ({selectedSeats.length}/{booking.passengers.length})</Text>
