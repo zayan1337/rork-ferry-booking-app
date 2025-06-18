@@ -4,20 +4,39 @@ import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 
 export default function AppLayout() {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, user } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
     // If user is not authenticated and we're not loading, redirect to auth
     if (!isAuthenticated && !isLoading) {
+      console.log('AppLayout: Redirecting to auth');
       router.replace('/(auth)');
+      return;
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, router]);
 
   // If user is not authenticated, show nothing while redirecting
   if (!isAuthenticated) {
     return null;
   }
+
+  // Determine initial route based on user role
+  const getInitialRouteName = () => {
+    if (!user?.profile) {
+      return "(tabs)"; // Default to customer if profile not loaded
+    }
+
+    switch (user.profile.role) {
+      case 'agent':
+      case 'admin':
+      case 'captain':
+        return "(agent)";
+      case 'customer':
+      default:
+        return "(tabs)";
+    }
+  };
 
   return (
     <Stack
@@ -30,8 +49,10 @@ export default function AppLayout() {
           fontWeight: '600',
         },
       }}
+      initialRouteName={getInitialRouteName()}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(agent)" options={{ headerShown: false }} />
       <Stack.Screen
         name="booking-details/[id]"
         options={{

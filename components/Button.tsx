@@ -1,8 +1,8 @@
 import React from 'react';
-import { 
-  TouchableOpacity, 
-  Text, 
-  StyleSheet, 
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle
@@ -19,11 +19,13 @@ const Button: React.FC<ButtonProps> = ({
   loading = false,
   style,
   textStyle,
+  icon,
+
   fullWidth = false,
 }) => {
   const getButtonStyle = () => {
     const baseStyle: ViewStyle[] = [styles.button];
-    
+
     // Add size styles
     switch (size) {
       case 'small':
@@ -35,7 +37,7 @@ const Button: React.FC<ButtonProps> = ({
       default:
         baseStyle.push(styles.buttonMedium);
     }
-    
+
     // Add variant styles
     switch (variant) {
       case 'secondary':
@@ -50,23 +52,23 @@ const Button: React.FC<ButtonProps> = ({
       default:
         baseStyle.push(styles.buttonPrimary);
     }
-    
+
     // Add full width style
     if (fullWidth) {
       baseStyle.push(styles.buttonFullWidth);
     }
-    
+
     // Add disabled style
     if (disabled || loading) {
       baseStyle.push(styles.buttonDisabled);
     }
-    
+
     return baseStyle;
   };
-  
+
   const getTextStyle = () => {
     const baseStyle: TextStyle[] = [styles.buttonLabel];
-    
+
     // Add size styles
     switch (size) {
       case 'small':
@@ -78,7 +80,7 @@ const Button: React.FC<ButtonProps> = ({
       default:
         baseStyle.push(styles.buttonLabelMedium);
     }
-    
+
     // Add variant styles
     switch (variant) {
       case 'outline':
@@ -93,15 +95,15 @@ const Button: React.FC<ButtonProps> = ({
       default:
         baseStyle.push(styles.buttonLabelPrimary);
     }
-    
+
     // Add disabled style
     if (disabled || loading) {
       baseStyle.push(styles.buttonLabelDisabled);
     }
-    
+
     return baseStyle;
   };
-  
+
   return (
     <TouchableOpacity
       style={[...getButtonStyle(), style]}
@@ -110,12 +112,16 @@ const Button: React.FC<ButtonProps> = ({
       activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator 
-          size="small" 
-          color={variant === 'primary' ? '#fff' : Colors.primary} 
+        <ActivityIndicator
+          size="small"
+          color={variant === 'primary' ? '#fff' : Colors.primary}
         />
       ) : (
-        <Text style={[...getTextStyle(), textStyle]}>{title}</Text>
+         <>
+          {icon && icon}
+         
+          <Text style={[...getTextStyle(), textStyle]}>{title}</Text>
+        </>
       )}
     </TouchableOpacity>
   );

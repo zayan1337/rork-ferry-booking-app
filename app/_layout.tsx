@@ -36,7 +36,7 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const { checkAuth, isAuthenticated, isLoading } = useAuthStore();
+  const { checkAuth, isAuthenticated, isLoading, user } = useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
@@ -64,7 +64,8 @@ function RootLayoutNav() {
       <Stack
         screenOptions={{
           headerShown: false,
-          gestureEnabled: false
+          gestureEnabled: false,
+          animationTypeForReplace: 'push'
         }}
         initialRouteName={isAuthenticated ? "(app)" : "(auth)"}
       >

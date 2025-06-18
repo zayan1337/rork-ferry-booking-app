@@ -32,7 +32,7 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
       case 'completed':
         return Colors.success;
       default:
-        return Colors.textSecondary;
+        return Colors.inactive;
     }
   };
 

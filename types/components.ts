@@ -89,6 +89,8 @@ export type ButtonProps = {
   style?: ViewStyle;
   textStyle?: TextStyle;
   fullWidth?: boolean;
+  icon?: React.ReactNode;
+
 };
 
 export type BookingCardProps = {
