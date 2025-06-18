@@ -13,7 +13,7 @@ import {
 import { router } from 'expo-router';
 import { Search, CheckCircle, XCircle, Camera, X } from 'lucide-react-native';
 import { CameraView, Camera as ExpoCamera } from 'expo-camera';
-import { useBookingStore } from '@/store/bookingStore';
+import { useTicketStore } from '@/store/ticketStore';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -36,7 +36,7 @@ export default function ValidateTicketScreen() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
 
-  const { validateTicket, isLoading } = useBookingStore();
+  const { validateTicket, isLoading } = useTicketStore();
 
   // Request camera permissions
   useEffect(() => {

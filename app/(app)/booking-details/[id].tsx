@@ -18,7 +18,7 @@ import {
   Edit,
   XCircle
 } from 'lucide-react-native';
-import { useBookingStore } from '@/store/bookingStore';
+import { useUserBookingsStore } from '@/store/userBookingsStore';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -26,7 +26,7 @@ import TicketCard from '@/components/TicketCard';
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
-  const { bookings } = useBookingStore();
+  const { bookings } = useUserBookingsStore();
 
   // Find the booking by id
   const booking = bookings.find(b => b.id === id);

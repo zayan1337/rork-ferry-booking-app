@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { AlertTriangle } from 'lucide-react-native';
-import { useBookingStore } from '@/store/bookingStore';
+import { useUserBookingsStore } from '@/store/userBookingsStore';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
@@ -19,7 +19,7 @@ import Button from '@/components/Button';
 
 export default function CancelBookingScreen() {
   const { id } = useLocalSearchParams();
-  const { bookings, cancelBooking, isLoading } = useBookingStore();
+  const { bookings, cancelBooking, isLoading } = useUserBookingsStore();
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -93,7 +93,7 @@ export default function CancelBookingScreen() {
   };
 
   // Find the booking by id
-  const booking = bookings.find(b => b.id === id);
+  const booking = bookings.find((b: any) => b.id === id);
 
   if (!booking) {
     return (

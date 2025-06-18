@@ -1,18 +1,5 @@
 import type { Island, Route, Seat, Passenger, Booking } from './index';
-import type { Trip } from '@/store/bookingStore';
-
-export interface BookingData {
-    tripType: 'one_way' | 'round_trip';
-    route: Route | null;
-    trip: Trip | null;
-    departureDate: string | null;
-    returnDate: string | null;
-    returnTrip: Trip | null;
-    passengers: Passenger[];
-    selectedSeats: Seat[];
-    returnSelectedSeats: Seat[];
-    totalFare: number;
-}
+import type { Trip, BookingData } from './booking';
 
 export interface BookingState {
     bookingData: BookingData;

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Calendar, ArrowRight } from 'lucide-react-native';
-import { useBookingStore } from '@/store/bookingStore';
+import { useUserBookingsStore, useRouteStore, useTripStore, useSeatStore } from '@/store';
 import { supabase } from '@/utils/supabase';
 import { Seat } from '@/types';
 import Colors from '@/constants/colors';
@@ -45,18 +45,37 @@ export default function ModifyBookingScreen() {
     reason: null as any,
   });
 
+  // User bookings management
   const {
     bookings,
     modifyBooking,
-    isLoading,
+    isLoading: bookingsLoading
+  } = useUserBookingsStore();
+
+  // Route management
+  const {
     availableRoutes,
+    isLoading: routeLoading
+  } = useRouteStore();
+
+  // Trip management
+  const {
     trips,
     returnTrips,
+    fetchTrips,
+    isLoading: tripLoading
+  } = useTripStore();
+
+  // Seat management
+  const {
     availableSeats,
     availableReturnSeats,
-    fetchTrips,
-    fetchAvailableSeats
-  } = useBookingStore();
+    fetchAvailableSeats,
+    isLoading: seatLoading
+  } = useSeatStore();
+
+  // Combined loading state
+  const isLoading = bookingsLoading || routeLoading || tripLoading || seatLoading;
 
   // State to track actual seat availability for each trip
   const [tripSeatCounts, setTripSeatCounts] = useState<Record<string, number>>({});
@@ -126,7 +145,7 @@ export default function ModifyBookingScreen() {
   };
 
   // Find the booking by id
-  const booking = bookings.find(b => b.id === id);
+  const booking = bookings.find((b: any) => b.id === id);
 
   useEffect(() => {
     if (booking) {

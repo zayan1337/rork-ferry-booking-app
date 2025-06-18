@@ -21,25 +21,37 @@ import {
   X
 } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
-import { useBookingStore } from '@/store/bookingStore';
+import { useBookingStore, useRouteStore, useUserBookingsStore } from '@/store';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
+
+  // Core booking state
+  const {
+    setQuickBookingData,
+    resetCurrentBooking,
+    currentBooking
+  } = useBookingStore();
+
+  // Route management
+  const {
+    availableRoutes,
+    fetchAvailableRoutes,
+    isLoading: routeLoading
+  } = useRouteStore();
+
+  // User bookings management
   const {
     bookings,
     fetchUserBookings,
-    isLoading,
-    resetCurrentBooking,
-    availableRoutes,
-    fetchAvailableRoutes,
-    setRoute,
-    setDepartureDate,
-    setQuickBookingData,
-    currentBooking
-  } = useBookingStore();
+    isLoading: bookingsLoading
+  } = useUserBookingsStore();
+
+  // Combined loading state
+  const isLoading = routeLoading || bookingsLoading;
 
   // Quick booking state
   const [selectedFromIsland, setSelectedFromIsland] = useState<string>('');

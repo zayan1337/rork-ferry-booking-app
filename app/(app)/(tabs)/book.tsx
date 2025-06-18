@@ -17,7 +17,13 @@ import {
   CreditCard,
   Check
 } from 'lucide-react-native';
-import { useBookingStore } from '@/store/bookingStore';
+import {
+  useBookingStore,
+  useRouteStore,
+  useTripStore,
+  useSeatStore,
+  useBookingOperationsStore
+} from '@/store';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -52,7 +58,7 @@ const transformSeatsData = (seatsData: SupabaseSeat[]): Seat[] => {
 };
 
 export default function BookScreen() {
-  const [currentStep, setCurrentStep] = useState(1);
+  // Removed local currentStep state - using store's currentStep
   const [paymentMethod, setPaymentMethod] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errors, setErrors] = useState({
@@ -69,12 +75,12 @@ export default function BookScreen() {
     returnTrip: '',
   });
 
+  // Core booking state
   const {
     currentBooking,
-    seats,
-    availableSeats,
-    availableReturnSeats,
-    fetchSeats,
+    isLoading: bookingLoading,
+    currentStep,
+    setCurrentStep,
     setTripType,
     setDepartureDate,
     setReturnDate,
@@ -82,24 +88,51 @@ export default function BookScreen() {
     setReturnRoute,
     setTrip,
     setReturnTrip,
-    toggleSeatSelection,
     updatePassengers,
-    fetchAvailableIslands,
-    fetchAvailableRoutes,
-    fetchTrips,
-    fetchAvailableSeats,
-    refreshAvailableSeatsSilently,
+    resetBooking: resetCurrentBooking,
+    calculateTotalFare,
+  } = useBookingStore();
+
+  // Route management
+  const {
     availableIslands,
     availableRoutes,
+    fetchAvailableIslands,
+    fetchAvailableRoutes,
+    isLoading: routeLoading,
+  } = useRouteStore();
+
+  // Trip management
+  const {
     trips,
     returnTrips,
-    isLoading,
-    confirmBooking,
-    resetCurrentBooking,
+    fetchTrips,
+    isLoading: tripLoading,
+  } = useTripStore();
+
+  // Seat management
+  const {
+    availableSeats,
+    availableReturnSeats,
+    seats,
+    fetchSeats,
+    fetchAvailableSeats,
+    toggleSeatSelection,
     subscribeSeatUpdates,
     unsubscribeSeatUpdates,
     cleanupAllSeatSubscriptions,
-  } = useBookingStore();
+    refreshAvailableSeatsSilently,
+    isLoading: seatLoading,
+  } = useSeatStore();
+
+  // Booking operations
+  const {
+    confirmBooking,
+    isLoading: operationLoading,
+  } = useBookingOperationsStore();
+
+  // Combined states
+  const isLoading = bookingLoading || routeLoading || tripLoading || seatLoading || operationLoading;
 
   // Fetch initial data
   useEffect(() => {
@@ -306,12 +339,11 @@ export default function BookScreen() {
 
   const handleBack = () => {
     setCurrentStep(currentStep - 1);
-  };
-
+  }
   const handleConfirmBooking = async () => {
     if (validateStep(5)) {
       try {
-        const booking = await confirmBooking(paymentMethod);
+        const booking = await confirmBooking(currentBooking, paymentMethod);
 
         // Reset the booking state after successful booking
         resetCurrentBooking();
@@ -332,15 +364,22 @@ export default function BookScreen() {
           returnTrip: '',
         });
 
+        // Create success message based on booking type
+        let successMessage = `Your ${currentBooking.tripType === 'round_trip' ? 'round trip' : 'one way'} booking has been confirmed.`;
+        successMessage += `\n\nDeparture Booking: ${booking.booking_number}`;
+
+        if (booking.returnBooking) {
+          successMessage += `\nReturn Booking: ${booking.returnBooking.booking_number}`;
+        }
+
         Alert.alert(
           "Booking Confirmed",
-          `Your booking has been confirmed. Booking number: ${booking.booking_number}`,
+          successMessage,
           [
             {
-              text: "View Ticket",
+              text: "View Tickets",
               onPress: () => router.push({
-                pathname: "/(app)/(tabs)/bookings",
-                params: { id: booking.id }
+                pathname: "/(app)/(tabs)/bookings"
               })
             }
           ]

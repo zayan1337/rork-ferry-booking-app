@@ -9,14 +9,14 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Search, Filter } from 'lucide-react-native';
-import { useBookingStore } from '@/store/bookingStore';
+import { useUserBookingsStore } from '@/store/userBookingsStore';
 import type { Booking, BookingStatus } from '@/types';
 import Colors from '@/constants/colors';
 import BookingCard from '@/components/BookingCard';
 import Input from '@/components/Input';
 
 export default function BookingsScreen() {
-  const { bookings, fetchUserBookings, isLoading } = useBookingStore();
+  const { bookings, fetchUserBookings, isLoading } = useUserBookingsStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
 
@@ -33,7 +33,7 @@ export default function BookingsScreen() {
   };
 
   // Filter bookings based on search query and status filter
-  const filteredBookings = bookings.filter(booking => {
+  const filteredBookings = bookings.filter((booking: any) => {
     const matchesSearch =
       searchQuery === '' ||
       booking.bookingNumber.includes(searchQuery) ||
