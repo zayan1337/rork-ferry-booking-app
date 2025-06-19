@@ -119,12 +119,12 @@ const styles = StyleSheet.create({
   searchIcon: {
     position: "absolute",
     left: 12,
-    top: 12,
+    top: 10,
   },
   addClientButton: {
     backgroundColor: Colors.primary,
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",

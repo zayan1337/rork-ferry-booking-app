@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList, TextStyle } from "react-native";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList } from "react-native";
 import { useRouter } from "expo-router";
 import { useAgentStore } from "@/store/agentStore";
 import Colors from "@/constants/colors";
@@ -78,32 +78,32 @@ export default function AgentBookingsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabsContainer}
-      >
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[
-              styles.tab,
-              activeTab === tab.key && styles.activeTab,
-            ]}
-            onPress={() => setActiveTab(tab.key as any)}
-          >
-            <Text
+      <View style={styles.tabsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+        >
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
               style={[
-                styles.tabText,
-                activeTab === tab.key && styles.activeTabText,
+                styles.tab,
+                activeTab === tab.key && styles.activeTab,
               ]}
+              onPress={() => setActiveTab(tab.key as any)}
             >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab.key && styles.activeTabText,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
       {sortedBookings.length > 0 ? (
         <FlatList
           data={sortedBookings}
@@ -154,12 +154,12 @@ const styles = StyleSheet.create({
   searchIcon: {
     position: "absolute",
     left: 12,
-    top: 12,
+    top: 10,
   },
   newBookingButton: {
     backgroundColor: Colors.primary,
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",

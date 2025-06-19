@@ -30,6 +30,7 @@ export type InputProps = {
   labelStyle?: TextStyle;
   required?: boolean;
   onFocus?: () => void;
+  leftIcon?: React.ReactNode;
 };
 
 export type DropdownItem = {

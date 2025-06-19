@@ -30,6 +30,7 @@ const Input: React.FC<InputProps> = ({
   labelStyle,
   required = false,
   onFocus,
+  leftIcon,
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
@@ -51,9 +52,16 @@ const Input: React.FC<InputProps> = ({
         disabled ? styles.inputDisabled : null,
         multiline ? styles.inputMultiline : null
       ]}>
+        {leftIcon && (
+          <View style={styles.leftIconContainer}>
+            {leftIcon}
+          </View>
+        )}
+
         <TextInput
           style={[
             styles.input,
+            leftIcon ? styles.inputWithLeftIcon : null,
             multiline ? styles.textMultiline : null,
             inputStyle
           ]}
@@ -116,6 +124,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 16,
     color: Colors.text,
+  },
+  inputWithLeftIcon: {
+    paddingLeft: 8,
+  },
+  leftIconContainer: {
+    paddingLeft: 12,
+    paddingRight: 8,
+    justifyContent: 'center',
   },
   textMultiline: {
     textAlignVertical: 'top',

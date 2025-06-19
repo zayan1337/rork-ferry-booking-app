@@ -171,4 +171,4 @@ const styles = StyleSheet.create({
         color: Colors.subtext,
         textDecorationLine: "line-through",
     },
-}); 
+    });

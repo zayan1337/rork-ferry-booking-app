@@ -1,33 +1,44 @@
-import React from "react";
-import { StyleSheet, Text, View, ScrollView } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useState } from "react";
+import { StyleSheet, Text, View, ScrollView, Alert, TouchableOpacity } from "react-native";
+import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useAgentStore } from "@/store/agentStore";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import Button from "@/components/Button";
-import { Calendar, MapPin, User, DollarSign, CreditCard } from "lucide-react-native";
+import {
+  Calendar,
+  MapPin,
+  User,
+  DollarSign,
+  CreditCard,
+  Mail,
+  Phone,
+  Edit,
+  XCircle,
+  Clock,
+  CheckCircle
+} from "lucide-react-native";
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { bookings, cancelBooking, updateBookingStatus } = useAgentStore();
-
+  const { bookings, cancelBooking, updateBookingStatus, clients } = useAgentStore();
+  const [loading, setLoading] = useState(false);
   const booking = bookings.find(b => b.id === id);
+  const client = clients.find(c => c.id === booking?.clientId);
 
   if (!booking) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Booking not found</Text>
+      <View style={styles.notFoundContainer}>
+        <Text style={styles.notFoundText}>Booking not found</Text>
+        <Button
+          title="Go Back"
+          onPress={() => router.back()}
+          variant="primary"
+        />
       </View>
     );
   }
-
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -38,14 +49,86 @@ export default function BookingDetailsScreen() {
     });
   };
 
-  const handleCancelBooking = async () => {
-    try {
-      await cancelBooking(booking.id);
-      router.back();
-    } catch (error) {
-      console.error('Error cancelling booking:', error);
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return Colors.primary;
+      case "completed":
+        return Colors.success;
+      case "cancelled":
+        return Colors.error;
+      default:
+        return Colors.inactive;
     }
   };
+
+  const handleModifyBooking = () => {
+    // In a real app, this would navigate to a modification form
+    Alert.alert(
+      "Modify Booking",
+      "This would open a form to modify the booking details.",
+      [{ text: "OK" }]
+    );
+  };
+
+  const handleCancelBooking = () => {
+    Alert.alert(
+      "Cancel Booking",
+      "Are you sure you want to cancel this booking? This action cannot be undone.",
+      [
+        {
+          text: "No",
+          style: "cancel",
+        },
+        {
+          text: "Yes, Cancel",
+          onPress: () => {
+            setLoading(true);
+            // In a real app, this would make an API call to cancel the booking
+            setTimeout(() => {
+              setLoading(false);
+              Alert.alert(
+                "Booking Cancelled",
+                "The booking has been successfully cancelled.",
+                [
+                  {
+                    text: "OK",
+                    onPress: async () => {
+                      await cancelBooking(booking.id);
+                      router.back()
+                    },
+                  },
+                ]
+              );
+            }, 1000);
+          },
+          style: "destructive",
+        },
+      ]
+    );
+  };
+
+  const handleViewClient = () => {
+    if (client) {
+      router.push(`../client/${client.id}`);
+    }
+  };
+
+  // const handleCancelBooking = async () => {
+  //   try {
+  //     await cancelBooking(booking.id);
+  //     router.back();
+  //   } catch (error) {
+  //     console.error('Error cancelling booking:', error);
+  //   }
+  // };
 
   const handleUpdateStatus = async (status: typeof booking.status) => {
     try {
@@ -54,104 +137,225 @@ export default function BookingDetailsScreen() {
       console.error('Error updating booking status:', error);
     }
   };
-
   return (
-    <ScrollView style={styles.container}>
-      <Card variant="elevated" style={styles.detailsCard}>
-        <Text style={styles.title}>Booking Details</Text>
-        <Text style={styles.bookingId}>ID: {booking.id}</Text>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Route Information</Text>
+    <>
+      <Stack.Screen
+        options={{
+          title: "Booking Details",
+          headerRight: () => (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={handleModifyBooking}
+              disabled={booking.status === "cancelled"}
+            >
+              <Edit size={20} color={booking.status === "cancelled" ? Colors.inactive : Colors.primary} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <View style={styles.header}>
           <View style={styles.routeContainer}>
-            <MapPin size={16} color={Colors.primary} />
             <Text style={styles.routeText}>
               {booking.origin} → {booking.destination}
             </Text>
           </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Travel Dates</Text>
-          <View style={styles.dateContainer}>
-            <Calendar size={16} color={Colors.primary} />
-            <Text style={styles.dateText}>
-              Departure: {formatDate(booking.departureDate)}
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(booking.status) },
+            ]}
+          >
+            <Text style={styles.statusText}>
+              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
             </Text>
           </View>
+        </View>
+
+        <Card variant="elevated" style={styles.detailsCard}>
+          <Text style={styles.sectionTitle}>Trip Details</Text>
+
+          <View style={styles.detailRow}>
+            <Calendar size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Departure Date</Text>
+              <Text style={styles.detailValue}>{formatDate(booking.departureDate)}</Text>
+            </View>
+          </View>
+
           {booking.returnDate && (
-            <View style={styles.dateContainer}>
-              <Calendar size={16} color={Colors.primary} />
-              <Text style={styles.dateText}>
-                Return: {formatDate(booking.returnDate)}
-              </Text>
+            <View style={styles.detailRow}>
+              <Calendar size={20} color={Colors.subtext} />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Return Date</Text>
+                <Text style={styles.detailValue}>{formatDate(booking.returnDate)}</Text>
+              </View>
             </View>
           )}
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Passenger Information</Text>
-          <View style={styles.passengerContainer}>
-            <User size={16} color={Colors.primary} />
-            <Text style={styles.passengerText}>
-              {booking.passengerCount} {booking.passengerCount === 1 ? 'passenger' : 'passengers'}
-            </Text>
-          </View>
-          <Text style={styles.clientName}>Client: {booking.clientName}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Information</Text>
-          <View style={styles.priceContainer}>
-            <DollarSign size={16} color={Colors.primary} />
-            <View>
-              <Text style={styles.priceText}>
-                Total: {formatCurrency(booking.discountedAmount)}
-              </Text>
-              {booking.discountedAmount !== booking.totalAmount && (
-                <Text style={styles.originalPrice}>
-                  Original: {formatCurrency(booking.totalAmount)}
-                </Text>
-              )}
+          <View style={styles.detailRow}>
+            <MapPin size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Origin</Text>
+              <Text style={styles.detailValue}>{booking.origin}</Text>
             </View>
           </View>
-          <View style={styles.paymentContainer}>
-            <CreditCard size={16} color={Colors.primary} />
-            <Text style={styles.paymentText}>
-              Payment: {booking.paymentMethod.charAt(0).toUpperCase() + booking.paymentMethod.slice(1)}
-            </Text>
+
+          <View style={styles.detailRow}>
+            <MapPin size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Destination</Text>
+              <Text style={styles.detailValue}>{booking.destination}</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusLabel}>Status:</Text>
-          <Text style={[styles.statusText, {
-            color: booking.status === 'confirmed' ? Colors.primary :
-              booking.status === 'completed' ? Colors.success :
-                booking.status === 'cancelled' ? Colors.error : Colors.inactive
-          }]}>
-            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-          </Text>
-        </View>
+          <View style={styles.detailRow}>
+            <User size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Passengers</Text>
+              <Text style={styles.detailValue}>{booking.passengerCount}</Text>
+            </View>
+          </View>
 
-        {booking.status === 'confirmed' && (
-          <View style={styles.actionButtons}>
+          <View style={styles.detailRow}>
+            <Clock size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Booking Date</Text>
+              <Text style={styles.detailValue}>{formatDate(booking.bookingDate)}</Text>
+            </View>
+          </View>
+        </Card>
+
+        <Card variant="elevated" style={styles.paymentCard}>
+          <Text style={styles.sectionTitle}>Payment Details</Text>
+
+          <View style={styles.detailRow}>
+            <DollarSign size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Original Price</Text>
+              <Text style={styles.detailValue}>{formatCurrency(booking.totalAmount)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Percent size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Discounted Price</Text>
+              <Text style={[styles.detailValue, { color: Colors.primary }]}>
+                {formatCurrency(booking.discountedAmount)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <CreditCard size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Payment Method</Text>
+              <Text style={styles.detailValue}>
+                {booking.paymentMethod === "credit"
+                  ? "Agent Credit"
+                  : booking.paymentMethod === "free"
+                    ? "Free Ticket"
+                    : "Payment Gateway"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <DollarSign size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Commission</Text>
+              <Text style={[styles.detailValue, { color: Colors.secondary }]}>
+                {formatCurrency(booking.commission)}
+              </Text>
+            </View>
+          </View>
+        </Card>
+
+        <Card variant="outlined" style={styles.clientCard}>
+          <View style={styles.clientHeader}>
+            <Text style={styles.sectionTitle}>Client Information</Text>
+            <TouchableOpacity onPress={handleViewClient}>
+              <Text style={styles.viewClientText}>View Client</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.detailRow}>
+            <User size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Name</Text>
+              <Text style={styles.detailValue}>{client?.name}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Mail size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Email</Text>
+              <Text style={styles.detailValue}>{client?.email}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Phone size={20} color={Colors.subtext} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Phone</Text>
+              <Text style={styles.detailValue}>{client?.phone}</Text>
+            </View>
+          </View>
+        </Card>
+
+        {booking.status === "confirmed" && (
+          <View style={styles.actionsContainer}>
             <Button
-              title="Mark Complete"
-              onPress={() => handleUpdateStatus('completed')}
+              title="Modify Booking"
+              onPress={handleModifyBooking}
               variant="primary"
+              icon={<Edit size={20} color="white" />}
               style={styles.actionButton}
             />
             <Button
               title="Cancel Booking"
               onPress={handleCancelBooking}
               variant="outline"
-              style={styles.cancelButton}
+              loading={loading}
+              icon={<XCircle size={20} color={Colors.primary} />}
+              style={styles.actionButton}
             />
           </View>
         )}
-      </Card>
-    </ScrollView>
+
+        {booking.status === "confirmed" && (
+          <Button
+            title="Mark as Completed"
+            onPress={() => {
+              Alert.alert(
+                "Mark as Completed",
+                "Are you sure you want to mark this booking as completed?",
+                [
+                  {
+                    text: "Cancel",
+                    style: "cancel",
+                  },
+                  {
+                    text: "Confirm",
+                    onPress: () => {
+                      // In a real app, this would make an API call
+                      Alert.alert("Success", "Booking marked as completed");
+                    },
+                  },
+                ]
+              );
+            }}
+            variant="secondary"
+            icon={<CheckCircle size={20} color="white" />}
+            style={styles.completeButton}
+          />
+        )}
+
+        <Text style={styles.bookingId}>Booking ID: {booking.id}</Text>
+      </ScrollView>
+    </>
   );
 }
 
@@ -159,124 +363,111 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  content: {
     padding: 16,
   },
-  detailsCard: {
-    padding: 20,
+  notFoundContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
   },
-  title: {
+  notFoundText: {
+    fontSize: 18,
+    color: Colors.subtext,
+    marginBottom: 16,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  routeContainer: {
+    flex: 1,
+  },
+  routeText: {
     fontSize: 24,
     fontWeight: "bold",
     color: Colors.text,
-    marginBottom: 8,
   },
-  bookingId: {
-    fontSize: 14,
-    color: Colors.subtext,
-    marginBottom: 20,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  routeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  routeText: {
-    fontSize: 16,
-    color: Colors.text,
-    marginLeft: 8,
-  },
-  dateContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  dateText: {
-    fontSize: 14,
-    color: Colors.text,
-    marginLeft: 8,
-  },
-  passengerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  passengerText: {
-    fontSize: 14,
-    color: Colors.text,
-    marginLeft: 8,
-  },
-  clientName: {
-    fontSize: 14,
-    color: Colors.subtext,
-    marginTop: 4,
-  },
-  priceContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  priceText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Colors.text,
-    marginLeft: 8,
-  },
-  originalPrice: {
-    fontSize: 14,
-    color: Colors.subtext,
-    textDecorationLine: "line-through",
-    marginLeft: 8,
-  },
-  paymentContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  paymentText: {
-    fontSize: 14,
-    color: Colors.text,
-    marginLeft: 8,
-  },
-  statusContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  statusLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Colors.text,
-    marginRight: 8,
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
   },
   statusText: {
-    fontSize: 16,
+    color: "white",
+    fontSize: 14,
     fontWeight: "600",
   },
-  actionButtons: {
+  detailsCard: {
+    marginBottom: 16,
+  },
+  paymentCard: {
+    marginBottom: 16,
+  },
+  clientCard: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Colors.text,
+    marginBottom: 16,
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  detailContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: Colors.subtext,
+  },
+  detailValue: {
+    fontSize: 16,
+    color: Colors.text,
+    fontWeight: "500",
+  },
+  clientHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  viewClientText: {
+    color: Colors.primary,
+    fontWeight: "500",
+  },
+  actionsContainer: {
+    flexDirection: "row",
+    marginBottom: 16,
   },
   actionButton: {
     flex: 1,
-    marginHorizontal: 8,
+    marginHorizontal: 4,
   },
-  cancelButton: {
-    flex: 1,
-    marginHorizontal: 8,
-    borderColor: Colors.error,
+  completeButton: {
+    marginBottom: 16,
   },
-  errorText: {
-    fontSize: 16,
-    color: Colors.error,
+  bookingId: {
     textAlign: "center",
-    marginTop: 40,
+    color: Colors.subtext,
+    marginBottom: 24,
+  },
+  editButton: {
+    padding: 8,
   },
 });
+
+function Percent({ size, color }: { size: number; color: string }) {
+  return (
+    <Text style={{ fontSize: size, color, fontWeight: "bold" }}>%</Text>
+  );
+}
