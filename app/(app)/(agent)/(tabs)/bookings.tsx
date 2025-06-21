@@ -11,11 +11,11 @@ import { Booking } from "@/types/agent";
 
 export default function AgentBookingsScreen() {
   const router = useRouter();
-  const { bookings } = useAgentStore();
+  const { bookings, isLoading, error } = useAgentStore();
   const [activeTab, setActiveTab] = useState<"all" | "confirmed" | "completed" | "cancelled">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredBookings = bookings.filter((booking) => {
+  const filteredBookings = (bookings || []).filter((booking) => {
     // Filter by status
     if (activeTab !== "all" && booking.status !== activeTab) {
       return false;
@@ -36,7 +36,7 @@ export default function AgentBookingsScreen() {
   });
 
   // Sort bookings by date (most recent first)
-  const sortedBookings = [...filteredBookings].sort((a, b) =>
+  const sortedBookings = filteredBookings.slice().sort((a, b) =>
     new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime()
   );
 
@@ -56,6 +56,22 @@ export default function AgentBookingsScreen() {
   ];
 
 
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading bookings...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorText}>Error: {error}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -205,5 +221,20 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     minWidth: 200,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+  errorText: {
+    fontSize: 16,
+    color: Colors.error,
+    textAlign: 'center',
   },
 });

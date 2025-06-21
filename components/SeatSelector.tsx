@@ -33,6 +33,14 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     );
   }
 
+  // Helper function to safely render seat number
+  const renderSeatNumber = (seatNumber: string | number | null | undefined): string => {
+    if (seatNumber === null || seatNumber === undefined) {
+      return '';
+    }
+    return String(seatNumber);
+  };
+
   // Group seats by row using the database row_number field
   const groupedSeats: Record<number, Seat[]> = {};
 
@@ -55,8 +63,9 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
   sortedRowNumbers.forEach(rowNumber => {
     groupedSeats[rowNumber].sort((a, b) => {
       // First try to sort by extracting numbers from seat_number
-      const getNumberFromSeat = (seatNumber: string) => {
-        const match = seatNumber.match(/\d+/);
+      const getNumberFromSeat = (seatNumber: string | number | null | undefined) => {
+        const seatStr = String(seatNumber || '');
+        const match = seatStr.match(/\d+/);
         return match ? parseInt(match[0]) : 0;
       };
 
@@ -68,7 +77,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
       }
 
       // If numbers are same, sort alphabetically
-      return a.number.localeCompare(b.number);
+      return String(a.number || '').localeCompare(String(b.number || ''));
     });
   });
 
@@ -156,8 +165,9 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                 // Sort each group by seat number
                 const sortSeats = (seats: Seat[]) => {
                   return seats.sort((a, b) => {
-                    const getNumber = (seatNumber: string) => {
-                      const match = seatNumber.match(/\d+/);
+                    const getNumber = (seatNumber: string | number | null | undefined) => {
+                      const seatStr = String(seatNumber || '');
+                      const match = seatStr.match(/\d+/);
                       return match ? parseInt(match[0]) : 0;
                     };
                     return getNumber(a.number) - getNumber(b.number);
@@ -174,11 +184,12 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 
                 return (
                   <View key={rowNumber} style={styles.row}>
-                    <Text style={styles.rowLabel}>Row {rowNumber}</Text>
+                    <Text style={styles.rowLabel}>Row {String(rowNumber || '')}</Text>
                     <View style={styles.seats}>
                       {/* Left window seats */}
                       {leftWindowSeats.map(seat => {
                         const isSelected = isSeatSelected(seat.id);
+                        const seatNumber = renderSeatNumber(seat.number);
                         return (
                           <TouchableOpacity
                             key={seat.id}
@@ -198,7 +209,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                 !seat.isAvailable && styles.unavailableSeatNumber,
                               ]}
                             >
-                              {seat.number}
+                              {seatNumber}
                             </Text>
                             <View style={styles.windowIndicator} />
                           </TouchableOpacity>
@@ -208,6 +219,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                       {/* Middle seats (left side) */}
                       {sortedMiddleSeats.slice(0, Math.ceil(sortedMiddleSeats.length / 2)).map(seat => {
                         const isSelected = isSeatSelected(seat.id);
+                        const seatNumber = renderSeatNumber(seat.number);
                         return (
                           <TouchableOpacity
                             key={seat.id}
@@ -227,7 +239,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                 !seat.isAvailable && styles.unavailableSeatNumber,
                               ]}
                             >
-                              {seat.number}
+                              {seatNumber}
                             </Text>
                           </TouchableOpacity>
                         );
@@ -236,6 +248,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                       {/* Left aisle seats */}
                       {sortedAisleSeats.slice(0, Math.ceil(sortedAisleSeats.length / 2)).map(seat => {
                         const isSelected = isSeatSelected(seat.id);
+                        const seatNumber = renderSeatNumber(seat.number);
                         return (
                           <TouchableOpacity
                             key={seat.id}
@@ -255,7 +268,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                 !seat.isAvailable && styles.unavailableSeatNumber,
                               ]}
                             >
-                              {seat.number}
+                              {seatNumber}
                             </Text>
                             {/* <View style={styles.aisleIndicatorDot} /> */}
                           </TouchableOpacity>
@@ -272,6 +285,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                       {/* Right aisle seats */}
                       {sortedAisleSeats.slice(Math.ceil(sortedAisleSeats.length / 2)).map(seat => {
                         const isSelected = isSeatSelected(seat.id);
+                        const seatNumber = renderSeatNumber(seat.number);
                         return (
                           <TouchableOpacity
                             key={seat.id}
@@ -291,7 +305,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                 !seat.isAvailable && styles.unavailableSeatNumber,
                               ]}
                             >
-                              {seat.number}
+                              {seatNumber}
                             </Text>
                             {/* <View style={styles.aisleIndicatorDot} /> */}
                           </TouchableOpacity>
@@ -301,6 +315,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                       {/* Middle seats (right side) */}
                       {sortedMiddleSeats.slice(Math.ceil(sortedMiddleSeats.length / 2)).map(seat => {
                         const isSelected = isSeatSelected(seat.id);
+                        const seatNumber = renderSeatNumber(seat.number);
                         return (
                           <TouchableOpacity
                             key={seat.id}
@@ -320,7 +335,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                 !seat.isAvailable && styles.unavailableSeatNumber,
                               ]}
                             >
-                              {seat.number}
+                              {seatNumber}
                             </Text>
                           </TouchableOpacity>
                         );
@@ -329,6 +344,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                       {/* Right window seats */}
                       {rightWindowSeats.map(seat => {
                         const isSelected = isSeatSelected(seat.id);
+                        const seatNumber = renderSeatNumber(seat.number);
                         return (
                           <TouchableOpacity
                             key={seat.id}
@@ -348,7 +364,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                 !seat.isAvailable && styles.unavailableSeatNumber,
                               ]}
                             >
-                              {seat.number}
+                              {seatNumber}
                             </Text>
                             <View style={styles.windowIndicator} />
                           </TouchableOpacity>
@@ -369,7 +385,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 
       <View style={styles.selectionInfo}>
         <Text style={styles.selectionText}>
-          Selected: {selectedSeats.length}/{maxSeats} seats
+          Selected: {selectedSeats?.length || 0}/{maxSeats} seats
         </Text>
       </View>
     </View>

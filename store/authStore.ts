@@ -168,8 +168,8 @@ export const useAuthStore = create<AuthState>()(
       signOut: async () => {
         try {
           set({ isLoading: true, error: null });
-          const { error } = await supabase.auth.signOut();
-          if (error) throw error;
+           const { error } = await supabase.auth.signOut();
+          // if (error) throw error;
 
           set({
             isAuthenticated: false,

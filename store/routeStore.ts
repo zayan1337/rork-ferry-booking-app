@@ -42,7 +42,6 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
                 .select(`
           id,
           base_fare,
-          duration,
           is_active,
           from_island:from_island_id(
             id,
@@ -60,19 +59,19 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
             if (routesError) throw routesError;
 
             const formattedRoutes: Route[] = routesData.map((route: any) => ({
-                id: route.id,
+                id: String(route.id || ''),
                 fromIsland: {
-                    id: route.from_island.id,
-                    name: route.from_island.name,
-                    zone: route.from_island.zone,
+                    id: String(route.from_island?.id || ''),
+                    name: String(route.from_island?.name || ''),
+                    zone: String(route.from_island?.zone || 'A') as 'A' | 'B',
                 },
                 toIsland: {
-                    id: route.to_island.id,
-                    name: route.to_island.name,
-                    zone: route.to_island.zone,
+                    id: String(route.to_island?.id || ''),
+                    name: String(route.to_island?.name || ''),
+                    zone: String(route.to_island?.zone || 'A') as 'A' | 'B',
                 },
-                baseFare: route.base_fare,
-                duration: route.duration,
+                baseFare: Number(route.base_fare || 0),
+                duration: '2h', // Default duration since column doesn't exist
             }));
 
             set({ routes: formattedRoutes });
@@ -134,18 +133,18 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
             if (error) throw error;
 
             const formattedRoutes = routes.map((route: any) => ({
-                id: route.id,
+                id: String(route.id || ''),
                 fromIsland: {
-                    id: route.from_island.id,
-                    name: route.from_island.name,
-                    zone: route.from_island.zone,
+                    id: String(route.from_island?.id || ''),
+                    name: String(route.from_island?.name || ''),
+                    zone: String(route.from_island?.zone || 'A') as 'A' | 'B',
                 },
                 toIsland: {
-                    id: route.to_island.id,
-                    name: route.to_island.name,
-                    zone: route.to_island.zone,
+                    id: String(route.to_island?.id || ''),
+                    name: String(route.to_island?.name || ''),
+                    zone: String(route.to_island?.zone || 'A') as 'A' | 'B',
                 },
-                baseFare: route.base_fare,
+                baseFare: Number(route.base_fare || 0),
                 duration: '2h' // Default duration
             }));
 
@@ -177,18 +176,15 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
         try {
             const { data: trips, error } = await supabase
-                .from('trips')
+                .from('trips_with_available_seats')
                 .select(`
           id,
           route_id,
           travel_date,
           departure_time,
           available_seats,
-          vessel:vessel_id(
-            id,
-            name,
-            seating_capacity
-          )
+          vessel_name,
+          seating_capacity
         `)
                 .eq('route_id', routeId)
                 .eq('travel_date', date)
@@ -198,13 +194,13 @@ export const useTripStore = create<TripStore>((set, get) => ({
             if (error) throw error;
 
             const formattedTrips = trips.map((trip: any) => ({
-                id: trip.id,
-                route_id: trip.route_id,
-                travel_date: trip.travel_date,
-                departure_time: trip.departure_time,
-                available_seats: trip.available_seats,
-                vessel_id: trip.vessel.id,
-                vessel_name: trip.vessel.name,
+                id: String(trip.id || ''),
+                route_id: String(trip.route_id || ''),
+                travel_date: String(trip.travel_date || ''),
+                departure_time: String(trip.departure_time || ''),
+                available_seats: Number(trip.available_seats || 0),
+                vessel_name: String(trip.vessel_name || 'Unknown'),
+                seating_capacity: Number(trip.seating_capacity || 0),
                 is_active: true
             }));
 

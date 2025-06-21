@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { useAgentStore } from "@/store/agentStore";
+import { useAgentBookingStore } from "@/store/agentBookingStore";
 import { useAuthStore } from "@/store/authStore";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
@@ -22,22 +23,42 @@ import {
 export default function AgentDashboardScreen() {
     const router = useRouter();
     const { user } = useAuthStore();
-    const { agent, stats, bookings } = useAgentStore();
+    const { agent, stats, bookings, isLoading, error } = useAgentStore();
+    const { testDatabaseConnections } = useAgentBookingStore();
 
-    // Get the most recent bookings
-    const recentBookings = [...bookings]
-        .sort((a, b) => new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime())
+    // Get the most recent bookings - safely handle undefined bookings
+    const recentBookings = (bookings || [])
+        .slice() // Create a copy
+        .sort((a, b) => new Date(b.bookingDate || 0).getTime() - new Date(a.bookingDate || 0).getTime())
         .slice(0, 3);
 
     useEffect(() => {
         // Initialize agent store from authenticated user
-        if (!agent && user?.profile?.role === 'agent') {
-            const { initializeFromAuthUser } = useAgentStore.getState();
-            initializeFromAuthUser(user);
-        }
-    }, [user, agent]);
+        if (user?.profile?.role === 'agent') {
+            const { initializeFromAuthUser, reset } = useAgentStore.getState();
 
-    const formatCurrency = (amount: number) => {
+            // Clear any existing cached data first
+            reset();
+
+            // Initialize with fresh data from Supabase
+            initializeFromAuthUser(user).catch(error => {
+                console.error('Error initializing agent data:', error);
+            });
+        }
+    }, [user?.id]); // Only depend on user ID to avoid unnecessary re-runs
+
+    // Test database connections when agent is loaded (for debugging)
+    useEffect(() => {
+        if (agent && testDatabaseConnections) {
+            // Uncomment this line to test database connections:
+            // testDatabaseConnections();
+        }
+    }, [agent, testDatabaseConnections]);
+
+    const formatCurrency = (amount: number | undefined) => {
+        if (typeof amount !== 'number' || isNaN(amount)) {
+            return "$0.00";
+        }
         return `$${amount.toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
@@ -45,7 +66,9 @@ export default function AgentDashboardScreen() {
     };
 
     const handleBookingPress = (bookingId: string) => {
-        router.push(`../booking/${bookingId}` as any);
+        if (bookingId) {
+            router.push(`../booking/${bookingId}` as any);
+        }
     };
 
     const handleNewBooking = () => {
@@ -56,7 +79,7 @@ export default function AgentDashboardScreen() {
         router.push("./bookings");
     };
 
-    if (!agent) {
+    if (isLoading || !agent) {
         return (
             <View style={styles.loadingContainer}>
                 <Text style={styles.loadingText}>Loading dashboard...</Text>
@@ -64,11 +87,31 @@ export default function AgentDashboardScreen() {
         );
     }
 
+    if (error) {
+        return (
+            <View style={styles.loadingContainer}>
+                <Text style={styles.errorText}>Error: {error}</Text>
+                <Button
+                    title="Retry"
+                    onPress={() => {
+                        const { initializeFromAuthUser, reset } = useAgentStore.getState();
+                        reset();
+                        initializeFromAuthUser(user);
+                    }}
+                    variant="primary"
+                />
+            </View>
+        );
+    }
+
+    // Safely get agent name with fallback
+    const agentFirstName = agent?.name ? agent.name.split(" ")[0] : "Agent";
+
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.greeting}>Hello, {agent.name.split(" ")[0]}</Text>
+                    <Text style={styles.greeting}>Hello, {agentFirstName}</Text>
                     <Text style={styles.subGreeting}>Welcome to your agent dashboard</Text>
                 </View>
                 <TouchableOpacity
@@ -85,7 +128,7 @@ export default function AgentDashboardScreen() {
                     <View style={styles.agentInfoHeader}>
                         <Text style={styles.agentInfoTitle}>Agent Information</Text>
                         <View style={styles.agentIdBadge}>
-                            <Text style={styles.agentIdText}>{agent.agentId}</Text>
+                            <Text style={styles.agentIdText}>{agent.agentId || 'N/A'}</Text>
                         </View>
                     </View>
 
@@ -96,11 +139,11 @@ export default function AgentDashboardScreen() {
                         </View>
                         <View style={styles.agentInfoItem}>
                             <Text style={styles.agentInfoLabel}>Discount Rate</Text>
-                            <Text style={styles.agentInfoValue}>{agent.discountRate}%</Text>
+                            <Text style={styles.agentInfoValue}>{agent.discountRate || 0}%</Text>
                         </View>
                         <View style={styles.agentInfoItem}>
                             <Text style={styles.agentInfoLabel}>Free Tickets</Text>
-                            <Text style={styles.agentInfoValue}>{agent.freeTicketsRemaining}</Text>
+                            <Text style={styles.agentInfoValue}>{agent.freeTicketsRemaining || 0}</Text>
                         </View>
                     </View>
                 </Card>
@@ -114,40 +157,40 @@ export default function AgentDashboardScreen() {
             >
                 <StatCard
                     title="Total Bookings"
-                    value={stats.totalBookings}
+                    value={stats?.totalBookings || 0}
                     icon={<TicketIcon size={16} color={Colors.primary} />}
                 />
                 <StatCard
                     title="Active Bookings"
-                    value={stats.activeBookings}
+                    value={stats?.activeBookings || 0}
                     icon={<Calendar size={16} color={Colors.primary} />}
                 />
                 <StatCard
                     title="Completed"
-                    value={stats.completedBookings}
+                    value={stats?.completedBookings || 0}
                     icon={<CheckCircle size={16} color={Colors.success} />}
                     color={Colors.success}
                 />
                 <StatCard
                     title="Cancelled"
-                    value={stats.cancelledBookings}
+                    value={stats?.cancelledBookings || 0}
                     icon={<XCircle size={16} color={Colors.error} />}
                     color={Colors.error}
                 />
                 <StatCard
                     title="Total Revenue"
-                    value={formatCurrency(stats.totalRevenue)}
+                    value={formatCurrency(stats?.totalRevenue)}
                     icon={<DollarSign size={16} color={Colors.primary} />}
                 />
                 <StatCard
                     title="Commission"
-                    value={formatCurrency(stats.totalCommission)}
+                    value={formatCurrency(stats?.totalCommission)}
                     icon={<CreditCard size={16} color={Colors.secondary} />}
                     color={Colors.secondary}
                 />
                 <StatCard
                     title="Unique Clients"
-                    value={stats.uniqueClients}
+                    value={stats?.uniqueClients || 0}
                     icon={<Users size={16} color={Colors.primary} />}
                 />
             </ScrollView>
@@ -161,11 +204,13 @@ export default function AgentDashboardScreen() {
 
             {recentBookings.length > 0 ? (
                 recentBookings.map((booking) => (
-                    <AgentBookingCard
-                        key={booking.id}
-                        booking={booking}
-                        onPress={() => handleBookingPress(booking.id)}
-                    />
+                    booking && booking.id ? (
+                        <AgentBookingCard
+                            key={booking.id}
+                            booking={booking}
+                            onPress={() => handleBookingPress(booking.id)}
+                        />
+                    ) : null
                 ))
             ) : (
                 <Card variant="outlined" style={styles.emptyCard}>
@@ -198,7 +243,13 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         fontSize: 16,
-        color: Colors.subtext,
+        color: Colors.textSecondary,
+    },
+    errorText: {
+        fontSize: 16,
+        color: Colors.error,
+        textAlign: 'center',
+        marginBottom: 16,
     },
     header: {
         flexDirection: "row",

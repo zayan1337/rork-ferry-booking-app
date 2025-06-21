@@ -10,10 +10,10 @@ import { Client } from "@/types/agent";
 
 export default function AgentClientsScreen() {
   const router = useRouter();
-  const { clients } = useAgentStore();
+  const { clients, getBookingsByClient, isLoading, error } = useAgentStore();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredClients = clients.filter((client) => {
+  const filteredClients = (clients || []).filter((client: Client) => {
     if (!searchQuery) return true;
 
     const query = searchQuery.toLowerCase();
@@ -56,20 +56,20 @@ export default function AgentClientsScreen() {
 
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{clients.length}</Text>
+          <Text style={styles.statValue}>{(clients || []).length}</Text>
           <Text style={styles.statLabel}>Total Clients</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statValue}>
-            {clients.reduce((sum, client) => sum + client.bookingsCount, 0)}
+            {(clients || []).reduce((sum: number, client: Client) => sum + client.bookingsCount, 0)}
           </Text>
           <Text style={styles.statLabel}>Total Bookings</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statValue}>
-            {clients.length > 0 ? (clients.reduce((sum, client) => sum + client.bookingsCount, 0) / clients.length).toFixed(1) : '0'}
+            {(clients || []).length > 0 ? ((clients || []).reduce((sum: number, client: Client) => sum + client.bookingsCount, 0) / (clients || []).length).toFixed(1) : '0'}
           </Text>
           <Text style={styles.statLabel}>Avg. Bookings</Text>
         </View>

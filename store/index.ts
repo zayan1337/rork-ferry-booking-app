@@ -24,6 +24,13 @@ export { useUserBookingsStore } from './userBookingsStore';
 // Ticket validation
 export { useTicketStore } from './ticketStore';
 
+// Agent management stores
+export { useAgentStore } from './agentStore';
+export { useAgentBookingStore } from './agentBookingStore';
+
+// Authentication store
+export { useAuthStore } from './authStore';
+
 // Backward compatibility exports - deprecated, use individual stores instead
 // This provides a migration path for existing components
 export const useBookingStore_DEPRECATED = () => {
