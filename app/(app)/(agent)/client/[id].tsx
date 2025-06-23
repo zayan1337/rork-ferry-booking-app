@@ -6,7 +6,7 @@ import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import Button from "@/components/Button";
 import { useRouter } from "expo-router";
-import { Mail, Phone, User, BookOpen, Calendar } from "lucide-react-native";
+import { Mail, Phone, User, BookOpen, Calendar, UserX } from "lucide-react-native";
 import AgentBookingCard from "@/components/AgentBookingCard";
 
 export default function ClientDetailsScreen() {
@@ -14,7 +14,6 @@ export default function ClientDetailsScreen() {
   const router = useRouter();
   const clients = useAgentStore((state) => state.clients);
   const getBookingsByClient = useAgentStore((state) => state.getBookingsByClient);
-
   const client = clients.find(c => c.id === id);
   const clientBookings = getBookingsByClient(id || "");
 
@@ -71,6 +70,23 @@ export default function ClientDetailsScreen() {
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Phone</Text>
               <Text style={styles.infoValue}>{client.phone}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            {client.hasAccount ? (
+              <User size={20} color={Colors.primary} />
+            ) : (
+              <UserX size={20} color={Colors.subtext} />
+            )}
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Account Status</Text>
+              <Text style={[
+                styles.infoValue,
+                !client.hasAccount && styles.infoValueWarning
+              ]}>
+                {client.hasAccount ? 'Has User Account' : 'No User Account'}
+              </Text>
             </View>
           </View>
         </Card>
@@ -193,6 +209,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     fontWeight: "500",
+  },
+  infoValueWarning: {
+    color: '#856404',
   },
   statsContainer: {
     flexDirection: "row",

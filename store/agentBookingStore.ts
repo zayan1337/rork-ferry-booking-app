@@ -98,7 +98,7 @@ interface AgentBookingActions {
 
     // Booking operations
     validateCurrentStep: () => string | null;
-    createBooking: () => Promise<string>;
+    createBooking: () => Promise<{ bookingId: string; returnBookingId: string | null }>;
 
     // Utility
     reset: () => void;
@@ -277,13 +277,13 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
 
         try {
             set({ isSearchingClients: true, error: null });
+
             const { agent } = get();
 
             if (!agent) {
                 throw new Error('Agent information not available');
             }
 
-            console.log('Searching clients for agent:', agent.id, 'with query:', query);
             const searchResults: AgentClient[] = [];
 
             // Search existing agent clients - try both the view and direct table
@@ -315,8 +315,6 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 agentClients = viewData || [];
             }
 
-            console.log('Found agent clients:', agentClients.length);
-
             // Add existing agent clients to results
             agentClients.forEach(client => {
                 searchResults.push({
@@ -331,7 +329,6 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
             });
 
             // Search all customer users (potential new clients for this agent)
-            console.log('Searching user profiles...');
             const { data: userProfiles, error: userProfilesError } = await supabase
                 .from('user_profiles')
                 .select('id, full_name, email, mobile_number')
@@ -342,13 +339,10 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 console.error('Error searching user profiles:', userProfilesError);
                 // Don't throw error here, just log it
             } else if (userProfiles && userProfiles.length > 0) {
-                console.log('Found user profiles:', userProfiles.length);
-
                 userProfiles.forEach(user => {
                     // Check if this user is not already an agent client for this agent
                     const existingClient = agentClients?.find(ac => ac.client_id === user.id);
                     if (!existingClient) {
-                        console.log('Adding new potential client:', user.full_name || user.email);
                         searchResults.push({
                             name: user.full_name || user.email || 'Unknown',
                             email: user.email || '',
@@ -356,15 +350,9 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                             hasAccount: true,
                             userProfileId: user.id,
                         });
-                    } else {
-                        console.log('User already exists as agent client:', user.full_name || user.email);
                     }
                 });
-            } else {
-                console.log('No user profiles found matching query');
             }
-
-            console.log('Total search results:', searchResults.length);
 
             set({
                 clientSearchResults: searchResults,
@@ -721,12 +709,41 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 throw new Error(`Failed to create booking: ${bookingError.message}`);
             }
 
+            // Generate QR code data for the booking
+            const qrCodeData = JSON.stringify({
+                bookingNumber: booking.booking_number,
+                bookingId: booking.id,
+                clientName: currentBooking.client.name,
+                tripId: currentBooking.trip.id,
+                route: `${currentBooking.route?.fromIsland?.name || 'Unknown'} → ${currentBooking.route?.toIsland?.name || 'Unknown'}`,
+                departureDate: currentBooking.trip.travel_date || currentBooking.departureDate,
+                departureTime: currentBooking.trip.departure_time,
+                passengers: currentBooking.passengers.length,
+                seats: currentBooking.selectedSeats.map(seat => seat.number),
+                totalFare: currentBooking.discountedFare,
+                agentId: agent.id,
+                agentName: agent.name || agent.email,
+                timestamp: new Date().toISOString(),
+                type: 'agent-booking'
+            });
+
+            // Update booking with QR code data
+            const { error: qrUpdateError } = await supabase
+                .from('bookings')
+                .update({ qr_code_url: qrCodeData })
+                .eq('id', booking.id);
+
+            if (qrUpdateError) {
+                console.warn('Failed to update QR code data:', qrUpdateError);
+                // Don't throw error as booking is already created
+            }
+
             // Create passengers and seat reservations
             const passengerInserts = currentBooking.passengers.map((passenger, index) => ({
                 booking_id: booking.id,
                 seat_id: currentBooking.selectedSeats[index]?.id,
                 passenger_name: passenger.fullName,
-                passenger_contact_number: currentBooking.client.phone,
+                passenger_contact_number: currentBooking.client!.phone,
                 special_assistance_request: passenger.specialAssistance || null,
             }));
 
@@ -799,8 +816,138 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 }
             }
 
+            // Handle return trip for round-trip bookings
+            let returnBookingId = null;
+            if (currentBooking.tripType === 'round_trip' && currentBooking.returnTrip) {
+                const returnBookingData = {
+                    user_id: bookingUserId,
+                    agent_id: agent.id,
+                    agent_client_id: agentClientId,
+                    trip_id: currentBooking.returnTrip.id,
+                    total_fare: (currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100),
+                    payment_method_type: currentBooking.paymentMethod,
+                    status: 'confirmed' as const,
+                    is_round_trip: true,
+                    return_booking_id: null
+                };
+
+                const { data: returnBooking, error: returnBookingError } = await supabase
+                    .from('bookings')
+                    .insert(returnBookingData)
+                    .select()
+                    .single();
+
+                if (returnBookingError) {
+                    console.error('Return booking creation error:', returnBookingError);
+                    throw new Error(`Failed to create return booking: ${returnBookingError.message}`);
+                }
+
+                returnBookingId = returnBooking.id;
+
+                // Generate QR code data for return booking
+                const returnQrCodeData = JSON.stringify({
+                    bookingNumber: returnBooking.booking_number,
+                    bookingId: returnBooking.id,
+                    clientName: currentBooking.client.name,
+                    tripId: currentBooking.returnTrip.id,
+                    route: `${currentBooking.returnRoute?.fromIsland?.name || 'Unknown'} → ${currentBooking.returnRoute?.toIsland?.name || 'Unknown'}`,
+                    departureDate: currentBooking.returnTrip.travel_date || currentBooking.returnDate,
+                    departureTime: currentBooking.returnTrip.departure_time,
+                    passengers: currentBooking.passengers.length,
+                    seats: currentBooking.returnSelectedSeats.map(seat => seat.number),
+                    totalFare: (currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100),
+                    agentId: agent.id,
+                    agentName: agent.name || agent.email,
+                    timestamp: new Date().toISOString(),
+                    type: 'agent-booking-return'
+                });
+
+                // Update return booking with QR code data
+                const { error: returnQrUpdateError } = await supabase
+                    .from('bookings')
+                    .update({ qr_code_url: returnQrCodeData })
+                    .eq('id', returnBooking.id);
+
+                if (returnQrUpdateError) {
+                    console.warn('Failed to update return booking QR code data:', returnQrUpdateError);
+                }
+
+                // Create return trip passengers
+                const returnPassengerInserts = currentBooking.passengers.map((passenger, index) => ({
+                    booking_id: returnBooking.id,
+                    seat_id: currentBooking.returnSelectedSeats[index]?.id,
+                    passenger_name: passenger.fullName,
+                    passenger_contact_number: currentBooking.client!.phone,
+                    special_assistance_request: passenger.specialAssistance || null,
+                }));
+
+                const { error: returnPassengersError } = await supabase
+                    .from('passengers')
+                    .insert(returnPassengerInserts);
+
+                if (returnPassengersError) {
+                    console.warn('Failed to create return passengers:', returnPassengersError);
+                }
+
+                // Reserve return seats
+                const returnSeatReservations = currentBooking.returnSelectedSeats.map(seat => ({
+                    trip_id: currentBooking.returnTrip!.id,
+                    seat_id: seat.id,
+                    booking_id: returnBooking.id,
+                    is_available: false,
+                    is_reserved: false,
+                }));
+
+                const { error: returnSeatError } = await supabase
+                    .from('seat_reservations')
+                    .upsert(returnSeatReservations, { onConflict: 'trip_id,seat_id' });
+
+                if (returnSeatError) {
+                    console.warn('Failed to reserve return seats:', returnSeatError);
+                }
+
+                // Handle credit payment for return trip
+                if (currentBooking.paymentMethod === 'credit') {
+                    const returnFare = (currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100);
+                    const currentBalance = await supabase
+                        .from('user_profiles')
+                        .select('credit_balance')
+                        .eq('id', agent.id)
+                        .single();
+
+                    if (currentBalance.data) {
+                        const newBalance = currentBalance.data.credit_balance - returnFare;
+
+                        const { error: returnCreditError } = await supabase
+                            .from('user_profiles')
+                            .update({ credit_balance: newBalance })
+                            .eq('id', agent.id);
+
+                        if (returnCreditError) {
+                            console.warn('Failed to update credit balance for return trip:', returnCreditError);
+                        }
+
+                        // Create credit transaction record for return trip
+                        try {
+                            await supabase
+                                .from('agent_credit_transactions')
+                                .insert({
+                                    agent_id: agent.id,
+                                    amount: -returnFare,
+                                    transaction_type: 'deduction',
+                                    booking_id: returnBooking.id,
+                                    description: `Return booking payment for ${currentBooking.returnRoute?.fromIsland?.name || 'Unknown'} to ${currentBooking.returnRoute?.toIsland?.name || 'Unknown'}`,
+                                    balance_after: newBalance,
+                                });
+                        } catch (transactionError) {
+                            console.warn('Failed to create return credit transaction record:', transactionError);
+                        }
+                    }
+                }
+            }
+
             set({ isLoading: false });
-            return booking.id;
+            return { bookingId: booking.id, returnBookingId };
 
         } catch (error: any) {
             console.error('Error creating booking:', error);
@@ -835,11 +982,8 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
         try {
             const { agent } = get();
             if (!agent) {
-                console.log('No agent available for testing');
                 return;
             }
-
-            console.log('Testing database connections...');
 
             // Test 1: Check if agent_clients table exists and has data
             const { data: agentClientsTest, error: agentClientsError } = await supabase
@@ -848,16 +992,12 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 .eq('agent_id', agent.id)
                 .limit(1);
 
-            console.log('Agent clients table test:', { data: agentClientsTest, error: agentClientsError });
-
             // Test 2: Check if agent_clients_with_details view exists
             const { data: viewTest, error: viewError } = await supabase
                 .from('agent_clients_with_details')
                 .select('*')
                 .eq('agent_id', agent.id)
                 .limit(1);
-
-            console.log('Agent clients view test:', { data: viewTest, error: viewError });
 
             // Test 3: Check user_profiles table
             const { data: userProfilesTest, error: userProfilesError } = await supabase
@@ -866,12 +1006,6 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 .eq('role', 'customer')
                 .limit(3);
 
-            console.log('User profiles test:', {
-                count: userProfilesTest?.length || 0,
-                data: userProfilesTest,
-                error: userProfilesError
-            });
-
             // Test 4: Check function exists
             const { data: functionTest, error: functionError } = await supabase
                 .rpc('get_or_create_agent_client', {
@@ -879,8 +1013,6 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                     p_email: 'test@example.com',
                     p_full_name: 'Test User'
                 });
-
-            console.log('Function test (should create/return client):', { data: functionTest, error: functionError });
 
         } catch (error) {
             console.error('Database test error:', error);

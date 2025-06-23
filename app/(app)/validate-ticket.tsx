@@ -111,12 +111,9 @@ export default function ValidateTicketScreen() {
       const qrData = JSON.parse(data);
       extractedBookingNumber = qrData.bookingNumber || qrData.booking_number || '';
 
-      // Log QR data for debugging
-      console.log('QR Code Data:', qrData);
     } catch {
       // If not JSON, assume it's just the booking number
       extractedBookingNumber = data.trim();
-      console.log('Plain text QR Code:', extractedBookingNumber);
     }
 
     if (extractedBookingNumber) {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, TextStyle } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useAgentStore } from "@/store/agentStore";
 import Colors from "@/constants/colors";
 import ClientCard from "@/components/ClientCard";
@@ -10,8 +10,17 @@ import { Client } from "@/types/agent";
 
 export default function AgentClientsScreen() {
   const router = useRouter();
-  const { clients, getBookingsByClient, isLoading, error } = useAgentStore();
+  const { clients, getBookingsByClient, isLoading, error, agent, fetchClients } = useAgentStore();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (agent?.id) {
+        fetchClients();
+      }
+    }, [agent?.id, fetchClients])
+  );
 
   const filteredClients = (clients || []).filter((client: Client) => {
     if (!searchQuery) return true;
@@ -75,7 +84,17 @@ export default function AgentClientsScreen() {
         </View>
       </View>
 
-      {filteredClients.length > 0 ? (
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Error: {error}</Text>
+        </View>
+      )}
+
+      {isLoading ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Loading clients...</Text>
+        </View>
+      ) : filteredClients.length > 0 ? (
         <FlatList
           data={filteredClients}
           keyExtractor={(item) => item.id}
@@ -89,7 +108,9 @@ export default function AgentClientsScreen() {
         />
       ) : (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No clients found</Text>
+          <Text style={styles.emptyText}>
+            {clients?.length === 0 ? 'No clients found for this agent' : 'No clients match your search'}
+          </Text>
         </View>
       )}
     </View>
@@ -177,5 +198,17 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: Colors.subtext,
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    margin: 16,
+    padding: 16,
+    borderRadius: 8,
+    borderColor: '#f44336',
+    borderWidth: 1,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#d32f2f',
   },
 });

@@ -85,7 +85,6 @@ export default function CancelBookingScreen() {
           },
           () => {
             // Fallback if measureLayout fails
-            console.log('measureLayout failed for', inputKey);
           }
         );
       }

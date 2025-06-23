@@ -88,15 +88,15 @@ export const useAgentStore = create<AgentState>()(
             error: null,
 
             // Internal helper methods (integrated from services)
-            testConnection: async () => {
+            testConnection: async (): Promise<boolean> => {
                 try {
-                    const { data, error } = await supabase.from('user_profiles').select('id').limit(1);
-                    if (error) {
+                    const { data, error } = await supabase.from('agents').select('id').limit(1);
+                    if (!error) {
+                        return true;
+                    } else {
                         console.error('Database connection test failed:', error);
                         return false;
                     }
-                    console.log('Database connection test successful');
-                    return true;
                 } catch (error) {
                     console.error('Database connection test error:', error);
                     return false;
@@ -105,8 +105,6 @@ export const useAgentStore = create<AgentState>()(
 
             getAgentProfile: async (agentId: string) => {
                 try {
-                    console.log('Fetching agent profile for ID:', agentId);
-
                     // Try the main function first
                     let { data, error } = await supabase.rpc('get_agent_profile', {
                         agent_user_id: agentId
@@ -114,7 +112,6 @@ export const useAgentStore = create<AgentState>()(
 
                     // If there's a type mismatch error, try the simpler function
                     if (error && error.code === '42804') {
-                        console.log('Type mismatch detected, trying simpler function...');
                         const result = await supabase.rpc('get_agent_profile_simple', {
                             agent_user_id: agentId
                         });
@@ -122,15 +119,12 @@ export const useAgentStore = create<AgentState>()(
                         error = result.error;
                     }
 
-                    console.log('Agent profile response:', { data, error });
-
                     if (error) {
                         console.error('Error in getAgentProfile:', error);
                         throw error;
                     }
 
                     if (!data || data.length === 0) {
-                        console.log('No agent profile found for ID:', agentId);
                         return null;
                     }
 
@@ -167,49 +161,200 @@ export const useAgentStore = create<AgentState>()(
 
             getAgentClients: async (agentId: string) => {
                 try {
-                    const { data, error } = await supabase.rpc('get_agent_clients_with_stats', {
-                        agent_user_id: agentId
-                    });
+                    // Use the comprehensive approach: query the view that handles both cases
+                    const { data: clientData, error: clientError } = await supabase
+                        .from('agent_clients_with_details')
+                        .select('*')
+                        .eq('agent_id', agentId);
 
-                    if (error) throw error;
+                    if (clientError) {
+                        throw clientError;
+                    }
 
-                    return (data || []).map((client: any) => ({
-                        id: client.id,
-                        name: client.name,
-                        email: client.email,
-                        phone: client.phone,
-                        bookingsCount: Number(client.bookingscount), // lowercase from database
+                    // Map the data - handle both clients with and without accounts
+                    const mappedClients = (clientData || []).map((item: any) => ({
+                        id: item.has_account ? item.client_id : item.id, // Use client_id for accounts, agent_clients id for no accounts
+                        name: item.full_name || 'Unknown',
+                        email: item.email || '',
+                        phone: item.mobile_number || '',
+                        bookingsCount: 0, // Will be updated with actual count below
+                        hasAccount: item.has_account,
+                        agentClientId: item.id, // Store the agent_clients record id
                     }));
+
+                    // Now try to get booking counts for each client (both types)
+                    try {
+                        const { data: bookingCounts, error: bookingError } = await supabase
+                            .from('bookings')
+                            .select('user_id, agent_client_id')
+                            .eq('agent_id', agentId);
+
+                        if (!bookingError && bookingCounts) {
+                            // Count bookings by both user_id and agent_client_id
+                            const bookingCountsMap: Record<string, number> = {};
+
+                            bookingCounts.forEach((booking: any) => {
+                                // Count bookings for clients with accounts (user_id)
+                                if (booking.user_id) {
+                                    bookingCountsMap[booking.user_id] = (bookingCountsMap[booking.user_id] || 0) + 1;
+                                }
+                                // Count bookings for clients without accounts (agent_client_id)
+                                if (booking.agent_client_id) {
+                                    bookingCountsMap[booking.agent_client_id] = (bookingCountsMap[booking.agent_client_id] || 0) + 1;
+                                }
+                            });
+
+                            // Update booking counts for all clients
+                            mappedClients.forEach(client => {
+                                if (client.hasAccount) {
+                                    // For clients with accounts, use client.id (which is user_id)
+                                    if (bookingCountsMap[client.id]) {
+                                        client.bookingsCount = bookingCountsMap[client.id];
+                                    }
+                                } else {
+                                    // For clients without accounts, use agentClientId (which is agent_clients.id)
+                                    if (bookingCountsMap[client.agentClientId]) {
+                                        client.bookingsCount = bookingCountsMap[client.agentClientId];
+                                    }
+                                }
+                            });
+                        }
+                    } catch (bookingError) {
+                        console.warn('Could not fetch booking counts:', bookingError);
+                    }
+
+                    return mappedClients;
                 } catch (error) {
                     console.error('Error fetching agent clients:', error);
+
+                    // Final fallback to stored procedure if view doesn't work
+                    try {
+                        const { data, error } = await supabase.rpc('get_agent_clients_with_stats', {
+                            agent_user_id: agentId
+                        });
+
+                        if (!error && data) {
+                            const mappedClients = (data || []).map((client: any) => ({
+                                id: client.id,
+                                name: client.name,
+                                email: client.email,
+                                phone: client.phone,
+                                bookingsCount: Number(client.bookingscount),
+                                hasAccount: true, // Stored procedure likely only returns clients with accounts
+                            }));
+
+                            return mappedClients;
+                        }
+                    } catch (rpcError) {
+                        console.error('RPC fallback also failed:', rpcError);
+                    }
+
                     throw error;
                 }
             },
 
             getAgentBookings: async (agentId: string) => {
                 try {
-                    const { data, error } = await supabase.rpc('get_agent_bookings', {
-                        agent_user_id: agentId
+                    // Get ALL bookings for this agent in one comprehensive query
+                    const { data: allAgentBookings, error: allBookingsError } = await supabase
+                        .from('bookings')
+                        .select(`
+                            id,
+                            booking_number,
+                            user_id,
+                            agent_client_id,
+                            total_fare,
+                            status,
+                            created_at,
+                            payment_method_type,
+                            agent_clients(
+                                id,
+                                full_name,
+                                email,
+                                client_id
+                            ),
+                            user_profiles(
+                                id,
+                                full_name,
+                                email
+                            )
+                        `)
+                        .eq('agent_id', agentId);
+
+                    if (allBookingsError) {
+                        console.error('Error fetching all agent bookings:', allBookingsError);
+                        throw allBookingsError;
+                    }
+
+                    const allBookings = (allAgentBookings || []).map((booking: any) => {
+                        if (booking.user_id && !booking.agent_client_id) {
+                            // Booking for client WITH account (user_profiles only)
+                            return {
+                                id: booking.id,
+                                clientId: booking.user_id,
+                                clientName: booking.user_profiles?.full_name || 'Unknown Client',
+                                origin: 'Ferry Route', // Default since we don't have trip details in this query
+                                destination: 'Ferry Route',
+                                departureDate: booking.created_at,
+                                returnDate: undefined,
+                                passengerCount: 1,
+                                totalAmount: Number(booking.total_fare || 0),
+                                discountedAmount: Number(booking.total_fare || 0),
+                                status: booking.status as Booking['status'],
+                                bookingDate: booking.created_at,
+                                paymentMethod: (booking.payment_method_type || 'gateway') as Booking['paymentMethod'],
+                                commission: 0,
+                                userId: booking.user_id,
+                                agentClientId: undefined,
+                                clientHasAccount: true,
+                            };
+                        } else if (booking.agent_client_id) {
+                            // Booking for client WITHOUT account or WITH account via agent_clients
+                            const hasAccount = !!booking.agent_clients?.client_id;
+                            return {
+                                id: booking.id,
+                                clientId: booking.agent_client_id,
+                                clientName: booking.agent_clients?.full_name || booking.agent_clients?.email || 'Unknown Client',
+                                origin: 'Ferry Route',
+                                destination: 'Ferry Route',
+                                departureDate: booking.created_at,
+                                returnDate: undefined,
+                                passengerCount: 1,
+                                totalAmount: Number(booking.total_fare || 0),
+                                discountedAmount: Number(booking.total_fare || 0),
+                                status: booking.status as Booking['status'],
+                                bookingDate: booking.created_at,
+                                paymentMethod: (booking.payment_method_type || 'gateway') as Booking['paymentMethod'],
+                                commission: 0,
+                                userId: hasAccount ? booking.agent_clients?.client_id : undefined,
+                                agentClientId: booking.agent_client_id,
+                                clientHasAccount: hasAccount,
+                            };
+                        } else {
+                            // Fallback for any other case
+                            return {
+                                id: booking.id,
+                                clientId: booking.user_id || booking.agent_client_id || 'unknown',
+                                clientName: 'Unknown Client',
+                                origin: 'Ferry Route',
+                                destination: 'Ferry Route',
+                                departureDate: booking.created_at,
+                                returnDate: undefined,
+                                passengerCount: 1,
+                                totalAmount: Number(booking.total_fare || 0),
+                                discountedAmount: Number(booking.total_fare || 0),
+                                status: booking.status as Booking['status'],
+                                bookingDate: booking.created_at,
+                                paymentMethod: (booking.payment_method_type || 'gateway') as Booking['paymentMethod'],
+                                commission: 0,
+                                userId: booking.user_id,
+                                agentClientId: booking.agent_client_id,
+                                clientHasAccount: !!booking.user_id,
+                            };
+                        }
                     });
 
-                    if (error) throw error;
-
-                    return (data || []).map((booking: any) => ({
-                        id: booking.id,
-                        clientId: booking.clientid, // lowercase from database
-                        clientName: booking.clientname, // lowercase from database
-                        origin: booking.origin,
-                        destination: booking.destination,
-                        departureDate: booking.departuredate, // lowercase from database
-                        returnDate: booking.returndate, // lowercase from database
-                        passengerCount: Number(booking.passengercount), // lowercase from database
-                        totalAmount: Number(booking.totalamount), // lowercase from database
-                        discountedAmount: Number(booking.discountedamount), // lowercase from database
-                        status: booking.status as Booking['status'],
-                        bookingDate: booking.bookingdate, // lowercase from database
-                        paymentMethod: booking.paymentmethod as Booking['paymentMethod'], // lowercase from database
-                        commission: Number(booking.commission),
-                    }));
+                    return allBookings;
                 } catch (error) {
                     console.error('Error fetching agent bookings:', error);
                     throw error;
@@ -476,6 +621,7 @@ export const useAgentStore = create<AgentState>()(
                     const clients = await get().getAgentClients(agent.id);
                     set({ clients, isLoading: false });
                 } catch (error) {
+                    console.error('Error in fetchClients:', error);
                     set({
                         error: error instanceof Error ? error.message : 'Failed to fetch clients',
                         isLoading: false,
@@ -501,8 +647,35 @@ export const useAgentStore = create<AgentState>()(
             },
 
             getBookingsByClient: (clientId: string) => {
-                const { bookings } = get();
-                return bookings.filter(booking => booking.clientId === clientId);
+                const { bookings, clients } = get();
+
+                // Find the client to determine if they have an account
+                const client = clients.find(c => c.id === clientId);
+
+                if (!client) {
+                    return [];
+                }
+
+                // Filter bookings based on client type
+                const filtered = bookings.filter(booking => {
+                    if (client.hasAccount) {
+                        // For clients with accounts, match by userId
+                        const match1 = booking.userId === clientId;
+                        const match2 = booking.clientId === clientId;
+                        return match1 || match2;
+                    } else {
+                        // For clients without accounts, match by agentClientId
+                        // The booking's agentClientId should match the client's agentClientId (agent_clients.id)
+                        const match1 = booking.agentClientId === client.agentClientId;
+                        // Also check if booking's clientId matches (this should be the same as agentClientId for clients without accounts)
+                        const match2 = booking.clientId === client.agentClientId;
+                        // Final fallback: direct ID match
+                        const match3 = booking.agentClientId === clientId;
+                        return match1 || match2 || match3;
+                    }
+                });
+
+                return filtered;
             },
 
             createBooking: async (bookingData: any) => {

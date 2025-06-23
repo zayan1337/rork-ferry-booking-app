@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { Client } from "@/types/agent";
 import Colors from "@/constants/colors";
-import { User, Mail, Phone, BarChart } from "lucide-react-native";
+import { User, Mail, Phone, BarChart, UserX } from "lucide-react-native";
 import Card from "./Card";
 
 interface ClientCardProps {
@@ -15,11 +15,25 @@ export default function ClientCard({ client, onPress }: ClientCardProps) {
         <TouchableOpacity onPress={() => onPress(client)}>
             <Card variant="elevated" style={styles.card}>
                 <View style={styles.header}>
-                    <View style={styles.avatarContainer}>
-                        <User size={24} color={Colors.primary} />
+                    <View style={[
+                        styles.avatarContainer,
+                        !client.hasAccount && styles.avatarContainerNoAccount
+                    ]}>
+                        {client.hasAccount ? (
+                            <User size={24} color={Colors.primary} />
+                        ) : (
+                            <UserX size={24} color={Colors.subtext} />
+                        )}
                     </View>
                     <View style={styles.clientInfo}>
-                        <Text style={styles.clientName}>{client.name}</Text>
+                        <View style={styles.nameRow}>
+                            <Text style={styles.clientName}>{client.name}</Text>
+                            {!client.hasAccount && (
+                                <View style={styles.noAccountBadge}>
+                                    <Text style={styles.noAccountText}>No Account</Text>
+                                </View>
+                            )}
+                        </View>
                         <Text style={styles.clientEmail}>{client.email}</Text>
                     </View>
                     <View style={styles.bookingsContainer}>
@@ -63,14 +77,34 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         marginRight: 12,
     },
+    avatarContainerNoAccount: {
+        backgroundColor: `${Colors.subtext}15`,
+    },
     clientInfo: {
         flex: 1,
+    },
+    nameRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 2,
     },
     clientName: {
         fontSize: 16,
         fontWeight: "600",
         color: Colors.text,
-        marginBottom: 2,
+        flex: 1,
+    },
+    noAccountBadge: {
+        backgroundColor: `${Colors.subtext}20`,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 8,
+        marginLeft: 8,
+    },
+    noAccountText: {
+        fontSize: 10,
+        color: Colors.subtext,
+        fontWeight: "500",
     },
     clientEmail: {
         fontSize: 14,

@@ -137,7 +137,7 @@ export default function ModifyBookingScreen() {
             });
           },
           () => {
-            console.log('measureLayout failed for', inputKey);
+            // Fallback if measureLayout fails
           }
         );
       }

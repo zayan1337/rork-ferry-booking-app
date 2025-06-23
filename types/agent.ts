@@ -22,7 +22,7 @@ export interface AgentStats {
 
 export interface Booking {
     id: string;
-    clientId: string;
+    clientId: string; // This can be user_profiles.id OR agent_clients.id
     clientName: string;
     origin: string;
     destination: string;
@@ -35,6 +35,9 @@ export interface Booking {
     bookingDate: string;
     paymentMethod: "credit" | "gateway" | "free";
     commission: number;
+    userId?: string; // user_profiles.id for clients with accounts
+    agentClientId?: string; // agent_clients.id for clients without accounts
+    clientHasAccount?: boolean; // Whether this booking is for a client with account
 }
 
 export interface Client {
@@ -43,6 +46,8 @@ export interface Client {
     email: string;
     phone: string;
     bookingsCount: number;
+    hasAccount?: boolean; // Whether the client has a user account
+    agentClientId?: string; // The agent_clients record ID
 }
 
 export interface CreditTransaction {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useAgentStore } from "@/store/agentStore";
 import Colors from "@/constants/colors";
 import AgentBookingCard from "@/components/AgentBookingCard";
@@ -11,9 +11,18 @@ import { Booking } from "@/types/agent";
 
 export default function AgentBookingsScreen() {
   const router = useRouter();
-  const { bookings, isLoading, error } = useAgentStore();
+  const { bookings, isLoading, error, agent, getAgentBookings } = useAgentStore();
   const [activeTab, setActiveTab] = useState<"all" | "confirmed" | "completed" | "cancelled">("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (agent?.id) {
+        getAgentBookings(agent.id);
+      }
+    }, [agent?.id, getAgentBookings])
+  );
 
   const filteredBookings = (bookings || []).filter((booking) => {
     // Filter by status

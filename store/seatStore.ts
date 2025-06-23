@@ -435,8 +435,6 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 
               if (insertError) {
                 console.error(`Error creating seat reservations for trip ${trip.id}:`, insertError);
-              } else {
-                console.log(`Created ${missingSeats.length} seat reservations for trip ${trip.id}`);
               }
             }
           } catch (error) {

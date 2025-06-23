@@ -10,7 +10,6 @@ export default function AppLayout() {
   useEffect(() => {
     // If user is not authenticated and we're not loading, redirect to auth
     if (!isAuthenticated && !isLoading) {
-      console.log('AppLayout: Redirecting to auth');
       router.replace('/(auth)');
       return;
     }

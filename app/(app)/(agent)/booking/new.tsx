@@ -418,7 +418,7 @@ export default function AgentNewBookingScreen() {
   const handleCreateBooking = async () => {
     if (validateStep(6)) {
       try {
-        const bookingId = await createBooking();
+        const result = await createBooking();
 
         // Reset states
         reset();
@@ -442,17 +442,42 @@ export default function AgentNewBookingScreen() {
         });
 
         // Create success message
-        let successMessage = `Your ${currentBooking.tripType === 'round_trip' ? 'round trip' : 'one way'} booking has been confirmed.`;
-        successMessage += `\n\nBooking ID: ${bookingId}`;
+        let successMessage = `Your ${currentBooking.tripType === 'round_trip' ? 'round trip' : 'one way'} booking has been confirmed with QR codes generated.`;
+        if (typeof result === 'string') {
+          // Legacy single booking ID
+          successMessage += `\n\nBooking ID: ${result}`;
+        } else if (result && typeof result === 'object') {
+          // New format with departure and return booking IDs
+          const bookingResult = result as { bookingId: string; returnBookingId?: string };
+          successMessage += `\n\nDeparture Booking ID: ${bookingResult.bookingId}`;
+          if (bookingResult.returnBookingId) {
+            successMessage += `\nReturn Booking ID: ${bookingResult.returnBookingId}`;
+          }
+        }
 
         Alert.alert(
           "Booking Created",
           successMessage,
           [
             {
-              text: "OK",
-              onPress: () => router.back(),
+              text: "View Bookings",
+              onPress: () => {
+                router.push("/(app)/(agent)/(tabs)/bookings");
+                // Trigger refresh after navigation
+                setTimeout(() => {
+                  // Refresh agent store data
+                  if (agent) {
+                    useAgentStore.getState().getAgentBookings(agent.id);
+                  }
+                }, 100);
+              }
             },
+            {
+              text: "New Booking",
+              onPress: () => {
+                // Stay on the same page, everything is already reset
+              }
+            }
           ]
         );
       } catch (error) {

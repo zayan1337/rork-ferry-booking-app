@@ -246,8 +246,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
 
         try {
             // Modification logic implementation
-            console.log('Modifying booking:', bookingId, modifications);
-
             // This is a simplified version - the full implementation would be similar to the original
             await fetchUserBookings();
         } catch (error) {
