@@ -60,6 +60,9 @@ interface AgentBookingState {
 
     // Agent info
     agent: Agent | null;
+
+    // Callback for when booking is created
+    onBookingCreated?: (bookingId: string, returnBookingId?: string | null) => Promise<void>;
 }
 
 interface AgentBookingActions {
@@ -105,6 +108,20 @@ interface AgentBookingActions {
     setError: (error: string | null) => void;
     setLoading: (isLoading: boolean) => void;
     setAgent: (agent: Agent) => void;
+
+    // QR Code utilities
+    parseQrCodeData: (qrCodeString: string) => any | null;
+    generateQrCodeData: (booking: any, agent: Agent, type?: string) => string;
+    validateQrCodeData: (qrCodeData: any) => boolean;
+    verifyQrCodeStorage: (bookingId: string) => Promise<boolean>;
+    testQrCodeFunctionality: () => Promise<void>;
+    debugClientAccountQrIssue: () => Promise<any>;
+    fixMissingQrCodes: () => Promise<void>;
+
+    // Booking refresh utility
+    refreshAgentData: () => Promise<void>;
+    onBookingCreated?: (bookingId: string, returnBookingId?: string | null) => Promise<void>;
+    setOnBookingCreated: (callback: (bookingId: string, returnBookingId?: string | null) => Promise<void>) => void;
 }
 
 const initialBooking: AgentCurrentBooking = {
@@ -137,6 +154,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
     isLoading: false,
     error: null,
     agent: null,
+    onBookingCreated: undefined,
 
     // Navigation
     setCurrentStep: (step: number) => set({ currentStep: step }),
@@ -682,12 +700,13 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
 
             const agentClientId = agentClientData;
 
-            // Determine the booking user_id: client's user ID if they have an account, otherwise agent's ID
-            const bookingUserId = currentBooking.client.userProfileId || agent.id;
+            // Determine the booking user_id: Always use agent ID for agent bookings to ensure update permissions
+            // Store client's user ID separately if they have an account
+            const bookingUserId = agent.id; // Always use agent ID for agent bookings
 
-            // Create the booking
+            // Create the booking WITHOUT QR code data first
             const bookingData = {
-                user_id: bookingUserId,
+                user_id: bookingUserId, // Always agent ID for permissions
                 agent_id: agent.id,
                 agent_client_id: agentClientId,
                 trip_id: currentBooking.trip.id,
@@ -695,7 +714,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 payment_method_type: currentBooking.paymentMethod,
                 status: 'confirmed' as const,
                 is_round_trip: currentBooking.tripType === 'round_trip',
-                return_booking_id: null // We'll handle return trips separately if needed
+                return_booking_id: null, // We'll handle return trips separately if needed
             };
 
             const { data: booking, error: bookingError } = await supabase
@@ -709,33 +728,124 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 throw new Error(`Failed to create booking: ${bookingError.message}`);
             }
 
-            // Generate QR code data for the booking
-            const qrCodeData = JSON.stringify({
+            // Now generate QR code data with actual booking details
+            const finalQrCodeData = JSON.stringify({
                 bookingNumber: booking.booking_number,
                 bookingId: booking.id,
-                clientName: currentBooking.client.name,
                 tripId: currentBooking.trip.id,
-                route: `${currentBooking.route?.fromIsland?.name || 'Unknown'} → ${currentBooking.route?.toIsland?.name || 'Unknown'}`,
                 departureDate: currentBooking.trip.travel_date || currentBooking.departureDate,
                 departureTime: currentBooking.trip.departure_time,
                 passengers: currentBooking.passengers.length,
                 seats: currentBooking.selectedSeats.map(seat => seat.number),
                 totalFare: currentBooking.discountedFare,
+                timestamp: new Date().toISOString(),
+                // Agent-specific additional fields
+                clientName: currentBooking.client.name,
+                clientEmail: currentBooking.client.email,
+                clientHasAccount: currentBooking.client.hasAccount,
+                clientUserProfileId: currentBooking.client.userProfileId || null,
                 agentId: agent.id,
                 agentName: agent.name || agent.email,
-                timestamp: new Date().toISOString(),
+                agentClientId: agentClientId,
                 type: 'agent-booking'
             });
 
-            // Update booking with QR code data
-            const { error: qrUpdateError } = await supabase
-                .from('bookings')
-                .update({ qr_code_url: qrCodeData })
-                .eq('id', booking.id);
+            // Debug: Log QR code generation details
+            console.log('QR Code Generation Details:', {
+                bookingId: booking.id,
+                bookingNumber: booking.booking_number,
+                clientHasAccount: currentBooking.client.hasAccount,
+                clientUserProfileId: currentBooking.client.userProfileId,
+                bookingUserId: bookingUserId,
+                agentId: agent.id,
+                qrDataLength: finalQrCodeData.length,
+            });
 
-            if (qrUpdateError) {
-                console.warn('Failed to update QR code data:', qrUpdateError);
-                // Don't throw error as booking is already created
+            // Update booking with QR code data (with actual booking number and ID)
+            console.log('Attempting to update QR code for booking:', booking.id, 'Data length:', finalQrCodeData.length);
+
+            // Check if QR data is too long (PostgreSQL text field limit is usually much larger, but let's be safe)
+            if (finalQrCodeData.length > 10000) {
+                console.warn('QR code data is very long:', finalQrCodeData.length, 'characters. Truncating...');
+                // In case of very long data, we could truncate or simplify
+            }
+
+            // Enhanced QR code update with retry mechanism
+            let qrUpdateSuccess = false;
+            let qrUpdateAttempts = 0;
+            const maxRetries = 3;
+
+            while (!qrUpdateSuccess && qrUpdateAttempts < maxRetries) {
+                qrUpdateAttempts++;
+
+                const { data: qrUpdateResult, error: qrUpdateError } = await supabase
+                    .from('bookings')
+                    .update({ qr_code_url: finalQrCodeData })
+                    .eq('id', booking.id)
+                    .select('id, qr_code_url, booking_number');
+
+                if (qrUpdateError) {
+                    console.error(`QR code update attempt ${qrUpdateAttempts} failed:`, qrUpdateError);
+
+                    if (qrUpdateAttempts === 1) {
+                        // On first failure, log detailed error information
+                        console.error('QR Update Error Details:', {
+                            bookingId: booking.id,
+                            bookingNumber: booking.booking_number,
+                            error: qrUpdateError,
+                            errorCode: qrUpdateError.code,
+                            errorMessage: qrUpdateError.message,
+                            errorDetails: qrUpdateError.details,
+                            errorHint: qrUpdateError.hint,
+                            qrDataLength: finalQrCodeData.length,
+                            qrDataPreview: finalQrCodeData.substring(0, 100) + '...',
+                            clientType: currentBooking.client.hasAccount ? 'with_account' : 'without_account',
+                            bookingUserId: bookingUserId,
+                            agentId: agent.id
+                        });
+                    }
+
+                    // Wait before retry
+                    if (qrUpdateAttempts < maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, 500 * qrUpdateAttempts));
+                    }
+                } else {
+                    console.log(`QR code update attempt ${qrUpdateAttempts} succeeded for booking:`, booking.booking_number, 'ID:', booking.id);
+                    qrUpdateSuccess = true;
+
+                    // Verify the QR code was actually stored
+                    await new Promise(resolve => setTimeout(resolve, 200));
+
+                    try {
+                        const { data: verifyData, error: verifyError } = await supabase
+                            .from('bookings')
+                            .select('qr_code_url, booking_number')
+                            .eq('id', booking.id)
+                            .single();
+
+                        if (verifyError) {
+                            console.error('Failed to verify QR code storage:', verifyError);
+                            qrUpdateSuccess = false; // Retry if verification fails
+                        } else if (!verifyData.qr_code_url) {
+                            console.error('QR code verification failed: No data found in database for booking:', booking.id);
+                            console.error('Verification result:', verifyData);
+                            qrUpdateSuccess = false; // Retry if no data found
+                        } else {
+                            console.log('QR code verification successful for booking:', verifyData.booking_number);
+                            console.log('Stored QR data length:', verifyData.qr_code_url.length);
+                            console.log('QR data preview:', verifyData.qr_code_url.substring(0, 100) + '...');
+                        }
+                    } catch (verifyException) {
+                        console.error('Exception during QR code verification:', verifyException);
+                        qrUpdateSuccess = false; // Retry if verification throws
+                    }
+                }
+            }
+
+            if (!qrUpdateSuccess) {
+                console.error(`Failed to update QR code after ${maxRetries} attempts for booking:`, booking.id);
+                // Don't throw error - booking was created successfully, just QR code failed
+                // We can fix QR codes later using the fixMissingQrCodes function
             }
 
             // Create passengers and seat reservations
@@ -816,6 +926,56 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 }
             }
 
+            // Handle free ticket payment
+            if (currentBooking.paymentMethod === 'free') {
+                const ticketsNeeded = currentBooking.selectedSeats.length;
+
+                if (agent.freeTicketsRemaining < ticketsNeeded) {
+                    // Clean up booking if insufficient free tickets
+                    await supabase.from('seat_reservations').delete().eq('booking_id', booking.id);
+                    await supabase.from('passengers').delete().eq('booking_id', booking.id);
+                    await supabase.from('bookings').delete().eq('id', booking.id);
+                    throw new Error(`Insufficient free tickets. Need ${ticketsNeeded}, have ${agent.freeTicketsRemaining}`);
+                }
+
+                const newFreeTicketsRemaining = agent.freeTicketsRemaining - ticketsNeeded;
+
+                // Update agent free tickets remaining
+                const { error: freeTicketError } = await supabase
+                    .from('user_profiles')
+                    .update({ free_tickets_remaining: newFreeTicketsRemaining })
+                    .eq('id', agent.id);
+
+                if (freeTicketError) {
+                    console.warn('Failed to update free tickets remaining:', freeTicketError);
+                } else {
+                    // Update local agent state
+                    set(state => ({
+                        ...state,
+                        agent: state.agent ? {
+                            ...state.agent,
+                            freeTicketsRemaining: newFreeTicketsRemaining
+                        } : null
+                    }));
+                }
+
+                // Create free ticket transaction record
+                try {
+                    await supabase
+                        .from('agent_credit_transactions')
+                        .insert({
+                            agent_id: agent.id,
+                            amount: 0, // Free tickets don't affect credit balance
+                            transaction_type: 'deduction',
+                            booking_id: booking.id,
+                            description: `Free ticket booking for ${currentBooking.route?.fromIsland?.name || 'Unknown'} to ${currentBooking.route?.toIsland?.name || 'Unknown'} (${ticketsNeeded} tickets used)`,
+                            balance_after: agent.creditBalance, // Credit balance unchanged
+                        });
+                } catch (transactionError) {
+                    console.warn('Failed to create free ticket transaction record:', transactionError);
+                }
+            }
+
             // Handle return trip for round-trip bookings
             let returnBookingId = null;
             if (currentBooking.tripType === 'round_trip' && currentBooking.returnTrip) {
@@ -828,7 +988,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                     payment_method_type: currentBooking.paymentMethod,
                     status: 'confirmed' as const,
                     is_round_trip: true,
-                    return_booking_id: null
+                    return_booking_id: null,
                 };
 
                 const { data: returnBooking, error: returnBookingError } = await supabase
@@ -844,32 +1004,113 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
 
                 returnBookingId = returnBooking.id;
 
-                // Generate QR code data for return booking
-                const returnQrCodeData = JSON.stringify({
+                // Generate return QR code data with actual booking details
+                const finalReturnQrCodeData = JSON.stringify({
                     bookingNumber: returnBooking.booking_number,
                     bookingId: returnBooking.id,
-                    clientName: currentBooking.client.name,
                     tripId: currentBooking.returnTrip.id,
-                    route: `${currentBooking.returnRoute?.fromIsland?.name || 'Unknown'} → ${currentBooking.returnRoute?.toIsland?.name || 'Unknown'}`,
                     departureDate: currentBooking.returnTrip.travel_date || currentBooking.returnDate,
                     departureTime: currentBooking.returnTrip.departure_time,
                     passengers: currentBooking.passengers.length,
                     seats: currentBooking.returnSelectedSeats.map(seat => seat.number),
                     totalFare: (currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100),
+                    timestamp: new Date().toISOString(),
+                    // Agent-specific additional fields
+                    clientName: currentBooking.client.name,
+                    clientEmail: currentBooking.client.email,
+                    clientHasAccount: currentBooking.client.hasAccount,
+                    clientUserProfileId: currentBooking.client.userProfileId || null,
                     agentId: agent.id,
                     agentName: agent.name || agent.email,
-                    timestamp: new Date().toISOString(),
+                    agentClientId: agentClientId,
                     type: 'agent-booking-return'
                 });
 
-                // Update return booking with QR code data
-                const { error: returnQrUpdateError } = await supabase
-                    .from('bookings')
-                    .update({ qr_code_url: returnQrCodeData })
-                    .eq('id', returnBooking.id);
+                // Debug: Log return QR code generation details
+                console.log('Return QR Code Generation Details:', {
+                    returnBookingId: returnBooking.id,
+                    returnBookingNumber: returnBooking.booking_number,
+                    clientHasAccount: currentBooking.client.hasAccount,
+                    returnQrDataLength: finalReturnQrCodeData.length,
+                });
 
-                if (returnQrUpdateError) {
-                    console.warn('Failed to update return booking QR code data:', returnQrUpdateError);
+                // Update return booking with QR code data
+                console.log('Attempting to update return QR code for booking:', returnBooking.id, 'Data length:', finalReturnQrCodeData.length);
+
+                // Enhanced return QR code update with retry mechanism
+                let returnQrUpdateSuccess = false;
+                let returnQrUpdateAttempts = 0;
+                const maxReturnRetries = 3;
+
+                while (!returnQrUpdateSuccess && returnQrUpdateAttempts < maxReturnRetries) {
+                    returnQrUpdateAttempts++;
+
+                    const { data: returnQrUpdateResult, error: returnQrUpdateError } = await supabase
+                        .from('bookings')
+                        .update({ qr_code_url: finalReturnQrCodeData })
+                        .eq('id', returnBooking.id)
+                        .select('id, qr_code_url, booking_number');
+
+                    if (returnQrUpdateError) {
+                        console.error(`Return QR code update attempt ${returnQrUpdateAttempts} failed:`, returnQrUpdateError);
+
+                        if (returnQrUpdateAttempts === 1) {
+                            // On first failure, log detailed error information
+                            console.error('Return QR Update Error Details:', {
+                                returnBookingId: returnBooking.id,
+                                returnBookingNumber: returnBooking.booking_number,
+                                error: returnQrUpdateError,
+                                errorCode: returnQrUpdateError.code,
+                                errorMessage: returnQrUpdateError.message,
+                                errorDetails: returnQrUpdateError.details,
+                                errorHint: returnQrUpdateError.hint,
+                                qrDataLength: finalReturnQrCodeData.length,
+                                clientType: currentBooking.client.hasAccount ? 'with_account' : 'without_account',
+                                bookingUserId: bookingUserId,
+                                agentId: agent.id
+                            });
+                        }
+
+                        // Wait before retry
+                        if (returnQrUpdateAttempts < maxReturnRetries) {
+                            await new Promise(resolve => setTimeout(resolve, 500 * returnQrUpdateAttempts));
+                        }
+                    } else {
+                        console.log(`Return QR code update attempt ${returnQrUpdateAttempts} succeeded for booking:`, returnBooking.booking_number, 'ID:', returnBooking.id);
+                        returnQrUpdateSuccess = true;
+
+                        // Verify return QR code storage
+                        await new Promise(resolve => setTimeout(resolve, 200));
+
+                        try {
+                            const { data: returnVerifyData, error: returnVerifyError } = await supabase
+                                .from('bookings')
+                                .select('qr_code_url, booking_number')
+                                .eq('id', returnBooking.id)
+                                .single();
+
+                            if (returnVerifyError) {
+                                console.error('Failed to verify return QR code storage:', returnVerifyError);
+                                returnQrUpdateSuccess = false; // Retry if verification fails
+                            } else if (!returnVerifyData.qr_code_url) {
+                                console.error('Return QR code verification failed: No data found for booking:', returnBooking.id);
+                                console.error('Return verification result:', returnVerifyData);
+                                returnQrUpdateSuccess = false; // Retry if no data found
+                            } else {
+                                console.log('Return QR code verification successful for booking:', returnVerifyData.booking_number);
+                                console.log('Return stored QR data length:', returnVerifyData.qr_code_url.length);
+                                console.log('Return QR data preview:', returnVerifyData.qr_code_url.substring(0, 100) + '...');
+                            }
+                        } catch (returnVerifyException) {
+                            console.error('Exception during return QR code verification:', returnVerifyException);
+                            returnQrUpdateSuccess = false; // Retry if verification throws
+                        }
+                    }
+                }
+
+                if (!returnQrUpdateSuccess) {
+                    console.error(`Failed to update return QR code after ${maxReturnRetries} attempts for booking:`, returnBooking.id);
+                    // Don't throw error - booking was created successfully, just QR code failed
                 }
 
                 // Create return trip passengers
@@ -944,6 +1185,66 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                         }
                     }
                 }
+
+                // Handle free ticket payment for return trip
+                if (currentBooking.paymentMethod === 'free') {
+                    const returnTicketsNeeded = currentBooking.returnSelectedSeats.length;
+
+                    // Get current free tickets remaining (may have been updated by departure booking)
+                    const currentAgent = get().agent;
+                    if (!currentAgent || currentAgent.freeTicketsRemaining < returnTicketsNeeded) {
+                        console.warn(`Insufficient free tickets for return trip. Need ${returnTicketsNeeded}, have ${currentAgent?.freeTicketsRemaining || 0}`);
+                    } else {
+                        const newFreeTicketsRemaining = currentAgent.freeTicketsRemaining - returnTicketsNeeded;
+
+                        // Update agent free tickets remaining for return trip
+                        const { error: returnFreeTicketError } = await supabase
+                            .from('user_profiles')
+                            .update({ free_tickets_remaining: newFreeTicketsRemaining })
+                            .eq('id', agent.id);
+
+                        if (returnFreeTicketError) {
+                            console.warn('Failed to update free tickets remaining for return trip:', returnFreeTicketError);
+                        } else {
+                            // Update local agent state for return trip
+                            set(state => ({
+                                ...state,
+                                agent: state.agent ? {
+                                    ...state.agent,
+                                    freeTicketsRemaining: newFreeTicketsRemaining
+                                } : null
+                            }));
+                        }
+
+                        // Create free ticket transaction record for return trip
+                        try {
+                            await supabase
+                                .from('agent_credit_transactions')
+                                .insert({
+                                    agent_id: agent.id,
+                                    amount: 0, // Free tickets don't affect credit balance
+                                    transaction_type: 'deduction',
+                                    booking_id: returnBooking.id,
+                                    description: `Free ticket return booking for ${currentBooking.returnRoute?.fromIsland?.name || 'Unknown'} to ${currentBooking.returnRoute?.toIsland?.name || 'Unknown'} (${returnTicketsNeeded} tickets used)`,
+                                    balance_after: agent.creditBalance, // Credit balance unchanged
+                                });
+                        } catch (transactionError) {
+                            console.warn('Failed to create return free ticket transaction record:', transactionError);
+                        }
+                    }
+                }
+            }
+
+            // Refresh bookings list after successful creation
+            try {
+                // Call the callback if it exists (for external refresh)
+                const { onBookingCreated } = get();
+                if (onBookingCreated) {
+                    await onBookingCreated(booking.id, returnBookingId);
+                }
+            } catch (refreshError) {
+                console.warn('Failed to refresh bookings list:', refreshError);
+                // Don't throw error as booking was successful
             }
 
             set({ isLoading: false });
@@ -977,45 +1278,412 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
     setLoading: (isLoading) => set({ isLoading }),
     setAgent: (agent) => set({ agent }),
 
-    // Debug function to test database connectivity
-    testDatabaseConnections: async () => {
+    setOnBookingCreated: (callback) => set({ onBookingCreated: callback }),
+
+    // QR Code utilities
+    parseQrCodeData: (qrCodeString: string) => {
+        try {
+            const qrData = JSON.parse(qrCodeString);
+            return qrData;
+        } catch (error) {
+            console.error('Error parsing QR code data:', error);
+            return null;
+        }
+    },
+
+    generateQrCodeData: (booking: any, agent: Agent, type: string = 'agent-booking') => {
+        try {
+            // Match user booking structure with agent-specific additions
+            const qrCodeData = {
+                bookingNumber: booking.booking_number || booking.bookingNumber,
+                bookingId: booking.id,
+                tripId: booking.trip_id || booking.tripId,
+                departureDate: booking.travel_date || booking.departureDate,
+                departureTime: booking.departure_time || booking.departureTime,
+                passengers: booking.passengers?.length || booking.passengerCount || 0,
+                seats: booking.seats || [],
+                totalFare: booking.total_fare || booking.totalAmount || 0,
+                timestamp: new Date().toISOString(),
+                // Agent-specific additional fields
+                clientName: booking.clientName || booking.client?.name || 'Unknown Client',
+                agentId: agent.id,
+                agentName: agent.name || agent.email,
+                type: type
+            };
+
+            return JSON.stringify(qrCodeData);
+        } catch (error) {
+            console.error('Error generating QR code data:', error);
+            return '';
+        }
+    },
+
+    validateQrCodeData: (qrCodeData: any) => {
+        try {
+            // Check required fields
+            const requiredFields = [
+                'bookingNumber',
+                'bookingId',
+                'tripId',
+                'departureDate',
+                'agentId',
+                'type'
+            ];
+
+            for (const field of requiredFields) {
+                if (!qrCodeData[field]) {
+                    console.warn(`Missing required QR code field: ${field}`);
+                    return false;
+                }
+            }
+
+            // Validate booking type
+            const validTypes = ['agent-booking', 'agent-booking-return', 'customer-booking'];
+            if (!validTypes.includes(qrCodeData.type)) {
+                console.warn(`Invalid QR code type: ${qrCodeData.type}`);
+                return false;
+            }
+
+            // Validate timestamp format
+            if (qrCodeData.timestamp && isNaN(Date.parse(qrCodeData.timestamp))) {
+                console.warn('Invalid timestamp in QR code data');
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error validating QR code data:', error);
+            return false;
+        }
+    },
+
+    verifyQrCodeStorage: async (bookingId: string) => {
+        try {
+            const { data: booking, error } = await supabase
+                .from('bookings')
+                .select('id, qr_code_url')
+                .eq('id', bookingId)
+                .single();
+
+            if (error) {
+                console.error('Error retrieving booking for QR code verification:', error);
+                return false;
+            }
+
+            if (!booking?.qr_code_url) {
+                console.warn('No QR code data found for booking:', bookingId);
+                return false;
+            }
+
+            // Try to parse the QR code data
+            const qrData = get().parseQrCodeData(booking.qr_code_url);
+            if (!qrData) {
+                console.error('Failed to parse stored QR code data for booking:', bookingId);
+                return false;
+            }
+
+            // Validate the QR code structure
+            const isValid = get().validateQrCodeData(qrData);
+            if (!isValid) {
+                console.error('Invalid QR code structure for booking:', bookingId);
+                return false;
+            }
+
+            console.log('QR code successfully verified for booking:', bookingId);
+            return true;
+        } catch (error) {
+            console.error('Error verifying QR code storage:', error);
+            return false;
+        }
+    },
+
+    // Booking refresh utility - triggers external refresh via callback
+    refreshAgentData: async () => {
+        try {
+            const { onBookingCreated } = get();
+            if (onBookingCreated) {
+                // Trigger the external refresh callback
+                await onBookingCreated('refresh', null);
+            }
+        } catch (error) {
+            console.error('Error in refreshAgentData:', error);
+        }
+    },
+
+    // QR Code debugging and testing
+    testQrCodeFunctionality: async () => {
         try {
             const { agent } = get();
             if (!agent) {
+                console.error('No agent available for QR code testing');
                 return;
             }
 
-            // Test 1: Check if agent_clients table exists and has data
-            const { data: agentClientsTest, error: agentClientsError } = await supabase
-                .from('agent_clients')
-                .select('count')
-                .eq('agent_id', agent.id)
-                .limit(1);
+            // Test QR code generation
+            const mockBooking = {
+                id: 'test-booking-id',
+                booking_number: 'TRA-TEST-001',
+                clientName: 'Test Client',
+                trip_id: 'test-trip-id',
+                origin: 'Test Origin',
+                destination: 'Test Destination',
+                travel_date: '2024-01-20',
+                departure_time: '14:30',
+                passengers: [{ fullName: 'Test Passenger' }],
+                seats: ['A1', 'A2'],
+                total_fare: 500,
+                totalAmount: 500
+            };
 
-            // Test 2: Check if agent_clients_with_details view exists
-            const { data: viewTest, error: viewError } = await supabase
-                .from('agent_clients_with_details')
-                .select('*')
-                .eq('agent_id', agent.id)
-                .limit(1);
+            console.log('Testing QR code generation...');
+            const qrCodeData = get().generateQrCodeData(mockBooking, agent, 'agent-booking');
+            console.log('Generated QR code data:', qrCodeData);
 
-            // Test 3: Check user_profiles table
-            const { data: userProfilesTest, error: userProfilesError } = await supabase
-                .from('user_profiles')
-                .select('id, full_name, email, role')
-                .eq('role', 'customer')
-                .limit(3);
+            // Test QR code parsing
+            console.log('Testing QR code parsing...');
+            const parsedData = get().parseQrCodeData(qrCodeData);
+            console.log('Parsed QR code data:', parsedData);
 
-            // Test 4: Check function exists
-            const { data: functionTest, error: functionError } = await supabase
-                .rpc('get_or_create_agent_client', {
-                    p_agent_id: agent.id,
-                    p_email: 'test@example.com',
-                    p_full_name: 'Test User'
-                });
+            // Test QR code validation
+            console.log('Testing QR code validation...');
+            const isValid = get().validateQrCodeData(parsedData);
+            console.log('QR code validation result:', isValid);
+
+            // Test database connection for QR code storage
+            console.log('Testing database connection for QR codes...');
+            const { data: testResult, error: testError } = await supabase
+                .from('bookings')
+                .select('id, qr_code_url, user_id, agent_id')
+                .limit(5);
+
+            if (testError) {
+                console.error('Database connection test failed:', testError);
+            } else {
+                console.log('Database connection successful for QR codes');
+                if (testResult && testResult.length > 0) {
+                    console.log('Sample bookings QR codes:');
+                    testResult.forEach((booking, index) => {
+                        console.log(`Booking ${index + 1}:`, {
+                            id: booking.id,
+                            user_id: booking.user_id,
+                            agent_id: booking.agent_id,
+                            hasQrCode: !!booking.qr_code_url,
+                            qrCodeLength: booking.qr_code_url?.length || 0
+                        });
+                    });
+                }
+            }
+
+            // Test permissions for different user types
+            console.log('Testing QR code update permissions...');
+
+            // Test updating as agent
+            try {
+                const testQrData = JSON.stringify({ test: 'agent-test', timestamp: new Date().toISOString() });
+                const { data: agentTestResult, error: agentTestError } = await supabase
+                    .from('bookings')
+                    .select('id')
+                    .eq('agent_id', agent.id)
+                    .limit(1);
+
+                if (agentTestResult && agentTestResult.length > 0) {
+                    const testBookingId = agentTestResult[0].id;
+                    const { error: updateError } = await supabase
+                        .from('bookings')
+                        .update({ qr_code_url: testQrData })
+                        .eq('id', testBookingId);
+
+                    if (updateError) {
+                        console.error('QR code update permission test failed:', updateError);
+                    } else {
+                        console.log('QR code update permission test passed for agent');
+
+                        // Restore original QR code if it existed
+                        const originalQr = testResult?.find(b => b.id === testBookingId)?.qr_code_url;
+                        if (originalQr) {
+                            await supabase
+                                .from('bookings')
+                                .update({ qr_code_url: originalQr })
+                                .eq('id', testBookingId);
+                        }
+                    }
+                } else {
+                    console.log('No agent bookings found for permission test');
+                }
+            } catch (permError) {
+                console.error('Permission test exception:', permError);
+            }
 
         } catch (error) {
-            console.error('Database test error:', error);
+            console.error('QR code functionality test error:', error);
         }
     },
+
+    // Test QR code issues specifically for clients with accounts
+    debugClientAccountQrIssue: async () => {
+        try {
+            const { agent } = get();
+            if (!agent) {
+                console.error('No agent available for client account QR debug');
+                return;
+            }
+
+            console.log('Debugging QR code issues for clients with accounts...');
+
+            // Check recent agent bookings with different client types
+            const { data: recentBookings, error: bookingsError } = await supabase
+                .from('bookings')
+                .select(`
+                    id,
+                    booking_number,
+                    user_id,
+                    agent_id,
+                    agent_client_id,
+                    qr_code_url,
+                    agent_clients(id, client_id),
+                    user_profiles(id, full_name)
+                `)
+                .eq('agent_id', agent.id)
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (bookingsError) {
+                console.error('Failed to fetch recent bookings for debug:', bookingsError);
+                return;
+            }
+
+            console.log('Recent agent bookings analysis:');
+            recentBookings?.forEach((booking: any, index: number) => {
+                const clientHasAccount = !!(booking.agent_clients && booking.agent_clients.client_id);
+                console.log(`Booking ${index + 1}:`, {
+                    id: booking.id,
+                    bookingNumber: booking.booking_number,
+                    userId: booking.user_id,
+                    agentClientId: booking.agent_client_id,
+                    clientHasAccount: clientHasAccount,
+                    hasQrCode: !!booking.qr_code_url,
+                    qrCodeLength: booking.qr_code_url?.length || 0,
+                    clientName: (booking.user_profiles && booking.user_profiles.full_name) || 'Unknown'
+                });
+            });
+
+            return recentBookings;
+        } catch (error) {
+            console.error('Client account QR debug error:', error);
+        }
+    },
+
+    // Fix missing QR codes for agent bookings
+    fixMissingQrCodes: async () => {
+        try {
+            const { agent } = get();
+            if (!agent) {
+                console.error('No agent available for QR code fix');
+                return;
+            }
+
+            console.log('Fixing missing QR codes for agent bookings...');
+
+            // Find agent bookings without QR codes
+            const { data: missingQrBookings, error: fetchError } = await supabase
+                .from('bookings')
+                .select(`
+                    id,
+                    booking_number,
+                    user_id,
+                    agent_id,
+                    agent_client_id,
+                    qr_code_url,
+                    total_fare,
+                    is_round_trip,
+                    trip:trip_id(
+                        id,
+                        travel_date,
+                        departure_time
+                    ),
+                    passengers(
+                        passenger_name,
+                        seat:seat_id(seat_number)
+                    ),
+                    agent_clients(
+                        id,
+                        full_name,
+                        client_id
+                    )
+                `)
+                .eq('agent_id', agent.id)
+                .or('qr_code_url.is.null,qr_code_url.eq.')
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (fetchError) {
+                console.error('Failed to fetch bookings with missing QR codes:', fetchError);
+                return;
+            }
+
+            if (!missingQrBookings || missingQrBookings.length === 0) {
+                console.log('No bookings found with missing QR codes');
+                return;
+            }
+
+            console.log(`Found ${missingQrBookings.length} bookings with missing QR codes`);
+
+            // Fix each booking's QR code
+            for (const booking of missingQrBookings) {
+                try {
+                    const bookingData = booking as any; // Type assertion for complex nested data
+                    const clientHasAccount = !!(bookingData.agent_clients && bookingData.agent_clients.client_id);
+                    const clientName = (bookingData.agent_clients && bookingData.agent_clients.full_name) || 'Unknown Client';
+
+                    // Generate QR code data
+                    const qrCodeData = JSON.stringify({
+                        bookingNumber: bookingData.booking_number,
+                        bookingId: bookingData.id,
+                        tripId: (bookingData.trip && bookingData.trip.id) || null,
+                        departureDate: (bookingData.trip && bookingData.trip.travel_date) || null,
+                        departureTime: (bookingData.trip && bookingData.trip.departure_time) || null,
+                        passengers: (bookingData.passengers && bookingData.passengers.length) || 0,
+                        seats: (bookingData.passengers && bookingData.passengers.map((p: any) => p.seat?.seat_number).filter(Boolean)) || [],
+                        totalFare: bookingData.total_fare,
+                        timestamp: new Date().toISOString(),
+                        clientName: clientName,
+                        clientEmail: (bookingData.agent_clients && bookingData.agent_clients.full_name) || 'Unknown Email',
+                        clientHasAccount: clientHasAccount,
+                        clientUserProfileId: (bookingData.agent_clients && bookingData.agent_clients.client_id) || null,
+                        agentId: agent.id,
+                        agentName: agent.name || agent.email,
+                        agentClientId: bookingData.agent_client_id,
+                        type: bookingData.is_round_trip ? 'agent-booking-return' : 'agent-booking'
+                    });
+
+                    console.log(`Fixing QR code for booking ${bookingData.booking_number} (Client has account: ${clientHasAccount})`);
+
+                    // Update the booking with QR code
+                    const { error: updateError } = await supabase
+                        .from('bookings')
+                        .update({ qr_code_url: qrCodeData })
+                        .eq('id', bookingData.id);
+
+                    if (updateError) {
+                        console.error(`Failed to fix QR code for booking ${bookingData.booking_number}:`, updateError);
+                    } else {
+                        console.log(`Successfully fixed QR code for booking ${bookingData.booking_number}`);
+                    }
+
+                    // Small delay to avoid overwhelming the database
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
+                } catch (bookingError) {
+                    console.error(`Error processing booking:`, bookingError);
+                }
+            }
+
+            console.log('QR code fix process completed');
+
+        } catch (error) {
+            console.error('Error in fixMissingQrCodes:', error);
+        }
+    },
+
+
 })); 

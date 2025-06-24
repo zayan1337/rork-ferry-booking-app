@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { useAgentStore } from "@/store/agentStore";
-import { useAgentBookingStore } from "@/store/agentBookingStore";
 import { useAuthStore } from "@/store/authStore";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
@@ -24,7 +23,6 @@ export default function AgentDashboardScreen() {
     const router = useRouter();
     const { user } = useAuthStore();
     const { agent, stats, bookings, isLoading, error } = useAgentStore();
-    const { testDatabaseConnections } = useAgentBookingStore();
 
     // Get the most recent bookings - safely handle undefined bookings
     const recentBookings = (bookings || [])
@@ -47,13 +45,7 @@ export default function AgentDashboardScreen() {
         }
     }, [user?.id]); // Only depend on user ID to avoid unnecessary re-runs
 
-    // Test database connections when agent is loaded (for debugging)
-    useEffect(() => {
-        if (agent && testDatabaseConnections) {
-            // Uncomment this line to test database connections:
-            // testDatabaseConnections();
-        }
-    }, [agent, testDatabaseConnections]);
+  
 
     const formatCurrency = (amount: number | undefined) => {
         if (typeof amount !== 'number' || isNaN(amount)) {

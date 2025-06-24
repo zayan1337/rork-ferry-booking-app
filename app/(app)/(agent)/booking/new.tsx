@@ -96,6 +96,7 @@ export default function AgentNewBookingScreen() {
     reset,
     setError,
     setAgent,
+    setOnBookingCreated,
   } = useAgentBookingStore();
 
   // Local state
@@ -132,6 +133,16 @@ export default function AgentNewBookingScreen() {
       setAgent(agent);
     }
   }, [agent, setAgent]);
+
+  useEffect(() => {
+    // Set up the booking creation callback to refresh agent store
+    setOnBookingCreated(useAgentStore.getState().handleBookingCreated);
+
+    return () => {
+      // Clean up callback on unmount
+      setOnBookingCreated(undefined);
+    };
+  }, [setOnBookingCreated]);
 
   useEffect(() => {
     // Load routes when component mounts
@@ -462,14 +473,10 @@ export default function AgentNewBookingScreen() {
             {
               text: "View Bookings",
               onPress: () => {
-                router.push("/(app)/(agent)/(tabs)/bookings");
-                // Trigger refresh after navigation
-                setTimeout(() => {
-                  // Refresh agent store data
-                  if (agent) {
-                    useAgentStore.getState().getAgentBookings(agent.id);
-                  }
-                }, 100);
+                // Trigger refresh immediately before navigation
+                useAgentStore.getState().refreshBookingsData().then(() => {
+                  router.push("/(app)/(agent)/(tabs)/bookings");
+                });
               }
             },
             {

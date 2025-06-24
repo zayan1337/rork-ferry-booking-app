@@ -22,22 +22,74 @@ export interface AgentStats {
 
 export interface Booking {
     id: string;
+    bookingNumber?: string;
     clientId: string; // This can be user_profiles.id OR agent_clients.id
     clientName: string;
+    clientEmail?: string;
+    clientPhone?: string;
     origin: string;
     destination: string;
     departureDate: string;
+    departureTime?: string;
     returnDate?: string;
     passengerCount: number;
+    passengers?: Array<{
+        id: string;
+        fullName: string;
+        contactNumber: string;
+        specialAssistance?: string;
+        seat?: {
+            id: string;
+            number: string;
+            rowNumber: number;
+            isWindow: boolean;
+            isAisle: boolean;
+        } | null;
+    }>;
+    vessel?: {
+        id: string;
+        name: string;
+    } | null;
+    route?: {
+        id: string;
+        fromIsland: {
+            id: string;
+            name: string;
+            zone: string;
+        };
+        toIsland: {
+            id: string;
+            name: string;
+            zone: string;
+        };
+        baseFare: number;
+    } | null;
+    seats?: Array<{
+        id: string;
+        number: string;
+        rowNumber: number;
+        isWindow: boolean;
+        isAisle: boolean;
+    }>;
     totalAmount: number;
     discountedAmount: number;
     status: "confirmed" | "completed" | "cancelled" | "pending";
     bookingDate: string;
+    updatedAt?: string;
     paymentMethod: "credit" | "gateway" | "free";
+    payment?: {
+        method: string;
+        status: string;
+    } | null;
     commission: number;
     userId?: string; // user_profiles.id for clients with accounts
     agentClientId?: string; // agent_clients.id for clients without accounts
     clientHasAccount?: boolean; // Whether this booking is for a client with account
+    isRoundTrip?: boolean;
+    returnBookingId?: string | null;
+    qrCodeUrl?: string | null;
+    checkInStatus?: string | null;
+    tripType?: 'one_way' | 'round_trip';
 }
 
 export interface Client {

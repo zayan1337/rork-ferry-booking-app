@@ -89,10 +89,15 @@ export const useBookingOperationsStore = create<BookingOperationsStore>((set, ge
             });
 
             // Update departure booking with QR code data
-            await supabase
+            const { data: qrUpdateResult, error: qrUpdateError } = await supabase
                 .from('bookings')
                 .update({ qr_code_url: departureQrCodeData })
-                .eq('id', departureBooking.id);
+                .eq('id', departureBooking.id)
+                .select('id, qr_code_url');
+
+            if (qrUpdateError) {
+                console.error('Failed to update departure QR code data:', qrUpdateError);
+            }
 
             // Create payment record for departure
             await supabase
@@ -129,7 +134,7 @@ export const useBookingOperationsStore = create<BookingOperationsStore>((set, ge
                 .eq('trip_id', currentBooking.trip.id)
                 .in('seat_id', currentBooking.selectedSeats.map((seat: any) => seat.id));
 
-            let returnBooking = null;
+            let returnBooking: any = null;
 
             // Handle return trip for round trip bookings
             if (currentBooking.tripType === 'round_trip' && currentBooking.returnTrip) {
@@ -169,10 +174,15 @@ export const useBookingOperationsStore = create<BookingOperationsStore>((set, ge
                 });
 
                 // Update return booking with QR code data
-                await supabase
+                const { data: returnQrUpdateResult, error: returnQrUpdateError } = await supabase
                     .from('bookings')
                     .update({ qr_code_url: returnQrCodeData })
-                    .eq('id', returnBooking.id);
+                    .eq('id', returnBooking.id)
+                    .select('id, qr_code_url');
+
+                if (returnQrUpdateError) {
+                    console.error('Failed to update return QR code data:', returnQrUpdateError);
+                }
 
                 // Create payment record for return
                 await supabase

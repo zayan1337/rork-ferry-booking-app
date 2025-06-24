@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList } from "react-native";
+import React, { useEffect, useState } from "react";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList, RefreshControl } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useAgentStore } from "@/store/agentStore";
 import Colors from "@/constants/colors";
@@ -15,14 +15,27 @@ export default function AgentBookingsScreen() {
   const [activeTab, setActiveTab] = useState<"all" | "confirmed" | "completed" | "cancelled">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Refresh data when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      if (agent?.id) {
-        getAgentBookings(agent.id);
-      }
-    }, [agent?.id, getAgentBookings])
-  );
+  // // Refresh data when screen comes into focus
+  // useFocusEffect(
+  //   React.useCallback(() => {
+  //     if (agent?.id) {
+  //       getAgentBookings(agent.id);
+  //     }
+  //   }, [agent?.id, getAgentBookings])
+  // );
+
+
+  useEffect(() => {
+    if (agent?.id) {
+      getAgentBookings(agent.id);
+    }
+  }, [agent?.id, getAgentBookings])
+
+  const handleRefresh = () => {
+    if (agent?.id) {
+      getAgentBookings(agent.id);
+    }
+  };
 
   const filteredBookings = (bookings || []).filter((booking) => {
     // Filter by status
@@ -140,6 +153,9 @@ export default function AgentBookingsScreen() {
             />
           )}
           contentContainerStyle={styles.bookingsList}
+          refreshControl={
+            <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />
+          }
         />
       ) : (
         <View style={styles.emptyContainer}>
