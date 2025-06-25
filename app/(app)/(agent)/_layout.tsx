@@ -1,6 +1,5 @@
 import React from "react";
-import { Stack, Tabs } from "expo-router";
-import { Home, Users, CreditCard, BarChart, Settings } from "lucide-react-native";
+import { Stack } from "expo-router";
 import Colors from "@/constants/colors";
 
 export default function AgentLayout() {
@@ -31,6 +30,20 @@ export default function AgentLayout() {
                 name="booking/new"
                 options={{
                     title: "New Booking",
+                    presentation: "card",
+                }}
+            />
+            <Stack.Screen
+                name="cancel-booking/[id]"
+                options={{
+                    title: "Cancel Booking",
+                    presentation: "card",
+                }}
+            />
+            <Stack.Screen
+                name="modify-booking/[id]"
+                options={{
+                    title: "Modify Booking",
                     presentation: "card",
                 }}
             />

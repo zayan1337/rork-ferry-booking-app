@@ -47,6 +47,19 @@ interface AgentState {
     createBooking: (bookingData: any) => Promise<string>;
     cancelBooking: (bookingId: string) => Promise<void>;
     updateBookingStatus: (bookingId: string, status: Booking['status']) => Promise<void>;
+    modifyBooking: (bookingId: string, modificationData: any) => Promise<void>;
+    agentCancelBooking: (bookingId: string, cancellationData: {
+        reason: string;
+        refundPercentage?: number;
+        refundMethod?: 'agent_credit' | 'original_payment' | 'bank_transfer';
+        bankDetails?: {
+            accountNumber: string;
+            accountName: string;
+            bankName: string;
+        };
+        agentNotes?: string;
+        overrideFee?: boolean;
+    }) => Promise<string>;
     addClientToAgent: (clientId: string) => Promise<void>;
     setLanguage: (languageCode: string) => Promise<void>;
     getTranslation: (key: string) => string;
@@ -66,11 +79,17 @@ interface AgentState {
     getAgentProfile: (agentId: string) => Promise<{ agent: Agent; stats: AgentStats } | null>;
     getAgentClients: (agentId: string) => Promise<Client[]>;
     getAgentBookings: (agentId: string) => Promise<Booking[]>;
-    getAgentCreditTransactions: (agentId: string) => Promise<CreditTransaction[]>;
+    getAgentCreditTransactions: (agentId?: string) => Promise<CreditTransaction[]>;
     getTranslations: (languageCode: string, context?: string) => Promise<Record<string, string>>;
     getUserLanguage: (userId: string) => Promise<string>;
     getTextDirection: (languageCode: string) => 'ltr' | 'rtl';
     testConnection: () => Promise<boolean>;
+
+    // New methods for booking history and tracking
+    getBookingModifications: (bookingId: string) => Promise<any[]>;
+    getBookingCancellation: (bookingId: string) => Promise<any | null>;
+    getBookingFullHistory: (bookingId: string) => Promise<any>;
+    updateBookingStatusWithHistory: (bookingId: string, status: string, notes?: string) => Promise<void>;
 }
 
 export const useAgentStore = create<AgentState>()(
@@ -466,10 +485,14 @@ export const useAgentStore = create<AgentState>()(
                 }
             },
 
-            getAgentCreditTransactions: async (agentId: string) => {
+            getAgentCreditTransactions: async (agentId?: string) => {
                 try {
+                    const { agent } = get();
+                    const targetAgentId = agentId || agent?.id;
+                    if (!targetAgentId) throw new Error('Agent ID required');
+
                     const { data, error } = await supabase.rpc('get_agent_credit_transactions', {
-                        agent_user_id: agentId
+                        agent_user_id: targetAgentId
                     });
 
                     if (error) throw error;
@@ -873,6 +896,609 @@ export const useAgentStore = create<AgentState>()(
                 }
             },
 
+            modifyBooking: async (bookingId: string, modificationData: any) => {
+                try {
+                    const { agent } = get();
+                    if (!agent) throw new Error('Agent not authenticated');
+
+                    set({ isLoading: true, error: null });
+
+                    // Get current booking data
+                    const { data: currentBooking, error: fetchError } = await supabase
+                        .from('bookings')
+                        .select(`
+                            *,
+                            trip:trip_id(*),
+                            passengers(*),
+                            seat_reservations(*)
+                        `)
+                        .eq('id', bookingId)
+                        .single();
+
+                    if (fetchError || !currentBooking) {
+                        throw new Error('Booking not found');
+                    }
+
+                    // Create new booking for modification (keeping old booking for history)
+                    const newBookingData = {
+                        user_id: currentBooking.user_id,
+                        trip_id: modificationData.newTripId || currentBooking.trip_id,
+                        is_round_trip: currentBooking.is_round_trip,
+                        status: 'confirmed',
+                        total_fare: currentBooking.total_fare + (modificationData.fareDifference || 0),
+                        agent_id: agent.id,
+                        payment_method_type: currentBooking.payment_method_type,
+                        agent_client_id: currentBooking.agent_client_id,
+                    };
+
+                    // Insert new booking
+                    const { data: newBooking, error: newBookingError } = await supabase
+                        .from('bookings')
+                        .insert(newBookingData)
+                        .select('*')
+                        .single();
+
+                    if (newBookingError || !newBooking) {
+                        throw new Error('Failed to create modified booking');
+                    }
+
+                    let newReturnBooking: any = null;
+
+                    // Handle return trip for round trip modifications
+                    if (currentBooking.is_round_trip && modificationData.newReturnTripId) {
+                        const newReturnBookingData = {
+                            user_id: currentBooking.user_id,
+                            trip_id: modificationData.newReturnTripId,
+                            is_round_trip: true,
+                            status: 'confirmed',
+                            total_fare: currentBooking.total_fare + (modificationData.fareDifference || 0), // Same logic for return
+                            agent_id: agent.id,
+                            payment_method_type: currentBooking.payment_method_type,
+                            agent_client_id: currentBooking.agent_client_id,
+                        };
+
+                        // Insert new return booking
+                        const { data: returnBookingData, error: returnBookingError } = await supabase
+                            .from('bookings')
+                            .insert(newReturnBookingData)
+                            .select('*')
+                            .single();
+
+                        if (returnBookingError) {
+                            console.warn('Failed to create return booking for modification:', returnBookingError);
+                        } else {
+                            newReturnBooking = returnBookingData;
+                        }
+                    }
+
+                    // Update old booking status to 'modified'
+                    const { error: oldBookingUpdateError } = await supabase
+                        .from('bookings')
+                        .update({
+                            status: 'modified',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', bookingId);
+
+                    if (oldBookingUpdateError) {
+                        console.warn('Failed to update old booking status:', oldBookingUpdateError);
+                    }
+
+                    // Create passengers for new booking
+                    if (currentBooking.passengers && currentBooking.passengers.length > 0) {
+                        const newPassengers = currentBooking.passengers.map((passenger: any, index: number) => ({
+                            booking_id: newBooking.id,
+                            passenger_name: passenger.passenger_name,
+                            passenger_contact_number: passenger.passenger_contact_number,
+                            special_assistance_request: passenger.special_assistance_request,
+                            seat_id: modificationData.selectedSeats?.[index]?.id || passenger.seat_id
+                        }));
+
+                        const { error: passengersError } = await supabase
+                            .from('passengers')
+                            .insert(newPassengers);
+
+                        if (passengersError) {
+                            console.warn('Failed to create passengers for new booking:', passengersError);
+                        }
+
+                        // Create passengers for return booking if it exists
+                        if (newReturnBooking) {
+                            const newReturnPassengers = currentBooking.passengers.map((passenger: any, index: number) => ({
+                                booking_id: newReturnBooking.id,
+                                passenger_name: passenger.passenger_name,
+                                passenger_contact_number: passenger.passenger_contact_number,
+                                special_assistance_request: passenger.special_assistance_request,
+                                seat_id: modificationData.returnSelectedSeats?.[index]?.id || passenger.seat_id
+                            }));
+
+                            const { error: returnPassengersError } = await supabase
+                                .from('passengers')
+                                .insert(newReturnPassengers);
+
+                            if (returnPassengersError) {
+                                console.warn('Failed to create passengers for new return booking:', returnPassengersError);
+                            }
+                        }
+                    }
+
+                    // Handle seat reservations
+                    if (modificationData.selectedSeats && modificationData.selectedSeats.length > 0) {
+                        // Release old seats
+                        const { error: releaseSeatsError } = await supabase
+                            .from('seat_reservations')
+                            .update({
+                                is_available: true,
+                                booking_id: null,
+                                is_reserved: false,
+                                reservation_expiry: null
+                            })
+                            .eq('booking_id', bookingId);
+
+                        if (releaseSeatsError) {
+                            console.warn('Warning releasing old seats:', releaseSeatsError);
+                        }
+
+                        // Reserve new seats for new booking
+                        for (const seat of modificationData.selectedSeats) {
+                            const { error: reserveSeatError } = await supabase
+                                .from('seat_reservations')
+                                .update({
+                                    is_available: false,
+                                    booking_id: newBooking.id,
+                                    is_reserved: true,
+                                    reservation_expiry: null
+                                })
+                                .eq('seat_id', seat.id)
+                                .eq('trip_id', modificationData.newTripId || currentBooking.trip_id);
+
+                            if (reserveSeatError) {
+                                console.warn('Warning reserving new seat:', reserveSeatError);
+                            }
+                        }
+                    }
+
+                    // Handle return seat reservations for round trip
+                    if (newReturnBooking && modificationData.returnSelectedSeats && modificationData.returnSelectedSeats.length > 0) {
+                        // Reserve return seats for new return booking
+                        for (const seat of modificationData.returnSelectedSeats) {
+                            const { error: reserveReturnSeatError } = await supabase
+                                .from('seat_reservations')
+                                .update({
+                                    is_available: false,
+                                    booking_id: newReturnBooking.id,
+                                    is_reserved: true,
+                                    reservation_expiry: null
+                                })
+                                .eq('seat_id', seat.id)
+                                .eq('trip_id', modificationData.newReturnTripId);
+
+                            if (reserveReturnSeatError) {
+                                console.warn('Warning reserving new return seat:', reserveReturnSeatError);
+                            }
+                        }
+                    }
+
+                    // Create modification record
+                    const modificationRecord = {
+                        old_booking_id: bookingId,
+                        new_booking_id: newBooking.id,
+                        modification_reason: modificationData.modificationReason || 'Agent modification',
+                        fare_difference: modificationData.fareDifference || 0,
+                        requires_additional_payment: (modificationData.fareDifference || 0) > 0,
+                        refund_details: (modificationData.fareDifference || 0) < 0 ? {
+                            amount: Math.abs(modificationData.fareDifference || 0),
+                            method: 'agent_credit',
+                            agent_notes: modificationData.agentNotes
+                        } : null,
+                        payment_details: (modificationData.fareDifference || 0) > 0 ? {
+                            amount: modificationData.fareDifference,
+                            method: 'agent_credit',
+                            agent_notes: modificationData.agentNotes
+                        } : null
+                    };
+
+                    const { error: modificationError } = await supabase
+                        .from('modifications')
+                        .insert(modificationRecord);
+
+                    if (modificationError) {
+                        console.warn('Failed to create modification record:', modificationError);
+                    }
+
+                    // Generate QR code for the new modified booking
+                    let qrCodeUpdateSuccess = false;
+                    try {
+                        // Get trip details for QR code generation
+                        const { data: tripData, error: tripError } = await supabase
+                            .from('trips')
+                            .select('*')
+                            .eq('id', modificationData.newTripId || currentBooking.trip_id)
+                            .single();
+
+                        if (!tripError && tripData) {
+                            // Generate QR code data similar to agent booking creation
+                            const qrCodeData = {
+                                bookingNumber: newBooking.booking_number,
+                                bookingId: newBooking.id,
+                                tripId: tripData.id,
+                                departureDate: tripData.travel_date || modificationData.newDepartureDate,
+                                departureTime: tripData.departure_time,
+                                passengers: modificationData.selectedSeats?.length || currentBooking.passengers?.length || 1,
+                                seats: modificationData.selectedSeats?.map((seat: any) => seat.number) || [],
+                                totalFare: newBooking.total_fare,
+                                timestamp: new Date().toISOString(),
+                                // Agent-specific additional fields
+                                clientName: currentBooking.client_name || 'Agent Client',
+                                clientEmail: currentBooking.client_email || '',
+                                clientHasAccount: currentBooking.client_has_account || false,
+                                clientUserProfileId: currentBooking.client_user_profile_id || null,
+                                agentId: agent.id,
+                                agentName: agent.name || agent.email,
+                                agentClientId: currentBooking.agent_client_id,
+                                type: 'agent-booking-modified'
+                            };
+
+                            const finalQrCodeData = JSON.stringify(qrCodeData);
+
+                            console.log('Generating QR code for modified booking:', {
+                                bookingId: newBooking.id,
+                                bookingNumber: newBooking.booking_number,
+                                qrDataLength: finalQrCodeData.length,
+                            });
+
+                            // Update booking with QR code data with retry mechanism
+                            let qrUpdateAttempts = 0;
+                            const maxRetries = 3;
+
+                            while (!qrCodeUpdateSuccess && qrUpdateAttempts < maxRetries) {
+                                qrUpdateAttempts++;
+
+                                const { data: qrUpdateResult, error: qrUpdateError } = await supabase
+                                    .from('bookings')
+                                    .update({ qr_code_url: finalQrCodeData })
+                                    .eq('id', newBooking.id)
+                                    .select('id, qr_code_url, booking_number');
+
+                                if (qrUpdateError) {
+                                    console.error(`QR code update attempt ${qrUpdateAttempts} failed:`, qrUpdateError);
+                                    if (qrUpdateAttempts < maxRetries) {
+                                        await new Promise(resolve => setTimeout(resolve, 500 * qrUpdateAttempts));
+                                    }
+                                } else {
+                                    // QR code update succeeded
+                                    qrCodeUpdateSuccess = true;
+
+                                    // Verify the QR code was actually stored
+                                    await new Promise(resolve => setTimeout(resolve, 200));
+
+                                    try {
+                                        const { data: verifyData, error: verifyError } = await supabase
+                                            .from('bookings')
+                                            .select('qr_code_url, booking_number')
+                                            .eq('id', newBooking.id)
+                                            .single();
+
+                                        if (verifyError || !verifyData.qr_code_url) {
+                                            console.error('QR code verification failed for modified booking:', newBooking.id);
+                                            qrCodeUpdateSuccess = false;
+                                        } else {
+                                            // QR code verification successful
+                                        }
+                                    } catch (verifyException) {
+                                        console.error('Exception during QR code verification:', verifyException);
+                                        qrCodeUpdateSuccess = false;
+                                    }
+                                }
+                            }
+                        } else {
+                            console.error('Failed to fetch trip data for QR code generation:', tripError);
+                        }
+                    } catch (qrError) {
+                        console.error('Error generating QR code for modified booking:', qrError);
+                    }
+
+                    if (!qrCodeUpdateSuccess) {
+                        console.warn('Failed to generate QR code for modified booking, but booking was created successfully');
+                    }
+
+                    // Generate QR code for return booking if it exists
+                    if (newReturnBooking) {
+                        let returnQrCodeUpdateSuccess = false;
+                        try {
+                            // Get return trip details for QR code generation
+                            const { data: returnTripData, error: returnTripError } = await supabase
+                                .from('trips')
+                                .select('*')
+                                .eq('id', modificationData.newReturnTripId)
+                                .single();
+
+                            if (!returnTripError && returnTripData) {
+                                // Generate QR code data for return trip
+                                const returnQrCodeData = {
+                                    bookingNumber: newReturnBooking.booking_number,
+                                    bookingId: newReturnBooking.id,
+                                    tripId: returnTripData.id,
+                                    departureDate: returnTripData.travel_date || modificationData.newReturnDate,
+                                    departureTime: returnTripData.departure_time,
+                                    passengers: modificationData.returnSelectedSeats?.length || currentBooking.passengers?.length || 1,
+                                    seats: modificationData.returnSelectedSeats?.map((seat: any) => seat.number) || [],
+                                    totalFare: newReturnBooking.total_fare,
+                                    timestamp: new Date().toISOString(),
+                                    // Agent-specific additional fields
+                                    clientName: currentBooking.client_name || 'Agent Client',
+                                    clientEmail: currentBooking.client_email || '',
+                                    clientHasAccount: currentBooking.client_has_account || false,
+                                    clientUserProfileId: currentBooking.client_user_profile_id || null,
+                                    agentId: agent.id,
+                                    agentName: agent.name || agent.email,
+                                    agentClientId: currentBooking.agent_client_id,
+                                    type: 'agent-booking-return-modified'
+                                };
+
+                                const finalReturnQrCodeData = JSON.stringify(returnQrCodeData);
+
+                                console.log('Generating QR code for modified return booking:', {
+                                    bookingId: newReturnBooking.id,
+                                    bookingNumber: newReturnBooking.booking_number,
+                                    qrDataLength: finalReturnQrCodeData.length,
+                                });
+
+                                // Update return booking with QR code data with retry mechanism
+                                let returnQrUpdateAttempts = 0;
+                                const maxRetries = 3;
+
+                                while (!returnQrCodeUpdateSuccess && returnQrUpdateAttempts < maxRetries) {
+                                    returnQrUpdateAttempts++;
+
+                                    const { data: returnQrUpdateResult, error: returnQrUpdateError } = await supabase
+                                        .from('bookings')
+                                        .update({ qr_code_url: finalReturnQrCodeData })
+                                        .eq('id', newReturnBooking.id)
+                                        .select('id, qr_code_url, booking_number');
+
+                                    if (returnQrUpdateError) {
+                                        console.error(`Return QR code update attempt ${returnQrUpdateAttempts} failed:`, returnQrUpdateError);
+                                        if (returnQrUpdateAttempts < maxRetries) {
+                                            await new Promise(resolve => setTimeout(resolve, 500 * returnQrUpdateAttempts));
+                                        }
+                                    } else {
+                                        // Return QR code update succeeded
+                                        returnQrCodeUpdateSuccess = true;
+
+                                        // Verify the return QR code was actually stored
+                                        await new Promise(resolve => setTimeout(resolve, 200));
+
+                                        try {
+                                            const { data: returnVerifyData, error: returnVerifyError } = await supabase
+                                                .from('bookings')
+                                                .select('qr_code_url, booking_number')
+                                                .eq('id', newReturnBooking.id)
+                                                .single();
+
+                                            if (returnVerifyError || !returnVerifyData.qr_code_url) {
+                                                console.error('Return QR code verification failed for modified booking:', newReturnBooking.id);
+                                                returnQrCodeUpdateSuccess = false;
+                                            } else {
+                                                // Return QR code verification successful
+                                            }
+                                        } catch (returnVerifyException) {
+                                            console.error('Exception during return QR code verification:', returnVerifyException);
+                                            returnQrCodeUpdateSuccess = false;
+                                        }
+                                    }
+                                }
+                            } else {
+                                console.error('Failed to fetch return trip data for QR code generation:', returnTripError);
+                            }
+                        } catch (returnQrError) {
+                            console.error('Error generating QR code for modified return booking:', returnQrError);
+                        }
+
+                        if (!returnQrCodeUpdateSuccess) {
+                            console.warn('Failed to generate QR code for modified return booking, but booking was created successfully');
+                        }
+                    }
+
+                    // Handle agent credit transactions
+                    if (modificationData.fareDifference && modificationData.fareDifference !== 0) {
+                        const transactionAmount = modificationData.fareDifference;
+                        const transactionType = transactionAmount > 0 ? 'deduction' : 'refill';
+                        const newBalance = agent.creditBalance - transactionAmount; // Debit reduces balance, credit increases it
+
+                        // Create credit transaction record
+                        const creditTransaction = {
+                            agent_id: agent.id,
+                            amount: Math.abs(transactionAmount),
+                            transaction_type: transactionType,
+                            booking_id: newBooking.id,
+                            description: `Booking modification ${transactionType}: ${modificationData.modificationReason}`,
+                            balance_after: newBalance
+                        };
+
+                        const { error: transactionError } = await supabase
+                            .from('agent_credit_transactions')
+                            .insert(creditTransaction);
+
+                        // Update agent credit balance
+                        const { error: balanceUpdateError } = await supabase
+                            .from('user_profiles')
+                            .update({
+                                credit_balance: newBalance,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', agent.id);
+
+                        if (balanceUpdateError) {
+                            console.warn('Failed to update agent credit balance:', balanceUpdateError);
+                        }
+                    }
+
+                    // Refresh bookings after modifying
+                    await get().fetchBookings();
+                    await get().updateStats();
+
+                    set({ isLoading: false });
+                    return newBooking.id;
+                } catch (error) {
+                    set({
+                        error: error instanceof Error ? error.message : 'Failed to modify booking',
+                        isLoading: false,
+                    });
+                    throw error;
+                }
+            },
+
+            agentCancelBooking: async (bookingId: string, cancellationData: {
+                reason: string;
+                refundPercentage?: number;
+                refundMethod?: 'agent_credit' | 'original_payment' | 'bank_transfer';
+                bankDetails?: {
+                    accountNumber: string;
+                    accountName: string;
+                    bankName: string;
+                };
+                agentNotes?: string;
+                overrideFee?: boolean;
+            }) => {
+                try {
+                    const { agent } = get();
+                    if (!agent) throw new Error('Agent not authenticated');
+
+                    set({ isLoading: true, error: null });
+
+                    // Get current booking data
+                    const { data: currentBooking, error: fetchError } = await supabase
+                        .from('bookings')
+                        .select(`
+                            *,
+                            trip:trip_id(*),
+                            passengers(*),
+                            payments(*)
+                        `)
+                        .eq('id', bookingId)
+                        .single();
+
+                    if (fetchError || !currentBooking) {
+                        throw new Error('Booking not found');
+                    }
+
+                    // Calculate refund and cancellation fee
+                    const refundPercentage = cancellationData.refundPercentage || 50; // Default 50% refund
+                    const refundAmount = (currentBooking.total_fare * refundPercentage) / 100;
+                    const cancellationFee = currentBooking.total_fare - refundAmount;
+
+                    // Generate unique cancellation number
+                    const cancellationNumber = `C${Date.now().toString().slice(-7)}`;
+
+                    // Update booking status to cancelled
+                    const { error: bookingUpdateError } = await supabase
+                        .from('bookings')
+                        .update({
+                            status: 'cancelled',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', bookingId);
+
+                    if (bookingUpdateError) throw bookingUpdateError;
+
+                    // Release seat reservations
+                    const { error: seatReleaseError } = await supabase
+                        .from('seat_reservations')
+                        .update({
+                            is_available: true,
+                            booking_id: null,
+                            is_reserved: false,
+                            reservation_expiry: null
+                        })
+                        .eq('booking_id', bookingId);
+
+                    if (seatReleaseError) {
+                        console.warn('Failed to release seats:', seatReleaseError);
+                    }
+
+                    // Create cancellation record
+                    const cancellationRecord = {
+                        booking_id: bookingId,
+                        cancellation_number: cancellationNumber,
+                        cancellation_reason: cancellationData.reason,
+                        cancellation_fee: cancellationFee,
+                        refund_amount: refundAmount,
+                        refund_bank_account_number: cancellationData.bankDetails?.accountNumber || null,
+                        refund_bank_account_name: cancellationData.bankDetails?.accountName || null,
+                        refund_bank_name: cancellationData.bankDetails?.bankName || null,
+                        status: 'pending',
+                        refund_processing_date: cancellationData.refundMethod === 'agent_credit' ? new Date().toISOString() : null
+                    };
+
+                    const { error: cancellationError } = await supabase
+                        .from('cancellations')
+                        .insert(cancellationRecord);
+
+                    if (cancellationError) throw cancellationError;
+
+                    // Handle agent credit transaction for refund
+                    if (cancellationData.refundMethod === 'agent_credit' && refundAmount > 0) {
+                        const newBalance = agent.creditBalance + refundAmount;
+
+                        // Create credit transaction record
+                        const creditTransaction = {
+                            agent_id: agent.id,
+                            amount: refundAmount,
+                            transaction_type: 'refill' as const,
+                            booking_id: bookingId,
+                            description: `Booking cancellation refund: ${cancellationData.reason}`,
+                            balance_after: newBalance
+                        };
+
+                        const { error: transactionError } = await supabase
+                            .from('agent_credit_transactions')
+                            .insert(creditTransaction);
+
+                        // Update agent credit balance
+                        const { error: balanceUpdateError } = await supabase
+                            .from('user_profiles')
+                            .update({
+                                credit_balance: newBalance,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', agent.id);
+
+                        if (balanceUpdateError) {
+                            console.warn('Failed to update agent credit balance:', balanceUpdateError);
+                        }
+                    }
+
+                    // Update payment status if needed
+                    if (currentBooking.payments && currentBooking.payments.length > 0) {
+                        const { error: paymentUpdateError } = await supabase
+                            .from('payments')
+                            .update({
+                                status: refundAmount > 0 ? 'partially_refunded' : 'cancelled',
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('booking_id', bookingId);
+
+                        if (paymentUpdateError) {
+                            console.warn('Failed to update payment status:', paymentUpdateError);
+                        }
+                    }
+
+                    // Refresh bookings and stats
+                    await get().fetchBookings();
+                    await get().updateStats();
+
+                    set({ isLoading: false });
+                    return cancellationNumber;
+                } catch (error) {
+                    set({
+                        error: error instanceof Error ? error.message : 'Failed to cancel booking',
+                        isLoading: false,
+                    });
+                    throw error;
+                }
+            },
+
             addClientToAgent: async (clientId: string) => {
                 try {
                     const { agent } = get();
@@ -1056,6 +1682,161 @@ export const useAgentStore = create<AgentState>()(
                     isLoading: false,
                     error: null,
                 });
+            },
+
+            // New methods for booking history and tracking
+            getBookingModifications: async (bookingId: string) => {
+                try {
+                    const { data: modifications, error } = await supabase
+                        .from('modifications')
+                        .select(`
+                            id,
+                            old_booking_id,
+                            new_booking_id,
+                            modification_reason,
+                            fare_difference,
+                            requires_additional_payment,
+                            refund_details,
+                            payment_details,
+                            created_at,
+                            old_booking:old_booking_id(booking_number, status),
+                            new_booking:new_booking_id(booking_number, status)
+                        `)
+                        .or(`old_booking_id.eq.${bookingId},new_booking_id.eq.${bookingId}`)
+                        .order('created_at', { ascending: false });
+
+                    if (error) throw error;
+                    return modifications || [];
+                } catch (error) {
+                    console.error('Error fetching booking modifications:', error);
+                    return [];
+                }
+            },
+
+            getBookingCancellation: async (bookingId: string) => {
+                try {
+                    const { data: cancellation, error } = await supabase
+                        .from('cancellations')
+                        .select(`
+                            id,
+                            booking_id,
+                            cancellation_number,
+                            cancellation_reason,
+                            cancellation_fee,
+                            refund_amount,
+                            refund_bank_account_number,
+                            refund_bank_account_name,
+                            refund_bank_name,
+                            refund_processing_date,
+                            status,
+                            created_at,
+                            updated_at
+                        `)
+                        .eq('booking_id', bookingId)
+                        .single();
+
+                    if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "not found"
+                    return cancellation;
+                } catch (error) {
+                    console.error('Error fetching booking cancellation:', error);
+                    return null;
+                }
+            },
+
+
+
+            getBookingFullHistory: async (bookingId: string) => {
+                try {
+                    const [modifications, cancellation, creditTransactions] = await Promise.all([
+                        get().getBookingModifications(bookingId),
+                        get().getBookingCancellation(bookingId),
+                        get().getAgentCreditTransactions()
+                    ]);
+
+                    // Filter credit transactions related to this booking
+                    const relatedTransactions = creditTransactions.filter(
+                        (transaction: any) => transaction.booking_id === bookingId
+                    );
+
+                    return {
+                        modifications,
+                        cancellation,
+                        creditTransactions: relatedTransactions
+                    };
+                } catch (error) {
+                    console.error('Error fetching booking full history:', error);
+                    return {
+                        modifications: [],
+                        cancellation: null,
+                        creditTransactions: []
+                    };
+                }
+            },
+
+            // Enhanced booking status update with history tracking
+            updateBookingStatusWithHistory: async (bookingId: string, status: string, notes?: string) => {
+                try {
+                    const { agent } = get();
+                    if (!agent) throw new Error('Agent not authenticated');
+
+                    set({ isLoading: true, error: null });
+
+                    // Update booking status
+                    const { error: updateError } = await supabase
+                        .from('bookings')
+                        .update({
+                            status: status,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', bookingId);
+
+                    if (updateError) throw updateError;
+
+                    // If marking as completed and there's commission to be paid
+                    if (status === 'completed') {
+                        const booking = get().bookings.find(b => b.id === bookingId);
+                        if (booking && booking.commission && booking.commission > 0) {
+                            // Add commission credit transaction
+                            const newBalance = agent.creditBalance + booking.commission;
+
+                            const creditTransaction = {
+                                agent_id: agent.id,
+                                amount: booking.commission,
+                                transaction_type: 'credit' as const,
+                                booking_id: bookingId,
+                                description: `Commission earned: Booking completed`,
+                                balance_after: newBalance
+                            };
+
+                            const { error: transactionError } = await supabase
+                                .from('agent_credit_transactions')
+                                .insert(creditTransaction);
+
+                            if (!transactionError) {
+                                // Update agent credit balance
+                                await supabase
+                                    .from('user_profiles')
+                                    .update({
+                                        credit_balance: newBalance,
+                                        updated_at: new Date().toISOString()
+                                    })
+                                    .eq('id', agent.id);
+                            }
+                        }
+                    }
+
+                    // Refresh bookings and stats
+                    await get().fetchBookings();
+                    await get().updateStats();
+
+                    set({ isLoading: false });
+                } catch (error) {
+                    set({
+                        error: error instanceof Error ? error.message : 'Failed to update booking status',
+                        isLoading: false,
+                    });
+                    throw error;
+                }
             },
         }),
         {

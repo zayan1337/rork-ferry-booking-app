@@ -305,7 +305,6 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
           variant="outline"
           style={styles.actionButton}
           textStyle={styles.actionButtonText}
-          fullWidth
         />
 
         {isModifiable() && (
@@ -316,7 +315,6 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
               variant="outline"
               style={styles.actionButton}
               textStyle={styles.modifyButtonText}
-              fullWidth
             />
 
             <Button
@@ -325,7 +323,6 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
               variant="outline"
               style={styles.actionButton}
               textStyle={styles.cancelButtonText}
-              fullWidth
             />
           </>
         )}

@@ -73,7 +73,7 @@ export interface Booking {
     }>;
     totalAmount: number;
     discountedAmount: number;
-    status: "confirmed" | "completed" | "cancelled" | "pending";
+    status: "confirmed" | "completed" | "cancelled" | "pending" | "modified";
     bookingDate: string;
     updatedAt?: string;
     paymentMethod: "credit" | "gateway" | "free";

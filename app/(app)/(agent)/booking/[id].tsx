@@ -1,31 +1,44 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View, ScrollView, Alert, TouchableOpacity } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  Alert,
+  TouchableOpacity,
+  Share
+} from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useAgentStore } from "@/store/agentStore";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import Button from "@/components/Button";
+import TicketCard from "@/components/TicketCard";
 import {
   Calendar,
+  Clock,
   MapPin,
+  Users,
+  Share2,
+  Edit,
+  XCircle,
+  CheckCircle,
   User,
   DollarSign,
   CreditCard,
   Mail,
   Phone,
-  Edit,
-  XCircle,
-  Clock,
-  CheckCircle
+  Percent
 } from "lucide-react-native";
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { bookings, cancelBooking, updateBookingStatus, clients } = useAgentStore();
+  const { bookings, cancelBooking, updateBookingStatus } = useAgentStore();
   const [loading, setLoading] = useState(false);
+
+  // Find the booking by id
   const booking = bookings.find(b => b.id === id);
-  const client = clients.find(c => c.id === booking?.clientId);
 
   if (!booking) {
     return (
@@ -34,7 +47,7 @@ export default function BookingDetailsScreen() {
         <Button
           title="Go Back"
           onPress={() => router.back()}
-          variant="primary"
+          style={styles.notFoundButton}
         />
       </View>
     );
@@ -42,101 +55,188 @@ export default function BookingDetailsScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
     });
   };
 
   const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString("en-US", {
+    return 'MVR ' + amount.toLocaleString('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    })}`;
+    });
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "confirmed":
-        return Colors.primary;
-      case "completed":
         return Colors.success;
+      case "completed":
+        return Colors.primary;
       case "cancelled":
         return Colors.error;
+      case "modified":
+        return Colors.warning;
+      case "pending":
+        return Colors.inactive;
       default:
         return Colors.inactive;
     }
   };
 
+  const getStatusBadgeStyle = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return styles.statusConfirmed;
+      case "completed":
+        return styles.statusCompleted;
+      case "cancelled":
+        return styles.statusCancelled;
+      case "modified":
+        return styles.statusModified;
+      case "pending":
+        return styles.statusPending;
+      default:
+        return {};
+    }
+  };
+
+  const getStatusTextStyle = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return styles.statusTextConfirmed;
+      case "completed":
+        return styles.statusTextCompleted;
+      case "cancelled":
+        return styles.statusTextCancelled;
+      case "modified":
+        return styles.statusTextModified;
+      case "pending":
+        return styles.statusTextPending;
+      default:
+        return {};
+    }
+  };
+
+  const handleShareTicket = async () => {
+    try {
+      const shareMessage = 'Ferry Booking #' + String(booking.bookingNumber) + '\n' +
+        'From: ' + String(booking.route?.fromIsland?.name || booking.origin) + '\n' +
+        'To: ' + String(booking.route?.toIsland?.name || booking.destination) + '\n' +
+        'Date: ' + formatDate(booking.departureDate) + '\n' +
+        'Time: ' + String(booking.departureTime) + '\n' +
+        'Passengers: ' + String(booking.passengers?.length || booking.passengerCount) + '\n' +
+        'Client: ' + String(booking.clientName) + '\n' +
+        'Agent Booking';
+
+      await Share.share({
+        message: shareMessage,
+        title: 'Ferry Ticket #' + String(booking.bookingNumber),
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Could not share the ticket');
+    }
+  };
+
   const handleModifyBooking = () => {
-    // In a real app, this would navigate to a modification form
-    Alert.alert(
-      "Modify Booking",
-      "This would open a form to modify the booking details.",
-      [{ text: "OK" }]
-    );
+    // Ensure booking ID is properly formatted
+    const bookingId = String(booking.id || '');
+
+    if (!bookingId) {
+      Alert.alert('Error', 'Invalid booking ID');
+      return;
+    }
+
+    // Check if booking is eligible for modification
+    const departureDate = new Date(booking.departureDate);
+    const now = new Date();
+    const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (hoursDifference < 72) {
+      Alert.alert(
+        "Cannot Modify",
+        "Bookings can only be modified at least 72 hours before departure. As an agent, you can override this policy if needed.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "Override & Modify",
+            onPress: () => router.push(`/(agent)/modify-booking/${bookingId}` as any)
+          }
+        ]
+      );
+      return;
+    }
+
+    router.push(`/(agent)/modify-booking/${bookingId}` as any);
   };
 
   const handleCancelBooking = () => {
-    Alert.alert(
-      "Cancel Booking",
-      "Are you sure you want to cancel this booking? This action cannot be undone.",
-      [
-        {
-          text: "No",
-          style: "cancel",
-        },
-        {
-          text: "Yes, Cancel",
-          onPress: () => {
-            setLoading(true);
-            // In a real app, this would make an API call to cancel the booking
-            setTimeout(() => {
-              setLoading(false);
-              Alert.alert(
-                "Booking Cancelled",
-                "The booking has been successfully cancelled.",
-                [
-                  {
-                    text: "OK",
-                    onPress: async () => {
-                      await cancelBooking(booking.id);
-                      router.back()
-                    },
-                  },
-                ]
-              );
-            }, 1000);
-          },
-          style: "destructive",
-        },
-      ]
-    );
-  };
+    // Ensure booking ID is properly formatted
+    const bookingId = String(booking.id || '');
 
-  const handleViewClient = () => {
-    if (client) {
-      router.push(`../client/${client.id}`);
+    if (!bookingId) {
+      Alert.alert('Error', 'Invalid booking ID');
+      return;
     }
+
+    // Check if booking is eligible for cancellation
+    const departureDate = new Date(booking.departureDate);
+    const now = new Date();
+    const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (hoursDifference < 72) {
+      Alert.alert(
+        "Cancel Booking",
+        "Standard policy requires 72 hours notice for cancellation. As an agent, you can override this policy and process the cancellation with appropriate refund terms.",
+        [
+          {
+            text: "Go Back",
+            style: "cancel"
+          },
+          {
+            text: "Process Cancellation",
+            onPress: () => router.push(`/(agent)/cancel-booking/${bookingId}` as any)
+          }
+        ]
+      );
+      return;
+    }
+
+    router.push(`/(agent)/cancel-booking/${bookingId}` as any);
   };
 
-  // const handleCancelBooking = async () => {
-  //   try {
-  //     await cancelBooking(booking.id);
-  //     router.back();
-  //   } catch (error) {
-  //     console.error('Error cancelling booking:', error);
-  //   }
-  // };
-
-  const handleUpdateStatus = async (status: typeof booking.status) => {
+  const handleUpdateStatus = async (status: string) => {
     try {
-      await updateBookingStatus(booking.id, status);
+      await updateBookingStatus(booking.id, status as any);
+      Alert.alert("Success", `Booking marked as ${status}`);
     } catch (error) {
       console.error('Error updating booking status:', error);
+      Alert.alert('Error', 'Failed to update booking status');
     }
   };
+
+  const isModifiable = () => {
+    // Booking must be confirmed and not already modified/cancelled
+    if (!['confirmed'].includes(String(booking.status))) return false;
+
+    const departureDate = new Date(booking.departureDate);
+    const now = new Date();
+    const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    return hoursDifference >= 72;
+  };
+
+  const isCancellable = () => {
+    // Booking must be confirmed or completed (not modified or already cancelled)
+    return ['confirmed', 'completed'].includes(String(booking.status));
+  };
+
   return (
     <>
       <Stack.Screen
@@ -144,216 +244,418 @@ export default function BookingDetailsScreen() {
           title: "Booking Details",
           headerRight: () => (
             <TouchableOpacity
-              style={styles.editButton}
-              onPress={handleModifyBooking}
-              disabled={booking.status === "cancelled"}
+              style={styles.shareButton}
+              onPress={handleShareTicket}
             >
-              <Edit size={20} color={booking.status === "cancelled" ? Colors.inactive : Colors.primary} />
+              <Share2 size={20} color={Colors.primary} />
             </TouchableOpacity>
           ),
         }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+      >
         <View style={styles.header}>
-          <View style={styles.routeContainer}>
-            <Text style={styles.routeText}>
-              {booking.origin} → {booking.destination}
-            </Text>
-          </View>
+          <Text style={styles.bookingNumber}>{'Booking #' + String(booking.bookingNumber || 'N/A')}</Text>
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: getStatusColor(booking.status) },
+              booking.status === 'confirmed' && styles.statusConfirmed,
+              booking.status === 'completed' && styles.statusCompleted,
+              booking.status === 'cancelled' && styles.statusCancelled,
             ]}
           >
-            <Text style={styles.statusText}>
-              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+            <Text
+              style={[
+                styles.statusText,
+                booking.status === 'confirmed' && styles.statusTextConfirmed,
+                booking.status === 'completed' && styles.statusTextCompleted,
+                booking.status === 'cancelled' && styles.statusTextCancelled,
+              ]}
+            >
+              {String(booking.status || 'unknown').charAt(0).toUpperCase() + String(booking.status || 'unknown').slice(1)}
             </Text>
           </View>
         </View>
 
+        {/* Ticket Card with QR Code */}
+        <TicketCard booking={{
+          ...booking,
+          totalFare: Number(booking.totalAmount) || 0,
+          createdAt: String(booking.bookingDate || new Date().toISOString()),
+          bookingNumber: String(booking.bookingNumber || booking.id || 'N/A'),
+          tripType: String(booking.tripType || 'one_way'),
+          departureTime: String(booking.departureTime || '00:00'),
+          route: booking.route || ({
+            id: 'unknown',
+            fromIsland: { id: 'from', name: String(booking.origin || 'Unknown'), zone: 'A' },
+            toIsland: { id: 'to', name: String(booking.destination || 'Unknown'), zone: 'A' },
+            baseFare: Number(booking.totalAmount) || 0
+          } as any),
+          seats: Array.isArray(booking.seats) ? booking.seats : []
+        } as any} />
+
+        {/* Booking Details */}
         <Card variant="elevated" style={styles.detailsCard}>
-          <Text style={styles.sectionTitle}>Trip Details</Text>
+          <Text style={styles.cardTitle}>Trip Details</Text>
 
           <View style={styles.detailRow}>
-            <Calendar size={20} color={Colors.subtext} />
+            <View style={styles.detailIcon}>
+              <Calendar size={20} color={Colors.primary} />
+            </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Departure Date</Text>
               <Text style={styles.detailValue}>{formatDate(booking.departureDate)}</Text>
             </View>
           </View>
 
-          {booking.returnDate && (
-            <View style={styles.detailRow}>
-              <Calendar size={20} color={Colors.subtext} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Return Date</Text>
-                <Text style={styles.detailValue}>{formatDate(booking.returnDate)}</Text>
-              </View>
+          <View style={styles.detailRow}>
+            <View style={styles.detailIcon}>
+              <Clock size={20} color={Colors.primary} />
             </View>
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Departure Time</Text>
+              <Text style={styles.detailValue}>{booking.departureTime || 'N/A'}</Text>
+            </View>
+          </View>
+
+          {booking.tripType === 'round_trip' && booking.returnDate && (
+            <>
+              <View style={styles.detailRow}>
+                <View style={styles.detailIcon}>
+                  <Calendar size={20} color={Colors.primary} />
+                </View>
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Return Date</Text>
+                  <Text style={styles.detailValue}>{formatDate(booking.returnDate)}</Text>
+                </View>
+              </View>
+            </>
           )}
 
           <View style={styles.detailRow}>
-            <MapPin size={20} color={Colors.subtext} />
+            <View style={styles.detailIcon}>
+              <MapPin size={20} color={Colors.primary} />
+            </View>
             <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Origin</Text>
-              <Text style={styles.detailValue}>{booking.origin}</Text>
+              <Text style={styles.detailLabel}>Route</Text>
+              <Text style={styles.detailValue}>
+                {String(booking.route?.fromIsland?.name || booking.origin || 'Unknown')} → {String(booking.route?.toIsland?.name || booking.destination || 'Unknown')}
+              </Text>
             </View>
           </View>
 
           <View style={styles.detailRow}>
-            <MapPin size={20} color={Colors.subtext} />
+            <View style={styles.detailIcon}>
+              <MapPin size={20} color={Colors.primary} />
+            </View>
             <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Destination</Text>
-              <Text style={styles.detailValue}>{booking.destination}</Text>
+              <Text style={styles.detailLabel}>Zone</Text>
+              <Text style={styles.detailValue}>{String(booking.route?.fromIsland?.zone || 'N/A')}</Text>
             </View>
           </View>
 
           <View style={styles.detailRow}>
-            <User size={20} color={Colors.subtext} />
+            <View style={styles.detailIcon}>
+              <Users size={20} color={Colors.primary} />
+            </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Passengers</Text>
-              <Text style={styles.detailValue}>{booking.passengerCount}</Text>
+              <Text style={styles.detailValue}>{String(booking.passengers?.length || booking.passengerCount || 0)}</Text>
             </View>
           </View>
 
-          <View style={styles.detailRow}>
-            <Clock size={20} color={Colors.subtext} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Booking Date</Text>
-              <Text style={styles.detailValue}>{formatDate(booking.bookingDate)}</Text>
+          {booking.vessel ? (
+            <View style={styles.detailRow}>
+              <View style={styles.detailIcon}>
+                <MapPin size={20} color={Colors.primary} />
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Vessel</Text>
+                <Text style={styles.detailValue}>{String(booking.vessel.name || 'N/A')}</Text>
+              </View>
             </View>
-          </View>
+          ) : null}
+
+          {/* Status History */}
+          {booking.status && (
+            <View style={styles.detailRow}>
+              <View style={styles.detailIcon}>
+                <CheckCircle size={20} color={getStatusColor(booking.status)} />
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Current Status</Text>
+                <View style={[styles.inlineStatusBadge, getStatusBadgeStyle(String(booking.status))]}>
+                  <Text style={[styles.inlineStatusText, getStatusTextStyle(String(booking.status))]}>
+                    {String(booking.status || 'unknown').charAt(0).toUpperCase() + String(booking.status || 'unknown').slice(1)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
         </Card>
 
-        <Card variant="elevated" style={styles.paymentCard}>
-          <Text style={styles.sectionTitle}>Payment Details</Text>
+        {/* Passenger Details */}
+        {(booking.passengers && booking.passengers.length > 0) ? (
+          <Card variant="elevated" style={styles.passengersCard}>
+            <Text style={styles.cardTitle}>Passenger Details</Text>
+
+            {booking.passengers.map((passenger: any, index) => (
+              <View key={index} style={styles.passengerItem}>
+                <View style={styles.passengerHeader}>
+                  <Text style={styles.passengerName}>
+                    {String(passenger.fullName || passenger.passenger_name || 'Passenger ' + (index + 1))}
+                  </Text>
+                  <Text style={styles.seatNumber}>
+                    Seat: {String(booking.seats?.[index]?.number || 'N/A')}
+                  </Text>
+                </View>
+
+                {(passenger.idNumber || passenger.id_number) && (
+                  <Text style={styles.passengerDetail}>
+                    ID: {String(passenger.idNumber || passenger.id_number)}
+                  </Text>
+                )}
+
+                {(passenger.specialAssistance || passenger.special_assistance_request) && (
+                  <Text style={styles.passengerDetail}>
+                    Special Assistance: {String(passenger.specialAssistance || passenger.special_assistance_request)}
+                  </Text>
+                )}
+
+                {(passenger.contactNumber || passenger.passenger_contact_number) && (
+                  <Text style={styles.passengerDetail}>
+                    Contact: {String(passenger.contactNumber || passenger.passenger_contact_number)}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </Card>
+        ) : null}
+
+        {/* Client Information */}
+        <Card variant="elevated" style={styles.clientCard}>
+          <Text style={styles.cardTitle}>Client Information</Text>
 
           <View style={styles.detailRow}>
-            <DollarSign size={20} color={Colors.subtext} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Original Price</Text>
-              <Text style={styles.detailValue}>{formatCurrency(booking.totalAmount)}</Text>
+            <View style={styles.detailIcon}>
+              <User size={20} color={Colors.primary} />
             </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Percent size={20} color={Colors.subtext} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Discounted Price</Text>
-              <Text style={[styles.detailValue, { color: Colors.primary }]}>
-                {formatCurrency(booking.discountedAmount)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <CreditCard size={20} color={Colors.subtext} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Payment Method</Text>
-              <Text style={styles.detailValue}>
-                {booking.paymentMethod === "credit"
-                  ? "Agent Credit"
-                  : booking.paymentMethod === "free"
-                    ? "Free Ticket"
-                    : "Payment Gateway"}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <DollarSign size={20} color={Colors.subtext} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Commission</Text>
-              <Text style={[styles.detailValue, { color: Colors.secondary }]}>
-                {formatCurrency(booking.commission)}
-              </Text>
-            </View>
-          </View>
-        </Card>
-
-        <Card variant="outlined" style={styles.clientCard}>
-          <View style={styles.clientHeader}>
-            <Text style={styles.sectionTitle}>Client Information</Text>
-            <TouchableOpacity onPress={handleViewClient}>
-              <Text style={styles.viewClientText}>View Client</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.detailRow}>
-            <User size={20} color={Colors.subtext} />
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Name</Text>
-              <Text style={styles.detailValue}>{client?.name}</Text>
+              <Text style={styles.detailValue}>{String(booking.clientName || 'N/A')}</Text>
             </View>
           </View>
 
           <View style={styles.detailRow}>
-            <Mail size={20} color={Colors.subtext} />
+            <View style={styles.detailIcon}>
+              <Mail size={20} color={Colors.primary} />
+            </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Email</Text>
-              <Text style={styles.detailValue}>{client?.email}</Text>
+              <Text style={styles.detailValue}>{String(booking.clientEmail || 'N/A')}</Text>
             </View>
           </View>
 
           <View style={styles.detailRow}>
-            <Phone size={20} color={Colors.subtext} />
+            <View style={styles.detailIcon}>
+              <Phone size={20} color={Colors.primary} />
+            </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Phone</Text>
-              <Text style={styles.detailValue}>{client?.phone}</Text>
+              <Text style={styles.detailValue}>{String(booking.clientPhone || 'N/A')}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIcon}>
+              <User size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Account Status</Text>
+              <Text style={styles.detailValue}>
+                {String(booking.clientHasAccount ? 'Has Account' : 'No Account')}
+              </Text>
             </View>
           </View>
         </Card>
 
-        {booking.status === "confirmed" && (
-          <View style={styles.actionsContainer}>
+        {/* Payment Details */}
+        <Card variant="elevated" style={styles.paymentCard}>
+          <Text style={styles.cardTitle}>Payment Details</Text>
+
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Original Amount</Text>
+            <Text style={styles.paymentValue}>{formatCurrency(Number(booking.totalAmount) || 0)}</Text>
+          </View>
+
+          {booking.discountedAmount && Number(booking.discountedAmount) !== Number(booking.totalAmount) && (
+            <>
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Agent Discount</Text>
+                <Text style={[styles.paymentValue, { color: Colors.warning }]}>
+                  {((Number(booking.totalAmount) - Number(booking.discountedAmount)) / Number(booking.totalAmount) * 100).toFixed(1)}%
+                </Text>
+              </View>
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Discount Amount</Text>
+                <Text style={[styles.paymentValue, { color: Colors.warning }]}>
+                  -{formatCurrency(Number(booking.totalAmount) - Number(booking.discountedAmount))}
+                </Text>
+              </View>
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Final Amount</Text>
+                <Text style={[styles.paymentValue, { color: Colors.primary, fontWeight: '700' }]}>
+                  {formatCurrency(Number(booking.discountedAmount))}
+                </Text>
+              </View>
+            </>
+          )}
+
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Payment Method</Text>
+            <Text style={styles.paymentValue}>
+              {String(booking.paymentMethod) === 'credit' ? 'Agent Credit' :
+                String(booking.paymentMethod) === 'free' ? 'Free Ticket' : 'Payment Gateway'}
+            </Text>
+          </View>
+
+          {booking.payment && (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Payment Status</Text>
+              <Text
+                style={[
+                  styles.paymentValue,
+                  String(booking.payment.status) === 'completed' && styles.paymentPaid,
+                  String(booking.payment.status) === 'pending' && styles.paymentPending,
+                  String(booking.payment.status) === 'failed' && styles.paymentFailed,
+                ]}
+              >
+                {String(booking.payment.status || 'UNKNOWN').toUpperCase()}
+              </Text>
+            </View>
+          )}
+
+          {(booking.commission && Number(booking.commission) > 0) ? (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Agent Commission</Text>
+              <Text style={[styles.paymentValue, { color: Colors.secondary, fontWeight: '700' }]}>
+                {formatCurrency(Number(booking.commission))}
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.divider} />
+
+          <View style={styles.paymentRow}>
+            <Text style={[styles.paymentLabel, { fontSize: 16, fontWeight: '600' }]}>Total Paid</Text>
+            <Text style={[styles.paymentValue, { fontSize: 18, fontWeight: '700', color: Colors.primary }]}>
+              {formatCurrency(Number(booking.discountedAmount) || Number(booking.totalAmount) || 0)}
+            </Text>
+          </View>
+        </Card>
+
+        {/* Booking Policies */}
+        <Card variant="elevated" style={styles.policyCard}>
+          <Text style={styles.cardTitle}>Booking Policies</Text>
+
+          <View style={styles.policyItem}>
+            <Text style={styles.policyTitle}>Cancellation Policy</Text>
+            <Text style={styles.policyText}>
+              • Bookings can be cancelled up to 72 hours before departure
+            </Text>
+            <Text style={styles.policyText}>
+              • Cancellation within 72 hours may incur charges
+            </Text>
+            <Text style={styles.policyText}>
+              • No-show bookings are non-refundable
+            </Text>
+          </View>
+
+          <View style={styles.policyItem}>
+            <Text style={styles.policyTitle}>Modification Policy</Text>
+            <Text style={styles.policyText}>
+              • Bookings can be modified up to 72 hours before departure
+            </Text>
+            <Text style={styles.policyText}>
+              • Subject to seat availability and fare differences
+            </Text>
+          </View>
+
+          <View style={styles.policyItem}>
+            <Text style={styles.policyTitle}>Check-in Information</Text>
+            <Text style={styles.policyText}>
+              • Check-in opens 2 hours before departure
+            </Text>
+            <Text style={styles.policyText}>
+              • Please arrive at least 30 minutes before departure
+            </Text>
+            <Text style={styles.policyText}>
+              • Present this QR code ticket at check-in
+            </Text>
+          </View>
+        </Card>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <Button
+            title="Share Ticket"
+            onPress={handleShareTicket}
+            variant="outline"
+            style={styles.actionButton}
+            textStyle={styles.actionButtonText}
+          />
+
+          {isModifiable() && (
             <Button
               title="Modify Booking"
               onPress={handleModifyBooking}
-              variant="primary"
-              icon={<Edit size={20} color="white" />}
+              variant="outline"
               style={styles.actionButton}
+              textStyle={styles.modifyButtonText}
             />
+          )}
+
+          {isCancellable() && (
             <Button
               title="Cancel Booking"
               onPress={handleCancelBooking}
               variant="outline"
+              style={styles.actionButton}
+              textStyle={styles.cancelButtonText}
               loading={loading}
-              icon={<XCircle size={20} color={Colors.primary} />}
+            />
+          )}
+
+          {String(booking.status) === "confirmed" && (
+            <Button
+              title="Mark as Completed"
+              onPress={() => {
+                Alert.alert(
+                  "Mark as Completed",
+                  "Are you sure you want to mark this booking as completed?",
+                  [
+                    {
+                      text: "Cancel",
+                      style: "cancel",
+                    },
+                    {
+                      text: "Confirm",
+                      onPress: () => handleUpdateStatus("completed"),
+                    },
+                  ]
+                );
+              }}
+              variant="secondary"
               style={styles.actionButton}
             />
-          </View>
-        )}
+          )}
 
-        {booking.status === "confirmed" && (
-          <Button
-            title="Mark as Completed"
-            onPress={() => {
-              Alert.alert(
-                "Mark as Completed",
-                "Are you sure you want to mark this booking as completed?",
-                [
-                  {
-                    text: "Cancel",
-                    style: "cancel",
-                  },
-                  {
-                    text: "Confirm",
-                    onPress: () => {
-                      // In a real app, this would make an API call
-                      Alert.alert("Success", "Booking marked as completed");
-                    },
-                  },
-                ]
-              );
-            }}
-            variant="secondary"
-            icon={<CheckCircle size={20} color="white" />}
-            style={styles.completeButton}
-          />
-        )}
 
-        <Text style={styles.bookingId}>Booking ID: {booking.id}</Text>
+        </View>
+
+        <Text style={styles.bookingId}>Booking ID: {String(booking.id || 'N/A')}</Text>
       </ScrollView>
     </>
   );
@@ -364,110 +666,217 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  content: {
+  contentContainer: {
     padding: 16,
+    paddingBottom: 32,
   },
   notFoundContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   notFoundText: {
     fontSize: 18,
-    color: Colors.subtext,
-    marginBottom: 16,
+    color: Colors.text,
+    marginBottom: 20,
+  },
+  notFoundButton: {
+    minWidth: 120,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  routeContainer: {
-    flex: 1,
-  },
-  routeText: {
-    fontSize: 24,
-    fontWeight: "bold",
+  bookingNumber: {
+    fontSize: 18,
+    fontWeight: '700',
     color: Colors.text,
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 4,
+    borderRadius: 16,
+    backgroundColor: Colors.inactive,
+  },
+  statusConfirmed: {
+    backgroundColor: '#e8f5e9',
+  },
+  statusCompleted: {
+    backgroundColor: '#e3f2fd',
+  },
+  statusCancelled: {
+    backgroundColor: '#ffebee',
   },
   statusText: {
-    color: "white",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  statusTextConfirmed: {
+    color: Colors.success,
+  },
+  statusTextCompleted: {
+    color: Colors.primary,
+  },
+  statusTextCancelled: {
+    color: Colors.error,
+  },
+  shareButton: {
+    padding: 8,
   },
   detailsCard: {
     marginBottom: 16,
   },
-  paymentCard: {
-    marginBottom: 16,
-  },
-  clientCard: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
+  cardTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: 16,
   },
   detailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  detailIcon: {
+    width: 40,
+    alignItems: 'center',
   },
   detailContent: {
-    marginLeft: 12,
     flex: 1,
   },
   detailLabel: {
     fontSize: 14,
-    color: Colors.subtext,
+    color: Colors.textSecondary,
+    marginBottom: 2,
   },
   detailValue: {
     fontSize: 16,
     color: Colors.text,
-    fontWeight: "500",
   },
-  clientHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  passengersCard: {
     marginBottom: 16,
   },
-  viewClientText: {
-    color: Colors.primary,
-    fontWeight: "500",
+  passengerItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
-  actionsContainer: {
-    flexDirection: "row",
+  passengerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  passengerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  seatNumber: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  passengerDetail: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  clientCard: {
+    marginBottom: 16,
+  },
+  paymentCard: {
+    marginBottom: 24,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  paymentLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  paymentValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  paymentPaid: {
+    color: Colors.success,
+  },
+  paymentPending: {
+    color: Colors.warning,
+  },
+  paymentFailed: {
+    color: Colors.error,
+  },
+  actionButtons: {
     marginBottom: 16,
   },
   actionButton: {
-    flex: 1,
-    marginHorizontal: 4,
+    marginBottom: 12,
   },
-  completeButton: {
+  actionButtonText: {
+    color: Colors.primary,
+  },
+  modifyButtonText: {
+    color: Colors.secondary,
+  },
+  cancelButtonText: {
+    color: Colors.error,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 16,
+  },
+  policyCard: {
     marginBottom: 16,
   },
+  policyItem: {
+    marginBottom: 16,
+  },
+  policyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  policyText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+    lineHeight: 20,
+  },
   bookingId: {
-    textAlign: "center",
-    color: Colors.subtext,
+    textAlign: 'center',
+    color: Colors.textSecondary,
+    fontSize: 12,
     marginBottom: 24,
   },
-  editButton: {
-    padding: 8,
+  inlineStatusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  inlineStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  statusModified: {
+    backgroundColor: '#fff9c4',
+  },
+  statusPending: {
+    backgroundColor: '#fff9c4',
+  },
+  statusTextModified: {
+    color: Colors.warning,
+  },
+  statusTextPending: {
+    color: Colors.warning,
   },
 });
-
-function Percent({ size, color }: { size: number; color: string }) {
-  return (
-    <Text style={{ fontSize: size, color, fontWeight: "bold" }}>%</Text>
-  );
-}
