@@ -209,12 +209,13 @@ export const useAgentStore = create<AgentState>()(
                         agentClientId: item.id, // Store the agent_clients record id
                     }));
 
-                    // Now try to get booking counts for each client (both types)
+                    // Now try to get booking counts for each client (both types) - exclude "modified" status
                     try {
                         const { data: bookingCounts, error: bookingError } = await supabase
                             .from('bookings')
-                            .select('user_id, agent_client_id')
-                            .eq('agent_id', agentId);
+                            .select('user_id, agent_client_id, status')
+                            .eq('agent_id', agentId)
+                            .neq('status', 'modified'); // Exclude modified bookings from count
 
                         if (!bookingError && bookingCounts) {
                             // Count bookings by both user_id and agent_client_id

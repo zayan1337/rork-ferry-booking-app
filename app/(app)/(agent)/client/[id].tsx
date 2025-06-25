@@ -94,16 +94,24 @@ export default function ClientDetailsScreen() {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <BookOpen size={24} color={Colors.primary} />
-            <Text style={styles.statValue}>{client.bookingsCount}</Text>
-            <Text style={styles.statLabel}>Total Bookings</Text>
+            <Text style={styles.statValue}>{clientBookings.length}</Text>
+            <Text style={styles.statLabel}>All Bookings</Text>
           </View>
 
           <View style={styles.statCard}>
             <Calendar size={24} color={Colors.primary} />
             <Text style={styles.statValue}>
-              {clientBookings.filter(b => b.status === "confirmed").length}
+              {clientBookings.filter(b => b.status === "confirmed" || b.status === "pending").length}
             </Text>
             <Text style={styles.statLabel}>Active Bookings</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Calendar size={24} color={Colors.warning} />
+            <Text style={[styles.statValue, { color: Colors.warning }]}>
+              {clientBookings.filter(b => b.status === "cancelled" || b.status === "modified").length}
+            </Text>
+            <Text style={styles.statLabel}>Inactive Bookings</Text>
           </View>
         </View>
 

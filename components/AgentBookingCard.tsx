@@ -19,9 +19,17 @@ export default function AgentBookingCard({ booking, onPress }: AgentBookingCardP
                 return Colors.success;
             case "cancelled":
                 return Colors.error;
+            case "modified":
+                return Colors.warning;
+            case "pending":
+                return Colors.secondary;
             default:
                 return Colors.inactive;
         }
+    };
+
+    const isInactiveBooking = (status: string) => {
+        return status === "cancelled" || status === "modified";
     };
 
     const formatDate = (dateString: string) => {
@@ -45,7 +53,10 @@ export default function AgentBookingCard({ booking, onPress }: AgentBookingCardP
             <Card variant="elevated" style={styles.card}>
                 <View style={styles.header}>
                     <View style={styles.route}>
-                        <Text style={styles.routeText}>
+                        <Text style={[
+                            styles.routeText,
+                            isInactiveBooking(booking.status) && styles.inactiveText
+                        ]}>
                             {booking.origin} → {booking.destination}
                         </Text>
                     </View>
@@ -171,4 +182,7 @@ const styles = StyleSheet.create({
         color: Colors.subtext,
         textDecorationLine: "line-through",
     },
-    });
+    inactiveText: {
+        color: Colors.subtext,
+    },
+});

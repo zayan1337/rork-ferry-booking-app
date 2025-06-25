@@ -2,15 +2,16 @@ import React from "react";
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { Client } from "@/types/agent";
 import Colors from "@/constants/colors";
-import { User, Mail, Phone, BarChart, UserX } from "lucide-react-native";
+import { User, Mail, Phone, BarChart, UserX, AlertTriangle } from "lucide-react-native";
 import Card from "./Card";
 
 interface ClientCardProps {
     client: Client;
     onPress: (client: Client) => void;
+    inactiveBookingsCount?: number; // Count of cancelled/modified bookings
 }
 
-export default function ClientCard({ client, onPress }: ClientCardProps) {
+export default function ClientCard({ client, onPress, inactiveBookingsCount = 0 }: ClientCardProps) {
     return (
         <TouchableOpacity onPress={() => onPress(client)}>
             <Card variant="elevated" style={styles.card}>
@@ -36,9 +37,17 @@ export default function ClientCard({ client, onPress }: ClientCardProps) {
                         </View>
                         <Text style={styles.clientEmail}>{client.email}</Text>
                     </View>
-                    <View style={styles.bookingsContainer}>
-                        <BarChart size={16} color={Colors.primary} />
-                        <Text style={styles.bookingsCount}>{client.bookingsCount}</Text>
+                    <View style={styles.bookingsInfo}>
+                        <View style={styles.bookingsContainer}>
+                            <BarChart size={16} color={Colors.primary} />
+                            <Text style={styles.bookingsCount}>{client.bookingsCount}</Text>
+                        </View>
+                        {inactiveBookingsCount > 0 && (
+                            <View style={styles.inactiveBookingsContainer}>
+                                <AlertTriangle size={12} color={Colors.warning} />
+                                <Text style={styles.inactiveBookingsCount}>{inactiveBookingsCount}</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 
@@ -110,6 +119,9 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: Colors.subtext,
     },
+    bookingsInfo: {
+        alignItems: "flex-end",
+    },
     bookingsContainer: {
         flexDirection: "row",
         alignItems: "center",
@@ -117,6 +129,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
+        marginBottom: 4,
+    },
+    inactiveBookingsContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: `${Colors.warning}15`,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 8,
+    },
+    inactiveBookingsCount: {
+        fontSize: 10,
+        fontWeight: "500",
+        color: Colors.warning,
+        marginLeft: 2,
     },
     bookingsCount: {
         fontSize: 14,

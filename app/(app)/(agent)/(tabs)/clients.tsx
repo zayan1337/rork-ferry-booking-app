@@ -37,6 +37,21 @@ export default function AgentClientsScreen() {
     router.push(`../client/${client.id}`);
   };
 
+  const getInactiveBookingsCount = (clientId: string) => {
+    const clientBookings = getBookingsByClient(clientId);
+    return clientBookings.filter(booking =>
+      booking.status === "cancelled" || booking.status === "modified"
+    ).length;
+  };
+
+  const getTotalBookingsCount = () => {
+    // Calculate total bookings across all clients (including modified)
+    return (clients || []).reduce((sum: number, client: Client) => {
+      const clientBookings = getBookingsByClient(client.id);
+      return sum + clientBookings.length;
+    }, 0);
+  };
+
   const handleAddClient = () => {
     alert("Add client functionality would be implemented here");
   };
@@ -71,14 +86,14 @@ export default function AgentClientsScreen() {
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statValue}>
-            {(clients || []).reduce((sum: number, client: Client) => sum + client.bookingsCount, 0)}
+            {getTotalBookingsCount()}
           </Text>
           <Text style={styles.statLabel}>Total Bookings</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statValue}>
-            {(clients || []).length > 0 ? ((clients || []).reduce((sum: number, client: Client) => sum + client.bookingsCount, 0) / (clients || []).length).toFixed(1) : '0'}
+            {(clients || []).length > 0 ? (getTotalBookingsCount() / (clients || []).length).toFixed(1) : '0'}
           </Text>
           <Text style={styles.statLabel}>Avg. Bookings</Text>
         </View>
@@ -102,6 +117,7 @@ export default function AgentClientsScreen() {
             <ClientCard
               client={item}
               onPress={handleClientPress}
+              inactiveBookingsCount={getInactiveBookingsCount(item.id)}
             />
           )}
           contentContainerStyle={styles.clientsList}
