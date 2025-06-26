@@ -91,6 +91,7 @@ export default function BookScreen() {
     updatePassengers,
     resetBooking: resetCurrentBooking,
     calculateTotalFare,
+    createCustomerBooking,
   } = useBookingStore();
 
   // Route management
@@ -343,7 +344,7 @@ export default function BookScreen() {
   const handleConfirmBooking = async () => {
     if (validateStep(5)) {
       try {
-        const booking = await confirmBooking(currentBooking, paymentMethod);
+        const bookingResult = await createCustomerBooking(paymentMethod);
 
         // Reset the booking state after successful booking
         resetCurrentBooking();
@@ -366,10 +367,10 @@ export default function BookScreen() {
 
         // Create success message based on booking type
         let successMessage = `Your ${currentBooking.tripType === 'round_trip' ? 'round trip' : 'one way'} booking has been confirmed.`;
-        successMessage += `\n\nDeparture Booking: ${booking.booking_number}`;
+        successMessage += `\n\nDeparture Booking ID: ${bookingResult.bookingId}`;
 
-        if (booking.returnBooking) {
-          successMessage += `\nReturn Booking: ${booking.returnBooking.booking_number}`;
+        if (bookingResult.returnBookingId) {
+          successMessage += `\nReturn Booking ID: ${bookingResult.returnBookingId}`;
         }
 
         Alert.alert(

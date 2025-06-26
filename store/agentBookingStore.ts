@@ -119,6 +119,10 @@ interface AgentBookingActions {
     refreshAgentData: () => Promise<void>;
     onBookingCreated?: (bookingId: string, returnBookingId?: string | null) => Promise<void>;
     setOnBookingCreated: (callback: (bookingId: string, returnBookingId?: string | null) => Promise<void>) => void;
+
+    // Unified QR Code utilities
+    generateUnifiedQrCode: (booking: any, passengers: Passenger[], selectedSeats: Seat[], trip: Trip, route: Route, type: string, additionalData?: any) => string;
+    updateBookingWithQrCode: (bookingId: string, qrCodeData: string, maxRetries?: number) => Promise<boolean>;
 }
 
 const initialBooking: AgentCurrentBooking = {
@@ -725,18 +729,8 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 throw new Error(`Failed to create booking: ${bookingError.message}`);
             }
 
-            // Now generate QR code data with actual booking details
-            const finalQrCodeData = JSON.stringify({
-                bookingNumber: booking.booking_number,
-                bookingId: booking.id,
-                tripId: currentBooking.trip.id,
-                departureDate: currentBooking.trip.travel_date || currentBooking.departureDate,
-                departureTime: currentBooking.trip.departure_time,
-                passengers: currentBooking.passengers.length,
-                seats: currentBooking.selectedSeats.map(seat => seat.number),
-                totalFare: currentBooking.discountedFare,
-                timestamp: new Date().toISOString(),
-                // Agent-specific additional fields
+            // Generate QR code data using unified format
+            const agentQrData = {
                 clientName: currentBooking.client.name,
                 clientEmail: currentBooking.client.email,
                 clientHasAccount: currentBooking.client.hasAccount,
@@ -744,8 +738,17 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 agentId: agent.id,
                 agentName: agent.name || agent.email,
                 agentClientId: agentClientId,
-                type: 'agent-booking'
-            });
+            };
+
+            const finalQrCodeData = get().generateUnifiedQrCode(
+                booking,
+                currentBooking.passengers,
+                currentBooking.selectedSeats,
+                currentBooking.trip,
+                currentBooking.route!,
+                'agent-booking',
+                agentQrData
+            );
 
             // Debug: Log QR code generation details
             console.log('QR Code Generation Details:', {
@@ -767,82 +770,12 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 // In case of very long data, we could truncate or simplify
             }
 
-            // Enhanced QR code update with retry mechanism
-            let qrUpdateSuccess = false;
-            let qrUpdateAttempts = 0;
-            const maxRetries = 3;
-
-            while (!qrUpdateSuccess && qrUpdateAttempts < maxRetries) {
-                qrUpdateAttempts++;
-
-                const { data: qrUpdateResult, error: qrUpdateError } = await supabase
-                    .from('bookings')
-                    .update({ qr_code_url: finalQrCodeData })
-                    .eq('id', booking.id)
-                    .select('id, qr_code_url, booking_number');
-
-                if (qrUpdateError) {
-                    console.error(`QR code update attempt ${qrUpdateAttempts} failed:`, qrUpdateError);
-
-                    if (qrUpdateAttempts === 1) {
-                        // On first failure, log detailed error information
-                        console.error('QR Update Error Details:', {
-                            bookingId: booking.id,
-                            bookingNumber: booking.booking_number,
-                            error: qrUpdateError,
-                            errorCode: qrUpdateError.code,
-                            errorMessage: qrUpdateError.message,
-                            errorDetails: qrUpdateError.details,
-                            errorHint: qrUpdateError.hint,
-                            qrDataLength: finalQrCodeData.length,
-                            qrDataPreview: finalQrCodeData.substring(0, 100) + '...',
-                            clientType: currentBooking.client.hasAccount ? 'with_account' : 'without_account',
-                            bookingUserId: bookingUserId,
-                            agentId: agent.id
-                        });
-                    }
-
-                    // Wait before retry
-                    if (qrUpdateAttempts < maxRetries) {
-                        await new Promise(resolve => setTimeout(resolve, 500 * qrUpdateAttempts));
-                    }
-                } else {
-                    console.log(`QR code update attempt ${qrUpdateAttempts} succeeded for booking:`, booking.booking_number, 'ID:', booking.id);
-                    qrUpdateSuccess = true;
-
-                    // Verify the QR code was actually stored
-                    await new Promise(resolve => setTimeout(resolve, 200));
-
-                    try {
-                        const { data: verifyData, error: verifyError } = await supabase
-                            .from('bookings')
-                            .select('qr_code_url, booking_number')
-                            .eq('id', booking.id)
-                            .single();
-
-                        if (verifyError) {
-                            console.error('Failed to verify QR code storage:', verifyError);
-                            qrUpdateSuccess = false; // Retry if verification fails
-                        } else if (!verifyData.qr_code_url) {
-                            console.error('QR code verification failed: No data found in database for booking:', booking.id);
-                            console.error('Verification result:', verifyData);
-                            qrUpdateSuccess = false; // Retry if no data found
-                        } else {
-                            console.log('QR code verification successful for booking:', verifyData.booking_number);
-                            console.log('Stored QR data length:', verifyData.qr_code_url.length);
-                            console.log('QR data preview:', verifyData.qr_code_url.substring(0, 100) + '...');
-                        }
-                    } catch (verifyException) {
-                        console.error('Exception during QR code verification:', verifyException);
-                        qrUpdateSuccess = false; // Retry if verification throws
-                    }
-                }
-            }
+            // Update booking with QR code using unified helper
+            const qrUpdateSuccess = await get().updateBookingWithQrCode(booking.id, finalQrCodeData);
 
             if (!qrUpdateSuccess) {
-                console.error(`Failed to update QR code after ${maxRetries} attempts for booking:`, booking.id);
+                console.error(`Failed to update QR code for booking:`, booking.id);
                 // Don't throw error - booking was created successfully, just QR code failed
-                // We can fix QR codes later using the fixMissingQrCodes function
             }
 
             // Create passengers and seat reservations
@@ -1001,18 +934,8 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
 
                 returnBookingId = returnBooking.id;
 
-                // Generate return QR code data with actual booking details
-                const finalReturnQrCodeData = JSON.stringify({
-                    bookingNumber: returnBooking.booking_number,
-                    bookingId: returnBooking.id,
-                    tripId: currentBooking.returnTrip.id,
-                    departureDate: currentBooking.returnTrip.travel_date || currentBooking.returnDate,
-                    departureTime: currentBooking.returnTrip.departure_time,
-                    passengers: currentBooking.passengers.length,
-                    seats: currentBooking.returnSelectedSeats.map(seat => seat.number),
-                    totalFare: (currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100),
-                    timestamp: new Date().toISOString(),
-                    // Agent-specific additional fields
+                // Generate return QR code data using unified format
+                const returnAgentQrData = {
                     clientName: currentBooking.client.name,
                     clientEmail: currentBooking.client.email,
                     clientHasAccount: currentBooking.client.hasAccount,
@@ -1020,8 +943,17 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                     agentId: agent.id,
                     agentName: agent.name || agent.email,
                     agentClientId: agentClientId,
-                    type: 'agent-booking-return'
-                });
+                };
+
+                const finalReturnQrCodeData = get().generateUnifiedQrCode(
+                    returnBooking,
+                    currentBooking.passengers,
+                    currentBooking.returnSelectedSeats,
+                    currentBooking.returnTrip,
+                    currentBooking.returnRoute!,
+                    'agent-booking-return',
+                    returnAgentQrData
+                );
 
                 // Debug: Log return QR code generation details
                 console.log('Return QR Code Generation Details:', {
@@ -1034,79 +966,11 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 // Update return booking with QR code data
                 console.log('Attempting to update return QR code for booking:', returnBooking.id, 'Data length:', finalReturnQrCodeData.length);
 
-                // Enhanced return QR code update with retry mechanism
-                let returnQrUpdateSuccess = false;
-                let returnQrUpdateAttempts = 0;
-                const maxReturnRetries = 3;
-
-                while (!returnQrUpdateSuccess && returnQrUpdateAttempts < maxReturnRetries) {
-                    returnQrUpdateAttempts++;
-
-                    const { data: returnQrUpdateResult, error: returnQrUpdateError } = await supabase
-                        .from('bookings')
-                        .update({ qr_code_url: finalReturnQrCodeData })
-                        .eq('id', returnBooking.id)
-                        .select('id, qr_code_url, booking_number');
-
-                    if (returnQrUpdateError) {
-                        console.error(`Return QR code update attempt ${returnQrUpdateAttempts} failed:`, returnQrUpdateError);
-
-                        if (returnQrUpdateAttempts === 1) {
-                            // On first failure, log detailed error information
-                            console.error('Return QR Update Error Details:', {
-                                returnBookingId: returnBooking.id,
-                                returnBookingNumber: returnBooking.booking_number,
-                                error: returnQrUpdateError,
-                                errorCode: returnQrUpdateError.code,
-                                errorMessage: returnQrUpdateError.message,
-                                errorDetails: returnQrUpdateError.details,
-                                errorHint: returnQrUpdateError.hint,
-                                qrDataLength: finalReturnQrCodeData.length,
-                                clientType: currentBooking.client.hasAccount ? 'with_account' : 'without_account',
-                                bookingUserId: bookingUserId,
-                                agentId: agent.id
-                            });
-                        }
-
-                        // Wait before retry
-                        if (returnQrUpdateAttempts < maxReturnRetries) {
-                            await new Promise(resolve => setTimeout(resolve, 500 * returnQrUpdateAttempts));
-                        }
-                    } else {
-                        console.log(`Return QR code update attempt ${returnQrUpdateAttempts} succeeded for booking:`, returnBooking.booking_number, 'ID:', returnBooking.id);
-                        returnQrUpdateSuccess = true;
-
-                        // Verify return QR code storage
-                        await new Promise(resolve => setTimeout(resolve, 200));
-
-                        try {
-                            const { data: returnVerifyData, error: returnVerifyError } = await supabase
-                                .from('bookings')
-                                .select('qr_code_url, booking_number')
-                                .eq('id', returnBooking.id)
-                                .single();
-
-                            if (returnVerifyError) {
-                                console.error('Failed to verify return QR code storage:', returnVerifyError);
-                                returnQrUpdateSuccess = false; // Retry if verification fails
-                            } else if (!returnVerifyData.qr_code_url) {
-                                console.error('Return QR code verification failed: No data found for booking:', returnBooking.id);
-                                console.error('Return verification result:', returnVerifyData);
-                                returnQrUpdateSuccess = false; // Retry if no data found
-                            } else {
-                                console.log('Return QR code verification successful for booking:', returnVerifyData.booking_number);
-                                console.log('Return stored QR data length:', returnVerifyData.qr_code_url.length);
-                                console.log('Return QR data preview:', returnVerifyData.qr_code_url.substring(0, 100) + '...');
-                            }
-                        } catch (returnVerifyException) {
-                            console.error('Exception during return QR code verification:', returnVerifyException);
-                            returnQrUpdateSuccess = false; // Retry if verification throws
-                        }
-                    }
-                }
+                // Update return booking with QR code using unified helper
+                const returnQrUpdateSuccess = await get().updateBookingWithQrCode(returnBooking.id, finalReturnQrCodeData);
 
                 if (!returnQrUpdateSuccess) {
-                    console.error(`Failed to update return QR code after ${maxReturnRetries} attempts for booking:`, returnBooking.id);
+                    console.error(`Failed to update return QR code for booking:`, returnBooking.id);
                     // Don't throw error - booking was created successfully, just QR code failed
                 }
 
@@ -1407,5 +1271,77 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
         }
     },
 
+    // Unified QR Code utilities
+    generateUnifiedQrCode: (booking: any, passengers: Passenger[], selectedSeats: Seat[], trip: Trip, route: Route, type: string, additionalData?: any) => {
+        try {
+            const qrCodeData = {
+                bookingNumber: booking.booking_number,
+                bookingId: booking.id,
+                tripId: trip.id,
+                departureDate: trip.travel_date || booking.travel_date,
+                departureTime: trip.departure_time,
+                passengers: passengers.length,
+                seats: selectedSeats.map(seat => seat.number),
+                totalFare: booking.total_fare,
+                timestamp: new Date().toISOString(),
+                type: type,
+                // Additional data for different booking types
+                ...additionalData
+            };
+
+            return JSON.stringify(qrCodeData);
+        } catch (error) {
+            console.error('Error generating unified QR code data:', error);
+            return '';
+        }
+    },
+
+    updateBookingWithQrCode: async (bookingId: string, qrCodeData: string, maxRetries: number = 3) => {
+        let success = false;
+        let attempts = 0;
+
+        while (!success && attempts < maxRetries) {
+            attempts++;
+
+            try {
+                const { data, error } = await supabase
+                    .from('bookings')
+                    .update({ qr_code_url: qrCodeData })
+                    .eq('id', bookingId)
+                    .select('id, qr_code_url, booking_number');
+
+                if (error) {
+                    console.error(`QR code update attempt ${attempts} failed:`, error);
+                    if (attempts < maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+                    }
+                } else {
+                    success = true;
+                    console.log(`QR code updated successfully for booking:`, bookingId);
+
+                    // Verify the QR code was stored
+                    await new Promise(resolve => setTimeout(resolve, 200));
+
+                    const { data: verifyData, error: verifyError } = await supabase
+                        .from('bookings')
+                        .select('qr_code_url')
+                        .eq('id', bookingId)
+                        .single();
+
+                    if (verifyError || !verifyData.qr_code_url) {
+                        console.error('QR code verification failed:', verifyError);
+                        success = false;
+                    }
+                }
+            } catch (error) {
+                console.error(`QR code update exception attempt ${attempts}:`, error);
+                if (attempts < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+                }
+            }
+        }
+
+        return success;
+    },
 
 })); 

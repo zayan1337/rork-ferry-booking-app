@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../utils/supabase';
 import type { BookingStoreState, CurrentBooking, TripType, Trip } from '@/types/booking';
-import type { Route, Seat, Passenger } from '@/types';
+import type { Route, Seat, Passenger, PaymentMethod } from '@/types';
 
 const initialCurrentBooking: CurrentBooking = {
     tripType: 'one_way',
@@ -45,6 +45,7 @@ interface BookingStoreActions {
 
     // Booking validation and creation
     validateCurrentStep: () => string | null;
+    createCustomerBooking: (paymentMethod: string) => Promise<{ bookingId: string; returnBookingId: string | null }>;
 }
 
 interface ExtendedBookingStoreState extends BookingStoreState {
@@ -53,6 +54,87 @@ interface ExtendedBookingStoreState extends BookingStoreState {
 }
 
 interface BookingStore extends ExtendedBookingStoreState, BookingStoreActions { }
+
+// QR Code utilities
+const generateBookingQrCode = (booking: any, passengers: Passenger[], selectedSeats: Seat[], trip: Trip, route: Route, isAgent: boolean = false, agentInfo?: any) => {
+    try {
+        const qrCodeData = {
+            bookingNumber: booking.booking_number,
+            bookingId: booking.id,
+            tripId: trip.id,
+            departureDate: trip.travel_date || booking.travel_date,
+            departureTime: trip.departure_time,
+            passengers: passengers.length,
+            seats: selectedSeats.map(seat => seat.number),
+            totalFare: booking.total_fare,
+            timestamp: new Date().toISOString(),
+            type: isAgent ? 'agent-booking' : 'customer-booking',
+            // Additional fields for agent bookings
+            ...(isAgent && agentInfo && {
+                clientName: agentInfo.clientName,
+                clientEmail: agentInfo.clientEmail,
+                clientHasAccount: agentInfo.clientHasAccount,
+                clientUserProfileId: agentInfo.clientUserProfileId,
+                agentId: agentInfo.agentId,
+                agentName: agentInfo.agentName,
+                agentClientId: agentInfo.agentClientId,
+            })
+        };
+
+        return JSON.stringify(qrCodeData);
+    } catch (error) {
+        console.error('Error generating QR code data:', error);
+        return '';
+    }
+};
+
+const updateBookingWithQrCode = async (bookingId: string, qrCodeData: string, maxRetries: number = 3) => {
+    let success = false;
+    let attempts = 0;
+
+    while (!success && attempts < maxRetries) {
+        attempts++;
+
+        try {
+            const { data, error } = await supabase
+                .from('bookings')
+                .update({ qr_code_url: qrCodeData })
+                .eq('id', bookingId)
+                .select('id, qr_code_url, booking_number');
+
+            if (error) {
+                console.error(`QR code update attempt ${attempts} failed:`, error);
+                if (attempts < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+                }
+            } else {
+                success = true;
+                console.log(`QR code updated successfully for booking:`, bookingId);
+
+                // Verify the QR code was stored
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                const { data: verifyData, error: verifyError } = await supabase
+                    .from('bookings')
+                    .select('qr_code_url')
+                    .eq('id', bookingId)
+                    .single();
+
+                if (verifyError || !verifyData.qr_code_url) {
+                    console.error('QR code verification failed:', verifyError);
+                    success = false;
+                }
+            }
+        } catch (error) {
+            console.error(`QR code update exception attempt ${attempts}:`, error);
+            if (attempts < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+            }
+        }
+    }
+
+    return success;
+};
 
 export const useBookingStore = create<BookingStore>((set, get) => ({
     // State
@@ -451,5 +533,238 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         }
 
         return null;
+    },
+
+    createCustomerBooking: async (paymentMethod: string) => {
+        try {
+            set({ isLoading: true, error: null });
+
+            const { currentBooking } = get();
+            const { route, trip, returnRoute, returnTrip, selectedSeats, returnSelectedSeats, passengers, tripType } = currentBooking;
+
+            if (!route || !trip || !selectedSeats.length || !passengers.length) {
+                throw new Error('Incomplete booking information');
+            }
+
+            // For round trip, check return trip requirements
+            if (tripType === 'round_trip' && (!returnRoute || !returnTrip || !returnSelectedSeats.length)) {
+                throw new Error('Incomplete return trip information');
+            }
+
+            // Get current authenticated user
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+            if (authError || !user) {
+                throw new Error('User must be authenticated to create booking');
+            }
+
+            // Create the main booking first with user_id for RLS policy
+            const bookingData = {
+                user_id: user.id, // Required for RLS policy
+                trip_id: trip.id,
+                total_fare: currentBooking.totalFare,
+                payment_method_type: paymentMethod,
+                status: 'pending_payment' as const, // Start with pending_payment like booking operations
+                is_round_trip: tripType === 'round_trip',
+                check_in_status: false, // Initialize check-in status
+            };
+
+            const { data: booking, error: bookingError } = await supabase
+                .from('bookings')
+                .insert(bookingData)
+                .select()
+                .single();
+
+            if (bookingError) {
+                console.error('Booking creation error:', bookingError);
+                throw new Error(`Failed to create booking: ${bookingError.message}`);
+            }
+
+            // Generate QR code data for customer booking
+            const qrCodeData = generateBookingQrCode(
+                booking,
+                passengers,
+                selectedSeats,
+                trip,
+                route,
+                false // isAgent = false for customer bookings
+            );
+
+            // Update booking with QR code
+            await updateBookingWithQrCode(booking.id, qrCodeData);
+
+            // Create passengers and seat reservations for main booking
+            const passengerInserts = passengers.map((passenger, index) => ({
+                booking_id: booking.id,
+                seat_id: selectedSeats[index]?.id,
+                passenger_name: passenger.fullName,
+                passenger_contact_number: passenger.idNumber || '',
+                special_assistance_request: passenger.specialAssistance || null,
+            }));
+
+            const { error: passengersError } = await supabase
+                .from('passengers')
+                .insert(passengerInserts);
+
+            if (passengersError) {
+                // Clean up booking if passenger creation fails
+                await supabase.from('bookings').delete().eq('id', booking.id);
+                throw new Error(`Failed to create passengers: ${passengersError.message}`);
+            }
+
+            // Reserve seats
+            const seatReservations = selectedSeats.map(seat => ({
+                trip_id: trip.id,
+                seat_id: seat.id,
+                booking_id: booking.id,
+                is_available: false,
+                is_reserved: false,
+            }));
+
+            const { error: seatError } = await supabase
+                .from('seat_reservations')
+                .upsert(seatReservations, { onConflict: 'trip_id,seat_id' });
+
+            if (seatError) {
+                // Clean up booking and passengers if seat reservation fails
+                await supabase.from('passengers').delete().eq('booking_id', booking.id);
+                await supabase.from('bookings').delete().eq('id', booking.id);
+                throw new Error(`Failed to reserve seats: ${seatError.message}`);
+            }
+
+            // Create payment record
+            const { error: paymentError } = await supabase
+                .from('payments')
+                .insert({
+                    booking_id: booking.id,
+                    payment_method: paymentMethod as PaymentMethod,
+                    amount: currentBooking.totalFare,
+                    status: 'completed', // Mark as completed for immediate confirmation
+                });
+
+            if (paymentError) {
+                console.warn('Failed to create payment record:', paymentError);
+            }
+
+            // Update booking status to confirmed after successful payment
+            const { error: statusUpdateError } = await supabase
+                .from('bookings')
+                .update({ status: 'confirmed' })
+                .eq('id', booking.id);
+
+            if (statusUpdateError) {
+                console.warn('Failed to update booking status to confirmed:', statusUpdateError);
+            }
+
+            let returnBookingId = null;
+
+            // Handle return trip if round trip
+            if (tripType === 'round_trip' && returnTrip && returnRoute && returnSelectedSeats.length > 0) {
+                const returnBookingData = {
+                    user_id: user.id, // Required for RLS policy
+                    trip_id: returnTrip.id,
+                    total_fare: returnSelectedSeats.length * (returnRoute.baseFare || 0),
+                    payment_method_type: paymentMethod,
+                    status: 'pending_payment' as const, // Start with pending_payment like booking operations
+                    is_round_trip: true,
+                    check_in_status: false, // Initialize check-in status
+                };
+
+                const { data: returnBooking, error: returnBookingError } = await supabase
+                    .from('bookings')
+                    .insert(returnBookingData)
+                    .select()
+                    .single();
+
+                if (returnBookingError) {
+                    console.error('Return booking creation error:', returnBookingError);
+                    // Don't fail the main booking for return trip issues
+                } else {
+                    returnBookingId = returnBooking.id;
+
+                    // Generate return QR code
+                    const returnQrCodeData = generateBookingQrCode(
+                        returnBooking,
+                        passengers,
+                        returnSelectedSeats,
+                        returnTrip,
+                        returnRoute,
+                        false // isAgent = false for customer bookings
+                    );
+
+                    // Update return booking with QR code
+                    await updateBookingWithQrCode(returnBooking.id, returnQrCodeData);
+
+                    // Create passengers for return trip
+                    const returnPassengerInserts = passengers.map((passenger, index) => ({
+                        booking_id: returnBooking.id,
+                        seat_id: returnSelectedSeats[index]?.id,
+                        passenger_name: passenger.fullName,
+                        passenger_contact_number: passenger.idNumber || '',
+                        special_assistance_request: passenger.specialAssistance || null,
+                    }));
+
+                    const { error: returnPassengersError } = await supabase
+                        .from('passengers')
+                        .insert(returnPassengerInserts);
+
+                    if (returnPassengersError) {
+                        console.warn('Failed to create return passengers:', returnPassengersError);
+                    }
+
+                    // Reserve return seats
+                    const returnSeatReservations = returnSelectedSeats.map(seat => ({
+                        trip_id: returnTrip.id,
+                        seat_id: seat.id,
+                        booking_id: returnBooking.id,
+                        is_available: false,
+                        is_reserved: false,
+                    }));
+
+                    const { error: returnSeatError } = await supabase
+                        .from('seat_reservations')
+                        .upsert(returnSeatReservations, { onConflict: 'trip_id,seat_id' });
+
+                    if (returnSeatError) {
+                        console.warn('Failed to reserve return seats:', returnSeatError);
+                    }
+
+                    // Create payment record for return trip
+                    const { error: returnPaymentError } = await supabase
+                        .from('payments')
+                        .insert({
+                            booking_id: returnBooking.id,
+                            payment_method: paymentMethod as PaymentMethod,
+                            amount: returnSelectedSeats.length * (returnRoute.baseFare || 0),
+                            status: 'completed', // Mark as completed for immediate confirmation
+                        });
+
+                    if (returnPaymentError) {
+                        console.warn('Failed to create return payment record:', returnPaymentError);
+                    }
+
+                    // Update return booking status to confirmed after successful payment
+                    const { error: returnStatusUpdateError } = await supabase
+                        .from('bookings')
+                        .update({ status: 'confirmed' })
+                        .eq('id', returnBooking.id);
+
+                    if (returnStatusUpdateError) {
+                        console.warn('Failed to update return booking status to confirmed:', returnStatusUpdateError);
+                    }
+                }
+            }
+
+            set({ isLoading: false });
+            return { bookingId: booking.id, returnBookingId };
+
+        } catch (error: any) {
+            console.error('Error creating customer booking:', error);
+            set({
+                error: error.message || 'Failed to create booking',
+                isLoading: false
+            });
+            throw error;
+        }
     },
 })); 

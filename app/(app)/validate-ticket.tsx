@@ -12,8 +12,9 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Search, CheckCircle, XCircle, Camera, X } from 'lucide-react-native';
-import { CameraView, Camera as ExpoCamera } from 'expo-camera';
+import { CameraView, Camera as ExpoCamera, useCameraPermissions } from 'expo-camera';
 import { useTicketStore } from '@/store/ticketStore';
+import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -26,6 +27,7 @@ interface ValidationResult {
   isValid: boolean;
   booking: Booking | null;
   message: string;
+  isOwnBooking?: boolean;
 }
 
 export default function ValidateTicketScreen() {
@@ -33,61 +35,56 @@ export default function ValidateTicketScreen() {
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
 
-  const { validateTicket, isLoading } = useTicketStore();
+  const { validateTicket, isLoading, error } = useTicketStore();
+  const { isAuthenticated } = useAuthStore();
 
-  // Request camera permissions
   useEffect(() => {
     const getCameraPermissions = async () => {
-      try {
-        const { status } = await ExpoCamera.requestCameraPermissionsAsync();
-        setHasPermission(status === 'granted');
-      } catch (error) {
-        console.error('Camera permission error:', error);
-        setHasPermission(false);
+      if (!permission?.granted && showCamera) {
+        const { status } = await requestPermission();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Camera permission is required to scan QR codes');
+          setShowCamera(false);
+        }
       }
     };
 
     getCameraPermissions();
-  }, []);
+  }, [permission, showCamera, requestPermission]);
 
   const handleValidate = async () => {
     if (!bookingNumber.trim()) {
+      Alert.alert('Error', 'Please enter a booking number');
       return;
     }
 
     setIsValidating(true);
 
     try {
-      const result = await validateTicket(bookingNumber.trim());
+      const result = await validateTicket(bookingNumber.trim().toUpperCase());
       setValidationResult(result);
-    } catch (error) {
-      console.error('Validation error:', error);
-      setValidationResult({
-        isValid: false,
-        booking: null,
-        message: "Error validating ticket. Please try again."
-      });
+
+      if (error) {
+        Alert.alert('Error', error);
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to validate ticket. Please try again.');
     } finally {
       setIsValidating(false);
     }
   };
 
   const handleScanQR = () => {
-    if (hasPermission === null) {
-      Alert.alert('Camera Permission', 'Requesting camera permission...');
-      return;
-    }
-
-    if (hasPermission === false) {
+    if (!permission?.granted) {
       Alert.alert(
         'Camera Permission Required',
-        'Camera access is required to scan QR codes. Please enable camera permission in your device settings.',
+        'Please grant camera permission to scan QR codes',
         [
-          { text: 'Manual Entry', onPress: () => { } },
-          { text: 'OK', onPress: () => { } }
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Grant Permission', onPress: requestPermission }
         ]
       );
       return;
@@ -95,6 +92,7 @@ export default function ValidateTicketScreen() {
 
     setShowCamera(true);
     setScanned(false);
+    setValidationResult(null);
   };
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
@@ -103,43 +101,36 @@ export default function ValidateTicketScreen() {
     setScanned(true);
     setShowCamera(false);
 
-    // Extract booking number from QR data
-    let extractedBookingNumber = '';
-
     try {
-      // Try to parse as JSON first (our QR codes contain JSON data)
-      const qrData = JSON.parse(data);
-      extractedBookingNumber = qrData.bookingNumber || qrData.booking_number || '';
+      // Try to parse QR code data
+      let qrData;
+      try {
+        qrData = JSON.parse(data);
+      } catch (parseError) {
+        // If parsing fails, assume it's a booking number
+        qrData = { bookingNumber: data };
+      }
 
-    } catch {
-      // If not JSON, assume it's just the booking number
-      extractedBookingNumber = data.trim();
-    }
+      const bookingNum = qrData.bookingNumber || qrData.booking_number || data;
 
-    if (extractedBookingNumber) {
-      setBookingNumber(extractedBookingNumber);
-      // Auto-validate after scanning
-      setTimeout(async () => {
-        setIsValidating(true);
-        try {
-          const result = await validateTicket(extractedBookingNumber);
+      if (bookingNum) {
+        setBookingNumber(bookingNum.toString().toUpperCase());
+
+        // Auto-validate after scanning
+        validateTicket(bookingNum.toString().toUpperCase()).then(result => {
           setValidationResult(result);
-        } catch (error) {
-          console.error('Validation error:', error);
-          setValidationResult({
-            isValid: false,
-            booking: null,
-            message: "Error validating ticket. Please try again."
-          });
-        } finally {
-          setIsValidating(false);
-        }
-      }, 500);
-    } else {
-      Alert.alert(
-        'Invalid QR Code',
-        'This QR code does not contain a valid booking number. Please try scanning again or enter the booking number manually.'
-      );
+
+          if (error) {
+            Alert.alert('Error', error);
+          }
+        }).catch(err => {
+          Alert.alert('Error', 'Failed to validate scanned ticket. Please try again.');
+        });
+      } else {
+        Alert.alert('Invalid QR Code', 'The scanned QR code does not contain valid booking information');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to process scanned QR code');
     }
   };
 
@@ -149,8 +140,11 @@ export default function ValidateTicketScreen() {
   };
 
   const handleViewBooking = () => {
-    if (validationResult?.booking) {
+    if (validationResult?.booking && validationResult?.isOwnBooking) {
       router.push(`/booking-details/${validationResult.booking.id}`);
+    } else {
+      // This shouldn't happen as the button should be hidden, but just in case
+      Alert.alert('Access Denied', 'You can only view details of your own bookings.');
     }
   };
 
@@ -289,6 +283,20 @@ export default function ValidateTicketScreen() {
                 </View>
 
                 <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Type:</Text>
+                  <Text style={styles.summaryValue}>
+                    {validationResult.booking.bookingType === 'agent' ? 'Agent Booking' : 'Customer Booking'}
+                  </Text>
+                </View>
+
+                {validationResult.booking.clientName && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Client:</Text>
+                    <Text style={styles.summaryValue}>{validationResult.booking.clientName}</Text>
+                  </View>
+                )}
+
+                <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Status:</Text>
                   <Text style={[
                     styles.summaryValue,
@@ -354,14 +362,41 @@ export default function ValidateTicketScreen() {
                 </View>
               </View>
 
-              <Button
-                title="View Full Ticket"
-                onPress={handleViewBooking}
-                variant="outline"
-                style={styles.viewButton}
-              />
+              {/* Only show View Booking button for user's own bookings */}
+              {validationResult.isOwnBooking && validationResult.isValid && (
+                <>
+                  <View style={styles.divider} />
+
+                  <View style={styles.actionContainer}>
+                    <Button
+                      title="View Full Details"
+                      onPress={handleViewBooking}
+                      style={styles.viewButton}
+                    />
+                  </View>
+                </>
+              )}
+
+              {/* Show a note for other users' bookings */}
+              {!validationResult.isOwnBooking && validationResult.isValid && (
+                <>
+                  <View style={styles.divider} />
+
+                  <View style={styles.noteContainer}>
+                    <Text style={styles.noteText}>
+                      ℹ️ This ticket belongs to another user. You can only view basic validation information.
+                    </Text>
+                  </View>
+                </>
+              )}
             </>
           )}
+        </Card>
+      )}
+
+      {error && (
+        <Card variant="elevated" style={styles.errorCard}>
+          <Text style={styles.errorText}>{error}</Text>
         </Card>
       )}
     </ScrollView>
@@ -574,5 +609,24 @@ const styles = StyleSheet.create({
   },
   viewButton: {
     alignSelf: 'flex-start',
+  },
+  actionContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  noteContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  noteText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  errorCard: {
+    marginTop: 16,
+  },
+  errorText: {
+    fontSize: 14,
+    color: Colors.error,
   },
 });

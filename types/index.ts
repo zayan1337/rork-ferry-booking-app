@@ -71,6 +71,12 @@ export type Booking = {
     method: PaymentMethod;
     status: PaymentStatus;
   };
+  bookingType?: 'customer' | 'agent';
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  agentId?: string | null;
+  isAgentBooking?: boolean;
 };
 
 export * from './components';
