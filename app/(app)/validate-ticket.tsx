@@ -141,7 +141,7 @@ export default function ValidateTicketScreen() {
 
   const handleViewBooking = () => {
     if (validationResult?.booking && validationResult?.isOwnBooking) {
-      router.push(`/booking-details/${validationResult.booking.id}`);
+      router.push(`/(app)/booking-details/${validationResult.booking.id}`);
     } else {
       // This shouldn't happen as the button should be hidden, but just in case
       Alert.alert('Access Denied', 'You can only view details of your own bookings.');

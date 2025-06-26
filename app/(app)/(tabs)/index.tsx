@@ -127,7 +127,7 @@ export default function HomeScreen() {
   };
 
   const handleViewBooking = (bookingId: string) => {
-    router.push(`/booking-details/${bookingId}`);
+    router.push(`/(app)/booking-details/${bookingId}`);
   };
 
   // Get unique island names for selection, filtered based on current selection and available routes
@@ -290,7 +290,6 @@ export default function HomeScreen() {
         <Button
           title="Start Booking"
           onPress={handleStartBooking}
-          fullWidth
           style={styles.bookButton}
         />
       </Card>

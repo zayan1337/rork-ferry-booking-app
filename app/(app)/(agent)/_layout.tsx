@@ -34,14 +34,14 @@ export default function AgentLayout() {
                 }}
             />
             <Stack.Screen
-                name="cancel-booking/[id]"
+                name="agent-cancel-booking/[id]"
                 options={{
                     title: "Cancel Booking",
                     presentation: "card",
                 }}
             />
             <Stack.Screen
-                name="modify-booking/[id]"
+                name="agent-modify-booking/[id]"
                 options={{
                     title: "Modify Booking",
                     presentation: "card",

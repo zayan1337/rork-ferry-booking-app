@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,10 +26,17 @@ import TicketCard from '@/components/TicketCard';
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
-  const { bookings } = useUserBookingsStore();
+  const { bookings, fetchUserBookings } = useUserBookingsStore();
 
-  // Find the booking by id
-  const booking = bookings.find(b => b.id === id);
+  // Ensure bookings are loaded when component mounts
+  useEffect(() => {
+    if (bookings.length === 0) {
+      fetchUserBookings();
+    }
+  }, [fetchUserBookings, bookings.length]);
+
+  // Find the booking by id with proper type handling
+  const booking = bookings.find(b => String(b.id) === String(id));
 
   if (!booking) {
     return (
@@ -85,7 +92,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
       return;
     }
 
-    router.push(`/modify-booking/${booking.id}`);
+    router.push(`/(app)/modify-booking/${booking.id}`);
   };
 
   const handleCancelBooking = () => {
@@ -102,7 +109,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
       return;
     }
 
-    router.push(`/cancel-booking/${booking.id}`);
+    router.push(`/(app)/cancel-booking/${booking.id}`);
   };
 
   const isModifiable = () => {

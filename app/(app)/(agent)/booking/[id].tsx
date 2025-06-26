@@ -166,14 +166,14 @@ export default function BookingDetailsScreen() {
           },
           {
             text: "Override & Modify",
-            onPress: () => router.push(`/(agent)/modify-booking/${bookingId}` as any)
+            onPress: () => router.push(`/(agent)/agent-modify-booking/${bookingId}` as any)
           }
         ]
       );
       return;
     }
 
-    router.push(`/(agent)/modify-booking/${bookingId}` as any);
+    router.push(`/(agent)/agent-modify-booking/${bookingId}` as any);
   };
 
   const handleCancelBooking = () => {
@@ -201,14 +201,14 @@ export default function BookingDetailsScreen() {
           },
           {
             text: "Process Cancellation",
-            onPress: () => router.push(`/(agent)/cancel-booking/${bookingId}` as any)
+            onPress: () => router.push(`/(agent)/agent-cancel-booking/${bookingId}` as any)
           }
         ]
       );
       return;
     }
 
-    router.push(`/(agent)/cancel-booking/${bookingId}` as any);
+    router.push(`/(agent)/agent-cancel-booking/${bookingId}` as any);
   };
 
   const handleUpdateStatus = async (status: string) => {

@@ -49,6 +49,7 @@ export default function ModifyBookingScreen() {
   const {
     bookings,
     modifyBooking,
+    fetchUserBookings,
     isLoading: bookingsLoading
   } = useUserBookingsStore();
 
@@ -94,6 +95,13 @@ export default function ModifyBookingScreen() {
     reason: '',
     trip: '',
   });
+
+  // Ensure bookings are loaded when component mounts
+  useEffect(() => {
+    if (bookings.length === 0) {
+      fetchUserBookings();
+    }
+  }, [fetchUserBookings, bookings.length]);
 
   // Enhanced keyboard event listeners
   useEffect(() => {
@@ -144,14 +152,28 @@ export default function ModifyBookingScreen() {
     }, 100);
   };
 
-  // Find the booking by id
-  const booking = bookings.find((b: any) => b.id === id);
+  // Find the booking by id with proper type handling
+  const booking = bookings.find((b: any) => {
+    // Handle both string and number IDs
+    return String(b.id) === String(id);
+  });
+
+
+
+  // Show loading state while bookings are being fetched
+  if (bookingsLoading && bookings.length === 0) {
+    return (
+      <View style={styles.notFoundContainer}>
+        <Text style={styles.notFoundText}>Loading booking details...</Text>
+      </View>
+    );
+  }
 
   useEffect(() => {
     if (booking) {
       setNewDepartureDate(booking.departureDate);
       setNewReturnDate(booking.returnDate || null);
-      setSelectedSeats(booking.seats);
+      setSelectedSeats(booking.seats || []);
       setReturnSelectedSeats(booking.returnSeats || []);
 
       // Calculate a random fare difference for demo purposes
@@ -187,10 +209,10 @@ export default function ModifyBookingScreen() {
 
   // Fetch trips when date or route changes
   useEffect(() => {
-    if (booking?.route && newDepartureDate) {
+    if (booking?.route?.id && newDepartureDate) {
       fetchTrips(booking.route.id, newDepartureDate, false);
     }
-  }, [booking?.route, newDepartureDate, fetchTrips]);
+  }, [booking?.route?.id, newDepartureDate, fetchTrips]);
 
   // Fetch seat availability for all trips when trips are loaded
   useEffect(() => {
@@ -214,10 +236,10 @@ export default function ModifyBookingScreen() {
   }, [trips]);
 
   useEffect(() => {
-    if (booking?.returnRoute && newReturnDate) {
+    if (booking?.returnRoute?.id && newReturnDate) {
       fetchTrips(booking.returnRoute.id, newReturnDate, true);
     }
-  }, [booking?.returnRoute, newReturnDate, fetchTrips]);
+  }, [booking?.returnRoute?.id, newReturnDate, fetchTrips]);
 
   // Fetch seat availability for return trips when they are loaded
   useEffect(() => {
@@ -362,7 +384,7 @@ export default function ModifyBookingScreen() {
         [
           {
             text: "OK",
-            onPress: () => router.replace('/bookings')
+            onPress: () => router.replace('/(app)/(tabs)/bookings')
           }
         ]
       );

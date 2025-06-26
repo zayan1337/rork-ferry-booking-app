@@ -19,7 +19,7 @@ import Button from '@/components/Button';
 
 export default function CancelBookingScreen() {
   const { id } = useLocalSearchParams();
-  const { bookings, cancelBooking, isLoading } = useUserBookingsStore();
+  const { bookings, cancelBooking, fetchUserBookings, isLoading } = useUserBookingsStore();
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -43,6 +43,13 @@ export default function CancelBookingScreen() {
     accountName: '',
     bankName: '',
   });
+
+  // Ensure bookings are loaded when component mounts
+  useEffect(() => {
+    if (bookings.length === 0) {
+      fetchUserBookings();
+    }
+  }, [fetchUserBookings, bookings.length]);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -91,8 +98,11 @@ export default function CancelBookingScreen() {
     }, 100); // Small delay for smooth animation
   };
 
-  // Find the booking by id
-  const booking = bookings.find((b: any) => b.id === id);
+  // Find the booking by id with proper type handling
+  const booking = bookings.find((b: any) => {
+    // Handle both string and number IDs
+    return String(b.id) === String(id);
+  });
 
   if (!booking) {
     return (
@@ -149,7 +159,7 @@ export default function CancelBookingScreen() {
         [
           {
             text: "OK",
-            onPress: () => router.replace('/bookings')
+            onPress: () => router.replace('/(app)/(tabs)/bookings')
           }
         ]
       );
