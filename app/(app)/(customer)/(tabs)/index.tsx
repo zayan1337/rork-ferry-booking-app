@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,9 @@ import Button from '@/components/Button';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
+
+  // Add scroll reference
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Core booking state
   const {
@@ -126,8 +129,13 @@ export default function HomeScreen() {
     router.push('/book');
   };
 
+  // New function to handle Book Now buttons - scrolls to top to focus on quick booking form
+  const handleBookNowClick = () => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
   const handleViewBooking = (bookingId: string) => {
-    router.push(`/(app)/booking-details/${bookingId}`);
+    router.push(`./booking-details/${bookingId}`);
   };
 
   // Get unique island names for selection, filtered based on current selection and available routes
@@ -179,6 +187,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
+      ref={scrollViewRef}
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
       refreshControl={
@@ -498,7 +507,7 @@ export default function HomeScreen() {
             title="Book Now"
             variant="primary"
             size="small"
-            onPress={handleStartBooking}
+            onPress={handleBookNowClick}
             style={styles.emptyButton}
           />
         </Card>
@@ -556,7 +565,7 @@ export default function HomeScreen() {
           <Button
             title="Book Now"
             size="small"
-            onPress={handleStartBooking}
+            onPress={handleBookNowClick}
             style={styles.featuredButton}
           />
         </View>

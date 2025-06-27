@@ -380,7 +380,7 @@ export default function BookScreen() {
             {
               text: "View Tickets",
               onPress: () => router.push({
-                pathname: "/(app)/(tabs)/bookings"
+                pathname: "./(tabs)/bookings"
               })
             }
           ]

@@ -23,7 +23,7 @@ export default function AppLayout() {
   // Determine initial route based on user role
   const getInitialRouteName = () => {
     if (!user?.profile) {
-      return "(tabs)"; // Default to customer if profile not loaded
+      return "(customer)"; // Default to customer if profile not loaded
     }
 
     switch (user.profile.role) {
@@ -33,7 +33,7 @@ export default function AppLayout() {
         return "(agent)";
       case 'customer':
       default:
-        return "(tabs)";
+        return "(customer)";
     }
   };
 
@@ -50,36 +50,8 @@ export default function AppLayout() {
       }}
       initialRouteName={getInitialRouteName()}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(customer)" options={{ headerShown: false }} />
       <Stack.Screen name="(agent)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="booking-details/[id]"
-        options={{
-          title: "Booking Details",
-          presentation: "card",
-        }}
-      />
-      <Stack.Screen
-        name="modify-booking/[id]"
-        options={{
-          title: "Modify Booking",
-          presentation: "card",
-        }}
-      />
-      <Stack.Screen
-        name="cancel-booking/[id]"
-        options={{
-          title: "Cancel Booking",
-          presentation: "card",
-        }}
-      />
-      <Stack.Screen
-        name="validate-ticket"
-        options={{
-          title: "Validate Ticket",
-          presentation: "modal",
-        }}
-      />
     </Stack>
   );
 }
