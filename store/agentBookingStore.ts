@@ -118,7 +118,7 @@ interface AgentBookingActions {
     // Booking refresh utility
     refreshAgentData: () => Promise<void>;
     onBookingCreated?: (bookingId: string, returnBookingId?: string | null) => Promise<void>;
-    setOnBookingCreated: (callback: (bookingId: string, returnBookingId?: string | null) => Promise<void>) => void;
+    setOnBookingCreated: (callback?: (bookingId: string, returnBookingId?: string | null) => Promise<void>) => void;
 
     // Unified QR Code utilities
     generateUnifiedQrCode: (booking: any, passengers: Passenger[], selectedSeats: Seat[], trip: Trip, route: Route, type: string, additionalData?: any) => string;

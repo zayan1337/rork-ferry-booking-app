@@ -7,6 +7,7 @@ import ClientCard from "@/components/ClientCard";
 import Input from "@/components/Input";
 import { Search, UserPlus } from "lucide-react-native";
 import { Client } from "@/types/agent";
+import { isBookingInactive } from "@/utils/bookingUtils";
 
 export default function AgentClientsScreen() {
   const router = useRouter();
@@ -39,9 +40,7 @@ export default function AgentClientsScreen() {
 
   const getInactiveBookingsCount = (clientId: string) => {
     const clientBookings = getBookingsByClient(clientId);
-    return clientBookings.filter(booking =>
-      booking.status === "cancelled" || booking.status === "modified"
-    ).length;
+    return clientBookings.filter(isBookingInactive).length;
   };
 
   const getTotalBookingsCount = () => {
@@ -53,7 +52,7 @@ export default function AgentClientsScreen() {
   };
 
   const handleAddClient = () => {
-    alert("Add client functionality would be implemented here");
+    router.push("../client/add");
   };
 
 

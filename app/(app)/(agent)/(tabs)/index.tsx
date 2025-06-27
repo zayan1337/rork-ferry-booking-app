@@ -18,11 +18,26 @@ import {
     XCircle,
     Plus
 } from "lucide-react-native";
+import { getActiveBookings, getInactiveBookings } from "@/utils/bookingUtils";
 
 export default function AgentDashboardScreen() {
     const router = useRouter();
     const { user } = useAuthStore();
-    const { agent, stats, bookings, isLoading, error } = useAgentStore();
+    const { agent, stats, bookings, isLoading, error, getLocalStats } = useAgentStore();
+
+    // Calculate local stats using booking utilities as fallback/override
+    const localStats = getLocalStats ? getLocalStats() : null;
+
+    // Use local stats for more accurate active/inactive calculations
+    const displayStats = {
+        totalBookings: stats?.totalBookings || localStats?.totalBookings || 0,
+        activeBookings: localStats?.activeBookings || stats?.activeBookings || 0, // Prioritize local calculation
+        completedBookings: stats?.completedBookings || localStats?.completedBookings || 0,
+        cancelledBookings: stats?.cancelledBookings || localStats?.cancelledBookings || 0,
+        totalRevenue: stats?.totalRevenue || localStats?.totalRevenue || 0,
+        totalCommission: stats?.totalCommission || localStats?.totalCommission || 0,
+        uniqueClients: stats?.uniqueClients || localStats?.uniqueClients || 0,
+    };
 
     // Get the most recent bookings - safely handle undefined bookings
     const recentBookings = (bookings || [])
@@ -45,7 +60,7 @@ export default function AgentDashboardScreen() {
         }
     }, [user?.id]); // Only depend on user ID to avoid unnecessary re-runs
 
-  
+
 
     const formatCurrency = (amount: number | undefined) => {
         if (typeof amount !== 'number' || isNaN(amount)) {
@@ -149,40 +164,46 @@ export default function AgentDashboardScreen() {
             >
                 <StatCard
                     title="Total Bookings"
-                    value={stats?.totalBookings || 0}
+                    value={displayStats.totalBookings}
                     icon={<TicketIcon size={16} color={Colors.primary} />}
                 />
                 <StatCard
                     title="Active Bookings"
-                    value={stats?.activeBookings || 0}
+                    value={displayStats.activeBookings}
                     icon={<Calendar size={16} color={Colors.primary} />}
                 />
                 <StatCard
+                    title="Inactive Bookings"
+                    value={localStats ? getInactiveBookings(bookings || []).length : 0}
+                    icon={<XCircle size={16} color={Colors.warning} />}
+                    color={Colors.warning}
+                />
+                <StatCard
                     title="Completed"
-                    value={stats?.completedBookings || 0}
+                    value={displayStats.completedBookings}
                     icon={<CheckCircle size={16} color={Colors.success} />}
                     color={Colors.success}
                 />
                 <StatCard
                     title="Cancelled"
-                    value={stats?.cancelledBookings || 0}
+                    value={displayStats.cancelledBookings}
                     icon={<XCircle size={16} color={Colors.error} />}
                     color={Colors.error}
                 />
                 <StatCard
                     title="Total Revenue"
-                    value={formatCurrency(stats?.totalRevenue)}
+                    value={formatCurrency(displayStats.totalRevenue)}
                     icon={<DollarSign size={16} color={Colors.primary} />}
                 />
                 <StatCard
                     title="Commission"
-                    value={formatCurrency(stats?.totalCommission)}
+                    value={formatCurrency(displayStats.totalCommission)}
                     icon={<CreditCard size={16} color={Colors.secondary} />}
                     color={Colors.secondary}
                 />
                 <StatCard
                     title="Unique Clients"
-                    value={stats?.uniqueClients || 0}
+                    value={displayStats.uniqueClients}
                     icon={<Users size={16} color={Colors.primary} />}
                 />
             </ScrollView>

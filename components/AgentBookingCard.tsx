@@ -4,6 +4,7 @@ import { Booking } from "@/types/agent";
 import Colors from "@/constants/colors";
 import { Calendar, MapPin, User, DollarSign } from "lucide-react-native";
 import Card from "./Card";
+import { isBookingExpired, isBookingInactive } from "@/utils/bookingUtils";
 
 interface AgentBookingCardProps {
     booking: Booking;
@@ -11,7 +12,11 @@ interface AgentBookingCardProps {
 }
 
 export default function AgentBookingCard({ booking, onPress }: AgentBookingCardProps) {
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string, isExpired: boolean = false) => {
+        if (isExpired) {
+            return Colors.warning; // Show expired bookings in warning color
+        }
+
         switch (status) {
             case "confirmed":
                 return Colors.primary;
@@ -28,9 +33,12 @@ export default function AgentBookingCard({ booking, onPress }: AgentBookingCardP
         }
     };
 
-    const isInactiveBooking = (status: string) => {
-        return status === "cancelled" || status === "modified";
+    const getStatusText = (status: string) => {
+        return status.charAt(0).toUpperCase() + status.slice(1);
     };
+
+    const bookingExpired = isBookingExpired(booking);
+    const bookingInactive = isBookingInactive(booking);
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -55,7 +63,7 @@ export default function AgentBookingCard({ booking, onPress }: AgentBookingCardP
                     <View style={styles.route}>
                         <Text style={[
                             styles.routeText,
-                            isInactiveBooking(booking.status) && styles.inactiveText
+                            bookingInactive && styles.inactiveText
                         ]}>
                             {booking.origin} → {booking.destination}
                         </Text>
@@ -63,11 +71,11 @@ export default function AgentBookingCard({ booking, onPress }: AgentBookingCardP
                     <View
                         style={[
                             styles.statusBadge,
-                            { backgroundColor: getStatusColor(booking.status) },
+                            { backgroundColor: getStatusColor(booking.status, bookingExpired) },
                         ]}
                     >
                         <Text style={styles.statusText}>
-                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            {getStatusText(booking.status)}
                         </Text>
                     </View>
                 </View>
@@ -75,9 +83,13 @@ export default function AgentBookingCard({ booking, onPress }: AgentBookingCardP
                 <View style={styles.infoRow}>
                     <View style={styles.infoItem}>
                         <Calendar size={16} color={Colors.subtext} />
-                        <Text style={styles.infoText}>
+                        <Text style={[
+                            styles.infoText,
+                            bookingExpired && styles.expiredText
+                        ]}>
                             {formatDate(booking.departureDate)}
                             {booking.returnDate ? ` - ${formatDate(booking.returnDate)}` : ""}
+                            {bookingExpired && " (Expired)"}
                         </Text>
                     </View>
                     <View style={styles.infoItem}>
@@ -184,5 +196,9 @@ const styles = StyleSheet.create({
     },
     inactiveText: {
         color: Colors.subtext,
+    },
+    expiredText: {
+        color: Colors.warning,
+        fontWeight: "500",
     },
 });

@@ -8,6 +8,7 @@ import Button from "@/components/Button";
 import { useRouter } from "expo-router";
 import { Mail, Phone, User, BookOpen, Calendar, UserX } from "lucide-react-native";
 import AgentBookingCard from "@/components/AgentBookingCard";
+import { isBookingActive, isBookingInactive } from "@/utils/bookingUtils";
 
 export default function ClientDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -101,7 +102,7 @@ export default function ClientDetailsScreen() {
           <View style={styles.statCard}>
             <Calendar size={24} color={Colors.primary} />
             <Text style={styles.statValue}>
-              {clientBookings.filter(b => b.status === "confirmed" || b.status === "pending").length}
+              {clientBookings.filter(isBookingActive).length}
             </Text>
             <Text style={styles.statLabel}>Active Bookings</Text>
           </View>
@@ -109,7 +110,7 @@ export default function ClientDetailsScreen() {
           <View style={styles.statCard}>
             <Calendar size={24} color={Colors.warning} />
             <Text style={[styles.statValue, { color: Colors.warning }]}>
-              {clientBookings.filter(b => b.status === "cancelled" || b.status === "modified").length}
+              {clientBookings.filter(isBookingInactive).length}
             </Text>
             <Text style={styles.statLabel}>Inactive Bookings</Text>
           </View>

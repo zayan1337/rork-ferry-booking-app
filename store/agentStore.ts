@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Agent, AgentStats, Booking, Client, CreditTransaction } from '@/types/agent';
 import { supabase } from '@/utils/supabase';
+import { isBookingActive, isBookingInactive, getActiveBookings, getInactiveBookings } from '@/utils/bookingUtils';
 
 interface AgentProfile {
     id: string;
@@ -61,6 +62,14 @@ interface AgentState {
         overrideFee?: boolean;
     }) => Promise<string>;
     addClientToAgent: (clientId: string) => Promise<void>;
+    createAgentClient: (clientData: {
+        name: string;
+        email: string;
+        phone: string;
+        idNumber?: string;
+    }) => Promise<string>;
+    searchExistingUser: (email: string) => Promise<any | null>;
+    addExistingUserAsClient: (userId: string) => Promise<void>;
     setLanguage: (languageCode: string) => Promise<void>;
     getTranslation: (key: string) => string;
     clearError: () => void;
@@ -90,6 +99,11 @@ interface AgentState {
     getBookingCancellation: (bookingId: string) => Promise<any | null>;
     getBookingFullHistory: (bookingId: string) => Promise<any>;
     updateBookingStatusWithHistory: (bookingId: string, status: string, notes?: string) => Promise<void>;
+
+    // Local booking utility methods
+    getLocalActiveBookings: () => Booking[];
+    getLocalInactiveBookings: () => Booking[];
+    getLocalStats: () => AgentStats;
 }
 
 export const useAgentStore = create<AgentState>()(
@@ -1529,6 +1543,148 @@ export const useAgentStore = create<AgentState>()(
                 }
             },
 
+            createAgentClient: async (clientData: {
+                name: string;
+                email: string;
+                phone: string;
+                idNumber?: string;
+            }) => {
+                try {
+                    const { agent } = get();
+                    if (!agent) throw new Error('Agent not authenticated');
+
+                    set({ isLoading: true, error: null });
+
+                    // Check if a client with this email already exists for this agent
+                    const { data: existingClient, error: checkError } = await supabase
+                        .from('agent_clients')
+                        .select('id')
+                        .eq('agent_id', agent.id)
+                        .eq('email', clientData.email.toLowerCase())
+                        .single();
+
+                    if (!checkError && existingClient) {
+                        throw new Error('A client with this email already exists in your client list');
+                    }
+
+                    // Create new client record
+                    const { data: newClient, error: createError } = await supabase
+                        .from('agent_clients')
+                        .insert({
+                            agent_id: agent.id,
+                            full_name: clientData.name.trim(),
+                            email: clientData.email.trim().toLowerCase(),
+                            mobile_number: clientData.phone.trim(),
+                            id_number: clientData.idNumber?.trim() || null,
+                        })
+                        .select()
+                        .single();
+
+                    if (createError) throw createError;
+
+                    // Refresh clients after creating new one
+                    await get().fetchClients();
+
+                    set({ isLoading: false });
+                    return newClient.id;
+
+                } catch (error) {
+                    set({
+                        error: error instanceof Error ? error.message : 'Failed to create client',
+                        isLoading: false,
+                    });
+                    throw error;
+                }
+            },
+
+            searchExistingUser: async (email: string) => {
+                try {
+                    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                        return null;
+                    }
+
+                    set({ isLoading: true, error: null });
+
+                    const { data, error } = await supabase
+                        .from('user_profiles')
+                        .select('id, full_name, email, mobile_number, role')
+                        .eq('email', email.toLowerCase())
+                        .eq('role', 'customer')
+                        .single();
+
+                    set({ isLoading: false });
+
+                    if (error || !data) {
+                        return null;
+                    }
+
+                    return data;
+                } catch (error) {
+                    set({
+                        error: error instanceof Error ? error.message : 'Failed to search for existing user',
+                        isLoading: false,
+                    });
+                    return null;
+                }
+            },
+
+            addExistingUserAsClient: async (userId: string) => {
+                try {
+                    const { agent } = get();
+                    if (!agent) throw new Error('Agent not authenticated');
+
+                    set({ isLoading: true, error: null });
+
+                    // Get user details
+                    const { data: userData, error: userError } = await supabase
+                        .from('user_profiles')
+                        .select('id, full_name, email, mobile_number')
+                        .eq('id', userId)
+                        .single();
+
+                    if (userError || !userData) {
+                        throw new Error('User not found');
+                    }
+
+                    // Check if this user is already a client of this agent
+                    const { data: existingAgentClient, error: checkError } = await supabase
+                        .from('agent_clients')
+                        .select('id')
+                        .eq('agent_id', agent.id)
+                        .eq('client_id', userId)
+                        .single();
+
+                    if (!checkError && existingAgentClient) {
+                        throw new Error('This user is already a client of yours');
+                    }
+
+                    // Add existing user as client
+                    const { error: addError } = await supabase
+                        .from('agent_clients')
+                        .insert({
+                            agent_id: agent.id,
+                            client_id: userId,
+                            full_name: userData.full_name,
+                            email: userData.email,
+                            mobile_number: userData.mobile_number,
+                        });
+
+                    if (addError) throw addError;
+
+                    // Refresh clients data
+                    await get().fetchClients();
+
+                    set({ isLoading: false });
+
+                } catch (error) {
+                    set({
+                        error: error instanceof Error ? error.message : 'Failed to add existing user as client',
+                        isLoading: false,
+                    });
+                    throw error;
+                }
+            },
+
             setLanguage: async (languageCode: string) => {
                 try {
                     set({ isLoading: true, error: null });
@@ -1744,8 +1900,6 @@ export const useAgentStore = create<AgentState>()(
                 }
             },
 
-
-
             getBookingFullHistory: async (bookingId: string) => {
                 try {
                     const [modifications, cancellation, creditTransactions] = await Promise.all([
@@ -1838,6 +1992,33 @@ export const useAgentStore = create<AgentState>()(
                     });
                     throw error;
                 }
+            },
+
+            // Local booking utility methods that use the imported booking utilities
+            getLocalActiveBookings: () => {
+                const { bookings } = get();
+                return getActiveBookings(bookings);
+            },
+
+            getLocalInactiveBookings: () => {
+                const { bookings } = get();
+                return getInactiveBookings(bookings);
+            },
+
+            getLocalStats: () => {
+                const { bookings, clients } = get();
+                const activeBookings = getActiveBookings(bookings);
+                const inactiveBookings = getInactiveBookings(bookings);
+
+                return {
+                    totalBookings: bookings.length,
+                    activeBookings: activeBookings.length,
+                    completedBookings: bookings.filter(b => b.status === 'completed').length,
+                    cancelledBookings: bookings.filter(b => b.status === 'cancelled').length,
+                    totalRevenue: bookings.reduce((sum, booking) => sum + (booking.totalAmount || 0), 0),
+                    totalCommission: bookings.reduce((sum, booking) => sum + (booking.commission || 0), 0),
+                    uniqueClients: new Set(bookings.map(b => b.clientId)).size,
+                };
             },
         }),
         {
