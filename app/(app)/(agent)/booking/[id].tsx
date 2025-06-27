@@ -14,6 +14,7 @@ import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import Button from "@/components/Button";
 import TicketCard from "@/components/TicketCard";
+import { getClientDisplayName } from "@/utils/clientUtils";
 import {
   Calendar,
   Clock,
@@ -34,7 +35,7 @@ import {
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { bookings, cancelBooking, updateBookingStatus } = useAgentStore();
+  const { bookings, clients, cancelBooking, updateBookingStatus } = useAgentStore();
   const [loading, setLoading] = useState(false);
 
   // Find the booking by id
@@ -444,7 +445,7 @@ export default function BookingDetailsScreen() {
             </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Name</Text>
-              <Text style={styles.detailValue}>{String(booking.clientName || 'N/A')}</Text>
+              <Text style={styles.detailValue}>{getClientDisplayName(booking.clientName, clients)}</Text>
             </View>
           </View>
 

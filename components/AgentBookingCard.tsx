@@ -5,6 +5,8 @@ import Colors from "@/constants/colors";
 import { Calendar, MapPin, User, DollarSign } from "lucide-react-native";
 import Card from "./Card";
 import { isBookingExpired, isBookingInactive } from "@/utils/bookingUtils";
+import { getClientDisplayName } from "@/utils/clientUtils";
+import { useAgentStore } from "@/store/agentStore";
 
 interface AgentBookingCardProps {
     booking: Booking;
@@ -12,6 +14,8 @@ interface AgentBookingCardProps {
 }
 
 export default function AgentBookingCard({ booking, onPress }: AgentBookingCardProps) {
+    const { clients } = useAgentStore();
+
     const getStatusColor = (status: string, isExpired: boolean = false) => {
         if (isExpired) {
             return Colors.warning; // Show expired bookings in warning color
@@ -104,7 +108,7 @@ export default function AgentBookingCard({ booking, onPress }: AgentBookingCardP
 
                 <View style={styles.footer}>
                     <View style={styles.clientInfo}>
-                        <Text style={styles.clientName}>{booking.clientName}</Text>
+                        <Text style={styles.clientName}>{getClientDisplayName(booking.clientName, clients)}</Text>
                         <Text style={styles.bookingId}>ID: {booking.id}</Text>
                     </View>
                     <View style={styles.priceInfo}>
