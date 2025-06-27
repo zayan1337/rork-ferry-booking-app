@@ -92,7 +92,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
       return;
     }
 
-    router.push(`./modify-booking/${booking.id}`);
+    router.push(`/modify-booking/${booking.id}`);
   };
 
   const handleCancelBooking = () => {
@@ -109,7 +109,7 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
       return;
     }
 
-    router.push(`./cancel-booking/${booking.id}`);
+    router.push(`/cancel-booking/${booking.id}`);
   };
 
   const isModifiable = () => {

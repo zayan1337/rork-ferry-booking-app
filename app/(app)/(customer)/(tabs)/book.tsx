@@ -32,6 +32,7 @@ import Dropdown from '@/components/Dropdown';
 import SeatSelector from '@/components/SeatSelector';
 import Input from '@/components/Input';
 import { Seat } from '@/types';
+import { toggleSeatSelection, updatePassengersForSeats } from '@/utils/seatSelectionUtils';
 
 // Define the Supabase seat data type
 type SupabaseSeat = {
@@ -61,6 +62,11 @@ export default function BookScreen() {
   // Removed local currentStep state - using store's currentStep
   const [paymentMethod, setPaymentMethod] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // Local seat selection state to avoid store circular dependencies
+  const [localSelectedSeats, setLocalSelectedSeats] = useState<Seat[]>([]);
+  const [localReturnSelectedSeats, setLocalReturnSelectedSeats] = useState<Seat[]>([]);
+
   const [errors, setErrors] = useState({
     tripType: '',
     departureDate: '',
@@ -118,7 +124,6 @@ export default function BookScreen() {
     seats,
     fetchSeats,
     fetchAvailableSeats,
-    toggleSeatSelection,
     subscribeSeatUpdates,
     unsubscribeSeatUpdates,
     cleanupAllSeatSubscriptions,
@@ -216,6 +221,15 @@ export default function BookScreen() {
     };
   }, []);
 
+  // Sync local seat selection with booking store
+  useEffect(() => {
+    setLocalSelectedSeats(currentBooking.selectedSeats);
+  }, [currentBooking.selectedSeats]);
+
+  useEffect(() => {
+    setLocalReturnSelectedSeats(currentBooking.returnSelectedSeats);
+  }, [currentBooking.returnSelectedSeats]);
+
   // Periodic seat refresh when on seat selection step (as fallback for real-time updates)
   useEffect(() => {
     if (currentStep === 3) {
@@ -279,18 +293,18 @@ export default function BookScreen() {
         break;
 
       case 3: // Seat Selection
-        if (currentBooking.selectedSeats.length === 0) {
+        if (localSelectedSeats.length === 0) {
           newErrors.seats = 'Please select at least one seat';
           isValid = false;
         }
 
-        if (currentBooking.tripType === 'round_trip' && currentBooking.returnSelectedSeats.length === 0) {
+        if (currentBooking.tripType === 'round_trip' && localReturnSelectedSeats.length === 0) {
           newErrors.seats = 'Please select at least one return seat';
           isValid = false;
         }
 
         if (currentBooking.tripType === 'round_trip' &&
-          currentBooking.selectedSeats.length !== currentBooking.returnSelectedSeats.length) {
+          localSelectedSeats.length !== localReturnSelectedSeats.length) {
           newErrors.seats = 'Number of departure and return seats must match';
           isValid = false;
         }
@@ -351,6 +365,8 @@ export default function BookScreen() {
         setCurrentStep(1);
         setPaymentMethod('');
         setTermsAccepted(false);
+        setLocalSelectedSeats([]);
+        setLocalReturnSelectedSeats([]);
         setErrors({
           tripType: '',
           departureDate: '',
@@ -380,7 +396,7 @@ export default function BookScreen() {
             {
               text: "View Tickets",
               onPress: () => router.push({
-                pathname: "./(tabs)/bookings"
+                pathname: "/(app)/(customer)/(tabs)/bookings"
               })
             }
           ]
@@ -420,6 +436,47 @@ export default function BookScreen() {
       [field]: value
     };
     updatePassengers(updatedPassengers);
+  };
+
+  // Handle seat selection using utility function
+  const handleSeatToggle = (seat: Seat, isReturn: boolean = false) => {
+    const currentSeats = isReturn ? localReturnSelectedSeats : localSelectedSeats;
+
+    toggleSeatSelection(seat, currentSeats, {
+      onSeatsChange: (newSeats, isReturnSeat) => {
+        if (isReturnSeat) {
+          setLocalReturnSelectedSeats(newSeats);
+          // Update booking store with return seats
+          const updatedBooking = {
+            ...currentBooking,
+            returnSelectedSeats: newSeats
+          };
+          useBookingStore.setState({ currentBooking: updatedBooking });
+        } else {
+          setLocalSelectedSeats(newSeats);
+          // Update booking store with departure seats
+          const updatedBooking = {
+            ...currentBooking,
+            selectedSeats: newSeats
+          };
+
+          // Update passengers array to match seat count
+          const newPassengers = updatePassengersForSeats(currentBooking.passengers, newSeats.length);
+          updatedBooking.passengers = newPassengers;
+
+          useBookingStore.setState({ currentBooking: updatedBooking });
+        }
+
+        // Recalculate total fare
+        calculateTotalFare();
+      },
+      onError: (error) => {
+        Alert.alert('Seat Selection Error', error);
+      },
+      maxSeats: undefined // No specific limit here, validation will happen later
+    }, isReturn);
+
+    if (errors.seats) setErrors({ ...errors, seats: '' });
   };
 
   // Format route options for dropdown
@@ -657,11 +714,8 @@ export default function BookScreen() {
             <Text style={styles.seatSectionTitle}>Departure Seats</Text>
             <SeatSelector
               seats={availableSeats}
-              selectedSeats={currentBooking.selectedSeats}
-              onSeatToggle={async (seat) => {
-                await toggleSeatSelection(seat);
-                if (errors.seats) setErrors({ ...errors, seats: '' });
-              }}
+              selectedSeats={localSelectedSeats}
+              onSeatToggle={(seat) => handleSeatToggle(seat, false)}
               isLoading={isLoading}
             />
 
@@ -670,11 +724,8 @@ export default function BookScreen() {
                 <Text style={styles.seatSectionTitle}>Return Seats</Text>
                 <SeatSelector
                   seats={availableReturnSeats}
-                  selectedSeats={currentBooking.returnSelectedSeats}
-                  onSeatToggle={async (seat) => {
-                    await toggleSeatSelection(seat, true);
-                    if (errors.seats) setErrors({ ...errors, seats: '' });
-                  }}
+                  selectedSeats={localReturnSelectedSeats}
+                  onSeatToggle={(seat) => handleSeatToggle(seat, true)}
                   isLoading={isLoading}
                 />
               </>
@@ -686,7 +737,7 @@ export default function BookScreen() {
 
 
 
-            {currentBooking.selectedSeats.length > 0 && (
+            {localSelectedSeats.length > 0 && (
               <View style={styles.fareContainer}>
                 <Text style={styles.fareLabel}>Total Fare:</Text>
                 <Text style={styles.fareValue}>
@@ -705,7 +756,7 @@ export default function BookScreen() {
             {currentBooking.passengers.map((passenger, index) => (
               <View key={index} style={styles.passengerContainer}>
                 <Text style={styles.passengerTitle}>
-                  Passenger {index + 1} - Seat {currentBooking.selectedSeats[index]?.number}
+                  Passenger {index + 1} - Seat {localSelectedSeats[index]?.number}
                 </Text>
 
                 <Input
@@ -795,15 +846,15 @@ export default function BookScreen() {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Seats:</Text>
                 <Text style={styles.summaryValue}>
-                  {currentBooking.selectedSeats.map(seat => seat.number).join(', ')}
+                  {localSelectedSeats.map(seat => seat.number).join(', ')}
                 </Text>
               </View>
 
-              {currentBooking.tripType === 'round_trip' && currentBooking.returnSelectedSeats.length > 0 && (
+              {currentBooking.tripType === 'round_trip' && localReturnSelectedSeats.length > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Return Seats:</Text>
                   <Text style={styles.summaryValue}>
-                    {currentBooking.returnSelectedSeats.map(seat => seat.number).join(', ')}
+                    {localReturnSelectedSeats.map(seat => seat.number).join(', ')}
                   </Text>
                 </View>
               )}

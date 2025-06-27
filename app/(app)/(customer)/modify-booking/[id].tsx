@@ -18,6 +18,7 @@ import { Calendar, ArrowRight } from 'lucide-react-native';
 import { useUserBookingsStore, useRouteStore, useTripStore, useSeatStore } from '@/store';
 import { supabase } from '@/utils/supabase';
 import { Seat } from '@/types';
+import { toggleSeatSelection as toggleSeatUtil } from '@/utils/seatSelectionUtils';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -292,26 +293,22 @@ export default function ModifyBookingScreen() {
     );
   }
 
-  const toggleSeatSelection = (seat: Seat, isReturn = false) => {
-    if (isReturn) {
-      const isSelected = returnSelectedSeats.some(s => s.id === seat.id);
-      if (isSelected) {
-        setReturnSelectedSeats(returnSelectedSeats.filter(s => s.id !== seat.id));
-      } else {
-        if (returnSelectedSeats.length < booking.passengers.length) {
-          setReturnSelectedSeats([...returnSelectedSeats, { ...seat, isSelected: true }]);
+  const handleSeatToggle = (seat: Seat, isReturn = false) => {
+    const currentSeats = isReturn ? returnSelectedSeats : selectedSeats;
+
+    toggleSeatUtil(seat, currentSeats, {
+      onSeatsChange: (newSeats, isReturnSeat) => {
+        if (isReturnSeat) {
+          setReturnSelectedSeats(newSeats);
+        } else {
+          setSelectedSeats(newSeats);
         }
-      }
-    } else {
-      const isSelected = selectedSeats.some(s => s.id === seat.id);
-      if (isSelected) {
-        setSelectedSeats(selectedSeats.filter(s => s.id !== seat.id));
-      } else {
-        if (selectedSeats.length < booking.passengers.length) {
-          setSelectedSeats([...selectedSeats, { ...seat, isSelected: true }]);
-        }
-      }
-    }
+      },
+      onError: (error) => {
+        Alert.alert('Seat Selection Error', error);
+      },
+      maxSeats: booking.passengers.length
+    }, isReturn);
 
     if (errors.seats) {
       setErrors({ ...errors, seats: '' });
@@ -547,7 +544,7 @@ export default function ModifyBookingScreen() {
             <SeatSelector
               seats={availableSeats}
               selectedSeats={selectedSeats}
-              onSeatToggle={(seat) => toggleSeatSelection(seat)}
+              onSeatToggle={(seat) => handleSeatToggle(seat)}
               maxSeats={booking.passengers.length}
             />
           ) : (
@@ -565,7 +562,7 @@ export default function ModifyBookingScreen() {
                 <SeatSelector
                   seats={availableReturnSeats}
                   selectedSeats={returnSelectedSeats}
-                  onSeatToggle={(seat) => toggleSeatSelection(seat, true)}
+                  onSeatToggle={(seat) => handleSeatToggle(seat, true)}
                   maxSeats={booking.passengers.length}
                 />
               ) : (

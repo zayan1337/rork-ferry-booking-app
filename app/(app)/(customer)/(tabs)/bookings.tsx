@@ -29,7 +29,7 @@ export default function BookingsScreen() {
   };
 
   const handleViewBooking = (booking: Booking) => {
-    router.push(`./booking-details/${booking.id}`);
+    router.push(`/booking-details/${booking.id}`);
   };
 
   // Filter bookings based on search query and status filter
