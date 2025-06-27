@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
   TouchableOpacity,
   Linking
 } from 'react-native';
-import { 
-  Phone, 
-  Mail, 
-  MessageCircle, 
-  ChevronDown, 
+import {
+  Phone,
+  Mail,
+  MessageCircle,
+  ChevronDown,
   ChevronUp,
   HelpCircle
 } from 'lucide-react-native';
@@ -19,50 +19,15 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
-
-// FAQ data
-const faqs = [
-  {
-    question: "How do I book a ferry ticket?",
-    answer: "You can book a ferry ticket by going to the 'Book' tab and following the booking process. Select your trip type, dates, route, seats, and complete the payment."
-  },
-  {
-    question: "Can I cancel my booking?",
-    answer: "Yes, you can cancel your booking up to 72 hours before departure. Go to 'My Bookings', select the booking you want to cancel, and tap on 'Cancel Booking'. A 50% cancellation fee will apply."
-  },
-  {
-    question: "How do I modify my booking?",
-    answer: "To modify your booking, go to 'My Bookings', select the booking you want to modify, and tap on 'Modify Booking'. You can change the date or seats if available. Modifications must be made at least 72 hours before departure."
-  },
-  {
-    question: "What payment methods are accepted?",
-    answer: "We accept various payment methods including Bank Transfer, BML, MIB, Ooredoo, and FahiPay."
-  },
-  {
-    question: "How do I get my ticket?",
-    answer: "After successful booking, your e-ticket will be available in the 'My Bookings' section. You can download it or share it directly from the app."
-  },
-  {
-    question: "What if I miss my ferry?",
-    answer: "If you miss your ferry, your ticket will be considered used and no refund will be provided. We recommend arriving at least 30 minutes before departure."
-  },
-  {
-    question: "Are there any baggage restrictions?",
-    answer: "Each passenger is allowed one piece of luggage up to 20kg and one carry-on bag. Additional luggage may incur extra charges."
-  },
-  {
-    question: "How early should I arrive before departure?",
-    answer: "We recommend arriving at least 30 minutes before the scheduled departure time to allow for ticket validation and boarding."
-  }
-];
+import { useContactForm } from '@/hooks/useContactForm';
+import { CONTACT_INFO, FAQS } from '@/constants/customer';
 
 export default function SupportScreen() {
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
-  const [contactName, setContactName] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactMessage, setContactMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
+  // Use contact form hook
+  const { formState, updateField, submitForm, isValid } = useContactForm();
+
   const toggleFaq = (index: number) => {
     if (expandedFaq === index) {
       setExpandedFaq(null);
@@ -70,49 +35,35 @@ export default function SupportScreen() {
       setExpandedFaq(index);
     }
   };
-  
+
   const handleCall = () => {
-    Linking.openURL('tel:+9607123456');
+    Linking.openURL(`tel:${CONTACT_INFO.PHONE}`);
   };
-  
+
   const handleEmail = () => {
-    Linking.openURL('mailto:support@ferryapp.mv');
+    Linking.openURL(`mailto:${CONTACT_INFO.EMAIL}`);
   };
-  
+
   const handleChat = () => {
     // In a real app, this would open a chat interface
     alert('Chat support would open here');
   };
-  
-  const handleSubmitMessage = () => {
-    if (!contactName.trim() || !contactEmail.trim() || !contactMessage.trim()) {
-      alert('Please fill in all fields');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      alert('Your message has been sent. We will get back to you soon.');
-      setContactName('');
-      setContactEmail('');
-      setContactMessage('');
-    }, 1500);
+
+  const handleSubmitMessage = async () => {
+    await submitForm();
   };
-  
+
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
       <Text style={styles.pageTitle}>Help & Support</Text>
-      
+
       {/* Contact Options */}
       <Text style={styles.sectionTitle}>Contact Us</Text>
       <View style={styles.contactOptions}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.contactOption}
           onPress={handleCall}
         >
@@ -121,8 +72,8 @@ export default function SupportScreen() {
           </View>
           <Text style={styles.contactLabel}>Call</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.contactOption}
           onPress={handleEmail}
         >
@@ -131,8 +82,8 @@ export default function SupportScreen() {
           </View>
           <Text style={styles.contactLabel}>Email</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.contactOption}
           onPress={handleChat}
         >
@@ -142,29 +93,29 @@ export default function SupportScreen() {
           <Text style={styles.contactLabel}>Chat</Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Contact Details */}
       <Card variant="elevated" style={styles.contactCard}>
         <View style={styles.contactDetail}>
           <Phone size={16} color={Colors.primary} style={styles.contactDetailIcon} />
-          <Text style={styles.contactDetailText}>+960 7123456</Text>
+          <Text style={styles.contactDetailText}>{CONTACT_INFO.PHONE}</Text>
         </View>
-        
+
         <View style={styles.contactDetail}>
           <Mail size={16} color={Colors.primary} style={styles.contactDetailIcon} />
-          <Text style={styles.contactDetailText}>support@ferryapp.mv</Text>
+          <Text style={styles.contactDetailText}>{CONTACT_INFO.EMAIL}</Text>
         </View>
-        
+
         <Text style={styles.contactHours}>
-          Support hours: 8:00 AM - 8:00 PM, 7 days a week
+          Support hours: {CONTACT_INFO.SUPPORT_HOURS}
         </Text>
       </Card>
-      
+
       {/* FAQs */}
       <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
-      
-      {faqs.map((faq, index) => (
-        <TouchableOpacity 
+
+      {FAQS.map((faq, index) => (
+        <TouchableOpacity
           key={index}
           style={styles.faqItem}
           onPress={() => toggleFaq(index)}
@@ -181,48 +132,48 @@ export default function SupportScreen() {
               <ChevronDown size={20} color={Colors.textSecondary} />
             )}
           </View>
-          
+
           {expandedFaq === index && (
             <Text style={styles.faqAnswer}>{faq.answer}</Text>
           )}
         </TouchableOpacity>
       ))}
-      
+
       {/* Contact Form */}
       <Text style={styles.sectionTitle}>Send Us a Message</Text>
       <Card variant="elevated" style={styles.formCard}>
         <Input
           label="Name"
           placeholder="Enter your name"
-          value={contactName}
-          onChangeText={setContactName}
+          value={formState.contactName}
+          onChangeText={(text) => updateField('contactName', text)}
           required
         />
-        
+
         <Input
           label="Email"
           placeholder="Enter your email"
-          value={contactEmail}
-          onChangeText={setContactEmail}
+          value={formState.contactEmail}
+          onChangeText={(text) => updateField('contactEmail', text)}
           keyboardType="email-address"
           required
         />
-        
+
         <Input
           label="Message"
           placeholder="How can we help you?"
-          value={contactMessage}
-          onChangeText={setContactMessage}
+          value={formState.contactMessage}
+          onChangeText={(text) => updateField('contactMessage', text)}
           multiline
           numberOfLines={4}
           required
         />
-        
+
         <Button
           title="Send Message"
           onPress={handleSubmitMessage}
-          loading={isSubmitting}
-          disabled={isSubmitting}
+          loading={formState.isSubmitting}
+          disabled={formState.isSubmitting}
           fullWidth
           style={styles.submitButton}
         />

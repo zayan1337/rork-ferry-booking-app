@@ -31,32 +31,13 @@ import DatePicker from '@/components/DatePicker';
 import Dropdown from '@/components/Dropdown';
 import SeatSelector from '@/components/SeatSelector';
 import Input from '@/components/Input';
-import { Seat } from '@/types';
+import type { Seat, SupabaseSeat } from '@/types';
 import { toggleSeatSelection, updatePassengersForSeats } from '@/utils/seatSelectionUtils';
+import { useBookingForm } from '@/hooks/useBookingForm';
+import { transformSeatsData, createRouteLabel, formatTime, createEmptyFormErrors } from '@/utils/customerUtils';
+import { BOOKING_STEPS, STEP_LABELS, TRIP_TYPES, PAYMENT_OPTIONS, REFRESH_INTERVALS } from '@/constants/customer';
 
-// Define the Supabase seat data type
-type SupabaseSeat = {
-  id: string;
-  vessel_id: string;
-  seat_number: string;
-  row_number: number;
-  is_window: boolean;
-  is_aisle: boolean;
-  created_at: string;
-};
-
-// Transform Supabase seats data to match our app's Seat interface
-const transformSeatsData = (seatsData: SupabaseSeat[]): Seat[] => {
-  return seatsData.map(seat => ({
-    id: seat.id,
-    number: seat.seat_number,
-    rowNumber: seat.row_number,
-    isWindow: seat.is_window,
-    isAisle: seat.is_aisle,
-    isAvailable: Math.random() > 0.3, // Temporarily keeping random availability until we implement real availability
-    isSelected: false
-  }));
-};
+// Note: SupabaseSeat type and transformSeatsData function are now imported from utils
 
 export default function BookScreen() {
   // Removed local currentStep state - using store's currentStep
@@ -67,19 +48,7 @@ export default function BookScreen() {
   const [localSelectedSeats, setLocalSelectedSeats] = useState<Seat[]>([]);
   const [localReturnSelectedSeats, setLocalReturnSelectedSeats] = useState<Seat[]>([]);
 
-  const [errors, setErrors] = useState({
-    tripType: '',
-    departureDate: '',
-    returnDate: '',
-    route: '',
-    returnRoute: '',
-    seats: '',
-    passengers: '',
-    paymentMethod: '',
-    terms: '',
-    trip: '',
-    returnTrip: '',
-  });
+  const [errors, setErrors] = useState(createEmptyFormErrors());
 
   // Core booking state
   const {
@@ -232,16 +201,16 @@ export default function BookScreen() {
 
   // Periodic seat refresh when on seat selection step (as fallback for real-time updates)
   useEffect(() => {
-    if (currentStep === 3) {
+    if (currentStep === BOOKING_STEPS.SEAT_SELECTION) {
       const refreshInterval = setInterval(() => {
-        // Refresh seat availability every 30 seconds without showing loading
+        // Refresh seat availability without showing loading
         if (currentBooking.trip?.id) {
           refreshAvailableSeatsSilently(currentBooking.trip.id, false);
         }
         if (currentBooking.returnTrip?.id) {
           refreshAvailableSeatsSilently(currentBooking.returnTrip.id, true);
         }
-      }, 30000); // 30 seconds
+      }, REFRESH_INTERVALS.SEAT_AVAILABILITY);
 
       return () => clearInterval(refreshInterval);
     }
@@ -252,7 +221,7 @@ export default function BookScreen() {
     let isValid = true;
 
     switch (step) {
-      case 1: // Trip Type & Date
+      case BOOKING_STEPS.TRIP_TYPE_DATE: // Trip Type & Date
         if (!currentBooking.tripType) {
           newErrors.tripType = 'Please select a trip type';
           isValid = false;
@@ -263,13 +232,13 @@ export default function BookScreen() {
           isValid = false;
         }
 
-        if (currentBooking.tripType === 'round_trip' && !currentBooking.returnDate) {
+        if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && !currentBooking.returnDate) {
           newErrors.returnDate = 'Please select a return date';
           isValid = false;
         }
         break;
 
-      case 2: // Route & Trip Selection
+      case BOOKING_STEPS.ROUTE_SELECTION: // Route & Trip Selection
         if (!currentBooking.route) {
           newErrors.route = 'Please select a route';
           isValid = false;
@@ -280,7 +249,7 @@ export default function BookScreen() {
           isValid = false;
         }
 
-        if (currentBooking.tripType === 'round_trip') {
+        if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP) {
           if (!currentBooking.returnRoute) {
             newErrors.returnRoute = 'Please select a return route';
             isValid = false;
@@ -292,25 +261,25 @@ export default function BookScreen() {
         }
         break;
 
-      case 3: // Seat Selection
+      case BOOKING_STEPS.SEAT_SELECTION: // Seat Selection
         if (localSelectedSeats.length === 0) {
           newErrors.seats = 'Please select at least one seat';
           isValid = false;
         }
 
-        if (currentBooking.tripType === 'round_trip' && localReturnSelectedSeats.length === 0) {
+        if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && localReturnSelectedSeats.length === 0) {
           newErrors.seats = 'Please select at least one return seat';
           isValid = false;
         }
 
-        if (currentBooking.tripType === 'round_trip' &&
+        if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
           localSelectedSeats.length !== localReturnSelectedSeats.length) {
           newErrors.seats = 'Number of departure and return seats must match';
           isValid = false;
         }
         break;
 
-      case 4: // Passenger Details
+      case BOOKING_STEPS.PASSENGER_DETAILS: // Passenger Details
         const incompletePassenger = currentBooking.passengers.find(p => !p.fullName.trim());
         if (incompletePassenger) {
           newErrors.passengers = 'Please enter details for all passengers';
@@ -318,7 +287,7 @@ export default function BookScreen() {
         }
         break;
 
-      case 5: // Payment
+      case BOOKING_STEPS.PAYMENT: // Payment
         if (!paymentMethod) {
           newErrors.paymentMethod = 'Please select a payment method';
           isValid = false;
@@ -341,7 +310,7 @@ export default function BookScreen() {
       setCurrentStep(nextStep);
 
       // Refresh seat availability when user reaches seat selection step
-      if (nextStep === 3) {
+      if (nextStep === BOOKING_STEPS.SEAT_SELECTION) {
         if (currentBooking.trip?.id) {
           refreshAvailableSeatsSilently(currentBooking.trip.id, false);
         }
@@ -362,27 +331,15 @@ export default function BookScreen() {
 
         // Reset the booking state after successful booking
         resetCurrentBooking();
-        setCurrentStep(1);
+        setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
         setPaymentMethod('');
         setTermsAccepted(false);
         setLocalSelectedSeats([]);
         setLocalReturnSelectedSeats([]);
-        setErrors({
-          tripType: '',
-          departureDate: '',
-          returnDate: '',
-          route: '',
-          returnRoute: '',
-          seats: '',
-          passengers: '',
-          paymentMethod: '',
-          terms: '',
-          trip: '',
-          returnTrip: '',
-        });
+        setErrors(createEmptyFormErrors());
 
         // Create success message based on booking type
-        let successMessage = `Your ${currentBooking.tripType === 'round_trip' ? 'round trip' : 'one way'} booking has been confirmed.`;
+        let successMessage = `Your ${currentBooking.tripType === TRIP_TYPES.ROUND_TRIP ? 'round trip' : 'one way'} booking has been confirmed.`;
         successMessage += `\n\nDeparture Booking ID: ${bookingResult.bookingId}`;
 
         if (bookingResult.returnBookingId) {
@@ -481,18 +438,9 @@ export default function BookScreen() {
 
   // Format route options for dropdown
   const routeOptions = availableRoutes.map(route => ({
-    label: `${route.fromIsland.name} → ${route.toIsland.name}`,
+    label: createRouteLabel(route),
     value: route.id
   }));
-
-  // Payment method options
-  const paymentOptions = [
-    { label: 'Bank Transfer', value: 'bank_transfer' },
-    { label: 'BML', value: 'bml' },
-    { label: 'MIB', value: 'mib' },
-    { label: 'Ooredoo', value: 'ooredoo_m_faisa' },
-    { label: 'FahiPay', value: 'fahipay' },
-  ];
 
   return (
     <ScrollView
@@ -501,7 +449,7 @@ export default function BookScreen() {
     >
       {/* Progress Steps */}
       <View style={styles.progressContainer}>
-        {[1, 2, 3, 4, 5].map(step => (
+        {Object.values(BOOKING_STEPS).map(step => (
           <View key={step} style={styles.progressStep}>
             <View
               style={[
@@ -519,11 +467,7 @@ export default function BookScreen() {
                 currentStep >= step && styles.progressTextActive
               ]}
             >
-              {step === 1 && "Trip"}
-              {step === 2 && "Route"}
-              {step === 3 && "Seats"}
-              {step === 4 && "Details"}
-              {step === 5 && "Payment"}
+              {STEP_LABELS[step]}
             </Text>
           </View>
         ))}
@@ -532,7 +476,7 @@ export default function BookScreen() {
 
       <Card variant="elevated" style={styles.bookingCard}>
         {/* Step 1: Trip Type & Date Selection */}
-        {currentStep === 1 && (
+        {currentStep === BOOKING_STEPS.TRIP_TYPE_DATE && (
           <View>
             <Text style={styles.stepTitle}>Select Trip Type & Date</Text>
 
@@ -540,17 +484,17 @@ export default function BookScreen() {
               <TouchableOpacity
                 style={[
                   styles.tripTypeButton,
-                  currentBooking.tripType === 'one_way' && styles.tripTypeButtonActive
+                  currentBooking.tripType === TRIP_TYPES.ONE_WAY && styles.tripTypeButtonActive
                 ]}
                 onPress={() => {
-                  setTripType('one_way');
+                  setTripType(TRIP_TYPES.ONE_WAY);
                   if (errors.tripType) setErrors({ ...errors, tripType: '' });
                 }}
               >
                 <Text
                   style={[
                     styles.tripTypeText,
-                    currentBooking.tripType === 'one_way' && styles.tripTypeTextActive
+                    currentBooking.tripType === TRIP_TYPES.ONE_WAY && styles.tripTypeTextActive
                   ]}
                 >
                   One Way
@@ -560,17 +504,17 @@ export default function BookScreen() {
               <TouchableOpacity
                 style={[
                   styles.tripTypeButton,
-                  currentBooking.tripType === 'round_trip' && styles.tripTypeButtonActive
+                  currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && styles.tripTypeButtonActive
                 ]}
                 onPress={() => {
-                  setTripType('round_trip');
+                  setTripType(TRIP_TYPES.ROUND_TRIP);
                   if (errors.tripType) setErrors({ ...errors, tripType: '' });
                 }}
               >
                 <Text
                   style={[
                     styles.tripTypeText,
-                    currentBooking.tripType === 'round_trip' && styles.tripTypeTextActive
+                    currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && styles.tripTypeTextActive
                   ]}
                 >
                   Round Trip
@@ -594,7 +538,7 @@ export default function BookScreen() {
               required
             />
 
-            {currentBooking.tripType === 'round_trip' && (
+            {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
               <DatePicker
                 label="Return Date"
                 value={currentBooking.returnDate}
@@ -611,7 +555,7 @@ export default function BookScreen() {
         )}
 
         {/* Step 2: Route Selection */}
-        {currentStep === 2 && (
+        {currentStep === BOOKING_STEPS.ROUTE_SELECTION && (
           <View>
             <Text style={styles.stepTitle}>Select Route</Text>
 
@@ -636,7 +580,7 @@ export default function BookScreen() {
               <Dropdown
                 label="Select Departure Time"
                 items={trips.map(trip => ({
-                  label: trip.departure_time.slice(0, 5), // Format HH:mm
+                  label: formatTime(trip.departure_time),
                   value: trip.id
                 }))}
                 value={currentBooking.trip?.id || ''}
@@ -653,7 +597,7 @@ export default function BookScreen() {
               />
             )}
 
-            {currentBooking.tripType === 'round_trip' && (
+            {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
               <Dropdown
                 label="Return Route"
                 items={routeOptions}
@@ -672,13 +616,13 @@ export default function BookScreen() {
               />
             )}
 
-            {currentBooking.tripType === 'round_trip' &&
+            {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
               currentBooking.returnRoute &&
               currentBooking.returnDate && (
                 <Dropdown
                   label="Select Return Time"
                   items={returnTrips.map(trip => ({
-                    label: trip.departure_time.slice(0, 5), // Format HH:mm
+                    label: formatTime(trip.departure_time),
                     value: trip.id
                   }))}
                   value={currentBooking.returnTrip?.id || ''}
@@ -707,7 +651,7 @@ export default function BookScreen() {
         )}
 
         {/* Step 3: Seat Selection */}
-        {currentStep === 3 && (
+        {currentStep === BOOKING_STEPS.SEAT_SELECTION && (
           <View>
             <Text style={styles.stepTitle}>Select Seats</Text>
 
@@ -719,7 +663,7 @@ export default function BookScreen() {
               isLoading={isLoading}
             />
 
-            {currentBooking.tripType === 'round_trip' && (
+            {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
               <>
                 <Text style={styles.seatSectionTitle}>Return Seats</Text>
                 <SeatSelector
@@ -749,7 +693,7 @@ export default function BookScreen() {
         )}
 
         {/* Step 4: Passenger Details */}
-        {currentStep === 4 && (
+        {currentStep === BOOKING_STEPS.PASSENGER_DETAILS && (
           <View>
             <Text style={styles.stepTitle}>Passenger Details</Text>
 
@@ -792,7 +736,7 @@ export default function BookScreen() {
         )}
 
         {/* Step 5: Payment */}
-        {currentStep === 5 && (
+        {currentStep === BOOKING_STEPS.PAYMENT && (
           <View>
             <Text style={styles.stepTitle}>Payment</Text>
 
@@ -813,7 +757,7 @@ export default function BookScreen() {
                 </Text>
               </View>
 
-              {currentBooking.tripType === 'round_trip' && currentBooking.returnRoute && (
+              {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && currentBooking.returnRoute && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Return Route:</Text>
                   <Text style={styles.summaryValue}>
@@ -829,7 +773,7 @@ export default function BookScreen() {
                 </Text>
               </View>
 
-              {currentBooking.tripType === 'round_trip' && currentBooking.returnDate && (
+              {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && currentBooking.returnDate && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Return Date:</Text>
                   <Text style={styles.summaryValue}>
@@ -850,7 +794,7 @@ export default function BookScreen() {
                 </Text>
               </View>
 
-              {currentBooking.tripType === 'round_trip' && localReturnSelectedSeats.length > 0 && (
+              {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && localReturnSelectedSeats.length > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Return Seats:</Text>
                   <Text style={styles.summaryValue}>
@@ -867,7 +811,7 @@ export default function BookScreen() {
 
             <Dropdown
               label="Payment Method"
-              items={paymentOptions}
+              items={[...PAYMENT_OPTIONS]}
               value={paymentMethod}
               onChange={(value) => {
                 setPaymentMethod(value);
@@ -905,7 +849,7 @@ export default function BookScreen() {
 
         {/* Navigation Buttons */}
         <View style={styles.buttonContainer}>
-          {currentStep > 1 && (
+          {currentStep > BOOKING_STEPS.TRIP_TYPE_DATE && (
             <Button
               title="Back"
               onPress={handleBack}
@@ -914,11 +858,11 @@ export default function BookScreen() {
             />
           )}
 
-          {currentStep < 5 ? (
+          {currentStep < BOOKING_STEPS.PAYMENT ? (
             <Button
               title="Next"
               onPress={handleNext}
-              style={currentStep === 1 ? styles.singleButton : styles.navigationButton}
+              style={currentStep === BOOKING_STEPS.TRIP_TYPE_DATE ? styles.singleButton : styles.navigationButton}
             />
           ) : (
             <Button

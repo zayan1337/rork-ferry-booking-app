@@ -24,11 +24,15 @@ import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
+import type { ProfileSettings } from '@/types/customer';
+import { getUserInitials, formatProfileDate } from '@/utils/customerUtils';
 
 export default function ProfileScreen() {
   const { user, signOut, isLoading, error } = useAuthStore();
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [smsNotifications, setSmsNotifications] = useState(true);
+  const [profileSettings, setProfileSettings] = useState<ProfileSettings>({
+    emailNotifications: true,
+    smsNotifications: true,
+  });
 
   useEffect(() => {
     if (error) {
@@ -78,13 +82,11 @@ export default function ProfileScreen() {
     );
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+  const updateProfileSetting = (key: keyof ProfileSettings, value: boolean) => {
+    setProfileSettings(prev => ({
+      ...prev,
+      [key]: value
+    }));
   };
 
   const handleExportCSV = () => {
@@ -111,9 +113,7 @@ export default function ProfileScreen() {
       <View style={styles.profileHeader}>
         <View style={styles.profileAvatar}>
           <Text style={styles.profileInitials}>
-            {user?.profile?.full_name
-              ? user?.profile?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()
-              : '?'}
+            {getUserInitials(user?.profile?.full_name)}
           </Text>
         </View>
         <Text style={styles.profileName}>{user?.profile?.full_name || 'Guest User'}</Text>
@@ -162,7 +162,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Date of Birth</Text>
-            <Text style={styles.infoValue}>{formatDate(user?.profile?.date_of_birth || '')}</Text>
+            <Text style={styles.infoValue}>{formatProfileDate(user?.profile?.date_of_birth || '')}</Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
         </View>
@@ -189,8 +189,8 @@ export default function ProfileScreen() {
             <Text style={styles.settingLabel}>Email Notifications</Text>
           </View>
           <Switch
-            value={emailNotifications}
-            onValueChange={setEmailNotifications}
+            value={profileSettings.emailNotifications}
+            onValueChange={(value) => updateProfileSetting('emailNotifications', value)}
             trackColor={{ false: Colors.inactive, true: Colors.primary }}
             thumbColor={Colors.card}
           />
@@ -204,8 +204,8 @@ export default function ProfileScreen() {
             <Text style={styles.settingLabel}>SMS Notifications</Text>
           </View>
           <Switch
-            value={smsNotifications}
-            onValueChange={setSmsNotifications}
+            value={profileSettings.smsNotifications}
+            onValueChange={(value) => updateProfileSetting('smsNotifications', value)}
             trackColor={{ false: Colors.inactive, true: Colors.primary }}
             thumbColor={Colors.card}
           />

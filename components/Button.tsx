@@ -12,6 +12,7 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: React.ReactNode;
+  fullWidth?: boolean;
 }
 
 export default function Button({
@@ -24,6 +25,7 @@ export default function Button({
   style,
   textStyle,
   icon,
+  fullWidth = false,
 }: ButtonProps) {
   const getButtonStyle = () => {
     switch (variant) {
@@ -88,6 +90,7 @@ export default function Button({
         getButtonStyle(),
         getSizeStyle(),
         disabled && styles.disabledButton,
+        fullWidth && styles.fullWidth,
         style,
       ]}
       onPress={onPress}
@@ -182,5 +185,8 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: Colors.subtext,
+  },
+  fullWidth: {
+    width: '100%',
   },
 });

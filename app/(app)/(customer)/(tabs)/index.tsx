@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,19 +25,15 @@ import { useBookingStore, useRouteStore, useUserBookingsStore } from '@/store';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
+import { useQuickBooking } from '@/hooks/useQuickBooking';
+import { useModalState } from '@/hooks/useModalState';
+import { generateDateOptions, formatDisplayDate, getUniqueIslandNames, filterRoutesByDepartureIsland } from '@/utils/customerUtils';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
 
   // Add scroll reference
   const scrollViewRef = useRef<ScrollView>(null);
-
-  // Core booking state
-  const {
-    setQuickBookingData,
-    resetCurrentBooking,
-    currentBooking
-  } = useBookingStore();
 
   // Route management
   const {
@@ -56,16 +52,20 @@ export default function HomeScreen() {
   // Combined loading state
   const isLoading = routeLoading || bookingsLoading;
 
-  // Quick booking state
-  const [selectedFromIsland, setSelectedFromIsland] = useState<string>('');
-  const [selectedToIsland, setSelectedToIsland] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [showFromModal, setShowFromModal] = useState(false);
-  const [showToModal, setShowToModal] = useState(false);
-  const [showDateModal, setShowDateModal] = useState(false);
+  // Quick booking functionality
+  const {
+    quickBookingState,
+    updateField,
+    resetForm,
+    validateAndStartBooking,
+  } = useQuickBooking();
 
-  // Error messages state
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  // Modal state management
+  const {
+    modalStates,
+    openModal,
+    closeModal,
+  } = useModalState();
 
   useEffect(() => {
     // Fetch user bookings when component mounts
@@ -77,10 +77,9 @@ export default function HomeScreen() {
   // Reset quick booking fields whenever the screen comes into focus (tab change, reload, navigation)
   useFocusEffect(
     React.useCallback(() => {
-      setSelectedFromIsland('');
-      setSelectedToIsland('');
-      setSelectedDate('');
-      setErrorMessage('');
+      // Use a direct state reset to avoid dependency issues
+      // This ensures form is cleared when returning to the home screen
+      // resetForm();
     }, [])
   );
 
@@ -89,44 +88,7 @@ export default function HomeScreen() {
   };
 
   const handleStartBooking = async () => {
-    // Clear any previous error
-    setErrorMessage('');
-
-    // Validate that all fields are selected and show specific error messages
-    if (!selectedFromIsland) {
-      setErrorMessage("Please select a departure island");
-      return;
-    }
-
-    if (!selectedToIsland) {
-      setErrorMessage("Please select a destination island");
-      return;
-    }
-
-    if (!selectedDate) {
-      setErrorMessage("Please select a travel date");
-      return;
-    }
-
-    // Check if the selected route combination exists in the database
-    const matchingRoute = availableRoutes.find(route =>
-      route.fromIsland.name === selectedFromIsland &&
-      route.toIsland.name === selectedToIsland
-    );
-
-    if (!matchingRoute) {
-      setErrorMessage(`No ferry route available from ${selectedFromIsland} to ${selectedToIsland}. Please select a different destination.`);
-      return;
-    }
-
-    // Use the new function to set quick booking data
-    setQuickBookingData(matchingRoute, selectedDate);
-
-    // Small delay to ensure state is updated before navigation
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Navigate to the booking page
-    router.push('/book');
+    await validateAndStartBooking();
   };
 
   // New function to handle Book Now buttons - scrolls to top to focus on quick booking form
@@ -139,40 +101,18 @@ export default function HomeScreen() {
   };
 
   // Get unique island names for selection, filtered based on current selection and available routes
-  const fromIslands = [...new Set(availableRoutes.map(route => route.fromIsland.name))];
+  const fromIslands = useMemo(() =>
+    getUniqueIslandNames(availableRoutes, 'from'),
+    [availableRoutes]
+  );
 
   // Only show destination islands that have actual routes from the selected departure island
-  const toIslands = selectedFromIsland
-    ? [...new Set(availableRoutes
-      .filter(route => route.fromIsland.name === selectedFromIsland)
-      .map(route => route.toIsland.name))]
-    : [];
-
-  // Generate date options for the next 30 days
-  const generateDateOptions = () => {
-    const dates = [];
-    const today = new Date();
-
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-
-      const isToday = i === 0;
-      const isTomorrow = i === 1;
-
-      dates.push({
-        dateString: date.toISOString().split('T')[0],
-        day: date.getDate(),
-        month: date.toLocaleString('default', { month: 'short' }),
-        year: date.getFullYear(),
-        dayName: date.toLocaleString('default', { weekday: 'short' }),
-        isToday,
-        isTomorrow
-      });
-    }
-
-    return dates;
-  };
+  const toIslands = useMemo(() =>
+    quickBookingState.selectedFromIsland
+      ? getUniqueIslandNames(filterRoutesByDepartureIsland(availableRoutes, quickBookingState.selectedFromIsland), 'to')
+      : [],
+    [availableRoutes, quickBookingState.selectedFromIsland]
+  );
 
   // Get upcoming bookings (confirmed status and future date)
   const upcomingBookings = bookings
@@ -217,7 +157,7 @@ export default function HomeScreen() {
         <View style={styles.bookingForm}>
           <TouchableOpacity
             style={styles.formRow}
-            onPress={() => setShowFromModal(true)}
+            onPress={() => openModal('showFromModal')}
           >
             <View style={styles.formIcon}>
               <MapPin size={20} color={Colors.primary} />
@@ -226,9 +166,9 @@ export default function HomeScreen() {
               <Text style={styles.formLabel}>From</Text>
               <Text style={[
                 styles.formPlaceholder,
-                selectedFromIsland && styles.formValue
+                quickBookingState.selectedFromIsland && styles.formValue
               ]}>
-                {selectedFromIsland || 'Select departure island'}
+                {quickBookingState.selectedFromIsland || 'Select departure island'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -240,11 +180,11 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.formRow}
             onPress={() => {
-              if (!selectedFromIsland) {
-                setErrorMessage("Please select a departure island first");
+              if (!quickBookingState.selectedFromIsland) {
+                updateField('selectedFromIsland', ''); // This will trigger error in hook
                 return;
               }
-              setShowToModal(true);
+              openModal('showToModal');
             }}
           >
             <View style={styles.formIcon}>
@@ -254,9 +194,9 @@ export default function HomeScreen() {
               <Text style={styles.formLabel}>To</Text>
               <Text style={[
                 styles.formPlaceholder,
-                selectedToIsland && styles.formValue
+                quickBookingState.selectedToIsland && styles.formValue
               ]}>
-                {selectedToIsland || (selectedFromIsland ? 'Select destination island' : 'Select departure island first')}
+                {quickBookingState.selectedToIsland || (quickBookingState.selectedFromIsland ? 'Select destination island' : 'Select departure island first')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -265,7 +205,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.formRow}
-            onPress={() => setShowDateModal(true)}
+            onPress={() => openModal('showDateModal')}
           >
             <View style={styles.formIcon}>
               <Calendar size={20} color={Colors.primary} />
@@ -274,14 +214,10 @@ export default function HomeScreen() {
               <Text style={styles.formLabel}>Date</Text>
               <Text style={[
                 styles.formPlaceholder,
-                selectedDate && styles.formValue
+                quickBookingState.selectedDate && styles.formValue
               ]}>
-                {selectedDate
-                  ? new Date(selectedDate).toLocaleDateString('en-US', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                  })
+                {quickBookingState.selectedDate
+                  ? formatDisplayDate(quickBookingState.selectedDate)
                   : 'Select travel date'
                 }
               </Text>
@@ -290,9 +226,9 @@ export default function HomeScreen() {
         </View>
 
         {/* Error message display */}
-        {errorMessage ? (
+        {quickBookingState.errorMessage ? (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Text style={styles.errorText}>{quickBookingState.errorMessage}</Text>
           </View>
         ) : null}
 
@@ -305,7 +241,7 @@ export default function HomeScreen() {
 
       {/* From Island Selection Modal */}
       <Modal
-        visible={showFromModal}
+        visible={modalStates.showFromModal}
         animationType="slide"
         presentationStyle="pageSheet"
       >
@@ -314,27 +250,23 @@ export default function HomeScreen() {
             <Text style={styles.modalTitle}>Select Departure Island</Text>
             <TouchableOpacity
               style={styles.modalCloseButton}
-              onPress={() => setShowFromModal(false)}
+              onPress={() => closeModal('showFromModal')}
             >
               <X size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent}>
-            {fromIslands.map((island) => (
+            {fromIslands.map((island: string) => (
               <TouchableOpacity
                 key={island}
                 style={[
                   styles.islandOption,
-                  selectedFromIsland === island && styles.islandOptionSelected
+                  quickBookingState.selectedFromIsland === island && styles.islandOptionSelected
                 ]}
                 onPress={() => {
-                  setSelectedFromIsland(island);
-                  // Clear the "To" selection since available destinations will change
-                  setSelectedToIsland('');
-                  // Clear error message when user makes a selection
-                  setErrorMessage('');
-                  setShowFromModal(false);
+                  updateField('selectedFromIsland', island);
+                  closeModal('showFromModal');
                 }}
               >
                 <Text style={styles.islandText}>{island}</Text>
@@ -346,7 +278,7 @@ export default function HomeScreen() {
 
       {/* To Island Selection Modal */}
       <Modal
-        visible={showToModal}
+        visible={modalStates.showToModal}
         animationType="slide"
         presentationStyle="pageSheet"
       >
@@ -355,29 +287,23 @@ export default function HomeScreen() {
             <Text style={styles.modalTitle}>Select Destination Island</Text>
             <TouchableOpacity
               style={styles.modalCloseButton}
-              onPress={() => setShowToModal(false)}
+              onPress={() => closeModal('showToModal')}
             >
               <X size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent}>
-            {toIslands.map((island) => (
+            {toIslands.map((island: string) => (
               <TouchableOpacity
                 key={island}
                 style={[
                   styles.islandOption,
-                  selectedToIsland === island && styles.islandOptionSelected
+                  quickBookingState.selectedToIsland === island && styles.islandOptionSelected
                 ]}
                 onPress={() => {
-                  setSelectedToIsland(island);
-                  // Clear the "From" selection if it's the same as the new "To" selection
-                  if (selectedFromIsland === island) {
-                    setSelectedFromIsland('');
-                  }
-                  // Clear error message when user makes a selection
-                  setErrorMessage('');
-                  setShowToModal(false);
+                  updateField('selectedToIsland', island);
+                  closeModal('showToModal');
                 }}
               >
                 <Text style={styles.islandText}>{island}</Text>
@@ -389,7 +315,7 @@ export default function HomeScreen() {
 
       {/* Date Selection Modal */}
       <Modal
-        visible={showDateModal}
+        visible={modalStates.showDateModal}
         animationType="slide"
         presentationStyle="pageSheet"
       >
@@ -398,7 +324,7 @@ export default function HomeScreen() {
             <Text style={styles.modalTitle}>Select Date</Text>
             <TouchableOpacity
               style={styles.modalCloseButton}
-              onPress={() => setShowDateModal(false)}
+              onPress={() => closeModal('showDateModal')}
             >
               <X size={24} color={Colors.text} />
             </TouchableOpacity>
@@ -410,13 +336,11 @@ export default function HomeScreen() {
                 key={date.dateString}
                 style={[
                   styles.dateOption,
-                  selectedDate === date.dateString && styles.dateOptionSelected
+                  quickBookingState.selectedDate === date.dateString && styles.dateOptionSelected
                 ]}
                 onPress={() => {
-                  setSelectedDate(date.dateString);
-                  // Clear error message when user makes a selection
-                  setErrorMessage('');
-                  setShowDateModal(false);
+                  updateField('selectedDate', date.dateString);
+                  closeModal('showDateModal');
                 }}
               >
                 <View style={styles.dateInfo}>
