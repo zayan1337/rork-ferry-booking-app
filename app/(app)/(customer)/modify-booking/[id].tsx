@@ -13,15 +13,19 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useUserBookingsStore, useRouteStore, useTripStore, useSeatStore } from '@/store';
 import { supabase } from '@/utils/supabase';
-import { Seat } from '@/types';
+import { useKeyboardHandler } from '@/hooks/useKeyboardHandler';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { useBookingEligibility } from '@/hooks/useBookingEligibility';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 import DatePicker from '@/components/DatePicker';
 import SeatSelector from '@/components/SeatSelector';
-
-type PaymentMethod = 'gateway' | 'bank_transfer' | 'cash';
+import { processPayment, calculateFareDifference } from '@/utils/paymentUtils';
+import { formatSimpleDate } from '@/utils/dateUtils';
+import type { Seat } from '@/types';
+import type { PaymentMethod, BankDetails, ModifyBookingData, BookingFormErrors } from '@/types/pages/booking';
 
 export default function ModifyBookingScreen() {
   const { id } = useLocalSearchParams();
@@ -47,6 +51,10 @@ export default function ModifyBookingScreen() {
     isLoading: seatLoading
   } = useSeatStore();
 
+  // Custom hooks
+  const { handleInputFocus, setInputRef } = useKeyboardHandler({ scrollViewRef });
+  const { errors, setErrors, clearError, validateRequired } = useFormValidation();
+
   // State management
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTrip, setSelectedTrip] = useState<any>(null);
@@ -54,18 +62,8 @@ export default function ModifyBookingScreen() {
   const [modificationReason, setModificationReason] = useState('');
   const [fareDifference, setFareDifference] = useState(0);
   const [tripSeatCounts, setTripSeatCounts] = useState<Record<string, number>>({});
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('gateway');
-  const [bankAccountDetails, setBankAccountDetails] = useState({
-    accountNumber: '',
-    accountName: '',
-    bankName: '',
-  });
-  const [errors, setErrors] = useState({
-    date: '',
-    trip: '',
-    seats: '',
-    reason: '',
-    payment: '',
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('wallet');
+  const [bankAccountDetails, setBankAccountDetails] = useState<BankDetails>({
     accountNumber: '',
     accountName: '',
     bankName: '',
@@ -84,7 +82,10 @@ export default function ModifyBookingScreen() {
   const isLoading = bookingsLoading || tripLoading || seatLoading;
 
   // Find the specific booking
-  const booking = bookings.find((b: any) => String(b.id) === String(id));
+  const booking = bookings.find((b: any) => String(b.id) === String(id)) || null;
+
+  // Use booking eligibility hook
+  const { isModifiable, message } = useBookingEligibility({ booking });
 
   // Enhanced keyboard event listeners
   useEffect(() => {
@@ -145,7 +146,12 @@ export default function ModifyBookingScreen() {
       setSelectedSeats(booking.seats || []);
       // Set default payment method based on original booking
       if (booking.payment?.method) {
-        setSelectedPaymentMethod(booking.payment.method as PaymentMethod);
+        // Ensure the payment method is valid, fallback to 'wallet' if not
+        const validMethods: PaymentMethod[] = ['bank_transfer', 'bml', 'mib', 'ooredoo_m_faisa', 'fahipay', 'wallet'];
+        const method = validMethods.includes(booking.payment.method as PaymentMethod) 
+          ? booking.payment.method as PaymentMethod 
+          : 'wallet';
+        setSelectedPaymentMethod(method);
       }
     }
   }, [booking]);
@@ -171,7 +177,10 @@ export default function ModifyBookingScreen() {
       // Simple fare calculation - you may need to adjust based on your pricing logic
       const currentFarePerSeat = booking.totalFare / booking.passengers.length;
       const newFarePerSeat = booking.route.baseFare; // Assuming base fare from route
-      const difference = (newFarePerSeat - currentFarePerSeat) * booking.passengers.length;
+      const difference = calculateFareDifference(
+        booking.totalFare,
+        newFarePerSeat * booking.passengers.length
+      );
       setFareDifference(difference);
     }
   }, [selectedTrip, booking]);
@@ -217,14 +226,12 @@ export default function ModifyBookingScreen() {
       }
     });
 
-    if (errors.seats) {
-      setErrors({ ...errors, seats: '' });
-    }
+    clearError('seats');
   };
 
   const validateForm = () => {
     let isValid = true;
-    const newErrors = { ...errors };
+    const newErrors: BookingFormErrors = {};
 
     if (!selectedDate) {
       newErrors.date = 'Please select a new date';
@@ -241,23 +248,29 @@ export default function ModifyBookingScreen() {
       isValid = false;
     }
 
-    if (!modificationReason.trim()) {
-      newErrors.reason = 'Please provide a reason for modification';
+    const reasonError = validateRequired(modificationReason, 'Modification reason');
+    if (reasonError) {
+      newErrors.reason = reasonError;
       isValid = false;
     }
 
     // Validate payment details for refunds
     if (fareDifference < 0 && selectedPaymentMethod === 'bank_transfer') {
-      if (!bankAccountDetails.accountNumber.trim()) {
-        newErrors.accountNumber = 'Account number is required for refunds';
+      const accountNumberError = validateRequired(bankAccountDetails.accountNumber, 'Account number');
+      if (accountNumberError) {
+        newErrors.accountNumber = accountNumberError;
         isValid = false;
       }
-      if (!bankAccountDetails.accountName.trim()) {
-        newErrors.accountName = 'Account name is required for refunds';
+
+      const accountNameError = validateRequired(bankAccountDetails.accountName, 'Account name');
+      if (accountNameError) {
+        newErrors.accountName = accountNameError;
         isValid = false;
       }
-      if (!bankAccountDetails.bankName.trim()) {
-        newErrors.bankName = 'Bank name is required for refunds';
+
+      const bankNameError = validateRequired(bankAccountDetails.bankName, 'Bank name');
+      if (bankNameError) {
+        newErrors.bankName = bankNameError;
         isValid = false;
       }
     }
@@ -266,48 +279,12 @@ export default function ModifyBookingScreen() {
     return isValid;
   };
 
-  const processPayment = async (bookingId: string, amount: number) => {
-    try {
-      if (selectedPaymentMethod === 'gateway') {
-        // Simulate payment gateway processing
-        Alert.alert(
-          'Payment Processing',
-          'Please complete the payment using the payment gateway.',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel'
-            },
-            {
-              text: 'Pay Now',
-              onPress: () => {
-                // Here you would integrate with actual payment gateway
-                Alert.alert(
-                  'Payment Successful',
-                  `Payment of MVR ${amount.toFixed(2)} has been processed successfully.`
-                );
-              }
-            }
-          ]
-        );
-      } else if (selectedPaymentMethod === 'bank_transfer') {
-        Alert.alert(
-          'Bank Transfer',
-          'Please transfer the amount to our bank account. Details will be provided via SMS/Email.'
-        );
-      } else if (selectedPaymentMethod === 'cash') {
-        Alert.alert(
-          'Cash Payment',
-          'Please visit our office to complete the cash payment.'
-        );
-      }
-    } catch (error) {
-      console.error('Payment processing error:', error);
-      Alert.alert('Payment Error', 'Failed to process payment. Please try again.');
-    }
-  };
-
   const handleModify = async () => {
+    if (!isModifiable) {
+      Alert.alert("Cannot Modify", message || "This booking cannot be modified");
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -317,7 +294,7 @@ export default function ModifyBookingScreen() {
         throw new Error('Booking not found');
       }
 
-      await modifyBooking(booking.id, {
+      const modificationData: ModifyBookingData = {
         newTripId: selectedTrip.id,
         newDate: selectedDate,
         selectedSeats,
@@ -325,7 +302,9 @@ export default function ModifyBookingScreen() {
         fareDifference,
         paymentMethod: selectedPaymentMethod,
         bankAccountDetails: fareDifference < 0 ? bankAccountDetails : null,
-      });
+      };
+
+      await modifyBooking(booking.id, modificationData);
 
       if (fareDifference > 0) {
         // Additional payment required
@@ -340,7 +319,7 @@ export default function ModifyBookingScreen() {
             {
               text: "Pay Now",
               onPress: async () => {
-                await processPayment(booking.id, fareDifference);
+                await processPayment(selectedPaymentMethod, fareDifference, booking.id);
                 router.replace('/(app)/(customer)/(tabs)/bookings');
               }
             }
@@ -594,13 +573,13 @@ export default function ModifyBookingScreen() {
                   <TouchableOpacity
                     style={[
                       styles.paymentOption,
-                      selectedPaymentMethod === 'gateway' && styles.paymentOptionSelected
-                    ]}
-                    onPress={() => setSelectedPaymentMethod('gateway')}
+                                          selectedPaymentMethod === 'wallet' && styles.paymentOptionSelected
+                  ]}
+                  onPress={() => setSelectedPaymentMethod('wallet')}
                   >
                     <Text style={[
                       styles.paymentOptionText,
-                      selectedPaymentMethod === 'gateway' && styles.paymentOptionTextSelected
+                      selectedPaymentMethod === 'wallet' && styles.paymentOptionTextSelected
                     ]}>
                       {fareDifference > 0 ? 'Online Payment' : 'Original Method'}
                     </Text>
@@ -621,22 +600,7 @@ export default function ModifyBookingScreen() {
                     </Text>
                   </TouchableOpacity>
 
-                  {fareDifference > 0 && (
-                    <TouchableOpacity
-                      style={[
-                        styles.paymentOption,
-                        selectedPaymentMethod === 'cash' && styles.paymentOptionSelected
-                      ]}
-                      onPress={() => setSelectedPaymentMethod('cash')}
-                    >
-                      <Text style={[
-                        styles.paymentOptionText,
-                        selectedPaymentMethod === 'cash' && styles.paymentOptionTextSelected
-                      ]}>
-                        Cash Payment
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+
                 </View>
               </View>
             )}

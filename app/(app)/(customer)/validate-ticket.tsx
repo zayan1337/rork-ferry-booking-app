@@ -18,17 +18,10 @@ import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
-import type { Booking } from '@/types';
+import type { ValidationResult } from '@/types/pages/booking';
+import { formatSimpleDate } from '@/utils/dateUtils';
 
 const { width } = Dimensions.get('window');
-
-// Define interface for validation result
-interface ValidationResult {
-  isValid: boolean;
-  booking: Booking | null;
-  message: string;
-  isOwnBooking?: boolean;
-}
 
 export default function ValidateTicketScreen() {
   const [bookingNumber, setBookingNumber] = useState('');
@@ -164,6 +157,144 @@ export default function ValidateTicketScreen() {
     }
   };
 
+  const renderBookingSummary = () => {
+    if (!validationResult?.booking) return null;
+
+    const { booking, isOwnBooking } = validationResult;
+
+    return (
+      <View style={styles.bookingSummary}>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Booking #:</Text>
+          <Text style={styles.summaryValue}>{booking.bookingNumber}</Text>
+        </View>
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Type:</Text>
+          <Text style={styles.summaryValue}>
+            {booking.bookingType === 'agent' ? 'Agent Booking' : 'Customer Booking'}
+          </Text>
+        </View>
+
+        {booking.clientName && isOwnBooking && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Client:</Text>
+            <Text style={styles.summaryValue}>{booking.clientName}</Text>
+          </View>
+        )}
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Status:</Text>
+          <Text style={[
+            styles.summaryValue,
+            booking.status === 'confirmed'
+              ? styles.confirmedStatus
+              : styles.cancelledStatus
+          ]}>
+            {booking.status.toUpperCase()}
+          </Text>
+        </View>
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Route:</Text>
+          <Text style={styles.summaryValue}>
+            {booking.route.fromIsland.name} → {booking.route.toIsland.name}
+          </Text>
+        </View>
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Date:</Text>
+          <Text style={styles.summaryValue}>
+            {formatSimpleDate(booking.departureDate)}
+          </Text>
+        </View>
+
+        {/* Only show time for own bookings */}
+        {isOwnBooking && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Time:</Text>
+            <Text style={styles.summaryValue}>{booking.departureTime}</Text>
+          </View>
+        )}
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Vessel:</Text>
+          <Text style={styles.summaryValue}>{booking.vessel?.name || 'N/A'}</Text>
+        </View>
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Passengers:</Text>
+          <Text style={styles.summaryValue}>{booking.passengers.length}</Text>
+        </View>
+
+        {/* Only show seat details for own bookings */}
+        {isOwnBooking && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Seats:</Text>
+            <Text style={styles.summaryValue}>
+              {booking.seats.map(seat => seat.number).join(', ')}
+            </Text>
+          </View>
+        )}
+
+        {/* Only show fare for own bookings */}
+        {isOwnBooking && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Total Fare:</Text>
+            <Text style={styles.summaryValue}>MVR {booking.totalFare.toFixed(2)}</Text>
+          </View>
+        )}
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Check-in:</Text>
+          <Text style={[
+            styles.summaryValue,
+            booking.checkInStatus
+              ? styles.checkedInStatus
+              : styles.notCheckedInStatus
+          ]}>
+            {booking.checkInStatus ? 'CHECKED IN' : 'NOT CHECKED IN'}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderCameraView = () => (
+    <View style={styles.cameraContainer}>
+      <View style={styles.cameraHeader}>
+        <Text style={styles.cameraTitle}>Scan QR Code</Text>
+        <TouchableOpacity onPress={handleCloseCamera} style={styles.closeButton}>
+          <X size={24} color={Colors.text} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.cameraWrapper}>
+        <CameraView
+          style={styles.camera}
+          facing="back"
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ['qr'],
+          }}
+        />
+        {/* Overlay with scanning frame - positioned absolutely */}
+        <View style={styles.overlay}>
+          <View style={styles.scanFrame}>
+            <View style={[styles.corner, styles.topLeft]} />
+            <View style={[styles.corner, styles.topRight]} />
+            <View style={[styles.corner, styles.bottomLeft]} />
+            <View style={[styles.corner, styles.bottomRight]} />
+          </View>
+        </View>
+      </View>
+
+      <Text style={styles.cameraInstructions}>
+        Position the QR code within the frame to scan
+      </Text>
+    </View>
+  );
+
   return (
     <ScrollView
       style={styles.container}
@@ -215,39 +346,7 @@ export default function ValidateTicketScreen() {
             />
           </View>
         ) : (
-          // Camera View
-          <View style={styles.cameraContainer}>
-            <View style={styles.cameraHeader}>
-              <Text style={styles.cameraTitle}>Scan QR Code</Text>
-              <TouchableOpacity onPress={handleCloseCamera} style={styles.closeButton}>
-                <X size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.cameraWrapper}>
-              <CameraView
-                style={styles.camera}
-                facing="back"
-                onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-                barcodeScannerSettings={{
-                  barcodeTypes: ['qr'],
-                }}
-              />
-              {/* Overlay with scanning frame - positioned absolutely */}
-              <View style={styles.overlay}>
-                <View style={styles.scanFrame}>
-                  <View style={[styles.corner, styles.topLeft]} />
-                  <View style={[styles.corner, styles.topRight]} />
-                  <View style={[styles.corner, styles.bottomLeft]} />
-                  <View style={[styles.corner, styles.bottomRight]} />
-                </View>
-              </View>
-            </View>
-
-            <Text style={styles.cameraInstructions}>
-              Position the QR code within the frame to scan
-            </Text>
-          </View>
+          renderCameraView()
         )}
       </Card>
 
@@ -275,107 +374,12 @@ export default function ValidateTicketScreen() {
           {validationResult.booking && (
             <>
               <View style={styles.divider} />
-
-              <View style={styles.bookingSummary}>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Booking #:</Text>
-                  <Text style={styles.summaryValue}>{validationResult.booking.bookingNumber}</Text>
-                </View>
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Type:</Text>
-                  <Text style={styles.summaryValue}>
-                    {validationResult.booking.bookingType === 'agent' ? 'Agent Booking' : 'Customer Booking'}
-                  </Text>
-                </View>
-
-                {validationResult.booking.clientName && validationResult.isOwnBooking && (
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Client:</Text>
-                    <Text style={styles.summaryValue}>{validationResult.booking.clientName}</Text>
-                  </View>
-                )}
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Status:</Text>
-                  <Text style={[
-                    styles.summaryValue,
-                    validationResult.booking.status === 'confirmed'
-                      ? styles.confirmedStatus
-                      : styles.cancelledStatus
-                  ]}>
-                    {validationResult.booking.status.toUpperCase()}
-                  </Text>
-                </View>
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Route:</Text>
-                  <Text style={styles.summaryValue}>
-                    {validationResult.booking.route.fromIsland.name} → {validationResult.booking.route.toIsland.name}
-                  </Text>
-                </View>
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Date:</Text>
-                  <Text style={styles.summaryValue}>
-                    {new Date(validationResult.booking.departureDate).toLocaleDateString()}
-                  </Text>
-                </View>
-
-                {/* Only show time for own bookings */}
-                {validationResult.isOwnBooking && (
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Time:</Text>
-                    <Text style={styles.summaryValue}>{validationResult.booking.departureTime}</Text>
-                  </View>
-                )}
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Vessel:</Text>
-                  <Text style={styles.summaryValue}>{validationResult.booking.vessel?.name || 'N/A'}</Text>
-                </View>
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Passengers:</Text>
-                  <Text style={styles.summaryValue}>{validationResult.booking.passengers.length}</Text>
-                </View>
-
-                {/* Only show seat details for own bookings */}
-                {validationResult.isOwnBooking && (
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Seats:</Text>
-                    <Text style={styles.summaryValue}>
-                      {validationResult.booking.seats.map(seat => seat.number).join(', ')}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Only show fare for own bookings */}
-                {validationResult.isOwnBooking && (
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Total Fare:</Text>
-                    <Text style={styles.summaryValue}>MVR {validationResult.booking.totalFare.toFixed(2)}</Text>
-                  </View>
-                )}
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Check-in:</Text>
-                  <Text style={[
-                    styles.summaryValue,
-                    validationResult.booking.checkInStatus
-                      ? styles.checkedInStatus
-                      : styles.notCheckedInStatus
-                  ]}>
-                    {validationResult.booking.checkInStatus ? 'CHECKED IN' : 'NOT CHECKED IN'}
-                  </Text>
-                </View>
-              </View>
+              {renderBookingSummary()}
 
               {/* Only show View Booking button for user's own bookings */}
               {validationResult.isOwnBooking && validationResult.isValid && (
                 <>
                   <View style={styles.divider} />
-
                   <View style={styles.actionContainer}>
                     <Button
                       title="View Full Details"
@@ -390,7 +394,6 @@ export default function ValidateTicketScreen() {
               {!validationResult.isOwnBooking && validationResult.isValid && (
                 <>
                   <View style={styles.divider} />
-
                   <View style={styles.noteContainer}>
                     <Text style={styles.noteText}>
                       ℹ️ This ticket belongs to another user. Limited information is shown for privacy.

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Share,
   Alert
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -19,10 +18,14 @@ import {
   XCircle
 } from 'lucide-react-native';
 import { useUserBookingsStore } from '@/store/userBookingsStore';
+import { useBookingEligibility } from '@/hooks/useBookingEligibility';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import TicketCard from '@/components/TicketCard';
+import { shareBookingTicket } from '@/utils/shareUtils';
+import { formatBookingDate } from '@/utils/dateUtils';
+import { formatPaymentMethod } from '@/utils/paymentUtils';
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -36,7 +39,10 @@ export default function BookingDetailsScreen() {
   }, [fetchUserBookings, bookings.length]);
 
   // Find the booking by id with proper type handling
-  const booking = bookings.find(b => String(b.id) === String(id));
+  const booking = bookings.find(b => String(b.id) === String(id)) ?? null;
+
+  // Use booking eligibility hook
+  const { isModifiable, isCancellable, message } = useBookingEligibility({ booking });
 
   if (!booking) {
     return (
@@ -51,44 +57,13 @@ export default function BookingDetailsScreen() {
     );
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
   const handleShareTicket = async () => {
-    try {
-      await Share.share({
-        message: `Ferry Booking #${booking.bookingNumber}\n
-From: ${booking.route.fromIsland.name}
-To: ${booking.route.toIsland.name}
-Date: ${formatDate(booking.departureDate)}
-Time: ${booking.departureTime}
-Passengers: ${booking.passengers.length}
-Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
-        title: `Ferry Ticket #${booking.bookingNumber}`,
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Could not share the ticket');
-    }
+    await shareBookingTicket(booking);
   };
 
   const handleModifyBooking = () => {
-    // Check if booking is eligible for modification (72 hours rule)
-    const departureDate = new Date(booking.departureDate);
-    const now = new Date();
-    const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-    if (hoursDifference < 72) {
-      Alert.alert(
-        "Cannot Modify",
-        "Bookings can only be modified at least 72 hours before departure."
-      );
+    if (!isModifiable) {
+      Alert.alert("Cannot Modify", message || "This booking cannot be modified");
       return;
     }
 
@@ -96,32 +71,198 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
   };
 
   const handleCancelBooking = () => {
-    // Check if booking is eligible for cancellation (72 hours rule)
-    const departureDate = new Date(booking.departureDate);
-    const now = new Date();
-    const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-    if (hoursDifference < 72) {
-      Alert.alert(
-        "Cannot Cancel",
-        "Bookings can only be cancelled at least 72 hours before departure."
-      );
+    if (!isCancellable) {
+      Alert.alert("Cannot Cancel", message || "This booking cannot be cancelled");
       return;
     }
 
     router.push(`/cancel-booking/${booking.id}`);
   };
 
-  const isModifiable = () => {
-    // Check if booking is eligible for modification (72 hours rule and status)
-    if (booking.status !== 'confirmed') return false;
+  const renderBookingDetails = () => (
+    <Card variant="elevated" style={styles.detailsCard}>
+      <Text style={styles.cardTitle}>Booking Details</Text>
 
-    const departureDate = new Date(booking.departureDate);
-    const now = new Date();
-    const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      <View style={styles.detailRow}>
+        <View style={styles.detailIcon}>
+          <Calendar size={20} color={Colors.primary} />
+        </View>
+        <View style={styles.detailContent}>
+          <Text style={styles.detailLabel}>Departure Date</Text>
+          <Text style={styles.detailValue}>{formatBookingDate(booking.departureDate)}</Text>
+        </View>
+      </View>
 
-    return hoursDifference >= 72;
-  };
+      <View style={styles.detailRow}>
+        <View style={styles.detailIcon}>
+          <Clock size={20} color={Colors.primary} />
+        </View>
+        <View style={styles.detailContent}>
+          <Text style={styles.detailLabel}>Departure Time</Text>
+          <Text style={styles.detailValue}>{booking.departureTime}</Text>
+        </View>
+      </View>
+
+      {booking.tripType === 'round_trip' && booking.returnDate && (
+        <>
+          <View style={styles.detailRow}>
+            <View style={styles.detailIcon}>
+              <Calendar size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Return Date</Text>
+              <Text style={styles.detailValue}>{formatBookingDate(booking.returnDate)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIcon}>
+              <Clock size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Return Time</Text>
+              <Text style={styles.detailValue}>{booking.returnTime}</Text>
+            </View>
+          </View>
+        </>
+      )}
+
+      <View style={styles.detailRow}>
+        <View style={styles.detailIcon}>
+          <MapPin size={20} color={Colors.primary} />
+        </View>
+        <View style={styles.detailContent}>
+          <Text style={styles.detailLabel}>Route</Text>
+          <Text style={styles.detailValue}>
+            {booking.route.fromIsland.name} → {booking.route.toIsland.name}
+          </Text>
+        </View>
+      </View>
+
+      {booking.tripType === 'round_trip' && booking.returnRoute && (
+        <View style={styles.detailRow}>
+          <View style={styles.detailIcon}>
+            <MapPin size={20} color={Colors.primary} />
+          </View>
+          <View style={styles.detailContent}>
+            <Text style={styles.detailLabel}>Return Route</Text>
+            <Text style={styles.detailValue}>
+              {booking.returnRoute.fromIsland.name} → {booking.returnRoute.toIsland.name}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <View style={styles.detailRow}>
+        <View style={styles.detailIcon}>
+          <Users size={20} color={Colors.primary} />
+        </View>
+        <View style={styles.detailContent}>
+          <Text style={styles.detailLabel}>Passengers</Text>
+          <Text style={styles.detailValue}>{booking.passengers.length}</Text>
+        </View>
+      </View>
+    </Card>
+  );
+
+  const renderPassengerDetails = () => (
+    <Card variant="elevated" style={styles.passengersCard}>
+      <Text style={styles.cardTitle}>Passenger Details</Text>
+
+      {booking.passengers.map((passenger, index) => (
+        <View key={index} style={styles.passengerItem}>
+          <View style={styles.passengerHeader}>
+            <Text style={styles.passengerName}>{passenger.fullName}</Text>
+            <Text style={styles.seatNumber}>
+              Seat: {booking.seats[index]?.number}
+            </Text>
+          </View>
+
+          {passenger.idNumber && (
+            <Text style={styles.passengerDetail}>ID: {passenger.idNumber}</Text>
+          )}
+
+          {passenger.specialAssistance && (
+            <Text style={styles.passengerDetail}>
+              Special Assistance: {passenger.specialAssistance}
+            </Text>
+          )}
+        </View>
+      ))}
+    </Card>
+  );
+
+  const renderPaymentDetails = () => (
+    <Card variant="elevated" style={styles.paymentCard}>
+      <Text style={styles.cardTitle}>Payment Details</Text>
+
+      {booking.payment ? (
+        <>
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Payment Method</Text>
+            <Text style={styles.paymentValue}>
+              {formatPaymentMethod(booking.payment.method)}
+            </Text>
+          </View>
+
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Payment Status</Text>
+            <Text
+              style={[
+                styles.paymentValue,
+                booking.payment.status === 'completed' && styles.paymentPaid,
+                booking.payment.status === 'pending' && styles.paymentPending,
+                booking.payment.status === 'failed' && styles.paymentFailed,
+              ]}
+            >
+              {booking.payment.status.toUpperCase()}
+            </Text>
+          </View>
+        </>
+      ) : (
+        <Text style={styles.paymentValue}>No payment information available</Text>
+      )}
+
+      <View style={styles.paymentRow}>
+        <Text style={styles.paymentLabel}>Total Amount</Text>
+        <Text style={styles.totalAmount}>MVR {booking.totalFare.toFixed(2)}</Text>
+      </View>
+    </Card>
+  );
+
+  const renderActionButtons = () => (
+    <View style={styles.actionButtons}>
+      <Button
+        title="Share Ticket"
+        onPress={handleShareTicket}
+        variant="outline"
+        style={styles.actionButton}
+        textStyle={styles.actionButtonText}
+      />
+
+      {(isModifiable || isCancellable) && (
+        <>
+          <Button
+            title="Modify Booking"
+            onPress={handleModifyBooking}
+            variant="outline"
+            style={styles.actionButton}
+            textStyle={styles.modifyButtonText}
+            disabled={!isModifiable}
+          />
+
+          <Button
+            title="Cancel Booking"
+            onPress={handleCancelBooking}
+            variant="outline"
+            style={styles.actionButton}
+            textStyle={styles.cancelButtonText}
+            disabled={!isCancellable}
+          />
+        </>
+      )}
+    </View>
+  );
 
   return (
     <ScrollView
@@ -155,185 +296,16 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`,
       <TicketCard booking={booking} />
 
       {/* Booking Details */}
-      <Card variant="elevated" style={styles.detailsCard}>
-        <Text style={styles.cardTitle}>Booking Details</Text>
-
-        <View style={styles.detailRow}>
-          <View style={styles.detailIcon}>
-            <Calendar size={20} color={Colors.primary} />
-          </View>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Departure Date</Text>
-            <Text style={styles.detailValue}>{formatDate(booking.departureDate)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <View style={styles.detailIcon}>
-            <Clock size={20} color={Colors.primary} />
-          </View>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Departure Time</Text>
-            <Text style={styles.detailValue}>{booking.departureTime}</Text>
-          </View>
-        </View>
-
-        {booking.tripType === 'round_trip' && booking.returnDate && (
-          <>
-            <View style={styles.detailRow}>
-              <View style={styles.detailIcon}>
-                <Calendar size={20} color={Colors.primary} />
-              </View>
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Return Date</Text>
-                <Text style={styles.detailValue}>{formatDate(booking.returnDate)}</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailRow}>
-              <View style={styles.detailIcon}>
-                <Clock size={20} color={Colors.primary} />
-              </View>
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Return Time</Text>
-                <Text style={styles.detailValue}>{booking.returnTime}</Text>
-              </View>
-            </View>
-          </>
-        )}
-
-        <View style={styles.detailRow}>
-          <View style={styles.detailIcon}>
-            <MapPin size={20} color={Colors.primary} />
-          </View>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Route</Text>
-            <Text style={styles.detailValue}>
-              {booking.route.fromIsland.name} → {booking.route.toIsland.name}
-            </Text>
-          </View>
-        </View>
-
-        {booking.tripType === 'round_trip' && booking.returnRoute && (
-          <View style={styles.detailRow}>
-            <View style={styles.detailIcon}>
-              <MapPin size={20} color={Colors.primary} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Return Route</Text>
-              <Text style={styles.detailValue}>
-                {booking.returnRoute.fromIsland.name} → {booking.returnRoute.toIsland.name}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        <View style={styles.detailRow}>
-          <View style={styles.detailIcon}>
-            <Users size={20} color={Colors.primary} />
-          </View>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Passengers</Text>
-            <Text style={styles.detailValue}>{booking.passengers.length}</Text>
-          </View>
-        </View>
-      </Card>
+      {renderBookingDetails()}
 
       {/* Passenger Details */}
-      <Card variant="elevated" style={styles.passengersCard}>
-        <Text style={styles.cardTitle}>Passenger Details</Text>
-
-        {booking.passengers.map((passenger, index) => (
-          <View key={index} style={styles.passengerItem}>
-            <View style={styles.passengerHeader}>
-              <Text style={styles.passengerName}>{passenger.fullName}</Text>
-              <Text style={styles.seatNumber}>
-                Seat: {booking.seats[index]?.number}
-              </Text>
-            </View>
-
-            {passenger.idNumber && (
-              <Text style={styles.passengerDetail}>ID: {passenger.idNumber}</Text>
-            )}
-
-            {passenger.specialAssistance && (
-              <Text style={styles.passengerDetail}>
-                Special Assistance: {passenger.specialAssistance}
-              </Text>
-            )}
-          </View>
-        ))}
-      </Card>
+      {renderPassengerDetails()}
 
       {/* Payment Details */}
-      <Card variant="elevated" style={styles.paymentCard}>
-        <Text style={styles.cardTitle}>Payment Details</Text>
-
-        {booking.payment ? (
-          <>
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Payment Method</Text>
-              <Text style={styles.paymentValue}>
-                {booking.payment.method.split('_').map(word =>
-                  word.charAt(0).toUpperCase() + word.slice(1)
-                ).join(' ')}
-              </Text>
-            </View>
-
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Payment Status</Text>
-              <Text
-                style={[
-                  styles.paymentValue,
-                  booking.payment.status === 'completed' && styles.paymentPaid,
-                  booking.payment.status === 'pending' && styles.paymentPending,
-                  booking.payment.status === 'failed' && styles.paymentFailed,
-                ]}
-              >
-                {booking.payment.status.toUpperCase()}
-              </Text>
-            </View>
-          </>
-        ) : (
-          <Text style={styles.paymentValue}>No payment information available</Text>
-        )}
-
-        <View style={styles.paymentRow}>
-          <Text style={styles.paymentLabel}>Total Amount</Text>
-          <Text style={styles.totalAmount}>MVR {booking.totalFare.toFixed(2)}</Text>
-        </View>
-      </Card>
+      {renderPaymentDetails()}
 
       {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        <Button
-          title="Share Ticket"
-          onPress={handleShareTicket}
-          variant="outline"
-          style={styles.actionButton}
-          textStyle={styles.actionButtonText}
-        />
-
-        {isModifiable() && (
-          <>
-            <Button
-              title="Modify Booking"
-              onPress={handleModifyBooking}
-              variant="outline"
-              style={styles.actionButton}
-              textStyle={styles.modifyButtonText}
-            />
-
-            <Button
-              title="Cancel Booking"
-              onPress={handleCancelBooking}
-              variant="outline"
-              style={styles.actionButton}
-              textStyle={styles.cancelButtonText}
-            />
-          </>
-        )}
-      </View>
+      {renderActionButtons()}
     </ScrollView>
   );
 }
@@ -398,11 +370,13 @@ const styles = StyleSheet.create({
   },
   detailRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
   detailIcon: {
-    width: 40,
+    width: 32,
     alignItems: 'center',
+    marginRight: 12,
   },
   detailContent: {
     flex: 1,
@@ -414,42 +388,51 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: 16,
+    fontWeight: '600',
     color: Colors.text,
   },
   passengersCard: {
     marginBottom: 16,
   },
   passengerItem: {
-    paddingVertical: 12,
+    marginBottom: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   passengerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
+    marginBottom: 8,
   },
   passengerName: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
+    flex: 1,
   },
   seatNumber: {
     fontSize: 14,
+    fontWeight: '500',
     color: Colors.primary,
-    fontWeight: '600',
+    backgroundColor: Colors.card,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   passengerDetail: {
     fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginBottom: 4,
   },
   paymentCard: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   paymentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
   },
   paymentLabel: {
@@ -458,7 +441,7 @@ const styles = StyleSheet.create({
   },
   paymentValue: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: Colors.text,
   },
   paymentPaid: {
@@ -473,25 +456,19 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.primary,
+    color: Colors.text,
   },
   actionButtons: {
-    marginBottom: 16,
+    gap: 12,
   },
   actionButton: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   actionButtonText: {
     color: Colors.primary,
   },
-  modifyButton: {
-    borderColor: Colors.secondary,
-  },
   modifyButtonText: {
-    color: Colors.secondary,
-  },
-  cancelButton: {
-    borderColor: Colors.error,
+    color: Colors.primary,
   },
   cancelButtonText: {
     color: Colors.error,
@@ -500,12 +477,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   notFoundText: {
     fontSize: 18,
-    color: Colors.text,
-    marginBottom: 20,
+    color: Colors.textSecondary,
+    marginBottom: 16,
   },
   notFoundButton: {
     minWidth: 120,

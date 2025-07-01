@@ -1,4 +1,6 @@
-import { Booking, Route, Seat } from '../index';
+import type { Booking, Route, Seat, PaymentMethod } from '../index';
+
+export type { PaymentMethod };
 
 export interface BookingFormData {
   tripType: 'one_way' | 'round_trip';
@@ -19,20 +21,21 @@ export interface PassengerFormData {
 }
 
 export interface BookingFormErrors {
-  tripType?: string;
-  departureDate?: string;
-  returnDate?: string;
-  route?: string;
-  returnRoute?: string;
-  selectedSeats?: string;
-  returnSelectedSeats?: string;
-  passengers?: string;
+  date?: string;
+  trip?: string;
+  seats?: string;
+  reason?: string;
+  payment?: string;
+  accountNumber?: string;
+  accountName?: string;
+  bankName?: string;
 }
 
 export interface ValidationResult {
   isValid: boolean;
-  booking?: Booking;
-  error?: string;
+  booking: Booking | null;
+  message: string;
+  isOwnBooking?: boolean;
 }
 
 export interface ModifyBookingFormData {
@@ -40,4 +43,32 @@ export interface ModifyBookingFormData {
   returnDate: string | null;
   selectedSeats: Seat[];
   returnSelectedSeats: Seat[];
+}
+
+export interface BankDetails {
+  accountNumber: string;
+  accountName: string;
+  bankName: string;
+}
+
+export interface ModifyBookingData {
+  newTripId: string;
+  newDate: string | null;
+  selectedSeats: Seat[];
+  modificationReason: string;
+  fareDifference: number;
+  paymentMethod: PaymentMethod;
+  bankAccountDetails: BankDetails | null;
+}
+
+export interface CancelBookingData {
+  reason: string;
+  bankDetails: BankDetails;
+}
+
+export interface BookingEligibility {
+  isModifiable: boolean;
+  isCancellable: boolean;
+  message?: string;
+  hoursUntilDeparture: number;
 } 
