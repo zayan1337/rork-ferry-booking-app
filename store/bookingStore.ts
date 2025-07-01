@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../utils/supabase';
 import type { BookingStoreState, CurrentBooking, TripType, Trip } from '@/types/booking';
 import type { Route, Seat, Passenger, PaymentMethod } from '@/types';
+import { calculateBookingFare } from '@/utils/bookingUtils';
 
 const initialCurrentBooking: CurrentBooking = {
     tripType: 'one_way',
@@ -259,6 +260,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     calculateTotalFare: () => {
         const { currentBooking } = get();
 
+        // Only calculate fare if we have the minimum required data
         if (!currentBooking.route) {
             set((state) => ({
                 currentBooking: {
@@ -269,15 +271,23 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             return;
         }
 
-        const baseFare = currentBooking.route.baseFare || 0;
-        const returnBaseFare = currentBooking.returnRoute?.baseFare || 0;
-        const totalFare = (currentBooking.selectedSeats.length * baseFare) +
-            (currentBooking.returnSelectedSeats.length * returnBaseFare);
+        const fareCalculation = calculateBookingFare(
+            currentBooking.route,
+            currentBooking.returnRoute,
+            currentBooking.selectedSeats,
+            currentBooking.returnSelectedSeats,
+            currentBooking.tripType
+        );
+
+        // Only log warnings if we have some data but validation fails
+        if (!fareCalculation.isValid && (currentBooking.selectedSeats.length > 0 || currentBooking.returnSelectedSeats.length > 0)) {
+            console.warn('Fare calculation validation failed:', fareCalculation.errors);
+        }
 
         set((state) => ({
             currentBooking: {
                 ...state.currentBooking,
-                totalFare,
+                totalFare: fareCalculation.totalFare,
             }
         }));
     },
@@ -562,7 +572,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             const bookingData = {
                 user_id: user.id, // Required for RLS policy
                 trip_id: trip.id,
-                total_fare: currentBooking.totalFare,
+                total_fare: selectedSeats.length * (route.baseFare || 0), // Only departure fare
                 payment_method_type: paymentMethod,
                 status: 'pending_payment' as const, // Start with pending_payment like booking operations
                 is_round_trip: tripType === 'round_trip',
@@ -638,7 +648,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
                 .insert({
                     booking_id: booking.id,
                     payment_method: paymentMethod as PaymentMethod,
-                    amount: currentBooking.totalFare,
+                    amount: selectedSeats.length * (route.baseFare || 0),
                     status: 'completed', // Mark as completed for immediate confirmation
                 });
 

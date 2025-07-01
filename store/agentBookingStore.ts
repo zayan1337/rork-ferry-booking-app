@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../utils/supabase';
 import type { Route, Seat, Passenger, Trip } from '@/types';
 import type { Agent } from '@/types/agent';
+import { calculateBookingFare, calculateDiscountedFare } from '@/utils/bookingUtils';
 
 export interface AgentClient {
     id?: string; // Optional for new clients
@@ -580,26 +581,45 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
     calculateFares: () => {
         const { currentBooking, agent } = get();
 
-        let totalFare = 0;
-
-        // Calculate base fare
-        if (currentBooking.route && currentBooking.selectedSeats.length > 0) {
-            totalFare += currentBooking.selectedSeats.length * (currentBooking.route.baseFare || 0);
+        // Only calculate fare if we have the minimum required data
+        if (!currentBooking.route) {
+            set(state => ({
+                currentBooking: {
+                    ...state.currentBooking,
+                    totalFare: 0,
+                    discountedFare: 0,
+                    discountRate: 0,
+                }
+            }));
+            return;
         }
 
-        if (currentBooking.returnRoute && currentBooking.returnSelectedSeats.length > 0) {
-            totalFare += currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute.baseFare || 0);
+        const fareCalculation = calculateBookingFare(
+            currentBooking.route,
+            currentBooking.returnRoute,
+            currentBooking.selectedSeats,
+            currentBooking.returnSelectedSeats,
+            currentBooking.tripType
+        );
+
+        // Only log warnings if we have some data but validation fails
+        if (!fareCalculation.isValid && (currentBooking.selectedSeats.length > 0 || currentBooking.returnSelectedSeats.length > 0)) {
+            console.warn('Fare calculation validation failed:', fareCalculation.errors);
         }
 
         // Apply agent discount
-        const discountRate = agent?.discountRate || 0;
-        const discountedFare = totalFare * (1 - discountRate / 100);
+        const discountRate = Number(agent?.discountRate) || 0;
+        const discountCalculation = calculateDiscountedFare(fareCalculation.totalFare, discountRate);
+
+        if (!discountCalculation.isValid) {
+            console.warn('Discount calculation validation failed:', discountCalculation.errors);
+        }
 
         set(state => ({
             currentBooking: {
                 ...state.currentBooking,
-                totalFare,
-                discountedFare,
+                totalFare: fareCalculation.totalFare,
+                discountedFare: discountCalculation.discountedFare,
                 discountRate,
             }
         }));
@@ -711,7 +731,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 agent_id: agent.id,
                 agent_client_id: agentClientId,
                 trip_id: currentBooking.trip.id,
-                total_fare: currentBooking.discountedFare,
+                total_fare: (currentBooking.selectedSeats.length * (currentBooking.route?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100), // Only departure fare with discount
                 payment_method_type: currentBooking.paymentMethod,
                 status: 'confirmed' as const,
                 is_round_trip: currentBooking.tripType === 'round_trip',
@@ -819,7 +839,8 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
 
             // Handle credit payment
             if (currentBooking.paymentMethod === 'credit') {
-                const newBalance = agent.creditBalance - currentBooking.discountedFare;
+                const departureFare = (currentBooking.selectedSeats.length * (currentBooking.route?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100);
+                const newBalance = agent.creditBalance - departureFare;
 
                 if (newBalance < 0) {
                     // Clean up everything if insufficient credit
@@ -845,7 +866,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                         .from('agent_credit_transactions')
                         .insert({
                             agent_id: agent.id,
-                            amount: -currentBooking.discountedFare,
+                            amount: -departureFare,
                             transaction_type: 'deduction',
                             booking_id: booking.id,
                             description: `Booking payment for ${currentBooking.route?.fromIsland?.name || 'Unknown'} to ${currentBooking.route?.toIsland?.name || 'Unknown'}`,
