@@ -1,52 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Alert,
-  TextInput as RNTextInput,
-  TouchableOpacity,
-  ViewStyle,
-  TextStyle,
   KeyboardAvoidingView,
   Platform,
-  Keyboard
+  Keyboard,
+  TouchableOpacity
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { Calendar, ArrowRight } from 'lucide-react-native';
 import { useUserBookingsStore, useRouteStore, useTripStore, useSeatStore } from '@/store';
 import { supabase } from '@/utils/supabase';
 import { Seat } from '@/types';
-import { toggleSeatSelection as toggleSeatUtil } from '@/utils/seatSelectionUtils';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
+import Input from '@/components/Input';
 import Button from '@/components/Button';
 import DatePicker from '@/components/DatePicker';
 import SeatSelector from '@/components/SeatSelector';
 
-// Define interface for custom TextInput props
-interface CustomTextInputProps {
-  placeholder: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  multiline?: boolean;
-  numberOfLines?: number;
-  style?: ViewStyle;
-}
+type PaymentMethod = 'gateway' | 'bank_transfer' | 'cash';
 
 export default function ModifyBookingScreen() {
   const { id } = useLocalSearchParams();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Enhanced keyboard handling
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [activeInput, setActiveInput] = useState<string | null>(null);
-  const inputRefs = useRef({
-    reason: null as any,
-  });
-
-  // User bookings management
+  // Store hooks
   const {
     bookings,
     modifyBooking,
@@ -54,55 +35,56 @@ export default function ModifyBookingScreen() {
     isLoading: bookingsLoading
   } = useUserBookingsStore();
 
-  // Route management
   const {
-    availableRoutes,
-    isLoading: routeLoading
-  } = useRouteStore();
-
-  // Trip management
-  const {
-    trips,
-    returnTrips,
     fetchTrips,
+    trips,
     isLoading: tripLoading
   } = useTripStore();
 
-  // Seat management
   const {
     availableSeats,
-    availableReturnSeats,
     fetchAvailableSeats,
     isLoading: seatLoading
   } = useSeatStore();
 
-  // Combined loading state
-  const isLoading = bookingsLoading || routeLoading || tripLoading || seatLoading;
-
-  // State to track actual seat availability for each trip
-  const [tripSeatCounts, setTripSeatCounts] = useState<Record<string, number>>({});
-  const [newDepartureDate, setNewDepartureDate] = useState<string | null>(null);
-  const [newReturnDate, setNewReturnDate] = useState<string | null>(null);
+  // State management
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedTrip, setSelectedTrip] = useState<any>(null);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
-  const [returnSelectedSeats, setReturnSelectedSeats] = useState<Seat[]>([]);
   const [modificationReason, setModificationReason] = useState('');
   const [fareDifference, setFareDifference] = useState(0);
-  const [selectedTrip, setSelectedTrip] = useState<any>(null);
-  const [selectedReturnTrip, setSelectedReturnTrip] = useState<any>(null);
+  const [tripSeatCounts, setTripSeatCounts] = useState<Record<string, number>>({});
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('gateway');
+  const [bankAccountDetails, setBankAccountDetails] = useState({
+    accountNumber: '',
+    accountName: '',
+    bankName: '',
+  });
   const [errors, setErrors] = useState({
-    departureDate: '',
-    returnDate: '',
+    date: '',
+    trip: '',
     seats: '',
     reason: '',
-    trip: '',
+    payment: '',
+    accountNumber: '',
+    accountName: '',
+    bankName: '',
   });
 
-  // Ensure bookings are loaded when component mounts
-  useEffect(() => {
-    if (bookings.length === 0) {
-      fetchUserBookings();
-    }
-  }, [fetchUserBookings, bookings.length]);
+  // Enhanced keyboard handling
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [activeInput, setActiveInput] = useState<string | null>(null);
+  const inputRefs = useRef({
+    reason: null as any,
+    accountNumber: null as any,
+    accountName: null as any,
+    bankName: null as any,
+  });
+
+  const isLoading = bookingsLoading || tripLoading || seatLoading;
+
+  // Find the specific booking
+  const booking = bookings.find((b: any) => String(b.id) === String(id));
 
   // Enhanced keyboard event listeners
   useEffect(() => {
@@ -110,7 +92,6 @@ export default function ModifyBookingScreen() {
       'keyboardDidShow',
       (e) => {
         setKeyboardHeight(e.endCoordinates.height);
-        // Scroll to active input when keyboard appears
         if (activeInput) {
           scrollToInput(activeInput);
         }
@@ -130,7 +111,6 @@ export default function ModifyBookingScreen() {
     };
   }, [activeInput]);
 
-  // Enhanced scroll to input function
   const scrollToInput = (inputKey: string) => {
     setTimeout(() => {
       const inputRef = inputRefs.current[inputKey as keyof typeof inputRefs.current];
@@ -138,50 +118,63 @@ export default function ModifyBookingScreen() {
         inputRef.measureLayout(
           scrollViewRef.current,
           (x: number, y: number) => {
-            const scrollOffset = y - 100; // Position input 100px from top
+            const scrollOffset = y - 100;
             scrollViewRef.current?.scrollTo({
               x: 0,
               y: Math.max(0, scrollOffset),
               animated: true,
             });
           },
-          () => {
-            // Fallback if measureLayout fails
-          }
+          () => { }
         );
       }
     }, 100);
   };
 
-  // Find the booking by id with proper type handling
-  const booking = bookings.find((b: any) => {
-    // Handle both string and number IDs
-    return String(b.id) === String(id);
-  });
+  // Initialize component
+  useEffect(() => {
+    if (bookings.length === 0) {
+      fetchUserBookings();
+    }
+  }, [fetchUserBookings, bookings.length]);
 
-
-
-  // Show loading state while bookings are being fetched
-  if (bookingsLoading && bookings.length === 0) {
-    return (
-      <View style={styles.notFoundContainer}>
-        <Text style={styles.notFoundText}>Loading booking details...</Text>
-      </View>
-    );
-  }
-
+  // Initialize form data when booking is loaded
   useEffect(() => {
     if (booking) {
-      setNewDepartureDate(booking.departureDate);
-      setNewReturnDate(booking.returnDate || null);
+      setSelectedDate(booking.departureDate);
       setSelectedSeats(booking.seats || []);
-      setReturnSelectedSeats(booking.returnSeats || []);
-
-      // Calculate a random fare difference for demo purposes
-      const randomDiff = Math.floor(Math.random() * 40) - 20; // Between -20 and 20
-      setFareDifference(randomDiff);
+      // Set default payment method based on original booking
+      if (booking.payment?.method) {
+        setSelectedPaymentMethod(booking.payment.method as PaymentMethod);
+      }
     }
   }, [booking]);
+
+  // Fetch trips when date changes
+  useEffect(() => {
+    if (selectedDate && booking?.route?.id) {
+      fetchTrips(booking.route.id, selectedDate);
+    }
+  }, [selectedDate, booking?.route?.id, fetchTrips]);
+
+  // Fetch seats when trip is selected
+  useEffect(() => {
+    if (selectedTrip?.id) {
+      fetchAvailableSeats(selectedTrip.id, false);
+      fetchTripSeatAvailability(selectedTrip.id);
+    }
+  }, [selectedTrip?.id, fetchAvailableSeats]);
+
+  // Calculate fare difference when trip changes
+  useEffect(() => {
+    if (selectedTrip && booking && booking.passengers && booking.route) {
+      // Simple fare calculation - you may need to adjust based on your pricing logic
+      const currentFarePerSeat = booking.totalFare / booking.passengers.length;
+      const newFarePerSeat = booking.route.baseFare; // Assuming base fare from route
+      const difference = (newFarePerSeat - currentFarePerSeat) * booking.passengers.length;
+      setFareDifference(difference);
+    }
+  }, [selectedTrip, booking]);
 
   // Function to fetch actual seat availability for a trip
   const fetchTripSeatAvailability = async (tripId: string) => {
@@ -193,93 +186,206 @@ export default function ModifyBookingScreen() {
 
       if (error) {
         console.error('Error fetching seat availability:', error);
-        return 0;
+        return;
       }
 
-      // Count available seats (is_available = true AND booking_id is null)
       const availableCount = seatReservations?.filter(
-        reservation => reservation.is_available && !reservation.booking_id
+        (seat: any) => seat.is_available && !seat.booking_id
       ).length || 0;
 
-      return availableCount;
+      setTripSeatCounts(prev => ({ ...prev, [tripId]: availableCount }));
     } catch (error) {
-      console.error('Error in fetchTripSeatAvailability:', error);
-      return 0;
+      console.error('Error fetching trip seat availability:', error);
     }
   };
 
-  // Fetch trips when date or route changes
-  useEffect(() => {
-    if (booking?.route?.id && newDepartureDate) {
-      fetchTrips(booking.route.id, newDepartureDate, false);
-    }
-  }, [booking?.route?.id, newDepartureDate, fetchTrips]);
+  const handleSeatToggle = (seat: Seat) => {
+    setSelectedSeats(prevSeats => {
+      const isSelected = prevSeats.some(s => s.id === seat.id);
 
-  // Fetch seat availability for all trips when trips are loaded
-  useEffect(() => {
-    const updateTripSeatCounts = async () => {
-      if (trips.length > 0) {
-        const newCounts: Record<string, number> = {};
-
-        // Fetch seat availability for each trip
-        await Promise.all(
-          trips.map(async (trip) => {
-            const availableCount = await fetchTripSeatAvailability(trip.id);
-            newCounts[trip.id] = availableCount;
-          })
-        );
-
-        setTripSeatCounts(newCounts);
+      if (isSelected) {
+        return prevSeats.filter(s => s.id !== seat.id);
+      } else {
+        if (prevSeats.length >= (booking?.passengers?.length || 0)) {
+          Alert.alert(
+            'Maximum Seats Selected',
+            `You can only select ${booking?.passengers?.length || 0} seat(s) for this booking.`
+          );
+          return prevSeats;
+        }
+        return [...prevSeats, { ...seat, isSelected: true }];
       }
-    };
+    });
 
-    updateTripSeatCounts();
-  }, [trips]);
-
-  useEffect(() => {
-    if (booking?.returnRoute?.id && newReturnDate) {
-      fetchTrips(booking.returnRoute.id, newReturnDate, true);
+    if (errors.seats) {
+      setErrors({ ...errors, seats: '' });
     }
-  }, [booking?.returnRoute?.id, newReturnDate, fetchTrips]);
+  };
 
-  // Fetch seat availability for return trips when they are loaded
-  useEffect(() => {
-    const updateReturnTripSeatCounts = async () => {
-      if (returnTrips.length > 0) {
-        const newCounts: Record<string, number> = {};
+  const validateForm = () => {
+    let isValid = true;
+    const newErrors = { ...errors };
 
-        // Fetch seat availability for each return trip
-        await Promise.all(
-          returnTrips.map(async (trip) => {
-            const availableCount = await fetchTripSeatAvailability(trip.id);
-            newCounts[trip.id] = availableCount;
-          })
-        );
+    if (!selectedDate) {
+      newErrors.date = 'Please select a new date';
+      isValid = false;
+    }
 
-        setTripSeatCounts(prev => ({ ...prev, ...newCounts }));
+    if (!selectedTrip) {
+      newErrors.trip = 'Please select a trip';
+      isValid = false;
+    }
+
+    if (selectedSeats.length !== (booking?.passengers?.length || 0)) {
+      newErrors.seats = `Please select ${booking?.passengers?.length || 0} seat(s)`;
+      isValid = false;
+    }
+
+    if (!modificationReason.trim()) {
+      newErrors.reason = 'Please provide a reason for modification';
+      isValid = false;
+    }
+
+    // Validate payment details for refunds
+    if (fareDifference < 0 && selectedPaymentMethod === 'bank_transfer') {
+      if (!bankAccountDetails.accountNumber.trim()) {
+        newErrors.accountNumber = 'Account number is required for refunds';
+        isValid = false;
       }
-    };
-
-    updateReturnTripSeatCounts();
-  }, [returnTrips]);
-
-  // Fetch available seats when trip is selected
-  useEffect(() => {
-    if (selectedTrip?.id) {
-      fetchAvailableSeats(selectedTrip.id, false);
-      // Clear previously selected seats when changing trip
-      setSelectedSeats([]);
+      if (!bankAccountDetails.accountName.trim()) {
+        newErrors.accountName = 'Account name is required for refunds';
+        isValid = false;
+      }
+      if (!bankAccountDetails.bankName.trim()) {
+        newErrors.bankName = 'Bank name is required for refunds';
+        isValid = false;
+      }
     }
-  }, [selectedTrip?.id, fetchAvailableSeats]);
 
-  useEffect(() => {
-    if (selectedReturnTrip?.id) {
-      fetchAvailableSeats(selectedReturnTrip.id, true);
-      // Clear previously selected return seats when changing trip
-      setReturnSelectedSeats([]);
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const processPayment = async (bookingId: string, amount: number) => {
+    try {
+      if (selectedPaymentMethod === 'gateway') {
+        // Simulate payment gateway processing
+        Alert.alert(
+          'Payment Processing',
+          'Please complete the payment using the payment gateway.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            },
+            {
+              text: 'Pay Now',
+              onPress: () => {
+                // Here you would integrate with actual payment gateway
+                Alert.alert(
+                  'Payment Successful',
+                  `Payment of MVR ${amount.toFixed(2)} has been processed successfully.`
+                );
+              }
+            }
+          ]
+        );
+      } else if (selectedPaymentMethod === 'bank_transfer') {
+        Alert.alert(
+          'Bank Transfer',
+          'Please transfer the amount to our bank account. Details will be provided via SMS/Email.'
+        );
+      } else if (selectedPaymentMethod === 'cash') {
+        Alert.alert(
+          'Cash Payment',
+          'Please visit our office to complete the cash payment.'
+        );
+      }
+    } catch (error) {
+      console.error('Payment processing error:', error);
+      Alert.alert('Payment Error', 'Failed to process payment. Please try again.');
     }
-  }, [selectedReturnTrip?.id, fetchAvailableSeats]);
+  };
 
+  const handleModify = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+
+      await modifyBooking(booking.id, {
+        newTripId: selectedTrip.id,
+        newDate: selectedDate,
+        selectedSeats,
+        modificationReason,
+        fareDifference,
+        paymentMethod: selectedPaymentMethod,
+        bankAccountDetails: fareDifference < 0 ? bankAccountDetails : null,
+      });
+
+      if (fareDifference > 0) {
+        // Additional payment required
+        Alert.alert(
+          "Booking Modified",
+          `Your booking has been modified successfully. An additional payment of MVR ${fareDifference.toFixed(2)} is required.`,
+          [
+            {
+              text: "Pay Later",
+              onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings')
+            },
+            {
+              text: "Pay Now",
+              onPress: async () => {
+                await processPayment(booking.id, fareDifference);
+                router.replace('/(app)/(customer)/(tabs)/bookings');
+              }
+            }
+          ]
+        );
+      } else if (fareDifference < 0) {
+        // Refund scenario
+        Alert.alert(
+          "Booking Modified",
+          `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed within 72 hours.`,
+          [
+            {
+              text: "OK",
+              onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings')
+            }
+          ]
+        );
+      } else {
+        // No fare difference
+        Alert.alert(
+          "Booking Modified",
+          "Your booking has been modified successfully. No additional payment or refund is required.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings')
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to modify booking. Please try again.");
+    }
+  };
+
+  // Loading state
+  if (bookingsLoading && bookings.length === 0) {
+    return (
+      <View style={styles.notFoundContainer}>
+        <Text style={styles.notFoundText}>Loading booking details...</Text>
+      </View>
+    );
+  }
+
+  // Booking not found
   if (!booking) {
     return (
       <View style={styles.notFoundContainer}>
@@ -293,119 +399,23 @@ export default function ModifyBookingScreen() {
     );
   }
 
-  const handleSeatToggle = (seat: Seat, isReturn = false) => {
-    const currentSeats = isReturn ? returnSelectedSeats : selectedSeats;
-
-    toggleSeatUtil(seat, currentSeats, {
-      onSeatsChange: (newSeats, isReturnSeat) => {
-        if (isReturnSeat) {
-          setReturnSelectedSeats(newSeats);
-        } else {
-          setSelectedSeats(newSeats);
-        }
-      },
-      onError: (error) => {
-        Alert.alert('Seat Selection Error', error);
-      },
-      maxSeats: booking.passengers.length
-    }, isReturn);
-
-    if (errors.seats) {
-      setErrors({ ...errors, seats: '' });
-    }
-  };
-
-  const validateForm = () => {
-    let isValid = true;
-    const newErrors = { ...errors };
-
-    if (!newDepartureDate) {
-      newErrors.departureDate = 'Please select a departure date';
-      isValid = false;
-    }
-
-    if (booking.tripType === 'round_trip' && !newReturnDate) {
-      newErrors.returnDate = 'Please select a return date';
-      isValid = false;
-    }
-
-    if (!selectedTrip) {
-      newErrors.trip = 'Please select a departure trip';
-      isValid = false;
-    }
-
-    if (selectedSeats.length !== booking.passengers.length) {
-      newErrors.seats = `Please select exactly ${booking.passengers.length} seat(s)`;
-      isValid = false;
-    }
-
-    if (booking.tripType === 'round_trip' && returnSelectedSeats.length !== booking.passengers.length) {
-      newErrors.seats = `Please select exactly ${booking.passengers.length} return seat(s)`;
-      isValid = false;
-    }
-
-    if (!modificationReason.trim()) {
-      newErrors.reason = 'Please provide a reason for modification';
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const handleModify = async () => {
-    if (!validateForm()) {
-      return;
-    }
-
-    try {
-      await modifyBooking(booking.id, {
-        newTripId: selectedTrip?.id,
-        newReturnTripId: selectedReturnTrip?.id,
-        newDepartureDate,
-        newReturnDate,
-        selectedSeats,
-        returnSelectedSeats,
-        modificationReason,
-        fareDifference,
-      });
-
-      Alert.alert(
-        "Booking Modified",
-        `Your booking has been modified successfully. ${fareDifference > 0
-          ? `An additional payment of MVR ${fareDifference.toFixed(2)} is required.`
-          : fareDifference < 0
-            ? `A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed.`
-            : "No fare difference to process."
-        }`,
-        [
-          {
-            text: "OK",
-            onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings')
-          }
-        ]
-      );
-    } catch (error) {
-      Alert.alert("Error", "Failed to modify booking. Please try again.");
-    }
-  };
-
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardAvoidingView}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}
       enabled
     >
       <ScrollView
         ref={scrollViewRef}
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        style={styles.scrollView}
+        contentContainerStyle={[styles.contentContainer, { flexGrow: 1 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Current Booking Details */}
         <Card variant="elevated" style={styles.bookingCard}>
-          <Text style={styles.cardTitle}>Current Booking</Text>
+          <Text style={styles.cardTitle}>Current Booking Details</Text>
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Booking Number:</Text>
@@ -426,14 +436,10 @@ export default function ModifyBookingScreen() {
             </Text>
           </View>
 
-          {booking.tripType === 'round_trip' && booking.returnDate && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Return Date:</Text>
-              <Text style={styles.detailValue}>
-                {new Date(booking.returnDate).toLocaleDateString()}
-              </Text>
-            </View>
-          )}
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Current Time:</Text>
+            <Text style={styles.detailValue}>{booking.departureTime}</Text>
+          </View>
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Current Seats:</Text>
@@ -442,35 +448,39 @@ export default function ModifyBookingScreen() {
             </Text>
           </View>
 
-          {booking.tripType === 'round_trip' && booking.returnSeats && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Return Seats:</Text>
-              <Text style={styles.detailValue}>
-                {booking.returnSeats.map(seat => seat.number).join(', ')}
-              </Text>
-            </View>
-          )}
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Passengers:</Text>
+            <Text style={styles.detailValue}>{booking.passengers.length}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Current Fare:</Text>
+            <Text style={styles.detailValue}>MVR {booking.totalFare.toFixed(2)}</Text>
+          </View>
         </Card>
 
+        {/* Modification Form */}
         <Card variant="elevated" style={styles.modifyCard}>
           <Text style={styles.cardTitle}>Modify Booking</Text>
 
           <DatePicker
-            label="New Departure Date"
-            value={newDepartureDate}
+            label="New Travel Date"
+            value={selectedDate}
             onChange={(date) => {
-              setNewDepartureDate(date);
+              setSelectedDate(date);
               setSelectedTrip(null);
-              if (errors.departureDate) setErrors({ ...errors, departureDate: '' });
+              setSelectedSeats([]);
+              if (errors.date) setErrors({ ...errors, date: '' });
             }}
             minDate={new Date().toISOString().split('T')[0]}
-            error={errors.departureDate}
+            error={errors.date}
             required
           />
 
+          {/* Trip Selection */}
           {trips.length > 0 && (
             <View style={styles.tripSelection}>
-              <Text style={styles.sectionTitle}>Select Departure Trip</Text>
+              <Text style={styles.sectionTitle}>Select New Trip</Text>
               {trips.map((trip) => (
                 <TouchableOpacity
                   key={trip.id}
@@ -480,6 +490,7 @@ export default function ModifyBookingScreen() {
                   ]}
                   onPress={() => {
                     setSelectedTrip(trip);
+                    setSelectedSeats([]);
                     if (errors.trip) setErrors({ ...errors, trip: '' });
                   }}
                 >
@@ -496,125 +507,63 @@ export default function ModifyBookingScreen() {
             </View>
           )}
 
-          {booking.tripType === 'round_trip' && (
-            <DatePicker
-              label="New Return Date"
-              value={newReturnDate}
-              onChange={(date) => {
-                setNewReturnDate(date);
-                setSelectedReturnTrip(null);
-                if (errors.returnDate) setErrors({ ...errors, returnDate: '' });
-              }}
-              minDate={newDepartureDate || new Date().toISOString().split('T')[0]}
-              error={errors.returnDate}
-              required
-            />
-          )}
-
-          {booking.tripType === 'round_trip' && returnTrips.length > 0 && (
-            <View style={styles.tripSelection}>
-              <Text style={styles.sectionTitle}>Select Return Trip</Text>
-              {returnTrips.map((trip) => (
-                <TouchableOpacity
-                  key={trip.id}
-                  style={[
-                    styles.tripOption,
-                    selectedReturnTrip?.id === trip.id && styles.tripOptionSelected
-                  ]}
-                  onPress={() => {
-                    setSelectedReturnTrip(trip);
-                  }}
-                >
-                  <Text style={styles.tripTime}>{trip.departure_time}</Text>
-                  <Text style={styles.tripVessel}>{trip.vessel_name}</Text>
-                  <Text style={styles.tripSeats}>
-                    {tripSeatCounts[trip.id] !== undefined ? tripSeatCounts[trip.id] : '...'} seats available
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          <Text style={styles.seatSectionTitle}>Select New Departure Seats ({selectedSeats.length}/{booking.passengers.length})</Text>
+          {/* Seat Selection */}
+          <Text style={styles.seatSectionTitle}>
+            Select New Seats ({selectedSeats.length}/{booking.passengers.length})
+          </Text>
           {!selectedTrip ? (
-            <Text style={styles.noSeatsText}>Please select a departure trip first</Text>
+            <Text style={styles.noSeatsText}>Please select a trip first</Text>
           ) : isLoading ? (
             <Text style={styles.loadingText}>Loading available seats...</Text>
           ) : availableSeats.length > 0 ? (
             <SeatSelector
               seats={availableSeats}
               selectedSeats={selectedSeats}
-              onSeatToggle={(seat) => handleSeatToggle(seat)}
+              onSeatToggle={handleSeatToggle}
               maxSeats={booking.passengers.length}
             />
           ) : (
             <Text style={styles.noSeatsText}>No seats available for this trip</Text>
           )}
-
-          {booking.tripType === 'round_trip' && (
-            <>
-              <Text style={styles.seatSectionTitle}>Select New Return Seats ({returnSelectedSeats.length}/{booking.passengers.length})</Text>
-              {!selectedReturnTrip ? (
-                <Text style={styles.noSeatsText}>Please select a return trip first</Text>
-              ) : isLoading ? (
-                <Text style={styles.loadingText}>Loading available return seats...</Text>
-              ) : availableReturnSeats.length > 0 ? (
-                <SeatSelector
-                  seats={availableReturnSeats}
-                  selectedSeats={returnSelectedSeats}
-                  onSeatToggle={(seat) => handleSeatToggle(seat, true)}
-                  maxSeats={booking.passengers.length}
-                />
-              ) : (
-                <Text style={styles.noSeatsText}>No return seats available for this trip</Text>
-              )}
-            </>
-          )}
-
           {errors.seats ? (
             <Text style={styles.errorText}>{errors.seats}</Text>
           ) : null}
 
+          {/* Modification Reason */}
           <View
-            ref={(el) => {
-              inputRefs.current.reason = el;
-            }}
             style={styles.reasonContainer}
+            ref={(ref) => { inputRefs.current.reason = ref; }}
           >
-            <Text style={styles.reasonLabel}>Reason for Modification *</Text>
-            <View style={styles.reasonInput}>
-              <RNTextInput
-                style={styles.reasonTextInput}
-                placeholder="Please provide a reason for modifying your booking"
-                value={modificationReason}
-                onChangeText={(text: string) => {
-                  setModificationReason(text);
-                  if (errors.reason) setErrors({ ...errors, reason: '' });
-                }}
-                onFocus={() => {
-                  setActiveInput('reason');
-                  scrollToInput('reason');
-                }}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            </View>
-            {errors.reason ? (
-              <Text style={styles.errorText}>{errors.reason}</Text>
-            ) : null}
+            <Input
+              label="Reason for Modification"
+              placeholder="Please provide a reason for this modification"
+              value={modificationReason}
+              onChangeText={(text) => {
+                setModificationReason(text);
+                if (errors.reason) setErrors({ ...errors, reason: '' });
+              }}
+              onFocus={() => {
+                setActiveInput('reason');
+                scrollToInput('reason');
+              }}
+              multiline
+              numberOfLines={3}
+              error={errors.reason}
+              required
+            />
           </View>
+        </Card>
 
-          <View style={styles.fareDifferenceContainer}>
-            <Text style={styles.fareDifferenceTitle}>Fare Difference</Text>
+        {/* Fare Difference and Payment Options */}
+        {selectedTrip && (
+          <Card variant="elevated" style={styles.fareDifferenceContainer}>
+            <Text style={styles.fareDifferenceTitle}>Fare Difference & Payment</Text>
 
             <View style={styles.fareRow}>
               <View style={styles.fareColumn}>
-                <Text style={styles.fareLabel}>Original Fare</Text>
+                <Text style={styles.fareLabel}>Current Fare</Text>
                 <Text style={styles.fareValue}>MVR {booking.totalFare.toFixed(2)}</Text>
               </View>
-
-              <ArrowRight size={20} color={Colors.textSecondary} />
 
               <View style={styles.fareColumn}>
                 <Text style={styles.fareLabel}>New Fare</Text>
@@ -626,26 +575,145 @@ export default function ModifyBookingScreen() {
 
             <View style={styles.differenceRow}>
               <Text style={styles.differenceLabel}>Difference:</Text>
-              <Text
-                style={[
-                  styles.differenceValue,
-                  fareDifference > 0 ? styles.additionalPayment : styles.refundAmount
-                ]}
-              >
-                {fareDifference > 0 ? '+' : ''}{fareDifference.toFixed(2)} MVR
+              <Text style={[
+                styles.differenceValue,
+                fareDifference > 0 ? styles.additionalPayment : styles.refundAmount
+              ]}>
+                {fareDifference > 0 ? '+' : ''}MVR {fareDifference.toFixed(2)}
               </Text>
             </View>
 
+            {/* Payment Method Selection */}
+            {fareDifference !== 0 && (
+              <View style={styles.paymentMethodContainer}>
+                <Text style={styles.paymentMethodTitle}>
+                  {fareDifference > 0 ? 'Payment Method' : 'Refund Method'}
+                </Text>
+
+                <View style={styles.paymentOptions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentOption,
+                      selectedPaymentMethod === 'gateway' && styles.paymentOptionSelected
+                    ]}
+                    onPress={() => setSelectedPaymentMethod('gateway')}
+                  >
+                    <Text style={[
+                      styles.paymentOptionText,
+                      selectedPaymentMethod === 'gateway' && styles.paymentOptionTextSelected
+                    ]}>
+                      {fareDifference > 0 ? 'Online Payment' : 'Original Method'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentOption,
+                      selectedPaymentMethod === 'bank_transfer' && styles.paymentOptionSelected
+                    ]}
+                    onPress={() => setSelectedPaymentMethod('bank_transfer')}
+                  >
+                    <Text style={[
+                      styles.paymentOptionText,
+                      selectedPaymentMethod === 'bank_transfer' && styles.paymentOptionTextSelected
+                    ]}>
+                      Bank Transfer
+                    </Text>
+                  </TouchableOpacity>
+
+                  {fareDifference > 0 && (
+                    <TouchableOpacity
+                      style={[
+                        styles.paymentOption,
+                        selectedPaymentMethod === 'cash' && styles.paymentOptionSelected
+                      ]}
+                      onPress={() => setSelectedPaymentMethod('cash')}
+                    >
+                      <Text style={[
+                        styles.paymentOptionText,
+                        selectedPaymentMethod === 'cash' && styles.paymentOptionTextSelected
+                      ]}>
+                        Cash Payment
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Bank Account Details for Refunds */}
+            {fareDifference < 0 && selectedPaymentMethod === 'bank_transfer' && (
+              <View style={styles.bankDetailsContainer}>
+                <Text style={styles.bankDetailsTitle}>Bank Account Details for Refund</Text>
+
+                <View ref={(ref) => { inputRefs.current.accountNumber = ref; }}>
+                  <Input
+                    label="Account Number"
+                    placeholder="Enter your bank account number"
+                    value={bankAccountDetails.accountNumber}
+                    onChangeText={(text) => {
+                      setBankAccountDetails({ ...bankAccountDetails, accountNumber: text });
+                      if (errors.accountNumber) setErrors({ ...errors, accountNumber: '' });
+                    }}
+                    onFocus={() => {
+                      setActiveInput('accountNumber');
+                      scrollToInput('accountNumber');
+                    }}
+                    error={errors.accountNumber}
+                    required
+                  />
+                </View>
+
+                <View ref={(ref) => { inputRefs.current.accountName = ref; }}>
+                  <Input
+                    label="Account Holder Name"
+                    placeholder="Enter account holder name"
+                    value={bankAccountDetails.accountName}
+                    onChangeText={(text) => {
+                      setBankAccountDetails({ ...bankAccountDetails, accountName: text });
+                      if (errors.accountName) setErrors({ ...errors, accountName: '' });
+                    }}
+                    onFocus={() => {
+                      setActiveInput('accountName');
+                      scrollToInput('accountName');
+                    }}
+                    error={errors.accountName}
+                    required
+                  />
+                </View>
+
+                <View ref={(ref) => { inputRefs.current.bankName = ref; }}>
+                  <Input
+                    label="Bank Name"
+                    placeholder="Enter bank name"
+                    value={bankAccountDetails.bankName}
+                    onChangeText={(text) => {
+                      setBankAccountDetails({ ...bankAccountDetails, bankName: text });
+                      if (errors.bankName) setErrors({ ...errors, bankName: '' });
+                    }}
+                    onFocus={() => {
+                      setActiveInput('bankName');
+                      scrollToInput('bankName');
+                    }}
+                    error={errors.bankName}
+                    required
+                  />
+                </View>
+              </View>
+            )}
+
             <Text style={styles.differenceNote}>
               {fareDifference > 0
-                ? "Additional payment required"
+                ? "Additional payment will be required"
                 : fareDifference < 0
-                  ? "Refund will be processed to your original payment method"
-                  : "No additional payment or refund required"}
+                  ? "Refund will be processed within 72 hours"
+                  : "No additional payment or refund required"
+              }
             </Text>
-          </View>
-        </Card>
+          </Card>
+        )}
 
+        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Button
             title="Cancel"
@@ -655,7 +723,7 @@ export default function ModifyBookingScreen() {
           />
 
           <Button
-            title="Confirm Changes"
+            title="Confirm Modification"
             onPress={handleModify}
             loading={isLoading}
             disabled={isLoading}
@@ -668,19 +736,21 @@ export default function ModifyBookingScreen() {
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoidingView: {
-    flex: 1,
-  },
   container: {
-    flexGrow: 1,
+    flex: 1,
     backgroundColor: Colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   contentContainer: {
     padding: 16,
     paddingBottom: 32,
-    flexGrow: 1,
   },
   bookingCard: {
+    marginBottom: 16,
+  },
+  modifyCard: {
     marginBottom: 16,
   },
   cardTitle: {
@@ -693,10 +763,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
+    alignItems: 'flex-start',
   },
   detailLabel: {
     fontSize: 14,
     color: Colors.textSecondary,
+    flex: 1,
   },
   detailValue: {
     fontSize: 14,
@@ -706,8 +778,41 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
   },
-  modifyCard: {
-    marginBottom: 24,
+  tripSelection: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  tripOption: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  tripOptionSelected: {
+    backgroundColor: Colors.highlight,
+    borderColor: Colors.primary,
+  },
+  tripTime: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  tripVessel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  tripSeats: {
+    fontSize: 14,
+    color: Colors.primary,
   },
   seatSectionTitle: {
     fontSize: 16,
@@ -719,41 +824,9 @@ const styles = StyleSheet.create({
   reasonContainer: {
     marginTop: 16,
   },
-  reasonLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  reasonInput: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    padding: 12,
-  },
-  reasonTextInput: {
-    fontSize: 16,
-    color: Colors.text,
-    textAlignVertical: 'top',
-  },
-  textInputContainer: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    padding: 12,
-  },
-  textInput: {
-    fontSize: 16,
-    color: Colors.text,
-  },
-  placeholder: {
-    color: Colors.textSecondary,
-  },
   fareDifferenceContainer: {
-    marginTop: 24,
-    padding: 16,
+    marginBottom: 24,
     backgroundColor: Colors.highlight,
-    borderRadius: 8,
   },
   fareDifferenceTitle: {
     fontSize: 16,
@@ -763,7 +836,6 @@ const styles = StyleSheet.create({
   },
   fareRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 16,
   },
@@ -786,7 +858,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   differenceLabel: {
     fontSize: 16,
@@ -802,6 +874,52 @@ const styles = StyleSheet.create({
   },
   refundAmount: {
     color: Colors.success,
+  },
+  paymentMethodContainer: {
+    marginBottom: 16,
+  },
+  paymentMethodTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  paymentOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  paymentOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  paymentOptionSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  paymentOptionText: {
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  paymentOptionTextSelected: {
+    color: '#fff',
+  },
+  bankDetailsContainer: {
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+  },
+  bankDetailsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 12,
   },
   differenceNote: {
     fontSize: 14,
@@ -839,42 +957,6 @@ const styles = StyleSheet.create({
   },
   notFoundButton: {
     minWidth: 120,
-  },
-  tripSelection: {
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  tripOption: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  tripOptionSelected: {
-    backgroundColor: Colors.highlight,
-    borderColor: Colors.primary,
-  },
-  tripTime: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  tripVessel: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 2,
-  },
-  tripSeats: {
-    fontSize: 14,
-    color: Colors.primary,
   },
   loadingText: {
     fontSize: 14,

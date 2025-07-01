@@ -240,13 +240,163 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
     },
 
     modifyBooking: async (bookingId: string, modifications: any) => {
-        const { setError, setLoading, fetchUserBookings } = get();
+        const { setError, setLoading, fetchUserBookings, bookings } = get();
         setLoading(true);
         setError(null);
 
         try {
-            // Modification logic implementation
-            // This is a simplified version - the full implementation would be similar to the original
+            // Find the original booking
+            const originalBooking = bookings.find(b => b.id === bookingId);
+            if (!originalBooking) throw new Error('Original booking not found');
+
+            // Get current user
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError || !user) throw new Error('User not authenticated');
+
+            // Generate QR code URL for new booking
+            const newBookingNumber = `BK${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${newBookingNumber}`)}`;
+
+            // 1. Create new booking with modified details
+            const { data: newBookingData, error: newBookingError } = await supabase
+                .from('bookings')
+                .insert({
+                    booking_number: newBookingNumber,
+                    user_id: user.id,
+                    trip_id: modifications.newTripId,
+                    is_round_trip: false,
+                    total_fare: originalBooking.totalFare + modifications.fareDifference,
+                    status: modifications.fareDifference > 0 ? 'pending_payment' : 'confirmed',
+                    qr_code_url: qrCodeUrl,
+                    check_in_status: false
+                })
+                .select()
+                .single();
+
+            if (newBookingError) throw newBookingError;
+
+            // 2. Release original seat reservations first
+            const { error: seatReleaseError } = await supabase
+                .from('seat_reservations')
+                .update({
+                    is_available: true,
+                    booking_id: null,
+                    is_reserved: false
+                })
+                .eq('booking_id', bookingId);
+
+            if (seatReleaseError) throw seatReleaseError;
+
+            // 3. Update seat reservations for new booking
+            for (const seat of modifications.selectedSeats) {
+                const { error: seatUpdateError } = await supabase
+                    .from('seat_reservations')
+                    .update({
+                        booking_id: newBookingData.id,
+                        is_available: false,
+                        is_reserved: true
+                    })
+                    .eq('trip_id', modifications.newTripId)
+                    .eq('seat_id', seat.id);
+
+                if (seatUpdateError) throw seatUpdateError;
+            }
+
+            // 4. Create passengers for new booking
+            const passengers = originalBooking.passengers.map((passenger: any, index: number) => ({
+                booking_id: newBookingData.id,
+                passenger_name: passenger.fullName,
+                passenger_contact_number: passenger.idNumber,
+                special_assistance_request: passenger.specialAssistance,
+                seat_id: modifications.selectedSeats[index]?.id
+            }));
+
+            const { error: passengersError } = await supabase
+                .from('passengers')
+                .insert(passengers);
+
+            if (passengersError) throw passengersError;
+
+            // 5. Handle payment information
+            if (modifications.fareDifference > 0) {
+                // Additional payment required - create pending payment
+                await supabase
+                    .from('payments')
+                    .insert({
+                        booking_id: newBookingData.id,
+                        amount: modifications.fareDifference,
+                        payment_method: modifications.paymentMethod || 'gateway',
+                        status: 'pending'
+                    });
+            } else if (modifications.fareDifference === 0) {
+                // No fare difference - copy original payment but mark as completed for new booking
+                if (originalBooking.payment) {
+                    await supabase
+                        .from('payments')
+                        .insert({
+                            booking_id: newBookingData.id,
+                            amount: originalBooking.totalFare,
+                            payment_method: originalBooking.payment.method,
+                            status: 'completed'
+                        });
+                }
+            } else {
+                // Refund case - create payment record and process refund
+                if (originalBooking.payment) {
+                    await supabase
+                        .from('payments')
+                        .insert({
+                            booking_id: newBookingData.id,
+                            amount: originalBooking.totalFare + modifications.fareDifference,
+                            payment_method: originalBooking.payment.method,
+                            status: 'completed'
+                        });
+                }
+
+                // Update new booking status to confirmed since refund will be processed separately
+                await supabase
+                    .from('bookings')
+                    .update({
+                        status: 'confirmed'
+                    })
+                    .eq('id', newBookingData.id);
+            }
+
+            // 6. Update original booking status to modified
+            const { error: originalBookingError } = await supabase
+                .from('bookings')
+                .update({
+                    status: 'modified',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', bookingId);
+
+            if (originalBookingError) throw originalBookingError;
+
+            // 7. Insert modification record
+            const { error: modificationError } = await supabase
+                .from('modifications')
+                .insert({
+                    old_booking_id: bookingId,
+                    new_booking_id: newBookingData.id,
+                    modification_reason: modifications.modificationReason,
+                    fare_difference: modifications.fareDifference,
+                    requires_additional_payment: modifications.fareDifference > 0,
+                    payment_details: modifications.fareDifference > 0 ? {
+                        amount: modifications.fareDifference,
+                        payment_method: modifications.paymentMethod,
+                        status: 'pending'
+                    } : null,
+                    refund_details: modifications.fareDifference < 0 ? {
+                        amount: Math.abs(modifications.fareDifference),
+                        payment_method: modifications.paymentMethod,
+                        bank_account_details: modifications.bankAccountDetails,
+                        status: 'pending'
+                    } : null
+                });
+
+            if (modificationError) throw modificationError;
+
             await fetchUserBookings();
         } catch (error) {
             console.error('Error modifying booking:', error);
