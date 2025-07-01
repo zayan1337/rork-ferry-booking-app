@@ -64,4 +64,20 @@ export interface DBSeatReservation {
     is_available: boolean;
     is_reserved: boolean;
     reservation_expiry?: string;
+}
+
+export interface DBFaqCategory {
+    id: string;
+    name: string;
+    created_at: string;
+}
+
+export interface DBFaq {
+    id: string;
+    category_id: string;
+    question: string;
+    answer: string;
+    created_at: string;
+    updated_at: string;
+    category?: DBFaqCategory;
 } 

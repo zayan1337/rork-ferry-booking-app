@@ -31,6 +31,9 @@ export { useAgentBookingStore } from './agentBookingStore';
 // Authentication store
 export { useAuthStore } from './authStore';
 
+// FAQ management
+export { useFaqStore } from './faqStore';
+
 // Backward compatibility exports - deprecated, use individual stores instead
 // This provides a migration path for existing components
 export const useBookingStore_DEPRECATED = () => {
