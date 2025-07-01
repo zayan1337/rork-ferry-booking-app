@@ -289,7 +289,7 @@ export default function ValidateTicketScreen() {
                   </Text>
                 </View>
 
-                {validationResult.booking.clientName && (
+                {validationResult.booking.clientName && validationResult.isOwnBooking && (
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Client:</Text>
                     <Text style={styles.summaryValue}>{validationResult.booking.clientName}</Text>
@@ -322,10 +322,13 @@ export default function ValidateTicketScreen() {
                   </Text>
                 </View>
 
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Time:</Text>
-                  <Text style={styles.summaryValue}>{validationResult.booking.departureTime}</Text>
-                </View>
+                {/* Only show time for own bookings */}
+                {validationResult.isOwnBooking && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Time:</Text>
+                    <Text style={styles.summaryValue}>{validationResult.booking.departureTime}</Text>
+                  </View>
+                )}
 
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Vessel:</Text>
@@ -337,17 +340,23 @@ export default function ValidateTicketScreen() {
                   <Text style={styles.summaryValue}>{validationResult.booking.passengers.length}</Text>
                 </View>
 
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Seats:</Text>
-                  <Text style={styles.summaryValue}>
-                    {validationResult.booking.seats.map(seat => seat.number).join(', ')}
-                  </Text>
-                </View>
+                {/* Only show seat details for own bookings */}
+                {validationResult.isOwnBooking && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Seats:</Text>
+                    <Text style={styles.summaryValue}>
+                      {validationResult.booking.seats.map(seat => seat.number).join(', ')}
+                    </Text>
+                  </View>
+                )}
 
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Total Fare:</Text>
-                  <Text style={styles.summaryValue}>MVR {validationResult.booking.totalFare.toFixed(2)}</Text>
-                </View>
+                {/* Only show fare for own bookings */}
+                {validationResult.isOwnBooking && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Total Fare:</Text>
+                    <Text style={styles.summaryValue}>MVR {validationResult.booking.totalFare.toFixed(2)}</Text>
+                  </View>
+                )}
 
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Check-in:</Text>
@@ -384,7 +393,7 @@ export default function ValidateTicketScreen() {
 
                   <View style={styles.noteContainer}>
                     <Text style={styles.noteText}>
-                      ℹ️ This ticket belongs to another user. You can only view basic validation information.
+                      ℹ️ This ticket belongs to another user. Limited information is shown for privacy.
                     </Text>
                   </View>
                 </>
