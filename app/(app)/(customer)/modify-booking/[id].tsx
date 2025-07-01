@@ -381,7 +381,7 @@ export default function ModifyBookingScreen() {
         [
           {
             text: "OK",
-            onPress: () => router.replace('./(tabs)/bookings')
+            onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings')
           }
         ]
       );
