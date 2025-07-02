@@ -1,8 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
-import { useAgentStore } from "@/store/agentStore";
-import { useAuthStore } from "@/store/authStore";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import StatCard from "@/components/StatCard";
@@ -18,15 +16,22 @@ import {
     XCircle,
     Plus
 } from "lucide-react-native";
-import { getActiveBookings, getInactiveBookings } from "@/utils/bookingUtils";
+import { getInactiveBookings } from "@/utils/bookingUtils";
+import { formatCurrency } from "@/utils/currencyUtils";
+import { getAgentDisplayName, formatAgentId } from "@/utils/agentUtils";
+import { useAgentData } from "@/hooks/useAgentData";
 
 export default function AgentDashboardScreen() {
     const router = useRouter();
-    const { user } = useAuthStore();
-    const { agent, stats, bookings, isLoading, error, getLocalStats } = useAgentStore();
-
-    // Calculate local stats using booking utilities as fallback/override
-    const localStats = getLocalStats ? getLocalStats() : null;
+    const {
+        agent,
+        stats,
+        bookings,
+        localStats,
+        isLoading,
+        error,
+        retryInitialization
+    } = useAgentData();
 
     // Use local stats for more accurate active/inactive calculations
     const displayStats = {
@@ -44,33 +49,6 @@ export default function AgentDashboardScreen() {
         .slice() // Create a copy
         .sort((a, b) => new Date(b.bookingDate || 0).getTime() - new Date(a.bookingDate || 0).getTime())
         .slice(0, 3);
-
-    useEffect(() => {
-        // Initialize agent store from authenticated user
-        if (user?.profile?.role === 'agent') {
-            const { initializeFromAuthUser, reset } = useAgentStore.getState();
-
-            // Clear any existing cached data first
-            reset();
-
-            // Initialize with fresh data from Supabase
-            initializeFromAuthUser(user).catch(error => {
-                console.error('Error initializing agent data:', error);
-            });
-        }
-    }, [user?.id]); // Only depend on user ID to avoid unnecessary re-runs
-
-
-
-    const formatCurrency = (amount: number | undefined) => {
-        if (typeof amount !== 'number' || isNaN(amount)) {
-            return "$0.00";
-        }
-        return `$${amount.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })}`;
-    };
 
     const handleBookingPress = (bookingId: string) => {
         if (bookingId) {
@@ -100,19 +78,14 @@ export default function AgentDashboardScreen() {
                 <Text style={styles.errorText}>Error: {error}</Text>
                 <Button
                     title="Retry"
-                    onPress={() => {
-                        const { initializeFromAuthUser, reset } = useAgentStore.getState();
-                        reset();
-                        initializeFromAuthUser(user);
-                    }}
+                    onPress={retryInitialization}
                     variant="primary"
                 />
             </View>
         );
     }
 
-    // Safely get agent name with fallback
-    const agentFirstName = agent?.name ? agent.name.split(" ")[0] : "Agent";
+    const agentFirstName = getAgentDisplayName(agent);
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -135,22 +108,22 @@ export default function AgentDashboardScreen() {
                     <View style={styles.agentInfoHeader}>
                         <Text style={styles.agentInfoTitle}>Agent Information</Text>
                         <View style={styles.agentIdBadge}>
-                            <Text style={styles.agentIdText}>{agent?.agentId || 'N/A'}</Text>
+                            <Text style={styles.agentIdText}>{formatAgentId(agent.agentId)}</Text>
                         </View>
                     </View>
 
                     <View style={styles.agentInfoRow}>
                         <View style={styles.agentInfoItem}>
                             <Text style={styles.agentInfoLabel}>Credit Balance</Text>
-                            <Text style={styles.agentInfoValue}>{formatCurrency(agent?.creditBalance)}</Text>
+                            <Text style={styles.agentInfoValue}>{formatCurrency(agent.creditBalance)}</Text>
                         </View>
                         <View style={styles.agentInfoItem}>
                             <Text style={styles.agentInfoLabel}>Discount Rate</Text>
-                            <Text style={styles.agentInfoValue}>{agent?.discountRate || 0}%</Text>
+                            <Text style={styles.agentInfoValue}>{agent.discountRate || 0}%</Text>
                         </View>
                         <View style={styles.agentInfoItem}>
                             <Text style={styles.agentInfoLabel}>Free Tickets</Text>
-                            <Text style={styles.agentInfoValue}>{agent?.freeTicketsRemaining || 0}</Text>
+                            <Text style={styles.agentInfoValue}>{agent.freeTicketsRemaining || 0}</Text>
                         </View>
                     </View>
                 </Card>

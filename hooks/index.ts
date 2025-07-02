@@ -6,4 +6,6 @@ export * from './useModalState';
 export * from './useQuickBooking';
 export * from './useKeyboardHandler';
 export * from './useBookingEligibility';
-export * from './useFormValidation'; 
+export * from './useFormValidation';
+export * from './useAgentData';
+export * from './useAgentClientSearch'; 

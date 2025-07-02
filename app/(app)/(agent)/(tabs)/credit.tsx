@@ -1,117 +1,113 @@
 import React from "react";
 import { StyleSheet, Text, View, FlatList, TouchableOpacity } from "react-native";
-import { useAgentStore } from "@/store/agentStore";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import CreditTransactionCard from "@/components/CreditTransactionCard";
 import { CreditCard, ArrowUp, ArrowDown, RefreshCw } from "lucide-react-native";
+import { formatCurrency } from "@/utils/currencyUtils";
+import { getCreditUtilization, isAgentCreditLow } from "@/utils/agentUtils";
+import { useAgentData } from "@/hooks/useAgentData";
 
 export default function AgentCreditScreen() {
-    const { agent, creditTransactions } = useAgentStore();
+  const { agent, creditTransactions } = useAgentData();
 
-    const formatCurrency = (amount: number) => {
-        return `$${amount.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })}`;
-    };
+  const handleRequestCredit = () => {
+    alert("Credit request functionality would be implemented here");
+    // Credit request functionality would be implemented here
+  };
 
-    const handleRequestCredit = () => {
-        alert("Credit request functionality would be implemented here");
-        // Credit request functionality would be implemented here
-    };
+  const creditUtilization = getCreditUtilization(agent);
+  const isCreditLow = isAgentCreditLow(agent);
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.creditSummaryContainer}>
-                <Card variant="elevated" style={styles.creditSummaryCard}>
-                    <View style={styles.creditBalanceContainer}>
-                        <CreditCard size={24} color={Colors.primary} />
-                        <View style={styles.creditBalanceTextContainer}>
-                            <Text style={styles.creditBalanceLabel}>Current Credit Balance</Text>
-                            <Text style={styles.creditBalanceValue}>
-                                {formatCurrency(agent?.creditBalance || 0)}
-                            </Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.creditLimitContainer}>
-                        <View style={styles.creditLimitBar}>
-                            <View
-                                style={[
-                                    styles.creditLimitFill,
-                                    {
-                                        width: `${((agent?.creditBalance || 0) / (agent?.creditCeiling || 1)) * 100}%`,
-                                        backgroundColor: (agent?.creditBalance || 0) < (agent?.creditCeiling || 0) * 0.2
-                                            ? Colors.error
-                                            : Colors.primary
-                                    }
-                                ]}
-                            />
-                        </View>
-                        <Text style={styles.creditLimitText}>
-                            Credit Ceiling: {formatCurrency(agent?.creditCeiling || 0)}
-                        </Text>
-                    </View>
-
-                    <TouchableOpacity
-                        style={styles.requestCreditButton}
-                        onPress={handleRequestCredit}
-                    >
-                        <RefreshCw size={16} color="white" />
-                        <Text style={styles.requestCreditText}>Request More Credit</Text>
-                    </TouchableOpacity>
-                </Card>
+  return (
+    <View style={styles.container}>
+      <View style={styles.creditSummaryContainer}>
+        <Card variant="elevated" style={styles.creditSummaryCard}>
+          <View style={styles.creditBalanceContainer}>
+            <CreditCard size={24} color={Colors.primary} />
+            <View style={styles.creditBalanceTextContainer}>
+              <Text style={styles.creditBalanceLabel}>Current Credit Balance</Text>
+              <Text style={styles.creditBalanceValue}>
+                {formatCurrency(agent?.creditBalance || 0)}
+              </Text>
             </View>
+          </View>
 
-            <View style={styles.transactionSummaryContainer}>
-                <View style={styles.transactionSummaryCard}>
-                    <View style={styles.transactionSummaryItem}>
-                        <View style={[styles.transactionIcon, { backgroundColor: `${Colors.success}20` }]}>
-                            <ArrowUp size={16} color={Colors.success} />
-                        </View>
-                        <View>
-                            <Text style={styles.transactionLabel}>Credit Added</Text>
-                            <Text style={[styles.transactionValue, { color: Colors.success }]}>
-                                {formatCurrency(
-                                    creditTransactions
-                                        .filter(t => t.type === "refill")
-                                        .reduce((sum, t) => sum + t.amount, 0)
-                                )}
-                            </Text>
-                        </View>
-                    </View>
-                    <View style={styles.transactionSummaryDivider} />
-                    <View style={styles.transactionSummaryItem}>
-                        <View style={[styles.transactionIcon, { backgroundColor: `${Colors.error}20` }]}>
-                            <ArrowDown size={16} color={Colors.error} />
-                        </View>
-                        <View>
-                            <Text style={styles.transactionLabel}>Credit Used</Text>
-                            <Text style={[styles.transactionValue, { color: Colors.error }]}>
-                                {formatCurrency(
-                                    creditTransactions
-                                        .filter(t => t.type === "deduction")
-                                        .reduce((sum, t) => sum + t.amount, 0)
-                                )}
-                            </Text>
-                        </View>
-                    </View>
-                </View>
+          <View style={styles.creditLimitContainer}>
+            <View style={styles.creditLimitBar}>
+              <View
+                style={[
+                  styles.creditLimitFill,
+                  {
+                    width: `${creditUtilization}%`,
+                    backgroundColor: isCreditLow ? Colors.error : Colors.primary
+                  }
+                ]}
+              />
             </View>
+            <Text style={styles.creditLimitText}>
+              Credit Ceiling: {formatCurrency(agent?.creditCeiling || 0)}
+            </Text>
+          </View>
 
-            <View style={styles.transactionsHeader}>
-                <Text style={styles.transactionsTitle}>Transaction History</Text>
+          <TouchableOpacity
+            style={styles.requestCreditButton}
+            onPress={handleRequestCredit}
+          >
+            <RefreshCw size={16} color="white" />
+            <Text style={styles.requestCreditText}>Request More Credit</Text>
+          </TouchableOpacity>
+        </Card>
+      </View>
+
+      <View style={styles.transactionSummaryContainer}>
+        <View style={styles.transactionSummaryCard}>
+          <View style={styles.transactionSummaryItem}>
+            <View style={[styles.transactionIcon, { backgroundColor: `${Colors.success}20` }]}>
+              <ArrowUp size={16} color={Colors.success} />
             </View>
-
-            <FlatList
-                data={creditTransactions}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => <CreditTransactionCard transaction={item} />}
-                contentContainerStyle={styles.transactionsList}
-            />
+            <View>
+              <Text style={styles.transactionLabel}>Credit Added</Text>
+              <Text style={[styles.transactionValue, { color: Colors.success }]}>
+                {formatCurrency(
+                  creditTransactions
+                    .filter(t => t.type === "refill")
+                    .reduce((sum, t) => sum + t.amount, 0)
+                )}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.transactionSummaryDivider} />
+          <View style={styles.transactionSummaryItem}>
+            <View style={[styles.transactionIcon, { backgroundColor: `${Colors.error}20` }]}>
+              <ArrowDown size={16} color={Colors.error} />
+            </View>
+            <View>
+              <Text style={styles.transactionLabel}>Credit Used</Text>
+              <Text style={[styles.transactionValue, { color: Colors.error }]}>
+                {formatCurrency(
+                  creditTransactions
+                    .filter(t => t.type === "deduction")
+                    .reduce((sum, t) => sum + t.amount, 0)
+                )}
+              </Text>
+            </View>
+          </View>
         </View>
-    );
+      </View>
+
+      <View style={styles.transactionsHeader}>
+        <Text style={styles.transactionsTitle}>Transaction History</Text>
+      </View>
+
+      <FlatList
+        data={creditTransactions}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <CreditTransactionCard transaction={item} />}
+        contentContainerStyle={styles.transactionsList}
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

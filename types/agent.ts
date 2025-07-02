@@ -20,6 +20,102 @@ export interface AgentStats {
     uniqueClients: number;
 }
 
+export interface AgentProfile {
+    id: string;
+    name: string;
+    email: string;
+    agentId: string;
+    creditCeiling: number;
+    creditBalance: number;
+    discountRate: number;
+    freeTicketsAllocation: number;
+    freeTicketsRemaining: number;
+    totalBookings: number;
+    activeBookings: number;
+    completedBookings: number;
+    cancelledBookings: number;
+    totalRevenue: number;
+    totalCommission: number;
+    uniqueClients: number;
+}
+
+export interface AgentClient {
+    id?: string; // Optional for new clients
+    name: string;
+    email: string;
+    phone: string;
+    idNumber?: string;
+    hasAccount: boolean;
+    userProfileId?: string; // If client has an account
+    agentClientId?: string; // The agent_clients record ID
+    bookingsCount?: number;
+}
+
+export interface AgentCurrentBooking {
+    // Trip details
+    tripType: 'one_way' | 'round_trip';
+    route: any | null;
+    returnRoute: any | null;
+    trip: any | null;
+    returnTrip: any | null;
+    departureDate: string | null;
+    returnDate: string | null;
+
+    // Client details
+    client: AgentClient | null;
+
+    // Passengers and seats
+    passengers: any[];
+    selectedSeats: any[];
+    returnSelectedSeats: any[];
+
+    // Pricing
+    totalFare: number;
+    discountedFare: number;
+    discountRate: number;
+
+    // Payment
+    paymentMethod: 'credit' | 'gateway' | 'free';
+}
+
+export interface AgentBookingState {
+    // Current booking data
+    currentBooking: AgentCurrentBooking;
+    currentStep: number;
+
+    // Available data
+    availableSeats: any[];
+    availableReturnSeats: any[];
+
+    // Client search functionality
+    clientSearchResults: AgentClient[];
+    isSearchingClients: boolean;
+    clientSearchQuery: string;
+
+    // State flags
+    isLoading: boolean;
+    error: string | null;
+
+    // Agent info
+    agent: Agent | null;
+
+    // Callback for when booking is created
+    onBookingCreated?: (bookingId: string, returnBookingId?: string | null) => Promise<void>;
+}
+
+export interface AgentState {
+    agent: Agent | null;
+    stats: AgentStats;
+    bookings: Booking[];
+    clients: Client[];
+    creditTransactions: CreditTransaction[];
+    translations: Record<string, string>;
+    currentLanguage: string;
+    textDirection: 'ltr' | 'rtl';
+    isLoading: boolean;
+    error: string | null;
+}
+
 export interface Booking {
     id: string;
     bookingNumber?: string;

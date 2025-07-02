@@ -1,39 +1,36 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList, RefreshControl } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
-import { useAgentStore } from "@/store/agentStore";
+import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import AgentBookingCard from "@/components/AgentBookingCard";
 import Button from "@/components/Button";
 import { Plus, Search } from "lucide-react-native";
 import Input from "@/components/Input";
-import { Booking } from "@/types/agent";
+import type { Booking } from "@/types/agent";
+import { useAgentData } from "@/hooks/useAgentData";
 
 export default function AgentBookingsScreen() {
   const router = useRouter();
-  const { bookings, isLoading, error, agent, getAgentBookings } = useAgentStore();
+  const {
+    agent,
+    bookings,
+    isLoading,
+    error,
+    refreshBookings
+  } = useAgentData();
+
   const [activeTab, setActiveTab] = useState<"all" | "confirmed" | "completed" | "cancelled">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // // Refresh data when screen comes into focus
-  // useFocusEffect(
-  //   React.useCallback(() => {
-  //     if (agent?.id) {
-  //       getAgentBookings(agent.id);
-  //     }
-  //   }, [agent?.id, getAgentBookings])
-  // );
-
-
   useEffect(() => {
     if (agent?.id) {
-      getAgentBookings(agent.id);
+      refreshBookings();
     }
-  }, [agent?.id, getAgentBookings])
+  }, [agent?.id, refreshBookings]);
 
   const handleRefresh = () => {
     if (agent?.id) {
-      getAgentBookings(agent.id);
+      refreshBookings();
     }
   };
 
@@ -76,8 +73,6 @@ export default function AgentBookingsScreen() {
     { key: "completed", label: "Completed" },
     { key: "cancelled", label: "Cancelled" },
   ];
-
-
 
   if (isLoading) {
     return (

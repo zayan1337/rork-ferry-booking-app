@@ -2,7 +2,6 @@ import React from "react";
 import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "@/store/authStore";
-import { useAgentStore } from "@/store/agentStore";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import Button from "@/components/Button";
@@ -18,10 +17,14 @@ import {
     HelpCircle,
     Shield
 } from "lucide-react-native";
+import { formatCurrency } from "@/utils/currencyUtils";
+import { getAgentInitials } from "@/utils/agentUtils";
+import { useAgentData } from "@/hooks/useAgentData";
+
 export default function AgentProfileScreen() {
     const router = useRouter();
-    const { user, signOut } = useAuthStore();
-    const { agent, reset } = useAgentStore();
+    const { signOut } = useAuthStore();
+    const { agent, reset } = useAgentData();
 
     const handleSignOut = async () => {
         try {
@@ -32,6 +35,7 @@ export default function AgentProfileScreen() {
             console.error("Sign out error:", error);
         }
     };
+
     const handleLogout = () => {
         Alert.alert(
             "Logout",
@@ -43,38 +47,31 @@ export default function AgentProfileScreen() {
                 },
                 {
                     text: "Logout",
-                    onPress: async () => {
-                        try {
-                            reset(); // Clear agent store
-                            await signOut();
-                            router.replace("/(auth)");
-                        } catch (error) {
-                            console.error("Sign out error:", error);
-                        };
-                    },
+                    onPress: handleSignOut,
                     style: "destructive",
                 },
             ]
         );
     };
 
-    const formatCurrency = (amount: number) => {
-        return `$${amount.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })}`;
-    };
+    const agentInitials = getAgentInitials(agent);
+
+    if (!agent) {
+        return (
+            <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading profile...</Text>
+            </View>
+        );
+    }
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             <View style={styles.profileHeader}>
                 <View style={styles.avatarContainer}>
-                    <Text style={styles.avatarText}>
-                        {agent?.name.split(" ").map(n => n[0]).join("")}
-                    </Text>
+                    <Text style={styles.avatarText}>{agentInitials}</Text>
                 </View>
-                <Text style={styles.name}>{agent?.name}</Text>
-                <Text style={styles.agentId}>{agent?.agentId}</Text>
+                <Text style={styles.name}>{agent.name}</Text>
+                <Text style={styles.agentId}>{agent.agentId}</Text>
             </View>
 
             <Card variant="elevated" style={styles.infoCard}>
@@ -84,7 +81,7 @@ export default function AgentProfileScreen() {
                     <User size={20} color={Colors.subtext} />
                     <View style={styles.infoContent}>
                         <Text style={styles.infoLabel}>Full Name</Text>
-                        <Text style={styles.infoValue}>{agent?.name}</Text>
+                        <Text style={styles.infoValue}>{agent.name}</Text>
                     </View>
                 </View>
 
@@ -92,7 +89,7 @@ export default function AgentProfileScreen() {
                     <Mail size={20} color={Colors.subtext} />
                     <View style={styles.infoContent}>
                         <Text style={styles.infoLabel}>Email</Text>
-                        <Text style={styles.infoValue}>{agent?.email}</Text>
+                        <Text style={styles.infoValue}>{agent.email}</Text>
                     </View>
                 </View>
 
@@ -100,7 +97,7 @@ export default function AgentProfileScreen() {
                     <CreditCard size={20} color={Colors.subtext} />
                     <View style={styles.infoContent}>
                         <Text style={styles.infoLabel}>Credit Balance</Text>
-                        <Text style={styles.infoValue}>{formatCurrency(agent?.creditBalance || 0)}</Text>
+                        <Text style={styles.infoValue}>{formatCurrency(agent.creditBalance)}</Text>
                     </View>
                 </View>
 
@@ -108,7 +105,7 @@ export default function AgentProfileScreen() {
                     <Percent size={20} color={Colors.subtext} />
                     <View style={styles.infoContent}>
                         <Text style={styles.infoLabel}>Discount Rate</Text>
-                        <Text style={styles.infoValue}>{agent?.discountRate}%</Text>
+                        <Text style={styles.infoValue}>{agent.discountRate}%</Text>
                     </View>
                 </View>
 
@@ -116,7 +113,7 @@ export default function AgentProfileScreen() {
                     <Ticket size={20} color={Colors.subtext} />
                     <View style={styles.infoContent}>
                         <Text style={styles.infoLabel}>Free Tickets Remaining</Text>
-                        <Text style={styles.infoValue}>{agent?.freeTicketsRemaining} / {agent?.freeTicketsAllocation}</Text>
+                        <Text style={styles.infoValue}>{agent.freeTicketsRemaining} / {agent.freeTicketsAllocation}</Text>
                     </View>
                 </View>
             </Card>
@@ -169,6 +166,16 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 16,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.background,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: Colors.textSecondary,
     },
     profileHeader: {
         alignItems: "center",

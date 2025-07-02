@@ -1,70 +1,15 @@
 import { create } from 'zustand';
 import { supabase } from '../utils/supabase';
 import type { Route, Seat, Passenger, Trip } from '@/types';
-import type { Agent } from '@/types/agent';
+import type { Agent, AgentClient, AgentCurrentBooking, AgentBookingState } from '@/types/agent';
 import { calculateBookingFare, calculateDiscountedFare } from '@/utils/bookingUtils';
-
-export interface AgentClient {
-    id?: string; // Optional for new clients
-    name: string;
-    email: string;
-    phone: string;
-    idNumber?: string;
-    hasAccount: boolean;
-    userProfileId?: string; // If client has an account
-}
-
-export interface AgentCurrentBooking {
-    // Trip details
-    tripType: 'one_way' | 'round_trip';
-    route: Route | null;
-    returnRoute: Route | null;
-    trip: Trip | null;
-    returnTrip: Trip | null;
-    departureDate: string | null;
-    returnDate: string | null;
-
-    // Client details
-    client: AgentClient | null;
-
-    // Passengers and seats
-    passengers: Passenger[];
-    selectedSeats: Seat[];
-    returnSelectedSeats: Seat[];
-
-    // Pricing
-    totalFare: number;
-    discountedFare: number;
-    discountRate: number;
-
-    // Payment
-    paymentMethod: 'credit' | 'gateway' | 'free';
-}
-
-interface AgentBookingState {
-    // Current booking data
-    currentBooking: AgentCurrentBooking;
-    currentStep: number;
-
-    // Available data
-    availableSeats: Seat[];
-    availableReturnSeats: Seat[];
-
-    // Client search functionality
-    clientSearchResults: AgentClient[];
-    isSearchingClients: boolean;
-    clientSearchQuery: string;
-
-    // State flags
-    isLoading: boolean;
-    error: string | null;
-
-    // Agent info
-    agent: Agent | null;
-
-    // Callback for when booking is created
-    onBookingCreated?: (bookingId: string, returnBookingId?: string | null) => Promise<void>;
-}
+import {
+    generateUnifiedQrCode,
+    updateBookingWithQrCode,
+    parseBookingQrCode,
+    validateQrCodeData,
+    generateAgentQrCodeData
+} from '@/utils/qrCodeUtils';
 
 interface AgentBookingActions {
     // Navigation
@@ -111,9 +56,9 @@ interface AgentBookingActions {
     setAgent: (agent: Agent) => void;
 
     // QR Code utilities
-    parseQrCodeData: (qrCodeString: string) => any | null;
-    generateQrCodeData: (booking: any, agent: Agent, type?: string) => string;
-    validateQrCodeData: (qrCodeData: any) => boolean;
+    parseQrCodeData: typeof parseBookingQrCode;
+    generateQrCodeData: typeof generateAgentQrCodeData;
+    validateQrCodeData: typeof validateQrCodeData;
     verifyQrCodeStorage: (bookingId: string) => Promise<boolean>;
 
     // Booking refresh utility
@@ -122,8 +67,8 @@ interface AgentBookingActions {
     setOnBookingCreated: (callback?: (bookingId: string, returnBookingId?: string | null) => Promise<void>) => void;
 
     // Unified QR Code utilities
-    generateUnifiedQrCode: (booking: any, passengers: Passenger[], selectedSeats: Seat[], trip: Trip, route: Route, type: string, additionalData?: any) => string;
-    updateBookingWithQrCode: (bookingId: string, qrCodeData: string, maxRetries?: number) => Promise<boolean>;
+    generateUnifiedQrCode: typeof generateUnifiedQrCode;
+    updateBookingWithQrCode: typeof updateBookingWithQrCode;
 }
 
 const initialBooking: AgentCurrentBooking = {
@@ -1163,81 +1108,11 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
     setOnBookingCreated: (callback) => set({ onBookingCreated: callback }),
 
     // QR Code utilities
-    parseQrCodeData: (qrCodeString: string) => {
-        try {
-            const qrData = JSON.parse(qrCodeString);
-            return qrData;
-        } catch (error) {
-            console.error('Error parsing QR code data:', error);
-            return null;
-        }
-    },
+    parseQrCodeData: parseBookingQrCode,
 
-    generateQrCodeData: (booking: any, agent: Agent, type: string = 'agent-booking') => {
-        try {
-            // Match user booking structure with agent-specific additions
-            const qrCodeData = {
-                bookingNumber: booking.booking_number || booking.bookingNumber,
-                bookingId: booking.id,
-                tripId: booking.trip_id || booking.tripId,
-                departureDate: booking.travel_date || booking.departureDate,
-                departureTime: booking.departure_time || booking.departureTime,
-                passengers: booking.passengers?.length || booking.passengerCount || 0,
-                seats: booking.seats || [],
-                totalFare: booking.total_fare || booking.totalAmount || 0,
-                timestamp: new Date().toISOString(),
-                // Agent-specific additional fields
-                clientName: booking.clientName || booking.client?.name || 'Unknown Client',
-                agentId: agent.id,
-                agentName: agent.name || agent.email,
-                type: type
-            };
+    generateQrCodeData: generateAgentQrCodeData,
 
-            return JSON.stringify(qrCodeData);
-        } catch (error) {
-            console.error('Error generating QR code data:', error);
-            return '';
-        }
-    },
-
-    validateQrCodeData: (qrCodeData: any) => {
-        try {
-            // Check required fields
-            const requiredFields = [
-                'bookingNumber',
-                'bookingId',
-                'tripId',
-                'departureDate',
-                'agentId',
-                'type'
-            ];
-
-            for (const field of requiredFields) {
-                if (!qrCodeData[field]) {
-                    console.warn(`Missing required QR code field: ${field}`);
-                    return false;
-                }
-            }
-
-            // Validate booking type
-            const validTypes = ['agent-booking', 'agent-booking-return', 'customer-booking'];
-            if (!validTypes.includes(qrCodeData.type)) {
-                console.warn(`Invalid QR code type: ${qrCodeData.type}`);
-                return false;
-            }
-
-            // Validate timestamp format
-            if (qrCodeData.timestamp && isNaN(Date.parse(qrCodeData.timestamp))) {
-                console.warn('Invalid timestamp in QR code data');
-                return false;
-            }
-
-            return true;
-        } catch (error) {
-            console.error('Error validating QR code data:', error);
-            return false;
-        }
-    },
+    validateQrCodeData: validateQrCodeData,
 
     verifyQrCodeStorage: async (bookingId: string) => {
         try {
@@ -1258,14 +1133,14 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
             }
 
             // Try to parse the QR code data
-            const qrData = get().parseQrCodeData(booking.qr_code_url);
+            const qrData = parseBookingQrCode(booking.qr_code_url);
             if (!qrData) {
                 console.error('Failed to parse stored QR code data for booking:', bookingId);
                 return false;
             }
 
             // Validate the QR code structure
-            const isValid = get().validateQrCodeData(qrData);
+            const isValid = validateQrCodeData(qrData);
             if (!isValid) {
                 console.error('Invalid QR code structure for booking:', bookingId);
                 return false;
@@ -1293,76 +1168,8 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
     },
 
     // Unified QR Code utilities
-    generateUnifiedQrCode: (booking: any, passengers: Passenger[], selectedSeats: Seat[], trip: Trip, route: Route, type: string, additionalData?: any) => {
-        try {
-            const qrCodeData = {
-                bookingNumber: booking.booking_number,
-                bookingId: booking.id,
-                tripId: trip.id,
-                departureDate: trip.travel_date || booking.travel_date,
-                departureTime: trip.departure_time,
-                passengers: passengers.length,
-                seats: selectedSeats.map(seat => seat.number),
-                totalFare: booking.total_fare,
-                timestamp: new Date().toISOString(),
-                type: type,
-                // Additional data for different booking types
-                ...additionalData
-            };
+    generateUnifiedQrCode: generateUnifiedQrCode,
 
-            return JSON.stringify(qrCodeData);
-        } catch (error) {
-            console.error('Error generating unified QR code data:', error);
-            return '';
-        }
-    },
-
-    updateBookingWithQrCode: async (bookingId: string, qrCodeData: string, maxRetries: number = 3) => {
-        let success = false;
-        let attempts = 0;
-
-        while (!success && attempts < maxRetries) {
-            attempts++;
-
-            try {
-                const { data, error } = await supabase
-                    .from('bookings')
-                    .update({ qr_code_url: qrCodeData })
-                    .eq('id', bookingId)
-                    .select('id, qr_code_url, booking_number');
-
-                if (error) {
-                    console.error(`QR code update attempt ${attempts} failed:`, error);
-                    if (attempts < maxRetries) {
-                        await new Promise(resolve => setTimeout(resolve, 500 * attempts));
-                    }
-                } else {
-                    success = true;
-                    console.log(`QR code updated successfully for booking:`, bookingId);
-
-                    // Verify the QR code was stored
-                    await new Promise(resolve => setTimeout(resolve, 200));
-
-                    const { data: verifyData, error: verifyError } = await supabase
-                        .from('bookings')
-                        .select('qr_code_url')
-                        .eq('id', bookingId)
-                        .single();
-
-                    if (verifyError || !verifyData.qr_code_url) {
-                        console.error('QR code verification failed:', verifyError);
-                        success = false;
-                    }
-                }
-            } catch (error) {
-                console.error(`QR code update exception attempt ${attempts}:`, error);
-                if (attempts < maxRetries) {
-                    await new Promise(resolve => setTimeout(resolve, 500 * attempts));
-                }
-            }
-        }
-
-        return success;
-    },
+    updateBookingWithQrCode: updateBookingWithQrCode,
 
 })); 
