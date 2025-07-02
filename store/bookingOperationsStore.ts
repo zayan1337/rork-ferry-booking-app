@@ -75,28 +75,18 @@ export const useBookingOperationsStore = create<BookingOperationsStore>((set, ge
 
             if (departureBookingError) throw departureBookingError;
 
-            // Generate QR code data for departure
-            const departureQrCodeData = JSON.stringify({
-                bookingNumber: departureBooking.booking_number,
-                bookingId: departureBooking.id,
-                tripId: currentBooking.trip.id,
-                departureDate: currentBooking.trip.travel_date || currentBooking.departureDate,
-                departureTime: currentBooking.trip.departure_time,
-                passengers: currentBooking.passengers.length,
-                seats: currentBooking.selectedSeats.map((seat: any) => seat.number),
-                totalFare: departureFare,
-                timestamp: new Date().toISOString()
-            });
+            // Generate QR code URL using the auto-generated booking number
+            const departureQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${departureBooking.booking_number}`)}`;
 
-            // Update departure booking with QR code data
+            // Update departure booking with QR code URL
             const { data: qrUpdateResult, error: qrUpdateError } = await supabase
                 .from('bookings')
-                .update({ qr_code_url: departureQrCodeData })
+                .update({ qr_code_url: departureQrCodeUrl })
                 .eq('id', departureBooking.id)
                 .select('id, qr_code_url');
 
             if (qrUpdateError) {
-                console.error('Failed to update departure QR code data:', qrUpdateError);
+                console.error('Failed to update departure QR code URL:', qrUpdateError);
             }
 
             // Create payment record for departure
@@ -160,28 +150,18 @@ export const useBookingOperationsStore = create<BookingOperationsStore>((set, ge
                 if (returnBookingError) throw returnBookingError;
                 returnBooking = returnBookingData;
 
-                // Generate QR code data for return
-                const returnQrCodeData = JSON.stringify({
-                    bookingNumber: returnBooking.booking_number,
-                    bookingId: returnBooking.id,
-                    tripId: currentBooking.returnTrip.id,
-                    departureDate: currentBooking.returnTrip.travel_date || currentBooking.returnDate,
-                    departureTime: currentBooking.returnTrip.departure_time,
-                    passengers: currentBooking.passengers.length,
-                    seats: currentBooking.returnSelectedSeats.map((seat: any) => seat.number),
-                    totalFare: returnFare,
-                    timestamp: new Date().toISOString()
-                });
+                // Generate QR code URL using the auto-generated booking number
+                const returnQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${returnBooking.booking_number}`)}`;
 
-                // Update return booking with QR code data
+                // Update return booking with QR code URL
                 const { data: returnQrUpdateResult, error: returnQrUpdateError } = await supabase
                     .from('bookings')
-                    .update({ qr_code_url: returnQrCodeData })
+                    .update({ qr_code_url: returnQrCodeUrl })
                     .eq('id', returnBooking.id)
                     .select('id, qr_code_url');
 
                 if (returnQrUpdateError) {
-                    console.error('Failed to update return QR code data:', returnQrUpdateError);
+                    console.error('Failed to update return QR code URL:', returnQrUpdateError);
                 }
 
                 // Create payment record for return

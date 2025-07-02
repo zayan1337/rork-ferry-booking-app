@@ -57,39 +57,17 @@ interface ExtendedBookingStoreState extends BookingStoreState {
 interface BookingStore extends ExtendedBookingStoreState, BookingStoreActions { }
 
 // QR Code utilities
-const generateBookingQrCode = (booking: any, passengers: Passenger[], selectedSeats: Seat[], trip: Trip, route: Route, isAgent: boolean = false, agentInfo?: any) => {
+const generateBookingQrCodeUrl = (booking: any) => {
     try {
-        const qrCodeData = {
-            bookingNumber: booking.booking_number,
-            bookingId: booking.id,
-            tripId: trip.id,
-            departureDate: trip.travel_date || booking.travel_date,
-            departureTime: trip.departure_time,
-            passengers: passengers.length,
-            seats: selectedSeats.map(seat => seat.number),
-            totalFare: booking.total_fare,
-            timestamp: new Date().toISOString(),
-            type: isAgent ? 'agent-booking' : 'customer-booking',
-            // Additional fields for agent bookings
-            ...(isAgent && agentInfo && {
-                clientName: agentInfo.clientName,
-                clientEmail: agentInfo.clientEmail,
-                clientHasAccount: agentInfo.clientHasAccount,
-                clientUserProfileId: agentInfo.clientUserProfileId,
-                agentId: agentInfo.agentId,
-                agentName: agentInfo.agentName,
-                agentClientId: agentInfo.agentClientId,
-            })
-        };
-
-        return JSON.stringify(qrCodeData);
+        // Generate QR code URL using the auto-generated booking number
+        return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${booking.booking_number}`)}`;
     } catch (error) {
-        console.error('Error generating QR code data:', error);
+        console.error('Error generating QR code URL:', error);
         return '';
     }
 };
 
-const updateBookingWithQrCode = async (bookingId: string, qrCodeData: string, maxRetries: number = 3) => {
+const updateBookingWithQrCode = async (bookingId: string, qrCodeUrl: string, maxRetries: number = 3) => {
     let success = false;
     let attempts = 0;
 
@@ -99,7 +77,7 @@ const updateBookingWithQrCode = async (bookingId: string, qrCodeData: string, ma
         try {
             const { data, error } = await supabase
                 .from('bookings')
-                .update({ qr_code_url: qrCodeData })
+                .update({ qr_code_url: qrCodeUrl })
                 .eq('id', bookingId)
                 .select('id, qr_code_url, booking_number');
 
@@ -590,18 +568,11 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
                 throw new Error(`Failed to create booking: ${bookingError.message}`);
             }
 
-            // Generate QR code data for customer booking
-            const qrCodeData = generateBookingQrCode(
-                booking,
-                passengers,
-                selectedSeats,
-                trip,
-                route,
-                false // isAgent = false for customer bookings
-            );
+            // Generate QR code URL for customer booking
+            const qrCodeUrl = generateBookingQrCodeUrl(booking);
 
             // Update booking with QR code
-            await updateBookingWithQrCode(booking.id, qrCodeData);
+            await updateBookingWithQrCode(booking.id, qrCodeUrl);
 
             // Create passengers and seat reservations for main booking
             const passengerInserts = passengers.map((passenger, index) => ({
@@ -692,18 +663,11 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
                 } else {
                     returnBookingId = returnBooking.id;
 
-                    // Generate return QR code
-                    const returnQrCodeData = generateBookingQrCode(
-                        returnBooking,
-                        passengers,
-                        returnSelectedSeats,
-                        returnTrip,
-                        returnRoute,
-                        false // isAgent = false for customer bookings
-                    );
+                    // Generate return QR code URL
+                    const returnQrCodeUrl = generateBookingQrCodeUrl(returnBooking);
 
                     // Update return booking with QR code
-                    await updateBookingWithQrCode(returnBooking.id, returnQrCodeData);
+                    await updateBookingWithQrCode(returnBooking.id, returnQrCodeUrl);
 
                     // Create passengers for return trip
                     const returnPassengerInserts = passengers.map((passenger, index) => ({

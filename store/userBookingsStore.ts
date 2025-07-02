@@ -253,21 +253,15 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             const { data: { user }, error: userError } = await supabase.auth.getUser();
             if (userError || !user) throw new Error('User not authenticated');
 
-            // Generate QR code URL for new booking
-            const newBookingNumber = `BK${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
-            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${newBookingNumber}`)}`;
-
-            // 1. Create new booking with modified details
+            // 1. Create new booking with modified details (let DB auto-generate booking_number)
             const { data: newBookingData, error: newBookingError } = await supabase
                 .from('bookings')
                 .insert({
-                    booking_number: newBookingNumber,
                     user_id: user.id,
                     trip_id: modifications.newTripId,
                     is_round_trip: false,
                     total_fare: originalBooking.totalFare + modifications.fareDifference,
                     status: modifications.fareDifference > 0 ? 'pending_payment' : 'confirmed',
-                    qr_code_url: qrCodeUrl,
                     check_in_status: false
                 })
                 .select()
@@ -275,7 +269,18 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
 
             if (newBookingError) throw newBookingError;
 
-            // 2. Release original seat reservations first
+            // 2. Generate QR code URL using the auto-generated booking number
+            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${newBookingData.booking_number}`)}`;
+
+            // 3. Update the booking with the QR code URL
+            const { error: qrUpdateError } = await supabase
+                .from('bookings')
+                .update({ qr_code_url: qrCodeUrl })
+                .eq('id', newBookingData.id);
+
+            if (qrUpdateError) throw qrUpdateError;
+
+            // 4. Release original seat reservations first
             const { error: seatReleaseError } = await supabase
                 .from('seat_reservations')
                 .update({
@@ -287,7 +292,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
 
             if (seatReleaseError) throw seatReleaseError;
 
-            // 3. Update seat reservations for new booking
+            // 5. Update seat reservations for new booking
             for (const seat of modifications.selectedSeats) {
                 const { error: seatUpdateError } = await supabase
                     .from('seat_reservations')
@@ -302,7 +307,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
                 if (seatUpdateError) throw seatUpdateError;
             }
 
-            // 4. Create passengers for new booking
+            // 6. Create passengers for new booking
             const passengers = originalBooking.passengers.map((passenger: any, index: number) => ({
                 booking_id: newBookingData.id,
                 passenger_name: passenger.fullName,
@@ -317,7 +322,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
 
             if (passengersError) throw passengersError;
 
-            // 5. Handle payment information
+            // 7. Handle payment information
             if (modifications.fareDifference > 0) {
                 // Additional payment required - create pending payment
                 await supabase
@@ -362,7 +367,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
                     .eq('id', newBookingData.id);
             }
 
-            // 6. Update original booking status to modified
+            // 8. Update original booking status to modified
             const { error: originalBookingError } = await supabase
                 .from('bookings')
                 .update({
@@ -373,7 +378,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
 
             if (originalBookingError) throw originalBookingError;
 
-            // 7. Insert modification record
+            // 9. Insert modification record
             const { error: modificationError } = await supabase
                 .from('modifications')
                 .insert({

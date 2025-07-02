@@ -95,22 +95,48 @@ export default function ValidateTicketScreen() {
     setShowCamera(false);
 
     try {
-      // Try to parse QR code data
-      let qrData;
+      let bookingNum = '';
+
+      // Try to parse different QR code formats
       try {
-        qrData = JSON.parse(data);
+        // First try to parse as JSON (legacy format)
+        const qrData = JSON.parse(data);
+        bookingNum = qrData.bookingNumber || qrData.booking_number || '';
       } catch (parseError) {
-        // If parsing fails, assume it's a booking number
-        qrData = { bookingNumber: data };
+        // Check if data is a QR server URL (new format)
+        if (data.includes('qrserver.com') && data.includes('data=')) {
+          // Extract the data parameter from the URL
+          const urlMatch = data.match(/data=([^&]+)/);
+          if (urlMatch && urlMatch[1]) {
+            // URL decode the data parameter
+            const decodedData = decodeURIComponent(urlMatch[1]);
+
+            // Now extract booking number from decoded data
+            if (decodedData.includes('Booking:') || decodedData.includes('Booking ')) {
+              const bookingMatch = decodedData.match(/Booking[:\s]+([A-Z0-9]+)/i);
+              if (bookingMatch && bookingMatch[1]) {
+                bookingNum = bookingMatch[1];
+              }
+            }
+          }
+        } else if (data.includes('Booking:') || data.includes('Booking ')) {
+          // Direct format: "Booking: {booking_number}" or "Booking {booking_number}"
+          const bookingMatch = data.match(/Booking[:\s]+([A-Z0-9]+)/i);
+          if (bookingMatch && bookingMatch[1]) {
+            bookingNum = bookingMatch[1];
+          }
+        } else {
+          // Fallback: assume the entire data is the booking number
+          bookingNum = data.trim();
+        }
       }
 
-      const bookingNum = qrData.bookingNumber || qrData.booking_number || data;
-
       if (bookingNum) {
-        setBookingNumber(bookingNum.toString().toUpperCase());
+        const formattedBookingNum = bookingNum.toString().toUpperCase();
+        setBookingNumber(formattedBookingNum);
 
         // Auto-validate after scanning
-        validateTicket(bookingNum.toString().toUpperCase()).then(result => {
+        validateTicket(formattedBookingNum).then(result => {
           setValidationResult(result);
 
           if (error) {
@@ -120,10 +146,11 @@ export default function ValidateTicketScreen() {
           Alert.alert('Error', 'Failed to validate scanned ticket. Please try again.');
         });
       } else {
-        Alert.alert('Invalid QR Code', 'The scanned QR code does not contain valid booking information');
+        Alert.alert('Invalid QR Code', `The scanned QR code does not contain valid booking information. Data: "${data}"`);
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to process scanned QR code');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      Alert.alert('Error', `Failed to process scanned QR code: ${errorMessage}`);
     }
   };
 
