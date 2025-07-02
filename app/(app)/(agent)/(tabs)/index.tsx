@@ -7,6 +7,14 @@ import StatCard from "@/components/StatCard";
 import AgentBookingCard from "@/components/AgentBookingCard";
 import Button from "@/components/Button";
 import {
+    SkeletonAgentInfo,
+    SkeletonStat,
+    SkeletonBooking,
+    SkeletonDashboardHeader,
+    SkeletonStatsContainer,
+    SkeletonRecentBookings
+} from "@/components/skeleton";
+import {
     TicketIcon,
     Users,
     CreditCard,
@@ -64,14 +72,6 @@ export default function AgentDashboardScreen() {
         router.push("./bookings");
     };
 
-    if (isLoading || !agent) {
-        return (
-            <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Loading dashboard...</Text>
-            </View>
-        );
-    }
-
     if (error) {
         return (
             <View style={styles.loadingContainer}>
@@ -85,14 +85,20 @@ export default function AgentDashboardScreen() {
         );
     }
 
-    const agentFirstName = getAgentDisplayName(agent);
+    const agentFirstName = agent ? getAgentDisplayName(agent) : "User";
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.greeting}>Hello, {agentFirstName}</Text>
-                    <Text style={styles.subGreeting}>Welcome to your agent dashboard</Text>
+                    {isLoading || !agent ? (
+                        <SkeletonDashboardHeader />
+                    ) : (
+                        <>
+                            <Text style={styles.greeting}>Hello, {agentFirstName}</Text>
+                            <Text style={styles.subGreeting}>Welcome to your agent dashboard</Text>
+                        </>
+                    )}
                 </View>
                 <TouchableOpacity
                     style={styles.newBookingButton}
@@ -104,29 +110,33 @@ export default function AgentDashboardScreen() {
             </View>
 
             <View style={styles.agentInfoCard}>
-                <Card variant="elevated">
-                    <View style={styles.agentInfoHeader}>
-                        <Text style={styles.agentInfoTitle}>Agent Information</Text>
-                        <View style={styles.agentIdBadge}>
-                            <Text style={styles.agentIdText}>{formatAgentId(agent.agentId)}</Text>
+                {isLoading || !agent ? (
+                    <SkeletonAgentInfo />
+                ) : (
+                    <Card variant="elevated">
+                        <View style={styles.agentInfoHeader}>
+                            <Text style={styles.agentInfoTitle}>Agent Information</Text>
+                            <View style={styles.agentIdBadge}>
+                                <Text style={styles.agentIdText}>{formatAgentId(agent.agentId)}</Text>
+                            </View>
                         </View>
-                    </View>
 
-                    <View style={styles.agentInfoRow}>
-                        <View style={styles.agentInfoItem}>
-                            <Text style={styles.agentInfoLabel}>Credit Balance</Text>
-                            <Text style={styles.agentInfoValue}>{formatCurrency(agent.creditBalance)}</Text>
+                        <View style={styles.agentInfoRow}>
+                            <View style={styles.agentInfoItem}>
+                                <Text style={styles.agentInfoLabel}>Credit Balance</Text>
+                                <Text style={styles.agentInfoValue}>{formatCurrency(agent.creditBalance)}</Text>
+                            </View>
+                            <View style={styles.agentInfoItem}>
+                                <Text style={styles.agentInfoLabel}>Discount Rate</Text>
+                                <Text style={styles.agentInfoValue}>{agent.discountRate || 0}%</Text>
+                            </View>
+                            <View style={styles.agentInfoItem}>
+                                <Text style={styles.agentInfoLabel}>Free Tickets</Text>
+                                <Text style={styles.agentInfoValue}>{agent.freeTicketsRemaining || 0}</Text>
+                            </View>
                         </View>
-                        <View style={styles.agentInfoItem}>
-                            <Text style={styles.agentInfoLabel}>Discount Rate</Text>
-                            <Text style={styles.agentInfoValue}>{agent.discountRate || 0}%</Text>
-                        </View>
-                        <View style={styles.agentInfoItem}>
-                            <Text style={styles.agentInfoLabel}>Free Tickets</Text>
-                            <Text style={styles.agentInfoValue}>{agent.freeTicketsRemaining || 0}</Text>
-                        </View>
-                    </View>
-                </Card>
+                    </Card>
+                )}
             </View>
 
             <Text style={styles.sectionTitle}>Performance Overview</Text>
@@ -135,50 +145,56 @@ export default function AgentDashboardScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.statsContainer}
             >
-                <StatCard
-                    title="Total Bookings"
-                    value={displayStats.totalBookings}
-                    icon={<TicketIcon size={16} color={Colors.primary} />}
-                />
-                <StatCard
-                    title="Active Bookings"
-                    value={displayStats.activeBookings}
-                    icon={<Calendar size={16} color={Colors.primary} />}
-                />
-                <StatCard
-                    title="Inactive Bookings"
-                    value={localStats ? getInactiveBookings(bookings || []).length : 0}
-                    icon={<XCircle size={16} color={Colors.warning} />}
-                    color={Colors.warning}
-                />
-                <StatCard
-                    title="Completed"
-                    value={displayStats.completedBookings}
-                    icon={<CheckCircle size={16} color={Colors.success} />}
-                    color={Colors.success}
-                />
-                <StatCard
-                    title="Cancelled"
-                    value={displayStats.cancelledBookings}
-                    icon={<XCircle size={16} color={Colors.error} />}
-                    color={Colors.error}
-                />
-                <StatCard
-                    title="Total Revenue"
-                    value={formatCurrency(displayStats.totalRevenue)}
-                    icon={<DollarSign size={16} color={Colors.primary} />}
-                />
-                <StatCard
-                    title="Commission"
-                    value={formatCurrency(displayStats.totalCommission)}
-                    icon={<CreditCard size={16} color={Colors.secondary} />}
-                    color={Colors.secondary}
-                />
-                <StatCard
-                    title="Unique Clients"
-                    value={displayStats.uniqueClients}
-                    icon={<Users size={16} color={Colors.primary} />}
-                />
+                {isLoading ? (
+                    <SkeletonStatsContainer count={8} />
+                ) : (
+                    <>
+                        <StatCard
+                            title="Total Bookings"
+                            value={displayStats.totalBookings}
+                            icon={<TicketIcon size={16} color={Colors.primary} />}
+                        />
+                        <StatCard
+                            title="Active Bookings"
+                            value={displayStats.activeBookings}
+                            icon={<Calendar size={16} color={Colors.primary} />}
+                        />
+                        <StatCard
+                            title="Inactive Bookings"
+                            value={localStats ? getInactiveBookings(bookings || []).length : 0}
+                            icon={<XCircle size={16} color={Colors.warning} />}
+                            color={Colors.warning}
+                        />
+                        <StatCard
+                            title="Completed"
+                            value={displayStats.completedBookings}
+                            icon={<CheckCircle size={16} color={Colors.success} />}
+                            color={Colors.success}
+                        />
+                        <StatCard
+                            title="Cancelled"
+                            value={displayStats.cancelledBookings}
+                            icon={<XCircle size={16} color={Colors.error} />}
+                            color={Colors.error}
+                        />
+                        <StatCard
+                            title="Total Revenue"
+                            value={formatCurrency(displayStats.totalRevenue)}
+                            icon={<DollarSign size={16} color={Colors.primary} />}
+                        />
+                        <StatCard
+                            title="Commission"
+                            value={formatCurrency(displayStats.totalCommission)}
+                            icon={<CreditCard size={16} color={Colors.secondary} />}
+                            color={Colors.secondary}
+                        />
+                        <StatCard
+                            title="Unique Clients"
+                            value={displayStats.uniqueClients}
+                            icon={<Users size={16} color={Colors.primary} />}
+                        />
+                    </>
+                )}
             </ScrollView>
 
             <View style={styles.recentBookingsHeader}>
@@ -188,7 +204,9 @@ export default function AgentDashboardScreen() {
                 </TouchableOpacity>
             </View>
 
-            {recentBookings.length > 0 ? (
+            {isLoading ? (
+                <SkeletonRecentBookings count={3} />
+            ) : recentBookings.length > 0 ? (
                 recentBookings.map((booking) => (
                     booking && booking.id ? (
                         <AgentBookingCard

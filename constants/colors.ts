@@ -13,4 +13,7 @@ export default {
   warning: '#f39c12',      // Orange - warning states
   inactive: '#b2bec3',     // Light gray - inactive elements
   highlight: '#e3f2fd',    // Light blue - highlighted items
+  skeleton: '#e9ecef',     // Light gray - skeleton base color
+  skeletonHighlight: '#f8f9fa', // Very light gray - skeleton highlight
+  surface: '#ffffff',      // White - surface backgrounds
 };
