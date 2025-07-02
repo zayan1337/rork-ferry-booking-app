@@ -11,6 +11,7 @@ interface AuthState {
   user: AuthUser | null;
   error: string | null;
   preventRedirect: boolean;
+  isRehydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
   signUp: (userData: RegisterData) => Promise<void>;
   signOut: () => Promise<void>;
@@ -21,6 +22,7 @@ interface AuthState {
   updatePassword: (newPassword: string) => Promise<void>;
   updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
   setPreventRedirect: (prevent: boolean) => void;
+  setRehydrated: (rehydrated: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -31,6 +33,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       error: null,
       preventRedirect: false,
+      isRehydrated: false,
 
       setError: (error: string) => set({ error }),
 
@@ -38,23 +41,63 @@ export const useAuthStore = create<AuthState>()(
 
       setPreventRedirect: (prevent: boolean) => set({ preventRedirect: prevent }),
 
+      setRehydrated: (rehydrated: boolean) => set({ isRehydrated: rehydrated }),
+
       checkAuth: async () => {
         try {
           set({ isLoading: true, error: null });
           const { data: { session } } = await supabase.auth.getSession();
 
           if (session?.user) {
-            const { data: userProfile } = await supabase
+            // Ensure we have a valid user profile
+            const { data: userProfile, error: profileError } = await supabase
               .from('user_profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
 
+            if (profileError) {
+              console.error('Profile fetch error:', profileError);
+              // If profile doesn't exist or can't be fetched, sign out
+              await supabase.auth.signOut();
+              set({
+                isAuthenticated: false,
+                user: null,
+                isLoading: false,
+                error: 'Profile not found. Please contact support.'
+              });
+              return;
+            }
+
+            if (!userProfile) {
+              console.error('No profile found for user');
+              await supabase.auth.signOut();
+              set({
+                isAuthenticated: false,
+                user: null,
+                isLoading: false,
+                error: 'User profile not found. Please contact support.'
+              });
+              return;
+            }
+
+            // Verify user is active
+            if (!userProfile.is_active) {
+              await supabase.auth.signOut();
+              set({
+                isAuthenticated: false,
+                user: null,
+                isLoading: false,
+                error: 'Account is inactive. Please contact support.'
+              });
+              return;
+            }
+
             set({
               isAuthenticated: true,
               user: {
                 ...session.user,
-                profile: userProfile || undefined
+                profile: userProfile
               },
               isLoading: false
             });
@@ -97,6 +140,12 @@ export const useAuthStore = create<AuthState>()(
 
           if (profileError) throw new Error('Failed to fetch user profile: ' + profileError.message);
           if (!profile) throw new Error('User profile not found');
+
+          // Verify user is active
+          if (!profile.is_active) {
+            await supabase.auth.signOut();
+            throw new Error('Account is inactive. Please contact support.');
+          }
 
           set({
             isAuthenticated: true,
@@ -168,7 +217,7 @@ export const useAuthStore = create<AuthState>()(
       signOut: async () => {
         try {
           set({ isLoading: true, error: null });
-           const { error } = await supabase.auth.signOut();
+          const { error } = await supabase.auth.signOut();
           // if (error) throw error;
 
           set({
@@ -266,6 +315,11 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.setRehydrated(true);
+        }
+      },
     }
   )
 );

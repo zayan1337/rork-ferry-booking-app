@@ -8,7 +8,6 @@ import {
   Linking,
   ActivityIndicator,
   RefreshControl,
-  FlatList,
   TextInput,
   Dimensions
 } from 'react-native';
@@ -123,21 +122,21 @@ export default function SupportScreen() {
   // Filter and search FAQs with memoization for performance
   const filteredFaqs = useMemo(() => {
     let filtered = displayFaqs;
-    
+
     // Filter by category
     if (selectedCategory) {
       filtered = filtered.filter(faq => faq.category_id === selectedCategory);
     }
-    
+
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(faq => 
+      filtered = filtered.filter(faq =>
         faq.question.toLowerCase().includes(query) ||
         faq.answer.toLowerCase().includes(query)
       );
     }
-    
+
     return filtered;
   }, [displayFaqs, selectedCategory, searchQuery]);
 
@@ -191,20 +190,7 @@ export default function SupportScreen() {
     await submitForm();
   };
 
-  const renderFAQItem = useCallback(({ item }: { item: any }) => (
-    <FAQItem 
-      faq={item} 
-      isExpanded={expandedFaq === item.id}
-      onToggle={() => toggleFaq(item.id)}
-      searchQuery={searchQuery}
-    />
-  ), [expandedFaq, toggleFaq, searchQuery]);
 
-  const getItemLayout = useCallback((data: any, index: number) => ({
-    length: 80, // Approximate item height
-    offset: 80 * index,
-    index,
-  }), []);
 
   return (
     <ScrollView
@@ -297,8 +283,8 @@ export default function SupportScreen() {
       {/* Category Filter with Horizontal Scroll */}
       {categories.length > 0 && (
         <View style={styles.categoryFilterContainer}>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryFilter}
           >
@@ -307,7 +293,7 @@ export default function SupportScreen() {
               isSelected={selectedCategory === null}
               onPress={() => handleCategoryFilter(null)}
             />
-            
+
             {categories.map((category) => (
               <CategoryChip
                 key={category.id}
@@ -317,7 +303,7 @@ export default function SupportScreen() {
               />
             ))}
           </ScrollView>
-          
+
           {/* Clear filters button */}
           {(selectedCategory || searchQuery) && (
             <TouchableOpacity onPress={clearFilters} style={styles.clearFiltersButton}>
@@ -350,30 +336,32 @@ export default function SupportScreen() {
         </View>
       )}
 
-      {/* FAQ Items with FlatList for better performance */}
+      {/* FAQ Items */}
       <View style={styles.faqListContainer}>
         {!isLoadingFaqs && filteredFaqs.length === 0 ? (
           <View style={styles.noFaqsContainer}>
             <HelpCircle size={48} color={Colors.textSecondary} />
             <Text style={styles.noFaqsText}>
-              {searchQuery ? 'No FAQs match your search' : 
-               selectedCategory ? 'No FAQs found in this category' : 'No FAQs available'}
+              {searchQuery ? 'No FAQs match your search' :
+                selectedCategory ? 'No FAQs found in this category' : 'No FAQs available'}
             </Text>
           </View>
         ) : (
-          <FlatList
-            data={filteredFaqs}
-            keyExtractor={(item) => item.id}
-            renderItem={renderFAQItem}
-            scrollEnabled={true}
+          <ScrollView
+            style={styles.faqScrollContainer}
             showsVerticalScrollIndicator={true}
-            initialNumToRender={10}
-            maxToRenderPerBatch={5}
-            windowSize={10}
-            removeClippedSubviews={true}
-            getItemLayout={getItemLayout}
             nestedScrollEnabled={true}
-          />
+          >
+            {filteredFaqs.map((item) => (
+              <FAQItem
+                key={item.id}
+                faq={item}
+                isExpanded={expandedFaq === item.id}
+                onToggle={() => toggleFaq(item.id)}
+                searchQuery={searchQuery}
+              />
+            ))}
+          </ScrollView>
         )}
       </View>
 
@@ -594,8 +582,10 @@ const styles = StyleSheet.create({
   },
   faqListContainer: {
     marginBottom: 24,
-    minHeight: 300,
-    maxHeight: 400,
+    height: 400,
+  },
+  faqScrollContainer: {
+    flex: 1,
   },
   faqItem: {
     backgroundColor: Colors.card,

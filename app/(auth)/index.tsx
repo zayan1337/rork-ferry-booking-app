@@ -38,10 +38,11 @@ export default function LoginScreen() {
   }, []);
 
   useEffect(() => {
-    // If user is already authenticated, redirect to app
+    // If user is authenticated and has profile, redirect to appropriate portal
     if (isAuthenticated && !isNavigating) {
       setIsNavigating(true);
-      router.replace('/(app)/(tabs)');
+      // Let the app layout handle the role-based navigation
+      router.replace('/(app)' as any);
     }
   }, [isAuthenticated]);
 
@@ -118,7 +119,7 @@ export default function LoginScreen() {
 
   const handleNavigation = (path: 'register' | 'forgotPassword') => {
     if (!isNavigating && !isLoading) {
-      router.push(path);
+      router.push(path as any);
     }
   };
 

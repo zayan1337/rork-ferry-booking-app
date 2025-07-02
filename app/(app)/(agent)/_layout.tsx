@@ -1,59 +1,62 @@
 import React from "react";
 import { Stack } from "expo-router";
 import Colors from "@/constants/colors";
+import RoleGuard from '@/components/RoleGuard';
 
 export default function AgentLayout() {
     return (
-        <Stack
-            screenOptions={{
-                headerStyle: {
-                    backgroundColor: Colors.background,
-                },
-                headerTintColor: Colors.text,
-                headerTitleStyle: {
-                    fontWeight: "600",
-                },
-            }}
-        >
-            <Stack.Screen
-                name="(tabs)"
-                options={{ headerShown: false }}
-            />
-            <Stack.Screen
-                name="booking/[id]"
-                options={{
-                    title: "Booking Details",
-                    presentation: "card",
+        <RoleGuard allowedRoles={['agent', 'admin', 'captain']}>
+            <Stack
+                screenOptions={{
+                    headerStyle: {
+                        backgroundColor: Colors.background,
+                    },
+                    headerTintColor: Colors.text,
+                    headerTitleStyle: {
+                        fontWeight: "600",
+                    },
                 }}
-            />
-            <Stack.Screen
-                name="booking/new"
-                options={{
-                    title: "New Booking",
-                    presentation: "card",
-                }}
-            />
-            <Stack.Screen
-                name="agent-cancel-booking/[id]"
-                options={{
-                    title: "Cancel Booking",
-                    presentation: "card",
-                }}
-            />
-            <Stack.Screen
-                name="agent-modify-booking/[id]"
-                options={{
-                    title: "Modify Booking",
-                    presentation: "card",
-                }}
-            />
-            <Stack.Screen
-                name="client/[id]"
-                options={{
-                    title: "Client Details",
-                    presentation: "card",
-                }}
-            />
-        </Stack>
+            >
+                <Stack.Screen
+                    name="(tabs)"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="booking/[id]"
+                    options={{
+                        title: "Booking Details",
+                        presentation: "card",
+                    }}
+                />
+                <Stack.Screen
+                    name="booking/new"
+                    options={{
+                        title: "New Booking",
+                        presentation: "card",
+                    }}
+                />
+                <Stack.Screen
+                    name="agent-cancel-booking/[id]"
+                    options={{
+                        title: "Cancel Booking",
+                        presentation: "card",
+                    }}
+                />
+                <Stack.Screen
+                    name="agent-modify-booking/[id]"
+                    options={{
+                        title: "Modify Booking",
+                        presentation: "card",
+                    }}
+                />
+                <Stack.Screen
+                    name="client/[id]"
+                    options={{
+                        title: "Client Details",
+                        presentation: "card",
+                    }}
+                />
+            </Stack>
+        </RoleGuard>
     );
 } 

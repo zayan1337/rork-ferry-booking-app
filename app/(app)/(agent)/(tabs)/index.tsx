@@ -135,22 +135,22 @@ export default function AgentDashboardScreen() {
                     <View style={styles.agentInfoHeader}>
                         <Text style={styles.agentInfoTitle}>Agent Information</Text>
                         <View style={styles.agentIdBadge}>
-                            <Text style={styles.agentIdText}>{agent.agentId || 'N/A'}</Text>
+                            <Text style={styles.agentIdText}>{agent?.agentId || 'N/A'}</Text>
                         </View>
                     </View>
 
                     <View style={styles.agentInfoRow}>
                         <View style={styles.agentInfoItem}>
                             <Text style={styles.agentInfoLabel}>Credit Balance</Text>
-                            <Text style={styles.agentInfoValue}>{formatCurrency(agent.creditBalance)}</Text>
+                            <Text style={styles.agentInfoValue}>{formatCurrency(agent?.creditBalance)}</Text>
                         </View>
                         <View style={styles.agentInfoItem}>
                             <Text style={styles.agentInfoLabel}>Discount Rate</Text>
-                            <Text style={styles.agentInfoValue}>{agent.discountRate || 0}%</Text>
+                            <Text style={styles.agentInfoValue}>{agent?.discountRate || 0}%</Text>
                         </View>
                         <View style={styles.agentInfoItem}>
                             <Text style={styles.agentInfoLabel}>Free Tickets</Text>
-                            <Text style={styles.agentInfoValue}>{agent.freeTicketsRemaining || 0}</Text>
+                            <Text style={styles.agentInfoValue}>{agent?.freeTicketsRemaining || 0}</Text>
                         </View>
                     </View>
                 </Card>

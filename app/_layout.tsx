@@ -36,27 +36,32 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const { checkAuth, isAuthenticated, isLoading, user } = useAuthStore();
+  const { checkAuth, isAuthenticated, isLoading, user, error, isRehydrated } = useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Only check auth once on startup
-    if (!authChecked) {
+    // Only check auth once on startup and when rehydrated
+    if (!authChecked && isRehydrated) {
       const initAuth = async () => {
         try {
           await checkAuth();
+        } catch (error) {
+          console.error('Auth initialization error:', error);
         } finally {
           setAuthChecked(true);
         }
       };
       initAuth();
     }
-  }, []);
+  }, [checkAuth, authChecked, isRehydrated]);
 
-  // Show loading screen while checking authentication
-  if (!authChecked || isLoading) {
+  // Show loading screen while checking authentication or rehydrating
+  if (!isRehydrated || !authChecked || isLoading) {
     return null; // Keep splash screen visible
   }
+
+  // Determine if user has valid profile after authentication
+  const hasValidProfile = isAuthenticated && user?.profile && user.profile.is_active;
 
   return (
     <>
@@ -67,7 +72,7 @@ function RootLayoutNav() {
           gestureEnabled: false,
           animationTypeForReplace: 'push'
         }}
-        initialRouteName={isAuthenticated ? "(app)" : "(auth)"}
+        initialRouteName={hasValidProfile ? "(app)" : "(auth)"}
       >
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(app)" />

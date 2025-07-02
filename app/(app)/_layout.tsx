@@ -1,29 +1,38 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
+import AuthLoadingScreen from '@/components/AuthLoadingScreen';
 
 export default function AppLayout() {
-  const { isAuthenticated, isLoading, user } = useAuthStore();
+  const { isAuthenticated, isLoading, user, isRehydrated } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
     // If user is not authenticated and we're not loading, redirect to auth
-    if (!isAuthenticated && !isLoading) {
-      router.replace('/(auth)');
-      return;
+    if (!isAuthenticated && !isLoading && isRehydrated) {
+      router.replace('/(auth)' as any);
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, isRehydrated]);
 
-  // If user is not authenticated, show nothing while redirecting
-  if (!isAuthenticated) {
-    return null;
+  // Show loading while waiting for auth data to load
+  if (!isRehydrated || !isAuthenticated || isLoading || !user?.profile) {
+    return (
+      <AuthLoadingScreen
+        message={
+          !isRehydrated ? "Loading app data..." :
+            !isAuthenticated ? "Redirecting to login..." :
+              isLoading ? "Loading your account..." :
+                "Setting up your profile..."
+        }
+      />
+    );
   }
 
   // Determine initial route based on user role
   const getInitialRouteName = () => {
     if (!user?.profile) {
-      return "(customer)"; // Default to customer if profile not loaded
+      return "(customer)";
     }
 
     switch (user.profile.role) {
