@@ -23,10 +23,10 @@ import {
   Search,
   UserPlus
 } from "lucide-react-native";
-import { useAgentStore } from "@/store/agentStore";
-import { useAgentBookingStore } from "@/store/agentBookingStore";
+import { useAgentStore } from "@/store/agent/agentStore";
+import { useAgentBookingFormStore } from "@/store/agent/agentBookingFormStore";
 import { useRouteStore, useTripStore } from "@/store";
-import type { AgentClient } from "@/store/agentBookingStore";
+import type { AgentClient } from "@/types/agent";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import Input from "@/components/Input";
@@ -97,7 +97,7 @@ export default function AgentNewBookingScreen() {
     setError,
     setAgent,
     setOnBookingCreated,
-  } = useAgentBookingStore();
+  } = useAgentBookingFormStore();
 
   // Local state
   const [clientForm, setClientForm] = useState({

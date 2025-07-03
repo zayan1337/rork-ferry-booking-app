@@ -1,17 +1,92 @@
 import { create } from 'zustand';
-import { supabase } from '../utils/supabase';
+import { supabase } from '../../utils/supabase';
 import type { Route, Seat, Passenger, Trip } from '@/types';
 import type { Agent, AgentClient, AgentCurrentBooking, AgentBookingState } from '@/types/agent';
 import { calculateBookingFare, calculateDiscountedFare } from '@/utils/bookingUtils';
-import {
-    generateUnifiedQrCode,
-    updateBookingWithQrCode,
-    parseBookingQrCode,
-    validateQrCodeData,
-    generateAgentQrCodeData
-} from '@/utils/qrCodeUtils';
+import { parseBookingQrCode } from '@/utils/qrCodeUtils';
 
-interface AgentBookingActions {
+/**
+ * Email validation regex pattern
+ */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Validate required input parameters
+ * @param value - Value to validate
+ * @param paramName - Parameter name for error messages
+ * @throws {Error} If value is not provided
+ */
+const validateRequired = (value: any, paramName: string) => {
+    if (!value) {
+        throw new Error(`${paramName} is required`);
+    }
+};
+
+/**
+ * Standardized error handling for booking form operations
+ * @param error - The error object or message
+ * @param defaultMessage - Default error message to use
+ * @param set - Zustand set function for updating store state
+ * @returns The error message string
+ */
+const handleError = (error: unknown, defaultMessage: string, set: any) => {
+    const errorMessage = error instanceof Error ? error.message : defaultMessage;
+    console.error(defaultMessage, error);
+    set({
+        error: errorMessage,
+        isLoading: false,
+        isSearchingClients: false,
+    });
+    return errorMessage;
+};
+
+/**
+ * Validate required booking data before submission
+ * @param currentBooking - Current booking data to validate
+ * @param agent - Agent information
+ * @throws {Error} If validation fails
+ */
+const validateBookingData = (currentBooking: AgentCurrentBooking, agent: Agent | null) => {
+    if (!agent) throw new Error('Agent information not available');
+    if (!currentBooking.client) throw new Error('Client information is required');
+    if (!currentBooking.trip) throw new Error('Trip information is required');
+    if (!currentBooking.route) throw new Error('Route information is required');
+    if (currentBooking.selectedSeats.length === 0) throw new Error('At least one seat must be selected');
+    
+    // Validate round trip requirements
+    if (currentBooking.tripType === 'round_trip') {
+        if (!currentBooking.returnTrip) throw new Error('Return trip is required for round trip bookings');
+        if (!currentBooking.returnRoute) throw new Error('Return route is required for round trip bookings');
+        if (currentBooking.returnSelectedSeats.length === 0) throw new Error('Return seats must be selected for round trip bookings');
+    }
+};
+
+/**
+ * Generate QR code URL for booking
+ * @param bookingNumber - Booking number to encode
+ * @returns QR code URL
+ */
+const generateQrCodeUrl = (bookingNumber: string): string => {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${bookingNumber}`)}`;
+};
+
+/**
+ * Calculate discounted fare for seats
+ * @param seats - Array of selected seats
+ * @param route - Route information
+ * @param discountRate - Discount rate percentage
+ * @returns Calculated fare amount
+ */
+const calculateSeatFare = (seats: Seat[], route: Route | null, discountRate: number): number => {
+    if (!route || !seats.length) return 0;
+    const baseFare = seats.length * route.baseFare;
+    return baseFare * (1 - discountRate / 100);
+};
+
+/**
+ * Agent booking form actions interface
+ */
+interface AgentBookingFormActions {
     // Navigation
     setCurrentStep: (step: number) => void;
     nextStep: () => void;
@@ -57,18 +132,12 @@ interface AgentBookingActions {
 
     // QR Code utilities
     parseQrCodeData: typeof parseBookingQrCode;
-    generateQrCodeData: typeof generateAgentQrCodeData;
-    validateQrCodeData: typeof validateQrCodeData;
     verifyQrCodeStorage: (bookingId: string) => Promise<boolean>;
 
     // Booking refresh utility
     refreshAgentData: () => Promise<void>;
     onBookingCreated?: (bookingId: string, returnBookingId?: string | null) => Promise<void>;
     setOnBookingCreated: (callback?: (bookingId: string, returnBookingId?: string | null) => Promise<void>) => void;
-
-    // Unified QR Code utilities
-    generateUnifiedQrCode: typeof generateUnifiedQrCode;
-    updateBookingWithQrCode: typeof updateBookingWithQrCode;
 }
 
 const initialBooking: AgentCurrentBooking = {
@@ -89,8 +158,8 @@ const initialBooking: AgentCurrentBooking = {
     paymentMethod: 'credit',
 };
 
-export const useAgentBookingStore = create<AgentBookingState & AgentBookingActions>((set, get) => ({
-    // State
+export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingFormActions>((set, get) => ({
+    // Initial state
     currentBooking: { ...initialBooking },
     currentStep: 1,
     availableSeats: [],
@@ -103,12 +172,14 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
     agent: null,
     onBookingCreated: undefined,
 
-    // Navigation
+    /**
+     * Navigation methods
+     */
     setCurrentStep: (step: number) => set({ currentStep: step }),
 
     nextStep: () => {
-        const { currentStep } = get();
-        const error = get().validateCurrentStep();
+        const { currentStep, validateCurrentStep } = get();
+        const error = validateCurrentStep();
         if (error) {
             set({ error });
             return;
@@ -123,7 +194,9 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
         }
     },
 
-    // Trip setup
+    /**
+     * Trip setup methods
+     */
     setTripType: (tripType) => {
         set(state => ({
             currentBooking: {
@@ -210,7 +283,9 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
         }
     },
 
-    // Client management
+    /**
+     * Client management methods
+     */
     setClient: (client) => {
         set(state => ({
             currentBooking: {
@@ -324,13 +399,8 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 isSearchingClients: false
             });
 
-        } catch (error: any) {
-            console.error('Error searching clients:', error);
-            set({
-                error: error.message || 'Failed to search clients',
-                isSearchingClients: false,
-                clientSearchResults: []
-            });
+        } catch (error) {
+            handleError(error, 'Failed to search clients', set);
         }
     },
 
@@ -346,7 +416,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
         set({ clientSearchQuery: query });
     },
 
-    // Seat management - using the same logic as customer booking
+    // Seat management
     fetchAvailableSeats: async (tripId: string, isReturn = false) => {
         try {
             set({ isLoading: true, error: null });
@@ -425,11 +495,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
             }));
 
         } catch (error: any) {
-            console.error('Error fetching available seats:', error);
-            set({
-                error: 'Failed to fetch available seats',
-                isLoading: false
-            });
+            handleError(error, 'Failed to fetch available seats', set);
         }
     },
 
@@ -640,23 +706,21 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
 
             const { currentBooking, agent } = get();
 
-            if (!agent) throw new Error('Agent information not available');
-            if (!currentBooking.client) throw new Error('Client information is required');
-            if (!currentBooking.trip) throw new Error('Trip information is required');
-
-            // Validate all data
-            const validationError = get().validateCurrentStep();
-            if (validationError) throw new Error(validationError);
+            validateBookingData(currentBooking, agent);
+            
+            // TypeScript assertion: agent is guaranteed to be non-null after validation
+            if (!agent) throw new Error('Agent validation failed');
+            const validAgent = agent;
 
             // Use the database function to create/get agent client
             const { data: agentClientData, error: clientError } = await supabase
                 .rpc('get_or_create_agent_client', {
-                    p_agent_id: agent.id,
-                    p_email: currentBooking.client.email,
-                    p_full_name: currentBooking.client.name,
-                    p_mobile_number: currentBooking.client.phone,
-                    p_id_number: currentBooking.client.idNumber || null,
-                    p_client_id: currentBooking.client.userProfileId || null
+                    p_agent_id: validAgent.id,
+                    p_email: currentBooking.client!.email,
+                    p_full_name: currentBooking.client!.name,
+                    p_mobile_number: currentBooking.client!.phone,
+                    p_id_number: currentBooking.client!.idNumber || null,
+                    p_client_id: currentBooking.client!.userProfileId || null
                 });
 
             if (clientError) {
@@ -668,15 +732,15 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
 
             // Determine the booking user_id: Always use agent ID for agent bookings to ensure update permissions
             // Store client's user ID separately if they have an account
-            const bookingUserId = agent.id; // Always use agent ID for agent bookings
+            const bookingUserId = validAgent.id; // Always use agent ID for agent bookings
 
             // Create the booking WITHOUT QR code data first
             const bookingData = {
                 user_id: bookingUserId, // Always agent ID for permissions
-                agent_id: agent.id,
+                agent_id: validAgent.id,
                 agent_client_id: agentClientId,
-                trip_id: currentBooking.trip.id,
-                total_fare: (currentBooking.selectedSeats.length * (currentBooking.route?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100), // Only departure fare with discount
+                trip_id: currentBooking.trip!.id,
+                total_fare: (currentBooking.selectedSeats.length * (currentBooking.route?.baseFare || 0)) * (1 - (validAgent.discountRate || 0) / 100), // Only departure fare with discount
                 payment_method_type: currentBooking.paymentMethod,
                 status: 'confirmed' as const,
                 is_round_trip: currentBooking.tripType === 'round_trip',
@@ -694,52 +758,18 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 throw new Error(`Failed to create booking: ${bookingError.message}`);
             }
 
-            // Generate QR code data using unified format
-            const agentQrData = {
-                clientName: currentBooking.client.name,
-                clientEmail: currentBooking.client.email,
-                clientHasAccount: currentBooking.client.hasAccount,
-                clientUserProfileId: currentBooking.client.userProfileId || null,
-                agentId: agent.id,
-                agentName: agent.name || agent.email,
-                agentClientId: agentClientId,
-            };
+            // Generate QR code URL using the auto-generated booking number
+            const qrCodeUrl = generateQrCodeUrl(booking.booking_number);
 
-            const finalQrCodeData = get().generateUnifiedQrCode(
-                booking,
-                currentBooking.passengers,
-                currentBooking.selectedSeats,
-                currentBooking.trip,
-                currentBooking.route!,
-                'agent-booking',
-                agentQrData
-            );
+            // Update booking with QR code URL
+            const { error: qrUpdateError } = await supabase
+                .from('bookings')
+                .update({ qr_code_url: qrCodeUrl })
+                .eq('id', booking.id)
+                .select('id, qr_code_url');
 
-            // Debug: Log QR code generation details
-            console.log('QR Code Generation Details:', {
-                bookingId: booking.id,
-                bookingNumber: booking.booking_number,
-                clientHasAccount: currentBooking.client.hasAccount,
-                clientUserProfileId: currentBooking.client.userProfileId,
-                bookingUserId: bookingUserId,
-                agentId: agent.id,
-                qrDataLength: finalQrCodeData.length,
-            });
-
-            // Update booking with QR code data (with actual booking number and ID)
-            console.log('Attempting to update QR code for booking:', booking.id, 'Data length:', finalQrCodeData.length);
-
-            // Check if QR data is too long (PostgreSQL text field limit is usually much larger, but let's be safe)
-            if (finalQrCodeData.length > 10000) {
-                console.warn('QR code data is very long:', finalQrCodeData.length, 'characters. Truncating...');
-                // In case of very long data, we could truncate or simplify
-            }
-
-            // Update booking with QR code using unified helper
-            const qrUpdateSuccess = await get().updateBookingWithQrCode(booking.id, finalQrCodeData);
-
-            if (!qrUpdateSuccess) {
-                console.error(`Failed to update QR code for booking:`, booking.id);
+            if (qrUpdateError) {
+                console.error('Failed to update departure QR code URL:', qrUpdateError);
                 // Don't throw error - booking was created successfully, just QR code failed
             }
 
@@ -784,8 +814,8 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
 
             // Handle credit payment
             if (currentBooking.paymentMethod === 'credit') {
-                const departureFare = (currentBooking.selectedSeats.length * (currentBooking.route?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100);
-                const newBalance = agent.creditBalance - departureFare;
+                const departureFare = (currentBooking.selectedSeats.length * (currentBooking.route?.baseFare || 0)) * (1 - (validAgent.discountRate || 0) / 100);
+                const newBalance = validAgent.creditBalance - departureFare;
 
                 if (newBalance < 0) {
                     // Clean up everything if insufficient credit
@@ -799,7 +829,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                 const { error: creditError } = await supabase
                     .from('user_profiles')
                     .update({ credit_balance: newBalance })
-                    .eq('id', agent.id);
+                    .eq('id', validAgent.id);
 
                 if (creditError) {
                     console.warn('Failed to update credit balance:', creditError);
@@ -810,7 +840,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                     await supabase
                         .from('agent_credit_transactions')
                         .insert({
-                            agent_id: agent.id,
+                            agent_id: validAgent.id,
                             amount: -departureFare,
                             transaction_type: 'deduction',
                             booking_id: booking.id,
@@ -826,21 +856,21 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
             if (currentBooking.paymentMethod === 'free') {
                 const ticketsNeeded = currentBooking.selectedSeats.length;
 
-                if (agent.freeTicketsRemaining < ticketsNeeded) {
+                if (validAgent.freeTicketsRemaining < ticketsNeeded) {
                     // Clean up booking if insufficient free tickets
                     await supabase.from('seat_reservations').delete().eq('booking_id', booking.id);
                     await supabase.from('passengers').delete().eq('booking_id', booking.id);
                     await supabase.from('bookings').delete().eq('id', booking.id);
-                    throw new Error(`Insufficient free tickets. Need ${ticketsNeeded}, have ${agent.freeTicketsRemaining}`);
+                    throw new Error(`Insufficient free tickets. Need ${ticketsNeeded}, have ${validAgent.freeTicketsRemaining}`);
                 }
 
-                const newFreeTicketsRemaining = agent.freeTicketsRemaining - ticketsNeeded;
+                const newFreeTicketsRemaining = validAgent.freeTicketsRemaining - ticketsNeeded;
 
                 // Update agent free tickets remaining
                 const { error: freeTicketError } = await supabase
                     .from('user_profiles')
                     .update({ free_tickets_remaining: newFreeTicketsRemaining })
-                    .eq('id', agent.id);
+                    .eq('id', validAgent.id);
 
                 if (freeTicketError) {
                     console.warn('Failed to update free tickets remaining:', freeTicketError);
@@ -854,22 +884,6 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                         } : null
                     }));
                 }
-
-                // Create free ticket transaction record
-                try {
-                    await supabase
-                        .from('agent_credit_transactions')
-                        .insert({
-                            agent_id: agent.id,
-                            amount: 0, // Free tickets don't affect credit balance
-                            transaction_type: 'deduction',
-                            booking_id: booking.id,
-                            description: `Free ticket booking for ${currentBooking.route?.fromIsland?.name || 'Unknown'} to ${currentBooking.route?.toIsland?.name || 'Unknown'} (${ticketsNeeded} tickets used)`,
-                            balance_after: agent.creditBalance, // Credit balance unchanged
-                        });
-                } catch (transactionError) {
-                    console.warn('Failed to create free ticket transaction record:', transactionError);
-                }
             }
 
             // Handle return trip for round-trip bookings
@@ -877,10 +891,10 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
             if (currentBooking.tripType === 'round_trip' && currentBooking.returnTrip) {
                 const returnBookingData = {
                     user_id: bookingUserId,
-                    agent_id: agent.id,
+                    agent_id: validAgent.id,
                     agent_client_id: agentClientId,
                     trip_id: currentBooking.returnTrip.id,
-                    total_fare: (currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100),
+                    total_fare: (currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0)) * (1 - (validAgent.discountRate || 0) / 100),
                     payment_method_type: currentBooking.paymentMethod,
                     status: 'confirmed' as const,
                     is_round_trip: true,
@@ -900,47 +914,21 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
 
                 returnBookingId = returnBooking.id;
 
-                // Generate return QR code data using unified format
-                const returnAgentQrData = {
-                    clientName: currentBooking.client.name,
-                    clientEmail: currentBooking.client.email,
-                    clientHasAccount: currentBooking.client.hasAccount,
-                    clientUserProfileId: currentBooking.client.userProfileId || null,
-                    agentId: agent.id,
-                    agentName: agent.name || agent.email,
-                    agentClientId: agentClientId,
-                };
+                // Generate return QR code URL using the auto-generated booking number
+                const returnQrCodeUrl = generateQrCodeUrl(returnBooking.booking_number);
 
-                const finalReturnQrCodeData = get().generateUnifiedQrCode(
-                    returnBooking,
-                    currentBooking.passengers,
-                    currentBooking.returnSelectedSeats,
-                    currentBooking.returnTrip,
-                    currentBooking.returnRoute!,
-                    'agent-booking-return',
-                    returnAgentQrData
-                );
+                // Update return booking with QR code URL
+                const { error: returnQrUpdateError } = await supabase
+                    .from('bookings')
+                    .update({ qr_code_url: returnQrCodeUrl })
+                    .eq('id', returnBooking.id)
+                    .select('id, qr_code_url');
 
-                // Debug: Log return QR code generation details
-                console.log('Return QR Code Generation Details:', {
-                    returnBookingId: returnBooking.id,
-                    returnBookingNumber: returnBooking.booking_number,
-                    clientHasAccount: currentBooking.client.hasAccount,
-                    returnQrDataLength: finalReturnQrCodeData.length,
-                });
-
-                // Update return booking with QR code data
-                console.log('Attempting to update return QR code for booking:', returnBooking.id, 'Data length:', finalReturnQrCodeData.length);
-
-                // Update return booking with QR code using unified helper
-                const returnQrUpdateSuccess = await get().updateBookingWithQrCode(returnBooking.id, finalReturnQrCodeData);
-
-                if (!returnQrUpdateSuccess) {
-                    console.error(`Failed to update return QR code for booking:`, returnBooking.id);
-                    // Don't throw error - booking was created successfully, just QR code failed
+                if (returnQrUpdateError) {
+                    console.error('Failed to update return QR code URL:', returnQrUpdateError);
                 }
 
-                // Create return trip passengers
+                // Create return trip passengers and seat reservations
                 const returnPassengerInserts = currentBooking.passengers.map((passenger, index) => ({
                     booking_id: returnBooking.id,
                     seat_id: currentBooking.returnSelectedSeats[index]?.id,
@@ -949,13 +937,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                     special_assistance_request: passenger.specialAssistance || null,
                 }));
 
-                const { error: returnPassengersError } = await supabase
-                    .from('passengers')
-                    .insert(returnPassengerInserts);
-
-                if (returnPassengersError) {
-                    console.warn('Failed to create return passengers:', returnPassengersError);
-                }
+                await supabase.from('passengers').insert(returnPassengerInserts);
 
                 // Reserve return seats
                 const returnSeatReservations = currentBooking.returnSelectedSeats.map(seat => ({
@@ -966,98 +948,33 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
                     is_reserved: false,
                 }));
 
-                const { error: returnSeatError } = await supabase
-                    .from('seat_reservations')
-                    .upsert(returnSeatReservations, { onConflict: 'trip_id,seat_id' });
+                await supabase.from('seat_reservations').upsert(returnSeatReservations, { onConflict: 'trip_id,seat_id' });
 
-                if (returnSeatError) {
-                    console.warn('Failed to reserve return seats:', returnSeatError);
-                }
-
-                // Handle credit payment for return trip
+                // Handle payment for return trip (same logic as departure)
                 if (currentBooking.paymentMethod === 'credit') {
-                    const returnFare = (currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0)) * (1 - (agent.discountRate || 0) / 100);
-                    const currentBalance = await supabase
-                        .from('user_profiles')
-                        .select('credit_balance')
-                        .eq('id', agent.id)
-                        .single();
+                    const returnFare = (currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0)) * (1 - (validAgent.discountRate || 0) / 100);
+                    const currentBalance = await supabase.from('user_profiles').select('credit_balance').eq('id', validAgent.id).single();
 
                     if (currentBalance.data) {
                         const newBalance = currentBalance.data.credit_balance - returnFare;
-
-                        const { error: returnCreditError } = await supabase
-                            .from('user_profiles')
-                            .update({ credit_balance: newBalance })
-                            .eq('id', agent.id);
-
-                        if (returnCreditError) {
-                            console.warn('Failed to update credit balance for return trip:', returnCreditError);
-                        }
-
-                        // Create credit transaction record for return trip
-                        try {
-                            await supabase
-                                .from('agent_credit_transactions')
-                                .insert({
-                                    agent_id: agent.id,
-                                    amount: -returnFare,
-                                    transaction_type: 'deduction',
-                                    booking_id: returnBooking.id,
-                                    description: `Return booking payment for ${currentBooking.returnRoute?.fromIsland?.name || 'Unknown'} to ${currentBooking.returnRoute?.toIsland?.name || 'Unknown'}`,
-                                    balance_after: newBalance,
-                                });
-                        } catch (transactionError) {
-                            console.warn('Failed to create return credit transaction record:', transactionError);
-                        }
+                        await supabase.from('user_profiles').update({ credit_balance: newBalance }).eq('id', validAgent.id);
                     }
                 }
 
-                // Handle free ticket payment for return trip
                 if (currentBooking.paymentMethod === 'free') {
                     const returnTicketsNeeded = currentBooking.returnSelectedSeats.length;
-
-                    // Get current free tickets remaining (may have been updated by departure booking)
                     const currentAgent = get().agent;
-                    if (!currentAgent || currentAgent.freeTicketsRemaining < returnTicketsNeeded) {
-                        console.warn(`Insufficient free tickets for return trip. Need ${returnTicketsNeeded}, have ${currentAgent?.freeTicketsRemaining || 0}`);
-                    } else {
+                    if (currentAgent && currentAgent.freeTicketsRemaining >= returnTicketsNeeded) {
                         const newFreeTicketsRemaining = currentAgent.freeTicketsRemaining - returnTicketsNeeded;
-
-                        // Update agent free tickets remaining for return trip
-                        const { error: returnFreeTicketError } = await supabase
-                            .from('user_profiles')
-                            .update({ free_tickets_remaining: newFreeTicketsRemaining })
-                            .eq('id', agent.id);
-
-                        if (returnFreeTicketError) {
-                            console.warn('Failed to update free tickets remaining for return trip:', returnFreeTicketError);
-                        } else {
-                            // Update local agent state for return trip
-                            set(state => ({
-                                ...state,
-                                agent: state.agent ? {
-                                    ...state.agent,
-                                    freeTicketsRemaining: newFreeTicketsRemaining
-                                } : null
-                            }));
-                        }
-
-                        // Create free ticket transaction record for return trip
-                        try {
-                            await supabase
-                                .from('agent_credit_transactions')
-                                .insert({
-                                    agent_id: agent.id,
-                                    amount: 0, // Free tickets don't affect credit balance
-                                    transaction_type: 'deduction',
-                                    booking_id: returnBooking.id,
-                                    description: `Free ticket return booking for ${currentBooking.returnRoute?.fromIsland?.name || 'Unknown'} to ${currentBooking.returnRoute?.toIsland?.name || 'Unknown'} (${returnTicketsNeeded} tickets used)`,
-                                    balance_after: agent.creditBalance, // Credit balance unchanged
-                                });
-                        } catch (transactionError) {
-                            console.warn('Failed to create return free ticket transaction record:', transactionError);
-                        }
+                        await supabase.from('user_profiles').update({ free_tickets_remaining: newFreeTicketsRemaining }).eq('id', validAgent.id);
+                        
+                        set(state => ({
+                            ...state,
+                            agent: state.agent ? {
+                                ...state.agent,
+                                freeTicketsRemaining: newFreeTicketsRemaining
+                            } : null
+                        }));
                     }
                 }
             }
@@ -1078,11 +995,7 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
             return { bookingId: booking.id, returnBookingId };
 
         } catch (error: any) {
-            console.error('Error creating booking:', error);
-            set({
-                error: error.message || 'Failed to create booking',
-                isLoading: false
-            });
+            handleError(error, 'Failed to create booking', set);
             throw error;
         }
     },
@@ -1110,10 +1023,6 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
     // QR Code utilities
     parseQrCodeData: parseBookingQrCode,
 
-    generateQrCodeData: generateAgentQrCodeData,
-
-    validateQrCodeData: validateQrCodeData,
-
     verifyQrCodeStorage: async (bookingId: string) => {
         try {
             const { data: booking, error } = await supabase
@@ -1128,28 +1037,20 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
             }
 
             if (!booking?.qr_code_url) {
-                console.warn('No QR code data found for booking:', bookingId);
+                console.warn('No QR code URL found for booking:', bookingId);
                 return false;
             }
 
-            // Try to parse the QR code data
-            const qrData = parseBookingQrCode(booking.qr_code_url);
-            if (!qrData) {
-                console.error('Failed to parse stored QR code data for booking:', bookingId);
-                return false;
-            }
-
-            // Validate the QR code structure
-            const isValid = validateQrCodeData(qrData);
-            if (!isValid) {
-                console.error('Invalid QR code structure for booking:', bookingId);
+            // Verify the QR code URL format
+            if (!booking.qr_code_url.startsWith('https://api.qrserver.com/v1/create-qr-code/')) {
+                console.error('Invalid QR code URL format for booking:', bookingId);
                 return false;
             }
 
             console.log('QR code successfully verified for booking:', bookingId);
             return true;
         } catch (error) {
-            console.error('Error verifying QR code storage:', error);
+            handleError(error, 'Failed to verify QR code storage', set);
             return false;
         }
     },
@@ -1166,10 +1067,5 @@ export const useAgentBookingStore = create<AgentBookingState & AgentBookingActio
             // Error refreshing agent data
         }
     },
-
-    // Unified QR Code utilities
-    generateUnifiedQrCode: generateUnifiedQrCode,
-
-    updateBookingWithQrCode: updateBookingWithQrCode,
 
 })); 

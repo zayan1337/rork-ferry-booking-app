@@ -7,7 +7,7 @@ import {
     Alert,
 } from "react-native";
 import { useRouter, Stack } from "expo-router";
-import { useAgentStore } from "@/store/agentStore";
+import { useAgentStore } from "@/store/agent/agentStore";
 import { useClientForm } from "@/hooks/useClientForm";
 import { useExistingUserSearch } from "@/hooks/useExistingUserSearch";
 import Colors from "@/constants/colors";

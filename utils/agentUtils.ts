@@ -1,5 +1,138 @@
 import type { Agent, AgentStats, Booking, Client } from '@/types/agent';
 import { getActiveBookings, getInactiveBookings } from './bookingUtils';
+import { supabase } from './supabase';
+
+/**
+ * Agent profile data structure from database RPC calls
+ */
+interface DatabaseAgentProfile {
+    id: string;
+    name: string;
+    email: string;
+    agentid?: string;
+    agentId?: string;
+    creditceiling?: number;
+    creditCeiling?: number;
+    creditbalance?: number;
+    creditBalance?: number;
+    discountrate?: number;
+    discountRate?: number;
+    freeticketsallocation?: number;
+    freeTicketsAllocation?: number;
+    freeticketsremaining?: number;
+    freeTicketsRemaining?: number;
+    totalbookings?: number;
+    totalBookings?: number;
+    activebookings?: number;
+    activeBookings?: number;
+    completedbookings?: number;
+    completedBookings?: number;
+    cancelledbookings?: number;
+    cancelledBookings?: number;
+    totalrevenue?: number;
+    totalRevenue?: number;
+    totalcommission?: number;
+    totalCommission?: number;
+    uniqueclients?: number;
+    uniqueClients?: number;
+}
+
+/**
+ * Safely extract value with snake_case and camelCase fallback
+ */
+export const safeExtract = (profile: DatabaseAgentProfile, camelKey: keyof DatabaseAgentProfile, snakeKey: keyof DatabaseAgentProfile, defaultValue: any = '') => {
+    return profile[camelKey] ?? profile[snakeKey] ?? defaultValue;
+};
+
+/**
+ * Convert database profile to Agent type with proper type safety
+ */
+export const mapProfileToAgent = (profile: DatabaseAgentProfile): Agent => {
+    return {
+        id: String(profile.id || ''),
+        name: String(profile.name || ''),
+        email: String(profile.email || ''),
+        agentId: String(safeExtract(profile, 'agentId', 'agentid', '')),
+        creditCeiling: Number(safeExtract(profile, 'creditCeiling', 'creditceiling', 0)),
+        creditBalance: Number(safeExtract(profile, 'creditBalance', 'creditbalance', 0)),
+        discountRate: Number(safeExtract(profile, 'discountRate', 'discountrate', 0)),
+        freeTicketsAllocation: Number(safeExtract(profile, 'freeTicketsAllocation', 'freeticketsallocation', 0)),
+        freeTicketsRemaining: Number(safeExtract(profile, 'freeTicketsRemaining', 'freeticketsremaining', 0)),
+    };
+};
+
+/**
+ * Extract stats from database profile
+ */
+export const mapProfileToStats = (profile: DatabaseAgentProfile): AgentStats => {
+    return {
+        totalBookings: Number(safeExtract(profile, 'totalBookings', 'totalbookings', 0)),
+        activeBookings: Number(safeExtract(profile, 'activeBookings', 'activebookings', 0)),
+        completedBookings: Number(safeExtract(profile, 'completedBookings', 'completedbookings', 0)),
+        cancelledBookings: Number(safeExtract(profile, 'cancelledBookings', 'cancelledbookings', 0)),
+        totalRevenue: Number(safeExtract(profile, 'totalRevenue', 'totalrevenue', 0)),
+        totalCommission: Number(safeExtract(profile, 'totalCommission', 'totalcommission', 0)),
+        uniqueClients: Number(safeExtract(profile, 'uniqueClients', 'uniqueclients', 0)),
+    };
+};
+
+/**
+ * Create fallback agent from auth user data
+ * Used when agent profile is not found in database
+ */
+export const createFallbackAgent = (authUser: any): Agent => {
+    return {
+        id: authUser.id,
+        name: authUser.profile?.full_name || 'Agent',
+        email: authUser.email || '',
+        agentId: 'TRA-' + authUser.id.slice(-4),
+        creditCeiling: authUser.profile?.credit_ceiling || 10000,
+        creditBalance: authUser.profile?.credit_balance || 0,
+        discountRate: authUser.profile?.agent_discount || 12,
+        freeTicketsAllocation: authUser.profile?.free_tickets_allocation || 10,
+        freeTicketsRemaining: authUser.profile?.free_tickets_remaining || 10,
+    };
+};
+
+/**
+ * Shared utility to fetch agent profile with stats from database
+ * Used by multiple stores to avoid code duplication
+ */
+export const fetchAgentProfileWithStats = async (agentId: string): Promise<{ agent: Agent; stats: AgentStats } | null> => {
+    try {
+        // Try the main RPC function first
+        let { data, error } = await supabase.rpc('get_agent_profile', {
+            agent_user_id: agentId
+        });
+
+        // Fallback to simpler function if type mismatch
+        if (error?.code === '42804') {
+            const result = await supabase.rpc('get_agent_profile_simple', {
+                agent_user_id: agentId
+            });
+            data = result.data;
+            error = result.error;
+        }
+
+        if (error) {
+            console.error('Error in fetchAgentProfileWithStats:', error);
+            throw error;
+        }
+
+        if (!data || data.length === 0) {
+            return null;
+        }
+
+        const profile = data[0] as DatabaseAgentProfile;
+        const agent = mapProfileToAgent(profile);
+        const stats = mapProfileToStats(profile);
+
+        return { agent, stats };
+    } catch (error) {
+        console.error('Error fetching agent profile with stats:', error);
+        throw error;
+    }
+};
 
 /**
  * Calculate local agent statistics from bookings data

@@ -6,7 +6,7 @@ import { Calendar, MapPin, User, DollarSign } from "lucide-react-native";
 import Card from "./Card";
 import { isBookingExpired, isBookingInactive } from "@/utils/bookingUtils";
 import { getClientDisplayName } from "@/utils/clientUtils";
-import { useAgentStore } from "@/store/agentStore";
+import { useAgentStore } from "@/store/agent/agentStore";
 
 interface AgentBookingCardProps {
     booking: Booking;

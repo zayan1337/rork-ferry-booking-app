@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Calendar, ArrowRight, User, DollarSign } from 'lucide-react-native';
-import { useAgentStore } from '@/store/agentStore';
+import { useAgentStore } from '@/store/agent/agentStore';
 import { useRouteStore, useTripStore } from '@/store/routeStore';
 import { useSeatStore } from '@/store/seatStore';
 import { supabase } from '@/utils/supabase';
@@ -323,16 +323,30 @@ export default function AgentModifyBookingScreen() {
                 modifiedByAgent: true,
             };
 
-            await modifyBooking(booking.id, modificationData);
+            const result = await modifyBooking(booking.id, modificationData);
+
+            console.log('Booking modification result:', result);
+
+            let successMessage = `Booking has been modified successfully with QR codes generated.`;
+            
+            if (result && typeof result === 'object') {
+                successMessage += `\n\nNew Booking ID: ${result.bookingId}`;
+                if (result.returnBookingId) {
+                    successMessage += `\nReturn Booking ID: ${result.returnBookingId}`;
+                }
+            }
+
+            if (fareDifference > 0) {
+                successMessage += `\n\nAdditional charge: ${formatCurrency(fareDifference)}`;
+            } else if (fareDifference < 0) {
+                successMessage += `\n\nRefund amount: ${formatCurrency(Math.abs(fareDifference))}`;
+            } else {
+                successMessage += `\n\nNo fare difference.`;
+            }
 
             Alert.alert(
                 "Booking Modified",
-                `Booking has been modified successfully. ${fareDifference > 0
-                    ? `Additional charge: ${formatCurrency(fareDifference)}`
-                    : fareDifference < 0
-                        ? `Refund amount: ${formatCurrency(Math.abs(fareDifference))}`
-                        : "No fare difference."
-                }`,
+                successMessage,
                 [
                     {
                         text: "OK",

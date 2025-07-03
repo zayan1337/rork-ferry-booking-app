@@ -11,17 +11,40 @@ export const parseBookingQrCode = (qrCodeUrl: string): any | null => {
     try {
         if (!qrCodeUrl) return null;
 
-        // Handle both direct JSON string and URL-encoded JSON
+        // Handle new URL format (https://api.qrserver.com/v1/create-qr-code/...)
+        if (qrCodeUrl.startsWith('https://api.qrserver.com/v1/create-qr-code/')) {
+            const url = new URL(qrCodeUrl);
+            const dataParam = url.searchParams.get('data');
+            if (dataParam) {
+                const decodedData = decodeURIComponent(dataParam);
+                // For the new format, just return the booking number
+                if (decodedData.startsWith('Booking: ')) {
+                    return {
+                        bookingNumber: decodedData.replace('Booking: ', ''),
+                        type: 'simple-booking',
+                        format: 'url'
+                    };
+                }
+            }
+            return null;
+        }
+
+        // Handle legacy JSON format
         let qrData;
         if (qrCodeUrl.startsWith('{')) {
             qrData = JSON.parse(qrCodeUrl);
         } else {
-            // If it's a URL, extract the data parameter
-            const url = new URL(qrCodeUrl);
-            const dataParam = url.searchParams.get('data');
-            if (dataParam) {
-                qrData = JSON.parse(decodeURIComponent(dataParam));
-            } else {
+            // If it's a URL with JSON data, extract the data parameter
+            try {
+                const url = new URL(qrCodeUrl);
+                const dataParam = url.searchParams.get('data');
+                if (dataParam) {
+                    qrData = JSON.parse(decodeURIComponent(dataParam));
+                } else {
+                    qrData = JSON.parse(qrCodeUrl);
+                }
+            } catch {
+                // If URL parsing fails, try parsing as direct JSON
                 qrData = JSON.parse(qrCodeUrl);
             }
         }
@@ -45,6 +68,26 @@ export const getQrCodeDisplayData = (booking: Booking) => {
         const qrData = parseBookingQrCode(booking.qrCodeUrl);
         if (!qrData) return null;
 
+        // Handle new simple URL format
+        if (qrData.format === 'url') {
+            return {
+                bookingNumber: qrData.bookingNumber || booking.bookingNumber,
+                tripType: booking.tripType || 'N/A',
+                route: `${booking.origin || 'Unknown'} → ${booking.destination || 'Unknown'}`,
+                departureDate: booking.departureDate || 'N/A',
+                departureTime: booking.departureTime || 'N/A',
+                passengers: booking.passengerCount || 'N/A',
+                seats: 'N/A', // Simple format doesn't include seat details
+                clientName: booking.clientName || 'Unknown',
+                agentName: booking.agentName || 'Unknown Agent',
+                totalFare: booking.totalAmount || 0,
+                timestamp: booking.bookingDate || new Date().toISOString(),
+                isAgentBooking: true, // Assume agent booking for simple format
+                isReturnTrip: false,
+            };
+        }
+
+        // Handle legacy JSON format
         return {
             bookingNumber: qrData.bookingNumber || booking.bookingNumber,
             tripType: qrData.type || booking.tripType,

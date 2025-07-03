@@ -9,7 +9,7 @@ import {
   Share
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { useAgentStore } from "@/store/agentStore";
+import { useAgentStore } from "@/store/agent/agentStore";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import Button from "@/components/Button";

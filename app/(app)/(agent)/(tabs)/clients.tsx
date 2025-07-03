@@ -9,13 +9,14 @@ import type { Client } from "@/types/agent";
 import { getClientInactiveBookingsCount, getTotalBookingsAcrossClients } from "@/utils/agentUtils";
 import { useAgentData } from "@/hooks/useAgentData";
 import { useAgentClientSearch } from "@/hooks/useAgentClientSearch";
+import { SkeletonClientsList } from "@/components/skeleton";
 
 export default function AgentClientsScreen() {
   const router = useRouter();
   const {
     agent,
     clients,
-    isLoading,
+    isLoadingClients,
     error,
     refreshClients
   } = useAgentData();
@@ -52,6 +53,7 @@ export default function AgentClientsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Static Header - Always visible */}
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <Input
@@ -71,6 +73,7 @@ export default function AgentClientsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Static Stats - Always visible */}
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{searchStats.totalClients}</Text>
@@ -100,10 +103,9 @@ export default function AgentClientsScreen() {
         </View>
       )}
 
-      {isLoading ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Loading clients...</Text>
-        </View>
+      {/* Dynamic Content - Show skeleton only for the list */}
+      {isLoadingClients ? (
+        <SkeletonClientsList count={7} delay={0} />
       ) : filteredClients.length > 0 ? (
         <FlatList
           data={filteredClients}

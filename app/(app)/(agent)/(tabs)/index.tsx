@@ -7,12 +7,9 @@ import StatCard from "@/components/StatCard";
 import AgentBookingCard from "@/components/AgentBookingCard";
 import Button from "@/components/Button";
 import {
-    SkeletonAgentInfo,
-    SkeletonStat,
-    SkeletonBooking,
-    SkeletonDashboardHeader,
-    SkeletonStatsContainer,
-    SkeletonRecentBookings
+    SkeletonAgentInfoSection,
+    SkeletonStatsSection,
+    SkeletonRecentBookingsList
 } from "@/components/skeleton";
 import {
     TicketIcon,
@@ -36,7 +33,9 @@ export default function AgentDashboardScreen() {
         stats,
         bookings,
         localStats,
-        isLoading,
+        isInitializing,
+        isLoadingStats,
+        isLoadingBookings,
         error,
         retryInitialization
     } = useAgentData();
@@ -89,16 +88,11 @@ export default function AgentDashboardScreen() {
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+            {/* Static Header - Always visible */}
             <View style={styles.header}>
                 <View>
-                    {isLoading || !agent ? (
-                        <SkeletonDashboardHeader />
-                    ) : (
-                        <>
-                            <Text style={styles.greeting}>Hello, {agentFirstName}</Text>
-                            <Text style={styles.subGreeting}>Welcome to your agent dashboard</Text>
-                        </>
-                    )}
+                    <Text style={styles.greeting}>Hello, {agentFirstName}</Text>
+                    <Text style={styles.subGreeting}>Welcome to your agent dashboard</Text>
                 </View>
                 <TouchableOpacity
                     style={styles.newBookingButton}
@@ -109,9 +103,10 @@ export default function AgentDashboardScreen() {
                 </TouchableOpacity>
             </View>
 
+            {/* Agent Info Section - Show skeleton only if initializing or no agent data */}
             <View style={styles.agentInfoCard}>
-                {isLoading || !agent ? (
-                    <SkeletonAgentInfo />
+                {isInitializing || !agent ? (
+                    <SkeletonAgentInfoSection delay={0} />
                 ) : (
                     <Card variant="elevated">
                         <View style={styles.agentInfoHeader}>
@@ -139,64 +134,64 @@ export default function AgentDashboardScreen() {
                 )}
             </View>
 
+            {/* Performance Overview Section - Static title, skeleton only for stats */}
             <Text style={styles.sectionTitle}>Performance Overview</Text>
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.statsContainer}
-            >
-                {isLoading ? (
-                    <SkeletonStatsContainer count={8} />
-                ) : (
-                    <>
-                        <StatCard
-                            title="Total Bookings"
-                            value={displayStats.totalBookings}
-                            icon={<TicketIcon size={16} color={Colors.primary} />}
-                        />
-                        <StatCard
-                            title="Active Bookings"
-                            value={displayStats.activeBookings}
-                            icon={<Calendar size={16} color={Colors.primary} />}
-                        />
-                        <StatCard
-                            title="Inactive Bookings"
-                            value={localStats ? getInactiveBookings(bookings || []).length : 0}
-                            icon={<XCircle size={16} color={Colors.warning} />}
-                            color={Colors.warning}
-                        />
-                        <StatCard
-                            title="Completed"
-                            value={displayStats.completedBookings}
-                            icon={<CheckCircle size={16} color={Colors.success} />}
-                            color={Colors.success}
-                        />
-                        <StatCard
-                            title="Cancelled"
-                            value={displayStats.cancelledBookings}
-                            icon={<XCircle size={16} color={Colors.error} />}
-                            color={Colors.error}
-                        />
-                        <StatCard
-                            title="Total Revenue"
-                            value={formatCurrency(displayStats.totalRevenue)}
-                            icon={<DollarSign size={16} color={Colors.primary} />}
-                        />
-                        <StatCard
-                            title="Commission"
-                            value={formatCurrency(displayStats.totalCommission)}
-                            icon={<CreditCard size={16} color={Colors.secondary} />}
-                            color={Colors.secondary}
-                        />
-                        <StatCard
-                            title="Unique Clients"
-                            value={displayStats.uniqueClients}
-                            icon={<Users size={16} color={Colors.primary} />}
-                        />
-                    </>
-                )}
-            </ScrollView>
+            {isLoadingStats || isInitializing ? (
+                <SkeletonStatsSection delay={0} />
+            ) : (
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.statsContainer}
+                >
+                    <StatCard
+                        title="Total Bookings"
+                        value={displayStats.totalBookings}
+                        icon={<TicketIcon size={16} color={Colors.primary} />}
+                    />
+                    <StatCard
+                        title="Active Bookings"
+                        value={displayStats.activeBookings}
+                        icon={<Calendar size={16} color={Colors.primary} />}
+                    />
+                    <StatCard
+                        title="Inactive Bookings"
+                        value={localStats ? getInactiveBookings(bookings || []).length : 0}
+                        icon={<XCircle size={16} color={Colors.warning} />}
+                        color={Colors.warning}
+                    />
+                    <StatCard
+                        title="Completed"
+                        value={displayStats.completedBookings}
+                        icon={<CheckCircle size={16} color={Colors.success} />}
+                        color={Colors.success}
+                    />
+                    <StatCard
+                        title="Cancelled"
+                        value={displayStats.cancelledBookings}
+                        icon={<XCircle size={16} color={Colors.error} />}
+                        color={Colors.error}
+                    />
+                    <StatCard
+                        title="Total Revenue"
+                        value={formatCurrency(displayStats.totalRevenue)}
+                        icon={<DollarSign size={16} color={Colors.primary} />}
+                    />
+                    <StatCard
+                        title="Commission"
+                        value={formatCurrency(displayStats.totalCommission)}
+                        icon={<CreditCard size={16} color={Colors.secondary} />}
+                        color={Colors.secondary}
+                    />
+                    <StatCard
+                        title="Unique Clients"
+                        value={displayStats.uniqueClients}
+                        icon={<Users size={16} color={Colors.primary} />}
+                    />
+                </ScrollView>
+            )}
 
+            {/* Recent Bookings Section - Static header, skeleton only for booking list */}
             <View style={styles.recentBookingsHeader}>
                 <Text style={styles.sectionTitle}>Recent Bookings</Text>
                 <TouchableOpacity onPress={handleViewAllBookings}>
@@ -204,8 +199,8 @@ export default function AgentDashboardScreen() {
                 </TouchableOpacity>
             </View>
 
-            {isLoading ? (
-                <SkeletonRecentBookings count={3} />
+            {isLoadingBookings || isInitializing ? (
+                <SkeletonRecentBookingsList count={3} delay={0} />
             ) : recentBookings.length > 0 ? (
                 recentBookings.map((booking) => (
                     booking && booking.id ? (

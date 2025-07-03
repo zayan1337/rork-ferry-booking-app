@@ -8,13 +8,14 @@ import { Plus, Search } from "lucide-react-native";
 import Input from "@/components/Input";
 import type { Booking } from "@/types/agent";
 import { useAgentData } from "@/hooks/useAgentData";
+import { SkeletonBookingsList } from "@/components/skeleton";
 
 export default function AgentBookingsScreen() {
   const router = useRouter();
   const {
     agent,
     bookings,
-    isLoading,
+    isLoadingBookings,
     error,
     refreshBookings
   } = useAgentData();
@@ -74,14 +75,6 @@ export default function AgentBookingsScreen() {
     { key: "cancelled", label: "Cancelled" },
   ];
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading bookings...</Text>
-      </View>
-    );
-  }
-
   if (error) {
     return (
       <View style={styles.loadingContainer}>
@@ -92,6 +85,7 @@ export default function AgentBookingsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Static Header - Always visible */}
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <Input
@@ -111,6 +105,7 @@ export default function AgentBookingsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Static Tabs - Always visible */}
       <View style={styles.tabsContainer}>
         <ScrollView
           horizontal
@@ -137,7 +132,11 @@ export default function AgentBookingsScreen() {
           ))}
         </ScrollView>
       </View>
-      {sortedBookings.length > 0 ? (
+
+      {/* Dynamic Content - Show skeleton only for the list */}
+      {isLoadingBookings ? (
+        <SkeletonBookingsList count={6} delay={0} />
+      ) : sortedBookings.length > 0 ? (
         <FlatList
           data={sortedBookings}
           keyExtractor={(item) => item.id}
@@ -149,7 +148,7 @@ export default function AgentBookingsScreen() {
           )}
           contentContainerStyle={styles.bookingsList}
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />
+            <RefreshControl refreshing={isLoadingBookings} onRefresh={handleRefresh} />
           }
         />
       ) : (

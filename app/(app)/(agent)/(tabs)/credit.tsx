@@ -7,9 +7,10 @@ import { CreditCard, ArrowUp, ArrowDown, RefreshCw } from "lucide-react-native";
 import { formatCurrency } from "@/utils/currencyUtils";
 import { getCreditUtilization, isAgentCreditLow } from "@/utils/agentUtils";
 import { useAgentData } from "@/hooks/useAgentData";
+import { SkeletonCreditTransactionsList } from "@/components/skeleton";
 
 export default function AgentCreditScreen() {
-  const { agent, creditTransactions } = useAgentData();
+  const { agent, creditTransactions, isLoadingCredit } = useAgentData();
 
   const handleRequestCredit = () => {
     alert("Credit request functionality would be implemented here");
@@ -21,6 +22,7 @@ export default function AgentCreditScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Static Credit Summary - Always visible */}
       <View style={styles.creditSummaryContainer}>
         <Card variant="elevated" style={styles.creditSummaryCard}>
           <View style={styles.creditBalanceContainer}>
@@ -60,6 +62,7 @@ export default function AgentCreditScreen() {
         </Card>
       </View>
 
+      {/* Static Transaction Summary - Always visible */}
       <View style={styles.transactionSummaryContainer}>
         <View style={styles.transactionSummaryCard}>
           <View style={styles.transactionSummaryItem}>
@@ -96,16 +99,22 @@ export default function AgentCreditScreen() {
         </View>
       </View>
 
+      {/* Static Header - Always visible */}
       <View style={styles.transactionsHeader}>
         <Text style={styles.transactionsTitle}>Transaction History</Text>
       </View>
 
-      <FlatList
-        data={creditTransactions}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <CreditTransactionCard transaction={item} />}
-        contentContainerStyle={styles.transactionsList}
-      />
+      {/* Dynamic Content - Show skeleton only for transactions list */}
+      {isLoadingCredit ? (
+        <SkeletonCreditTransactionsList count={8} delay={0} />
+      ) : (
+        <FlatList
+          data={creditTransactions}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <CreditTransactionCard transaction={item} />}
+          contentContainerStyle={styles.transactionsList}
+        />
+      )}
     </View>
   );
 }

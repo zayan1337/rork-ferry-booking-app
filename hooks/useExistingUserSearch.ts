@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAgentStore } from '@/store/agentStore';
+import { useAgentStore } from '@/store/agent/agentStore';
 
 export const useExistingUserSearch = (email: string) => {
     const { searchExistingUser, isLoading } = useAgentStore();

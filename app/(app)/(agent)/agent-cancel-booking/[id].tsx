@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { AlertTriangle, DollarSign, User, CreditCard } from 'lucide-react-native';
-import { useAgentStore } from '@/store/agentStore';
+import { useAgentStore } from '@/store/agent/agentStore';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';

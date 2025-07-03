@@ -20,11 +20,12 @@ import {
 import { formatCurrency } from "@/utils/currencyUtils";
 import { getAgentInitials } from "@/utils/agentUtils";
 import { useAgentData } from "@/hooks/useAgentData";
+import { SkeletonAgentInfoSection } from "@/components/skeleton";
 
 export default function AgentProfileScreen() {
     const router = useRouter();
     const { signOut } = useAuthStore();
-    const { agent, reset } = useAgentData();
+    const { agent, reset, isInitializing, isLoadingProfile } = useAgentData();
 
     const handleSignOut = async () => {
         try {
@@ -54,70 +55,79 @@ export default function AgentProfileScreen() {
         );
     };
 
-    const agentInitials = getAgentInitials(agent);
-
-    if (!agent) {
-        return (
-            <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Loading profile...</Text>
-            </View>
-        );
-    }
+    const agentInitials = agent ? getAgentInitials(agent) : "??";
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            <View style={styles.profileHeader}>
-                <View style={styles.avatarContainer}>
-                    <Text style={styles.avatarText}>{agentInitials}</Text>
-                </View>
-                <Text style={styles.name}>{agent.name}</Text>
-                <Text style={styles.agentId}>{agent.agentId}</Text>
-            </View>
-
-            <Card variant="elevated" style={styles.infoCard}>
-                <Text style={styles.sectionTitle}>Agent Information</Text>
-
-                <View style={styles.infoRow}>
-                    <User size={20} color={Colors.subtext} />
-                    <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Full Name</Text>
-                        <Text style={styles.infoValue}>{agent.name}</Text>
+            {/* Profile Header - Show with skeleton or real data */}
+            {isInitializing || !agent ? (
+                <View style={styles.profileHeader}>
+                    <View style={styles.avatarContainer}>
+                        <Text style={styles.avatarText}>??</Text>
                     </View>
+                    <Text style={styles.name}>Loading...</Text>
+                    <Text style={styles.agentId}>...</Text>
                 </View>
-
-                <View style={styles.infoRow}>
-                    <Mail size={20} color={Colors.subtext} />
-                    <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Email</Text>
-                        <Text style={styles.infoValue}>{agent.email}</Text>
+            ) : (
+                <View style={styles.profileHeader}>
+                    <View style={styles.avatarContainer}>
+                        <Text style={styles.avatarText}>{agentInitials}</Text>
                     </View>
+                    <Text style={styles.name}>{agent.name}</Text>
+                    <Text style={styles.agentId}>{agent.agentId}</Text>
                 </View>
+            )}
 
-                <View style={styles.infoRow}>
-                    <CreditCard size={20} color={Colors.subtext} />
-                    <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Credit Balance</Text>
-                        <Text style={styles.infoValue}>{formatCurrency(agent.creditBalance)}</Text>
+            {/* Agent Information Section - Granular skeleton */}
+            {isInitializing || isLoadingProfile || !agent ? (
+                <SkeletonAgentInfoSection delay={0} />
+            ) : (
+                <Card variant="elevated" style={styles.infoCard}>
+                    <Text style={styles.sectionTitle}>Agent Information</Text>
+
+                    <View style={styles.infoRow}>
+                        <User size={20} color={Colors.subtext} />
+                        <View style={styles.infoContent}>
+                            <Text style={styles.infoLabel}>Full Name</Text>
+                            <Text style={styles.infoValue}>{agent.name}</Text>
+                        </View>
                     </View>
-                </View>
 
-                <View style={styles.infoRow}>
-                    <Percent size={20} color={Colors.subtext} />
-                    <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Discount Rate</Text>
-                        <Text style={styles.infoValue}>{agent.discountRate}%</Text>
+                    <View style={styles.infoRow}>
+                        <Mail size={20} color={Colors.subtext} />
+                        <View style={styles.infoContent}>
+                            <Text style={styles.infoLabel}>Email</Text>
+                            <Text style={styles.infoValue}>{agent.email}</Text>
+                        </View>
                     </View>
-                </View>
 
-                <View style={styles.infoRow}>
-                    <Ticket size={20} color={Colors.subtext} />
-                    <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Free Tickets Remaining</Text>
-                        <Text style={styles.infoValue}>{agent.freeTicketsRemaining} / {agent.freeTicketsAllocation}</Text>
+                    <View style={styles.infoRow}>
+                        <CreditCard size={20} color={Colors.subtext} />
+                        <View style={styles.infoContent}>
+                            <Text style={styles.infoLabel}>Credit Balance</Text>
+                            <Text style={styles.infoValue}>{formatCurrency(agent.creditBalance)}</Text>
+                        </View>
                     </View>
-                </View>
-            </Card>
 
+                    <View style={styles.infoRow}>
+                        <Percent size={20} color={Colors.subtext} />
+                        <View style={styles.infoContent}>
+                            <Text style={styles.infoLabel}>Discount Rate</Text>
+                            <Text style={styles.infoValue}>{agent.discountRate}%</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <Ticket size={20} color={Colors.subtext} />
+                        <View style={styles.infoContent}>
+                            <Text style={styles.infoLabel}>Free Tickets Remaining</Text>
+                            <Text style={styles.infoValue}>{agent.freeTicketsRemaining} / {agent.freeTicketsAllocation}</Text>
+                        </View>
+                    </View>
+                </Card>
+            )}
+
+            {/* Static Settings Section - Always visible */}
             <Text style={styles.sectionTitle}>Settings</Text>
 
             <Card variant="outlined" style={styles.settingsCard}>
@@ -148,6 +158,7 @@ export default function AgentProfileScreen() {
                 </View>
             </Card>
 
+            {/* Static Action Button - Always visible */}
             <Button
                 title="Log Out"
                 onPress={handleLogout}
