@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
@@ -37,8 +37,11 @@ export default function AgentDashboardScreen() {
         isLoadingStats,
         isLoadingBookings,
         error,
-        retryInitialization
+        retryInitialization,
+        refreshAgentData
     } = useAgentData();
+
+    const [isRefreshing, setIsRefreshing] = React.useState(false);
 
     // Use local stats for more accurate active/inactive calculations
     const displayStats = {
@@ -56,6 +59,15 @@ export default function AgentDashboardScreen() {
         .slice() // Create a copy
         .sort((a, b) => new Date(b.bookingDate || 0).getTime() - new Date(a.bookingDate || 0).getTime())
         .slice(0, 3);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await refreshAgentData();
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
 
     const handleBookingPress = (bookingId: string) => {
         if (bookingId) {
@@ -87,7 +99,18 @@ export default function AgentDashboardScreen() {
     const agentFirstName = agent ? getAgentDisplayName(agent) : "User";
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <ScrollView 
+            style={styles.container} 
+            contentContainerStyle={styles.content}
+            refreshControl={
+                <RefreshControl 
+                    refreshing={isRefreshing} 
+                    onRefresh={handleRefresh}
+                    colors={[Colors.primary]}
+                    tintColor={Colors.primary}
+                />
+            }
+        >
             {/* Static Header - Always visible */}
             <View style={styles.header}>
                 <View>

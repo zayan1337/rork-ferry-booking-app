@@ -434,6 +434,17 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
 
             set({ isLoading: true, error: null });
 
+            // Get agent data for credit balance
+            const { data: agent, error: agentError } = await supabase
+                .from('user_profiles')
+                .select('id, credit_balance')
+                .eq('id', agentId)
+                .single();
+
+            if (agentError || !agent) {
+                throw new Error('Agent not found');
+            }
+
             // Get current booking data
             const { data: currentBooking, error: fetchError } = await supabase
                 .from('bookings')
@@ -441,7 +452,8 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                     *,
                     trip:trip_id(*),
                     passengers(*),
-                    seat_reservations(*)
+                    seat_reservations(*),
+                    payments(*)
                 `)
                 .eq('id', bookingId)
                 .single();
@@ -521,6 +533,86 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
             }
 
             console.log('QR code successfully saved for modified booking:', newBooking.id);
+
+            // Handle credit transaction for fare difference if using agent credit
+            if (modificationData.fareDifference && modificationData.fareDifference !== 0 && modificationData.paymentMethod === 'agent_credit') {
+                const transactionAmount = modificationData.fareDifference;
+                const transactionType = transactionAmount > 0 ? 'deduction' : 'refill';
+                const newBalance = agent.credit_balance - transactionAmount; // Debit reduces balance, credit increases it
+
+                // Create credit transaction record
+                const creditTransaction = {
+                    agent_id: agent.id,
+                    amount: Math.abs(transactionAmount),
+                    transaction_type: transactionType,
+                    booking_id: newBooking.id,
+                    description: `Booking modification ${transactionType}: ${modificationData.modificationReason || 'Booking modification'}`,
+                    balance_after: newBalance
+                };
+
+                const { error: transactionError } = await supabase
+                    .from('agent_credit_transactions')
+                    .insert(creditTransaction);
+
+                if (transactionError) {
+                    console.warn('Failed to create credit transaction:', transactionError);
+                }
+
+                // Update agent credit balance
+                const { error: balanceUpdateError } = await supabase
+                    .from('user_profiles')
+                    .update({
+                        credit_balance: newBalance,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', agent.id);
+
+                if (balanceUpdateError) {
+                    console.warn('Failed to update agent credit balance:', balanceUpdateError);
+                }
+            }
+
+            // Create new payment record for modified booking if fare difference exists
+            if (modificationData.fareDifference && modificationData.fareDifference !== 0) {
+                const paymentAmount = Math.abs(modificationData.fareDifference);
+                // Map to valid payment_method enum values
+                const paymentMethod = modificationData.paymentMethod === 'agent_credit' ? 'wallet' : 
+                                   modificationData.paymentMethod === 'bank_transfer' ? 'bank_transfer' : 'wallet';
+                
+                const paymentStatus = modificationData.fareDifference > 0 ? 'completed' : 'refunded';
+
+                const paymentData = {
+                    booking_id: newBooking.id,
+                    payment_method: paymentMethod,
+                    amount: paymentAmount,
+                    currency: 'MVR',
+                    status: paymentStatus,
+                    transaction_date: new Date().toISOString()
+                };
+
+                const { error: paymentError } = await supabase
+                    .from('payments')
+                    .insert(paymentData);
+
+                if (paymentError) {
+                    console.warn('Failed to create payment record for modified booking:', paymentError);
+                }
+            }
+
+            // Update original payment status if needed
+            if (currentBooking.payments && currentBooking.payments.length > 0) {
+                const { error: originalPaymentUpdateError } = await supabase
+                    .from('payments')
+                    .update({
+                        status: 'modified',
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('booking_id', bookingId);
+
+                if (originalPaymentUpdateError) {
+                    console.warn('Failed to update original payment status:', originalPaymentUpdateError);
+                }
+            }
 
             // Update old booking status to 'modified'
             await supabase
@@ -723,6 +815,17 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
 
             set({ isLoading: true, error: null });
 
+            // Get agent data for credit balance
+            const { data: agent, error: agentError } = await supabase
+                .from('user_profiles')
+                .select('id, credit_balance')
+                .eq('id', agentId)
+                .single();
+
+            if (agentError || !agent) {
+                throw new Error('Agent not found');
+            }
+
             // Get current booking data
             const { data: currentBooking, error: fetchError } = await supabase
                 .from('bookings')
@@ -768,6 +871,86 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                     reservation_expiry: null
                 })
                 .eq('booking_id', bookingId);
+
+            // Handle agent credit transaction for refund
+            if (cancellationData.refundMethod === 'agent_credit' && refundAmount > 0) {
+                const newBalance = agent.credit_balance + refundAmount;
+
+                // Create credit transaction record
+                const creditTransaction = {
+                    agent_id: agent.id,
+                    amount: refundAmount,
+                    transaction_type: 'refill' as const,
+                    booking_id: bookingId,
+                    description: `Booking cancellation refund: ${cancellationData.reason}`,
+                    balance_after: newBalance
+                };
+
+                const { error: transactionError } = await supabase
+                    .from('agent_credit_transactions')
+                    .insert(creditTransaction);
+
+                if (transactionError) {
+                    console.warn('Failed to create credit transaction:', transactionError);
+                }
+
+                // Update agent credit balance
+                const { error: balanceUpdateError } = await supabase
+                    .from('user_profiles')
+                    .update({
+                        credit_balance: newBalance,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', agent.id);
+
+                if (balanceUpdateError) {
+                    console.warn('Failed to update agent credit balance:', balanceUpdateError);
+                }
+            }
+
+            // Update payment status if needed
+            if (currentBooking.payments && currentBooking.payments.length > 0) {
+                const newPaymentStatus = refundAmount > 0 ? 
+                    (refundAmount === currentBooking.total_fare ? 'refunded' : 'partially_refunded') : 
+                    'cancelled';
+
+                const { error: paymentUpdateError } = await supabase
+                    .from('payments')
+                    .update({
+                        status: newPaymentStatus,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('booking_id', bookingId);
+
+                if (paymentUpdateError) {
+                    console.warn('Failed to update payment status:', paymentUpdateError);
+                }
+            }
+
+            // Create refund payment record if refund amount > 0
+            if (refundAmount > 0) {
+                // Map to valid payment_method enum values
+                const refundPaymentMethod = cancellationData.refundMethod === 'agent_credit' ? 'wallet' : 
+                                          cancellationData.refundMethod === 'bank_transfer' ? 'bank_transfer' : 
+                                          'wallet';
+
+                const refundPaymentData = {
+                    booking_id: bookingId,
+                    payment_method: refundPaymentMethod,
+                    amount: -refundAmount, // Negative amount to indicate refund
+                    currency: 'MVR',
+                    status: 'refunded',
+                    transaction_date: new Date().toISOString()
+                };
+
+                const { error: refundPaymentError } = await supabase
+                    .from('payments')
+                    .insert(refundPaymentData);
+
+                if (refundPaymentError) {
+                    console.warn('Failed to create refund payment record:', refundPaymentError);
+                }
+            }
 
             // Create cancellation record
             const cancellationRecord = {

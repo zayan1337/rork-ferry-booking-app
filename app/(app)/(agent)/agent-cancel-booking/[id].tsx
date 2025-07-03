@@ -21,7 +21,7 @@ import Button from '@/components/Button';
 export default function AgentCancelBookingScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { bookings, agentCancelBooking, isLoading, getTranslation } = useAgentStore();
+  const { bookings, agentCancelBooking, getTranslation } = useAgentStore();
 
   // Ensure id is a string
   const bookingId = Array.isArray(id) ? id[0] : id;
@@ -64,6 +64,7 @@ export default function AgentCancelBookingScreen() {
     agentNotes: '',
     bankDetails: '',
   });
+  const [isCancelling, setIsCancelling] = useState(false); // Local loading state for cancellation
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -226,6 +227,7 @@ export default function AgentCancelBookingScreen() {
         {
           text: "Yes, Cancel",
           onPress: async () => {
+            setIsCancelling(true);
             try {
               const cancellationData = {
                 reason,
@@ -264,6 +266,8 @@ export default function AgentCancelBookingScreen() {
                 "Cancellation Failed",
                 errorMessage
               );
+            } finally {
+              setIsCancelling(false);
             }
           },
           style: "destructive",
@@ -532,8 +536,8 @@ export default function AgentCancelBookingScreen() {
             <Button
               title="Cancel Booking"
               onPress={handleCancel}
-              loading={isLoading}
-              disabled={isLoading}
+              loading={isCancelling}
+              disabled={isCancelling}
               style={styles.cancelButton}
               textStyle={styles.cancelButtonText}
             />

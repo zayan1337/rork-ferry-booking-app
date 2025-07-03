@@ -53,7 +53,7 @@ export default function CreditTransactionCard({ transaction }: CreditTransaction
                         <View style={styles.bookingRow}>
                             <FileText size={12} color={Colors.subtext} />
                             <Text style={styles.bookingId}>
-                                Booking: {transaction.bookingNumber}
+                                Booking: #{transaction.bookingNumber}
                             </Text>
                         </View>
                     )}

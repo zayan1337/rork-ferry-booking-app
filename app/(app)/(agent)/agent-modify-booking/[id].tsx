@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View,
     Text,
@@ -211,30 +211,62 @@ export default function AgentModifyBookingScreen() {
     }, [selectedTrip, booking, agentDiscountRate]);
 
     // Function to fetch actual seat availability for a trip
-    const fetchTripSeatAvailability = async (tripId: string) => {
+    const fetchTripSeatAvailability = useCallback(async (tripId: string) => {
         try {
-            const { data: seatReservations, error } = await supabase
-                .from('seat_reservations')
-                .select('is_available, booking_id')
-                .eq('trip_id', tripId);
+            // Get total seats for this trip from vessel capacity
+            const { data: tripData, error: tripError } = await supabase
+                .from('trips')
+                .select(`
+                    vessel:vessel_id(
+                        seat_capacity
+                    )
+                `)
+                .eq('id', tripId)
+                .single();
 
-            if (error) {
+            if (tripError || !tripData?.vessel) {
+                console.warn('Failed to get trip vessel capacity:', tripError);
                 return 0;
             }
 
-            const availableCount = seatReservations?.filter(
-                reservation => reservation.is_available && !reservation.booking_id
-            ).length || 0;
+            const vesselData = Array.isArray(tripData.vessel) ? tripData.vessel[0] : tripData.vessel;
+            const totalSeats = vesselData?.seat_capacity || 0;
 
-            return availableCount;
+            if (totalSeats === 0) {
+                console.warn('No seat capacity found for trip:', tripId);
+                return 0;
+            }
+
+            // Get reserved/booked seats for this trip
+            const { data: seatReservations, error: reservationError } = await supabase
+                .from('seat_reservations')
+                .select('seat_id, booking_id, is_reserved')
+                .eq('trip_id', tripId)
+                .not('booking_id', 'is', null); // Only get seats that are actually booked
+
+            if (reservationError) {
+                console.warn('Failed to get seat reservations:', reservationError);
+                // Return a conservative estimate
+                return Math.max(0, totalSeats - 10);
+            }
+
+            const bookedSeatsCount = seatReservations?.length || 0;
+            const availableSeats = Math.max(0, totalSeats - bookedSeatsCount);
+
+            return availableSeats;
         } catch (error) {
+            console.error('Error fetching trip seat availability:', error);
             return 0;
         }
-    };
+    }, []);
 
     // Fetch trips when date or route changes
     useEffect(() => {
         if (booking?.route && newDate) {
+            // Reset trip seat counts when date changes
+            setTripSeatCounts({});
+            setSelectedTrip(null);
+            setSelectedSeats([]);
             fetchTrips(booking.route.id, newDate);
         }
     }, [booking?.route, newDate, fetchTrips]);
@@ -430,6 +462,7 @@ export default function AgentModifyBookingScreen() {
                 ]
             );
         } catch (error) {
+            console.error('Modification error:', error);
             Alert.alert("Error", `Failed to modify ${ticketLabel.toLowerCase()} ticket: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsModifying(false);
@@ -544,37 +577,45 @@ export default function AgentModifyBookingScreen() {
                         />
 
                         {/* Trip Selection */}
-                        {isTripsLoading && newDate ? (
+                        {newDate && booking?.route ? (
                             <View style={styles.tripSelection}>
                                 <Text style={styles.sectionTitle}>Select New {ticketLabel} Trip</Text>
-                                <Text style={styles.loadingText}>Loading available trips...</Text>
+                                {isTripsLoading ? (
+                                    <Text style={styles.loadingText}>Loading available trips...</Text>
+                                ) : trips.length > 0 ? (
+                                    <>
+                                        {trips.map((trip) => (
+                                            <TouchableOpacity
+                                                key={trip.id}
+                                                style={[
+                                                    styles.tripOption,
+                                                    selectedTrip?.id === trip.id && styles.tripOptionSelected
+                                                ]}
+                                                onPress={() => {
+                                                    setSelectedTrip(trip);
+                                                    setSelectedSeats([]);
+                                                    if (errors.trip) setErrors({ ...errors, trip: '' });
+                                                }}
+                                            >
+                                                <Text style={styles.tripTime}>{trip.departure_time}</Text>
+                                                <Text style={styles.tripVessel}>{trip.vessel_name}</Text>
+                                                <Text style={styles.tripSeats}>
+                                                    {tripSeatCounts[trip.id] !== undefined ? tripSeatCounts[trip.id] : 'Loading...'} seats available
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                        {errors.trip ? (
+                                            <Text style={styles.errorText}>{errors.trip}</Text>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <Text style={styles.noTripsText}>No trips available for this date. Please select a different date.</Text>
+                                )}
                             </View>
-                        ) : trips.length > 0 ? (
+                        ) : newDate ? (
                             <View style={styles.tripSelection}>
                                 <Text style={styles.sectionTitle}>Select New {ticketLabel} Trip</Text>
-                                {trips.map((trip) => (
-                                    <TouchableOpacity
-                                        key={trip.id}
-                                        style={[
-                                            styles.tripOption,
-                                            selectedTrip?.id === trip.id && styles.tripOptionSelected
-                                        ]}
-                                        onPress={() => {
-                                            setSelectedTrip(trip);
-                                            setSelectedSeats([]);
-                                            if (errors.trip) setErrors({ ...errors, trip: '' });
-                                        }}
-                                    >
-                                        <Text style={styles.tripTime}>{trip.departure_time}</Text>
-                                        <Text style={styles.tripVessel}>{trip.vessel_name}</Text>
-                                        <Text style={styles.tripSeats}>
-                                            {tripSeatCounts[trip.id] !== undefined ? tripSeatCounts[trip.id] : '...'} seats available
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                                {errors.trip ? (
-                                    <Text style={styles.errorText}>{errors.trip}</Text>
-                                ) : null}
+                                <Text style={styles.noTripsText}>Please wait while we load available trips...</Text>
                             </View>
                         ) : null}
 
@@ -1155,5 +1196,12 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: Colors.success,
+    },
+    noTripsText: {
+        fontSize: 14,
+        color: Colors.textSecondary,
+        textAlign: 'center',
+        padding: 20,
+        fontStyle: 'italic',
     },
 }); 

@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "@/store/authStore";
 import Colors from "@/constants/colors";
@@ -25,7 +25,8 @@ import { SkeletonAgentInfoSection } from "@/components/skeleton";
 export default function AgentProfileScreen() {
     const router = useRouter();
     const { signOut } = useAuthStore();
-    const { agent, reset, isInitializing, isLoadingProfile } = useAgentData();
+    const { agent, reset, isInitializing, isLoadingProfile, refreshAgentData } = useAgentData();
+    const [isRefreshing, setIsRefreshing] = React.useState(false);
 
     const handleSignOut = async () => {
         try {
@@ -34,6 +35,15 @@ export default function AgentProfileScreen() {
             router.replace("/(auth)");
         } catch (error) {
             console.error("Sign out error:", error);
+        }
+    };
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await refreshAgentData();
+        } finally {
+            setIsRefreshing(false);
         }
     };
 
@@ -58,7 +68,18 @@ export default function AgentProfileScreen() {
     const agentInitials = agent ? getAgentInitials(agent) : "??";
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <ScrollView 
+            style={styles.container} 
+            contentContainerStyle={styles.content}
+            refreshControl={
+                <RefreshControl 
+                    refreshing={isRefreshing} 
+                    onRefresh={handleRefresh}
+                    colors={[Colors.primary]}
+                    tintColor={Colors.primary}
+                />
+            }
+        >
             {/* Profile Header - Show with skeleton or real data */}
             {isInitializing || !agent ? (
                 <View style={styles.profileHeader}>

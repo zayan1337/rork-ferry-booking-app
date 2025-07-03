@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View, FlatList, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, RefreshControl } from "react-native";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import CreditTransactionCard from "@/components/CreditTransactionCard";
@@ -10,11 +10,21 @@ import { useAgentData } from "@/hooks/useAgentData";
 import { SkeletonCreditTransactionsList } from "@/components/skeleton";
 
 export default function AgentCreditScreen() {
-  const { agent, creditTransactions, isLoadingCredit } = useAgentData();
+  const { agent, creditTransactions, isLoadingCredit, refreshCreditTransactions } = useAgentData();
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   const handleRequestCredit = () => {
     alert("Credit request functionality would be implemented here");
     // Credit request functionality would be implemented here
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshCreditTransactions();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const creditUtilization = getCreditUtilization(agent);
@@ -113,6 +123,14 @@ export default function AgentCreditScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <CreditTransactionCard transaction={item} />}
           contentContainerStyle={styles.transactionsList}
+          refreshControl={
+            <RefreshControl 
+              refreshing={isRefreshing} 
+              onRefresh={handleRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          }
         />
       )}
     </View>

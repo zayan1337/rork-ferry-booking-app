@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View, FlatList, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, RefreshControl } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import ClientCard from "@/components/ClientCard";
@@ -21,6 +21,8 @@ export default function AgentClientsScreen() {
     refreshClients
   } = useAgentData();
 
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
   const {
     searchQuery,
     filteredClients,
@@ -36,6 +38,17 @@ export default function AgentClientsScreen() {
       }
     }, [agent?.id, refreshClients])
   );
+
+  const handleRefresh = async () => {
+    if (agent?.id) {
+      setIsRefreshing(true);
+      try {
+        await refreshClients();
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+  };
 
   const handleClientPress = (client: Client) => {
     router.push(`../client/${client.id}`);
@@ -118,6 +131,14 @@ export default function AgentClientsScreen() {
             />
           )}
           contentContainerStyle={styles.clientsList}
+          refreshControl={
+            <RefreshControl 
+              refreshing={isRefreshing} 
+              onRefresh={handleRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          }
         />
       ) : (
         <View style={styles.emptyContainer}>
