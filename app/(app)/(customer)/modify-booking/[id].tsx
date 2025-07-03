@@ -148,8 +148,8 @@ export default function ModifyBookingScreen() {
       if (booking.payment?.method) {
         // Ensure the payment method is valid, fallback to 'wallet' if not
         const validMethods: PaymentMethod[] = ['bank_transfer', 'bml', 'mib', 'ooredoo_m_faisa', 'fahipay', 'wallet'];
-        const method = validMethods.includes(booking.payment.method as PaymentMethod) 
-          ? booking.payment.method as PaymentMethod 
+        const method = validMethods.includes(booking.payment.method as PaymentMethod)
+          ? booking.payment.method as PaymentMethod
           : 'wallet';
         setSelectedPaymentMethod(method);
       }
@@ -573,9 +573,9 @@ export default function ModifyBookingScreen() {
                   <TouchableOpacity
                     style={[
                       styles.paymentOption,
-                                          selectedPaymentMethod === 'wallet' && styles.paymentOptionSelected
-                  ]}
-                  onPress={() => setSelectedPaymentMethod('wallet')}
+                      selectedPaymentMethod === 'wallet' && styles.paymentOptionSelected
+                    ]}
+                    onPress={() => setSelectedPaymentMethod('wallet')}
                   >
                     <Text style={[
                       styles.paymentOptionText,

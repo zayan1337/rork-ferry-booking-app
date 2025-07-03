@@ -78,10 +78,10 @@ export default function AgentProfileScreen() {
                 </View>
             )}
 
-            {/* Agent Information Section - Granular skeleton */}
-            {isInitializing || isLoadingProfile || !agent ? (
+            {/* Agent Information Section - Show skeleton only for initial load when no data */}
+            {(isInitializing || isLoadingProfile) && !agent ? (
                 <SkeletonAgentInfoSection delay={0} />
-            ) : (
+            ) : agent ? (
                 <Card variant="elevated" style={styles.infoCard}>
                     <Text style={styles.sectionTitle}>Agent Information</Text>
 
@@ -125,7 +125,7 @@ export default function AgentProfileScreen() {
                         </View>
                     </View>
                 </Card>
-            )}
+            ) : null}
 
             {/* Static Settings Section - Always visible */}
             <Text style={styles.sectionTitle}>Settings</Text>

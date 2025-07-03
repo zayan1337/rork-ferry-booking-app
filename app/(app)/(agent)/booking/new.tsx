@@ -34,6 +34,7 @@ import Button from "@/components/Button";
 import Dropdown from "@/components/Dropdown";
 import SeatSelector from "@/components/SeatSelector";
 import DatePicker from "@/components/DatePicker";
+import GenerateTripsButton from "@/components/GenerateTripsButton";
 import { Passenger } from "@/types";
 
 export default function AgentNewBookingScreen() {
@@ -710,10 +711,34 @@ export default function AgentNewBookingScreen() {
                   if (errors.trip) setErrors({ ...errors, trip: '' });
                 }
               }}
-              placeholder="Select departure trip"
+              placeholder={tripOptions.length === 0 ? "No departure trips available" : "Select departure trip"}
               error={errors.trip}
               required
+              disabled={tripOptions.length === 0}
             />
+
+            {tripOptions.length === 0 && currentBooking.route && currentBooking.departureDate && !tripLoading && (
+              <View style={styles.noTripsContainer}>
+                <Text style={styles.noTripsText}>
+                  No trips available for this route on {new Date(currentBooking.departureDate).toLocaleDateString()}.
+                </Text>
+                <Text style={styles.noTripsSubtext}>
+                  Please try a different date or generate trips for this route.
+                </Text>
+                <GenerateTripsButton
+                  routeId={currentBooking.route.id}
+                  date={currentBooking.departureDate}
+                  onTripsGenerated={() => {
+                    // Refresh trips after generation
+                    fetchTrips(currentBooking.route!.id, currentBooking.departureDate!, false);
+                  }}
+                />
+              </View>
+            )}
+
+            {tripLoading && currentBooking.route && currentBooking.departureDate && (
+              <Text style={styles.loadingText}>Loading departure trips...</Text>
+            )}
 
             {currentBooking.tripType === 'round_trip' && (
               <Dropdown
@@ -727,10 +752,34 @@ export default function AgentNewBookingScreen() {
                     if (errors.returnTrip) setErrors({ ...errors, returnTrip: '' });
                   }
                 }}
-                placeholder="Select return trip"
+                placeholder={returnTripOptions.length === 0 ? "No return trips available" : "Select return trip"}
                 error={errors.returnTrip}
                 required
+                disabled={returnTripOptions.length === 0}
               />
+            )}
+
+            {currentBooking.tripType === 'round_trip' && returnTripOptions.length === 0 && currentBooking.returnRoute && currentBooking.returnDate && !tripLoading && (
+              <View style={styles.noTripsContainer}>
+                <Text style={styles.noTripsText}>
+                  No return trips available for this route on {new Date(currentBooking.returnDate).toLocaleDateString()}.
+                </Text>
+                <Text style={styles.noTripsSubtext}>
+                  Please try a different return date or generate trips for this route.
+                </Text>
+                <GenerateTripsButton
+                  routeId={currentBooking.returnRoute.id}
+                  date={currentBooking.returnDate}
+                  onTripsGenerated={() => {
+                    // Refresh return trips after generation
+                    fetchTrips(currentBooking.returnRoute!.id, currentBooking.returnDate!, true);
+                  }}
+                />
+              </View>
+            )}
+
+            {currentBooking.tripType === 'round_trip' && tripLoading && currentBooking.returnRoute && currentBooking.returnDate && (
+              <Text style={styles.loadingText}>Loading return trips...</Text>
             )}
           </View>
         )}
@@ -1488,5 +1537,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
     marginBottom: 12,
+  },
+  noTripsContainer: {
+    marginTop: 12,
+    padding: 16,
+    backgroundColor: '#fff3cd',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffeaa7',
+  },
+  noTripsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#856404',
+    marginBottom: 4,
+  },
+  noTripsSubtext: {
+    fontSize: 12,
+    color: '#856404',
+    lineHeight: 16,
   },
 });

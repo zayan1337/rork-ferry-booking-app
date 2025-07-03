@@ -103,8 +103,8 @@ export default function AgentClientsScreen() {
         </View>
       )}
 
-      {/* Dynamic Content - Show skeleton only for the list */}
-      {isLoadingClients ? (
+      {/* Dynamic Content - Show skeleton only for initial load when no data */}
+      {isLoadingClients && (!clients || clients.length === 0) ? (
         <SkeletonClientsList count={7} delay={0} />
       ) : filteredClients.length > 0 ? (
         <FlatList

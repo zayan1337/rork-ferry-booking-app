@@ -22,6 +22,7 @@ export default function AgentBookingsScreen() {
 
   const [activeTab, setActiveTab] = useState<"all" | "confirmed" | "completed" | "cancelled">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (agent?.id) {
@@ -29,9 +30,14 @@ export default function AgentBookingsScreen() {
     }
   }, [agent?.id, refreshBookings]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     if (agent?.id) {
-      refreshBookings();
+      setIsRefreshing(true);
+      try {
+        await refreshBookings();
+      } finally {
+        setIsRefreshing(false);
+      }
     }
   };
 
@@ -133,8 +139,8 @@ export default function AgentBookingsScreen() {
         </ScrollView>
       </View>
 
-      {/* Dynamic Content - Show skeleton only for the list */}
-      {isLoadingBookings ? (
+      {/* Dynamic Content - Show skeleton only for initial load when no data */}
+      {isLoadingBookings && (!bookings || bookings.length === 0) ? (
         <SkeletonBookingsList count={6} delay={0} />
       ) : sortedBookings.length > 0 ? (
         <FlatList
@@ -148,7 +154,7 @@ export default function AgentBookingsScreen() {
           )}
           contentContainerStyle={styles.bookingsList}
           refreshControl={
-            <RefreshControl refreshing={isLoadingBookings} onRefresh={handleRefresh} />
+            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
           }
         />
       ) : (

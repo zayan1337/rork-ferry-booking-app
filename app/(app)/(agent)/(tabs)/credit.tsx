@@ -104,8 +104,8 @@ export default function AgentCreditScreen() {
         <Text style={styles.transactionsTitle}>Transaction History</Text>
       </View>
 
-      {/* Dynamic Content - Show skeleton only for transactions list */}
-      {isLoadingCredit ? (
+      {/* Dynamic Content - Show skeleton only for initial load when no data */}
+      {isLoadingCredit && (!creditTransactions || creditTransactions.length === 0) ? (
         <SkeletonCreditTransactionsList count={8} delay={0} />
       ) : (
         <FlatList

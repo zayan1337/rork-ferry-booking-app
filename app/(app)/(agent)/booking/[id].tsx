@@ -156,6 +156,33 @@ export default function BookingDetailsScreen() {
     const now = new Date();
     const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
+    const showTicketSelection = () => {
+      if (booking.tripType === 'round_trip' && booking.returnDate) {
+        // For round trip, let agent choose which ticket to modify
+        Alert.alert(
+          "Select Ticket to Modify",
+          "Which ticket would you like to modify?",
+          [
+            {
+              text: "Cancel",
+              style: "cancel"
+            },
+            {
+              text: "Departure Ticket",
+              onPress: () => router.push(`/(agent)/agent-modify-booking/${bookingId}?ticketType=departure` as any)
+            },
+            {
+              text: "Return Ticket",
+              onPress: () => router.push(`/(agent)/agent-modify-booking/${bookingId}?ticketType=return` as any)
+            }
+          ]
+        );
+      } else {
+        // For one-way trip, modify departure ticket
+        router.push(`/(agent)/agent-modify-booking/${bookingId}?ticketType=departure` as any);
+      }
+    };
+
     if (hoursDifference < 72) {
       Alert.alert(
         "Cannot Modify",
@@ -167,14 +194,14 @@ export default function BookingDetailsScreen() {
           },
           {
             text: "Override & Modify",
-            onPress: () => router.push(`/(agent)/agent-modify-booking/${bookingId}` as any)
+            onPress: showTicketSelection
           }
         ]
       );
       return;
     }
 
-    router.push(`/(agent)/agent-modify-booking/${bookingId}` as any);
+    showTicketSelection();
   };
 
   const handleCancelBooking = () => {
@@ -223,19 +250,17 @@ export default function BookingDetailsScreen() {
   };
 
   const isModifiable = () => {
-    // Booking must be confirmed and not already modified/cancelled
-    if (!['confirmed'].includes(String(booking.status))) return false;
-
-    const departureDate = new Date(booking.departureDate);
-    const now = new Date();
-    const hoursDifference = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-    return hoursDifference >= 72;
+    // Only allow modification for confirmed bookings
+    // Modified and completed tickets cannot be modified again
+    const allowedStatuses = ['confirmed'];
+    return allowedStatuses.includes(String(booking.status));
   };
 
   const isCancellable = () => {
-    // Booking must be confirmed or completed (not modified or already cancelled)
-    return ['confirmed', 'completed'].includes(String(booking.status));
+    // Only allow cancellation for confirmed bookings
+    // Modified and completed tickets cannot be cancelled
+    const allowedStatuses = ['confirmed'];
+    return allowedStatuses.includes(String(booking.status));
   };
 
   return (
@@ -265,6 +290,7 @@ export default function BookingDetailsScreen() {
               booking.status === 'confirmed' && styles.statusConfirmed,
               booking.status === 'completed' && styles.statusCompleted,
               booking.status === 'cancelled' && styles.statusCancelled,
+              booking.status === 'modified' && styles.statusModified,
             ]}
           >
             <Text
@@ -273,6 +299,7 @@ export default function BookingDetailsScreen() {
                 booking.status === 'confirmed' && styles.statusTextConfirmed,
                 booking.status === 'completed' && styles.statusTextCompleted,
                 booking.status === 'cancelled' && styles.statusTextCancelled,
+                booking.status === 'modified' && styles.statusTextModified,
               ]}
             >
               {String(booking.status || 'unknown').charAt(0).toUpperCase() + String(booking.status || 'unknown').slice(1)}
