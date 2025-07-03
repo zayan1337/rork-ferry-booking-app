@@ -49,10 +49,12 @@ export default function CreditTransactionCard({ transaction }: CreditTransaction
                         <Calendar size={12} color={Colors.subtext} />
                         <Text style={styles.date}>{formatDate(transaction.date)}</Text>
                     </View>
-                    {transaction.bookingId && (
+                    {(transaction.bookingNumber) && (
                         <View style={styles.bookingRow}>
                             <FileText size={12} color={Colors.subtext} />
-                            <Text style={styles.bookingId}>Booking: {transaction.bookingId}</Text>
+                            <Text style={styles.bookingId}>
+                                Booking: {transaction.bookingNumber}
+                            </Text>
                         </View>
                     )}
                 </View>

@@ -76,6 +76,7 @@ export const useAgentCreditStore = create<AgentCreditState>((set, get) => ({
                 amount: Number(transaction.amount || 0),
                 type: transaction.type as CreditTransaction['type'],
                 bookingId: transaction.bookingid, // lowercase from database
+                bookingNumber: transaction.booking_number, // booking number from database
                 description: transaction.description || '',
                 balance: Number(transaction.balance || 0),
             }));
@@ -96,10 +97,10 @@ export const useAgentCreditStore = create<AgentCreditState>((set, get) => ({
             set({ isLoading: true, error: null });
 
             const creditTransactions = await get().getAgentCreditTransactions(agentId);
-            set({ 
-                creditTransactions, 
+            set({
+                creditTransactions,
                 isLoading: false,
-                error: null 
+                error: null
             });
         } catch (error) {
             handleError(error, 'Failed to fetch credit transactions', set);
