@@ -613,7 +613,7 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
             currentBooking.tripType
         );
 
-        // Only log warnings if we have some data but validation fails
+        // Only log warnings if we have some data but validation fails 
         if (!fareCalculation.isValid && (currentBooking.selectedSeats.length > 0 || currentBooking.returnSelectedSeats.length > 0)) {
             console.warn('Fare calculation validation failed:', fareCalculation.errors);
         }

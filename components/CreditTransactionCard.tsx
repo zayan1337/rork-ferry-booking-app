@@ -1,23 +1,19 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { ArrowUp, ArrowDown, Calendar, FileText } from "lucide-react-native";
+
 import { CreditTransaction } from "@/types/agent";
 import Colors from "@/constants/colors";
-import { ArrowUp, ArrowDown, Calendar, FileText } from "lucide-react-native";
 import Card from "./Card";
+import { formatCurrency } from "@/utils/agentFormatters";
 
 interface CreditTransactionCardProps {
     transaction: CreditTransaction;
 }
 
-export default function CreditTransactionCard({ transaction }: CreditTransactionCardProps) {
+// Memoized component for better VirtualizedList performance
+const CreditTransactionCard = React.memo<CreditTransactionCardProps>(({ transaction }) => {
     const isCredit = transaction.type === "refill";
-
-    const formatCurrency = (amount: number) => {
-        return `$${amount.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })}`;
-    };
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -72,7 +68,17 @@ export default function CreditTransactionCard({ transaction }: CreditTransaction
             </View>
         </Card>
     );
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison function for better performance
+    return (
+        prevProps.transaction.id === nextProps.transaction.id &&
+        prevProps.transaction.amount === nextProps.transaction.amount &&
+        prevProps.transaction.balance === nextProps.transaction.balance &&
+        prevProps.transaction.type === nextProps.transaction.type
+    );
+});
+
+CreditTransactionCard.displayName = 'CreditTransactionCard';
 
 const styles = StyleSheet.create({
     card: {
@@ -130,4 +136,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: Colors.subtext,
     },
-}); 
+});
+
+export default CreditTransactionCard; 

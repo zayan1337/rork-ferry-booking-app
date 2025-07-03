@@ -1,30 +1,37 @@
 import React from "react";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
-import Colors from "@/constants/colors";
-import Card from "@/components/Card";
-import StatCard from "@/components/StatCard";
-import AgentBookingCard from "@/components/AgentBookingCard";
-import Button from "@/components/Button";
-import {
-    SkeletonAgentInfoSection,
-    SkeletonStatsSection,
-    SkeletonRecentBookingsList
-} from "@/components/skeleton";
-import {
+import { 
+    Plus,
     TicketIcon,
     Users,
     CreditCard,
     DollarSign,
     Calendar,
     CheckCircle,
-    XCircle,
-    Plus
+    XCircle
 } from "lucide-react-native";
-import { getInactiveBookings } from "@/utils/bookingUtils";
-import { formatCurrency } from "@/utils/currencyUtils";
-import { getAgentDisplayName, formatAgentId } from "@/utils/agentUtils";
+
+import Colors from "@/constants/colors";
+import Card from "@/components/Card";
+import StatCard from "@/components/StatCard";
+import AgentBookingCard from "@/components/AgentBookingCard";
+import Button from "@/components/Button";
+import { AgentInfoCard } from "@/components/agent";
+import {
+    SkeletonAgentInfoSection,
+    SkeletonStatsSection,
+    SkeletonRecentBookingsList
+} from "@/components/skeleton";
+
 import { useAgentData } from "@/hooks/useAgentData";
+import { useRefreshControl } from "@/hooks/useRefreshControl";
+
+import { 
+    formatCurrency, 
+    formatAgentDisplayName 
+} from "@/utils/agentFormatters";
+import { getDashboardStats, getDashboardBookings } from "@/utils/agentDashboard";
 
 export default function AgentDashboardScreen() {
     const router = useRouter();
@@ -41,33 +48,14 @@ export default function AgentDashboardScreen() {
         refreshAgentData
     } = useAgentData();
 
-    const [isRefreshing, setIsRefreshing] = React.useState(false);
+    const { isRefreshing, onRefresh } = useRefreshControl({
+        onRefresh: refreshAgentData
+    });
 
-    // Use local stats for more accurate active/inactive calculations
-    const displayStats = {
-        totalBookings: stats?.totalBookings || localStats?.totalBookings || 0,
-        activeBookings: localStats?.activeBookings || stats?.activeBookings || 0, // Prioritize local calculation
-        completedBookings: stats?.completedBookings || localStats?.completedBookings || 0,
-        cancelledBookings: stats?.cancelledBookings || localStats?.cancelledBookings || 0,
-        totalRevenue: stats?.totalRevenue || localStats?.totalRevenue || 0,
-        totalCommission: stats?.totalCommission || localStats?.totalCommission || 0,
-        uniqueClients: stats?.uniqueClients || localStats?.uniqueClients || 0,
-    };
-
-    // Get the most recent bookings - safely handle undefined bookings
-    const recentBookings = (bookings || [])
-        .slice() // Create a copy
-        .sort((a, b) => new Date(b.bookingDate || 0).getTime() - new Date(a.bookingDate || 0).getTime())
-        .slice(0, 3);
-
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        try {
-            await refreshAgentData();
-        } finally {
-            setIsRefreshing(false);
-        }
-    };
+    // Use utility functions for processing data
+    const displayStats = getDashboardStats(stats, localStats);
+    const recentBookings = getDashboardBookings(bookings);
+    const agentFirstName = formatAgentDisplayName(agent);
 
     const handleBookingPress = (bookingId: string) => {
         if (bookingId) {
@@ -83,6 +71,11 @@ export default function AgentDashboardScreen() {
         router.push("./bookings");
     };
 
+    // Stable function for booking press
+    const handleBookingCardPress = React.useCallback((booking: any) => {
+        handleBookingPress(booking.id);
+    }, []);
+
     if (error) {
         return (
             <View style={styles.loadingContainer}>
@@ -96,22 +89,20 @@ export default function AgentDashboardScreen() {
         );
     }
 
-    const agentFirstName = agent ? getAgentDisplayName(agent) : "User";
-
     return (
         <ScrollView 
             style={styles.container} 
             contentContainerStyle={styles.content}
             refreshControl={
                 <RefreshControl 
-                    refreshing={isRefreshing} 
-                    onRefresh={handleRefresh}
+                    refreshing={isRefreshing}
+                    onRefresh={onRefresh}
                     colors={[Colors.primary]}
                     tintColor={Colors.primary}
                 />
             }
         >
-            {/* Static Header - Always visible */}
+            {/* Header Section */}
             <View style={styles.header}>
                 <View>
                     <Text style={styles.greeting}>Hello, {agentFirstName}</Text>
@@ -126,38 +117,16 @@ export default function AgentDashboardScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* Agent Info Section - Show skeleton only if initializing or no agent data */}
+            {/* Agent Information Card */}
             <View style={styles.agentInfoCard}>
                 {isInitializing || !agent ? (
                     <SkeletonAgentInfoSection delay={0} />
                 ) : (
-                    <Card variant="elevated">
-                        <View style={styles.agentInfoHeader}>
-                            <Text style={styles.agentInfoTitle}>Agent Information</Text>
-                            <View style={styles.agentIdBadge}>
-                                <Text style={styles.agentIdText}>{formatAgentId(agent.agentId)}</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.agentInfoRow}>
-                            <View style={styles.agentInfoItem}>
-                                <Text style={styles.agentInfoLabel}>Credit Balance</Text>
-                                <Text style={styles.agentInfoValue}>{formatCurrency(agent.creditBalance)}</Text>
-                            </View>
-                            <View style={styles.agentInfoItem}>
-                                <Text style={styles.agentInfoLabel}>Discount Rate</Text>
-                                <Text style={styles.agentInfoValue}>{agent.discountRate || 0}%</Text>
-                            </View>
-                            <View style={styles.agentInfoItem}>
-                                <Text style={styles.agentInfoLabel}>Free Tickets</Text>
-                                <Text style={styles.agentInfoValue}>{agent.freeTicketsRemaining || 0}</Text>
-                            </View>
-                        </View>
-                    </Card>
+                    <AgentInfoCard agent={agent} variant="dashboard" />
                 )}
             </View>
 
-            {/* Performance Overview Section - Static title, skeleton only for stats */}
+            {/* Performance Overview Section */}
             <Text style={styles.sectionTitle}>Performance Overview</Text>
             {isLoadingStats || isInitializing ? (
                 <SkeletonStatsSection delay={0} />
@@ -176,12 +145,6 @@ export default function AgentDashboardScreen() {
                         title="Active Bookings"
                         value={displayStats.activeBookings}
                         icon={<Calendar size={16} color={Colors.primary} />}
-                    />
-                    <StatCard
-                        title="Inactive Bookings"
-                        value={localStats ? getInactiveBookings(bookings || []).length : 0}
-                        icon={<XCircle size={16} color={Colors.warning} />}
-                        color={Colors.warning}
                     />
                     <StatCard
                         title="Completed"
@@ -214,7 +177,7 @@ export default function AgentDashboardScreen() {
                 </ScrollView>
             )}
 
-            {/* Recent Bookings Section - Static header, skeleton only for booking list */}
+            {/* Recent Bookings Section */}
             <View style={styles.recentBookingsHeader}>
                 <Text style={styles.sectionTitle}>Recent Bookings</Text>
                 <TouchableOpacity onPress={handleViewAllBookings}>
@@ -225,12 +188,12 @@ export default function AgentDashboardScreen() {
             {isLoadingBookings || isInitializing ? (
                 <SkeletonRecentBookingsList count={3} delay={0} />
             ) : recentBookings.length > 0 ? (
-                recentBookings.map((booking) => (
+                recentBookings.map((booking: any) => (
                     booking && booking.id ? (
                         <AgentBookingCard
                             key={booking.id}
                             booking={booking}
-                            onPress={() => handleBookingPress(booking.id)}
+                            onPress={handleBookingCardPress}
                         />
                     ) : null
                 ))
@@ -262,10 +225,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: Colors.background,
-    },
-    loadingText: {
-        fontSize: 16,
-        color: Colors.textSecondary,
     },
     errorText: {
         fontSize: 16,
@@ -303,45 +262,6 @@ const styles = StyleSheet.create({
     },
     agentInfoCard: {
         marginBottom: 24,
-    },
-    agentInfoHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-    },
-    agentInfoTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: Colors.text,
-    },
-    agentIdBadge: {
-        backgroundColor: Colors.highlight,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
-    },
-    agentIdText: {
-        color: Colors.primary,
-        fontWeight: "500",
-        fontSize: 14,
-    },
-    agentInfoRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-    },
-    agentInfoItem: {
-        flex: 1,
-    },
-    agentInfoLabel: {
-        fontSize: 12,
-        color: Colors.subtext,
-        marginBottom: 4,
-    },
-    agentInfoValue: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: Colors.text,
     },
     sectionTitle: {
         fontSize: 18,

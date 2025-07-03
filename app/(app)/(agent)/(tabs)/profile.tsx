@@ -1,32 +1,35 @@
 import React from "react";
 import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
-import { useAuthStore } from "@/store/authStore";
-import Colors from "@/constants/colors";
-import Card from "@/components/Card";
-import Button from "@/components/Button";
 import {
     User,
     Mail,
-    CreditCard,
-    Percent,
-    Ticket,
     LogOut,
     Settings,
     Bell,
     HelpCircle,
     Shield
 } from "lucide-react-native";
-import { formatCurrency } from "@/utils/currencyUtils";
-import { getAgentInitials } from "@/utils/agentUtils";
-import { useAgentData } from "@/hooks/useAgentData";
+
+import { useAuthStore } from "@/store/authStore";
+import Colors from "@/constants/colors";
+import Card from "@/components/Card";
+import Button from "@/components/Button";
+import { AgentInfoCard } from "@/components/agent";
 import { SkeletonAgentInfoSection } from "@/components/skeleton";
+
+import { useAgentData } from "@/hooks/useAgentData";
+import { useRefreshControl } from "@/hooks/useRefreshControl";
+import { formatAgentInitials } from "@/utils/agentFormatters";
 
 export default function AgentProfileScreen() {
     const router = useRouter();
     const { signOut } = useAuthStore();
     const { agent, reset, isInitializing, isLoadingProfile, refreshAgentData } = useAgentData();
-    const [isRefreshing, setIsRefreshing] = React.useState(false);
+    
+    const { isRefreshing, onRefresh } = useRefreshControl({
+        onRefresh: refreshAgentData
+    });
 
     const handleSignOut = async () => {
         try {
@@ -35,15 +38,6 @@ export default function AgentProfileScreen() {
             router.replace("/(auth)");
         } catch (error) {
             console.error("Sign out error:", error);
-        }
-    };
-
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        try {
-            await refreshAgentData();
-        } finally {
-            setIsRefreshing(false);
         }
     };
 
@@ -65,7 +59,7 @@ export default function AgentProfileScreen() {
         );
     };
 
-    const agentInitials = agent ? getAgentInitials(agent) : "??";
+    const agentInitials = formatAgentInitials(agent);
 
     return (
         <ScrollView 
@@ -74,32 +68,22 @@ export default function AgentProfileScreen() {
             refreshControl={
                 <RefreshControl 
                     refreshing={isRefreshing} 
-                    onRefresh={handleRefresh}
+                    onRefresh={onRefresh}
                     colors={[Colors.primary]}
                     tintColor={Colors.primary}
                 />
             }
         >
-            {/* Profile Header - Show with skeleton or real data */}
-            {isInitializing || !agent ? (
-                <View style={styles.profileHeader}>
-                    <View style={styles.avatarContainer}>
-                        <Text style={styles.avatarText}>??</Text>
-                    </View>
-                    <Text style={styles.name}>Loading...</Text>
-                    <Text style={styles.agentId}>...</Text>
+            {/* Profile Header */}
+            <View style={styles.profileHeader}>
+                <View style={styles.avatarContainer}>
+                    <Text style={styles.avatarText}>{agentInitials}</Text>
                 </View>
-            ) : (
-                <View style={styles.profileHeader}>
-                    <View style={styles.avatarContainer}>
-                        <Text style={styles.avatarText}>{agentInitials}</Text>
-                    </View>
-                    <Text style={styles.name}>{agent.name}</Text>
-                    <Text style={styles.agentId}>{agent.agentId}</Text>
-                </View>
-            )}
+                <Text style={styles.name}>{agent?.name || 'Loading...'}</Text>
+                <Text style={styles.agentId}>{agent?.agentId || '...'}</Text>
+            </View>
 
-            {/* Agent Information Section - Show skeleton only for initial load when no data */}
+            {/* Agent Information Section */}
             {(isInitializing || isLoadingProfile) && !agent ? (
                 <SkeletonAgentInfoSection delay={0} />
             ) : agent ? (
@@ -122,33 +106,12 @@ export default function AgentProfileScreen() {
                         </View>
                     </View>
 
-                    <View style={styles.infoRow}>
-                        <CreditCard size={20} color={Colors.subtext} />
-                        <View style={styles.infoContent}>
-                            <Text style={styles.infoLabel}>Credit Balance</Text>
-                            <Text style={styles.infoValue}>{formatCurrency(agent.creditBalance)}</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                        <Percent size={20} color={Colors.subtext} />
-                        <View style={styles.infoContent}>
-                            <Text style={styles.infoLabel}>Discount Rate</Text>
-                            <Text style={styles.infoValue}>{agent.discountRate}%</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                        <Ticket size={20} color={Colors.subtext} />
-                        <View style={styles.infoContent}>
-                            <Text style={styles.infoLabel}>Free Tickets Remaining</Text>
-                            <Text style={styles.infoValue}>{agent.freeTicketsRemaining} / {agent.freeTicketsAllocation}</Text>
-                        </View>
-                    </View>
+                    {/* Use AgentInfoCard for the credit/financial info */}
+                    <AgentInfoCard agent={agent} variant="profile" />
                 </Card>
             ) : null}
 
-            {/* Static Settings Section - Always visible */}
+            {/* Settings Section */}
             <Text style={styles.sectionTitle}>Settings</Text>
 
             <Card variant="outlined" style={styles.settingsCard}>
@@ -179,7 +142,7 @@ export default function AgentProfileScreen() {
                 </View>
             </Card>
 
-            {/* Static Action Button - Always visible */}
+            {/* Logout Button */}
             <Button
                 title="Log Out"
                 onPress={handleLogout}
@@ -198,16 +161,6 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 16,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: Colors.background,
-    },
-    loadingText: {
-        fontSize: 16,
-        color: Colors.textSecondary,
     },
     profileHeader: {
         alignItems: "center",

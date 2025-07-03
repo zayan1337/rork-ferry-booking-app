@@ -8,4 +8,6 @@ export * from './shareUtils';
 export * from './faqUtils';
 export * from './currencyUtils';
 export * from './qrCodeUtils';
-export * from './agentUtils'; 
+export * from './agentUtils';
+export * from './agentFormatters';
+export * from './agentDashboard'; 

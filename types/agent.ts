@@ -207,4 +207,120 @@ export interface CreditTransaction {
     bookingNumber?: string;
     description: string;
     balance: number;
+}
+
+// Dashboard related types
+export interface AgentDashboardStats {
+  totalBookings: number;
+  activeBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  totalRevenue: number;
+  totalCommission: number;
+  uniqueClients: number;
+}
+
+export interface AgentDashboardData {
+  agent: Agent | null;
+  stats: AgentDashboardStats | null;
+  bookings: Booking[];
+  localStats: AgentDashboardStats | null;
+}
+
+// Credit related types
+export interface CreditTransaction {
+  id: string;
+  type: 'refill' | 'deduction';
+  amount: number;
+  description?: string;
+  createdAt: string;
+  bookingId?: string;
+}
+
+export interface CreditSummary {
+  creditBalance: number;
+  creditCeiling: number;
+  creditUtilization: number;
+  isLowCredit: boolean;
+  totalCreditAdded: number;
+  totalCreditUsed: number;
+}
+
+// Client related types
+export interface ClientSearchStats {
+  totalClients: number;
+  filteredClients: number;
+  averageBookings: number;
+}
+
+export interface ClientFormData {
+  name: string;
+  email: string;
+  phone: string;
+  idNumber: string;
+}
+
+// Profile related types
+export interface AgentProfileData {
+  agent: Agent | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+// Loading states
+export interface AgentLoadingStates {
+  isInitializing: boolean;
+  isLoadingStats: boolean;
+  isLoadingBookings: boolean;
+  isLoadingClients: boolean;
+  isLoadingCredit: boolean;
+  isLoadingProfile: boolean;
+}
+
+// Error states
+export interface AgentErrorStates {
+  statsError: string | null;
+  bookingsError: string | null;
+  clientsError: string | null;
+  creditError: string | null;
+  profileError: string | null;
+}
+
+// Refresh control
+export interface RefreshControlState {
+  isRefreshing: boolean;
+  lastRefresh: Date | null;
+}
+
+// Tab navigation types
+export type AgentTabParamList = {
+  index: undefined;
+  bookings: undefined;
+  clients: undefined;
+  credit: undefined;
+  profile: undefined;
+};
+
+// Agent action types
+export type AgentActionType = 
+  | 'view_booking'
+  | 'modify_booking'
+  | 'cancel_booking'
+  | 'create_booking'
+  | 'view_client'
+  | 'add_client'
+  | 'request_credit';
+
+// Form validation
+export interface ValidationResult {
+  isValid: boolean;
+  errors: Record<string, string>;
+}
+
+// Agent display options
+export interface AgentDisplayOptions {
+  showCommission: boolean;
+  showDiscount: boolean;
+  showCreditBalance: boolean;
+  compactView: boolean;
 } 

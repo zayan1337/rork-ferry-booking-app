@@ -1,11 +1,13 @@
 import React from "react";
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { Calendar, MapPin, User, DollarSign } from "lucide-react-native";
+
 import { Booking } from "@/types/agent";
 import Colors from "@/constants/colors";
-import { Calendar, MapPin, User, DollarSign } from "lucide-react-native";
 import Card from "./Card";
 import { isBookingExpired, isBookingInactive } from "@/utils/bookingUtils";
 import { getClientDisplayName } from "@/utils/clientUtils";
+import { formatCurrency, formatBookingDate } from "@/utils/agentFormatters";
 import { useAgentStore } from "@/store/agent/agentStore";
 
 interface AgentBookingCardProps {
@@ -13,7 +15,8 @@ interface AgentBookingCardProps {
     onPress: (booking: Booking) => void;
 }
 
-export default function AgentBookingCard({ booking, onPress }: AgentBookingCardProps) {
+// Memoized component for better VirtualizedList performance
+const AgentBookingCard = React.memo<AgentBookingCardProps>(({ booking, onPress }) => {
     const { clients } = useAgentStore();
 
     const getStatusColor = (status: string, isExpired: boolean = false) => {
@@ -44,24 +47,12 @@ export default function AgentBookingCard({ booking, onPress }: AgentBookingCardP
     const bookingExpired = isBookingExpired(booking);
     const bookingInactive = isBookingInactive(booking);
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-        });
-    };
-
-    const formatCurrency = (amount: number) => {
-        return `$${amount.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })}`;
-    };
+    const handlePress = React.useCallback(() => {
+        onPress(booking);
+    }, [onPress, booking]);
 
     return (
-        <TouchableOpacity onPress={() => onPress(booking)}>
+        <TouchableOpacity onPress={handlePress}>
             <Card variant="elevated" style={styles.card}>
                 <View style={styles.header}>
                     <View style={styles.route}>
@@ -91,8 +82,8 @@ export default function AgentBookingCard({ booking, onPress }: AgentBookingCardP
                             styles.infoText,
                             bookingExpired && styles.expiredText
                         ]}>
-                            {formatDate(booking.departureDate)}
-                            {booking.returnDate ? ` - ${formatDate(booking.returnDate)}` : ""}
+                            {formatBookingDate(booking.departureDate)}
+                            {booking.returnDate ? ` - ${formatBookingDate(booking.returnDate)}` : ""}
                             {bookingExpired && " (Expired)"}
                         </Text>
                     </View>
@@ -121,7 +112,17 @@ export default function AgentBookingCard({ booking, onPress }: AgentBookingCardP
             </Card>
         </TouchableOpacity>
     );
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison function for better performance
+    return (
+        prevProps.booking.id === nextProps.booking.id &&
+        prevProps.booking.status === nextProps.booking.status &&
+        prevProps.booking.discountedAmount === nextProps.booking.discountedAmount &&
+        prevProps.onPress === nextProps.onPress
+    );
+});
+
+AgentBookingCard.displayName = 'AgentBookingCard';
 
 const styles = StyleSheet.create({
     card: {
@@ -140,6 +141,12 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: "600",
         color: Colors.text,
+    },
+    inactiveText: {
+        color: Colors.subtext,
+    },
+    expiredText: {
+        color: Colors.warning,
     },
     statusBadge: {
         paddingHorizontal: 8,
@@ -198,11 +205,6 @@ const styles = StyleSheet.create({
         color: Colors.subtext,
         textDecorationLine: "line-through",
     },
-    inactiveText: {
-        color: Colors.subtext,
-    },
-    expiredText: {
-        color: Colors.warning,
-        fontWeight: "500",
-    },
 });
+
+export default AgentBookingCard;

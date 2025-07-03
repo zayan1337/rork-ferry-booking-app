@@ -11,9 +11,14 @@ interface ClientCardProps {
     inactiveBookingsCount?: number; // Count of cancelled/modified bookings
 }
 
-export default function ClientCard({ client, onPress, inactiveBookingsCount = 0 }: ClientCardProps) {
+// Memoized component for better VirtualizedList performance
+const ClientCard = React.memo<ClientCardProps>(({ client, onPress, inactiveBookingsCount = 0 }) => {
+    const handlePress = React.useCallback(() => {
+        onPress(client);
+    }, [onPress, client]);
+
     return (
-        <TouchableOpacity onPress={() => onPress(client)}>
+        <TouchableOpacity onPress={handlePress}>
             <Card variant="elevated" style={styles.card}>
                 <View style={styles.header}>
                     <View style={[
@@ -66,7 +71,18 @@ export default function ClientCard({ client, onPress, inactiveBookingsCount = 0 
             </Card>
         </TouchableOpacity>
     );
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison function for better performance
+    return (
+        prevProps.client.id === nextProps.client.id &&
+        prevProps.client.name === nextProps.client.name &&
+        prevProps.client.bookingsCount === nextProps.client.bookingsCount &&
+        prevProps.inactiveBookingsCount === nextProps.inactiveBookingsCount &&
+        prevProps.onPress === nextProps.onPress
+    );
+});
+
+ClientCard.displayName = 'ClientCard';
 
 const styles = StyleSheet.create({
     card: {
@@ -171,4 +187,6 @@ const styles = StyleSheet.create({
         marginLeft: 6,
         flex: 1,
     },
-}); 
+});
+
+export default ClientCard; 

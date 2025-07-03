@@ -1,15 +1,18 @@
 import React from "react";
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, RefreshControl } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
+import { Search, UserPlus } from "lucide-react-native";
+
 import Colors from "@/constants/colors";
 import ClientCard from "@/components/ClientCard";
 import Input from "@/components/Input";
-import { Search, UserPlus } from "lucide-react-native";
+import { AgentStatsCard } from "@/components/agent";
+import { SkeletonClientsList } from "@/components/skeleton";
+
 import type { Client } from "@/types/agent";
-import { getClientInactiveBookingsCount, getTotalBookingsAcrossClients } from "@/utils/agentUtils";
 import { useAgentData } from "@/hooks/useAgentData";
 import { useAgentClientSearch } from "@/hooks/useAgentClientSearch";
-import { SkeletonClientsList } from "@/components/skeleton";
+import { useRefreshControl } from "@/hooks/useRefreshControl";
 
 export default function AgentClientsScreen() {
   const router = useRouter();
@@ -21,7 +24,13 @@ export default function AgentClientsScreen() {
     refreshClients
   } = useAgentData();
 
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const { isRefreshing, onRefresh } = useRefreshControl({
+    onRefresh: async () => {
+      if (agent?.id) {
+        await refreshClients();
+      }
+    }
+  });
 
   const {
     searchQuery,
@@ -39,17 +48,6 @@ export default function AgentClientsScreen() {
     }, [agent?.id, refreshClients])
   );
 
-  const handleRefresh = async () => {
-    if (agent?.id) {
-      setIsRefreshing(true);
-      try {
-        await refreshClients();
-      } finally {
-        setIsRefreshing(false);
-      }
-    }
-  };
-
   const handleClientPress = (client: Client) => {
     router.push(`../client/${client.id}`);
   };
@@ -64,9 +62,27 @@ export default function AgentClientsScreen() {
     router.push("../client/add");
   };
 
+  // Stable renderItem function for better FlatList performance
+  const renderClientItem = React.useCallback(({ item }: { item: Client }) => (
+    <ClientCard
+      client={item}
+      onPress={handleClientPress}
+      inactiveBookingsCount={getInactiveBookingsCount(item.id)}
+    />
+  ), [handleClientPress, getInactiveBookingsCount]);
+
+  // Calculate enhanced stats
+  const enhancedStats = {
+    totalClients: searchStats.totalClients,
+    filteredClients: filteredClients.length,
+    averageBookings: searchStats.totalClients > 0
+      ? clients.reduce((sum, client) => sum + (client.bookingsCount || 0), 0) / searchStats.totalClients
+      : 0,
+  };
+
   return (
     <View style={styles.container}>
-      {/* Static Header - Always visible */}
+      {/* Search Header */}
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <Input
@@ -86,59 +102,39 @@ export default function AgentClientsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Static Stats - Always visible */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{searchStats.totalClients}</Text>
-          <Text style={styles.statLabel}>Total Clients</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>
-            {clients.reduce((sum, client) => sum + (client.bookingsCount || 0), 0)}
-          </Text>
-          <Text style={styles.statLabel}>Total Bookings</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>
-            {searchStats.totalClients > 0
-              ? (clients.reduce((sum, client) => sum + (client.bookingsCount || 0), 0) / searchStats.totalClients).toFixed(1)
-              : '0'}
-          </Text>
-          <Text style={styles.statLabel}>Avg. Bookings</Text>
-        </View>
-      </View>
+      {/* Client Stats */}
+      <AgentStatsCard stats={enhancedStats} />
 
+      {/* Error Display */}
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Error: {error}</Text>
         </View>
       )}
 
-      {/* Dynamic Content - Show skeleton only for initial load when no data */}
+      {/* Client List */}
       {isLoadingClients && (!clients || clients.length === 0) ? (
         <SkeletonClientsList count={7} delay={0} />
       ) : filteredClients.length > 0 ? (
         <FlatList
           data={filteredClients}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ClientCard
-              client={item}
-              onPress={handleClientPress}
-              inactiveBookingsCount={getInactiveBookingsCount(item.id)}
-            />
-          )}
+          renderItem={renderClientItem}
           contentContainerStyle={styles.clientsList}
           refreshControl={
             <RefreshControl 
               refreshing={isRefreshing} 
-              onRefresh={handleRefresh}
+              onRefresh={onRefresh}
               colors={[Colors.primary]}
               tintColor={Colors.primary}
             />
           }
+          getItemLayout={(data, index) => (
+            { length: 120, offset: 120 * index, index }
+          )}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={8}
+          windowSize={8}
         />
       ) : (
         <View style={styles.emptyContainer}>
@@ -184,40 +180,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 12,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    backgroundColor: Colors.card,
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: Colors.primary,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: Colors.subtext,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: 8,
   },
   clientsList: {
     padding: 16,

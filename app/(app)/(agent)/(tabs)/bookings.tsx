@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
+import { Plus, Search } from "lucide-react-native";
+
 import Colors from "@/constants/colors";
 import AgentBookingCard from "@/components/AgentBookingCard";
 import Button from "@/components/Button";
-import { Plus, Search } from "lucide-react-native";
 import Input from "@/components/Input";
+import { SkeletonBookingsList } from "@/components/skeleton";
+
 import type { Booking } from "@/types/agent";
 import { useAgentData } from "@/hooks/useAgentData";
-import { SkeletonBookingsList } from "@/components/skeleton";
+import { useRefreshControl } from "@/hooks/useRefreshControl";
 
 export default function AgentBookingsScreen() {
   const router = useRouter();
@@ -22,24 +25,20 @@ export default function AgentBookingsScreen() {
 
   const [activeTab, setActiveTab] = useState<"all" | "confirmed" | "completed" | "cancelled">("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const { isRefreshing, onRefresh } = useRefreshControl({
+    onRefresh: async () => {
+      if (agent?.id) {
+        await refreshBookings();
+      }
+    }
+  });
 
   useEffect(() => {
     if (agent?.id) {
       refreshBookings();
     }
   }, [agent?.id, refreshBookings]);
-
-  const handleRefresh = async () => {
-    if (agent?.id) {
-      setIsRefreshing(true);
-      try {
-        await refreshBookings();
-      } finally {
-        setIsRefreshing(false);
-      }
-    }
-  };
 
   const filteredBookings = (bookings || []).filter((booking) => {
     // Filter by status
@@ -74,6 +73,14 @@ export default function AgentBookingsScreen() {
     router.push("../booking/new" as any);
   };
 
+  // Stable renderItem function for better FlatList performance
+  const renderBookingItem = React.useCallback(({ item }: { item: Booking }) => (
+    <AgentBookingCard
+      booking={item}
+      onPress={handleBookingPress}
+    />
+  ), [handleBookingPress]);
+
   const tabs = [
     { key: "all", label: "All" },
     { key: "confirmed", label: "Confirmed" },
@@ -91,7 +98,7 @@ export default function AgentBookingsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Static Header - Always visible */}
+      {/* Search Header */}
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <Input
@@ -111,7 +118,7 @@ export default function AgentBookingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Static Tabs - Always visible */}
+      {/* Filter Tabs */}
       <View style={styles.tabsContainer}>
         <ScrollView
           horizontal
@@ -139,23 +146,29 @@ export default function AgentBookingsScreen() {
         </ScrollView>
       </View>
 
-      {/* Dynamic Content - Show skeleton only for initial load when no data */}
+      {/* Bookings List */}
       {isLoadingBookings && (!bookings || bookings.length === 0) ? (
         <SkeletonBookingsList count={6} delay={0} />
       ) : sortedBookings.length > 0 ? (
         <FlatList
           data={sortedBookings}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <AgentBookingCard
-              booking={item}
-              onPress={() => handleBookingPress(item)}
-            />
-          )}
+          renderItem={renderBookingItem}
           contentContainerStyle={styles.bookingsList}
           refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+            <RefreshControl 
+              refreshing={isRefreshing} 
+              onRefresh={onRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
           }
+          getItemLayout={(data, index) => (
+            { length: 160, offset: 160 * index, index }
+          )}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
         />
       ) : (
         <View style={styles.emptyContainer}>
@@ -252,10 +265,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.background,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
   },
   errorText: {
     fontSize: 16,
