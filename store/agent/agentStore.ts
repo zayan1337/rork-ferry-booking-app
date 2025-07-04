@@ -177,7 +177,6 @@ export const useAgentStore = create<AgentState>()(
             /**
              * Sync state from all sub-stores
              * This method aggregates state from individual stores into this main store
-             * Note: Does not override isLoading if it's explicitly managed by main store
              */
             syncFromSubStores: () => {
                 const authState = useAgentAuthStore.getState();
@@ -185,10 +184,12 @@ export const useAgentStore = create<AgentState>()(
                 const bookingsState = useAgentBookingsStore.getState();
                 const statsState = useAgentStatsStore.getState();
                 const creditState = useAgentCreditStore.getState();
-                const currentState = get();
 
                 // Determine if any sub-store has an error
                 const hasError = authState.error || clientsState.error || bookingsState.error || statsState.error || creditState.error;
+                
+                // Calculate if any sub-store is loading
+                const isSubStoreLoading = authState.isLoading || clientsState.isLoading || bookingsState.isLoading || statsState.isLoading || creditState.isLoading;
                 
                 set({
                     agent: authState.agent,
@@ -199,10 +200,8 @@ export const useAgentStore = create<AgentState>()(
                     bookings: bookingsState.bookings,
                     stats: statsState.stats,
                     creditTransactions: creditState.creditTransactions,
-                    // Only update loading state if main store is not explicitly managing it
-                    ...(currentState.isLoading ? {} : {
-                        isLoading: authState.isLoading || clientsState.isLoading || bookingsState.isLoading || statsState.isLoading || creditState.isLoading
-                    }),
+                    // Always update loading state based on sub-stores unless explicitly overridden
+                    isLoading: isSubStoreLoading,
                     error: hasError,
                 });
             },
@@ -588,9 +587,20 @@ export const useAgentStore = create<AgentState>()(
              */
             createAgentClient: async (clientData: any) => {
                 const agent = requireAgent(get().agent);
-                const clientId = await useAgentClientsStore.getState().createAgentClient(agent.id, clientData);
-                get().syncFromSubStores();
-                return clientId;
+                
+                try {
+                    set({ isLoadingClients: true, error: null });
+                    const clientId = await useAgentClientsStore.getState().createAgentClient(agent.id, clientData);
+                    get().syncFromSubStores();
+                    set({ isLoadingClients: false });
+                    return clientId;
+                } catch (error) {
+                    set({ 
+                        isLoadingClients: false,
+                        error: error instanceof Error ? error.message : 'Failed to create client'
+                    });
+                    throw error;
+                }
             },
 
             /**
@@ -606,8 +616,19 @@ export const useAgentStore = create<AgentState>()(
              */
             addExistingUserAsClient: async (userId: string) => {
                 const agent = requireAgent(get().agent);
-                await useAgentClientsStore.getState().addExistingUserAsClient(agent.id, userId);
-                get().syncFromSubStores();
+                
+                try {
+                    set({ isLoadingClients: true, error: null });
+                    await useAgentClientsStore.getState().addExistingUserAsClient(agent.id, userId);
+                    get().syncFromSubStores();
+                    set({ isLoadingClients: false });
+                } catch (error) {
+                    set({ 
+                        isLoadingClients: false,
+                        error: error instanceof Error ? error.message : 'Failed to add client'
+                    });
+                    throw error;
+                }
             },
 
             // ========================================

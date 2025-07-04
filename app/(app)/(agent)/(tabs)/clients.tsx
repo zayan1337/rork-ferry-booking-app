@@ -13,12 +13,14 @@ import type { Client } from "@/types/agent";
 import { useAgentData } from "@/hooks/useAgentData";
 import { useAgentClientSearch } from "@/hooks/useAgentClientSearch";
 import { useRefreshControl } from "@/hooks/useRefreshControl";
+import { getClientInactiveBookingsCount } from "@/utils/agentUtils";
 
 export default function AgentClientsScreen() {
   const router = useRouter();
   const {
     agent,
     clients,
+    bookings,
     isLoadingClients,
     error,
     refreshClients
@@ -32,12 +34,43 @@ export default function AgentClientsScreen() {
     }
   });
 
+  // Function to recalculate client booking counts from actual bookings data
+  const getClientTotalBookingsCount = React.useCallback((clientId: string) => {
+    if (!bookings || bookings.length === 0) return 0;
+
+    return bookings.filter(booking => {
+      // Handle both types of client matching
+      return booking.clientId === clientId ||
+        booking.userId === clientId ||
+        booking.agentClientId === clientId;
+    }).length;
+  }, [bookings]);
+
+  // Update clients data with corrected booking counts
+  const clientsWithCorrectCounts = React.useMemo(() => {
+    if (!clients || !bookings) return clients || [];
+
+    return clients.map(client => {
+      const actualBookingsCount = getClientTotalBookingsCount(client.id);
+
+      // Only update if there's a mismatch
+      if (client.bookingsCount !== actualBookingsCount) {
+        return {
+          ...client,
+          bookingsCount: actualBookingsCount
+        };
+      }
+
+      return client;
+    });
+  }, [clients, bookings, getClientTotalBookingsCount]);
+
   const {
     searchQuery,
     filteredClients,
     updateSearchQuery,
     searchStats
-  } = useAgentClientSearch(clients);
+  } = useAgentClientSearch(clientsWithCorrectCounts);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
@@ -52,11 +85,10 @@ export default function AgentClientsScreen() {
     router.push(`../client/${client.id}`);
   };
 
-  const getInactiveBookingsCount = (clientId: string) => {
-    // This would need the bookings array - for now return 0
-    // In a real implementation, you'd pass bookings from useAgentData
-    return 0;
-  };
+  const getInactiveBookingsCount = React.useCallback((clientId: string) => {
+    if (!bookings || bookings.length === 0) return 0;
+    return getClientInactiveBookingsCount(bookings, clientId);
+  }, [bookings]);
 
   const handleAddClient = () => {
     router.push("../client/add");
@@ -71,14 +103,16 @@ export default function AgentClientsScreen() {
     />
   ), [handleClientPress, getInactiveBookingsCount]);
 
-  // Calculate enhanced stats
+  // Calculate enhanced stats with proper average calculation
   const enhancedStats = {
     totalClients: searchStats.totalClients,
     filteredClients: filteredClients.length,
-    averageBookings: searchStats.totalClients > 0
-      ? clients.reduce((sum, client) => sum + (client.bookingsCount || 0), 0) / searchStats.totalClients
+    averageBookings: clientsWithCorrectCounts && clientsWithCorrectCounts.length > 0
+      ? clientsWithCorrectCounts.reduce((sum, client) => sum + (client.bookingsCount || 0), 0) / clientsWithCorrectCounts.length
       : 0,
   };
+
+
 
   return (
     <View style={styles.container}>
@@ -122,8 +156,8 @@ export default function AgentClientsScreen() {
           renderItem={renderClientItem}
           contentContainerStyle={styles.clientsList}
           refreshControl={
-            <RefreshControl 
-              refreshing={isRefreshing} 
+            <RefreshControl
+              refreshing={isRefreshing}
               onRefresh={onRefresh}
               colors={[Colors.primary]}
               tintColor={Colors.primary}

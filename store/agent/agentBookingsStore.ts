@@ -258,6 +258,12 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                     };
                 }
 
+                // Calculate commission based on fare difference
+                const discountedFare = Number(booking.total_fare || 0);
+                const originalFare = route && passengers.length > 0 ? 
+                    passengers.length * (route.baseFare || 0) : discountedFare;
+                const commission = originalFare > discountedFare ? originalFare - discountedFare : 0;
+
                 // Build the comprehensive booking object
                 return {
                     id: booking.id,
@@ -276,14 +282,14 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                     vessel: vessel,
                     route: route,
                     seats: passengers.map((passenger: any) => passenger.seat).filter(Boolean),
-                    totalAmount: Number(booking.total_fare || 0),
-                    discountedAmount: Number(booking.total_fare || 0),
+                    totalAmount: originalFare,
+                    discountedAmount: discountedFare,
                     status: booking.status as Booking['status'],
                     bookingDate: booking.created_at,
                     updatedAt: booking.updated_at,
                     paymentMethod: (booking.payment_method_type || 'gateway') as Booking['paymentMethod'],
                     payment: payment,
-                    commission: 0, // Calculate if needed
+                    commission: commission,
                     userId: clientInfo.userId,
                     agentClientId: clientInfo.agentClientId,
                     clientHasAccount: clientInfo.hasAccount,

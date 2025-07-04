@@ -23,7 +23,7 @@ export default function AddClientScreen() {
         agent,
         createAgentClient,
         addExistingUserAsClient,
-        isLoading: storeLoading
+        isLoadingClients
     } = useAgentStore();
 
     const {
@@ -45,7 +45,7 @@ export default function AddClientScreen() {
 
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const combinedLoading = storeLoading || isProcessing;
+    const combinedLoading = isLoadingClients || isProcessing;
 
     const handleAddExistingUser = async () => {
         if (!existingUser || !agent) {

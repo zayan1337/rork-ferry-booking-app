@@ -734,13 +734,18 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
             // Store client's user ID separately if they have an account
             const bookingUserId = validAgent.id; // Always use agent ID for agent bookings
 
+            // Calculate fares for commission tracking
+            const originalFare = currentBooking.selectedSeats.length * (currentBooking.route?.baseFare || 0);
+            const discountedFare = originalFare * (1 - (validAgent.discountRate || 0) / 100);
+            const commissionAmount = originalFare - discountedFare;
+
             // Create the booking WITHOUT QR code data first
             const bookingData = {
                 user_id: bookingUserId, // Always agent ID for permissions
                 agent_id: validAgent.id,
                 agent_client_id: agentClientId,
                 trip_id: currentBooking.trip!.id,
-                total_fare: (currentBooking.selectedSeats.length * (currentBooking.route?.baseFare || 0)) * (1 - (validAgent.discountRate || 0) / 100), // Only departure fare with discount
+                total_fare: discountedFare, // Store discounted fare in database
                 payment_method_type: currentBooking.paymentMethod,
                 status: 'confirmed' as const,
                 is_round_trip: currentBooking.tripType === 'round_trip',
@@ -756,6 +761,25 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
             if (bookingError) {
                 console.error('Booking creation error:', bookingError);
                 throw new Error(`Failed to create booking: ${bookingError.message}`);
+            }
+
+            // Record commission transaction if commission exists
+            if (commissionAmount > 0) {
+                try {
+                    await supabase
+                        .from('agent_credit_transactions')
+                        .insert({
+                            agent_id: validAgent.id,
+                            amount: commissionAmount,
+                            transaction_type: 'commission',
+                            booking_id: booking.id,
+                            description: `Commission earned for booking ${currentBooking.route?.fromIsland?.name || 'Unknown'} to ${currentBooking.route?.toIsland?.name || 'Unknown'}`,
+                            balance_after: validAgent.creditBalance, // Current balance (commission doesn't affect credit balance)
+                        });
+                } catch (commissionError) {
+                    console.warn('Failed to record commission transaction:', commissionError);
+                    // Don't throw error - booking was created successfully
+                }
             }
 
             // Generate QR code URL using the auto-generated booking number
@@ -814,8 +838,7 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
 
             // Handle credit payment
             if (currentBooking.paymentMethod === 'credit') {
-                const departureFare = (currentBooking.selectedSeats.length * (currentBooking.route?.baseFare || 0)) * (1 - (validAgent.discountRate || 0) / 100);
-                const newBalance = validAgent.creditBalance - departureFare;
+                const newBalance = validAgent.creditBalance - discountedFare;
 
                 if (newBalance < 0) {
                     // Clean up everything if insufficient credit
@@ -841,7 +864,7 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
                         .from('agent_credit_transactions')
                         .insert({
                             agent_id: validAgent.id,
-                            amount: -departureFare,
+                            amount: -discountedFare,
                             transaction_type: 'deduction',
                             booking_id: booking.id,
                             description: `Booking payment for ${currentBooking.route?.fromIsland?.name || 'Unknown'} to ${currentBooking.route?.toIsland?.name || 'Unknown'}`,
@@ -889,12 +912,17 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
             // Handle return trip for round-trip bookings
             let returnBookingId = null;
             if (currentBooking.tripType === 'round_trip' && currentBooking.returnTrip) {
+                // Calculate return trip fares for commission tracking
+                const returnOriginalFare = currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0);
+                const returnDiscountedFare = returnOriginalFare * (1 - (validAgent.discountRate || 0) / 100);
+                const returnCommissionAmount = returnOriginalFare - returnDiscountedFare;
+
                 const returnBookingData = {
                     user_id: bookingUserId,
                     agent_id: validAgent.id,
                     agent_client_id: agentClientId,
                     trip_id: currentBooking.returnTrip.id,
-                    total_fare: (currentBooking.returnSelectedSeats.length * (currentBooking.returnRoute?.baseFare || 0)) * (1 - (validAgent.discountRate || 0) / 100),
+                    total_fare: returnDiscountedFare,
                     payment_method_type: currentBooking.paymentMethod,
                     status: 'confirmed' as const,
                     is_round_trip: true,
@@ -913,6 +941,25 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
                 }
 
                 returnBookingId = returnBooking.id;
+
+                // Record commission transaction for return trip if commission exists
+                if (returnCommissionAmount > 0) {
+                    try {
+                        await supabase
+                            .from('agent_credit_transactions')
+                            .insert({
+                                agent_id: validAgent.id,
+                                amount: returnCommissionAmount,
+                                transaction_type: 'commission',
+                                booking_id: returnBooking.id,
+                                description: `Commission earned for return booking ${currentBooking.returnRoute?.fromIsland?.name || 'Unknown'} to ${currentBooking.returnRoute?.toIsland?.name || 'Unknown'}`,
+                                balance_after: validAgent.creditBalance, // Current balance (commission doesn't affect credit balance)
+                            });
+                    } catch (commissionError) {
+                        console.warn('Failed to record return commission transaction:', commissionError);
+                        // Don't throw error - booking was created successfully
+                    }
+                }
 
                 // Generate return QR code URL using the auto-generated booking number
                 const returnQrCodeUrl = generateQrCodeUrl(returnBooking.booking_number);

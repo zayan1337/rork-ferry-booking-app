@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAgentStore } from '@/store/agent/agentStore';
 
 export const useExistingUserSearch = (email: string) => {
-    const { searchExistingUser, isLoading } = useAgentStore();
+    const { searchExistingUser } = useAgentStore();
     const [existingUser, setExistingUser] = useState<any>(null);
     const [isSearching, setIsSearching] = useState(false);
 
@@ -43,7 +43,7 @@ export const useExistingUserSearch = (email: string) => {
 
     return {
         existingUser,
-        isSearching: isSearching || isLoading,
+        isSearching,
         clearSearch,
     };
 }; 

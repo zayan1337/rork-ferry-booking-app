@@ -300,4 +300,69 @@ export const getAgentInitials = (agent: Agent | null): string => {
 export const calculateCommissionRate = (totalRevenue: number, totalCommission: number): number => {
     if (totalRevenue <= 0) return 0;
     return (totalCommission / totalRevenue) * 100;
+};
+
+/**
+ * Calculate commission for a single booking based on discount provided
+ * @param originalFare - Original fare before discount
+ * @param discountedFare - Fare after agent discount
+ * @returns Commission amount (difference between original and discounted fare)
+ */
+export const calculateBookingCommission = (originalFare: number, discountedFare: number): number => {
+    if (originalFare <= 0 || discountedFare < 0) return 0;
+    return Math.max(0, originalFare - discountedFare);
+};
+
+/**
+ * Calculate commission based on discount rate and original fare
+ * @param originalFare - Original fare before discount
+ * @param discountRate - Agent discount rate (percentage)
+ * @returns Commission amount
+ */
+export const calculateBookingCommissionFromDiscount = (originalFare: number, discountRate: number): number => {
+    if (originalFare <= 0) return 0;
+    const discountAmount = originalFare * (discountRate / 100);
+    return Math.max(0, discountAmount);
+};
+
+/**
+ * Calculate total commission from an array of bookings
+ * @param bookings - Array of bookings with commission values
+ * @returns Total commission amount
+ */
+export const calculateTotalCommissionFromBookings = (bookings: Booking[]): number => {
+    return bookings.reduce((total, booking) => {
+        if (booking.commission && booking.commission > 0) {
+            return total + booking.commission;
+        }
+        
+        // Fallback: calculate commission if not set but we have fare data
+        if (booking.totalAmount && booking.discountedAmount) {
+            const commission = calculateBookingCommission(booking.totalAmount, booking.discountedAmount);
+            return total + commission;
+        }
+        
+        return total;
+    }, 0);
+};
+
+/**
+ * Update booking object with calculated commission
+ * @param booking - Booking object to update
+ * @returns Updated booking with commission calculated
+ */
+export const updateBookingWithCommission = (booking: Booking): Booking => {
+    // If commission is already set and valid, use it
+    if (booking.commission && booking.commission > 0) {
+        return booking;
+    }
+    
+    // Calculate commission based on fare difference
+    const commission = booking.totalAmount && booking.discountedAmount ? 
+        calculateBookingCommission(booking.totalAmount, booking.discountedAmount) : 0;
+    
+    return {
+        ...booking,
+        commission
+    };
 }; 
