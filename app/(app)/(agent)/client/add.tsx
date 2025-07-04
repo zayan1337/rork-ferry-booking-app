@@ -10,11 +10,12 @@ import { useRouter, Stack } from "expo-router";
 import { useAgentStore } from "@/store/agent/agentStore";
 import { useClientForm } from "@/hooks/useClientForm";
 import { useExistingUserSearch } from "@/hooks/useExistingUserSearch";
+import { ClientFormHeader, ExistingUserCard } from "@/components/client";
 import Colors from "@/constants/colors";
 import Card from "@/components/Card";
 import Input from "@/components/Input";
 import Button from "@/components/Button";
-import { User, Mail, Phone, CreditCard, Check, UserPlus } from "lucide-react-native";
+import { User, Mail, Phone, CreditCard } from "lucide-react-native";
 
 export default function AddClientScreen() {
     const router = useRouter();
@@ -130,21 +131,16 @@ export default function AddClientScreen() {
             <Stack.Screen options={{ title: "Add New Client" }} />
 
             <Card variant="elevated" style={styles.formCard}>
-                <View style={styles.header}>
-                    <View style={styles.iconContainer}>
-                        <UserPlus size={32} color={Colors.primary} />
-                    </View>
-                    <Text style={styles.title}>Add New Client</Text>
-                    <Text style={styles.subtitle}>
-                        Create a new client profile for booking management
-                    </Text>
-                </View>
+                <ClientFormHeader
+                    title="Add New Client"
+                    subtitle="Create a new client profile for booking management"
+                />
 
-                {errors.general ? (
+                {errors.general && (
                     <View style={styles.errorContainer}>
                         <Text style={styles.errorText}>{errors.general}</Text>
                     </View>
-                ) : null}
+                )}
 
                 <View style={styles.formSection}>
                     <Input
@@ -176,27 +172,11 @@ export default function AddClientScreen() {
                     )}
 
                     {existingUser && (
-                        <Card variant="outlined" style={styles.existingUserCard}>
-                            <View style={styles.existingUserHeader}>
-                                <Check size={20} color={Colors.primary} />
-                                <Text style={styles.existingUserTitle}>Existing User Found</Text>
-                            </View>
-                            <Text style={styles.existingUserName}>
-                                {existingUser.full_name || 'No name provided'}
-                            </Text>
-                            <Text style={styles.existingUserDetails}>
-                                {existingUser.email} • {existingUser.mobile_number || 'No phone'}
-                            </Text>
-                            <Button
-                                title="Add This User as Client"
-                                onPress={handleAddExistingUser}
-                                variant="primary"
-                                style={styles.addExistingButton}
-                                loading={combinedLoading}
-                                disabled={combinedLoading}
-                            />
-                            <Text style={styles.orText}>or continue creating new client record below</Text>
-                        </Card>
+                        <ExistingUserCard
+                            user={existingUser}
+                            onAddUser={handleAddExistingUser}
+                            loading={combinedLoading}
+                        />
                     )}
 
                     <Input
@@ -268,32 +248,6 @@ const styles = StyleSheet.create({
     formCard: {
         marginBottom: 16,
     },
-    header: {
-        alignItems: 'center',
-        marginBottom: 32,
-    },
-    iconContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: Colors.highlight,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: Colors.text,
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    subtitle: {
-        fontSize: 16,
-        color: Colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 22,
-    },
     errorContainer: {
         backgroundColor: '#fee',
         padding: 12,
@@ -317,42 +271,6 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     checkingText: {
-        fontSize: 14,
-        color: Colors.textSecondary,
-        textAlign: 'center',
-        fontStyle: 'italic',
-    },
-    existingUserCard: {
-        marginBottom: 16,
-        backgroundColor: Colors.highlight,
-        borderColor: Colors.primary,
-    },
-    existingUserHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    existingUserTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: Colors.primary,
-        marginLeft: 8,
-    },
-    existingUserName: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: Colors.text,
-        marginBottom: 4,
-    },
-    existingUserDetails: {
-        fontSize: 14,
-        color: Colors.textSecondary,
-        marginBottom: 16,
-    },
-    addExistingButton: {
-        marginBottom: 12,
-    },
-    orText: {
         fontSize: 14,
         color: Colors.textSecondary,
         textAlign: 'center',

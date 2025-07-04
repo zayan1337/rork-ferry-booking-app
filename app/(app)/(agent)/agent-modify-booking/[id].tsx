@@ -5,28 +5,37 @@ import {
     StyleSheet,
     ScrollView,
     Alert,
-    TextInput as RNTextInput,
     TouchableOpacity,
     KeyboardAvoidingView,
     Platform,
     Keyboard
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { Calendar, ArrowRight, User, DollarSign } from 'lucide-react-native';
 import { useAgentStore } from '@/store/agent/agentStore';
 import { useRouteStore, useTripStore } from '@/store/routeStore';
 import { useSeatStore } from '@/store/seatStore';
-import { supabase } from '@/utils/supabase';
-import { Seat } from '@/types';
-import type { PaymentMethod, BankDetails } from '@/types/pages/booking';
-import Colors from '@/constants/colors';
-import Card from '@/components/Card';
-import Button from '@/components/Button';
+import {
+    CurrentTicketDetailsCard,
+    FareCalculationCard,
+    PaymentMethodSelector,
+    ModificationReasonForm,
+} from '@/components/booking';
 import DatePicker from '@/components/DatePicker';
 import SeatSelector from '@/components/SeatSelector';
-import Input from '@/components/Input';
-import { calculateFareDifference } from '@/utils/paymentUtils';
+import Button from '@/components/Button';
+import Card from '@/components/Card';
 import { calculateDiscountedFare } from '@/utils/bookingUtils';
+import { formatCurrency } from '@/utils/agentFormatters';
+import Colors from '@/constants/colors';
+import { Seat } from '@/types';
+
+type PaymentMethod = 'agent_credit' | 'bank_transfer';
+
+interface BankDetails {
+    accountNumber: string;
+    accountName: string;
+    bankName: string;
+}
 
 export default function AgentModifyBookingScreen() {
     const { id, ticketType } = useLocalSearchParams();
@@ -49,7 +58,6 @@ export default function AgentModifyBookingScreen() {
         bookings,
         modifyBooking,
         isLoading: agentLoading,
-        getTranslation,
         agent
     } = useAgentStore();
 
@@ -70,24 +78,18 @@ export default function AgentModifyBookingScreen() {
         isLoading: seatLoading
     } = useSeatStore();
 
-    // Separate loading states for better control
-    const isDataLoading = agentLoading && bookings.length === 0;
-    const isTripsLoading = tripLoading;
-    const isSeatsLoading = seatLoading;
-
     // Determine which ticket is being modified
     const isModifyingReturn = ticketType === 'return';
     const ticketLabel = isModifyingReturn ? 'Return' : 'Departure';
 
-    // State management (simplified to handle one ticket at a time)
-    const [tripSeatCounts, setTripSeatCounts] = useState<Record<string, number>>({});
+    // State management
     const [newDate, setNewDate] = useState<string | null>(null);
     const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
     const [modificationReason, setModificationReason] = useState('');
     const [agentNotes, setAgentNotes] = useState('');
     const [fareDifference, setFareDifference] = useState(0);
     const [selectedTrip, setSelectedTrip] = useState<any>(null);
-    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | 'agent_credit'>('wallet');
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('agent_credit');
     const [bankAccountDetails, setBankAccountDetails] = useState<BankDetails>({
         accountNumber: '',
         accountName: '',
@@ -105,6 +107,9 @@ export default function AgentModifyBookingScreen() {
         accountName: '',
         bankName: '',
     });
+
+    // Find the booking by id
+    const booking = bookings.find((b: any) => b.id === id);
 
     // Enhanced keyboard event listeners
     useEffect(() => {
@@ -150,31 +155,17 @@ export default function AgentModifyBookingScreen() {
         }, 100);
     };
 
-    // Find the booking by id
-    const booking = bookings.find((b: any) => b.id === id);
-
-    // Ensure bookings are loaded when component mounts
-    useEffect(() => {
-        if (!booking && !agentLoading) {
-            // If booking not found and not loading, it might need to be fetched
-            // This depends on your store implementation
-        }
-    }, [booking, agentLoading]);
-
+    // Initialize form data
     useEffect(() => {
         if (booking) {
-            // Initialize form data based on which ticket is being modified
             const currentDate = isModifyingReturn ? booking.returnDate : booking.departureDate;
-            const currentSeats = booking.seats; // Use booking.seats for both departure and return
+            const currentSeats = booking.seats;
 
             setNewDate(currentDate || null);
             setSelectedSeats(currentSeats?.map((seat: any) => ({
                 ...seat,
                 isAvailable: true
             })) || []);
-
-            // Set default payment method to agent credit for agents
-            setSelectedPaymentMethod('agent_credit');
         }
     }, [booking, isModifyingReturn]);
 
@@ -188,221 +179,90 @@ export default function AgentModifyBookingScreen() {
     // Calculate fare difference when trip changes
     useEffect(() => {
         if (selectedTrip && booking && booking.route) {
-            // Get current paid amount (use discounted amount if available, otherwise total amount)
             const currentPaidFare = Number(booking.discountedAmount) || Number(booking.totalAmount) || 0;
-
-            // Calculate new fare based on selected trip and route
             const passengerCount = booking.passengers?.length || booking.passengerCount || 1;
             const newFarePerPassenger = booking.route.baseFare || 0;
             const newTotalFare = newFarePerPassenger * passengerCount;
 
-            // Apply agent discount to new fare
             const discountCalculation = calculateDiscountedFare(newTotalFare, agentDiscountRate);
-            const newDiscountedFare = discountCalculation.discountedFare;
-            setDiscountedFare(newDiscountedFare);
+            setDiscountedFare(discountCalculation.discountedFare);
 
-            // Calculate difference between current paid fare and new discounted fare
-            const difference = calculateFareDifference(currentPaidFare, newDiscountedFare);
+            const difference = discountCalculation.discountedFare - currentPaidFare;
             setFareDifference(difference);
-        } else {
-            setFareDifference(0);
-            setDiscountedFare(0);
         }
     }, [selectedTrip, booking, agentDiscountRate]);
 
-    // Function to fetch actual seat availability for a trip
-    const fetchTripSeatAvailability = useCallback(async (tripId: string) => {
-        try {
-            // Get total seats for this trip from vessel capacity
-            const { data: tripData, error: tripError } = await supabase
-                .from('trips')
-                .select(`
-                    vessel:vessel_id(
-                        seat_capacity
-                    )
-                `)
-                .eq('id', tripId)
-                .single();
-
-            if (tripError || !tripData?.vessel) {
-                console.warn('Failed to get trip vessel capacity:', tripError);
-                return 0;
-            }
-
-            const vesselData = Array.isArray(tripData.vessel) ? tripData.vessel[0] : tripData.vessel;
-            const totalSeats = vesselData?.seat_capacity || 0;
-
-            if (totalSeats === 0) {
-                console.warn('No seat capacity found for trip:', tripId);
-                return 0;
-            }
-
-            // Get reserved/booked seats for this trip
-            const { data: seatReservations, error: reservationError } = await supabase
-                .from('seat_reservations')
-                .select('seat_id, booking_id, is_reserved')
-                .eq('trip_id', tripId)
-                .not('booking_id', 'is', null); // Only get seats that are actually booked
-
-            if (reservationError) {
-                console.warn('Failed to get seat reservations:', reservationError);
-                // Return a conservative estimate
-                return Math.max(0, totalSeats - 10);
-            }
-
-            const bookedSeatsCount = seatReservations?.length || 0;
-            const availableSeats = Math.max(0, totalSeats - bookedSeatsCount);
-
-            return availableSeats;
-        } catch (error) {
-            console.error('Error fetching trip seat availability:', error);
-            return 0;
-        }
-    }, []);
-
-    // Fetch trips when date or route changes
+    // Fetch trips when date changes
     useEffect(() => {
-        if (booking?.route && newDate) {
-            // Reset trip seat counts when date changes
-            setTripSeatCounts({});
-            setSelectedTrip(null);
-            setSelectedSeats([]);
-            fetchTrips(booking.route.id, newDate);
+        if (newDate && booking?.route) {
+            fetchTrips(booking.route.id, newDate, false);
         }
-    }, [booking?.route, newDate, fetchTrips]);
+    }, [newDate, booking, fetchTrips]);
 
-    // Fetch seats when trip is selected
+    // Fetch seats when trip changes
     useEffect(() => {
-        if (selectedTrip?.id) {
-            fetchAvailableSeats(selectedTrip.id, false);
+        if (selectedTrip) {
+            fetchAvailableSeats(selectedTrip.id);
         }
-    }, [selectedTrip?.id, fetchAvailableSeats]);
-
-    // Fetch seat availability for all trips when trips are loaded
-    useEffect(() => {
-        const updateTripSeatCounts = async () => {
-            if (trips.length > 0) {
-                // Clear existing counts first
-                setTripSeatCounts({});
-
-                const newCounts: Record<string, number> = {};
-
-                // Fetch counts for all trips in parallel
-                const countPromises = trips.map(async (trip) => {
-                    const count = await fetchTripSeatAvailability(trip.id);
-                    return { tripId: trip.id, count };
-                });
-
-                try {
-                    const results = await Promise.all(countPromises);
-                    results.forEach(({ tripId, count }) => {
-                        newCounts[tripId] = count;
-                    });
-                    setTripSeatCounts(newCounts);
-                } catch (error) {
-                    // Error handling - silently fail and continue
-                }
-            } else {
-                // Clear seat counts when no trips available
-                setTripSeatCounts({});
-            }
-        };
-
-        updateTripSeatCounts();
-    }, [trips]);
-
-    // Additional effect to ensure seat counts are refreshed
-    useEffect(() => {
-        if (trips.length > 0) {
-            // Immediate update
-            const updateCounts = async () => {
-                const updates: Record<string, number> = {};
-                for (const trip of trips) {
-                    const count = await fetchTripSeatAvailability(trip.id);
-                    updates[trip.id] = count;
-                }
-                setTripSeatCounts(prev => ({ ...prev, ...updates }));
-            };
-
-            updateCounts();
-
-            // Also set a delayed refresh to ensure accuracy
-            const timer = setTimeout(updateCounts, 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [trips, newDate]);
+    }, [selectedTrip, fetchAvailableSeats]);
 
     const toggleSeatSelection = (seat: Seat) => {
-        if (!booking) return;
-
-        const maxSeats = booking.passengers?.length || booking.passengerCount || 1;
-
+        const maxSeats = booking?.passengers?.length || booking?.passengerCount || 1;
+        
         setSelectedSeats(prev => {
-            const isSelected = prev.some(s => s.id === seat.id);
+            const isSelected = prev.find(s => s.id === seat.id);
             if (isSelected) {
                 return prev.filter(s => s.id !== seat.id);
-            } else {
-                if (prev.length < maxSeats) {
-                    return [...prev, seat];
-                }
-                return prev;
+            } else if (prev.length < maxSeats) {
+                return [...prev, seat];
             }
+            return prev;
         });
+        
+        if (errors.seats) setErrors({ ...errors, seats: '' });
     };
 
     const validateForm = () => {
-        if (!booking) return false;
-
-        let isValid = true;
         const newErrors = { ...errors };
+        let isValid = true;
 
-        // Check if modification reason is provided
+        if (!newDate) {
+            newErrors.date = 'Please select a new date';
+            isValid = false;
+        }
+
+        if (!selectedTrip) {
+            newErrors.trip = 'Please select a trip';
+            isValid = false;
+        }
+
+        if (selectedSeats.length === 0) {
+            newErrors.seats = 'Please select seats';
+            isValid = false;
+        }
+
         if (!modificationReason.trim()) {
             newErrors.reason = 'Please provide a reason for modification';
             isValid = false;
         }
 
-        // Check if date is changed and trip is selected
-        const originalDate = isModifyingReturn ? booking.returnDate : booking.departureDate;
-        const isDateChanged = newDate && newDate !== originalDate;
-        if (isDateChanged && !selectedTrip) {
-            newErrors.trip = `Please select a ${ticketLabel.toLowerCase()} trip for the new date`;
-            isValid = false;
-        }
-
-        const maxSeats = booking.passengers?.length || booking.passengerCount || 1;
-
-        // Only validate seat selection if trip is selected (date changed)
-        if (selectedTrip && selectedSeats.length !== maxSeats) {
-            newErrors.seats = `Please select ${maxSeats} seat(s) for ${ticketLabel.toLowerCase()}`;
-            isValid = false;
-        }
-
-        // Validate payment details for bank transfers only
-        if (selectedPaymentMethod === 'bank_transfer') {
+        if (selectedPaymentMethod === 'bank_transfer' && fareDifference !== 0) {
             if (!bankAccountDetails.accountNumber.trim()) {
-                newErrors.accountNumber = 'Account number is required for bank transfers';
+                newErrors.accountNumber = 'Please enter account number';
                 isValid = false;
             }
             if (!bankAccountDetails.accountName.trim()) {
-                newErrors.accountName = 'Account name is required for bank transfers';
+                newErrors.accountName = 'Please enter account holder name';
                 isValid = false;
             }
             if (!bankAccountDetails.bankName.trim()) {
-                newErrors.bankName = 'Bank name is required for bank transfers';
+                newErrors.bankName = 'Please enter bank name';
                 isValid = false;
             }
         }
 
         setErrors(newErrors);
         return isValid;
-    };
-
-    const formatCurrency = (amount: number) => {
-        return `MVR ${amount.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })}`;
     };
 
     const handleModify = async () => {
@@ -413,7 +273,6 @@ export default function AgentModifyBookingScreen() {
         setIsModifying(true);
 
         try {
-            // Prepare modification data for the specific ticket
             const modificationData = {
                 ticketType: isModifyingReturn ? 'return' : 'departure',
                 newTripId: selectedTrip?.id,
@@ -423,43 +282,34 @@ export default function AgentModifyBookingScreen() {
                 fareDifference,
                 paymentMethod: selectedPaymentMethod,
                 bankAccountDetails: fareDifference < 0 ? bankAccountDetails : null,
-                // Additional agent-specific fields
                 agentNotes,
                 modifiedByAgent: true,
             };
 
-            const result = await modifyBooking(booking.id, modificationData);
+            await modifyBooking(booking.id, modificationData);
 
             let successMessage = `The ${ticketLabel.toLowerCase()} ticket has been modified successfully.`;
 
             if (fareDifference > 0) {
-                // Additional charge scenario
                 if (selectedPaymentMethod === 'agent_credit') {
                     successMessage += ` An additional charge of ${formatCurrency(fareDifference)} has been deducted from your agent credit balance.`;
                 } else {
                     successMessage += ` An additional payment of ${formatCurrency(fareDifference)} will be processed via bank transfer.`;
                 }
             } else if (fareDifference < 0) {
-                // Refund scenario
                 if (selectedPaymentMethod === 'agent_credit') {
                     successMessage += ` A refund of ${formatCurrency(Math.abs(fareDifference))} has been credited to your agent account.`;
                 } else {
                     successMessage += ` A refund of ${formatCurrency(Math.abs(fareDifference))} will be processed via bank transfer within 72 hours.`;
                 }
             } else {
-                // No fare difference
                 successMessage += " No additional payment or refund is required.";
             }
 
             Alert.alert(
                 `${ticketLabel} Modified`,
                 successMessage,
-                [
-                    {
-                        text: "OK",
-                        onPress: () => router.back()
-                    }
-                ]
+                [{ text: "OK", onPress: () => router.back() }]
             );
         } catch (error) {
             console.error('Modification error:', error);
@@ -469,8 +319,8 @@ export default function AgentModifyBookingScreen() {
         }
     };
 
-    // Loading state for initial data load
-    if (isDataLoading) {
+    // Loading and error states
+    if (agentLoading && bookings.length === 0) {
         return (
             <View style={styles.notFoundContainer}>
                 <Text style={styles.notFoundText}>Loading booking details...</Text>
@@ -478,7 +328,6 @@ export default function AgentModifyBookingScreen() {
         );
     }
 
-    // Booking not found
     if (!booking) {
         return (
             <View style={styles.notFoundContainer}>
@@ -494,7 +343,7 @@ export default function AgentModifyBookingScreen() {
 
     const maxSeats = booking.passengers?.length || booking.passengerCount || 1;
     const originalDate = isModifyingReturn ? booking.returnDate : booking.departureDate;
-    const originalSeats = booking.seats; // Use booking.seats for both departure and return
+    const originalSeats = booking.seats;
 
     return (
         <>
@@ -518,45 +367,17 @@ export default function AgentModifyBookingScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     {/* Current Ticket Details */}
-                    <Card variant="elevated" style={styles.bookingCard}>
-                        <Text style={styles.cardTitle}>Current {ticketLabel} Ticket Details</Text>
-
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Booking Number:</Text>
-                            <Text style={styles.detailValue}>{booking.bookingNumber}</Text>
-                        </View>
-
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Client:</Text>
-                            <Text style={styles.detailValue}>{booking.clientName}</Text>
-                        </View>
-
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Route:</Text>
-                            <Text style={styles.detailValue}>
-                                {booking.route?.fromIsland?.name || booking.origin} → {booking.route?.toIsland?.name || booking.destination}
-                            </Text>
-                        </View>
-
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Current Date:</Text>
-                            <Text style={styles.detailValue}>
-                                {originalDate ? new Date(originalDate).toLocaleDateString() : 'N/A'}
-                            </Text>
-                        </View>
-
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Current Seats:</Text>
-                            <Text style={styles.detailValue}>
-                                {originalSeats?.map((seat: any) => seat.number).join(', ') || 'N/A'}
-                            </Text>
-                        </View>
-
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Original Amount:</Text>
-                            <Text style={styles.detailValue}>{formatCurrency(booking.totalAmount)}</Text>
-                        </View>
-                    </Card>
+                    <CurrentTicketDetailsCard
+                        bookingNumber={booking?.bookingNumber || ''}
+                        clientName={booking?.clientName || ''}
+                        route={booking?.route || {}}
+                        origin={booking?.origin}
+                        destination={booking?.destination}
+                        currentDate={originalDate || ''}
+                        currentSeats={originalSeats || []}
+                        totalAmount={booking?.totalAmount || 0}
+                        ticketLabel={ticketLabel}
+                    />
 
                     {/* Modification Form */}
                     <Card variant="elevated" style={styles.modifyCard}>
@@ -577,315 +398,118 @@ export default function AgentModifyBookingScreen() {
                         />
 
                         {/* Trip Selection */}
-                        {newDate && booking?.route ? (
+                        {newDate && booking?.route && (
                             <View style={styles.tripSelection}>
                                 <Text style={styles.sectionTitle}>Select New {ticketLabel} Trip</Text>
-                                {isTripsLoading ? (
+                                {tripLoading ? (
                                     <Text style={styles.loadingText}>Loading available trips...</Text>
                                 ) : trips.length > 0 ? (
-                                    <>
-                                        {trips.map((trip) => (
-                                            <TouchableOpacity
-                                                key={trip.id}
-                                                style={[
-                                                    styles.tripOption,
-                                                    selectedTrip?.id === trip.id && styles.tripOptionSelected
-                                                ]}
-                                                onPress={() => {
-                                                    setSelectedTrip(trip);
-                                                    setSelectedSeats([]);
-                                                    if (errors.trip) setErrors({ ...errors, trip: '' });
-                                                }}
-                                            >
-                                                <Text style={styles.tripTime}>{trip.departure_time}</Text>
-                                                <Text style={styles.tripVessel}>{trip.vessel_name}</Text>
-                                                <Text style={styles.tripSeats}>
-                                                    {tripSeatCounts[trip.id] !== undefined ? tripSeatCounts[trip.id] : 'Loading...'} seats available
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                        {errors.trip ? (
-                                            <Text style={styles.errorText}>{errors.trip}</Text>
-                                        ) : null}
-                                    </>
+                                    trips.map((trip) => (
+                                        <TouchableOpacity
+                                            key={trip.id}
+                                            style={[
+                                                styles.tripOption,
+                                                selectedTrip?.id === trip.id && styles.tripOptionSelected
+                                            ]}
+                                            onPress={() => {
+                                                setSelectedTrip(trip);
+                                                setSelectedSeats([]);
+                                                if (errors.trip) setErrors({ ...errors, trip: '' });
+                                            }}
+                                        >
+                                            <Text style={styles.tripTime}>{trip.departure_time}</Text>
+                                            <Text style={styles.tripVessel}>{trip.vessel_name || 'N/A'}</Text>
+                                            <Text style={styles.tripSeats}>
+                                                Available: {trip.available_seats || 0} seats
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))
                                 ) : (
-                                    <Text style={styles.noTripsText}>No trips available for this date. Please select a different date.</Text>
+                                    <Text style={styles.noSeatsText}>No trips available for this date</Text>
                                 )}
+                                {errors.trip ? (
+                                    <Text style={styles.errorText}>{errors.trip}</Text>
+                                ) : null}
                             </View>
-                        ) : newDate ? (
-                            <View style={styles.tripSelection}>
-                                <Text style={styles.sectionTitle}>Select New {ticketLabel} Trip</Text>
-                                <Text style={styles.noTripsText}>Please wait while we load available trips...</Text>
-                            </View>
-                        ) : null}
+                        )}
 
                         {/* Seat Selection */}
-                        <Text style={styles.seatSectionTitle}>
-                            Select New {ticketLabel} Seats ({selectedSeats.length}/{maxSeats})
-                        </Text>
-                        {!selectedTrip ? (
-                            <Text style={styles.noSeatsText}>Please select a {ticketLabel.toLowerCase()} trip first</Text>
-                        ) : isSeatsLoading ? (
-                            <Text style={styles.loadingText}>Loading available seats...</Text>
-                        ) : availableSeats.length > 0 ? (
-                            <SeatSelector
-                                seats={availableSeats}
-                                selectedSeats={selectedSeats}
-                                onSeatToggle={(seat) => toggleSeatSelection(seat)}
-                                maxSeats={maxSeats}
-                            />
-                        ) : (
-                            <Text style={styles.noSeatsText}>No seats available for this trip</Text>
-                        )}
-
-                        {errors.seats ? (
-                            <Text style={styles.errorText}>{errors.seats}</Text>
-                        ) : null}
-
-                        {/* New Booking Fare Calculation */}
                         {selectedTrip && (
-                            <Card variant="elevated" style={styles.fareCalculationCard}>
-                                <View style={styles.fareHeader}>
-                                    <DollarSign size={20} color={Colors.primary} />
-                                    <Text style={styles.fareTitle}>Fare Calculation</Text>
-                                </View>
-
-                                {/* Current Fare */}
-                                <View style={styles.discountRow}>
-                                    <Text style={styles.discountLabel}>Current Paid Amount:</Text>
-                                    <Text style={styles.discountValue}>
-                                        {formatCurrency(Number(booking?.discountedAmount) || Number(booking?.totalAmount) || 0)}
-                                    </Text>
-                                </View>
-
-                                {/* New Booking Base Fare */}
-                                <View style={styles.discountRow}>
-                                    <Text style={styles.discountLabel}>New Booking Fare:</Text>
-                                    <Text style={styles.discountValue}>
-                                        {formatCurrency((booking?.route?.baseFare || 0) * (booking?.passengers?.length || booking?.passengerCount || 1))}
-                                    </Text>
-                                </View>
-
-                                {/* Agent Discount on New Fare */}
-                                {agentDiscountRate > 0 && (
-                                    <>
-                                        <View style={styles.discountRow}>
-                                            <Text style={styles.discountLabel}>Agent Discount ({agentDiscountRate}%):</Text>
-                                            <Text style={styles.discountSavings}>
-                                                -{formatCurrency(((booking?.route?.baseFare || 0) * (booking?.passengers?.length || booking?.passengerCount || 1)) * (agentDiscountRate / 100))}
-                                            </Text>
-                                        </View>
-
-                                        <View style={styles.discountRow}>
-                                            <Text style={styles.discountLabel}>New Discounted Fare:</Text>
-                                            <Text style={styles.discountFinal}>
-                                                {formatCurrency(discountedFare)}
-                                            </Text>
-                                        </View>
-                                    </>
-                                )}
-
-                                {/* Payment Difference */}
-                                <View style={styles.dividerLine} />
-                                <View style={styles.discountRow}>
-                                    <Text style={[styles.discountLabel, { fontSize: 16, fontWeight: '600' }]}>
-                                        Payment Difference:
-                                    </Text>
-                                    <Text style={[
-                                        styles.fareAmount,
-                                        {
-                                            fontSize: 18,
-                                            color: fareDifference > 0 ? Colors.error :
-                                                fareDifference < 0 ? Colors.success : Colors.textSecondary
-                                        }
-                                    ]}>
-                                        {fareDifference > 0 ? '+' : ''}{formatCurrency(fareDifference)}
-                                    </Text>
-                                </View>
-
-                                <Text style={styles.fareDescription}>
-                                    {fareDifference > 0
-                                        ? 'Additional payment required from client'
-                                        : fareDifference < 0
-                                            ? 'Refund amount to be processed'
-                                            : 'No additional payment required'
-                                    }
+                            <View style={styles.seatSelection}>
+                                <Text style={styles.sectionTitle}>
+                                    Select New Seats ({selectedSeats.length}/{maxSeats})
                                 </Text>
-                            </Card>
+                                {seatLoading ? (
+                                    <Text style={styles.loadingText}>Loading available seats...</Text>
+                                ) : availableSeats && availableSeats.length > 0 ? (
+                                    <SeatSelector
+                                        seats={availableSeats}
+                                        selectedSeats={selectedSeats}
+                                        onSeatToggle={toggleSeatSelection}
+                                        maxSeats={maxSeats}
+                                    />
+                                ) : (
+                                    <Text style={styles.noSeatsText}>No seats available for this trip</Text>
+                                )}
+                                {errors.seats ? (
+                                    <Text style={styles.errorText}>{errors.seats}</Text>
+                                ) : null}
+                            </View>
                         )}
 
-                        {/* Payment Method Selection */}
-                        {selectedTrip && fareDifference !== 0 && (
-                            <Card variant="elevated" style={styles.paymentMethodCard}>
-                                <View style={styles.paymentMethodContainer}>
-                                    <Text style={styles.paymentMethodTitle}>
-                                        {fareDifference > 0 ? 'Payment Method' : 'Refund Method'}
-                                    </Text>
-
-                                    <View style={styles.paymentOptions}>
-                                        {/* Agent-specific payment options */}
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.paymentOption,
-                                                selectedPaymentMethod === 'agent_credit' && styles.paymentOptionSelected
-                                            ]}
-                                            onPress={() => setSelectedPaymentMethod('agent_credit')}
-                                        >
-                                            <Text style={[
-                                                styles.paymentOptionText,
-                                                selectedPaymentMethod === 'agent_credit' && styles.paymentOptionTextSelected
-                                            ]}>
-                                                💳 Agent Credit
-                                            </Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.paymentOption,
-                                                selectedPaymentMethod === 'bank_transfer' && styles.paymentOptionSelected
-                                            ]}
-                                            onPress={() => setSelectedPaymentMethod('bank_transfer')}
-                                        >
-                                            <Text style={[
-                                                styles.paymentOptionText,
-                                                selectedPaymentMethod === 'bank_transfer' && styles.paymentOptionTextSelected
-                                            ]}>
-                                                🏦 Bank Transfer
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-
-                                {/* Bank Account Details for Bank Transfers */}
-                                {selectedPaymentMethod === 'bank_transfer' && (
-                                    <View style={styles.bankDetailsContainer}>
-                                        <Text style={styles.bankDetailsTitle}>
-                                            Bank Account Details {fareDifference < 0 ? 'for Refund' : 'for Payment'}
-                                        </Text>
-
-                                        <View ref={(ref) => { inputRefs.current.accountNumber = ref; }}>
-                                            <Input
-                                                label="Account Number"
-                                                placeholder="Enter client's bank account number"
-                                                value={bankAccountDetails.accountNumber}
-                                                onChangeText={(text) => {
-                                                    setBankAccountDetails({ ...bankAccountDetails, accountNumber: text });
-                                                    if (errors.accountNumber) setErrors({ ...errors, accountNumber: '' });
-                                                }}
-                                                onFocus={() => {
-                                                    setActiveInput('accountNumber');
-                                                    scrollToInput('accountNumber');
-                                                }}
-                                                error={errors.accountNumber}
-                                                required
-                                            />
-                                        </View>
-
-                                        <View ref={(ref) => { inputRefs.current.accountName = ref; }}>
-                                            <Input
-                                                label="Account Holder Name"
-                                                placeholder="Enter account holder name"
-                                                value={bankAccountDetails.accountName}
-                                                onChangeText={(text) => {
-                                                    setBankAccountDetails({ ...bankAccountDetails, accountName: text });
-                                                    if (errors.accountName) setErrors({ ...errors, accountName: '' });
-                                                }}
-                                                onFocus={() => {
-                                                    setActiveInput('accountName');
-                                                    scrollToInput('accountName');
-                                                }}
-                                                error={errors.accountName}
-                                                required
-                                            />
-                                        </View>
-
-                                        <View ref={(ref) => { inputRefs.current.bankName = ref; }}>
-                                            <Input
-                                                label="Bank Name"
-                                                placeholder="Enter bank name"
-                                                value={bankAccountDetails.bankName}
-                                                onChangeText={(text) => {
-                                                    setBankAccountDetails({ ...bankAccountDetails, bankName: text });
-                                                    if (errors.bankName) setErrors({ ...errors, bankName: '' });
-                                                }}
-                                                onFocus={() => {
-                                                    setActiveInput('bankName');
-                                                    scrollToInput('bankName');
-                                                }}
-                                                error={errors.bankName}
-                                                required
-                                            />
-                                        </View>
-                                    </View>
-                                )}
-
-                                <Text style={styles.fareNote}>
-                                    {fareDifference > 0
-                                        ? "Additional payment will be required from client"
-                                        : fareDifference < 0
-                                            ? "Refund will be processed within 72 hours"
-                                            : "No additional payment or refund required"
-                                    }
-                                </Text>
-                            </Card>
-                        )}
-
-                        {/* Modification Reason */}
-                        <View
-                            ref={(el) => {
-                                inputRefs.current.reason = el;
+                        {/* Modification Reason and Notes */}
+                        <ModificationReasonForm
+                            modificationReason={modificationReason}
+                            onReasonChange={(reason) => {
+                                setModificationReason(reason);
+                                if (errors.reason) setErrors({ ...errors, reason: '' });
                             }}
-                            style={styles.reasonContainer}
-                        >
-                            <Text style={styles.reasonLabel}>Reason for Modification *</Text>
-                            <View style={styles.reasonInput}>
-                                <RNTextInput
-                                    style={styles.reasonTextInput}
-                                    placeholder={`Please provide a reason for modifying this ${ticketLabel.toLowerCase()} ticket`}
-                                    value={modificationReason}
-                                    onChangeText={(text: string) => {
-                                        setModificationReason(text);
-                                        if (errors.reason) setErrors({ ...errors, reason: '' });
-                                    }}
-                                    onFocus={() => {
-                                        setActiveInput('reason');
-                                        scrollToInput('reason');
-                                    }}
-                                    multiline
-                                    numberOfLines={3}
-                                    textAlignVertical="top"
-                                />
-                            </View>
-                            {errors.reason ? (
-                                <Text style={styles.errorText}>{errors.reason}</Text>
-                            ) : null}
-                        </View>
-
-                        {/* Agent Notes */}
-                        <View
-                            ref={(el) => {
-                                inputRefs.current.agentNotes = el;
+                            agentNotes={agentNotes}
+                            onNotesChange={setAgentNotes}
+                            reasonError={errors.reason}
+                            onReasonFocus={() => {
+                                setActiveInput('reason');
+                                scrollToInput('reason');
                             }}
-                            style={styles.reasonContainer}
-                        >
-                            <Text style={styles.reasonLabel}>Agent Notes (Optional)</Text>
-                            <View style={styles.reasonInput}>
-                                <RNTextInput
-                                    style={styles.reasonTextInput}
-                                    placeholder="Add any internal notes about this modification"
-                                    value={agentNotes}
-                                    onChangeText={setAgentNotes}
-                                    onFocus={() => {
-                                        setActiveInput('agentNotes');
-                                        scrollToInput('agentNotes');
-                                    }}
-                                    multiline
-                                    numberOfLines={2}
-                                    textAlignVertical="top"
-                                />
-                            </View>
-                        </View>
+                            onNotesFocus={() => {
+                                setActiveInput('agentNotes');
+                                scrollToInput('agentNotes');
+                            }}
+                            ticketLabel={ticketLabel}
+                            inputRefs={inputRefs}
+                        />
                     </Card>
+
+                    {/* Fare Calculation */}
+                    {selectedTrip && booking && (
+                        <FareCalculationCard
+                            currentPaidAmount={Number(booking.discountedAmount) || Number(booking.totalAmount) || 0}
+                            newBookingFare={(booking.route?.baseFare || 0) * (booking.passengers?.length || booking.passengerCount || 1)}
+                            agentDiscountRate={agentDiscountRate}
+                            discountedFare={discountedFare}
+                            fareDifference={fareDifference}
+                        />
+                    )}
+
+                    {/* Payment Method Selection */}
+                    <PaymentMethodSelector
+                        fareDifference={fareDifference}
+                        selectedPaymentMethod={selectedPaymentMethod}
+                        onPaymentMethodChange={setSelectedPaymentMethod}
+                        bankAccountDetails={bankAccountDetails}
+                        onBankDetailsChange={setBankAccountDetails}
+                        errors={{
+                            accountNumber: errors.accountNumber,
+                            accountName: errors.accountName,
+                            bankName: errors.bankName,
+                        }}
+                        onErrorClear={(field) => setErrors({ ...errors, [field]: '' })}
+                        onFocus={(field) => {
+                            setActiveInput(field);
+                            scrollToInput(field);
+                        }}
+                        inputRefs={inputRefs}
+                    />
 
                     {/* Action Buttons */}
                     <View style={styles.buttonContainer}>
@@ -899,8 +523,8 @@ export default function AgentModifyBookingScreen() {
                         <Button
                             title={`Modify Ticket`}
                             onPress={handleModify}
-                            loading={isModifying || isTripsLoading || isSeatsLoading}
-                            disabled={isModifying || isTripsLoading || isSeatsLoading}
+                            loading={isModifying || tripLoading || seatLoading}
+                            disabled={isModifying || tripLoading || seatLoading}
                             style={styles.modifyButton}
                         />
                     </View>
@@ -936,9 +560,6 @@ const styles = StyleSheet.create({
     notFoundButton: {
         minWidth: 120,
     },
-    bookingCard: {
-        marginBottom: 16,
-    },
     modifyCard: {
         marginBottom: 24,
     },
@@ -947,23 +568,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: Colors.text,
         marginBottom: 16,
-    },
-    detailRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 8,
-    },
-    detailLabel: {
-        fontSize: 14,
-        color: Colors.textSecondary,
-        flex: 1,
-    },
-    detailValue: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: Colors.text,
-        flex: 1,
-        textAlign: 'right',
     },
     tripSelection: {
         marginBottom: 16,
@@ -1001,12 +605,8 @@ const styles = StyleSheet.create({
         color: Colors.primary,
         marginTop: 2,
     },
-    seatSectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: Colors.text,
-        marginBottom: 8,
-        marginTop: 16,
+    seatSelection: {
+        marginBottom: 16,
     },
     noSeatsText: {
         fontSize: 14,
@@ -1020,63 +620,6 @@ const styles = StyleSheet.create({
         color: Colors.primary,
         textAlign: 'center',
         padding: 20,
-    },
-    fareCard: {
-        marginVertical: 16,
-        padding: 16,
-    },
-    fareCalculationCard: {
-        marginBottom: 16,
-        backgroundColor: '#f0f9ff',
-    },
-    paymentMethodCard: {
-        marginBottom: 16,
-    },
-    dividerLine: {
-        height: 1,
-        backgroundColor: Colors.border,
-        marginVertical: 12,
-    },
-    fareHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    fareTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: Colors.text,
-        marginLeft: 8,
-    },
-    fareAmount: {
-        fontSize: 20,
-        fontWeight: '700',
-        marginBottom: 4,
-    },
-    fareDescription: {
-        fontSize: 14,
-        color: Colors.textSecondary,
-    },
-    reasonContainer: {
-        marginBottom: 16,
-    },
-    reasonLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: Colors.text,
-        marginBottom: 8,
-    },
-    reasonInput: {
-        borderWidth: 1,
-        borderColor: Colors.border,
-        borderRadius: 8,
-        backgroundColor: Colors.background,
-    },
-    reasonTextInput: {
-        padding: 12,
-        fontSize: 16,
-        color: Colors.text,
-        minHeight: 80,
     },
     errorText: {
         fontSize: 14,
@@ -1095,113 +638,5 @@ const styles = StyleSheet.create({
     modifyButton: {
         flex: 1,
         marginLeft: 8,
-    },
-    paymentMethodContainer: {
-        marginTop: 16,
-        marginBottom: 16,
-    },
-    paymentMethodTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: Colors.text,
-        marginBottom: 12,
-    },
-    paymentOptions: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    paymentOption: {
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        backgroundColor: Colors.background,
-    },
-    paymentOptionSelected: {
-        backgroundColor: Colors.primary,
-        borderColor: Colors.primary,
-    },
-    paymentOptionText: {
-        fontSize: 14,
-        color: Colors.text,
-        fontWeight: '500',
-    },
-    paymentOptionTextSelected: {
-        color: '#fff',
-    },
-    bankDetailsContainer: {
-        marginTop: 16,
-        padding: 16,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 8,
-    },
-    bankDetailsTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: Colors.text,
-        marginBottom: 12,
-    },
-    fareNote: {
-        fontSize: 14,
-        color: Colors.textSecondary,
-        fontStyle: 'italic',
-        marginTop: 12,
-    },
-    currentPaymentCard: {
-        marginBottom: 16,
-        backgroundColor: '#f5f5f5',
-    },
-    discountCard: {
-        marginBottom: 16,
-        backgroundColor: '#e8f5e9',
-    },
-    discountHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    discountTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: Colors.success,
-    },
-    discountRate: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: Colors.success,
-    },
-    discountRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 8,
-    },
-    discountLabel: {
-        fontSize: 14,
-        color: Colors.textSecondary,
-    },
-    discountValue: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: Colors.text,
-    },
-    discountSavings: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.success,
-    },
-    discountFinal: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: Colors.success,
-    },
-    noTripsText: {
-        fontSize: 14,
-        color: Colors.textSecondary,
-        textAlign: 'center',
-        padding: 20,
-        fontStyle: 'italic',
     },
 }); 

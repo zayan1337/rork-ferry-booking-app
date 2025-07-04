@@ -8,15 +8,27 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  TextInput as RNTextInput
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { AlertTriangle, DollarSign, User, CreditCard } from 'lucide-react-native';
 import { useAgentStore } from '@/store/agent/agentStore';
-import Colors from '@/constants/colors';
-import Card from '@/components/Card';
-import Input from '@/components/Input';
+import {
+  AgentPolicyCard,
+  RefundConfigurationCard,
+  CancellationDetailsForm,
+  CommissionImpactCard,
+} from '@/components/booking';
+import { CurrentTicketDetailsCard } from '@/components/booking';
 import Button from '@/components/Button';
+import { formatCurrency } from '@/utils/agentFormatters';
+import Colors from '@/constants/colors';
+
+type RefundMethod = 'agent_credit' | 'original_payment' | 'bank_transfer';
+
+interface BankDetails {
+  accountNumber: string;
+  accountName: string;
+  bankName: string;
+}
 
 export default function AgentCancelBookingScreen() {
   const { id } = useLocalSearchParams();
@@ -52,16 +64,15 @@ export default function AgentCancelBookingScreen() {
   const [reason, setReason] = useState('');
   const [agentNotes, setAgentNotes] = useState('');
   const [clientNotification, setClientNotification] = useState('');
-  const [refundMethod, setRefundMethod] = useState<'agent_credit' | 'original_payment' | 'bank_transfer'>('agent_credit');
-  const [refundPercentage, setRefundPercentage] = useState(100); // Agents can offer full refunds
-  const [bankDetails, setBankDetails] = useState({
+  const [refundMethod, setRefundMethod] = useState<RefundMethod>('agent_credit');
+  const [refundPercentage, setRefundPercentage] = useState(100);
+  const [bankDetails, setBankDetails] = useState<BankDetails>({
     accountNumber: '',
     accountName: '',
     bankName: '',
   });
   const [errors, setErrors] = useState({
     reason: '',
-    agentNotes: '',
     bankDetails: '',
   });
   const [isCancelling, setIsCancelling] = useState(false); // Local loading state for cancellation
@@ -170,13 +181,7 @@ export default function AgentCancelBookingScreen() {
     return isValid;
   };
 
-  const formatCurrency = (amount: number) => {
-    const safeAmount = Number(amount) || 0;
-    return 'MVR ' + safeAmount.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
+
 
   const getRouteDisplay = () => {
     let fromLocation = 'Unknown';
@@ -301,229 +306,65 @@ export default function AgentCancelBookingScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Agent Policy Info */}
-          <Card variant="elevated" style={styles.policyCard}>
-            <View style={styles.policyHeader}>
-              <AlertTriangle size={24} color={Colors.warning} style={styles.policyIcon} />
-              <Text style={styles.policyTitle}>Agent Cancellation Authority</Text>
-            </View>
-            <Text style={styles.policyText}>
-              As an agent, you have the authority to:
-            </Text>
-            <View style={styles.policyList}>
-              <Text style={styles.policyItem}>• Offer up to 100% refund for valid reasons</Text>
-              <Text style={styles.policyItem}>• Process immediate refunds through agent credit</Text>
-              <Text style={styles.policyItem}>• Waive standard cancellation policies for client satisfaction</Text>
-              <Text style={styles.policyItem}>• Document special circumstances in notes</Text>
-            </View>
-          </Card>
+          <AgentPolicyCard />
 
           {/* Booking Details */}
-          <Card variant="elevated" style={styles.bookingCard}>
-            <Text style={styles.cardTitle}>Booking Details</Text>
-
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Booking Number:</Text>
-              <Text style={styles.detailValue}>{safeBooking.bookingNumber}</Text>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Client:</Text>
-              <Text style={styles.detailValue}>{safeBooking.clientName}</Text>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Route:</Text>
-              <Text style={styles.detailValue}>{getRouteDisplay()}</Text>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Date:</Text>
-              <Text style={styles.detailValue}>{getDateDisplay()}</Text>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Total Amount:</Text>
-              <Text style={styles.detailValue}>{formatCurrency(safeBooking.totalAmount)}</Text>
-            </View>
-
-            {safeBooking.discountedAmount && safeBooking.discountedAmount !== safeBooking.totalAmount ? (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Amount Paid:</Text>
-                <Text style={styles.detailValue}>{formatCurrency(safeBooking.discountedAmount)}</Text>
-              </View>
-            ) : null}
-          </Card>
+          <CurrentTicketDetailsCard
+            bookingNumber={safeBooking.bookingNumber}
+            clientName={safeBooking.clientName}
+            route={safeBooking.route ? {
+              fromIsland: { name: safeBooking.route.fromIsland?.name || 'Unknown' },
+              toIsland: { name: safeBooking.route.toIsland?.name || 'Unknown' }
+            } : undefined}
+            origin={safeBooking.origin}
+            destination={safeBooking.destination}
+            currentDate={safeBooking.departureDate || ''}
+            currentSeats={[]}
+            totalAmount={safeBooking.totalAmount}
+            ticketLabel="Booking"
+          />
 
           {/* Refund Configuration */}
-          <Card variant="elevated" style={styles.refundCard}>
-            <Text style={styles.cardTitle}>Refund Configuration</Text>
+          <RefundConfigurationCard
+            refundMethod={refundMethod}
+            onRefundMethodChange={setRefundMethod}
+            refundPercentage={refundPercentage}
+            onRefundPercentageChange={setRefundPercentage}
+            bankDetails={bankDetails}
+            onBankDetailsChange={setBankDetails}
+            refundAmount={refundAmount}
+            bankDetailsError={errors.bankDetails}
+          />
 
-            <View style={styles.refundMethodContainer}>
-              <Text style={styles.refundMethodLabel}>Refund Method</Text>
-              <View style={styles.refundMethods}>
-                <Button
-                  title="Agent Credit"
-                  onPress={() => setRefundMethod('agent_credit')}
-                  variant={refundMethod === 'agent_credit' ? 'primary' : 'outline'}
-                  style={styles.refundMethodButton}
-                  textStyle={styles.refundMethodText}
-                />
-                <Button
-                  title="Original Payment"
-                  onPress={() => setRefundMethod('original_payment')}
-                  variant={refundMethod === 'original_payment' ? 'primary' : 'outline'}
-                  style={styles.refundMethodButton}
-                  textStyle={styles.refundMethodText}
-                />
-                <Button
-                  title="Bank Transfer"
-                  onPress={() => setRefundMethod('bank_transfer')}
-                  variant={refundMethod === 'bank_transfer' ? 'primary' : 'outline'}
-                  style={styles.refundMethodButton}
-                  textStyle={styles.refundMethodText}
-                />
-              </View>
-
-              {/* Bank Details Form - shown only for bank transfer */}
-              {refundMethod === 'bank_transfer' ? (
-                <View style={styles.bankDetailsContainer}>
-                  <Text style={styles.bankDetailsTitle}>Bank Transfer Details</Text>
-
-                  <Input
-                    label="Account Number"
-                    placeholder="Enter bank account number"
-                    value={bankDetails.accountNumber}
-                    onChangeText={(text) => setBankDetails({ ...bankDetails, accountNumber: text })}
-                    keyboardType="numeric"
-                    required
-                  />
-
-                  <Input
-                    label="Account Holder Name"
-                    placeholder="Enter account holder name"
-                    value={bankDetails.accountName}
-                    onChangeText={(text) => setBankDetails({ ...bankDetails, accountName: text })}
-                    required
-                  />
-
-                  <Input
-                    label="Bank Name"
-                    placeholder="Enter bank name"
-                    value={bankDetails.bankName}
-                    onChangeText={(text) => setBankDetails({ ...bankDetails, bankName: text })}
-                    required
-                  />
-
-                  {errors.bankDetails ? (
-                    <Text style={styles.errorText}>{errors.bankDetails}</Text>
-                  ) : null}
-                </View>
-              ) : null}
-            </View>
-
-            <View style={styles.refundPercentageContainer}>
-              <Text style={styles.refundPercentageLabel}>Refund Percentage</Text>
-              <View style={styles.refundPercentageButtons}>
-                <Button
-                  title="50%"
-                  onPress={() => setRefundPercentage(50)}
-                  variant={refundPercentage === 50 ? 'primary' : 'outline'}
-                  style={styles.percentageButton}
-                />
-                <Button
-                  title="75%"
-                  onPress={() => setRefundPercentage(75)}
-                  variant={refundPercentage === 75 ? 'primary' : 'outline'}
-                  style={styles.percentageButton}
-                />
-                <Button
-                  title="100%"
-                  onPress={() => setRefundPercentage(100)}
-                  variant={refundPercentage === 100 ? 'primary' : 'outline'}
-                  style={styles.percentageButton}
-                />
-              </View>
-            </View>
-
-            <View style={styles.refundAmountRow}>
-              <Text style={styles.refundAmountLabel}>Refund Amount:</Text>
-              <Text style={styles.refundAmountValue}>{formatCurrency(refundAmount)}</Text>
-            </View>
-          </Card>
-
-          {/* Form */}
-          <Card variant="elevated" style={styles.formCard}>
-            <Text style={styles.cardTitle}>Cancellation Details</Text>
-
-            <View
-              ref={(ref) => { inputRefs.current.reason = ref; }}
-            >
-              <Input
-                label="Reason for Cancellation"
-                placeholder="Please provide a detailed reason for cancellation"
-                value={reason}
-                onChangeText={(text) => {
-                  setReason(text);
-                  if (errors.reason) setErrors({ ...errors, reason: '' });
-                }}
-                onFocus={() => {
-                  setActiveInput('reason');
-                  scrollToInput('reason');
-                }}
-                multiline
-                numberOfLines={3}
-                error={errors.reason}
-                required
-              />
-            </View>
-
-            <View
-              ref={(ref) => { inputRefs.current.agentNotes = ref; }}
-            >
-              <Input
-                label="Agent Notes (Internal)"
-                placeholder="Add any internal notes or special circumstances"
-                value={agentNotes}
-                onChangeText={setAgentNotes}
-                onFocus={() => {
-                  setActiveInput('agentNotes');
-                  scrollToInput('agentNotes');
-                }}
-                multiline
-                numberOfLines={2}
-              />
-            </View>
-
-            <View
-              ref={(ref) => { inputRefs.current.clientNotification = ref; }}
-            >
-              <Input
-                label="Client Notification Message"
-                placeholder="Optional custom message to send to client"
-                value={clientNotification}
-                onChangeText={setClientNotification}
-                onFocus={() => {
-                  setActiveInput('clientNotification');
-                  scrollToInput('clientNotification');
-                }}
-                multiline
-                numberOfLines={2}
-              />
-            </View>
-          </Card>
+          {/* Cancellation Details */}
+          <CancellationDetailsForm
+            reason={reason}
+            onReasonChange={(text) => {
+              setReason(text);
+              if (errors.reason) setErrors({ ...errors, reason: '' });
+            }}
+            agentNotes={agentNotes}
+            onAgentNotesChange={setAgentNotes}
+            clientNotification={clientNotification}
+            onClientNotificationChange={setClientNotification}
+            reasonError={errors.reason}
+            onReasonFocus={() => {
+              setActiveInput('reason');
+              scrollToInput('reason');
+            }}
+            onAgentNotesFocus={() => {
+              setActiveInput('agentNotes');
+              scrollToInput('agentNotes');
+            }}
+            onClientNotificationFocus={() => {
+              setActiveInput('clientNotification');
+              scrollToInput('clientNotification');
+            }}
+            inputRefs={inputRefs}
+          />
 
           {/* Commission Impact */}
-          {safeBooking.commission && Number(safeBooking.commission) > 0 ? (
-            <Card variant="elevated" style={styles.commissionCard}>
-              <View style={styles.commissionHeader}>
-                <DollarSign size={20} color={Colors.warning} />
-                <Text style={styles.commissionTitle}>Commission Impact</Text>
-              </View>
-              <Text style={styles.commissionText}>
-                {'Your commission of ' + formatCurrency(safeBooking.commission) + ' will be deducted from your account.'}
-              </Text>
-            </Card>
-          ) : null}
+          <CommissionImpactCard commission={safeBooking.commission} />
 
           <View style={styles.buttonContainer}>
             <Button

@@ -623,6 +623,36 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                 })
                 .eq('id', bookingId);
 
+            // Insert modification record into modifications table
+            const modificationRecord = {
+                old_booking_id: bookingId,
+                new_booking_id: newBooking.id,
+                modification_reason: modificationData.modificationReason || 'Booking modification',
+                fare_difference: modificationData.fareDifference || 0,
+                requires_additional_payment: (modificationData.fareDifference || 0) > 0,
+                refund_details: modificationData.fareDifference < 0 ? {
+                    refund_amount: Math.abs(modificationData.fareDifference),
+                    refund_method: modificationData.paymentMethod,
+                    bank_details: modificationData.paymentMethod === 'bank_transfer' ? modificationData.bankAccountDetails : null
+                } : null,
+                payment_details: modificationData.fareDifference > 0 ? {
+                    payment_amount: modificationData.fareDifference,
+                    payment_method: modificationData.paymentMethod,
+                    bank_details: modificationData.paymentMethod === 'bank_transfer' ? modificationData.bankAccountDetails : null
+                } : null
+            };
+
+            const { error: modificationError } = await supabase
+                .from('modifications')
+                .insert(modificationRecord);
+
+            if (modificationError) {
+                console.error('Failed to create modification record:', modificationError);
+                // Don't throw error - booking was created successfully
+            } else {
+                console.log('Modification record created successfully');
+            }
+
             // Handle additional modification logic (passengers, seats, etc.)
             // Copy passengers from original booking to new booking
             if (currentBooking.passengers && currentBooking.passengers.length > 0) {
