@@ -46,6 +46,45 @@ export default function AgentClientsScreen() {
     }).length;
   }, [bookings]);
 
+  // Function to get client's last booking date
+  const getClientLastBookingDate = React.useCallback((clientId: string) => {
+    if (!bookings || bookings.length === 0) return undefined;
+
+    const clientBookings = bookings.filter(booking => {
+      return booking.clientId === clientId ||
+        booking.userId === clientId ||
+        booking.agentClientId === clientId;
+    });
+
+    if (clientBookings.length === 0) return undefined;
+
+    // Sort by booking date (most recent first) and get the latest
+    const sortedBookings = clientBookings.sort((a, b) => {
+      const dateA = new Date(a.bookingDate);
+      const dateB = new Date(b.bookingDate);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    return sortedBookings[0].bookingDate;
+  }, [bookings]);
+
+  // Function to get client's total revenue
+  const getClientTotalRevenue = React.useCallback((clientId: string) => {
+    if (!bookings || bookings.length === 0) return 0;
+
+    const clientBookings = bookings.filter(booking => {
+      return booking.clientId === clientId ||
+        booking.userId === clientId ||
+        booking.agentClientId === clientId;
+    });
+
+    return clientBookings.reduce((total, booking) => {
+      // Use totalAmount or discountedAmount, fallback to 0
+      const amount = booking.totalAmount || booking.discountedAmount || 0;
+      return total + amount;
+    }, 0);
+  }, [bookings]);
+
   // Update clients data with corrected booking counts
   const clientsWithCorrectCounts = React.useMemo(() => {
     if (!clients || !bookings) return clients || [];
@@ -94,14 +133,22 @@ export default function AgentClientsScreen() {
     router.push("../client/add");
   };
 
-  // Stable renderItem function for better FlatList performance
-  const renderClientItem = React.useCallback(({ item }: { item: Client }) => (
-    <ClientCard
-      client={item}
-      onPress={handleClientPress}
-      inactiveBookingsCount={getInactiveBookingsCount(item.id)}
-    />
-  ), [handleClientPress, getInactiveBookingsCount]);
+  // Enhanced renderItem function with additional client data
+  const renderClientItem = React.useCallback(({ item }: { item: Client }) => {
+    const lastBookingDate = getClientLastBookingDate(item.id);
+    const totalRevenue = getClientTotalRevenue(item.id);
+    const inactiveBookingsCount = getInactiveBookingsCount(item.id);
+
+    return (
+      <ClientCard
+        client={item}
+        onPress={handleClientPress}
+        inactiveBookingsCount={inactiveBookingsCount}
+        lastBookingDate={lastBookingDate}
+        totalRevenue={totalRevenue}
+      />
+    );
+  }, [handleClientPress, getInactiveBookingsCount, getClientLastBookingDate, getClientTotalRevenue]);
 
   // Calculate enhanced stats with proper average calculation
   const enhancedStats = {
@@ -111,8 +158,6 @@ export default function AgentClientsScreen() {
       ? clientsWithCorrectCounts.reduce((sum, client) => sum + (client.bookingsCount || 0), 0) / clientsWithCorrectCounts.length
       : 0,
   };
-
-
 
   return (
     <View style={styles.container}>
@@ -148,7 +193,7 @@ export default function AgentClientsScreen() {
 
       {/* Client List */}
       {isLoadingClients && (!clients || clients.length === 0) ? (
-        <SkeletonClientsList count={7} delay={0} />
+        <SkeletonClientsList count={6} delay={0} />
       ) : filteredClients.length > 0 ? (
         <FlatList
           data={filteredClients}
@@ -163,12 +208,11 @@ export default function AgentClientsScreen() {
               tintColor={Colors.primary}
             />
           }
-          getItemLayout={(data, index) => (
-            { length: 120, offset: 120 * index, index }
-          )}
           removeClippedSubviews={true}
-          maxToRenderPerBatch={8}
-          windowSize={8}
+          maxToRenderPerBatch={6}
+          windowSize={6}
+          initialNumToRender={6}
+          showsVerticalScrollIndicator={false}
         />
       ) : (
         <View style={styles.emptyContainer}>

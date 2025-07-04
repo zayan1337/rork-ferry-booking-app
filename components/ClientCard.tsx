@@ -1,83 +1,229 @@
 import React from "react";
-import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from "react-native";
 import { Client } from "@/types/agent";
 import Colors from "@/constants/colors";
-import { User, Mail, Phone, BarChart, UserX, AlertTriangle } from "lucide-react-native";
+import {
+    User,
+    Mail,
+    Phone,
+    BarChart,
+    UserX,
+    AlertTriangle,
+    Calendar,
+    TrendingUp,
+    Star,
+    Clock,
+    CheckCircle
+} from "lucide-react-native";
 import Card from "./Card";
 
 interface ClientCardProps {
     client: Client;
     onPress: (client: Client) => void;
-    inactiveBookingsCount?: number; // Count of cancelled/modified bookings
+    inactiveBookingsCount?: number;
+    lastBookingDate?: string;
+    totalRevenue?: number;
 }
 
-// Memoized component for better VirtualizedList performance
-const ClientCard = React.memo<ClientCardProps>(({ client, onPress, inactiveBookingsCount = 0 }) => {
+const { width: screenWidth } = Dimensions.get('window');
+const isTablet = screenWidth > 768;
+
+// Helper function to get client tier based on booking count
+const getClientTier = (bookingsCount: number) => {
+    if (bookingsCount >= 20) return { tier: 'VIP', color: Colors.warning, icon: Star };
+    if (bookingsCount >= 10) return { tier: 'Gold', color: Colors.secondary, icon: TrendingUp };
+    if (bookingsCount >= 5) return { tier: 'Silver', color: Colors.primary, icon: CheckCircle };
+    return { tier: 'Bronze', color: Colors.subtext, icon: User };
+};
+
+// Helper function to get activity status
+const getActivityStatus = (lastBookingDate?: string, bookingsCount: number = 0) => {
+    if (!lastBookingDate || bookingsCount === 0) {
+        return { status: 'New', color: Colors.secondary, textColor: Colors.secondary };
+    }
+
+    const lastBooking = new Date(lastBookingDate);
+    const daysSinceLastBooking = Math.floor((Date.now() - lastBooking.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysSinceLastBooking <= 7) {
+        return { status: 'Active', color: Colors.success, textColor: Colors.success };
+    } else if (daysSinceLastBooking <= 30) {
+        return { status: 'Recent', color: Colors.warning, textColor: Colors.warning };
+    } else {
+        return { status: 'Inactive', color: Colors.inactive, textColor: Colors.subtext };
+    }
+};
+
+// Helper function to format currency
+const formatCurrency = (amount: number = 0) => {
+    return `$${amount.toFixed(0)}`;
+};
+
+// Helper function to format date
+const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
+};
+
+const ClientCard = React.memo<ClientCardProps>(({
+    client,
+    onPress,
+    inactiveBookingsCount = 0,
+    lastBookingDate,
+    totalRevenue = 0
+}) => {
     const handlePress = React.useCallback(() => {
         onPress(client);
     }, [onPress, client]);
 
+    const clientTier = getClientTier(client.bookingsCount);
+    const activityStatus = getActivityStatus(lastBookingDate, client.bookingsCount);
+    const averageBookingValue = client.bookingsCount > 0 ? totalRevenue / client.bookingsCount : 0;
+    const TierIcon = clientTier.icon;
+
+    const cardStyle = {
+        ...styles.card,
+        ...(isTablet ? styles.tabletCard : {})
+    };
+
     return (
-        <TouchableOpacity onPress={handlePress}>
-            <Card variant="elevated" style={styles.card}>
+        <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
+            <Card variant="elevated" style={cardStyle}>
+                {/* Header Section */}
                 <View style={styles.header}>
                     <View style={[
                         styles.avatarContainer,
                         !client.hasAccount && styles.avatarContainerNoAccount
                     ]}>
                         {client.hasAccount ? (
-                            <User size={24} color={Colors.primary} />
+                            <User size={isTablet ? 28 : 24} color={Colors.primary} />
                         ) : (
-                            <UserX size={24} color={Colors.subtext} />
+                            <UserX size={isTablet ? 28 : 24} color={Colors.subtext} />
                         )}
                     </View>
-                    <View style={styles.clientInfo}>
-                        <View style={styles.nameRow}>
-                            <Text style={styles.clientName}>{client.name}</Text>
-                            {!client.hasAccount && (
-                                <View style={styles.noAccountBadge}>
-                                    <Text style={styles.noAccountText}>No Account</Text>
+
+                    <View style={styles.clientMainInfo}>
+                        <View style={styles.nameSection}>
+                            <Text style={[styles.clientName, isTablet && styles.tabletText]} numberOfLines={1}>
+                                {client.name}
+                            </Text>
+                            <View style={styles.badgesRow}>
+                                {!client.hasAccount && (
+                                    <View style={styles.noAccountBadge}>
+                                        <Text style={styles.noAccountText}>No Account</Text>
+                                    </View>
+                                )}
+                                <View style={[styles.tierBadge, { backgroundColor: `${clientTier.color}15` }]}>
+                                    <TierIcon size={10} color={clientTier.color} />
+                                    <Text style={[styles.tierText, { color: clientTier.color }]}>{clientTier.tier}</Text>
                                 </View>
-                            )}
-                        </View>
-                        <Text style={styles.clientEmail}>{client.email}</Text>
-                    </View>
-                    <View style={styles.bookingsInfo}>
-                        <View style={styles.bookingsContainer}>
-                            <BarChart size={16} color={Colors.primary} />
-                            <Text style={styles.bookingsCount}>{client.bookingsCount}</Text>
-                        </View>
-                        {inactiveBookingsCount > 0 && (
-                            <View style={styles.inactiveBookingsContainer}>
-                                <AlertTriangle size={12} color={Colors.warning} />
-                                <Text style={styles.inactiveBookingsCount}>{inactiveBookingsCount}</Text>
                             </View>
-                        )}
+                        </View>
+                        <Text style={[styles.clientEmail, isTablet && styles.tabletSubtext]} numberOfLines={1}>
+                            {client.email}
+                        </Text>
+                    </View>
+
+                    <View style={styles.statusSection}>
+                        <View style={[styles.statusBadge, { backgroundColor: `${activityStatus.color}15` }]}>
+                            <View style={[styles.statusDot, { backgroundColor: activityStatus.color }]} />
+                            <Text style={[styles.statusText, { color: activityStatus.textColor }]}>
+                                {activityStatus.status}
+                            </Text>
+                        </View>
                     </View>
                 </View>
 
-                <View style={styles.divider} />
+                {/* Stats Section */}
+                <View style={styles.statsSection}>
+                    <View style={styles.statsRow}>
+                        {/* Bookings Count */}
+                        <View style={styles.statItem}>
+                            <View style={styles.statIconContainer}>
+                                <BarChart size={14} color={Colors.primary} />
+                            </View>
+                            <View style={styles.statContent}>
+                                <Text style={styles.statValue}>{client.bookingsCount}</Text>
+                                <Text style={styles.statLabel}>Bookings</Text>
+                            </View>
+                        </View>
 
-                <View style={styles.contactInfo}>
+                        {/* Total Revenue */}
+                        <View style={styles.statItem}>
+                            <View style={styles.statIconContainer}>
+                                <TrendingUp size={14} color={Colors.success} />
+                            </View>
+                            <View style={styles.statContent}>
+                                <Text style={styles.statValue}>{formatCurrency(totalRevenue)}</Text>
+                                <Text style={styles.statLabel}>Revenue</Text>
+                            </View>
+                        </View>
+
+                        {/* Average Value */}
+                        <View style={styles.statItem}>
+                            <View style={styles.statIconContainer}>
+                                <Star size={14} color={Colors.warning} />
+                            </View>
+                            <View style={styles.statContent}>
+                                <Text style={styles.statValue}>{formatCurrency(averageBookingValue)}</Text>
+                                <Text style={styles.statLabel}>Avg. Value</Text>
+                            </View>
+                        </View>
+
+                        {/* Last Booking */}
+                        <View style={styles.statItem}>
+                            <View style={styles.statIconContainer}>
+                                <Clock size={14} color={Colors.secondary} />
+                            </View>
+                            <View style={styles.statContent}>
+                                <Text style={styles.statValue} numberOfLines={1}>{formatDate(lastBookingDate)}</Text>
+                                <Text style={styles.statLabel}>Last Booking</Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Issues Indicator */}
+                    {inactiveBookingsCount > 0 && (
+                        <View style={styles.issuesContainer}>
+                            <AlertTriangle size={12} color={Colors.error} />
+                            <Text style={styles.issuesText}>
+                                {inactiveBookingsCount} cancelled/modified booking{inactiveBookingsCount > 1 ? 's' : ''}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Footer Section */}
+                <View style={styles.footer}>
                     <View style={styles.contactRow}>
-                        <Phone size={14} color={Colors.subtext} />
-                        <Text style={styles.contactText}>{client.phone}</Text>
+                        <Phone size={12} color={Colors.subtext} />
+                        <Text style={[styles.contactText, isTablet && styles.tabletContactText]} numberOfLines={1}>
+                            {client.phone}
+                        </Text>
                     </View>
                     <View style={styles.contactRow}>
-                        <Mail size={14} color={Colors.subtext} />
-                        <Text style={styles.contactText}>{client.email}</Text>
+                        <Mail size={12} color={Colors.subtext} />
+                        <Text style={[styles.contactText, isTablet && styles.tabletContactText]} numberOfLines={1}>
+                            {client.email}
+                        </Text>
                     </View>
                 </View>
             </Card>
         </TouchableOpacity>
     );
 }, (prevProps, nextProps) => {
-    // Custom comparison function for better performance
     return (
         prevProps.client.id === nextProps.client.id &&
         prevProps.client.name === nextProps.client.name &&
         prevProps.client.bookingsCount === nextProps.client.bookingsCount &&
         prevProps.inactiveBookingsCount === nextProps.inactiveBookingsCount &&
+        prevProps.lastBookingDate === nextProps.lastBookingDate &&
+        prevProps.totalRevenue === nextProps.totalRevenue &&
         prevProps.onPress === nextProps.onPress
     );
 });
@@ -86,106 +232,196 @@ ClientCard.displayName = 'ClientCard';
 
 const styles = StyleSheet.create({
     card: {
-        marginBottom: 12,
+        marginBottom: 16,
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    tabletCard: {
+        borderRadius: 16,
+        marginBottom: 20,
     },
     header: {
         flexDirection: "row",
-        alignItems: "center",
-        marginBottom: 12,
+        alignItems: "flex-start",
+        marginBottom: 16,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.border,
     },
     avatarContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: `${Colors.primary}15`,
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        backgroundColor: `${Colors.primary}10`,
         alignItems: "center",
         justifyContent: "center",
         marginRight: 12,
+        borderWidth: 2,
+        borderColor: `${Colors.primary}20`,
     },
     avatarContainerNoAccount: {
-        backgroundColor: `${Colors.subtext}15`,
+        backgroundColor: `${Colors.subtext}10`,
+        borderColor: `${Colors.subtext}20`,
     },
-    clientInfo: {
+    clientMainInfo: {
         flex: 1,
+        minWidth: 0, // Ensures text truncation works properly
     },
-    nameRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: 2,
+    nameSection: {
+        marginBottom: 4,
     },
     clientName: {
-        fontSize: 16,
-        fontWeight: "600",
+        fontSize: 18,
+        fontWeight: "700",
         color: Colors.text,
-        flex: 1,
+        marginBottom: 4,
+    },
+    tabletText: {
+        fontSize: 20,
+    },
+    badgesRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 6,
     },
     noAccountBadge: {
-        backgroundColor: `${Colors.subtext}20`,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 8,
-        marginLeft: 8,
+        backgroundColor: `${Colors.subtext}15`,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 10,
+        flexDirection: "row",
+        alignItems: "center",
     },
     noAccountText: {
-        fontSize: 10,
+        fontSize: 9,
         color: Colors.subtext,
-        fontWeight: "500",
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    tierBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 10,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 3,
+    },
+    tierText: {
+        fontSize: 9,
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     clientEmail: {
         fontSize: 14,
         color: Colors.subtext,
+        fontWeight: "400",
     },
-    bookingsInfo: {
+    tabletSubtext: {
+        fontSize: 15,
+    },
+    statusSection: {
         alignItems: "flex-end",
     },
-    bookingsContainer: {
+    statusBadge: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: `${Colors.primary}10`,
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
-        marginBottom: 4,
+        gap: 4,
     },
-    inactiveBookingsContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: `${Colors.warning}15`,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 8,
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
-    inactiveBookingsCount: {
-        fontSize: 10,
-        fontWeight: "500",
-        color: Colors.warning,
-        marginLeft: 2,
-    },
-    bookingsCount: {
-        fontSize: 14,
+    statusText: {
+        fontSize: 11,
         fontWeight: "600",
-        color: Colors.primary,
-        marginLeft: 4,
+        textTransform: "uppercase",
+        letterSpacing: 0.3,
     },
-    divider: {
-        height: 1,
-        backgroundColor: Colors.border,
-        marginBottom: 12,
+    statsSection: {
+        marginBottom: 16,
     },
-    contactInfo: {
+    statsRow: {
         flexDirection: "row",
         justifyContent: "space-between",
+        marginBottom: 8,
+    },
+    statItem: {
+        flex: 1,
+        alignItems: "center",
+        paddingHorizontal: 4,
+    },
+    statIconContainer: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: `${Colors.background}`,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 4,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
+    statContent: {
+        alignItems: "center",
+    },
+    statValue: {
+        fontSize: 13,
+        fontWeight: "700",
+        color: Colors.text,
+        marginBottom: 2,
+        textAlign: "center",
+    },
+    statLabel: {
+        fontSize: 10,
+        color: Colors.subtext,
+        fontWeight: "500",
+        textAlign: "center",
+        textTransform: "uppercase",
+        letterSpacing: 0.3,
+    },
+    issuesContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: `${Colors.error}08`,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        borderLeftWidth: 3,
+        borderLeftColor: Colors.error,
+        gap: 6,
+    },
+    issuesText: {
+        fontSize: 11,
+        color: Colors.error,
+        fontWeight: "500",
+        flex: 1,
+    },
+    footer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        gap: 12,
     },
     contactRow: {
         flexDirection: "row",
         alignItems: "center",
         flex: 1,
+        gap: 6,
+        minWidth: 0,
     },
     contactText: {
-        fontSize: 12,
+        fontSize: 11,
         color: Colors.subtext,
-        marginLeft: 6,
+        fontWeight: "500",
         flex: 1,
+    },
+    tabletContactText: {
+        fontSize: 12,
     },
 });
 

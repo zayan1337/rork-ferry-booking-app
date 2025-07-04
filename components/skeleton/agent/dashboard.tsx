@@ -105,23 +105,54 @@ export const SkeletonClientCard: React.FC<{ delay?: number }> = ({ delay = 0 }) 
 
 // Enhanced Credit Transaction Card Skeleton - matches exact CreditTransactionCard layout
 export const SkeletonCreditTransactionCard: React.FC<{ delay?: number }> = ({ delay = 0 }) => (
-    <SkeletonCard height={80} style={styles.transactionCard}>
+    <SkeletonCard height={120} style={styles.transactionCard}>
         <View style={styles.transactionHeader}>
-            <Skeleton width={32} height={32} borderRadius={16} delay={delay} />
-            <View style={styles.transactionInfo}>
-                <Skeleton width="80%" height={14} delay={delay + 50} />
-                <View style={styles.transactionDateRow}>
-                    <Skeleton width={12} height={12} borderRadius={6} delay={delay + 100} />
-                    <Skeleton width={100} height={12} style={{ marginLeft: 4 }} delay={delay + 150} />
+            {/* Enhanced Icon */}
+            <Skeleton width={40} height={40} borderRadius={20} delay={delay} />
+
+            <View style={styles.transactionMainContent}>
+                {/* Top Row */}
+                <View style={styles.transactionTopRow}>
+                    <View style={styles.transactionTitleSection}>
+                        {/* Type Label */}
+                        <Skeleton width={80} height={10} delay={delay + 50} />
+                        {/* Description */}
+                        <Skeleton width="90%" height={15} style={{ marginTop: 4 }} delay={delay + 100} />
+                    </View>
+
+                    {/* Amount Section */}
+                    <View style={styles.transactionAmountSection}>
+                        <Skeleton width={80} height={18} delay={delay + 150} />
+                        <View style={styles.transactionBalanceContainer}>
+                            <Skeleton width={12} height={12} borderRadius={6} delay={delay + 200} />
+                            <Skeleton width={60} height={12} style={{ marginLeft: 4 }} delay={delay + 250} />
+                        </View>
+                    </View>
                 </View>
-                <View style={styles.transactionBookingRow}>
-                    <Skeleton width={12} height={12} borderRadius={6} delay={delay + 200} />
-                    <Skeleton width={80} height={12} style={{ marginLeft: 4 }} delay={delay + 250} />
+
+                {/* Metadata Row */}
+                <View style={styles.transactionMetadataRow}>
+                    <View style={styles.transactionLeftMetadata}>
+                        {/* Date and Time */}
+                        <View style={styles.transactionDateTimeContainer}>
+                            <Skeleton width={12} height={12} borderRadius={6} delay={delay + 300} />
+                            <Skeleton width={70} height={12} style={{ marginLeft: 4 }} delay={delay + 350} />
+                            <Skeleton width={12} height={12} borderRadius={6} style={{ marginLeft: 8 }} delay={delay + 400} />
+                            <Skeleton width={50} height={12} style={{ marginLeft: 4 }} delay={delay + 450} />
+                        </View>
+
+                        {/* Booking Number */}
+                        <View style={styles.transactionBookingContainer}>
+                            <Skeleton width={12} height={12} borderRadius={6} delay={delay + 500} />
+                            <Skeleton width={60} height={12} style={{ marginLeft: 4 }} delay={delay + 550} />
+                        </View>
+                    </View>
+
+                    {/* Status Badge */}
+                    <View style={styles.transactionRightMetadata}>
+                        <Skeleton width={50} height={20} borderRadius={12} delay={delay + 600} />
+                    </View>
                 </View>
-            </View>
-            <View style={styles.transactionAmountContainer}>
-                <Skeleton width={70} height={16} delay={delay + 300} />
-                <Skeleton width={80} height={12} style={{ marginTop: 2 }} delay={delay + 350} />
             </View>
         </View>
     </SkeletonCard>
@@ -431,6 +462,48 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     transactionAmountContainer: {
+        alignItems: 'flex-end',
+    },
+    transactionMainContent: {
+        flex: 1,
+        marginLeft: 12,
+    },
+    transactionTopRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 12,
+    },
+    transactionTitleSection: {
+        flex: 1,
+        marginRight: 12,
+    },
+    transactionAmountSection: {
+        alignItems: 'flex-end',
+    },
+    transactionBalanceContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    transactionMetadataRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+    },
+    transactionLeftMetadata: {
+        flex: 1,
+    },
+    transactionDateTimeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    transactionBookingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    transactionRightMetadata: {
         alignItems: 'flex-end',
     },
 
