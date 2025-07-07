@@ -5,7 +5,8 @@ import {
     StyleSheet,
     Text,
     View,
-    TouchableOpacity
+    TouchableOpacity,
+    Dimensions
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
@@ -31,6 +32,8 @@ import UserItem from "@/components/admin/UserItem";
 import EmptyState from "@/components/admin/EmptyState";
 import StatCard from "@/components/admin/StatCard";
 
+const { width: screenWidth } = Dimensions.get('window');
+
 export default function ManagementScreen() {
     const adminStore = useAdminStore();
     const users = adminStore?.users || [];
@@ -39,6 +42,9 @@ export default function ManagementScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState<"users" | "reports" | "system">("users");
+
+    const isTablet = screenWidth >= 768;
+    const isSmallScreen = screenWidth < 480;
 
     const handleRefresh = async () => {
         setRefreshing(true);
@@ -75,22 +81,22 @@ export default function ManagementScreen() {
         {
             id: "revenue",
             title: "Revenue Analytics",
-            description: "Monthly revenue and profit analysis",
-            icon: <TrendingUp size={20} color={colors.success} />,
+            description: "Monthly revenue and profit analysis with detailed breakdowns",
+            icon: <TrendingUp size={isTablet ? 24 : 20} color={colors.success} />,
             period: "Last 30 days",
         },
         {
             id: "bookings",
             title: "Booking Reports",
-            description: "Booking trends and customer analytics",
-            icon: <BarChart size={20} color={colors.primary} />,
+            description: "Booking trends and customer analytics dashboard",
+            icon: <BarChart size={isTablet ? 24 : 20} color={colors.primary} />,
             period: "Last 7 days",
         },
         {
             id: "vessels",
             title: "Fleet Performance",
             description: "Vessel utilization and maintenance reports",
-            icon: <FileText size={20} color={colors.secondary} />,
+            icon: <FileText size={isTablet ? 24 : 20} color={colors.secondary} />,
             period: "Real-time",
         },
     ];
@@ -99,60 +105,83 @@ export default function ManagementScreen() {
         {
             id: "notifications",
             title: "System Notifications",
-            description: "Manage global alerts and announcements",
-            icon: <Bell size={20} color={colors.warning} />,
+            description: "Manage global alerts and announcements across the platform",
+            icon: <Bell size={isTablet ? 24 : 20} color={colors.warning} />,
             action: "Configure",
         },
         {
             id: "database",
             title: "Database Management",
-            description: "Backup, restore, and maintenance tools",
-            icon: <Database size={20} color={colors.danger} />,
+            description: "Backup, restore, and maintenance tools for system data",
+            icon: <Database size={isTablet ? 24 : 20} color={colors.danger} />,
             action: "Manage",
         },
         {
             id: "export",
             title: "Data Export",
-            description: "Export system data and reports",
-            icon: <Download size={20} color={colors.primary} />,
+            description: "Export system data and reports in various formats",
+            icon: <Download size={isTablet ? 24 : 20} color={colors.primary} />,
             action: "Export",
         },
     ];
 
+    const getResponsivePadding = () => ({
+        paddingHorizontal: isTablet ? 24 : isSmallScreen ? 12 : 16,
+        paddingVertical: isTablet ? 20 : 16,
+    });
+
     const ReportItem = ({ report }: { report: any }) => (
         <TouchableOpacity
-            style={styles.itemCard}
+            style={[styles.itemCard, { padding: isTablet ? 20 : 16 }]}
             onPress={() => router.push(`../reports/${report?.id || ""}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${report?.title} report`}
         >
             <View style={styles.itemHeader}>
                 <View style={styles.itemTitleContainer}>
                     {report?.icon}
                     <View style={styles.itemInfo}>
-                        <Text style={styles.itemTitle}>{report?.title || "Unknown Report"}</Text>
-                        <Text style={styles.itemDescription}>{report?.description || "No description"}</Text>
-                        <Text style={styles.itemPeriod}>{report?.period || ""}</Text>
+                        <Text style={[styles.itemTitle, { fontSize: isTablet ? 18 : 16 }]}>
+                            {report?.title || "Unknown Report"}
+                        </Text>
+                        <Text style={[styles.itemDescription, { fontSize: isTablet ? 15 : 14 }]}>
+                            {report?.description || "No description"}
+                        </Text>
+                        <Text style={[styles.itemPeriod, { fontSize: isTablet ? 13 : 12 }]}>
+                            {report?.period || ""}
+                        </Text>
                     </View>
                 </View>
-                <Text style={styles.arrowText}>→</Text>
+                <View style={styles.arrowContainer}>
+                    <Text style={[styles.arrowText, { fontSize: isTablet ? 24 : 20 }]}>→</Text>
+                </View>
             </View>
         </TouchableOpacity>
     );
 
     const SystemToolItem = ({ tool }: { tool: any }) => (
         <TouchableOpacity
-            style={styles.itemCard}
+            style={[styles.itemCard, { padding: isTablet ? 20 : 16 }]}
             onPress={() => {/* Navigate to tool */ }}
+            accessibilityRole="button"
+            accessibilityLabel={`${tool?.action} ${tool?.title}`}
         >
             <View style={styles.itemHeader}>
                 <View style={styles.itemTitleContainer}>
                     {tool?.icon}
                     <View style={styles.itemInfo}>
-                        <Text style={styles.itemTitle}>{tool?.title || "Unknown Tool"}</Text>
-                        <Text style={styles.itemDescription}>{tool?.description || "No description"}</Text>
+                        <Text style={[styles.itemTitle, { fontSize: isTablet ? 18 : 16 }]}>
+                            {tool?.title || "Unknown Tool"}
+                        </Text>
+                        <Text style={[styles.itemDescription, { fontSize: isTablet ? 15 : 14 }]}>
+                            {tool?.description || "No description"}
+                        </Text>
                     </View>
                 </View>
                 <View style={styles.actionBadge}>
-                    <Text style={styles.actionText}>{tool?.action || "Open"}</Text>
+                    <Text style={[styles.actionText, { fontSize: isTablet ? 13 : 12 }]}>
+                        {tool?.action || "Open"}
+                    </Text>
                 </View>
             </View>
         </TouchableOpacity>
@@ -161,7 +190,7 @@ export default function ManagementScreen() {
     return (
         <ScrollView
             style={styles.container}
-            contentContainerStyle={styles.contentContainer}
+            contentContainerStyle={[styles.contentContainer, getResponsivePadding()]}
             refreshControl={
                 <RefreshControl
                     refreshing={refreshing}
@@ -170,16 +199,17 @@ export default function ManagementScreen() {
                     tintColor={colors.primary}
                 />
             }
+            showsVerticalScrollIndicator={false}
         >
             <Stack.Screen
                 options={{
                     title: "Management",
                     headerRight: () => (
                         <Button
-                            title="New User"
+                            title={isSmallScreen ? "New" : "New User"}
                             variant="primary"
-                            size="small"
-                            icon={<Plus size={16} color="#FFFFFF" />}
+                            size={isTablet ? "medium" : "small"}
+                            icon={<Plus size={isTablet ? 18 : 16} color="#FFFFFF" />}
                             onPress={() => router.push("../user/new")}
                         />
                     ),
@@ -187,78 +217,110 @@ export default function ManagementScreen() {
             />
 
             {/* Quick Stats */}
-            <View style={styles.statsGrid}>
-                <StatCard
-                    title="Total Users"
-                    value={totalUsers.toString()}
-                    icon={<Users size={24} color={colors.primary} />}
-                    subtitle="+8%"
+            <View style={styles.statsContainer}>
+                <SectionHeader 
+                    title="User Overview" 
+                    subtitle="System statistics"
+                    size={isTablet ? "large" : "medium"}
                 />
-                <StatCard
-                    title="Active Users"
-                    value={activeUsers.toString()}
-                    icon={<UserCheck size={24} color={colors.success} />}
-                    subtitle="+5%"
-                />
-                <StatCard
-                    title="Admins"
-                    value={adminUsers.toString()}
-                    icon={<Shield size={24} color={colors.warning} />}
-                    subtitle="0%"
-                />
-                <StatCard
-                    title="Customers"
-                    value={customerUsers.toString()}
-                    icon={<Users size={24} color={colors.secondary} />}
-                    subtitle="+12%"
-                />
+                <View style={styles.statsGrid}>
+                    <StatCard
+                        title="Total Users"
+                        value={totalUsers.toString()}
+                        subtitle="+8% this month"
+                        icon={<Users size={isTablet ? 20 : 18} color={colors.primary} />}
+                        size={isTablet ? "large" : "medium"}
+                    />
+                    <StatCard
+                        title="Active Users"
+                        value={activeUsers.toString()}
+                        subtitle="+5% this week"
+                        icon={<UserCheck size={isTablet ? 20 : 18} color={colors.success} />}
+                        color={colors.success}
+                        size={isTablet ? "large" : "medium"}
+                    />
+                    <StatCard
+                        title="Admins"
+                        value={adminUsers.toString()}
+                        subtitle="No change"
+                        icon={<Shield size={isTablet ? 20 : 18} color={colors.warning} />}
+                        color={colors.warning}
+                        size={isTablet ? "large" : "medium"}
+                    />
+                    <StatCard
+                        title="Customers"
+                        value={customerUsers.toString()}
+                        subtitle="+12% growth"
+                        icon={<Users size={isTablet ? 20 : 18} color={colors.secondary} />}
+                        color={colors.secondary}
+                        size={isTablet ? "large" : "medium"}
+                    />
+                </View>
             </View>
 
             {/* Tab Navigation */}
-            <View style={styles.tabContainer}>
+            <View style={[styles.tabContainer, { padding: isTablet ? 6 : 4 }]}>
                 <TouchableOpacity
-                    style={[styles.tab, activeTab === "users" && styles.activeTab]}
+                    style={[styles.tab, activeTab === "users" && styles.activeTab, {
+                        paddingVertical: isTablet ? 16 : 12,
+                        paddingHorizontal: isTablet ? 20 : 16,
+                    }]}
                     onPress={() => setActiveTab("users")}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: activeTab === "users" }}
                 >
                     <Users
-                        size={20}
+                        size={isTablet ? 22 : 20}
                         color={activeTab === "users" ? colors.primary : colors.textSecondary}
                     />
                     <Text style={[
                         styles.tabText,
-                        activeTab === "users" && styles.activeTabText
+                        activeTab === "users" && styles.activeTabText,
+                        { fontSize: isTablet ? 16 : 14 }
                     ]}>
                         Users
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={[styles.tab, activeTab === "reports" && styles.activeTab]}
+                    style={[styles.tab, activeTab === "reports" && styles.activeTab, {
+                        paddingVertical: isTablet ? 16 : 12,
+                        paddingHorizontal: isTablet ? 20 : 16,
+                    }]}
                     onPress={() => setActiveTab("reports")}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: activeTab === "reports" }}
                 >
                     <BarChart
-                        size={20}
+                        size={isTablet ? 22 : 20}
                         color={activeTab === "reports" ? colors.primary : colors.textSecondary}
                     />
                     <Text style={[
                         styles.tabText,
-                        activeTab === "reports" && styles.activeTabText
+                        activeTab === "reports" && styles.activeTabText,
+                        { fontSize: isTablet ? 16 : 14 }
                     ]}>
                         Reports
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={[styles.tab, activeTab === "system" && styles.activeTab]}
+                    style={[styles.tab, activeTab === "system" && styles.activeTab, {
+                        paddingVertical: isTablet ? 16 : 12,
+                        paddingHorizontal: isTablet ? 20 : 16,
+                    }]}
                     onPress={() => setActiveTab("system")}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: activeTab === "system" }}
                 >
                     <Settings
-                        size={20}
+                        size={isTablet ? 22 : 20}
                         color={activeTab === "system" ? colors.primary : colors.textSecondary}
                     />
                     <Text style={[
                         styles.tabText,
-                        activeTab === "system" && styles.activeTabText
+                        activeTab === "system" && styles.activeTabText,
+                        { fontSize: isTablet ? 16 : 14 }
                     ]}>
                         System
                     </Text>
@@ -267,44 +329,84 @@ export default function ManagementScreen() {
 
             {/* Search Bar (only for users) */}
             {activeTab === "users" && (
-                <SearchBar
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Search users..."
-                />
+                <View style={styles.searchContainer}>
+                    <SearchBar
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder="Search users by name, email, or role..."
+                    />
+                </View>
             )}
 
             {/* Content based on active tab */}
             {activeTab === "users" ? (
                 <View style={styles.section}>
                     <SectionHeader
-                        title={`User Management (${filteredUsers?.length || 0})`}
-                        onSeeAll={() => {/* Navigate to full users */ }}
+                        title="User Management"
+                        subtitle={`${filteredUsers?.length || 0} ${filteredUsers?.length === 1 ? 'user' : 'users'}`}
+                        size={isTablet ? "large" : "medium"}
+                        action={
+                            <Button
+                                title="Export"
+                                variant="ghost"
+                                size="small"
+                                onPress={() => {/* TODO: Export users */}}
+                            />
+                        }
                     />
 
                     {(!filteredUsers || filteredUsers.length === 0) ? (
                         <EmptyState
                             title="No users found"
-                            message={searchQuery ? "No users match your search criteria" : "No users available"}
-                            icon={<Users size={48} color={colors.textSecondary} />}
+                            message={searchQuery 
+                                ? "No users match your search criteria. Try adjusting your search terms." 
+                                : "No users available yet. Add your first user to get started."
+                            }
+                            icon={<Users size={isTablet ? 56 : 48} color={colors.textSecondary} />}
+                            action={
+                                !searchQuery ? (
+                                    <Button
+                                        title="Add First User"
+                                        variant="primary"
+                                        size={isTablet ? "large" : "medium"}
+                                        icon={<Plus size={isTablet ? 20 : 18} color="white" />}
+                                        onPress={() => router.push("../user/new")}
+                                    />
+                                ) : undefined
+                            }
                         />
                     ) : (
-                        filteredUsers.slice(0, 10).map((user, index) => (
-                            <UserItem
-                                key={user?.id || index}
-                                user={user}
-                                onPress={() => router.push(`../user/${user?.id || ""}`)}
-                            />
-                        ))
+                        <>
+                            {filteredUsers.slice(0, 10).map((user, index) => (
+                                <UserItem
+                                    key={user?.id || index}
+                                    user={user}
+                                    onPress={() => router.push(`../user/${user?.id || ""}`)}
+                                />
+                            ))}
+
+                            {filteredUsers.length > 10 && (
+                                <View style={styles.loadMoreContainer}>
+                                    <Button
+                                        title="Load More Users"
+                                        variant="outline"
+                                        size={isTablet ? "large" : "medium"}
+                                        onPress={() => {/* TODO: Pagination */}}
+                                        fullWidth={isSmallScreen}
+                                    />
+                                </View>
+                            )}
+                        </>
                     )}
 
-                    <View style={styles.actionButton}>
+                    <View style={styles.actionContainer}>
                         <Button
                             title="Add New User"
-                            variant="outline"
-                            icon={<Plus size={18} color={colors.primary} />}
+                            variant="primary"
+                            size={isTablet ? "large" : "medium"}
+                            icon={<Plus size={isTablet ? 20 : 18} color="white" />}
                             onPress={() => router.push("../user/new")}
-                            fullWidth
+                            fullWidth={isSmallScreen}
                         />
                     </View>
                 </View>
@@ -312,10 +414,19 @@ export default function ManagementScreen() {
                 <View style={styles.section}>
                     <SectionHeader
                         title="Analytics & Reports"
-                        onSeeAll={() => {/* Navigate to full reports */ }}
+                        subtitle="Comprehensive system insights"
+                        size={isTablet ? "large" : "medium"}
+                        action={
+                            <Button
+                                title="Schedule"
+                                variant="ghost"
+                                size="small"
+                                onPress={() => {/* TODO: Schedule reports */}}
+                            />
+                        }
                     />
 
-                    <Text style={styles.sectionDescription}>
+                    <Text style={[styles.sectionDescription, { fontSize: isTablet ? 16 : 14 }]}>
                         Generate and view comprehensive reports on system performance, revenue, and user analytics.
                     </Text>
 
@@ -323,13 +434,14 @@ export default function ManagementScreen() {
                         <ReportItem key={report?.id || index} report={report} />
                     ))}
 
-                    <View style={styles.actionButton}>
+                    <View style={styles.actionContainer}>
                         <Button
                             title="Generate Custom Report"
-                            variant="outline"
-                            icon={<FileText size={18} color={colors.primary} />}
+                            variant="secondary"
+                            size={isTablet ? "large" : "medium"}
+                            icon={<FileText size={isTablet ? 20 : 18} color="white" />}
                             onPress={() => {/* Navigate to custom report */ }}
-                            fullWidth
+                            fullWidth={isSmallScreen}
                         />
                     </View>
                 </View>
@@ -337,24 +449,34 @@ export default function ManagementScreen() {
                 <View style={styles.section}>
                     <SectionHeader
                         title="System Tools"
-                        onSeeAll={() => {/* Navigate to advanced settings */ }}
+                        subtitle="Administrative controls"
+                        size={isTablet ? "large" : "medium"}
+                        action={
+                            <Button
+                                title="Backup"
+                                variant="ghost"
+                                size="small"
+                                onPress={() => {/* TODO: System backup */}}
+                            />
+                        }
                     />
 
-                    <Text style={styles.sectionDescription}>
-                        Manage system-wide settings, notifications, and maintenance tools.
+                    <Text style={[styles.sectionDescription, { fontSize: isTablet ? 16 : 14 }]}>
+                        Manage system-wide settings, notifications, and maintenance tools for optimal performance.
                     </Text>
 
                     {systemTools.map((tool, index) => (
                         <SystemToolItem key={tool?.id || index} tool={tool} />
                     ))}
 
-                    <View style={styles.actionButton}>
+                    <View style={styles.actionContainer}>
                         <Button
                             title="Advanced Settings"
-                            variant="outline"
-                            icon={<Settings size={18} color={colors.primary} />}
+                            variant="secondary"
+                            size={isTablet ? "large" : "medium"}
+                            icon={<Settings size={isTablet ? 20 : 18} color="white" />}
                             onPress={() => {/* Navigate to advanced settings */ }}
-                            fullWidth
+                            fullWidth={isSmallScreen}
                         />
                     </View>
                 </View>
@@ -369,117 +491,126 @@ const styles = StyleSheet.create({
         backgroundColor: colors.backgroundSecondary,
     },
     contentContainer: {
-        padding: 16,
         paddingBottom: 32,
+    },
+    statsContainer: {
+        marginBottom: 24,
     },
     statsGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
         gap: 12,
-        marginBottom: 24,
+        justifyContent: "space-between",
     },
     tabContainer: {
         flexDirection: "row",
         backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 4,
-        marginBottom: 16,
+        borderRadius: 16,
+        marginBottom: 20,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 1,
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: colors.border + "20",
     },
     tab: {
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 8,
+        borderRadius: 12,
         gap: 8,
     },
     activeTab: {
-        backgroundColor: colors.primary + "10",
+        backgroundColor: colors.primary + "15",
     },
     tabText: {
-        fontSize: 14,
-        fontWeight: "500",
+        fontWeight: "600",
         color: colors.textSecondary,
     },
     activeTabText: {
         color: colors.primary,
-        fontWeight: "600",
+        fontWeight: "700",
+    },
+    searchContainer: {
+        marginBottom: 20,
     },
     section: {
-        marginBottom: 24,
+        marginBottom: 28,
     },
     sectionDescription: {
-        fontSize: 14,
         color: colors.textSecondary,
-        marginBottom: 16,
-        lineHeight: 20,
+        marginBottom: 20,
+        lineHeight: 1.5,
+        fontWeight: "500",
     },
     itemCard: {
         backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 16,
+        borderRadius: 16,
         marginBottom: 12,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 1,
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: colors.border + "20",
     },
     itemHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
-        alignItems: "center",
+        alignItems: "flex-start",
     },
     itemTitleContainer: {
         flexDirection: "row",
         alignItems: "flex-start",
-        gap: 12,
+        gap: 16,
         flex: 1,
+        marginRight: 12,
     },
     itemInfo: {
         flex: 1,
     },
     itemTitle: {
-        fontSize: 16,
-        fontWeight: "600",
+        fontWeight: "700",
         color: colors.text,
         marginBottom: 4,
+        lineHeight: 1.3,
     },
     itemDescription: {
-        fontSize: 14,
         color: colors.textSecondary,
-        marginBottom: 4,
-        lineHeight: 18,
-    },
-    itemPeriod: {
-        fontSize: 12,
-        color: colors.primary,
+        marginBottom: 6,
+        lineHeight: 1.4,
         fontWeight: "500",
     },
+    itemPeriod: {
+        color: colors.primary,
+        fontWeight: "600",
+    },
+    arrowContainer: {
+        padding: 4,
+    },
     arrowText: {
-        fontSize: 18,
         color: colors.textSecondary,
         fontWeight: "300",
     },
     actionBadge: {
-        backgroundColor: colors.primary + "10",
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
+        backgroundColor: colors.primary + "15",
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
     },
     actionText: {
-        fontSize: 12,
         color: colors.primary,
         fontWeight: "600",
     },
-    actionButton: {
+    loadMoreContainer: {
         marginTop: 16,
+        alignItems: "center",
+    },
+    actionContainer: {
+        marginTop: 20,
     },
 }); 

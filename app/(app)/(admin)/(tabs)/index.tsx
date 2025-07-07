@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FlatList, Platform, ScrollView, StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { FlatList, Platform, ScrollView, StyleSheet, Text, View, TouchableOpacity, Dimensions, RefreshControl } from "react-native";
 import { colors } from "@/constants/adminColors";
 import {
   AlertTriangle,
@@ -24,6 +24,8 @@ import BookingItem from "@/components/admin/BookingItem";
 import TripItem from "@/components/admin/TripItem";
 import Button from "@/components/admin/Button";
 
+const { width: screenWidth } = Dimensions.get('window');
+
 export default function DashboardScreen() {
   const {
     alerts,
@@ -36,6 +38,9 @@ export default function DashboardScreen() {
   } = useAdminStore();
   const { user } = useAuthStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const isTablet = screenWidth >= 768;
+  const isSmallScreen = screenWidth < 480;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -95,11 +100,24 @@ export default function DashboardScreen() {
   const adminName = adminProfile?.full_name || user?.email?.split("@")[0] || "Admin";
   const adminRole = adminProfile?.role || "admin";
 
+  const getResponsivePadding = () => ({
+    paddingHorizontal: isTablet ? 24 : isSmallScreen ? 12 : 16,
+    paddingVertical: isTablet ? 20 : 16,
+  });
+
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={[styles.contentContainer, getResponsivePadding()]}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          colors={[colors.primary]}
+          tintColor={colors.primary}
+        />
+      }
     >
       <Stack.Screen
         options={{
@@ -109,97 +127,120 @@ export default function DashboardScreen() {
 
       {/* Welcome Section with Admin Profile */}
       <TouchableOpacity
-        style={styles.welcomeCard}
+        style={[styles.welcomeCard, { padding: isTablet ? 24 : 20 }]}
         onPress={handleProfilePress}
         activeOpacity={0.7}
       >
         <View style={styles.welcomeContent}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>{getInitials(adminName)}</Text>
+          <View style={[styles.avatarContainer, {
+            width: isTablet ? 60 : 50,
+            height: isTablet ? 60 : 50,
+            borderRadius: isTablet ? 30 : 25
+          }]}>
+            <Text style={[styles.avatarText, { fontSize: isTablet ? 22 : 18 }]}>
+              {getInitials(adminName)}
+            </Text>
             <View style={styles.statusIndicator} />
           </View>
           <View style={styles.welcomeInfo}>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.adminName}>{adminName}</Text>
+            <Text style={[styles.welcomeText, { fontSize: isTablet ? 16 : 14 }]}>
+              Welcome back,
+            </Text>
+            <Text style={[styles.adminName, { fontSize: isTablet ? 22 : 18 }]} numberOfLines={1}>
+              {adminName}
+            </Text>
             <View style={styles.roleBadge}>
-              <Shield size={12} color="white" />
-              <Text style={styles.roleText}>{adminRole.toUpperCase()}</Text>
+              <Shield size={isTablet ? 14 : 12} color="white" />
+              <Text style={[styles.roleText, { fontSize: isTablet ? 12 : 10 }]}>
+                {adminRole.toUpperCase()}
+              </Text>
             </View>
           </View>
         </View>
         <View style={styles.activityIndicator}>
-          <Activity size={20} color={colors.success} />
+          <Activity size={isTablet ? 24 : 20} color={colors.success} />
         </View>
       </TouchableOpacity>
 
-      {/* Stats Row */}
+      {/* Stats Grid - Responsive Layout */}
       <View style={styles.statsContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.statsScrollContent}
-        >
+        <View style={styles.statsGrid}>
           <StatCard
             title="Daily Bookings"
             value={dashboardStats.dailyBookings.count.toString()}
             subtitle={`$${dashboardStats.dailyBookings.revenue} Revenue`}
-            icon={<CreditCard size={18} color={colors.primary} />}
+            icon={<CreditCard size={isTablet ? 20 : 18} color={colors.primary} />}
+            size={isTablet ? "large" : "medium"}
           />
           <StatCard
             title="Active Trips"
             value={dashboardStats.activeTrips.toString()}
-            icon={<Ship size={18} color={colors.secondary} />}
+            icon={<Ship size={isTablet ? 20 : 18} color={colors.secondary} />}
             color={colors.secondary}
+            size={isTablet ? "large" : "medium"}
           />
           <StatCard
             title="Active Users"
             value={dashboardStats.activeUsers.toString()}
-            icon={<Users size={18} color="#34C759" />}
+            icon={<Users size={isTablet ? 20 : 18} color="#34C759" />}
             color="#34C759"
+            size={isTablet ? "large" : "medium"}
           />
           <StatCard
             title="Payments"
             value={dashboardStats.paymentStatus.completed.toString()}
             subtitle={`${dashboardStats.paymentStatus.pending} Pending`}
-            icon={<DollarSign size={18} color="#FF9500" />}
+            icon={<DollarSign size={isTablet ? 20 : 18} color="#FF9500" />}
             color="#FF9500"
+            size={isTablet ? "large" : "medium"}
           />
-        </ScrollView>
+        </View>
       </View>
 
       {/* System Status */}
-      <View style={styles.statusCard}>
+      <View style={[styles.statusCard, { padding: isTablet ? 20 : 16 }]}>
         <View style={styles.statusHeader}>
-          <Text style={styles.statusTitle}>System Status</Text>
+          <Text style={[styles.statusTitle, { fontSize: isTablet ? 18 : 16 }]}>
+            System Status
+          </Text>
           <View style={styles.statusIndicatorGreen}>
-            <Text style={styles.statusText}>All Systems Operational</Text>
+            <Text style={[styles.statusText, { fontSize: isTablet ? 14 : 12 }]}>
+              All Systems Operational
+            </Text>
           </View>
         </View>
         <View style={styles.statusMetrics}>
           <View style={styles.metric}>
-            <TrendingUp size={16} color={colors.success} />
-            <Text style={styles.metricText}>Uptime: 99.9%</Text>
+            <TrendingUp size={isTablet ? 18 : 16} color={colors.success} />
+            <Text style={[styles.metricText, { fontSize: isTablet ? 16 : 14 }]}>
+              Uptime: 99.9%
+            </Text>
           </View>
           <View style={styles.metric}>
-            <Activity size={16} color={colors.primary} />
-            <Text style={styles.metricText}>Performance: Excellent</Text>
+            <Activity size={isTablet ? 18 : 16} color={colors.primary} />
+            <Text style={[styles.metricText, { fontSize: isTablet ? 16 : 14 }]}>
+              Performance: Excellent
+            </Text>
           </View>
         </View>
       </View>
 
       {/* Alerts Section */}
       <View style={styles.section}>
-        <View style={styles.sectionHeaderContainer}>
-          <SectionHeader title="Alerts & Notifications" />
-          {alerts.some(alert => !alert.read) && (
-            <Button
-              title="Mark All as Read"
-              variant="outline"
-              size="small"
-              onPress={markAllAlertsAsRead}
-            />
-          )}
-        </View>
+        <SectionHeader
+          title="Alerts & Notifications"
+          size={isTablet ? "large" : "medium"}
+          action={
+            alerts.some(alert => !alert.read) ? (
+              <Button
+                title="Mark All as Read"
+                variant="outline"
+                size={isTablet ? "medium" : "small"}
+                onPress={markAllAlertsAsRead}
+              />
+            ) : undefined
+          }
+        />
 
         {alerts.length > 0 ? (
           <FlatList
@@ -212,11 +253,14 @@ export default function DashboardScreen() {
               />
             )}
             scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
           />
         ) : (
-          <View style={styles.emptyStateContainer}>
-            <AlertTriangle size={40} color={colors.textSecondary} />
-            <Text style={styles.emptyStateText}>No alerts at the moment</Text>
+          <View style={[styles.emptyStateContainer, { padding: isTablet ? 40 : 32 }]}>
+            <AlertTriangle size={isTablet ? 48 : 40} color={colors.textSecondary} />
+            <Text style={[styles.emptyStateText, { fontSize: isTablet ? 18 : 16 }]}>
+              No alerts at the moment
+            </Text>
           </View>
         )}
       </View>
@@ -225,7 +269,9 @@ export default function DashboardScreen() {
       <View style={styles.section}>
         <SectionHeader
           title="Recent Bookings"
+          subtitle={`${bookings.length} total bookings`}
           onSeeAll={handleSeeAllBookings}
+          size={isTablet ? "large" : "medium"}
         />
 
         {bookings.slice(0, 3).map((booking) => (
@@ -233,6 +279,7 @@ export default function DashboardScreen() {
             key={booking.id}
             booking={booking}
             onPress={() => handleBookingPress(booking.id)}
+            compact={!isTablet}
           />
         ))}
       </View>
@@ -241,7 +288,9 @@ export default function DashboardScreen() {
       <View style={styles.section}>
         <SectionHeader
           title="Upcoming Trips"
+          subtitle={`${trips.length} scheduled trips`}
           onSeeAll={handleSeeAllSchedule}
+          size={isTablet ? "large" : "medium"}
         />
 
         {trips.slice(0, 3).map((trip) => (
@@ -255,25 +304,34 @@ export default function DashboardScreen() {
 
       {/* Quick Actions */}
       <View style={styles.section}>
-        <SectionHeader title="Quick Actions" />
-        <View style={styles.actionsContainer}>
+        <SectionHeader
+          title="Quick Actions"
+          size={isTablet ? "large" : "medium"}
+        />
+        <View style={[styles.actionsContainer, { gap: isTablet ? 16 : 12 }]}>
           <Button
             title="Emergency Announcement"
             variant="danger"
-            icon={<Bell size={18} color="white" />}
+            size={isTablet ? "large" : "medium"}
+            icon={<Bell size={isTablet ? 20 : 18} color="white" />}
             onPress={handleEmergencyAnnouncement}
+            fullWidth={isSmallScreen}
           />
           <Button
             title="New Booking"
             variant="primary"
-            icon={<CreditCard size={18} color="white" />}
+            size={isTablet ? "large" : "medium"}
+            icon={<CreditCard size={isTablet ? 20 : 18} color="white" />}
             onPress={handleAddBooking}
+            fullWidth={isSmallScreen}
           />
           <Button
             title="Manage Schedule"
             variant="secondary"
-            icon={<Calendar size={18} color="white" />}
+            size={isTablet ? "large" : "medium"}
+            icon={<Calendar size={isTablet ? 20 : 18} color="white" />}
             onPress={handleManageSchedule}
+            fullWidth={isSmallScreen}
           />
         </View>
       </View>
@@ -287,22 +345,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundSecondary,
   },
   contentContainer: {
-    padding: 16,
     paddingBottom: 32,
   },
   welcomeCard: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: 20,
+    marginBottom: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.border + "20",
   },
   welcomeContent: {
     flexDirection: "row",
@@ -311,16 +369,12 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     position: "relative",
-    width: 50,
-    height: 50,
-    borderRadius: 25,
     backgroundColor: colors.primary,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 16,
   },
   avatarText: {
-    fontSize: 18,
     fontWeight: "bold",
     color: "white",
   },
@@ -328,121 +382,117 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: colors.success,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: colors.card,
   },
   welcomeInfo: {
     flex: 1,
   },
   welcomeText: {
-    fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 2,
+    fontWeight: "500",
   },
   adminName: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   roleBadge: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     alignSelf: "flex-start",
     gap: 4,
   },
   roleText: {
     color: "white",
-    fontSize: 10,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   activityIndicator: {
-    padding: 8,
+    padding: 10,
     borderRadius: 20,
-    backgroundColor: colors.success + "10",
+    backgroundColor: colors.success + "15",
   },
   statusCard: {
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: 16,
+    marginBottom: 24,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.border + "20",
   },
   statusHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   statusTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.text,
   },
   statusIndicatorGreen: {
-    backgroundColor: colors.success + "20",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    backgroundColor: colors.success + "15",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   statusText: {
-    fontSize: 12,
     color: colors.success,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   statusMetrics: {
     flexDirection: "row",
-    gap: 16,
+    gap: 20,
   },
   metric: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   metricText: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontWeight: "500",
   },
   statsContainer: {
-    marginBottom: 20,
-  },
-  statsScrollContent: {
-    paddingRight: 16,
-  },
-  section: {
     marginBottom: 24,
   },
-  sectionHeaderContainer: {
+  statsGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
+  },
+  section: {
+    marginBottom: 28,
   },
   emptyStateContainer: {
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 32,
+    borderRadius: 16,
     alignItems: "center",
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border + "20",
   },
   emptyStateText: {
-    fontSize: 16,
     color: colors.textSecondary,
     marginTop: 12,
+    fontWeight: "500",
+    textAlign: "center",
   },
   actionsContainer: {
-    gap: 12,
+    flexDirection: "column",
   },
 });

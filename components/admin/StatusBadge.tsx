@@ -11,10 +11,40 @@ type StatusType =
 interface StatusBadgeProps {
   status: StatusType;
   size?: "small" | "medium";
+  variant?: "default" | "payment";
 }
 
-export default function StatusBadge({ status, size = "medium" }: StatusBadgeProps) {
+export default function StatusBadge({ status, size = "medium", variant = "default" }: StatusBadgeProps) {
   const getStatusColor = () => {
+    // Payment-specific styling
+    if (variant === "payment") {
+      switch (status) {
+        case "paid":
+        case "completed":
+          return {
+            bg: "#E8F5E8",
+            text: "#2E7D32",
+          };
+        case "pending":
+          return {
+            bg: "#FFF3E0",
+            text: "#F57C00",
+          };
+        case "failed":
+        case "refunded":
+          return {
+            bg: "#FFEBEE",
+            text: "#C62828",
+          };
+        default:
+          return {
+            bg: colors.backgroundSecondary,
+            text: colors.textSecondary,
+          };
+      }
+    }
+
+    // Default status styling
     switch (status) {
       case "confirmed":
       case "completed":
@@ -52,10 +82,14 @@ export default function StatusBadge({ status, size = "medium" }: StatusBadgeProp
   const { bg, text } = getStatusColor();
   const isSmall = size === "small";
 
+  const formatStatusText = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1).replace("-", " ");
+  };
+
   return (
     <View style={[styles.badge, { backgroundColor: bg }, isSmall && styles.smallBadge]}>
       <Text style={[styles.text, { color: text }, isSmall && styles.smallText]}>
-        {status.charAt(0).toUpperCase() + status.slice(1).replace("-", " ")}
+        {formatStatusText(status)}
       </Text>
     </View>
   );
@@ -76,8 +110,10 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 14,
     fontWeight: "600",
+    lineHeight: 16,
   },
   smallText: {
     fontSize: 12,
+    lineHeight: 14,
   },
 });

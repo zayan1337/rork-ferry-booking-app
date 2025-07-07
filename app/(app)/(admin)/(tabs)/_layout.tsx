@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { Platform, StyleSheet, TouchableOpacity, View, Alert } from "react-native";
+import { Platform, StyleSheet, TouchableOpacity, View, Alert, Dimensions } from "react-native";
 import { colors } from "@/constants/adminColors";
 import { useAuthStore } from "@/store/authStore";
 import { router } from "expo-router";
@@ -15,8 +15,13 @@ import {
   LogOut
 } from "lucide-react-native";
 
+const { width: screenWidth } = Dimensions.get('window');
+
 export default function TabLayout() {
-  const iconSize = 20;
+  const isTablet = screenWidth >= 768;
+  const isSmallScreen = screenWidth < 480;
+
+  const iconSize = isSmallScreen ? 18 : isTablet ? 22 : 20;
   const { user, signOut } = useAuthStore();
 
   const handleProfilePress = () => {
@@ -49,12 +54,16 @@ export default function TabLayout() {
       <TouchableOpacity
         style={styles.headerButton}
         onPress={handleProfilePress}
+        accessibilityRole="button"
+        accessibilityLabel="Profile"
       >
         <User size={20} color={colors.text} />
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.headerButton}
         onPress={handleLogout}
+        accessibilityRole="button"
+        accessibilityLabel="Logout"
       >
         <LogOut size={20} color={colors.danger} />
       </TouchableOpacity>
@@ -72,48 +81,73 @@ export default function TabLayout() {
         headerTitleStyle: styles.headerTitle,
         headerShadowVisible: false,
         headerRight: renderHeaderRight,
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Dashboard",
-          tabBarIcon: ({ color }) => <Home size={iconSize} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <Home size={iconSize} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="bookings"
         options={{
           title: "Bookings",
-          tabBarIcon: ({ color }) => <CreditCard size={iconSize} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <CreditCard size={iconSize} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="schedule"
         options={{
           title: "Schedule",
-          tabBarIcon: ({ color }) => <Calendar size={iconSize} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <Calendar size={iconSize} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="vessels"
         options={{
           title: "Vessels",
-          tabBarIcon: ({ color }) => <Ship size={iconSize} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <Ship size={iconSize} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="routes"
         options={{
           title: "Routes",
-          tabBarIcon: ({ color }) => <MapPin size={iconSize} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <MapPin size={iconSize} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="users"
         options={{
-          title: "Management",
-          tabBarIcon: ({ color }) => <Users size={iconSize} color={color} />,
+          title: isSmallScreen ? "Users" : "Management",
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <Users size={iconSize} color={color} />
+            </View>
+          ),
         }}
       />
     </Tabs>
@@ -125,37 +159,60 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    height: Platform.OS === "ios" ? 86 : 58,
-    paddingBottom: Platform.OS === "ios" ? 26 : 6,
-    paddingTop: 6,
-    paddingHorizontal: 2,
+    height: Platform.OS === "ios" ? 86 : 60,
+    paddingBottom: Platform.OS === "ios" ? 26 : 8,
+    paddingTop: 8,
+    paddingHorizontal: 4,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 8,
   },
   tabBarLabel: {
     fontSize: 10,
-    fontWeight: "500",
+    fontWeight: "600",
     marginTop: 2,
+  },
+  iconContainer: {
+    padding: 6,
+    borderRadius: 10,
+    minWidth: 30,
+    minHeight: 30,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  iconContainerFocused: {
+    backgroundColor: colors.primary + "15",
   },
   header: {
     backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border + "30",
+    elevation: 0,
+    shadowOpacity: 0,
   },
   headerTitle: {
-    fontWeight: "600",
+    fontWeight: "700",
+    color: colors.text,
     fontSize: 18,
   },
   headerRightContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginRight: 8,
+    marginRight: 12,
   },
   headerButton: {
     padding: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: colors.card,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+    borderWidth: 1,
+    borderColor: colors.border + "20",
   },
 });

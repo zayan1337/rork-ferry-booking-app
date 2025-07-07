@@ -4,7 +4,8 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    View
+    View,
+    Dimensions
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
@@ -15,7 +16,8 @@ import {
     TrendingUp,
     Clock,
     CheckCircle,
-    Users
+    Users,
+    Filter
 } from "lucide-react-native";
 import Button from "@/components/admin/Button";
 import SectionHeader from "@/components/admin/SectionHeader";
@@ -23,6 +25,8 @@ import SearchBar from "@/components/admin/SearchBar";
 import BookingItem from "@/components/admin/BookingItem";
 import EmptyState from "@/components/admin/EmptyState";
 import StatCard from "@/components/admin/StatCard";
+
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function BookingsScreen() {
     const {
@@ -32,6 +36,9 @@ export default function BookingsScreen() {
 
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+
+    const isTablet = screenWidth >= 768;
+    const isSmallScreen = screenWidth < 480;
 
     const handleRefresh = async () => {
         setRefreshing(true);
@@ -45,7 +52,7 @@ export default function BookingsScreen() {
         (booking?.id || "").includes(searchQuery)
     ) || [];
 
-    // Calculate stats
+    // Calculate stats with better logic
     const todayBookings = bookings?.filter(b => {
         const today = new Date().toISOString().split('T')[0];
         return b?.date === today;
@@ -55,10 +62,27 @@ export default function BookingsScreen() {
     const completedBookings = bookings?.filter(b => b?.status === "confirmed").length || 0;
     const pendingBookings = bookings?.filter(b => b?.status === "pending").length || 0;
 
+    const recentBookings = filteredBookings.filter(b => {
+        const bookingDate = new Date(b.date);
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return bookingDate >= weekAgo;
+    });
+
+    const getResponsivePadding = () => ({
+        paddingHorizontal: isTablet ? 24 : isSmallScreen ? 12 : 16,
+        paddingVertical: isTablet ? 20 : 16,
+    });
+
+    const handleFilterPress = () => {
+        // TODO: Implement filter modal
+        console.log("Filter modal");
+    };
+
     return (
         <ScrollView
             style={styles.container}
-            contentContainerStyle={styles.contentContainer}
+            contentContainerStyle={[styles.contentContainer, getResponsivePadding()]}
             refreshControl={
                 <RefreshControl
                     refreshing={refreshing}
@@ -67,87 +91,187 @@ export default function BookingsScreen() {
                     tintColor={colors.primary}
                 />
             }
+            showsVerticalScrollIndicator={false}
         >
             <Stack.Screen
                 options={{
                     title: "Bookings",
                     headerRight: () => (
                         <Button
-                            title="New"
+                            title={isSmallScreen ? "New" : "New Booking"}
                             variant="primary"
-                            size="small"
-                            icon={<Plus size={16} color="#FFFFFF" />}
+                            size={isTablet ? "medium" : "small"}
+                            icon={<Plus size={isTablet ? 18 : 16} color="#FFFFFF" />}
                             onPress={() => router.push("../booking/new")}
                         />
                     ),
                 }}
             />
 
-            {/* Quick Stats */}
-            <View style={styles.statsGrid}>
-                <StatCard
-                    title="Today's Bookings"
-                    value={todayBookings.length.toString()}
-                    icon={<CreditCard size={24} color={colors.primary} />}
-                    subtitle="+12%"
+            {/* Overview Stats */}
+            <View style={styles.statsContainer}>
+                <SectionHeader
+                    title="Bookings Overview"
+                    subtitle="Performance metrics"
+                    size={isTablet ? "large" : "medium"}
                 />
-                <StatCard
-                    title="Total Revenue"
-                    value={`$${totalRevenue.toLocaleString()}`}
-                    icon={<TrendingUp size={24} color={colors.success} />}
-                    subtitle="+15%"
-                />
-                <StatCard
-                    title="Confirmed"
-                    value={completedBookings.toString()}
-                    icon={<CheckCircle size={24} color={colors.success} />}
-                    subtitle="+8%"
-                />
-                <StatCard
-                    title="Pending"
-                    value={pendingBookings.toString()}
-                    icon={<Clock size={24} color={colors.warning} />}
-                    subtitle={pendingBookings > 0 ? "+3" : "0"}
+                <View style={styles.statsGrid}>
+                    <StatCard
+                        title="Today's Bookings"
+                        value={todayBookings.length.toString()}
+                        subtitle="+12% vs yesterday"
+                        icon={<CreditCard size={isTablet ? 20 : 18} color={colors.primary} />}
+                        size={isTablet ? "large" : "medium"}
+                    />
+                    <StatCard
+                        title="Total Revenue"
+                        value={`$${totalRevenue.toLocaleString()}`}
+                        subtitle="+15% this month"
+                        icon={<TrendingUp size={isTablet ? 20 : 18} color={colors.success} />}
+                        color={colors.success}
+                        size={isTablet ? "large" : "medium"}
+                    />
+                    <StatCard
+                        title="Confirmed"
+                        value={completedBookings.toString()}
+                        subtitle={`${((completedBookings / bookings.length) * 100).toFixed(1)}% rate`}
+                        icon={<CheckCircle size={isTablet ? 20 : 18} color={colors.success} />}
+                        color={colors.success}
+                        size={isTablet ? "large" : "medium"}
+                    />
+                    <StatCard
+                        title="Pending"
+                        value={pendingBookings.toString()}
+                        subtitle={pendingBookings > 0 ? "Needs attention" : "All clear"}
+                        icon={<Clock size={isTablet ? 20 : 18} color={colors.warning} />}
+                        color={colors.warning}
+                        size={isTablet ? "large" : "medium"}
+                    />
+                </View>
+            </View>
+
+            {/* Search and Filter */}
+            <View style={styles.searchContainer}>
+                <View style={styles.searchWrapper}>
+                    <SearchBar
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder="Search by customer, route, or booking ID..."
+                    />
+                </View>
+                <Button
+                    title=""
+                    variant="outline"
+                    size={isTablet ? "large" : "medium"}
+                    icon={<Filter size={isTablet ? 20 : 18} color={colors.primary} />}
+                    onPress={handleFilterPress}
                 />
             </View>
 
-            {/* Search Bar */}
-            <SearchBar
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search bookings..."
-            />
+            {/* Recent Bookings Section */}
+            {recentBookings.length > 0 && searchQuery === "" && (
+                <View style={styles.section}>
+                    <SectionHeader
+                        title="Recent Bookings"
+                        subtitle="Last 7 days"
+                        size={isTablet ? "large" : "medium"}
+                    />
+                    {recentBookings.slice(0, 3).map((booking) => (
+                        <BookingItem
+                            key={`recent-${booking.id}`}
+                            booking={booking}
+                            onPress={() => router.push(`../booking/${booking.id}`)}
+                            compact={!isTablet}
+                        />
+                    ))}
+                </View>
+            )}
 
-            {/* Bookings List */}
+            {/* All Bookings List */}
             <View style={styles.section}>
                 <SectionHeader
-                    title={`All Bookings (${filteredBookings.length})`}
-                    onSeeAll={() => {/* Open filter modal */ }}
+                    title={searchQuery ? "Search Results" : "All Bookings"}
+                    subtitle={`${filteredBookings.length} ${filteredBookings.length === 1 ? 'booking' : 'bookings'}`}
+                    size={isTablet ? "large" : "medium"}
+                    action={
+                        <Button
+                            title="Export"
+                            variant="ghost"
+                            size="small"
+                            onPress={() => {/* TODO: Export functionality */ }}
+                        />
+                    }
                 />
 
                 {filteredBookings.length === 0 ? (
                     <EmptyState
                         title="No bookings found"
-                        message={searchQuery ? "No bookings match your search criteria" : "No bookings available"}
-                        icon={<CreditCard size={48} color={colors.textSecondary} />}
+                        message={searchQuery
+                            ? "No bookings match your search criteria. Try adjusting your search terms."
+                            : "No bookings available yet. Create your first booking to get started."
+                        }
+                        icon={<CreditCard size={isTablet ? 56 : 48} color={colors.textSecondary} />}
+                        action={
+                            !searchQuery ? (
+                                <Button
+                                    title="Create First Booking"
+                                    variant="primary"
+                                    size={isTablet ? "large" : "medium"}
+                                    icon={<Plus size={isTablet ? 20 : 18} color="white" />}
+                                    onPress={() => router.push("../booking/new")}
+                                />
+                            ) : undefined
+                        }
                     />
                 ) : (
-                    filteredBookings.map((booking) => (
-                        <BookingItem
-                            key={booking.id}
-                            booking={booking}
-                            onPress={() => router.push(`../booking/${booking.id}`)}
-                        />
-                    ))
-                )}
+                    <>
+                        {filteredBookings.map((booking) => (
+                            <BookingItem
+                                key={booking.id}
+                                booking={booking}
+                                onPress={() => router.push(`../booking/${booking.id}`)}
+                                compact={!isTablet}
+                            />
+                        ))}
 
-                <View style={styles.actionButton}>
+                        {/* Load More / Pagination placeholder */}
+                        {filteredBookings.length >= 20 && (
+                            <View style={styles.loadMoreContainer}>
+                                <Button
+                                    title="Load More Bookings"
+                                    variant="outline"
+                                    size={isTablet ? "large" : "medium"}
+                                    onPress={() => {/* TODO: Pagination */ }}
+                                    fullWidth={isSmallScreen}
+                                />
+                            </View>
+                        )}
+                    </>
+                )}
+            </View>
+
+            {/* Quick Actions */}
+            <View style={styles.section}>
+                <SectionHeader
+                    title="Quick Actions"
+                    size={isTablet ? "large" : "medium"}
+                />
+                <View style={[styles.actionsGrid, { gap: isTablet ? 16 : 12 }]}>
                     <Button
                         title="Create New Booking"
-                        variant="outline"
-                        icon={<Plus size={18} color={colors.primary} />}
+                        variant="primary"
+                        size={isTablet ? "large" : "medium"}
+                        icon={<Plus size={isTablet ? 20 : 18} color="white" />}
                         onPress={() => router.push("../booking/new")}
-                        fullWidth
+                        fullWidth={isSmallScreen}
+                    />
+                    <Button
+                        title="Bulk Actions"
+                        variant="secondary"
+                        size={isTablet ? "large" : "medium"}
+                        icon={<Users size={isTablet ? 20 : 18} color="white" />}
+                        onPress={() => {/* TODO: Bulk actions */ }}
+                        fullWidth={isSmallScreen}
                     />
                 </View>
             </View>
@@ -161,19 +285,34 @@ const styles = StyleSheet.create({
         backgroundColor: colors.backgroundSecondary,
     },
     contentContainer: {
-        padding: 16,
         paddingBottom: 32,
+    },
+    statsContainer: {
+        marginBottom: 24,
     },
     statsGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
         gap: 12,
+        justifyContent: "space-between",
+    },
+    searchContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
         marginBottom: 24,
+    },
+    searchWrapper: {
+        flex: 1,
     },
     section: {
-        marginBottom: 24,
+        marginBottom: 28,
     },
-    actionButton: {
+    loadMoreContainer: {
         marginTop: 16,
+        alignItems: "center",
+    },
+    actionsGrid: {
+        flexDirection: "column",
     },
 }); 
