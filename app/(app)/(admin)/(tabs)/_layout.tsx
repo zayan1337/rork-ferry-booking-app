@@ -3,17 +3,16 @@ import { Tabs } from "expo-router";
 import { Platform, StyleSheet } from "react-native";
 import { colors } from "@/constants/adminColors";
 import {
-  BarChart,
-  Calendar,
-  CreditCard,
   Home,
-  Settings,
+  CreditCard,
+  Calendar,
   Ship,
+  MapPin,
   Users
 } from "lucide-react-native";
 
 export default function TabLayout() {
-  const iconSize = 24;
+  const iconSize = 20;
 
   return (
     <Tabs
@@ -56,24 +55,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="routes"
+        options={{
+          title: "Routes",
+          tabBarIcon: ({ color }) => <MapPin size={iconSize} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="users"
         options={{
           title: "Users",
           tabBarIcon: ({ color }) => <Users size={iconSize} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="reports"
-        options={{
-          title: "Reports",
-          tabBarIcon: ({ color }) => <BarChart size={iconSize} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-          tabBarIcon: ({ color }) => <Settings size={iconSize} color={color} />,
         }}
       />
     </Tabs>
@@ -85,13 +77,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    height: Platform.OS === "ios" ? 88 : 60,
-    paddingBottom: Platform.OS === "ios" ? 28 : 8,
-    paddingTop: 8,
+    height: Platform.OS === "ios" ? 86 : 58,
+    paddingBottom: Platform.OS === "ios" ? 26 : 6,
+    paddingTop: 6,
+    paddingHorizontal: 2,
   },
   tabBarLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "500",
+    marginTop: 2,
   },
   header: {
     backgroundColor: colors.background,

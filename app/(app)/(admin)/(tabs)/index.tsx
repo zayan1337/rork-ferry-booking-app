@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FlatList, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, ScrollView, StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { colors } from "@/constants/adminColors";
 import {
   AlertTriangle,
@@ -10,9 +10,8 @@ import {
   Ship,
   Users
 } from "lucide-react-native";
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { useAdminStore } from "@/store/admin/adminStore";
-import { mockBookings, mockDashboardStats, mockTrips } from "@/mocks/adminData";
 import StatCard from "@/components/admin/StatCard";
 import SectionHeader from "@/components/admin/SectionHeader";
 import AlertItem from "@/components/admin/AlertItem";
@@ -21,19 +20,54 @@ import TripItem from "@/components/admin/TripItem";
 import Button from "@/components/admin/Button";
 
 export default function DashboardScreen() {
-  const { alerts, markAlertAsRead, markAllAlertsAsRead } = useAdminStore();
+  const {
+    alerts,
+    bookings,
+    trips,
+    dashboardStats,
+    markAlertAsRead,
+    markAllAlertsAsRead,
+    refreshData
+  } = useAdminStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1500);
+    await refreshData();
+    setIsRefreshing(false);
   };
 
   const handleAlertPress = (id: string) => {
     markAlertAsRead(id);
+  };
+
+  const handleBookingPress = (bookingId: string) => {
+    router.push(`../booking/${bookingId}` as any);
+  };
+
+  const handleTripPress = (tripId: string) => {
+    router.push(`../schedule/${tripId}` as any);
+  };
+
+  const handleSeeAllBookings = () => {
+    router.push("./bookings" as any);
+  };
+
+  const handleSeeAllSchedule = () => {
+    router.push("./schedule" as any);
+  };
+
+  const handleAddBooking = () => {
+    router.push("../booking/new" as any);
+  };
+
+  const handleManageSchedule = () => {
+    router.push("./schedule" as any);
+  };
+
+  const handleEmergencyAnnouncement = () => {
+    // TODO: Implement emergency announcement modal
+    console.log("Emergency announcement modal");
   };
 
   return (
@@ -46,12 +80,12 @@ export default function DashboardScreen() {
         options={{
           title: "Dashboard",
           headerRight: () => (
-            <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.headerRight}>
               <Bell size={24} color={colors.text} />
               {alerts.some(alert => !alert.read) && (
                 <View style={styles.notificationBadge} />
               )}
-            </View>
+            </TouchableOpacity>
           ),
         }}
       />
@@ -65,26 +99,26 @@ export default function DashboardScreen() {
         >
           <StatCard
             title="Daily Bookings"
-            value={mockDashboardStats.dailyBookings.count.toString()}
-            subtitle={`$${mockDashboardStats.dailyBookings.revenue} Revenue`}
+            value={dashboardStats.dailyBookings.count.toString()}
+            subtitle={`$${dashboardStats.dailyBookings.revenue} Revenue`}
             icon={<CreditCard size={18} color={colors.primary} />}
           />
           <StatCard
             title="Active Trips"
-            value={mockDashboardStats.activeTrips.toString()}
+            value={dashboardStats.activeTrips.toString()}
             icon={<Ship size={18} color={colors.secondary} />}
             color={colors.secondary}
           />
           <StatCard
             title="Active Users"
-            value={mockDashboardStats.activeUsers.toString()}
+            value={dashboardStats.activeUsers.toString()}
             icon={<Users size={18} color="#34C759" />}
             color="#34C759"
           />
           <StatCard
             title="Payments"
-            value={mockDashboardStats.paymentStatus.completed.toString()}
-            subtitle={`${mockDashboardStats.paymentStatus.pending} Pending`}
+            value={dashboardStats.paymentStatus.completed.toString()}
+            subtitle={`${dashboardStats.paymentStatus.pending} Pending`}
             icon={<DollarSign size={18} color="#FF9500" />}
             color="#FF9500"
           />
@@ -129,14 +163,14 @@ export default function DashboardScreen() {
       <View style={styles.section}>
         <SectionHeader
           title="Recent Bookings"
-          onSeeAll={() => {/* Navigate to bookings */ }}
+          onSeeAll={handleSeeAllBookings}
         />
 
-        {mockBookings.slice(0, 3).map((booking) => (
+        {bookings.slice(0, 3).map((booking) => (
           <BookingItem
             key={booking.id}
             booking={booking}
-            onPress={() => {/* Navigate to booking details */ }}
+            onPress={() => handleBookingPress(booking.id)}
           />
         ))}
       </View>
@@ -145,14 +179,14 @@ export default function DashboardScreen() {
       <View style={styles.section}>
         <SectionHeader
           title="Upcoming Trips"
-          onSeeAll={() => {/* Navigate to schedule */ }}
+          onSeeAll={handleSeeAllSchedule}
         />
 
-        {mockTrips.slice(0, 3).map((trip) => (
+        {trips.slice(0, 3).map((trip) => (
           <TripItem
             key={trip.id}
             trip={trip}
-            onPress={() => {/* Navigate to trip details */ }}
+            onPress={() => handleTripPress(trip.id)}
           />
         ))}
       </View>
@@ -165,7 +199,7 @@ export default function DashboardScreen() {
             title="Emergency Announcement"
             variant="danger"
             icon={<AlertTriangle size={18} color="#FFFFFF" />}
-            onPress={() => {/* Show announcement modal */ }}
+            onPress={handleEmergencyAnnouncement}
             fullWidth
           />
           <View style={styles.actionRow}>
@@ -173,7 +207,7 @@ export default function DashboardScreen() {
               title="Add Booking"
               variant="primary"
               icon={<CreditCard size={18} color="#FFFFFF" />}
-              onPress={() => {/* Navigate to add booking */ }}
+              onPress={handleAddBooking}
               fullWidth
             />
             <View style={styles.actionSpacer} />
@@ -181,7 +215,7 @@ export default function DashboardScreen() {
               title="Manage Schedule"
               variant="secondary"
               icon={<Calendar size={18} color="#FFFFFF" />}
-              onPress={() => {/* Navigate to schedule management */ }}
+              onPress={handleManageSchedule}
               fullWidth
             />
           </View>

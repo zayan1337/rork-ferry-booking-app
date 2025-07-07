@@ -1,117 +1,179 @@
 import React, { useState } from "react";
-import { FlatList, Platform, StyleSheet, View } from "react-native";
-import { Stack } from "expo-router";
+import {
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View
+} from "react-native";
+import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { mockTrips } from "@/mocks/adminData";
-import { Trip } from "@/types/admin";
-import TripItem from "@/components/admin/TripItem";
-import SearchBar from "@/components/admin/SearchBar";
-import EmptyState from "@/components/admin/EmptyState";
-import { Calendar, Filter, Plus } from "lucide-react-native";
+import { useAdminStore } from "@/store/admin/adminStore";
+import {
+    Calendar,
+    Plus,
+    Clock,
+    CheckCircle,
+    AlertCircle,
+    Ship
+} from "lucide-react-native";
 import Button from "@/components/admin/Button";
+import SectionHeader from "@/components/admin/SectionHeader";
+import SearchBar from "@/components/admin/SearchBar";
+import TripItem from "@/components/admin/TripItem";
+import EmptyState from "@/components/admin/EmptyState";
+import StatCard from "@/components/admin/StatCard";
 
 export default function ScheduleScreen() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
+    const {
+        trips,
+        refreshData,
+    } = useAdminStore();
 
-  const filteredTrips = mockTrips.filter(
-    (trip) =>
-      trip.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trip.routeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trip.vesselName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    const [refreshing, setRefreshing] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1500);
-  };
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        await refreshData();
+        setRefreshing(false);
+    };
 
-  const handleTripPress = (trip: Trip) => {
-    // Navigate to trip details
-    console.log("Trip pressed:", trip.id);
-  };
+    const filteredTrips = trips?.filter((trip) =>
+        (trip?.routeName?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        (trip?.vesselName?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        (trip?.id || "").includes(searchQuery)
+    ) || [];
 
-  return (
-    <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          title: "Schedule",
-          headerRight: () => (
-            <View style={styles.headerRight}>
-              <Plus size={24} color={colors.text} />
+    // Calculate stats
+    const todayTrips = trips?.filter(t => {
+        const today = new Date().toISOString().split('T')[0];
+        return t?.date === today;
+    }) || [];
+
+    const completedTrips = trips?.filter(t => t?.status === "completed").length || 0;
+    const inProgressTrips = trips?.filter(t => t?.status === "in-progress").length || 0;
+    const scheduledTrips = trips?.filter(t => t?.status === "scheduled").length || 0;
+
+    return (
+        <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.contentContainer}
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    colors={[colors.primary]}
+                    tintColor={colors.primary}
+                />
+            }
+        >
+            <Stack.Screen
+                options={{
+                    title: "Schedule",
+                    headerRight: () => (
+                        <Button
+                            title="New"
+                            variant="primary"
+                            size="small"
+                            icon={<Plus size={16} color="#FFFFFF" />}
+                            onPress={() => router.push("../schedule/new")}
+                        />
+                    ),
+                }}
+            />
+
+            {/* Quick Stats */}
+            <View style={styles.statsGrid}>
+                <StatCard
+                    title="Today's Trips"
+                    value={todayTrips.length.toString()}
+                    icon={<Calendar size={24} color={colors.primary} />}
+                    subtitle="+8%"
+                />
+                <StatCard
+                    title="In Progress"
+                    value={inProgressTrips.toString()}
+                    icon={<Ship size={24} color={colors.secondary} />}
+                    subtitle="Active"
+                />
+                <StatCard
+                    title="Completed"
+                    value={completedTrips.toString()}
+                    icon={<CheckCircle size={24} color={colors.success} />}
+                    subtitle="+5%"
+                />
+                <StatCard
+                    title="Scheduled"
+                    value={scheduledTrips.toString()}
+                    icon={<Clock size={24} color={colors.warning} />}
+                    subtitle="Upcoming"
+                />
             </View>
-          ),
-        }}
-      />
 
-      <View style={styles.searchContainer}>
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search trips..."
-        />
-        <Button
-          title="Filter"
-          variant="outline"
-          size="medium"
-          icon={<Filter size={18} color={colors.primary} />}
-          onPress={() => {/* Show filter modal */ }}
-        />
-      </View>
+            {/* Search Bar */}
+            <SearchBar
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search trips..."
+            />
 
-      <FlatList
-        data={filteredTrips}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TripItem trip={item} onPress={() => handleTripPress(item)} />
-        )}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        onRefresh={handleRefresh}
-        refreshing={isRefreshing}
-        ListEmptyComponent={
-          <EmptyState
-            icon={<Calendar size={48} color={colors.textSecondary} />}
-            title="No Trips Found"
-            message={
-              searchQuery
-                ? "We couldn't find any trips matching your search."
-                : "There are no trips scheduled in the system yet."
-            }
-            action={
-              <Button
-                title="Schedule Trip"
-                variant="primary"
-                icon={<Plus size={18} color="#FFFFFF" />}
-                onPress={() => {/* Navigate to create trip */ }}
-              />
-            }
-          />
-        }
-      />
-    </View>
-  );
+            {/* Trips List */}
+            <View style={styles.section}>
+                <SectionHeader
+                    title={`All Trips (${filteredTrips.length})`}
+                    onSeeAll={() => {/* Open filter modal */ }}
+                />
+
+                {filteredTrips.length === 0 ? (
+                    <EmptyState
+                        title="No trips found"
+                        message={searchQuery ? "No trips match your search criteria" : "No trips scheduled"}
+                        icon={<Calendar size={48} color={colors.textSecondary} />}
+                    />
+                ) : (
+                    filteredTrips.map((trip) => (
+                        <TripItem
+                            key={trip.id}
+                            trip={trip}
+                            onPress={() => router.push(`../schedule/${trip.id}`)}
+                        />
+                    ))
+                )}
+
+                <View style={styles.actionButton}>
+                    <Button
+                        title="Schedule New Trip"
+                        variant="outline"
+                        icon={<Plus size={18} color={colors.primary} />}
+                        onPress={() => router.push("../schedule/new")}
+                        fullWidth
+                    />
+                </View>
+            </View>
+        </ScrollView>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.backgroundSecondary,
-    padding: 16,
-  },
-  headerRight: {
-    marginRight: 16,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
-  },
-  listContent: {
-    paddingBottom: Platform.OS === "ios" ? 120 : 100,
-  },
-});
+    container: {
+        flex: 1,
+        backgroundColor: colors.backgroundSecondary,
+    },
+    contentContainer: {
+        padding: 16,
+        paddingBottom: 32,
+    },
+    statsGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 12,
+        marginBottom: 24,
+    },
+    section: {
+        marginBottom: 24,
+    },
+    actionButton: {
+        marginTop: 16,
+    },
+}); 
