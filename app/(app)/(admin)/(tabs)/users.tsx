@@ -20,7 +20,9 @@ import {
     TrendingUp,
     FileText,
     Bell,
-    Lock
+    Lock,
+    Database,
+    Download
 } from "lucide-react-native";
 import Button from "@/components/admin/Button";
 import SectionHeader from "@/components/admin/SectionHeader";
@@ -29,14 +31,14 @@ import UserItem from "@/components/admin/UserItem";
 import EmptyState from "@/components/admin/EmptyState";
 import StatCard from "@/components/admin/StatCard";
 
-export default function UsersScreen() {
+export default function ManagementScreen() {
     const adminStore = useAdminStore();
     const users = adminStore?.users || [];
     const refreshData = adminStore?.refreshData || (() => Promise.resolve());
 
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeTab, setActiveTab] = useState<"users" | "reports" | "settings">("users");
+    const [activeTab, setActiveTab] = useState<"users" | "reports" | "system">("users");
 
     const handleRefresh = async () => {
         setRefreshing(true);
@@ -72,42 +74,48 @@ export default function UsersScreen() {
     const reports = [
         {
             id: "revenue",
-            title: "Revenue Report",
-            description: "Monthly revenue analysis",
+            title: "Revenue Analytics",
+            description: "Monthly revenue and profit analysis",
             icon: <TrendingUp size={20} color={colors.success} />,
+            period: "Last 30 days",
         },
         {
             id: "bookings",
-            title: "Booking Analytics",
-            description: "Booking trends and statistics",
+            title: "Booking Reports",
+            description: "Booking trends and customer analytics",
             icon: <BarChart size={20} color={colors.primary} />,
+            period: "Last 7 days",
         },
         {
             id: "vessels",
             title: "Fleet Performance",
-            description: "Vessel utilization metrics",
+            description: "Vessel utilization and maintenance reports",
             icon: <FileText size={20} color={colors.secondary} />,
+            period: "Real-time",
         },
     ];
 
-    const settings = [
+    const systemTools = [
         {
             id: "notifications",
-            title: "Notifications",
-            description: "Manage system notifications",
+            title: "System Notifications",
+            description: "Manage global alerts and announcements",
             icon: <Bell size={20} color={colors.warning} />,
+            action: "Configure",
         },
         {
-            id: "security",
-            title: "Security Settings",
-            description: "User roles and permissions",
-            icon: <Lock size={20} color={colors.danger} />,
+            id: "database",
+            title: "Database Management",
+            description: "Backup, restore, and maintenance tools",
+            icon: <Database size={20} color={colors.danger} />,
+            action: "Manage",
         },
         {
-            id: "system",
-            title: "System Configuration",
-            description: "General system settings",
-            icon: <Settings size={20} color={colors.textSecondary} />,
+            id: "export",
+            title: "Data Export",
+            description: "Export system data and reports",
+            icon: <Download size={20} color={colors.primary} />,
+            action: "Export",
         },
     ];
 
@@ -119,9 +127,10 @@ export default function UsersScreen() {
             <View style={styles.itemHeader}>
                 <View style={styles.itemTitleContainer}>
                     {report?.icon}
-                    <View>
+                    <View style={styles.itemInfo}>
                         <Text style={styles.itemTitle}>{report?.title || "Unknown Report"}</Text>
                         <Text style={styles.itemDescription}>{report?.description || "No description"}</Text>
+                        <Text style={styles.itemPeriod}>{report?.period || ""}</Text>
                     </View>
                 </View>
                 <Text style={styles.arrowText}>→</Text>
@@ -129,20 +138,22 @@ export default function UsersScreen() {
         </TouchableOpacity>
     );
 
-    const SettingItem = ({ setting }: { setting: any }) => (
+    const SystemToolItem = ({ tool }: { tool: any }) => (
         <TouchableOpacity
             style={styles.itemCard}
-            onPress={() => {/* Navigate to setting */ }}
+            onPress={() => {/* Navigate to tool */ }}
         >
             <View style={styles.itemHeader}>
                 <View style={styles.itemTitleContainer}>
-                    {setting?.icon}
-                    <View>
-                        <Text style={styles.itemTitle}>{setting?.title || "Unknown Setting"}</Text>
-                        <Text style={styles.itemDescription}>{setting?.description || "No description"}</Text>
+                    {tool?.icon}
+                    <View style={styles.itemInfo}>
+                        <Text style={styles.itemTitle}>{tool?.title || "Unknown Tool"}</Text>
+                        <Text style={styles.itemDescription}>{tool?.description || "No description"}</Text>
                     </View>
                 </View>
-                <Text style={styles.arrowText}>→</Text>
+                <View style={styles.actionBadge}>
+                    <Text style={styles.actionText}>{tool?.action || "Open"}</Text>
+                </View>
             </View>
         </TouchableOpacity>
     );
@@ -238,18 +249,18 @@ export default function UsersScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={[styles.tab, activeTab === "settings" && styles.activeTab]}
-                    onPress={() => setActiveTab("settings")}
+                    style={[styles.tab, activeTab === "system" && styles.activeTab]}
+                    onPress={() => setActiveTab("system")}
                 >
                     <Settings
                         size={20}
-                        color={activeTab === "settings" ? colors.primary : colors.textSecondary}
+                        color={activeTab === "system" ? colors.primary : colors.textSecondary}
                     />
                     <Text style={[
                         styles.tabText,
-                        activeTab === "settings" && styles.activeTabText
+                        activeTab === "system" && styles.activeTabText
                     ]}>
-                        Settings
+                        System
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -304,6 +315,10 @@ export default function UsersScreen() {
                         onSeeAll={() => {/* Navigate to full reports */ }}
                     />
 
+                    <Text style={styles.sectionDescription}>
+                        Generate and view comprehensive reports on system performance, revenue, and user analytics.
+                    </Text>
+
                     {reports.map((report, index) => (
                         <ReportItem key={report?.id || index} report={report} />
                     ))}
@@ -321,20 +336,24 @@ export default function UsersScreen() {
             ) : (
                 <View style={styles.section}>
                     <SectionHeader
-                        title="System Settings"
+                        title="System Tools"
                         onSeeAll={() => {/* Navigate to advanced settings */ }}
                     />
 
-                    {settings.map((setting, index) => (
-                        <SettingItem key={setting?.id || index} setting={setting} />
+                    <Text style={styles.sectionDescription}>
+                        Manage system-wide settings, notifications, and maintenance tools.
+                    </Text>
+
+                    {systemTools.map((tool, index) => (
+                        <SystemToolItem key={tool?.id || index} tool={tool} />
                     ))}
 
                     <View style={styles.actionButton}>
                         <Button
-                            title="Backup & Export"
+                            title="Advanced Settings"
                             variant="outline"
                             icon={<Settings size={18} color={colors.primary} />}
-                            onPress={() => {/* Navigate to backup */ }}
+                            onPress={() => {/* Navigate to advanced settings */ }}
                             fullWidth
                         />
                     </View>
@@ -396,6 +415,12 @@ const styles = StyleSheet.create({
     section: {
         marginBottom: 24,
     },
+    sectionDescription: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        marginBottom: 16,
+        lineHeight: 20,
+    },
     itemCard: {
         backgroundColor: colors.card,
         borderRadius: 12,
@@ -414,24 +439,45 @@ const styles = StyleSheet.create({
     },
     itemTitleContainer: {
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: "flex-start",
         gap: 12,
+        flex: 1,
+    },
+    itemInfo: {
         flex: 1,
     },
     itemTitle: {
         fontSize: 16,
         fontWeight: "600",
         color: colors.text,
-        marginBottom: 2,
+        marginBottom: 4,
     },
     itemDescription: {
         fontSize: 14,
         color: colors.textSecondary,
+        marginBottom: 4,
+        lineHeight: 18,
+    },
+    itemPeriod: {
+        fontSize: 12,
+        color: colors.primary,
+        fontWeight: "500",
     },
     arrowText: {
         fontSize: 18,
         color: colors.textSecondary,
         fontWeight: "300",
+    },
+    actionBadge: {
+        backgroundColor: colors.primary + "10",
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    actionText: {
+        fontSize: 12,
+        color: colors.primary,
+        fontWeight: "600",
     },
     actionButton: {
         marginTop: 16,

@@ -1,18 +1,65 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { Platform, StyleSheet } from "react-native";
+import { Platform, StyleSheet, TouchableOpacity, View, Alert } from "react-native";
 import { colors } from "@/constants/adminColors";
+import { useAuthStore } from "@/store/authStore";
+import { router } from "expo-router";
 import {
   Home,
   CreditCard,
   Calendar,
   Ship,
   MapPin,
-  Users
+  Users,
+  User,
+  LogOut
 } from "lucide-react-native";
 
 export default function TabLayout() {
   const iconSize = 20;
+  const { user, signOut } = useAuthStore();
+
+  const handleProfilePress = () => {
+    router.push("../modal");
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              console.error("Logout error:", error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderHeaderRight = () => (
+    <View style={styles.headerRightContainer}>
+      <TouchableOpacity
+        style={styles.headerButton}
+        onPress={handleProfilePress}
+      >
+        <User size={20} color={colors.text} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.headerButton}
+        onPress={handleLogout}
+      >
+        <LogOut size={20} color={colors.danger} />
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <Tabs
@@ -24,6 +71,7 @@ export default function TabLayout() {
         headerStyle: styles.header,
         headerTitleStyle: styles.headerTitle,
         headerShadowVisible: false,
+        headerRight: renderHeaderRight,
       }}
     >
       <Tabs.Screen
@@ -64,7 +112,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="users"
         options={{
-          title: "Users",
+          title: "Management",
           tabBarIcon: ({ color }) => <Users size={iconSize} color={color} />,
         }}
       />
@@ -93,5 +141,21 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontWeight: "600",
     fontSize: 18,
+  },
+  headerRightContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginRight: 8,
+  },
+  headerButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: colors.card,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
 });
