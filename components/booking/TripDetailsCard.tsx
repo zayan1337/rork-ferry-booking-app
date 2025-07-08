@@ -194,7 +194,7 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
             <Text style={styles.detailLabel}>Current Status</Text>
             <View style={[styles.inlineStatusBadge, statusBadgeFn(status)]}>
               <Text style={[styles.inlineStatusText, statusTextFn(status)]}>
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+                {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
               </Text>
             </View>
           </View>

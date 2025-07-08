@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FlatList, Platform, ScrollView, StyleSheet, Text, View, TouchableOpacity, Dimensions, RefreshControl } from "react-native";
 import { colors } from "@/constants/adminColors";
 import {
@@ -15,7 +15,7 @@ import {
   TrendingUp
 } from "lucide-react-native";
 import { Stack, router } from "expo-router";
-import { useAdminStore } from "@/store/admin/adminStore";
+import { useAdminDashboard, useAdminBookings, useAdminTrips } from "@/hooks/admin";
 import { useAuthStore } from "@/store/authStore";
 import StatCard from "@/components/admin/StatCard";
 import SectionHeader from "@/components/admin/SectionHeader";
@@ -27,25 +27,51 @@ import Button from "@/components/admin/Button";
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function DashboardScreen() {
+  // New specialized hooks
   const {
+    stats,
     alerts,
-    bookings,
-    trips,
-    dashboardStats,
+    loading: dashboardLoading,
     markAlertAsRead,
     markAllAlertsAsRead,
-    refreshData
-  } = useAdminStore();
+    refreshData: refreshDashboard
+  } = useAdminDashboard();
+  const {
+    bookings,
+    loading: bookingsLoading,
+    fetchBookings
+  } = useAdminBookings();
+  const {
+    trips,
+    loading: tripsLoading,
+    fetchTrips
+  } = useAdminTrips();
   const { user } = useAuthStore();
+
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isTablet = screenWidth >= 768;
   const isSmallScreen = screenWidth < 480;
 
+  // Initialize data on component mount
+  useEffect(() => {
+    fetchBookings({ status: ['confirmed', 'pending_payment'] });
+    fetchTrips({ status: ['scheduled'] });
+  }, []);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refreshData();
-    setIsRefreshing(false);
+    try {
+      await Promise.all([
+        refreshDashboard(),
+        fetchBookings({ status: ['confirmed', 'pending_payment'] }),
+        fetchTrips({ status: ['scheduled'] })
+      ]);
+    } catch (error) {
+      console.error('Error refreshing dashboard:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleAlertPress = (id: string) => {
@@ -167,29 +193,30 @@ export default function DashboardScreen() {
         <View style={styles.statsGrid}>
           <StatCard
             title="Daily Bookings"
-            value={dashboardStats.dailyBookings.count.toString()}
-            subtitle={`$${dashboardStats.dailyBookings.revenue} Revenue`}
+            value={stats?.overview.daily_bookings?.toString() || "0"}
+            subtitle={`$${stats?.overview.daily_revenue?.toLocaleString() || "0"} Revenue`}
             icon={<CreditCard size={isTablet ? 20 : 18} color={colors.primary} />}
             size={isTablet ? "large" : "medium"}
           />
           <StatCard
             title="Active Trips"
-            value={dashboardStats.activeTrips.toString()}
+            value={stats?.overview.active_trips?.toString() || "0"}
             icon={<Ship size={isTablet ? 20 : 18} color={colors.secondary} />}
             color={colors.secondary}
             size={isTablet ? "large" : "medium"}
           />
           <StatCard
-            title="Active Users"
-            value={dashboardStats.activeUsers.toString()}
+            title="Total Users"
+            value={stats?.overview.total_users?.toString() || "0"}
+            subtitle={`${stats?.overview.active_agents || 0} Agents`}
             icon={<Users size={isTablet ? 20 : 18} color="#34C759" />}
             color="#34C759"
             size={isTablet ? "large" : "medium"}
           />
           <StatCard
-            title="Payments"
-            value={dashboardStats.paymentStatus.completed.toString()}
-            subtitle={`${dashboardStats.paymentStatus.pending} Pending`}
+            title="Monthly Revenue"
+            value={`$${stats?.overview.monthly_revenue?.toLocaleString() || "0"}`}
+            subtitle={`$${stats?.overview.weekly_revenue?.toLocaleString() || "0"} This Week`}
             icon={<DollarSign size={isTablet ? 20 : 18} color="#FF9500" />}
             color="#FF9500"
             size={isTablet ? "large" : "medium"}
@@ -231,7 +258,7 @@ export default function DashboardScreen() {
           title="Alerts & Notifications"
           size={isTablet ? "large" : "medium"}
           action={
-            alerts.some(alert => !alert.read) ? (
+            alerts.some((alert: any) => !alert.is_read) ? (
               <Button
                 title="Mark All as Read"
                 variant="outline"
@@ -274,7 +301,7 @@ export default function DashboardScreen() {
           size={isTablet ? "large" : "medium"}
         />
 
-        {bookings.slice(0, 3).map((booking) => (
+        {bookings.slice(0, 3).map((booking: any) => (
           <BookingItem
             key={booking.id}
             booking={booking}
@@ -293,7 +320,7 @@ export default function DashboardScreen() {
           size={isTablet ? "large" : "medium"}
         />
 
-        {trips.slice(0, 3).map((trip) => (
+        {trips.slice(0, 3).map((trip: any) => (
           <TripItem
             key={trip.id}
             trip={trip}

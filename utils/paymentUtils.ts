@@ -90,6 +90,6 @@ export const calculateRefundAmount = (totalFare: number, refundPercentage: numbe
  */
 export const formatPaymentMethod = (method: PaymentMethod): string => {
   return method.split('_').map(word =>
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ');
+    word && word.length > 0 ? word.charAt(0).toUpperCase() + word.slice(1) : ''
+  ).filter(Boolean).join(' ');
 }; 

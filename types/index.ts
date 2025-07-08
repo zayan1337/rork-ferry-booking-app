@@ -86,3 +86,4 @@ export * from './database';
 export * from './store';
 export * from './booking';
 export * from './customer';
+export * from './permissions';

@@ -3,15 +3,17 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "@/constants/adminColors";
 import { ArrowRight, Calendar, Clock, Ship } from "lucide-react-native";
 import StatusBadge from "./StatusBadge";
-import { Trip } from "@/types/admin";
+import { AdminTrip } from "@/types/admin";
 
 interface TripItemProps {
-  trip: Trip;
+  trip: AdminTrip;
   onPress?: () => void;
 }
 
 export default function TripItem({ trip, onPress }: TripItemProps) {
-  const occupancyPercentage = Math.round((trip.bookings / trip.capacity) * 100);
+  const occupancyPercentage = Math.round(
+    ((trip.vessel_capacity - trip.available_seats) / trip.vessel_capacity) * 100
+  );
 
   const getOccupancyColor = () => {
     if (occupancyPercentage >= 90) return colors.danger;
@@ -19,28 +21,57 @@ export default function TripItem({ trip, onPress }: TripItemProps) {
     return colors.success;
   };
 
+  // Calculate estimated arrival time (departure + 2 hours as default)
+  const getArrivalTime = () => {
+    try {
+      const [hours, minutes] = trip.departure_time.split(':');
+      const departureDate = new Date();
+      departureDate.setHours(parseInt(hours), parseInt(minutes));
+      departureDate.setHours(departureDate.getHours() + 2); // Assume 2-hour journey
+      return departureDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return "TBD";
+    }
+  };
+
+  // Format date for display
+  const formatDate = () => {
+    try {
+      const date = new Date(trip.travel_date);
+      return date.toLocaleDateString([], { 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric' 
+      });
+    } catch {
+      return trip.travel_date;
+    }
+  };
+
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.header}>
-        <Text style={styles.id}>#{trip.id}</Text>
-        <StatusBadge status={trip.status} />
+        <Text style={styles.id}>#{trip.id.slice(-8)}</Text>
+        <StatusBadge status={trip.status || 'scheduled'} />
       </View>
 
       <View style={styles.routeContainer}>
-        <Text style={styles.routeName}>{trip.routeName}</Text>
-        <Text style={styles.vesselName}>{trip.vesselName}</Text>
+        <Text style={styles.routeName}>
+          {trip.route_name || `${trip.from_island_name} to ${trip.to_island_name}`}
+        </Text>
+        <Text style={styles.vesselName}>{trip.vessel_name}</Text>
       </View>
 
       <View style={styles.timeContainer}>
         <View style={styles.timeBlock}>
-          <Text style={styles.time}>{trip.departureTime}</Text>
+          <Text style={styles.time}>{trip.departure_time}</Text>
           <Text style={styles.timeLabel}>Departure</Text>
         </View>
 
         <ArrowRight size={20} color={colors.textSecondary} />
 
         <View style={styles.timeBlock}>
-          <Text style={styles.time}>{trip.arrivalTime}</Text>
+          <Text style={styles.time}>{getArrivalTime()}</Text>
           <Text style={styles.timeLabel}>Arrival</Text>
         </View>
       </View>
@@ -48,15 +79,23 @@ export default function TripItem({ trip, onPress }: TripItemProps) {
       <View style={styles.detailsContainer}>
         <View style={styles.detailItem}>
           <Calendar size={16} color={colors.textSecondary} />
-          <Text style={styles.detailText}>{trip.date}</Text>
+          <Text style={styles.detailText}>{formatDate()}</Text>
         </View>
 
         <View style={styles.detailItem}>
           <Ship size={16} color={colors.textSecondary} />
           <Text style={styles.detailText}>
-            {trip.bookings}/{trip.capacity} passengers
+            {trip.vessel_capacity - trip.available_seats}/{trip.vessel_capacity} passengers
           </Text>
         </View>
+
+        {trip.revenue && (
+          <View style={styles.detailItem}>
+            <Text style={styles.detailText}>
+              MVR {trip.revenue.toLocaleString()}
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.occupancyContainer}>
@@ -81,15 +120,15 @@ export default function TripItem({ trip, onPress }: TripItemProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: colors.shadow,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 1,
+    elevation: 3,
   },
   header: {
     flexDirection: "row",

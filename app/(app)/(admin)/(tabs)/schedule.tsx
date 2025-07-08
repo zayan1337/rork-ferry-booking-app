@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     RefreshControl,
     ScrollView,
@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useAdminStore } from "@/store/admin/adminStore";
+import { useAdminTrips } from "@/hooks/admin";
 import {
     Calendar,
     Plus,
@@ -27,33 +27,50 @@ import StatCard from "@/components/admin/StatCard";
 export default function ScheduleScreen() {
     const {
         trips,
-        refreshData,
-    } = useAdminStore();
+        loading,
+        error,
+        pagination,
+        fetchTrips,
+        refreshTrips
+    } = useAdminTrips();
 
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
+    // Load initial data
+    useEffect(() => {
+        fetchTrips();
+    }, []);
+
     const handleRefresh = async () => {
         setRefreshing(true);
-        await refreshData();
-        setRefreshing(false);
+        try {
+            await refreshTrips();
+        } catch (error) {
+            console.error("Refresh error:", error);
+        } finally {
+            setRefreshing(false);
+        }
     };
 
-    const filteredTrips = trips?.filter((trip) =>
-        (trip?.routeName?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-        (trip?.vesselName?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-        (trip?.id || "").includes(searchQuery)
-    ) || [];
+    const handleSearch = async (query: string) => {
+        setSearchQuery(query);
+        if (query.trim()) {
+            await fetchTrips({ search: query.trim() });
+        } else {
+            await fetchTrips();
+        }
+    };
 
     // Calculate stats
-    const todayTrips = trips?.filter(t => {
+    const todayTrips = trips.filter(t => {
         const today = new Date().toISOString().split('T')[0];
-        return t?.date === today;
-    }) || [];
+        return t.travel_date === today;
+    });
 
-    const completedTrips = trips?.filter(t => t?.status === "completed").length || 0;
-    const inProgressTrips = trips?.filter(t => t?.status === "in-progress").length || 0;
-    const scheduledTrips = trips?.filter(t => t?.status === "scheduled").length || 0;
+    const completedTrips = trips.filter(t => t.status === "completed").length;
+    const inProgressTrips = trips.filter(t => t.status === "in_progress").length;
+    const scheduledTrips = trips.filter(t => t.status === "scheduled").length;
 
     return (
         <ScrollView
@@ -83,13 +100,20 @@ export default function ScheduleScreen() {
                 }}
             />
 
+            {/* Error state */}
+            {error && (
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{error}</Text>
+                </View>
+            )}
+
             {/* Quick Stats */}
             <View style={styles.statsGrid}>
                 <StatCard
                     title="Today's Trips"
                     value={todayTrips.length.toString()}
                     icon={<Calendar size={24} color={colors.primary} />}
-                    subtitle="+8%"
+                    subtitle={`${Math.round((todayTrips.length / Math.max(trips.length, 1)) * 100)}%`}
                 />
                 <StatCard
                     title="In Progress"
@@ -101,7 +125,7 @@ export default function ScheduleScreen() {
                     title="Completed"
                     value={completedTrips.toString()}
                     icon={<CheckCircle size={24} color={colors.success} />}
-                    subtitle="+5%"
+                    subtitle={`${Math.round((completedTrips / Math.max(trips.length, 1)) * 100)}%`}
                 />
                 <StatCard
                     title="Scheduled"
@@ -114,25 +138,29 @@ export default function ScheduleScreen() {
             {/* Search Bar */}
             <SearchBar
                 value={searchQuery}
-                onChangeText={setSearchQuery}
+                onChangeText={handleSearch}
                 placeholder="Search trips..."
             />
 
             {/* Trips List */}
             <View style={styles.section}>
                 <SectionHeader
-                    title={`All Trips (${filteredTrips.length})`}
+                    title={`All Trips (${trips.length})`}
                     onSeeAll={() => {/* Open filter modal */ }}
                 />
 
-                {filteredTrips.length === 0 ? (
+                {loading && trips.length === 0 ? (
+                    <View style={styles.loadingContainer}>
+                        <Text style={styles.loadingText}>Loading trips...</Text>
+                    </View>
+                ) : trips.length === 0 ? (
                     <EmptyState
                         title="No trips found"
                         message={searchQuery ? "No trips match your search criteria" : "No trips scheduled"}
                         icon={<Calendar size={48} color={colors.textSecondary} />}
                     />
                 ) : (
-                    filteredTrips.map((trip) => (
+                    trips.map((trip) => (
                         <TripItem
                             key={trip.id}
                             trip={trip}
@@ -163,6 +191,25 @@ const styles = StyleSheet.create({
     contentContainer: {
         padding: 16,
         paddingBottom: 32,
+    },
+    errorContainer: {
+        backgroundColor: colors.danger,
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    errorText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    loadingContainer: {
+        padding: 32,
+        alignItems: 'center',
+    },
+    loadingText: {
+        color: colors.textSecondary,
+        fontSize: 16,
     },
     statsGrid: {
         flexDirection: "row",

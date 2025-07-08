@@ -11,6 +11,8 @@ import {
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useAdminStore } from "@/store/admin/adminStore";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@/types/permissions";
 import {
     Users,
     Plus,
@@ -26,6 +28,8 @@ import {
     Download
 } from "lucide-react-native";
 import Button from "@/components/admin/Button";
+import PermissionGuard from "@/components/admin/PermissionGuard";
+import PermissionButton from "@/components/admin/PermissionButton";
 import SectionHeader from "@/components/admin/SectionHeader";
 import SearchBar from "@/components/admin/SearchBar";
 import UserItem from "@/components/admin/UserItem";
@@ -59,7 +63,7 @@ export default function ManagementScreen() {
 
     const filteredUsers = users?.filter((user) => {
         if (!user) return false;
-        const name = user.name || "";
+        const name = user.full_name || "";
         const email = user.email || "";
         const role = user.role || "";
         const id = user.id || "";
@@ -73,7 +77,7 @@ export default function ManagementScreen() {
 
     // Calculate stats with null safety
     const totalUsers = users?.length || 0;
-    const activeUsers = users?.filter(u => u?.status === "active")?.length || 0;
+    const activeUsers = users?.filter(u => u?.is_active === true)?.length || 0;
     const adminUsers = users?.filter(u => u?.role === "admin")?.length || 0;
     const customerUsers = users?.filter(u => u?.role === "customer")?.length || 0;
 
@@ -132,28 +136,40 @@ export default function ManagementScreen() {
 
     const ReportItem = ({ report }: { report: any }) => (
         <TouchableOpacity
-            style={[styles.itemCard, { padding: isTablet ? 20 : 16 }]}
+            style={[styles.itemCard, {
+                padding: isTablet ? 24 : 20,
+                marginBottom: isTablet ? 16 : 12
+            }]}
             onPress={() => router.push(`../reports/${report?.id || ""}`)}
             accessibilityRole="button"
             accessibilityLabel={`View ${report?.title} report`}
+            activeOpacity={0.7}
         >
-            <View style={styles.itemHeader}>
-                <View style={styles.itemTitleContainer}>
+            <View style={styles.itemContent}>
+                <View style={styles.itemIcon}>
                     {report?.icon}
-                    <View style={styles.itemInfo}>
+                </View>
+                <View style={styles.itemDetails}>
+                    <View style={styles.itemMainInfo}>
                         <Text style={[styles.itemTitle, { fontSize: isTablet ? 18 : 16 }]}>
                             {report?.title || "Unknown Report"}
                         </Text>
                         <Text style={[styles.itemDescription, { fontSize: isTablet ? 15 : 14 }]}>
                             {report?.description || "No description"}
                         </Text>
-                        <Text style={[styles.itemPeriod, { fontSize: isTablet ? 13 : 12 }]}>
-                            {report?.period || ""}
-                        </Text>
+                        {report?.period && (
+                            <View style={styles.periodContainer}>
+                                <Text style={[styles.itemPeriod, { fontSize: isTablet ? 13 : 12 }]}>
+                                    {report?.period}
+                                </Text>
+                            </View>
+                        )}
                     </View>
-                </View>
-                <View style={styles.arrowContainer}>
-                    <Text style={[styles.arrowText, { fontSize: isTablet ? 24 : 20 }]}>→</Text>
+                    <View style={styles.itemAction}>
+                        <View style={styles.viewButton}>
+                            <Text style={styles.viewButtonText}>View</Text>
+                        </View>
+                    </View>
                 </View>
             </View>
         </TouchableOpacity>
@@ -161,15 +177,36 @@ export default function ManagementScreen() {
 
     const SystemToolItem = ({ tool }: { tool: any }) => (
         <TouchableOpacity
-            style={[styles.itemCard, { padding: isTablet ? 20 : 16 }]}
-            onPress={() => {/* Navigate to tool */ }}
+            style={[styles.itemCard, {
+                padding: isTablet ? 24 : 20,
+                marginBottom: isTablet ? 16 : 12
+            }]}
+            onPress={() => {
+                // Navigate to different system tools
+                switch (tool?.id) {
+                    case 'notifications':
+                        console.log('Navigate to notifications management');
+                        break;
+                    case 'database':
+                        console.log('Navigate to database management');
+                        break;
+                    case 'export':
+                        console.log('Navigate to data export');
+                        break;
+                    default:
+                        console.log('Unknown tool:', tool?.id);
+                }
+            }}
             accessibilityRole="button"
             accessibilityLabel={`${tool?.action} ${tool?.title}`}
+            activeOpacity={0.7}
         >
-            <View style={styles.itemHeader}>
-                <View style={styles.itemTitleContainer}>
+            <View style={styles.itemContent}>
+                <View style={styles.itemIcon}>
                     {tool?.icon}
-                    <View style={styles.itemInfo}>
+                </View>
+                <View style={styles.itemDetails}>
+                    <View style={styles.itemMainInfo}>
                         <Text style={[styles.itemTitle, { fontSize: isTablet ? 18 : 16 }]}>
                             {tool?.title || "Unknown Tool"}
                         </Text>
@@ -177,11 +214,16 @@ export default function ManagementScreen() {
                             {tool?.description || "No description"}
                         </Text>
                     </View>
-                </View>
-                <View style={styles.actionBadge}>
-                    <Text style={[styles.actionText, { fontSize: isTablet ? 13 : 12 }]}>
-                        {tool?.action || "Open"}
-                    </Text>
+                    <View style={styles.itemAction}>
+                        <View style={[styles.actionBadge, {
+                            paddingHorizontal: isTablet ? 16 : 12,
+                            paddingVertical: isTablet ? 8 : 6
+                        }]}>
+                            <Text style={[styles.actionText, { fontSize: isTablet ? 13 : 12 }]}>
+                                {tool?.action || "Open"}
+                            </Text>
+                        </View>
+                    </View>
                 </View>
             </View>
         </TouchableOpacity>
@@ -218,8 +260,8 @@ export default function ManagementScreen() {
 
             {/* Quick Stats */}
             <View style={styles.statsContainer}>
-                <SectionHeader 
-                    title="User Overview" 
+                <SectionHeader
+                    title="User Overview"
                     subtitle="System statistics"
                     size={isTablet ? "large" : "medium"}
                 />
@@ -340,146 +382,193 @@ export default function ManagementScreen() {
 
             {/* Content based on active tab */}
             {activeTab === "users" ? (
-                <View style={styles.section}>
-                    <SectionHeader
-                        title="User Management"
-                        subtitle={`${filteredUsers?.length || 0} ${filteredUsers?.length === 1 ? 'user' : 'users'}`}
-                        size={isTablet ? "large" : "medium"}
-                        action={
-                            <Button
-                                title="Export"
-                                variant="ghost"
-                                size="small"
-                                onPress={() => {/* TODO: Export users */}}
-                            />
-                        }
-                    />
-
-                    {(!filteredUsers || filteredUsers.length === 0) ? (
-                        <EmptyState
-                            title="No users found"
-                            message={searchQuery 
-                                ? "No users match your search criteria. Try adjusting your search terms." 
-                                : "No users available yet. Add your first user to get started."
-                            }
-                            icon={<Users size={isTablet ? 56 : 48} color={colors.textSecondary} />}
+                <PermissionGuard
+                    permissions={[PERMISSIONS.USERS_VIEW]}
+                    showFallback={true}
+                    fallback={
+                        <View style={styles.noAccessContainer}>
+                            <Shield size={48} color={colors.textSecondary} />
+                            <Text style={styles.noAccessTitle}>Access Restricted</Text>
+                            <Text style={styles.noAccessText}>You don't have permission to view user management.</Text>
+                        </View>
+                    }
+                >
+                    <View style={styles.section}>
+                        <SectionHeader
+                            title="User Management"
+                            subtitle={`${filteredUsers?.length || 0} ${filteredUsers?.length === 1 ? 'user' : 'users'}`}
+                            size={isTablet ? "large" : "medium"}
                             action={
-                                !searchQuery ? (
-                                    <Button
-                                        title="Add First User"
-                                        variant="primary"
-                                        size={isTablet ? "large" : "medium"}
-                                        icon={<Plus size={isTablet ? 20 : 18} color="white" />}
-                                        onPress={() => router.push("../user/new")}
-                                    />
-                                ) : undefined
+                                <PermissionButton
+                                    title="Export"
+                                    permissions={[PERMISSIONS.USERS_VIEW, PERMISSIONS.USERS_EXPORT]}
+                                    variant="secondary"
+                                    size="small"
+                                    onPress={() => {/* TODO: Export users */ }}
+                                />
                             }
                         />
-                    ) : (
-                        <>
-                            {filteredUsers.slice(0, 10).map((user, index) => (
-                                <UserItem
-                                    key={user?.id || index}
-                                    user={user}
-                                    onPress={() => router.push(`../user/${user?.id || ""}`)}
-                                />
-                            ))}
 
-                            {filteredUsers.length > 10 && (
-                                <View style={styles.loadMoreContainer}>
-                                    <Button
-                                        title="Load More Users"
-                                        variant="outline"
-                                        size={isTablet ? "large" : "medium"}
-                                        onPress={() => {/* TODO: Pagination */}}
-                                        fullWidth={isSmallScreen}
+                        {(!filteredUsers || filteredUsers.length === 0) ? (
+                            <EmptyState
+                                title="No users found"
+                                message={searchQuery
+                                    ? "No users match your search criteria. Try adjusting your search terms."
+                                    : "No users available yet. Add your first user to get started."
+                                }
+                                icon={<Users size={isTablet ? 56 : 48} color={colors.textSecondary} />}
+                                action={
+                                    !searchQuery ? (
+                                        <Button
+                                            title="Add First User"
+                                            variant="primary"
+                                            size={isTablet ? "large" : "medium"}
+                                            icon={<Plus size={isTablet ? 20 : 18} color="white" />}
+                                            onPress={() => router.push("../user/new")}
+                                        />
+                                    ) : undefined
+                                }
+                            />
+                        ) : (
+                            <>
+                                {filteredUsers.slice(0, 10).map((user, index) => (
+                                    <UserItem
+                                        key={user?.id || index}
+                                        user={user}
+                                        onPress={() => router.push(`../user/${user?.id || ""}`)}
                                     />
-                                </View>
-                            )}
-                        </>
-                    )}
+                                ))}
 
-                    <View style={styles.actionContainer}>
-                        <Button
-                            title="Add New User"
-                            variant="primary"
-                            size={isTablet ? "large" : "medium"}
-                            icon={<Plus size={isTablet ? 20 : 18} color="white" />}
-                            onPress={() => router.push("../user/new")}
-                            fullWidth={isSmallScreen}
-                        />
+                                {filteredUsers.length > 10 && (
+                                    <View style={styles.loadMoreContainer}>
+                                        <Button
+                                            title="Load More Users"
+                                            variant="outline"
+                                            size={isTablet ? "large" : "medium"}
+                                            onPress={() => {/* TODO: Pagination */ }}
+                                            fullWidth={isSmallScreen}
+                                        />
+                                    </View>
+                                )}
+                            </>
+                        )}
+
+                        <View style={styles.actionContainer}>
+                            <PermissionButton
+                                title="Add New User"
+                                permissions={[PERMISSIONS.USERS_CREATE]}
+                                variant="primary"
+                                size={isTablet ? "large" : "medium"}
+                                icon={<Plus size={isTablet ? 20 : 18} color="white" />}
+                                onPress={() => router.push("../user/new")}
+                                style={isSmallScreen ? { width: '100%' } : undefined}
+                            />
+                        </View>
                     </View>
-                </View>
+                </PermissionGuard>
             ) : activeTab === "reports" ? (
-                <View style={styles.section}>
-                    <SectionHeader
-                        title="Analytics & Reports"
-                        subtitle="Comprehensive system insights"
-                        size={isTablet ? "large" : "medium"}
-                        action={
-                            <Button
-                                title="Schedule"
-                                variant="ghost"
-                                size="small"
-                                onPress={() => {/* TODO: Schedule reports */}}
-                            />
-                        }
-                    />
-
-                    <Text style={[styles.sectionDescription, { fontSize: isTablet ? 16 : 14 }]}>
-                        Generate and view comprehensive reports on system performance, revenue, and user analytics.
-                    </Text>
-
-                    {reports.map((report, index) => (
-                        <ReportItem key={report?.id || index} report={report} />
-                    ))}
-
-                    <View style={styles.actionContainer}>
-                        <Button
-                            title="Generate Custom Report"
-                            variant="secondary"
+                <PermissionGuard
+                    permissions={[PERMISSIONS.REPORTS_VIEW_BASIC, PERMISSIONS.REPORTS_VIEW_ADVANCED]}
+                    showFallback={true}
+                    fallback={
+                        <View style={styles.noAccessContainer}>
+                            <BarChart size={48} color={colors.textSecondary} />
+                            <Text style={styles.noAccessTitle}>Access Restricted</Text>
+                            <Text style={styles.noAccessText}>You don't have permission to view reports.</Text>
+                        </View>
+                    }
+                >
+                    <View style={styles.section}>
+                        <SectionHeader
+                            title="Analytics & Reports"
+                            subtitle="Comprehensive system insights"
                             size={isTablet ? "large" : "medium"}
-                            icon={<FileText size={isTablet ? 20 : 18} color="white" />}
-                            onPress={() => {/* Navigate to custom report */ }}
-                            fullWidth={isSmallScreen}
+                            action={
+                                <PermissionButton
+                                    title="Schedule"
+                                    permissions={[PERMISSIONS.REPORTS_SCHEDULE_AUTOMATED]}
+                                    variant="secondary"
+                                    size="small"
+                                    onPress={() => {/* TODO: Schedule reports */ }}
+                                />
+                            }
                         />
+
+                        <Text style={[styles.sectionDescription, { fontSize: isTablet ? 16 : 14 }]}>
+                            Generate and view comprehensive reports on system performance, revenue, and user analytics.
+                        </Text>
+
+                        {reports.map((report, index) => (
+                            <ReportItem key={report?.id || index} report={report} />
+                        ))}
+
+                        <View style={styles.actionContainer}>
+                            <PermissionButton
+                                title="Generate Custom Report"
+                                permissions={[PERMISSIONS.REPORTS_VIEW_ADVANCED, PERMISSIONS.REPORTS_EXPORT]}
+                                variant="secondary"
+                                size={isTablet ? "large" : "medium"}
+                                icon={<FileText size={isTablet ? 20 : 18} color={colors.primary} />}
+                                onPress={() => {
+                                    // TODO: Navigate to custom report builder
+                                    console.log('Navigate to custom report builder');
+                                }}
+                                style={isSmallScreen ? { width: '100%' } : undefined}
+                            />
+                        </View>
                     </View>
-                </View>
+                </PermissionGuard>
             ) : (
-                <View style={styles.section}>
-                    <SectionHeader
-                        title="System Tools"
-                        subtitle="Administrative controls"
-                        size={isTablet ? "large" : "medium"}
-                        action={
-                            <Button
-                                title="Backup"
-                                variant="ghost"
-                                size="small"
-                                onPress={() => {/* TODO: System backup */}}
-                            />
-                        }
-                    />
-
-                    <Text style={[styles.sectionDescription, { fontSize: isTablet ? 16 : 14 }]}>
-                        Manage system-wide settings, notifications, and maintenance tools for optimal performance.
-                    </Text>
-
-                    {systemTools.map((tool, index) => (
-                        <SystemToolItem key={tool?.id || index} tool={tool} />
-                    ))}
-
-                    <View style={styles.actionContainer}>
-                        <Button
-                            title="Advanced Settings"
-                            variant="secondary"
+                <PermissionGuard
+                    permissions={[PERMISSIONS.SYSTEM_MANAGE_SETTINGS, PERMISSIONS.SYSTEM_VIEW_LOGS]}
+                    showFallback={true}
+                    fallback={
+                        <View style={styles.noAccessContainer}>
+                            <Settings size={48} color={colors.textSecondary} />
+                            <Text style={styles.noAccessTitle}>Access Restricted</Text>
+                            <Text style={styles.noAccessText}>You don't have permission to access system tools.</Text>
+                        </View>
+                    }
+                >
+                    <View style={styles.section}>
+                        <SectionHeader
+                            title="System Tools"
+                            subtitle="Administrative controls"
                             size={isTablet ? "large" : "medium"}
-                            icon={<Settings size={isTablet ? 20 : 18} color="white" />}
-                            onPress={() => {/* Navigate to advanced settings */ }}
-                            fullWidth={isSmallScreen}
+                            action={
+                                <Button
+                                    title="Backup"
+                                    variant="ghost"
+                                    size="small"
+                                    onPress={() => {/* TODO: System backup */ }}
+                                />
+                            }
                         />
+
+                        <Text style={[styles.sectionDescription, { fontSize: isTablet ? 16 : 14 }]}>
+                            Manage system-wide settings, notifications, and maintenance tools for optimal performance.
+                        </Text>
+
+                        {systemTools.map((tool, index) => (
+                            <SystemToolItem key={tool?.id || index} tool={tool} />
+                        ))}
+
+                        <View style={styles.actionContainer}>
+                            <PermissionButton
+                                title="Advanced Settings"
+                                permissions={[PERMISSIONS.SYSTEM_MANAGE_SETTINGS]}
+                                variant="secondary"
+                                size={isTablet ? "large" : "medium"}
+                                icon={<Settings size={isTablet ? 20 : 18} color={colors.primary} />}
+                                onPress={() => {
+                                    // TODO: Navigate to advanced settings
+                                    console.log('Navigate to advanced settings');
+                                }}
+                                style={isSmallScreen ? { width: '100%' } : undefined}
+                            />
+                        </View>
                     </View>
-                </View>
+                </PermissionGuard>
             )}
         </ScrollView>
     );
@@ -543,20 +632,94 @@ const styles = StyleSheet.create({
     sectionDescription: {
         color: colors.textSecondary,
         marginBottom: 20,
-        lineHeight: 1.5,
+        lineHeight: 22,
         fontWeight: "500",
     },
     itemCard: {
         backgroundColor: colors.card,
         borderRadius: 16,
-        marginBottom: 12,
         shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 3,
         borderWidth: 1,
-        borderColor: colors.border + "20",
+        borderColor: colors.border + "40",
+    },
+    itemContent: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+    },
+    itemIcon: {
+        marginRight: 16,
+        marginTop: 2,
+        alignItems: "center",
+        justifyContent: "center",
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.backgroundSecondary,
+    },
+    itemDetails: {
+        flex: 1,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+    },
+    itemMainInfo: {
+        flex: 1,
+        marginRight: 12,
+    },
+    itemTitle: {
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 8,
+        lineHeight: 22,
+    },
+    itemDescription: {
+        color: colors.textSecondary,
+        lineHeight: 20,
+        fontWeight: "500",
+        marginBottom: 8,
+    },
+    periodContainer: {
+        marginTop: 4,
+    },
+    itemPeriod: {
+        color: colors.primary,
+        fontWeight: "600",
+        backgroundColor: colors.primary + "10",
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        alignSelf: "flex-start",
+    },
+    itemAction: {
+        alignItems: "flex-end",
+        justifyContent: "center",
+    },
+    viewButton: {
+        backgroundColor: colors.primary + "15",
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: colors.primary + "30",
+    },
+    viewButtonText: {
+        color: colors.primary,
+        fontWeight: "600",
+        fontSize: 14,
+    },
+    actionBadge: {
+        backgroundColor: colors.primary + "15",
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: colors.primary + "30",
+    },
+    actionText: {
+        color: colors.primary,
+        fontWeight: "600",
     },
     itemHeader: {
         flexDirection: "row",
@@ -573,22 +736,6 @@ const styles = StyleSheet.create({
     itemInfo: {
         flex: 1,
     },
-    itemTitle: {
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 4,
-        lineHeight: 1.3,
-    },
-    itemDescription: {
-        color: colors.textSecondary,
-        marginBottom: 6,
-        lineHeight: 1.4,
-        fontWeight: "500",
-    },
-    itemPeriod: {
-        color: colors.primary,
-        fontWeight: "600",
-    },
     arrowContainer: {
         padding: 4,
     },
@@ -596,21 +743,35 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         fontWeight: "300",
     },
-    actionBadge: {
-        backgroundColor: colors.primary + "15",
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-    },
-    actionText: {
-        color: colors.primary,
-        fontWeight: "600",
-    },
     loadMoreContainer: {
         marginTop: 16,
         alignItems: "center",
     },
     actionContainer: {
         marginTop: 20,
+    },
+    noAccessContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        margin: 16,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    noAccessTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: colors.text,
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    noAccessText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 20,
     },
 }); 

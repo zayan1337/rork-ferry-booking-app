@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View, FlatList } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useAdminStore } from "@/store/admin/adminStore";
+import { useAdminUsers, useAdminBookings } from "@/hooks/admin";
 import {
     User,
     Mail,
@@ -13,25 +13,83 @@ import {
     Ban,
     CheckCircle,
     CreditCard,
-    Clock
+    Clock,
+    Phone
 } from "lucide-react-native";
 import Button from "@/components/admin/Button";
 import StatusBadge from "@/components/admin/StatusBadge";
 import BookingItem from "@/components/admin/BookingItem";
 import SectionHeader from "@/components/admin/SectionHeader";
+import { AdminUser, AdminBooking } from "@/types/admin";
 
 export default function UserDetailsScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const { users, bookings, updateUser, deleteUser } = useAdminStore();
-    const [loading, setLoading] = useState(false);
+    const { 
+        getUserDetails, 
+        updateUser: updateUserStatus, 
+        deleteUser,
+        loading: userLoading,
+        error: userError 
+    } = useAdminUsers();
+    
+    const { 
+        fetchBookings: fetchUserBookings,
+        bookings: allBookings
+    } = useAdminBookings();
+    
+    const [user, setUser] = useState<AdminUser | null>(null);
+    const [userBookings, setUserBookings] = useState<AdminBooking[]>([]);
+    const [actionLoading, setActionLoading] = useState(false);
 
-    const user = users.find(u => u.id === id);
-    const userBookings = bookings.filter(b => b.customerId === id);
+    // Load user details and bookings
+    useEffect(() => {
+        if (id) {
+            loadUserDetails();
+            loadUserBookings();
+        }
+    }, [id]);
 
-    if (!user) {
+    const loadUserDetails = async () => {
+        try {
+            const userData = await getUserDetails(id!);
+            setUser(userData);
+        } catch (err) {
+            console.error('Error loading user details:', err);
+        }
+    };
+
+    const loadUserBookings = async () => {
+        try {
+            // Filter bookings for this user
+            const userSpecificBookings = allBookings.filter(b => b.user_id === id);
+            setUserBookings(userSpecificBookings);
+        } catch (err) {
+            console.error('Error loading user bookings:', err);
+        }
+    };
+
+    // Refresh bookings when allBookings changes
+    useEffect(() => {
+        if (id && allBookings.length > 0) {
+            const userSpecificBookings = allBookings.filter(b => b.user_id === id);
+            setUserBookings(userSpecificBookings);
+        }
+    }, [allBookings, id]);
+
+    if (userLoading && !user) {
+        return (
+            <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading user details...</Text>
+            </View>
+        );
+    }
+
+    if (userError || !user) {
         return (
             <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>User not found</Text>
+                <Text style={styles.errorText}>
+                    {userError || "User not found"}
+                </Text>
                 <Button
                     title="Go Back"
                     onPress={() => router.back()}
@@ -41,14 +99,17 @@ export default function UserDetailsScreen() {
         );
     }
 
-    const handleStatusUpdate = async (newStatus: typeof user.status) => {
-        setLoading(true);
+    const handleStatusUpdate = async (newStatus: boolean) => {
+        setActionLoading(true);
         try {
-            updateUser(user.id, { status: newStatus });
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const success = await updateUserStatus(user.id, { is_active: newStatus });
+            if (success) {
+                setUser(prev => prev ? { ...prev, is_active: newStatus } : null);
+            }
+        } catch (err) {
+            Alert.alert('Error', 'Failed to update user status');
         } finally {
-            setLoading(false);
+            setActionLoading(false);
         }
     };
 
@@ -65,9 +126,18 @@ export default function UserDetailsScreen() {
                 {
                     text: "Delete",
                     style: "destructive",
-                    onPress: () => {
-                        deleteUser(user.id);
-                        router.back();
+                    onPress: async () => {
+                        setActionLoading(true);
+                        try {
+                            const success = await deleteUser(user.id);
+                            if (success) {
+                                router.back();
+                            }
+                        } catch (err) {
+                            Alert.alert('Error', 'Failed to delete user');
+                        } finally {
+                            setActionLoading(false);
+                        }
                     },
                 },
             ]
@@ -76,15 +146,6 @@ export default function UserDetailsScreen() {
 
     const handleBookingPress = (bookingId: string) => {
         router.push(`../booking/${bookingId}` as any);
-    };
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case "active": return colors.success;
-            case "inactive": return colors.textSecondary;
-            case "suspended": return colors.danger;
-            default: return colors.textSecondary;
-        }
     };
 
     const getRoleColor = (role: string) => {
@@ -96,11 +157,20 @@ export default function UserDetailsScreen() {
         }
     };
 
+    const formatDate = (dateString: string) => {
+        try {
+            const date = new Date(dateString);
+            return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+        } catch {
+            return dateString;
+        }
+    };
+
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
             <Stack.Screen
                 options={{
-                    title: user.name,
+                    title: user.full_name,
                     headerRight: () => (
                         <Button
                             title="Edit"
@@ -117,7 +187,7 @@ export default function UserDetailsScreen() {
             <View style={styles.card}>
                 <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle}>User Status</Text>
-                    <StatusBadge status={user.status} />
+                    <StatusBadge status={user.is_active ? "active" : "inactive"} />
                 </View>
 
                 <View style={styles.statusActions}>
@@ -125,17 +195,17 @@ export default function UserDetailsScreen() {
                         title="Activate"
                         variant="primary"
                         size="small"
-                        disabled={user.status === "active" || loading}
-                        loading={loading}
-                        onPress={() => handleStatusUpdate("active")}
+                        disabled={user.is_active || actionLoading}
+                        loading={actionLoading}
+                        onPress={() => handleStatusUpdate(true)}
                     />
                     <Button
-                        title="Suspend"
+                        title="Deactivate"
                         variant="danger"
                         size="small"
-                        disabled={user.status === "suspended" || loading}
+                        disabled={!user.is_active || actionLoading}
                         icon={<Ban size={16} color="#FFFFFF" />}
-                        onPress={() => handleStatusUpdate("suspended")}
+                        onPress={() => handleStatusUpdate(false)}
                     />
                 </View>
             </View>
@@ -148,7 +218,7 @@ export default function UserDetailsScreen() {
                     <User size={20} color={colors.primary} />
                     <View style={styles.detailContent}>
                         <Text style={styles.detailLabel}>Full Name</Text>
-                        <Text style={styles.detailValue}>{user.name}</Text>
+                        <Text style={styles.detailValue}>{user.full_name}</Text>
                     </View>
                 </View>
 
@@ -159,6 +229,16 @@ export default function UserDetailsScreen() {
                         <Text style={styles.detailValue}>{user.email}</Text>
                     </View>
                 </View>
+
+                {user.mobile_number && (
+                    <View style={styles.detailRow}>
+                        <Phone size={20} color={colors.primary} />
+                        <View style={styles.detailContent}>
+                            <Text style={styles.detailLabel}>Mobile Number</Text>
+                            <Text style={styles.detailValue}>{user.mobile_number}</Text>
+                        </View>
+                    </View>
+                )}
 
                 <View style={styles.detailRow}>
                     <Shield size={20} color={getRoleColor(user.role)} />
@@ -172,16 +252,81 @@ export default function UserDetailsScreen() {
                     </View>
                 </View>
 
+                {user.date_of_birth && (
+                    <View style={styles.detailRow}>
+                        <Calendar size={20} color={colors.secondary} />
+                        <View style={styles.detailContent}>
+                            <Text style={styles.detailLabel}>Date of Birth</Text>
+                            <Text style={styles.detailValue}>
+                                {new Date(user.date_of_birth).toLocaleDateString()}
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
                 <View style={styles.detailRow}>
                     <Calendar size={20} color={colors.primary} />
                     <View style={styles.detailContent}>
                         <Text style={styles.detailLabel}>Created At</Text>
                         <Text style={styles.detailValue}>
-                            {new Date(user.createdAt).toLocaleDateString()} {new Date(user.createdAt).toLocaleTimeString()}
+                            {formatDate(user.created_at)}
                         </Text>
                     </View>
                 </View>
             </View>
+
+            {/* Agent Information (if user is agent) */}
+            {user.role === 'agent' && (
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Agent Information</Text>
+
+                    {user.agent_discount && (
+                        <View style={styles.detailRow}>
+                            <CreditCard size={20} color={colors.warning} />
+                            <View style={styles.detailContent}>
+                                <Text style={styles.detailLabel}>Agent Discount</Text>
+                                <Text style={styles.detailValue}>{user.agent_discount}%</Text>
+                            </View>
+                        </View>
+                    )}
+
+                    {user.credit_ceiling && (
+                        <View style={styles.detailRow}>
+                            <CreditCard size={20} color={colors.primary} />
+                            <View style={styles.detailContent}>
+                                <Text style={styles.detailLabel}>Credit Ceiling</Text>
+                                <Text style={styles.detailValue}>MVR {user.credit_ceiling}</Text>
+                            </View>
+                        </View>
+                    )}
+
+                    {user.credit_balance !== undefined && (
+                        <View style={styles.detailRow}>
+                            <CreditCard size={20} color={user.credit_balance < 0 ? colors.danger : colors.success} />
+                            <View style={styles.detailContent}>
+                                <Text style={styles.detailLabel}>Credit Balance</Text>
+                                <Text style={[styles.detailValue, { 
+                                    color: user.credit_balance < 0 ? colors.danger : colors.success 
+                                }]}>
+                                    MVR {user.credit_balance}
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+
+                    {user.free_tickets_allocation && (
+                        <View style={styles.detailRow}>
+                            <CheckCircle size={20} color={colors.secondary} />
+                            <View style={styles.detailContent}>
+                                <Text style={styles.detailLabel}>Free Tickets</Text>
+                                <Text style={styles.detailValue}>
+                                    {user.free_tickets_remaining || 0} / {user.free_tickets_allocation}
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
+            )}
 
             {/* Statistics Card */}
             <View style={styles.card}>
@@ -205,23 +350,31 @@ export default function UserDetailsScreen() {
                     <View style={styles.statItem}>
                         <Clock size={24} color={colors.warning} />
                         <Text style={styles.statValue}>
-                            {userBookings.filter(b => b.status === "pending").length}
+                            {userBookings.filter(b => b.status === "pending_payment").length}
                         </Text>
                         <Text style={styles.statLabel}>Pending</Text>
+                    </View>
+
+                    <View style={styles.statItem}>
+                        <CreditCard size={24} color={colors.secondary} />
+                        <Text style={styles.statValue}>
+                            MVR {userBookings.reduce((sum, b) => sum + (b.total_fare || 0), 0)}
+                        </Text>
+                        <Text style={styles.statLabel}>Total Spent</Text>
                     </View>
                 </View>
             </View>
 
-            {/* Booking History */}
-            <View style={styles.card}>
-                <SectionHeader
-                    title="Booking History"
-                    subtitle={userBookings.length > 0 ? `${userBookings.length} bookings` : undefined}
-                />
+            {/* Recent Bookings */}
+            {userBookings.length > 0 && (
+                <View style={styles.card}>
+                    <SectionHeader
+                        title={`Recent Bookings (${userBookings.length})`}
+                        onSeeAll={() => {/* Navigate to bookings with user filter */}}
+                    />
 
-                {userBookings.length > 0 ? (
                     <FlatList
-                        data={userBookings}
+                        data={userBookings.slice(0, 5)} // Show only 5 most recent
                         keyExtractor={(item) => item.id}
                         renderItem={({ item }) => (
                             <BookingItem
@@ -230,40 +383,18 @@ export default function UserDetailsScreen() {
                             />
                         )}
                         scrollEnabled={false}
-                        showsVerticalScrollIndicator={false}
-                    />
-                ) : (
-                    <View style={styles.emptyState}>
-                        <CreditCard size={32} color={colors.textSecondary} />
-                        <Text style={styles.emptyStateText}>No bookings found</Text>
-                    </View>
-                )}
-            </View>
-
-            {/* Quick Actions */}
-            <View style={styles.card}>
-                <Text style={styles.cardTitle}>Quick Actions</Text>
-
-                <View style={styles.actionGrid}>
-                    <Button
-                        title="Create Booking"
-                        variant="primary"
-                        icon={<CreditCard size={18} color="#FFFFFF" />}
-                        onPress={() => router.push("../booking/new" as any)}
-                        fullWidth
                     />
 
-                    {user.role === "customer" && (
+                    {userBookings.length > 5 && (
                         <Button
-                            title="Upgrade to Agent"
-                            variant="secondary"
-                            icon={<Shield size={18} color="#FFFFFF" />}
-                            onPress={() => handleStatusUpdate("active")}
+                            title={`View All ${userBookings.length} Bookings`}
+                            variant="outline"
+                            onPress={() => {/* Navigate to bookings page with user filter */}}
                             fullWidth
                         />
                     )}
                 </View>
-            </View>
+            )}
 
             {/* Danger Zone */}
             <View style={styles.dangerCard}>
@@ -277,6 +408,7 @@ export default function UserDetailsScreen() {
                     variant="danger"
                     icon={<Trash2 size={18} color="#FFFFFF" />}
                     onPress={handleDelete}
+                    loading={actionLoading}
                     fullWidth
                 />
             </View>
@@ -293,66 +425,58 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 32,
     },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.backgroundSecondary,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+    },
     errorContainer: {
         flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.backgroundSecondary,
+        padding: 16,
     },
     errorText: {
-        fontSize: 18,
-        color: colors.textSecondary,
+        fontSize: 16,
+        color: colors.danger,
+        textAlign: 'center',
         marginBottom: 24,
-        textAlign: "center",
     },
     card: {
-        backgroundColor: colors.card,
+        backgroundColor: colors.background,
         borderRadius: 12,
         padding: 16,
         marginBottom: 16,
-        shadowColor: colors.shadow,
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
-        elevation: 1,
-    },
-    dangerCard: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: colors.danger,
+        elevation: 3,
     },
     cardHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 16,
     },
     cardTitle: {
         fontSize: 18,
-        fontWeight: "600",
+        fontWeight: '600',
         color: colors.text,
     },
-    dangerTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: colors.danger,
-        marginBottom: 8,
-    },
-    dangerDescription: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        marginBottom: 16,
-    },
     statusActions: {
-        flexDirection: "row",
+        flexDirection: 'row',
         gap: 12,
     },
     detailRow: {
-        flexDirection: "row",
-        alignItems: "center",
+        flexDirection: 'row',
+        alignItems: 'center',
         marginBottom: 16,
     },
     detailContent: {
@@ -361,52 +485,66 @@ const styles = StyleSheet.create({
     },
     detailLabel: {
         fontSize: 14,
+        fontWeight: '500',
         color: colors.textSecondary,
         marginBottom: 2,
     },
     detailValue: {
         fontSize: 16,
+        fontWeight: '600',
         color: colors.text,
-        fontWeight: "500",
     },
     roleContainer: {
-        flexDirection: "row",
-        alignItems: "center",
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     roleText: {
-        fontSize: 14,
-        fontWeight: "600",
+        fontSize: 12,
+        fontWeight: '600',
+        backgroundColor: colors.backgroundSecondary,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
     },
     statsGrid: {
-        flexDirection: "row",
-        justifyContent: "space-around",
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
     },
     statItem: {
-        alignItems: "center",
-        flex: 1,
+        alignItems: 'center',
+        width: '48%',
+        marginBottom: 16,
     },
     statValue: {
         fontSize: 24,
-        fontWeight: "700",
-        color: colors.primary,
+        fontWeight: '700',
+        color: colors.text,
         marginTop: 8,
         marginBottom: 4,
     },
     statLabel: {
         fontSize: 12,
         color: colors.textSecondary,
-        textAlign: "center",
+        textAlign: 'center',
     },
-    emptyState: {
-        alignItems: "center",
-        padding: 24,
+    dangerCard: {
+        backgroundColor: colors.background,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+        borderLeftWidth: 4,
+        borderLeftColor: colors.danger,
     },
-    emptyStateText: {
+    dangerTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: colors.danger,
+        marginBottom: 8,
+    },
+    dangerDescription: {
         fontSize: 14,
         color: colors.textSecondary,
-        marginTop: 8,
-    },
-    actionGrid: {
-        gap: 12,
+        marginBottom: 16,
     },
 }); 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     RefreshControl,
     ScrollView,
@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useAdminStore } from "@/store/admin/adminStore";
+import { useAdminRoutes } from "@/hooks/admin";
 import {
     MapPin,
     Plus,
@@ -26,17 +26,33 @@ import StatCard from "@/components/admin/StatCard";
 import StatusBadge from "@/components/admin/StatusBadge";
 
 export default function RoutesScreen() {
-    const adminStore = useAdminStore();
-    const routes = adminStore?.routes || [];
-    const refreshData = adminStore?.refreshData || (() => Promise.resolve());
+    const {
+        routes,
+        islands,
+        loading,
+        error,
+        pagination,
+        fetchRoutes,
+        fetchIslands,
+        refreshRoutes
+    } = useAdminRoutes();
 
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
+    // Load initial data
+    useEffect(() => {
+        fetchIslands();
+        fetchRoutes();
+    }, []);
+
     const handleRefresh = async () => {
         setRefreshing(true);
         try {
-            await refreshData();
+            await Promise.all([
+                fetchIslands(),
+                refreshRoutes()
+            ]);
         } catch (error) {
             console.error("Refresh error:", error);
         } finally {
@@ -44,26 +60,24 @@ export default function RoutesScreen() {
         }
     };
 
-    const filteredRoutes = routes?.filter((route) => {
-        if (!route) return false;
-        const name = route.name || "";
-        const origin = route.origin || "";
-        const destination = route.destination || "";
-        const id = route.id || "";
-        const query = searchQuery?.toLowerCase() || "";
+    const handleSearch = async (query: string) => {
+        setSearchQuery(query);
+        if (query.trim()) {
+            await fetchRoutes({ search: query.trim() });
+        } else {
+            await fetchRoutes();
+        }
+    };
 
-        return name.toLowerCase().includes(query) ||
-            origin.toLowerCase().includes(query) ||
-            destination.toLowerCase().includes(query) ||
-            id.toLowerCase().includes(query);
-    }) || [];
-
-    // Calculate stats with null safety
-    const activeRoutes = routes?.filter(r => r?.status === "active")?.length || 0;
-    const inactiveRoutes = routes?.filter(r => r?.status === "inactive")?.length || 0;
-    const totalRoutes = routes?.length || 0;
-    const averageDistance = routes?.length > 0
-        ? Math.round(routes.reduce((sum, r) => sum + (parseFloat(r?.distance?.replace(/[^\d.]/g, '') || '0') || 0), 0) / routes.length)
+    // Calculate stats
+    const activeRoutes = routes.filter(r => r.is_active).length;
+    const inactiveRoutes = routes.filter(r => !r.is_active).length;
+    const totalRoutes = routes.length;
+    const averageDistance = routes.length > 0
+        ? Math.round(routes.reduce((sum, r) => {
+            const distance = parseFloat(r.distance?.replace(/[^\d.]/g, '') || '0');
+            return sum + distance;
+        }, 0) / routes.length)
         : 0;
 
     const RouteItem = ({ route }: { route: any }) => {
@@ -77,27 +91,29 @@ export default function RoutesScreen() {
                 <View style={styles.itemHeader}>
                     <View style={styles.itemTitleContainer}>
                         <MapPin size={20} color={colors.secondary} />
-                        <Text style={styles.itemTitle}>{route?.name || "Unknown Route"}</Text>
+                        <Text style={styles.itemTitle}>
+                            {route.route_name || `${route.from_island_name} to ${route.to_island_name}`}
+                        </Text>
                     </View>
-                    <StatusBadge status={route?.status || "inactive"} />
+                    <StatusBadge status={route.is_active ? "active" : "inactive"} />
                 </View>
 
                 <View style={styles.itemDetails}>
                     <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Origin</Text>
-                        <Text style={styles.detailValue}>{route?.origin || "Unknown"}</Text>
+                        <Text style={styles.detailLabel}>From</Text>
+                        <Text style={styles.detailValue}>{route.from_island_name}</Text>
                     </View>
                     <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Destination</Text>
-                        <Text style={styles.detailValue}>{route?.destination || "Unknown"}</Text>
+                        <Text style={styles.detailLabel}>To</Text>
+                        <Text style={styles.detailValue}>{route.to_island_name}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Base Fare</Text>
+                        <Text style={styles.detailValue}>MVR {route.base_fare}</Text>
                     </View>
                     <View style={styles.detailItem}>
                         <Text style={styles.detailLabel}>Duration</Text>
-                        <Text style={styles.detailValue}>{route?.duration || "Unknown"}</Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Distance</Text>
-                        <Text style={styles.detailValue}>{route?.distance || "Unknown"}</Text>
+                        <Text style={styles.detailValue}>{route.duration || "Unknown"}</Text>
                     </View>
                 </View>
             </TouchableOpacity>
@@ -132,6 +148,13 @@ export default function RoutesScreen() {
                 }}
             />
 
+            {/* Error state */}
+            {error && (
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{error}</Text>
+                </View>
+            )}
+
             {/* Quick Stats */}
             <View style={styles.statsGrid}>
                 <StatCard
@@ -163,26 +186,30 @@ export default function RoutesScreen() {
             {/* Search Bar */}
             <SearchBar
                 value={searchQuery}
-                onChangeText={setSearchQuery}
+                onChangeText={handleSearch}
                 placeholder="Search routes..."
             />
 
             {/* Routes List */}
             <View style={styles.section}>
                 <SectionHeader
-                    title={`Ferry Routes (${filteredRoutes?.length || 0})`}
+                    title={`Ferry Routes (${routes.length})`}
                     onSeeAll={() => {/* Open filter modal */ }}
                 />
 
-                {(!filteredRoutes || filteredRoutes.length === 0) ? (
+                {loading && routes.length === 0 ? (
+                    <View style={styles.loadingContainer}>
+                        <Text style={styles.loadingText}>Loading routes...</Text>
+                    </View>
+                ) : routes.length === 0 ? (
                     <EmptyState
                         title="No routes found"
                         message={searchQuery ? "No routes match your search criteria" : "No routes configured"}
                         icon={<MapPin size={48} color={colors.textSecondary} />}
                     />
                 ) : (
-                    filteredRoutes.map((route, index) => (
-                        <RouteItem key={route?.id || index} route={route} />
+                    routes.map((route) => (
+                        <RouteItem key={route.id} route={route} />
                     ))
                 )}
 
@@ -209,6 +236,25 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 32,
     },
+    errorContainer: {
+        backgroundColor: colors.danger,
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    errorText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    loadingContainer: {
+        padding: 32,
+        alignItems: 'center',
+    },
+    loadingText: {
+        color: colors.textSecondary,
+        fontSize: 16,
+    },
     statsGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
@@ -219,15 +265,15 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     itemCard: {
-        backgroundColor: colors.card,
+        backgroundColor: colors.background,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
-        shadowColor: colors.shadow,
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
-        elevation: 1,
+        elevation: 3,
     },
     itemHeader: {
         flexDirection: "row",
@@ -238,28 +284,32 @@ const styles = StyleSheet.create({
     itemTitleContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 8,
+        flex: 1,
     },
     itemTitle: {
         fontSize: 16,
         fontWeight: "600",
         color: colors.text,
+        marginLeft: 8,
+        flex: 1,
     },
     itemDetails: {
-        gap: 8,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 16,
     },
     detailItem: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
+        minWidth: "45%",
     },
     detailLabel: {
-        fontSize: 14,
+        fontSize: 12,
+        fontWeight: "500",
         color: colors.textSecondary,
+        marginBottom: 2,
     },
     detailValue: {
         fontSize: 14,
-        fontWeight: "500",
+        fontWeight: "600",
         color: colors.text,
     },
     actionButton: {

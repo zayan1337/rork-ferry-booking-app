@@ -13,6 +13,7 @@ export interface UserProfile {
   credit_ceiling?: number;
   free_tickets_remaining?: number;
   is_active: boolean;
+  is_super_admin?: boolean;
   created_at: string;
   updated_at: string;
 }

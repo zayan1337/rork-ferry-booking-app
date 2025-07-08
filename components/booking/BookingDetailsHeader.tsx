@@ -60,7 +60,7 @@ const BookingDetailsHeader: React.FC<BookingDetailsHeaderProps> = ({
       <View style={styles.headerRight}>
         <View style={[styles.statusBadge, getStatusBadgeStyle(status)]}>
           <Text style={[styles.statusText, getStatusTextStyle(status)]}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
+            {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
           </Text>
         </View>
         <TouchableOpacity style={styles.shareButton} onPress={onShare}>

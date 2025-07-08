@@ -287,7 +287,7 @@ export default function BookingDetailsScreen() {
               booking.status === 'cancelled' && styles.statusTextCancelled,
             ]}
           >
-            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+            {booking.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1) : 'Unknown'}
           </Text>
         </View>
       </View>

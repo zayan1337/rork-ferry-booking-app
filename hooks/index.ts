@@ -11,4 +11,6 @@ export * from './useRefreshControl';
 export * from './useClientForm';
 export * from './useExistingUserSearch';
 export * from './useBookingFormValidation';
-export * from './useBookingClientSearch'; 
+export * from './useBookingClientSearch';
+export * from './useRoleAccess';
+export * from './usePermissions'; 

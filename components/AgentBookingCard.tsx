@@ -70,6 +70,7 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(({ booking, onPress }
     };
 
     const getStatusText = (status: string) => {
+        if (!status) return 'Unknown';
         return status.charAt(0).toUpperCase() + status.slice(1);
     };
 

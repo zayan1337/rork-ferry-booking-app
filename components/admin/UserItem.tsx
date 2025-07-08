@@ -50,7 +50,7 @@ export default function UserItem({ user, onPress }: UserItemProps) {
         <View style={styles.footer}>
           <View style={[styles.roleBadge, { backgroundColor: `${getRoleColor()}20` }]}>
             <Text style={[styles.roleText, { color: getRoleColor() }]}>
-              {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+              {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Unknown'}
             </Text>
           </View>
           <Text style={styles.date}>

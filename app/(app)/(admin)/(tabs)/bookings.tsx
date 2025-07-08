@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     RefreshControl,
     ScrollView,
@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useAdminStore } from "@/store/admin/adminStore";
+import { useAdminBookings } from "@/hooks/admin";
 import {
     CreditCard,
     Plus,
@@ -31,41 +31,64 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function BookingsScreen() {
     const {
         bookings,
-        refreshData,
-    } = useAdminStore();
-
+        loading,
+        error,
+        pagination,
+        fetchBookings,
+        refreshBookings
+    } = useAdminBookings();
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
     const isTablet = screenWidth >= 768;
     const isSmallScreen = screenWidth < 480;
 
+    // Initialize data on component mount
+    useEffect(() => {
+        fetchBookings();
+    }, []);
+
+    // Handle search with debouncing
+    useEffect(() => {
+        const delayedSearch = setTimeout(() => {
+            if (searchQuery.trim()) {
+                fetchBookings({ search: searchQuery.trim() });
+            } else {
+                fetchBookings();
+            }
+        }, 300);
+
+        return () => clearTimeout(delayedSearch);
+    }, [searchQuery]);
+
     const handleRefresh = async () => {
         setRefreshing(true);
-        await refreshData();
-        setRefreshing(false);
+        try {
+            await refreshBookings();
+        } catch (error) {
+            console.error('Error refreshing bookings:', error);
+        } finally {
+            setRefreshing(false);
+        }
     };
 
-    const filteredBookings = bookings?.filter((booking) =>
-        (booking?.customerName?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-        (booking?.routeName?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-        (booking?.id || "").includes(searchQuery)
-    ) || [];
+    // Calculate stats from actual bookings data
+    const today = new Date().toISOString().split('T')[0];
+    const todayBookings = bookings.filter(b =>
+        b.created_at && b.created_at.startsWith(today)
+    );
+    const totalRevenue = bookings
+        .filter(b => b.status === 'confirmed')
+        .reduce((sum, b) => sum + (b.total_fare || 0), 0);
+    const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
+    const pendingBookings = bookings.filter(b => b.status === 'pending_payment').length;
 
-    // Calculate stats with better logic
-    const todayBookings = bookings?.filter(b => {
-        const today = new Date().toISOString().split('T')[0];
-        return b?.date === today;
-    }) || [];
-
-    const totalRevenue = bookings?.reduce((sum, b) => sum + (b?.totalAmount || 0), 0) || 0;
-    const completedBookings = bookings?.filter(b => b?.status === "confirmed").length || 0;
-    const pendingBookings = bookings?.filter(b => b?.status === "pending").length || 0;
-
-    const recentBookings = filteredBookings.filter(b => {
-        const bookingDate = new Date(b.date);
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
+    // Recent bookings (last 7 days) for when no search is active
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const recentBookings = searchQuery ? [] : bookings.filter(b => {
+        if (!b.created_at) return false;
+        const bookingDate = new Date(b.created_at);
         return bookingDate >= weekAgo;
     });
 
@@ -119,22 +142,22 @@ export default function BookingsScreen() {
                     <StatCard
                         title="Today's Bookings"
                         value={todayBookings.length.toString()}
-                        subtitle="+12% vs yesterday"
+                        subtitle={`${pagination.total} total bookings`}
                         icon={<CreditCard size={isTablet ? 20 : 18} color={colors.primary} />}
                         size={isTablet ? "large" : "medium"}
                     />
                     <StatCard
                         title="Total Revenue"
                         value={`$${totalRevenue.toLocaleString()}`}
-                        subtitle="+15% this month"
+                        subtitle="From confirmed bookings"
                         icon={<TrendingUp size={isTablet ? 20 : 18} color={colors.success} />}
                         color={colors.success}
                         size={isTablet ? "large" : "medium"}
                     />
                     <StatCard
                         title="Confirmed"
-                        value={completedBookings.toString()}
-                        subtitle={`${((completedBookings / bookings.length) * 100).toFixed(1)}% rate`}
+                        value={confirmedBookings.toString()}
+                        subtitle={`${bookings.length > 0 ? ((confirmedBookings / bookings.length) * 100).toFixed(1) : 0}% rate`}
                         icon={<CheckCircle size={isTablet ? 20 : 18} color={colors.success} />}
                         color={colors.success}
                         size={isTablet ? "large" : "medium"}
@@ -191,7 +214,7 @@ export default function BookingsScreen() {
             <View style={styles.section}>
                 <SectionHeader
                     title={searchQuery ? "Search Results" : "All Bookings"}
-                    subtitle={`${filteredBookings.length} ${filteredBookings.length === 1 ? 'booking' : 'bookings'}`}
+                    subtitle={`${pagination.total} ${pagination.total === 1 ? 'booking' : 'bookings'}`}
                     size={isTablet ? "large" : "medium"}
                     action={
                         <Button
@@ -203,7 +226,7 @@ export default function BookingsScreen() {
                     }
                 />
 
-                {filteredBookings.length === 0 ? (
+                {bookings.length === 0 && !loading ? (
                     <EmptyState
                         title="No bookings found"
                         message={searchQuery
@@ -225,7 +248,7 @@ export default function BookingsScreen() {
                     />
                 ) : (
                     <>
-                        {filteredBookings.map((booking) => (
+                        {bookings.map((booking) => (
                             <BookingItem
                                 key={booking.id}
                                 booking={booking}
@@ -234,15 +257,18 @@ export default function BookingsScreen() {
                             />
                         ))}
 
-                        {/* Load More / Pagination placeholder */}
-                        {filteredBookings.length >= 20 && (
+                        {/* Load More / Pagination */}
+                        {pagination.page < pagination.total_pages && (
                             <View style={styles.loadMoreContainer}>
                                 <Button
                                     title="Load More Bookings"
                                     variant="outline"
                                     size={isTablet ? "large" : "medium"}
-                                    onPress={() => {/* TODO: Pagination */ }}
+                                    onPress={() => {
+                                        fetchBookings({ search: searchQuery.trim() || undefined });
+                                    }}
                                     fullWidth={isSmallScreen}
+                                    disabled={loading}
                                 />
                             </View>
                         )}

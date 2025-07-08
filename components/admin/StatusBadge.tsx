@@ -83,6 +83,7 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
   const isSmall = size === "small";
 
   const formatStatusText = (status: string) => {
+    if (!status) return 'Unknown';
     return status.charAt(0).toUpperCase() + status.slice(1).replace("-", " ");
   };
 

@@ -3,6 +3,7 @@ import { Tabs } from "expo-router";
 import { Platform, StyleSheet, TouchableOpacity, View, Alert, Dimensions } from "react-native";
 import { colors } from "@/constants/adminColors";
 import { useAuthStore } from "@/store/authStore";
+import { useRoleAccess } from "@/hooks";
 import { router } from "expo-router";
 import {
   Home,
@@ -12,7 +13,8 @@ import {
   MapPin,
   Users,
   User,
-  LogOut
+  LogOut,
+  Shield
 } from "lucide-react-native";
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -23,6 +25,15 @@ export default function TabLayout() {
 
   const iconSize = isSmallScreen ? 18 : isTablet ? 22 : 20;
   const { user, signOut } = useAuthStore();
+  const {
+    canManagePermissions,
+    canAccessDashboard,
+    canAccessBookingsTab,
+    canAccessScheduleTab,
+    canAccessVesselsTab,
+    canAccessRoutesTab,
+    canAccessUsersTab
+  } = useRoleAccess();
 
   const handleProfilePress = () => {
     router.push("../modal");
@@ -84,72 +95,97 @@ export default function TabLayout() {
         tabBarHideOnKeyboard: true,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-              <Home size={iconSize} color={color} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="bookings"
-        options={{
-          title: "Bookings",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-              <CreditCard size={iconSize} color={color} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="schedule"
-        options={{
-          title: "Schedule",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-              <Calendar size={iconSize} color={color} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="vessels"
-        options={{
-          title: "Vessels",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-              <Ship size={iconSize} color={color} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="routes"
-        options={{
-          title: "Routes",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-              <MapPin size={iconSize} color={color} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="users"
-        options={{
-          title: isSmallScreen ? "Users" : "Management",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-              <Users size={iconSize} color={color} />
-            </View>
-          ),
-        }}
-      />
+      {canAccessDashboard() && (
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: "Dashboard",
+            tabBarIcon: ({ color, focused }) => (
+              <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                <Home size={iconSize} color={color} />
+              </View>
+            ),
+          }}
+        />
+      )}
+      {canAccessBookingsTab() && (
+        <Tabs.Screen
+          name="bookings"
+          options={{
+            title: "Bookings",
+            tabBarIcon: ({ color, focused }) => (
+              <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                <CreditCard size={iconSize} color={color} />
+              </View>
+            ),
+          }}
+        />
+      )}
+      {canAccessScheduleTab() && (
+        <Tabs.Screen
+          name="schedule"
+          options={{
+            title: "Schedule",
+            tabBarIcon: ({ color, focused }) => (
+              <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                <Calendar size={iconSize} color={color} />
+              </View>
+            ),
+          }}
+        />
+      )}
+      {canAccessVesselsTab() && (
+        <Tabs.Screen
+          name="vessels"
+          options={{
+            title: "Vessels",
+            tabBarIcon: ({ color, focused }) => (
+              <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                <Ship size={iconSize} color={color} />
+              </View>
+            ),
+          }}
+        />
+      )}
+      {canAccessRoutesTab() && (
+        <Tabs.Screen
+          name="routes"
+          options={{
+            title: "Routes",
+            tabBarIcon: ({ color, focused }) => (
+              <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                <MapPin size={iconSize} color={color} />
+              </View>
+            ),
+          }}
+        />
+      )}
+      {canAccessUsersTab() && (
+        <Tabs.Screen
+          name="users"
+          options={{
+            title: isSmallScreen ? "Users" : "Management",
+            tabBarIcon: ({ color, focused }) => (
+              <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                <Users size={iconSize} color={color} />
+              </View>
+            ),
+          }}
+        />
+      )}
+      {canManagePermissions() && (
+        <Tabs.Screen
+          name="permissions"
+          options={{
+            title: "Permissions",
+            tabBarIcon: ({ color, focused }) => (
+              <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+                <Shield size={iconSize} color={color} />
+              </View>
+            ),
+          }}
+        />
+      )}
     </Tabs>
   );
 }

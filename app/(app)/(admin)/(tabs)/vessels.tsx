@@ -54,10 +54,10 @@ export default function VesselsScreen() {
     }) || [];
 
     // Calculate stats with null safety
-    const activeVessels = vessels?.filter(v => v?.status === "active")?.length || 0;
-    const maintenanceVessels = vessels?.filter(v => v?.status === "maintenance")?.length || 0;
-    const totalCapacity = vessels?.reduce((sum, v) => sum + (v?.capacity || 0), 0) || 0;
-    const inactiveVessels = vessels?.filter(v => v?.status === "inactive")?.length || 0;
+    const activeVessels = vessels?.filter(v => v?.is_active)?.length || 0;
+    const maintenanceVessels = vessels?.filter(v => !v?.is_active)?.length || 0;
+    const totalCapacity = vessels?.reduce((sum, v) => sum + (v?.seating_capacity || 0), 0) || 0;
+    const inactiveVessels = vessels?.filter(v => !v?.is_active)?.length || 0;
 
     const VesselItem = ({ vessel }: { vessel: any }) => {
         if (!vessel) return null;
@@ -72,19 +72,19 @@ export default function VesselsScreen() {
                         <Ship size={20} color={colors.primary} />
                         <Text style={styles.itemTitle}>{vessel?.name || "Unknown Vessel"}</Text>
                     </View>
-                    <StatusBadge status={vessel?.status || "inactive"} />
+                    <StatusBadge status={vessel?.is_active ? "active" : "inactive"} />
                 </View>
 
                 <View style={styles.itemDetails}>
                     <View style={styles.detailItem}>
                         <Text style={styles.detailLabel}>Capacity</Text>
-                        <Text style={styles.detailValue}>{vessel?.capacity || 0} passengers</Text>
+                        <Text style={styles.detailValue}>{vessel?.seating_capacity || 0} passengers</Text>
                     </View>
                     {vessel?.currentLocation && (
                         <View style={styles.detailItem}>
                             <Text style={styles.detailLabel}>Location</Text>
                             <Text style={styles.detailValue}>
-                                {vessel.currentLocation.latitude?.toFixed(2) || "0.00"}, {vessel.currentLocation.longitude?.toFixed(2) || "0.00"}
+                                {(vessel.currentLocation.latitude?.toFixed(2) || "0.00") + ", " + (vessel.currentLocation.longitude?.toFixed(2) || "0.00")}
                             </Text>
                         </View>
                     )}
