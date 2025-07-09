@@ -752,7 +752,7 @@ export default function CommunicationsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.backgroundSecondary,
     },
     contentContainer: {
         flexGrow: 1,

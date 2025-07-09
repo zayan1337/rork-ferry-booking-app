@@ -503,7 +503,7 @@ export default function FinanceScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.backgroundSecondary,
     },
     contentContainer: {
         flexGrow: 1,
@@ -515,6 +515,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         flexWrap: "wrap",
         gap: 12,
+        justifyContent: "space-between",
     },
     sectionSelector: {
         flexDirection: "row",
@@ -552,12 +553,14 @@ const styles = StyleSheet.create({
     },
     sectionContent: {
         flex: 1,
+        paddingRight: 8,
     },
     sectionHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: 16,
+        minHeight: 44,
     },
     itemsList: {
         gap: 12,

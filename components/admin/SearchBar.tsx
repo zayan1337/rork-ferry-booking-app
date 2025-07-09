@@ -8,6 +8,7 @@ interface SearchBarProps {
   onChangeText: (text: string) => void;
   placeholder?: string;
   onClear?: () => void;
+  style?: any;
 }
 
 export default function SearchBar({
@@ -15,9 +16,10 @@ export default function SearchBar({
   onChangeText,
   placeholder = "Search...",
   onClear,
+  style,
 }: SearchBarProps) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <Search size={20} color={colors.textSecondary} style={styles.icon} />
       <TextInput
         style={styles.input}
@@ -46,10 +48,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.backgroundSecondary,
-    borderRadius: 12,
+    borderRadius: 8,
     paddingHorizontal: 12,
-    height: 44,
-    marginBottom: 16,
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.border + "40",
   },
   icon: {
     marginRight: 8,
@@ -59,6 +62,7 @@ const styles = StyleSheet.create({
     height: "100%",
     fontSize: 16,
     color: colors.text,
+    paddingVertical: 12,
   },
   clearButton: {
     padding: 4,

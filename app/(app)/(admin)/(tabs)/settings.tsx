@@ -591,11 +591,11 @@ export default function SettingsScreen() {
                 {/* Tab Navigation */}
                 <View style={styles.tabContainer}>
                     {[
-                        { key: "permissions", label: "Permissions", icon: <Shield size={16} color={activeTab === "permissions" ? "white" : colors.primary} /> },
-                        { key: "alerts", label: "Alerts", icon: <Bell size={16} color={activeTab === "alerts" ? "white" : colors.primary} /> },
-                        { key: "activity", label: "Activity", icon: <Activity size={16} color={activeTab === "activity" ? "white" : colors.primary} /> },
-                        { key: "system", label: "System", icon: <Settings size={16} color={activeTab === "system" ? "white" : colors.primary} /> },
-                        { key: "reports", label: "Reports", icon: <FileText size={16} color={activeTab === "reports" ? "white" : colors.primary} /> }
+                        { key: "permissions", label: "Permissions", icon: <Shield size={16} color={activeTab === "permissions" ? colors.primary : colors.primary} /> },
+                        { key: "alerts", label: "Alerts", icon: <Bell size={16} color={activeTab === "alerts" ? colors.primary : colors.primary} /> },
+                        { key: "activity", label: "Activity", icon: <Activity size={16} color={activeTab === "activity" ? colors.primary : colors.primary} /> },
+                        { key: "system", label: "System", icon: <Settings size={16} color={activeTab === "system" ? colors.primary : colors.primary} /> },
+                        { key: "reports", label: "Reports", icon: <FileText size={16} color={activeTab === "reports" ? colors.primary : colors.primary} /> }
                     ].map((tab) => (
                         <TouchableOpacity
                             key={tab.key}
@@ -721,7 +721,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.backgroundSecondary,
     },
     contentContainer: {
         flexGrow: 1,
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     tabActive: {
-        backgroundColor: colors.primary,
+        backgroundColor: colors.primary + "15",
     },
     tabText: {
         fontSize: 11,
@@ -757,7 +757,7 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
     },
     tabTextActive: {
-        color: "white",
+        color: colors.primary,
     },
     searchContainer: {
         marginBottom: 16,

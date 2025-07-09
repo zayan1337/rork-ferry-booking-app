@@ -234,6 +234,20 @@ export default function UsersScreen() {
         );
     };
 
+    // Add select all functionality
+    const handleSelectAll = () => {
+        if (selectedUsers.length === filteredAndSortedUsers.length) {
+            // Deselect all
+            setSelectedUsers([]);
+        } else {
+            // Select all visible users
+            setSelectedUsers(filteredAndSortedUsers.map(user => user.id));
+        }
+    };
+
+    const isAllSelected = filteredAndSortedUsers.length > 0 && selectedUsers.length === filteredAndSortedUsers.length;
+    const isPartiallySelected = selectedUsers.length > 0 && selectedUsers.length < filteredAndSortedUsers.length;
+
     const getCount = (role: FilterRole, status?: FilterStatus) => {
         let filtered = users;
         if (role !== "all") {
@@ -272,6 +286,47 @@ export default function UsersScreen() {
         paddingVertical: isTablet ? 20 : 16,
     });
 
+    // Helper function to get current filter/sort display text
+    const getCurrentFilterText = () => {
+        let filterText = [];
+
+        if (filterRole !== "all") {
+            filterText.push(`Role: ${filterRole.charAt(0).toUpperCase() + filterRole.slice(1)}`);
+        }
+
+        if (filterStatus !== "all") {
+            filterText.push(`Status: ${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}`);
+        }
+
+        const sortText = {
+            "date_desc": "Date (Newest first)",
+            "date_asc": "Date (Oldest first)",
+            "name_asc": "Name (A-Z)",
+            "name_desc": "Name (Z-A)",
+            "role_asc": "Role (A-Z)",
+            "status_asc": "Status (A-Z)"
+        };
+
+        return {
+            filters: filterText.length > 0 ? filterText.join(", ") : "All users",
+            sort: sortText[sortOrder]
+        };
+    };
+
+    // Helper to check if any filters are active
+    const hasActiveFilters = () => {
+        return filterRole !== "all" || filterStatus !== "all" || sortOrder !== "date_desc" || searchQuery !== "";
+    };
+
+    // Clear all filters function
+    const clearAllFilters = () => {
+        setFilterRole("all");
+        setFilterStatus("all");
+        setSortOrder("date_desc");
+        setSearchQuery("");
+        setSelectedUsers([]);
+    };
+
     if (!canViewUsers()) {
         return (
             <View style={styles.noPermissionContainer}>
@@ -304,13 +359,14 @@ export default function UsersScreen() {
                         headerRight: () => (
                             <View style={styles.headerActions}>
                                 {canExportReports() && (
-                                    <Button
-                                        title=""
-                                        variant="ghost"
-                                        size="small"
-                                        icon={<Download size={16} color={colors.primary} />}
+                                    <TouchableOpacity
+                                        style={styles.headerButton}
                                         onPress={handleExport}
-                                    />
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Export"
+                                    >
+                                        <Download size={18} color={colors.primary} />
+                                    </TouchableOpacity>
                                 )}
                                 {canCreateUsers() && (
                                     <Button
@@ -329,10 +385,10 @@ export default function UsersScreen() {
                 {/* Tab Navigation */}
                 <View style={styles.tabContainer}>
                     {[
-                        { key: "overview", label: "Overview", icon: <BarChart size={16} color={activeTab === "overview" ? "white" : colors.primary} /> },
-                        { key: "users", label: "All Users", icon: <Users size={16} color={activeTab === "users" ? "white" : colors.primary} /> },
-                        { key: "agents", label: "Agents", icon: <UserCheck size={16} color={activeTab === "agents" ? "white" : colors.primary} /> },
-                        { key: "passengers", label: "Passengers", icon: <User size={16} color={activeTab === "passengers" ? "white" : colors.primary} /> }
+                        { key: "overview", label: "Overview", icon: <BarChart size={16} color={activeTab === "overview" ? colors.primary : colors.primary} /> },
+                        { key: "users", label: "All Users", icon: <Users size={16} color={activeTab === "users" ? colors.primary : colors.primary} /> },
+                        { key: "agents", label: "Agents", icon: <UserCheck size={16} color={activeTab === "agents" ? colors.primary : colors.primary} /> },
+                        { key: "passengers", label: "Passengers", icon: <User size={16} color={activeTab === "passengers" ? colors.primary : colors.primary} /> }
                     ].map((tab) => (
                         <TouchableOpacity
                             key={tab.key}
@@ -422,7 +478,7 @@ export default function UsersScreen() {
                             </View>
                         </View>
 
-                        {/* Quick Stats */}
+                        {/* Status Overview */}
                         <View style={styles.quickStatsContainer}>
                             <SectionHeader
                                 title="Status Overview"
@@ -431,19 +487,31 @@ export default function UsersScreen() {
                             />
                             <View style={styles.quickStatsGrid}>
                                 <View style={styles.quickStatItem}>
-                                    <Text style={styles.quickStatValue}>0</Text>
-                                    <Text style={styles.quickStatLabel}>Pending Approval</Text>
-                                    <StatusBadge status="inactive" size="small" />
+                                    <View style={styles.quickStatContent}>
+                                        <Text style={styles.quickStatValue}>0</Text>
+                                        <Text style={styles.quickStatLabel}>Pending Approval</Text>
+                                        <View style={styles.badgeContainer}>
+                                            <StatusBadge status="inactive" size="small" />
+                                        </View>
+                                    </View>
                                 </View>
                                 <View style={styles.quickStatItem}>
-                                    <Text style={styles.quickStatValue}>{stats.suspendedCount}</Text>
-                                    <Text style={styles.quickStatLabel}>Suspended</Text>
-                                    <StatusBadge status="suspended" size="small" />
+                                    <View style={styles.quickStatContent}>
+                                        <Text style={styles.quickStatValue}>{stats.suspendedCount}</Text>
+                                        <Text style={styles.quickStatLabel}>Suspended</Text>
+                                        <View style={styles.badgeContainer}>
+                                            <StatusBadge status="suspended" size="small" />
+                                        </View>
+                                    </View>
                                 </View>
                                 <View style={styles.quickStatItem}>
-                                    <Text style={styles.quickStatValue}>{stats.activeUsers}</Text>
-                                    <Text style={styles.quickStatLabel}>Active</Text>
-                                    <StatusBadge status="active" size="small" />
+                                    <View style={styles.quickStatContent}>
+                                        <Text style={styles.quickStatValue}>{stats.activeUsers}</Text>
+                                        <Text style={styles.quickStatLabel}>Active</Text>
+                                        <View style={styles.badgeContainer}>
+                                            <StatusBadge status="active" size="small" />
+                                        </View>
+                                    </View>
                                 </View>
                             </View>
                         </View>
@@ -542,12 +610,67 @@ export default function UsersScreen() {
 
                         {/* Users List */}
                         <View style={styles.section}>
-                            <SectionHeader
-                                title={searchQuery ? "Search Results" : "Users"}
-                                subtitle={`${filteredAndSortedUsers.length} ${filteredAndSortedUsers.length === 1 ? 'user' : 'users'} found`}
-                                size={isTablet ? "large" : "medium"}
-                            />
+                            <View style={styles.usersHeader}>
+                                <SectionHeader
+                                    title={searchQuery ? "Search Results" : "Users"}
+                                    subtitle={`${filteredAndSortedUsers.length} ${filteredAndSortedUsers.length === 1 ? 'user' : 'users'} found`}
+                                    size={isTablet ? "large" : "medium"}
+                                />
+                            </View>
 
+                            {/* Compact Filter Status - Full width */}
+                            {(hasActiveFilters() || filteredAndSortedUsers.length > 0) && (
+                                <View style={styles.compactFilterStatus}>
+                                    <Text style={styles.compactFilterText}>
+                                        {getCurrentFilterText().filters}
+                                    </Text>
+                                    <View style={styles.filterStatusDivider}>
+                                        <Text style={styles.compactFilterText}>
+                                            {getCurrentFilterText().sort}
+                                        </Text>
+                                        {hasActiveFilters() && (
+                                            <TouchableOpacity
+                                                style={styles.clearFiltersButton}
+                                                onPress={clearAllFilters}
+                                                accessibilityRole="button"
+                                                accessibilityLabel="Clear all filters"
+                                            >
+                                                <X size={14} color={colors.textSecondary} />
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                </View>
+                            )}
+
+                            {/* Select All Section - Simple checkbox and text */}
+                            {canUpdateUsers() && filteredAndSortedUsers.length > 0 && (
+                                <View>
+                                    <TouchableOpacity
+                                        style={styles.selectAllButton}
+                                        onPress={handleSelectAll}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={isAllSelected ? "Deselect all users" : "Select all users"}
+                                    >
+                                        <View style={[
+                                            styles.selectAllCheckboxLarge,
+                                            isAllSelected && styles.checkboxSelected,
+                                            isPartiallySelected && styles.checkboxPartial
+                                        ]}>
+                                            {isAllSelected && (
+                                                <Check size={14} color="white" />
+                                            )}
+                                            {isPartiallySelected && !isAllSelected && (
+                                                <View style={styles.partialCheckmark} />
+                                            )}
+                                        </View>
+                                        <Text style={styles.selectAllTextLarge}>
+                                            {isAllSelected ? "Deselect All" : "Select All"}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+
+                            {/* Content Area */}
                             {filteredAndSortedUsers.length === 0 ? (
                                 <EmptyState
                                     icon={<Users size={48} color={colors.textSecondary} />}
@@ -668,12 +791,7 @@ export default function UsersScreen() {
                             <Button
                                 title="Clear All"
                                 variant="ghost"
-                                onPress={() => {
-                                    setFilterRole("all");
-                                    setFilterStatus("all");
-                                    setSortOrder("date_desc");
-                                    setSearchQuery("");
-                                }}
+                                onPress={clearAllFilters}
                             />
                             <Button
                                 title="Apply"
@@ -691,14 +809,28 @@ export default function UsersScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.backgroundSecondary,
     },
     contentContainer: {
         flexGrow: 1,
     },
     headerActions: {
         flexDirection: "row",
+        alignItems: "center",
         gap: 8,
+        marginRight: 12,
+    },
+    headerButton: {
+        padding: 8,
+        borderRadius: 10,
+        backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+        borderWidth: 1,
+        borderColor: colors.border + "60",
     },
     tabContainer: {
         flexDirection: "row",
@@ -723,7 +855,7 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     tabActive: {
-        backgroundColor: colors.primary,
+        backgroundColor: colors.primary + "15",
     },
     tabText: {
         fontSize: 12,
@@ -731,7 +863,7 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
     },
     tabTextActive: {
-        color: "white",
+        color: colors.primary,
     },
     statsContainer: {
         marginBottom: 24,
@@ -740,7 +872,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         flexWrap: "wrap",
         gap: 12,
-        marginTop: 16,
+        justifyContent: "space-between",
     },
     roleDistributionContainer: {
         marginBottom: 24,
@@ -783,6 +915,7 @@ const styles = StyleSheet.create({
     },
     quickStatsGrid: {
         flexDirection: "row",
+        justifyContent: "space-between",
         gap: 12,
         marginTop: 16,
     },
@@ -792,22 +925,37 @@ const styles = StyleSheet.create({
         padding: 16,
         borderRadius: 12,
         alignItems: "center",
-        gap: 8,
+        justifyContent: "center",
+        minHeight: 120,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
     },
+    quickStatContent: {
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        width: "100%",
+    },
     quickStatValue: {
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: "700",
         color: colors.text,
+        lineHeight: 32,
     },
     quickStatLabel: {
         fontSize: 12,
         color: colors.textSecondary,
         textAlign: "center",
+        lineHeight: 16,
+        marginBottom: 4,
+    },
+    badgeContainer: {
+        marginTop: 8,
+        alignItems: "center",
+        justifyContent: "center",
     },
     searchContainer: {
         flexDirection: "row",
@@ -838,24 +986,24 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     filterTabActive: {
-        backgroundColor: colors.primary,
+        backgroundColor: colors.primary + "15",
     },
     filterTabText: {
-        fontSize: 11,
+        fontSize: 14,
         fontWeight: "500",
         color: colors.textSecondary,
         marginBottom: 2,
     },
     filterTabTextActive: {
-        color: "white",
+        color: colors.primary,
     },
     filterTabCount: {
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: "600",
         color: colors.textSecondary,
     },
     filterTabCountActive: {
-        color: "white",
+        color: colors.primary,
     },
     bulkActionsBar: {
         flexDirection: "row",
@@ -880,6 +1028,55 @@ const styles = StyleSheet.create({
     section: {
         marginBottom: 24,
     },
+    usersHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    compactFilterStatus: {
+        paddingHorizontal: 0,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border + "40",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    filterStatusDivider: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    compactFilterText: {
+        fontSize: 11,
+        color: colors.textSecondary,
+        fontWeight: "500",
+    },
+    clearFiltersButton: {
+        padding: 2,
+        borderRadius: 2,
+    },
+    selectAllButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 8,
+        gap: 12,
+    },
+    selectAllCheckboxLarge: {
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: colors.primary + "40",
+        backgroundColor: colors.card,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    selectAllTextLarge: {
+        fontSize: 14,
+        fontWeight: "500",
+        color: colors.primary,
+    },
     usersList: {
         gap: 12,
         marginTop: 16,
@@ -893,17 +1090,33 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     checkbox: {
-        width: 20,
-        height: 20,
-        borderRadius: 4,
+        width: 22,
+        height: 22,
+        borderRadius: 6,
         borderWidth: 2,
-        borderColor: colors.border,
+        borderColor: colors.primary + "40",
+        backgroundColor: colors.card,
         alignItems: "center",
         justifyContent: "center",
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
     },
     checkboxSelected: {
         backgroundColor: colors.primary,
         borderColor: colors.primary,
+    },
+    checkboxPartial: {
+        backgroundColor: colors.primary + "40",
+        borderColor: colors.primary,
+    },
+    partialCheckmark: {
+        width: 8,
+        height: 2,
+        backgroundColor: colors.primary,
+        borderRadius: 1,
     },
     userItemContent: {
         flex: 1,

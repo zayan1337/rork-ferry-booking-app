@@ -167,10 +167,7 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: colors.card,
-    borderTopWidth: 1,
     borderTopColor: colors.border,
-    height: Platform.OS === "ios" ? 86 : 60,
-    paddingBottom: Platform.OS === "ios" ? 26 : 8,
     paddingTop: 8,
     paddingHorizontal: 4,
     shadowColor: colors.shadow,
@@ -223,6 +220,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
     borderWidth: 1,
-    borderColor: colors.border + "20",
+    borderColor: colors.border + "60",
   },
 });

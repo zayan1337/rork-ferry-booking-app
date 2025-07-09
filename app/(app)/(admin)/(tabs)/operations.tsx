@@ -165,18 +165,22 @@ export default function OperationsScreen() {
     return (
       <View style={styles.sectionContent}>
         <View style={styles.sectionHeader}>
-          <SectionHeader
-            title="Routes Management"
-            subtitle={`${activeRoutes} active routes`}
-          />
-          {canManageRoutes() && (
-            <Button
-              title="Add Route"
-              onPress={handleAddRoute}
-              size="small"
-              variant="primary"
-              icon={<Plus size={16} color="white" />}
+          <View style={styles.sectionHeaderContent}>
+            <SectionHeader
+              title="Routes Management"
+              subtitle={`${activeRoutes} active routes`}
             />
+          </View>
+          {canManageRoutes() && (
+            <View style={styles.sectionHeaderButton}>
+              <Button
+                title="Add Route"
+                onPress={handleAddRoute}
+                size="small"
+                variant="outline"
+                icon={<Plus size={16} color={colors.primary} />}
+              />
+            </View>
           )}
         </View>
 
@@ -240,18 +244,22 @@ export default function OperationsScreen() {
     return (
       <View style={styles.sectionContent}>
         <View style={styles.sectionHeader}>
-          <SectionHeader
-            title="Trips Management"
-            subtitle={`${todayTrips} trips today`}
-          />
-          {canManageTrips() && (
-            <Button
-              title="Add Trip"
-              onPress={handleAddTrip}
-              size="small"
-              variant="primary"
-              icon={<Plus size={16} color="white" />}
+          <View style={styles.sectionHeaderContent}>
+            <SectionHeader
+              title="Trips Management"
+              subtitle={`${todayTrips} trips today`}
             />
+          </View>
+          {canManageTrips() && (
+            <View style={styles.sectionHeaderButton}>
+              <Button
+                title="Add Trip"
+                onPress={handleAddTrip}
+                size="small"
+                variant="outline"
+                icon={<Plus size={16} color={colors.primary} />}
+              />
+            </View>
           )}
         </View>
 
@@ -297,18 +305,22 @@ export default function OperationsScreen() {
     return (
       <View style={styles.sectionContent}>
         <View style={styles.sectionHeader}>
-          <SectionHeader
-            title="Vessels Management"
-            subtitle={`${activeVessels} active vessels`}
-          />
-          {canManageVessels() && (
-            <Button
-              title="Add Vessel"
-              onPress={handleAddVessel}
-              size="small"
-              variant="primary"
-              icon={<Plus size={16} color="white" />}
+          <View style={styles.sectionHeaderContent}>
+            <SectionHeader
+              title="Vessels Management"
+              subtitle={`${activeVessels} active vessels`}
             />
+          </View>
+          {canManageVessels() && (
+            <View style={styles.sectionHeaderButton}>
+              <Button
+                title="Add Vessel"
+                onPress={handleAddVessel}
+                size="small"
+                variant="outline"
+                icon={<Plus size={16} color={colors.primary} />}
+              />
+            </View>
           )}
         </View>
 
@@ -492,7 +504,7 @@ export default function OperationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundSecondary,
   },
   contentContainer: {
     flexGrow: 1,
@@ -504,6 +516,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
+    justifyContent: "space-between",
   },
   sectionSelector: {
     flexDirection: "row",
@@ -541,12 +554,22 @@ const styles = StyleSheet.create({
   },
   sectionContent: {
     flex: 1,
+
   },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
+    minHeight: 44,
+  },
+  sectionHeaderContent: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  sectionHeaderButton: {
+    flexShrink: 0,
+    maxWidth: "40%",
   },
   itemsList: {
     gap: 12,

@@ -32,7 +32,9 @@ import {
     AlertTriangle,
     X,
     Check,
-    MoreHorizontal
+    MoreHorizontal,
+    Activity,
+    BarChart
 } from "lucide-react-native";
 import Button from "@/components/admin/Button";
 import SectionHeader from "@/components/admin/SectionHeader";
@@ -72,15 +74,20 @@ export default function BookingsScreen() {
     const [sortOrder, setSortOrder] = useState<SortOrder>("date_desc");
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
-    const [showBulkActions, setShowBulkActions] = useState(false);
+
 
     const isTablet = screenWidth >= 768;
     const isSmallScreen = screenWidth < 480;
 
     const handleRefresh = async () => {
         setRefreshing(true);
-        await refreshData();
-        setRefreshing(false);
+        try {
+            await refreshData();
+        } catch (error) {
+            console.error("Refresh error:", error);
+        } finally {
+            setRefreshing(false);
+        }
     };
 
     // Enhanced filtering and sorting
@@ -133,8 +140,10 @@ export default function BookingsScreen() {
         const confirmedCount = bookings.filter(b => b.status === "confirmed").length;
         const reservedCount = bookings.filter(b => b.status === "reserved").length;
         const cancelledCount = bookings.filter(b => b.status === "cancelled").length;
+        const completedCount = bookings.filter(b => b.status === "completed").length;
 
         return {
+            totalBookings: bookings.length,
             todayBookings: todayBookings.length,
             todayBookingsChange: yesterdayBookings.length > 0
                 ? ((todayBookings.length - yesterdayBookings.length) / yesterdayBookings.length * 100).toFixed(1)
@@ -147,7 +156,8 @@ export default function BookingsScreen() {
             confirmedCount,
             confirmedRate: bookings.length > 0 ? (confirmedCount / bookings.length * 100).toFixed(1) : "0",
             reservedCount,
-            cancelledCount
+            cancelledCount,
+            completedCount
         };
     }, [bookings]);
 
@@ -168,7 +178,6 @@ export default function BookingsScreen() {
     const handleExport = async () => {
         if (canExportReports()) {
             try {
-                // Mock export functionality
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 addActivityLog({
                     user_id: "admin1",
@@ -204,7 +213,6 @@ export default function BookingsScreen() {
                                 await updateBooking(bookingId, { status: status as any });
                             }
                             setSelectedBookings([]);
-                            setShowBulkActions(false);
                             addActivityLog({
                                 user_id: "admin1",
                                 user_name: "Admin User",
@@ -229,9 +237,56 @@ export default function BookingsScreen() {
         );
     };
 
+    // Add select all functionality
+    const handleSelectAll = () => {
+        if (selectedBookings.length === filteredAndSortedBookings.length) {
+            setSelectedBookings([]);
+        } else {
+            setSelectedBookings(filteredAndSortedBookings.map(booking => booking.id));
+        }
+    };
+
+    const isAllSelected = filteredAndSortedBookings.length > 0 && selectedBookings.length === filteredAndSortedBookings.length;
+    const isPartiallySelected = selectedBookings.length > 0 && selectedBookings.length < filteredAndSortedBookings.length;
+
     const getStatusCount = (status: FilterStatus) => {
         if (status === "all") return bookings.length;
         return bookings.filter(b => b.status === status).length;
+    };
+
+    // Helper function to get current filter/sort display text
+    const getCurrentFilterText = () => {
+        let filterText = [];
+
+        if (filterStatus !== "all") {
+            filterText.push(`Status: ${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}`);
+        }
+
+        const sortText = {
+            "date_desc": "Date (Newest first)",
+            "date_asc": "Date (Oldest first)",
+            "amount_desc": "Amount (High to Low)",
+            "amount_asc": "Amount (Low to High)",
+            "customer_asc": "Customer (A-Z)"
+        };
+
+        return {
+            filters: filterText.length > 0 ? filterText.join(", ") : "All bookings",
+            sort: sortText[sortOrder]
+        };
+    };
+
+    // Helper to check if any filters are active
+    const hasActiveFilters = () => {
+        return filterStatus !== "all" || sortOrder !== "date_desc" || searchQuery !== "";
+    };
+
+    // Clear all filters function
+    const clearAllFilters = () => {
+        setFilterStatus("all");
+        setSortOrder("date_desc");
+        setSearchQuery("");
+        setSelectedBookings([]);
     };
 
     const getResponsivePadding = () => ({
@@ -271,13 +326,14 @@ export default function BookingsScreen() {
                         headerRight: () => (
                             <View style={styles.headerActions}>
                                 {canExportReports() && (
-                                    <Button
-                                        title=""
-                                        variant="ghost"
-                                        size="small"
-                                        icon={<Download size={16} color={colors.primary} />}
+                                    <TouchableOpacity
+                                        style={styles.headerButton}
                                         onPress={handleExport}
-                                    />
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Export"
+                                    >
+                                        <Download size={18} color={colors.primary} />
+                                    </TouchableOpacity>
                                 )}
                                 {canCreateBookings() && (
                                     <Button
@@ -369,26 +425,26 @@ export default function BookingsScreen() {
                     />
                 </View>
 
-                {/* Status Filter Tabs */}
-                <View style={styles.statusTabs}>
+                {/* Filter Tabs */}
+                <View style={styles.filterTabs}>
                     {(["all", "reserved", "confirmed", "cancelled", "completed"] as FilterStatus[]).map((status) => (
                         <TouchableOpacity
                             key={status}
                             style={[
-                                styles.statusTab,
-                                filterStatus === status && styles.statusTabActive
+                                styles.filterTab,
+                                filterStatus === status && styles.filterTabActive
                             ]}
                             onPress={() => setFilterStatus(status)}
                         >
                             <Text style={[
-                                styles.statusTabText,
-                                filterStatus === status && styles.statusTabTextActive
+                                styles.filterTabText,
+                                filterStatus === status && styles.filterTabTextActive
                             ]}>
                                 {status.charAt(0).toUpperCase() + status.slice(1)}
                             </Text>
                             <Text style={[
-                                styles.statusTabCount,
-                                filterStatus === status && styles.statusTabCountActive
+                                styles.filterTabCount,
+                                filterStatus === status && styles.filterTabCountActive
                             ]}>
                                 {getStatusCount(status)}
                             </Text>
@@ -431,12 +487,65 @@ export default function BookingsScreen() {
 
                 {/* Bookings List */}
                 <View style={styles.section}>
-                    <SectionHeader
-                        title={searchQuery ? "Search Results" : "All Bookings"}
-                        subtitle={`${filteredAndSortedBookings.length} ${filteredAndSortedBookings.length === 1 ? 'booking' : 'bookings'} found`}
-                        size={isTablet ? "large" : "medium"}
-                    />
+                    <View style={styles.bookingsHeader}>
+                        <SectionHeader
+                            title={searchQuery ? "Search Results" : "All Bookings"}
+                            subtitle={`${filteredAndSortedBookings.length} ${filteredAndSortedBookings.length === 1 ? 'booking' : 'bookings'} found`}
+                            size={isTablet ? "large" : "medium"}
+                        />
+                    </View>
 
+                    {/* Compact Filter Status */}
+                    {(hasActiveFilters() || filteredAndSortedBookings.length > 0) && (
+                        <View style={styles.compactFilterStatus}>
+                            <Text style={styles.compactFilterText}>
+                                {getCurrentFilterText().filters}
+                            </Text>
+                            <View style={styles.filterStatusDivider}>
+                                <Text style={styles.compactFilterText}>
+                                    {getCurrentFilterText().sort}
+                                </Text>
+                                {hasActiveFilters() && (
+                                    <TouchableOpacity
+                                        style={styles.clearFiltersButton}
+                                        onPress={clearAllFilters}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Clear all filters"
+                                    >
+                                        <X size={14} color={colors.textSecondary} />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Select All Section */}
+                    {canUpdateBookings() && filteredAndSortedBookings.length > 0 && (
+                        <TouchableOpacity
+                            style={styles.selectAllButton}
+                            onPress={handleSelectAll}
+                            accessibilityRole="button"
+                            accessibilityLabel={isAllSelected ? "Deselect all bookings" : "Select all bookings"}
+                        >
+                            <View style={[
+                                styles.selectAllCheckboxLarge,
+                                isAllSelected && styles.checkboxSelected,
+                                isPartiallySelected && styles.checkboxPartial
+                            ]}>
+                                {isAllSelected && (
+                                    <Check size={14} color="white" />
+                                )}
+                                {isPartiallySelected && !isAllSelected && (
+                                    <View style={styles.partialCheckmark} />
+                                )}
+                            </View>
+                            <Text style={styles.selectAllTextLarge}>
+                                {isAllSelected ? "Deselect All" : "Select All"}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Content Area */}
                     {filteredAndSortedBookings.length === 0 ? (
                         <EmptyState
                             icon={<CreditCard size={48} color={colors.textSecondary} />}
@@ -493,13 +602,43 @@ export default function BookingsScreen() {
                         </View>
 
                         <View style={styles.filterSection}>
+                            <Text style={styles.filterSectionTitle}>Status</Text>
+                            {[
+                                { key: "all", label: "All Status" },
+                                { key: "reserved", label: "Reserved" },
+                                { key: "confirmed", label: "Confirmed" },
+                                { key: "cancelled", label: "Cancelled" },
+                                { key: "completed", label: "Completed" }
+                            ].map((option) => (
+                                <TouchableOpacity
+                                    key={option.key}
+                                    style={[
+                                        styles.filterOption,
+                                        filterStatus === option.key && styles.filterOptionSelected
+                                    ]}
+                                    onPress={() => setFilterStatus(option.key as FilterStatus)}
+                                >
+                                    <Text style={[
+                                        styles.filterOptionText,
+                                        filterStatus === option.key && styles.filterOptionTextSelected
+                                    ]}>
+                                        {option.label}
+                                    </Text>
+                                    {filterStatus === option.key && (
+                                        <Check size={16} color={colors.primary} />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View style={styles.filterSection}>
                             <Text style={styles.filterSectionTitle}>Sort by</Text>
                             {[
                                 { key: "date_desc", label: "Date (Newest)" },
                                 { key: "date_asc", label: "Date (Oldest)" },
                                 { key: "amount_desc", label: "Amount (High to Low)" },
                                 { key: "amount_asc", label: "Amount (Low to High)" },
-                                { key: "customer_asc", label: "Customer Name" }
+                                { key: "customer_asc", label: "Customer (A-Z)" }
                             ].map((option) => (
                                 <TouchableOpacity
                                     key={option.key}
@@ -526,11 +665,7 @@ export default function BookingsScreen() {
                             <Button
                                 title="Clear All"
                                 variant="ghost"
-                                onPress={() => {
-                                    setFilterStatus("all");
-                                    setSortOrder("date_desc");
-                                    setSearchQuery("");
-                                }}
+                                onPress={clearAllFilters}
                             />
                             <Button
                                 title="Apply"
@@ -548,15 +683,30 @@ export default function BookingsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.backgroundSecondary,
     },
     contentContainer: {
         flexGrow: 1,
     },
     headerActions: {
         flexDirection: "row",
+        alignItems: "center",
         gap: 8,
+        marginRight: 12,
     },
+    headerButton: {
+        padding: 8,
+        borderRadius: 10,
+        backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+        borderWidth: 1,
+        borderColor: colors.border + "60",
+    },
+
     statsContainer: {
         marginBottom: 24,
     },
@@ -564,8 +714,9 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         flexWrap: "wrap",
         gap: 12,
-        marginTop: 16,
+        justifyContent: "space-between",
     },
+
     searchContainer: {
         flexDirection: "row",
         alignItems: "center",
@@ -575,7 +726,7 @@ const styles = StyleSheet.create({
     searchWrapper: {
         flex: 1,
     },
-    statusTabs: {
+    filterTabs: {
         flexDirection: "row",
         backgroundColor: colors.card,
         borderRadius: 12,
@@ -587,32 +738,32 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 2,
     },
-    statusTab: {
+    filterTab: {
         flex: 1,
         paddingVertical: 8,
-        paddingHorizontal: 12,
+        paddingHorizontal: 8,
         borderRadius: 8,
         alignItems: "center",
     },
-    statusTabActive: {
-        backgroundColor: colors.primary,
+    filterTabActive: {
+        backgroundColor: colors.primary + "15",
     },
-    statusTabText: {
-        fontSize: 12,
+    filterTabText: {
+        fontSize: 14,
         fontWeight: "500",
         color: colors.textSecondary,
         marginBottom: 2,
     },
-    statusTabTextActive: {
-        color: "white",
+    filterTabTextActive: {
+        color: colors.primary,
     },
-    statusTabCount: {
-        fontSize: 10,
+    filterTabCount: {
+        fontSize: 12,
         fontWeight: "600",
         color: colors.textSecondary,
     },
-    statusTabCountActive: {
-        color: "white",
+    filterTabCountActive: {
+        color: colors.primary,
     },
     bulkActionsBar: {
         flexDirection: "row",
@@ -637,6 +788,55 @@ const styles = StyleSheet.create({
     section: {
         marginBottom: 24,
     },
+    bookingsHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    compactFilterStatus: {
+        paddingHorizontal: 0,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border + "40",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    filterStatusDivider: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    compactFilterText: {
+        fontSize: 11,
+        color: colors.textSecondary,
+        fontWeight: "500",
+    },
+    clearFiltersButton: {
+        padding: 2,
+        borderRadius: 2,
+    },
+    selectAllButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 8,
+        gap: 12,
+    },
+    selectAllCheckboxLarge: {
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: colors.primary + "40",
+        backgroundColor: colors.card,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    selectAllTextLarge: {
+        fontSize: 14,
+        fontWeight: "500",
+        color: colors.primary,
+    },
     bookingsList: {
         gap: 12,
         marginTop: 16,
@@ -650,17 +850,33 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     checkbox: {
-        width: 20,
-        height: 20,
-        borderRadius: 4,
+        width: 22,
+        height: 22,
+        borderRadius: 6,
         borderWidth: 2,
-        borderColor: colors.border,
+        borderColor: colors.primary + "40",
+        backgroundColor: colors.card,
         alignItems: "center",
         justifyContent: "center",
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
     },
     checkboxSelected: {
         backgroundColor: colors.primary,
         borderColor: colors.primary,
+    },
+    checkboxPartial: {
+        backgroundColor: colors.primary + "40",
+        borderColor: colors.primary,
+    },
+    partialCheckmark: {
+        width: 8,
+        height: 2,
+        backgroundColor: colors.primary,
+        borderRadius: 1,
     },
     bookingItemContent: {
         flex: 1,
