@@ -2,14 +2,32 @@ import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { mockAlerts, mockBookings, mockUsers, mockVessels, mockRoutes, mockTrips, mockDashboardStats } from "@/mocks/adminData";
-import { Alert, Booking, User, Vessel, Route, Trip, DashboardStats } from "@/types/admin";
+import {
+  Alert,
+  Booking,
+  User,
+  Vessel,
+  Route,
+  Trip,
+  DashboardStats,
+  Wallet,
+  WalletTransaction,
+  PaymentReport,
+  Notification,
+  BulkMessage,
+  Passenger,
+  PassengerManifest,
+  Report,
+  ActivityLog,
+  AdminPermission
+} from "@/types/admin";
 
 interface LoadingState {
   [key: string]: boolean;
 }
 
 interface AdminState {
-  // Data
+  // Existing Data
   alerts: Alert[];
   bookings: Booking[];
   users: User[];
@@ -17,6 +35,18 @@ interface AdminState {
   routes: Route[];
   trips: Trip[];
   dashboardStats: DashboardStats;
+
+  // New Data
+  wallets: Wallet[];
+  walletTransactions: WalletTransaction[];
+  paymentReports: PaymentReport[];
+  notifications: Notification[];
+  bulkMessages: BulkMessage[];
+  passengers: Passenger[];
+  passengerManifests: PassengerManifest[];
+  reports: Report[];
+  activityLogs: ActivityLog[];
+  permissions: AdminPermission[];
 
   // Loading states
   loading: LoadingState;
@@ -35,30 +65,66 @@ interface AdminState {
   dismissAlert: (id: string) => void;
 
   // CRUD operations
-  // Bookings
+  // Existing CRUD
   addBooking: (booking: Omit<Booking, 'id' | 'createdAt'>) => void;
   updateBooking: (id: string, updates: Partial<Booking>) => void;
   deleteBooking: (id: string) => void;
 
-  // Users
   addUser: (user: Omit<User, 'id' | 'createdAt'>) => void;
   updateUser: (id: string, updates: Partial<User>) => void;
   deleteUser: (id: string) => void;
 
-  // Vessels
   addVessel: (vessel: Omit<Vessel, 'id'>) => void;
   updateVessel: (id: string, updates: Partial<Vessel>) => void;
   deleteVessel: (id: string) => void;
 
-  // Routes
   addRoute: (route: Omit<Route, 'id'>) => void;
   updateRoute: (id: string, updates: Partial<Route>) => void;
   deleteRoute: (id: string) => void;
 
-  // Trips
   addTrip: (trip: Omit<Trip, 'id'>) => void;
   updateTrip: (id: string, updates: Partial<Trip>) => void;
   deleteTrip: (id: string) => void;
+
+  // New CRUD operations
+  // Wallet operations
+  addWallet: (wallet: Omit<Wallet, 'id' | 'created_at' | 'updated_at'>) => void;
+  updateWallet: (id: string, updates: Partial<Wallet>) => void;
+  addWalletTransaction: (transaction: Omit<WalletTransaction, 'id' | 'created_at'>) => void;
+
+  // Notification operations
+  addNotification: (notification: Omit<Notification, 'id' | 'created_at'>) => void;
+  updateNotification: (id: string, updates: Partial<Notification>) => void;
+  deleteNotification: (id: string) => void;
+  markNotificationAsRead: (id: string) => void;
+
+  // Bulk message operations
+  addBulkMessage: (message: Omit<BulkMessage, 'id' | 'created_at'>) => void;
+  updateBulkMessage: (id: string, updates: Partial<BulkMessage>) => void;
+  deleteBulkMessage: (id: string) => void;
+  sendBulkMessage: (id: string) => Promise<void>;
+
+  // Passenger operations
+  addPassenger: (passenger: Omit<Passenger, 'id' | 'created_at'>) => void;
+  updatePassenger: (id: string, updates: Partial<Passenger>) => void;
+  deletePassenger: (id: string) => void;
+
+  // Manifest operations
+  addPassengerManifest: (manifest: Omit<PassengerManifest, 'id' | 'created_at' | 'updated_at'>) => void;
+  updatePassengerManifest: (id: string, updates: Partial<PassengerManifest>) => void;
+
+  // Report operations
+  generateReport: (report: Omit<Report, 'id' | 'generated_at' | 'status' | 'row_count'>) => Promise<void>;
+  updateReport: (id: string, updates: Partial<Report>) => void;
+  deleteReport: (id: string) => void;
+
+  // Activity log operations
+  addActivityLog: (log: Omit<ActivityLog, 'id' | 'created_at'>) => void;
+
+  // Permission operations
+  addPermission: (permission: Omit<AdminPermission, 'id' | 'created_at'>) => void;
+  updatePermission: (id: string, updates: Partial<AdminPermission>) => void;
+  deletePermission: (id: string) => void;
 
   // Utility functions
   setLoading: (key: string, value: boolean) => void;
@@ -73,12 +139,123 @@ interface AdminState {
   // User preferences
   darkMode: boolean;
   toggleDarkMode: () => void;
+
+  // User management functions
+  updateUserStatus: (id: string, status: string) => void;
+  updateUserRole: (id: string, role: string) => void;
+  exportUsersReport: (users: User[]) => Promise<void>;
+
+  // Alert management functions
+  deleteAlert: (id: string) => void;
+
+  // System management functions
+  systemSettings: any;
+  adminPermissions: AdminPermission[];
+  updateSystemSettings: (settings: any) => Promise<void>;
+  backupDatabase: () => Promise<void>;
+  restoreDatabase: () => Promise<void>;
+  exportActivityLogs: (logs: ActivityLog[]) => Promise<void>;
+  exportSystemReport: (type: string) => Promise<void>;
 }
+
+// Mock data for new entities
+const mockWallets: Wallet[] = [
+  {
+    id: "w1",
+    user_id: "u1",
+    user_name: "John Doe",
+    user_email: "john@example.com",
+    balance: 150.00,
+    currency: "MVR",
+    is_active: true,
+    transactions: [],
+    total_credits: 500.00,
+    total_debits: 350.00,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
+
+const mockNotifications: Notification[] = [
+  {
+    id: "n1",
+    title: "System Maintenance",
+    message: "Scheduled maintenance tonight at 2 AM",
+    type: "system",
+    priority: "medium",
+    target_users: "all",
+    is_read: false,
+    sent_by: "admin1",
+    sent_by_name: "Admin User",
+    created_at: new Date().toISOString()
+  }
+];
+
+const mockBulkMessages: BulkMessage[] = [
+  {
+    id: "bm1",
+    title: "Weather Alert",
+    message_content: "Due to rough weather, some trips may be delayed.",
+    target_criteria: { user_roles: ["customer"] },
+    recipient_count: 150,
+    sent_count: 150,
+    failed_count: 0,
+    status: "sent",
+    sent_by: "admin1",
+    sent_by_name: "Admin User",
+    created_at: new Date().toISOString()
+  }
+];
+
+const mockPassengers: Passenger[] = [
+  {
+    id: "p1",
+    booking_id: "b1",
+    booking_number: "BK12345",
+    seat_id: "s1",
+    seat_number: "A1",
+    passenger_name: "Jane Smith",
+    passenger_contact_number: "+960-7123456",
+    check_in_status: false,
+    trip_date: new Date().toISOString().split('T')[0],
+    route_name: "Male to Hulhule",
+    vessel_name: "MV Seabird",
+    created_at: new Date().toISOString()
+  }
+];
+
+const mockReports: Report[] = [
+  {
+    id: "r1",
+    report_type: "booking",
+    title: "Monthly Booking Report",
+    start_date: "2024-01-01",
+    end_date: "2024-01-31",
+    status: "completed",
+    format: "pdf",
+    row_count: 1250,
+    generated_by: "admin1",
+    generated_by_name: "Admin User",
+    generated_at: new Date().toISOString()
+  }
+];
+
+const mockActivityLogs: ActivityLog[] = [
+  {
+    id: "al1",
+    user_id: "admin1",
+    user_name: "Admin User",
+    action: "booking_created",
+    details: "Created booking BK12345",
+    ip_address: "192.168.1.1",
+    created_at: new Date().toISOString()
+  }
+];
 
 export const useAdminStore = create<AdminState>()(
   persist(
     (set, get) => ({
-      // Initial data
+      // Existing data
       alerts: mockAlerts,
       bookings: mockBookings,
       users: mockUsers,
@@ -86,6 +263,18 @@ export const useAdminStore = create<AdminState>()(
       routes: mockRoutes,
       trips: mockTrips,
       dashboardStats: mockDashboardStats,
+
+      // New data
+      wallets: mockWallets,
+      walletTransactions: [],
+      paymentReports: [],
+      notifications: mockNotifications,
+      bulkMessages: mockBulkMessages,
+      passengers: mockPassengers,
+      passengerManifests: [],
+      reports: mockReports,
+      activityLogs: mockActivityLogs,
+      permissions: [],
 
       // Loading states
       loading: {},
@@ -131,8 +320,7 @@ export const useAdminStore = create<AdminState>()(
           };
         }),
 
-      // CRUD operations
-      // Bookings
+      // Existing CRUD operations
       addBooking: (booking) =>
         set((state) => ({
           bookings: [{
@@ -154,7 +342,6 @@ export const useAdminStore = create<AdminState>()(
           bookings: state.bookings.filter((booking) => booking.id !== id)
         })),
 
-      // Users
       addUser: (user) =>
         set((state) => ({
           users: [{
@@ -176,7 +363,6 @@ export const useAdminStore = create<AdminState>()(
           users: state.users.filter((user) => user.id !== id)
         })),
 
-      // Vessels
       addVessel: (vessel) =>
         set((state) => ({
           vessels: [{
@@ -197,7 +383,6 @@ export const useAdminStore = create<AdminState>()(
           vessels: state.vessels.filter((vessel) => vessel.id !== id)
         })),
 
-      // Routes
       addRoute: (route) =>
         set((state) => ({
           routes: [{
@@ -218,7 +403,6 @@ export const useAdminStore = create<AdminState>()(
           routes: state.routes.filter((route) => route.id !== id)
         })),
 
-      // Trips
       addTrip: (trip) =>
         set((state) => ({
           trips: [{
@@ -237,6 +421,215 @@ export const useAdminStore = create<AdminState>()(
       deleteTrip: (id) =>
         set((state) => ({
           trips: state.trips.filter((trip) => trip.id !== id)
+        })),
+
+      // New CRUD operations
+      // Wallet operations
+      addWallet: (wallet) =>
+        set((state) => ({
+          wallets: [{
+            ...wallet,
+            id: `w${Date.now()}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, ...state.wallets]
+        })),
+
+      updateWallet: (id, updates) =>
+        set((state) => ({
+          wallets: state.wallets.map((wallet) =>
+            wallet.id === id ? { ...wallet, ...updates, updated_at: new Date().toISOString() } : wallet
+          )
+        })),
+
+      addWalletTransaction: (transaction) =>
+        set((state) => ({
+          walletTransactions: [{
+            ...transaction,
+            id: `wt${Date.now()}`,
+            created_at: new Date().toISOString()
+          }, ...state.walletTransactions]
+        })),
+
+      // Notification operations
+      addNotification: (notification) =>
+        set((state) => ({
+          notifications: [{
+            ...notification,
+            id: `n${Date.now()}`,
+            created_at: new Date().toISOString()
+          }, ...state.notifications]
+        })),
+
+      updateNotification: (id, updates) =>
+        set((state) => ({
+          notifications: state.notifications.map((notification) =>
+            notification.id === id ? { ...notification, ...updates } : notification
+          )
+        })),
+
+      deleteNotification: (id) =>
+        set((state) => ({
+          notifications: state.notifications.filter((notification) => notification.id !== id)
+        })),
+
+      markNotificationAsRead: (id) =>
+        set((state) => ({
+          notifications: state.notifications.map((notification) =>
+            notification.id === id ? { ...notification, is_read: true } : notification
+          )
+        })),
+
+      // Bulk message operations
+      addBulkMessage: (message) =>
+        set((state) => ({
+          bulkMessages: [{
+            ...message,
+            id: `bm${Date.now()}`,
+            created_at: new Date().toISOString()
+          }, ...state.bulkMessages]
+        })),
+
+      updateBulkMessage: (id, updates) =>
+        set((state) => ({
+          bulkMessages: state.bulkMessages.map((message) =>
+            message.id === id ? { ...message, ...updates } : message
+          )
+        })),
+
+      deleteBulkMessage: (id) =>
+        set((state) => ({
+          bulkMessages: state.bulkMessages.filter((message) => message.id !== id)
+        })),
+
+      sendBulkMessage: async (id) => {
+        set((state) => ({
+          bulkMessages: state.bulkMessages.map((message) =>
+            message.id === id ? { ...message, status: "sending" } : message
+          )
+        }));
+
+        // Simulate sending
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        set((state) => ({
+          bulkMessages: state.bulkMessages.map((message) =>
+            message.id === id ? { ...message, status: "sent", sent_count: message.recipient_count } : message
+          )
+        }));
+      },
+
+      // Passenger operations
+      addPassenger: (passenger) =>
+        set((state) => ({
+          passengers: [{
+            ...passenger,
+            id: `p${Date.now()}`,
+            created_at: new Date().toISOString()
+          }, ...state.passengers]
+        })),
+
+      updatePassenger: (id, updates) =>
+        set((state) => ({
+          passengers: state.passengers.map((passenger) =>
+            passenger.id === id ? { ...passenger, ...updates } : passenger
+          )
+        })),
+
+      deletePassenger: (id) =>
+        set((state) => ({
+          passengers: state.passengers.filter((passenger) => passenger.id !== id)
+        })),
+
+      // Manifest operations
+      addPassengerManifest: (manifest) =>
+        set((state) => ({
+          passengerManifests: [{
+            ...manifest,
+            id: `pm${Date.now()}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, ...state.passengerManifests]
+        })),
+
+      updatePassengerManifest: (id, updates) =>
+        set((state) => ({
+          passengerManifests: state.passengerManifests.map((manifest) =>
+            manifest.id === id ? { ...manifest, ...updates, updated_at: new Date().toISOString() } : manifest
+          )
+        })),
+
+      // Report operations
+      generateReport: async (report) => {
+        const newReport = {
+          ...report,
+          id: `r${Date.now()}`,
+          generated_at: new Date().toISOString(),
+          status: "generating" as const,
+          row_count: 0
+        };
+
+        set((state) => ({
+          reports: [newReport, ...state.reports]
+        }));
+
+        // Simulate report generation
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        set((state) => ({
+          reports: state.reports.map((r) =>
+            r.id === newReport.id ? {
+              ...r,
+              status: "completed" as const,
+              row_count: Math.floor(Math.random() * 1000) + 100,
+              report_url: `https://example.com/reports/${newReport.id}.pdf`
+            } : r
+          )
+        }));
+      },
+
+      updateReport: (id, updates) =>
+        set((state) => ({
+          reports: state.reports.map((report) =>
+            report.id === id ? { ...report, ...updates } : report
+          )
+        })),
+
+      deleteReport: (id) =>
+        set((state) => ({
+          reports: state.reports.filter((report) => report.id !== id)
+        })),
+
+      // Activity log operations
+      addActivityLog: (log) =>
+        set((state) => ({
+          activityLogs: [{
+            ...log,
+            id: `al${Date.now()}`,
+            created_at: new Date().toISOString()
+          }, ...state.activityLogs]
+        })),
+
+      // Permission operations
+      addPermission: (permission) =>
+        set((state) => ({
+          permissions: [{
+            ...permission,
+            id: `perm${Date.now()}`,
+            created_at: new Date().toISOString()
+          }, ...state.permissions]
+        })),
+
+      updatePermission: (id, updates) =>
+        set((state) => ({
+          permissions: state.permissions.map((permission) =>
+            permission.id === id ? { ...permission, ...updates } : permission
+          )
+        })),
+
+      deletePermission: (id) =>
+        set((state) => ({
+          permissions: state.permissions.filter((permission) => permission.id !== id)
         })),
 
       // Utility functions
@@ -269,6 +662,68 @@ export const useAdminStore = create<AdminState>()(
       // User preferences
       darkMode: false,
       toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
+
+      // User management functions
+      updateUserStatus: (id, status) =>
+        set((state) => ({
+          users: state.users.map((user) =>
+            user.id === id ? { ...user, status: status as "active" | "inactive" | "suspended" } : user
+          )
+        })),
+
+      updateUserRole: (id, role) =>
+        set((state) => ({
+          users: state.users.map((user) =>
+            user.id === id ? { ...user, role: role as "customer" | "agent" | "admin" | "captain" } : user
+          )
+        })),
+
+      exportUsersReport: async (users) => {
+        console.log("Exporting users report:", users);
+        // Simulate file saving
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("Users report exported successfully!");
+      },
+
+      // Alert management functions
+      deleteAlert: (id) =>
+        set((state) => ({
+          alerts: state.alerts.filter((alert) => alert.id !== id)
+        })),
+
+      // System management functions
+      systemSettings: {},
+      adminPermissions: [],
+      updateSystemSettings: async (settings) => {
+        console.log("Updating system settings:", settings);
+        // Simulate saving settings
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("System settings updated successfully!");
+      },
+      backupDatabase: async () => {
+        console.log("Backing up database...");
+        // Simulate backup
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log("Database backed up successfully!");
+      },
+      restoreDatabase: async () => {
+        console.log("Restoring database...");
+        // Simulate restore
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log("Database restored successfully!");
+      },
+      exportActivityLogs: async (logs) => {
+        console.log("Exporting activity logs:", logs);
+        // Simulate file saving
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("Activity logs exported successfully!");
+      },
+      exportSystemReport: async (type) => {
+        console.log("Exporting system report of type:", type);
+        // Simulate file saving
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("System report exported successfully!");
+      },
     }),
     {
       name: "admin-storage",

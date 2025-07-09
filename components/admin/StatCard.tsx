@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View, Dimensions } from "react-native";
 import { colors } from "@/constants/adminColors";
+import { TrendingUp, TrendingDown } from "lucide-react-native";
 
 interface StatCardProps {
   title: string;
@@ -10,6 +11,8 @@ interface StatCardProps {
   color?: string;
   size?: "small" | "medium" | "large";
   fullWidth?: boolean;
+  trend?: "up" | "down" | "neutral";
+  trendValue?: string;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -21,7 +24,9 @@ export default function StatCard({
   icon,
   color = colors.primary,
   size = "medium",
-  fullWidth = false
+  fullWidth = false,
+  trend,
+  trendValue
 }: StatCardProps) {
 
   const getCardWidth = () => {
@@ -52,6 +57,7 @@ export default function StatCard({
           titleSize: 12,
           valueSize: 18,
           subtitleSize: 10,
+          trendSize: 10,
         };
       case "large":
         return {
@@ -60,6 +66,7 @@ export default function StatCard({
           titleSize: 16,
           valueSize: 32,
           subtitleSize: 14,
+          trendSize: 12,
         };
       default: // medium
         return {
@@ -68,7 +75,19 @@ export default function StatCard({
           titleSize: 14,
           valueSize: 24,
           subtitleSize: 12,
+          trendSize: 11,
         };
+    }
+  };
+
+  const getTrendColor = () => {
+    switch (trend) {
+      case "up":
+        return colors.success;
+      case "down":
+        return colors.danger;
+      default:
+        return colors.textSecondary;
     }
   };
 
@@ -95,20 +114,35 @@ export default function StatCard({
       </View>
 
       <View style={styles.content}>
-        <Text
-          style={[
-            styles.value,
-            {
-              color,
-              fontSize: sizeStyles.valueSize,
-              lineHeight: sizeStyles.valueSize * 1.2
-            }
-          ]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-        >
-          {value}
-        </Text>
+        <View style={styles.valueRow}>
+          <Text
+            style={[
+              styles.value,
+              {
+                color,
+                fontSize: sizeStyles.valueSize,
+                lineHeight: sizeStyles.valueSize * 1.2
+              }
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {value}
+          </Text>
+          {trend && trendValue && (
+            <View style={[styles.trendContainer, { backgroundColor: getTrendColor() + "15" }]}>
+              {trend === "up" ? (
+                <TrendingUp size={sizeStyles.trendSize} color={getTrendColor()} />
+              ) : trend === "down" ? (
+                <TrendingDown size={sizeStyles.trendSize} color={getTrendColor()} />
+              ) : null}
+              <Text style={[styles.trendText, { fontSize: sizeStyles.trendSize - 1, color: getTrendColor() }]}>
+                {trendValue}
+              </Text>
+            </View>
+          )}
+        </View>
+
         {subtitle && (
           <Text style={[styles.subtitle, { fontSize: sizeStyles.subtitleSize }]} numberOfLines={2}>
             {subtitle}
@@ -156,9 +190,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
   },
+  valueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
   value: {
     fontWeight: "700",
-    marginBottom: 4,
+    flex: 1,
+  },
+  trendContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 2,
+    marginLeft: 8,
+  },
+  trendText: {
+    fontWeight: "600",
   },
   subtitle: {
     color: colors.textSecondary,

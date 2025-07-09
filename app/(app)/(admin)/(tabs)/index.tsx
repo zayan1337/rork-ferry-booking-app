@@ -1,5 +1,14 @@
 import React, { useState } from "react";
-import { FlatList, Platform, ScrollView, StyleSheet, Text, View, TouchableOpacity, Dimensions, RefreshControl } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  Dimensions,
+  RefreshControl,
+  Alert
+} from "react-native";
 import { colors } from "@/constants/adminColors";
 import {
   AlertTriangle,
@@ -12,16 +21,23 @@ import {
   User,
   Shield,
   Activity,
-  TrendingUp
+  TrendingUp,
+  TrendingDown,
+  Eye,
+  MessageSquare,
+  Wallet,
+  Clock,
+  Database,
+  Wifi
 } from "lucide-react-native";
 import { Stack, router } from "expo-router";
 import { useAdminStore } from "@/store/admin/adminStore";
 import { useAuthStore } from "@/store/authStore";
+import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import StatCard from "@/components/admin/StatCard";
 import SectionHeader from "@/components/admin/SectionHeader";
 import AlertItem from "@/components/admin/AlertItem";
 import BookingItem from "@/components/admin/BookingItem";
-import TripItem from "@/components/admin/TripItem";
 import Button from "@/components/admin/Button";
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -31,12 +47,31 @@ export default function DashboardScreen() {
     alerts,
     bookings,
     trips,
+    users,
+    vessels,
+    routes,
+    wallets,
+    notifications,
+    activityLogs,
     dashboardStats,
     markAlertAsRead,
     markAllAlertsAsRead,
     refreshData
   } = useAdminStore();
+
   const { user } = useAuthStore();
+  const {
+    canViewDashboard,
+    canViewBookings,
+    canViewRoutes,
+    canViewTrips,
+    canViewVessels,
+    canViewUsers,
+    canViewWallets,
+    canViewNotifications,
+    canViewActivityLogs
+  } = useAdminPermissions();
+
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isTablet = screenWidth >= 768;
@@ -53,32 +88,46 @@ export default function DashboardScreen() {
   };
 
   const handleBookingPress = (bookingId: string) => {
-    router.push(`../booking/${bookingId}` as any);
+    if (canViewBookings()) {
+      router.push(`../booking/${bookingId}` as any);
+    }
   };
 
-  const handleTripPress = (tripId: string) => {
-    router.push(`../schedule/${tripId}` as any);
-  };
-
-  const handleSeeAllBookings = () => {
-    router.push("./bookings" as any);
-  };
-
-  const handleSeeAllSchedule = () => {
-    router.push("./schedule" as any);
-  };
-
-  const handleAddBooking = () => {
-    router.push("../booking/new" as any);
-  };
-
-  const handleManageSchedule = () => {
-    router.push("./schedule" as any);
-  };
-
-  const handleEmergencyAnnouncement = () => {
-    // TODO: Implement emergency announcement modal
-    console.log("Emergency announcement modal");
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'new_booking':
+        if (canViewBookings()) {
+          router.push("../booking/new" as any);
+        } else {
+          Alert.alert("Access Denied", "You don't have permission to create bookings.");
+        }
+        break;
+      case 'view_bookings':
+        if (canViewBookings()) {
+          router.push("./bookings" as any);
+        }
+        break;
+      case 'operations':
+        router.push("./operations" as any);
+        break;
+      case 'users':
+        if (canViewUsers()) {
+          router.push("./users" as any);
+        }
+        break;
+      case 'finance':
+        if (canViewWallets()) {
+          router.push("./finance" as any);
+        }
+        break;
+      case 'communications':
+        if (canViewNotifications()) {
+          router.push("./communications" as any);
+        }
+        break;
+      default:
+        break;
+    }
   };
 
   const handleProfilePress = () => {
@@ -104,6 +153,30 @@ export default function DashboardScreen() {
     paddingHorizontal: isTablet ? 24 : isSmallScreen ? 12 : 16,
     paddingVertical: isTablet ? 20 : 16,
   });
+
+  // Calculate real-time statistics
+  const todayBookings = bookings.filter(b =>
+    new Date(b.createdAt).toDateString() === new Date().toDateString()
+  ).length;
+
+  const activeTripsCount = trips.filter(t =>
+    t.is_active && t.travel_date === new Date().toISOString().split('T')[0]
+  ).length;
+
+  const totalWalletBalance = wallets.reduce((sum, w) => sum + w.balance, 0);
+  const unreadNotifications = notifications.filter(n => !n.is_read).length;
+  const criticalAlerts = alerts.filter(a => a.severity === "critical" && !a.read).length;
+
+  if (!canViewDashboard()) {
+    return (
+      <View style={styles.noPermissionContainer}>
+        <AlertTriangle size={48} color={colors.warning} />
+        <Text style={styles.noPermissionText}>
+          You don't have permission to view the dashboard.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -162,179 +235,269 @@ export default function DashboardScreen() {
         </View>
       </TouchableOpacity>
 
-      {/* Stats Grid - Responsive Layout */}
+      {/* Critical Alerts Banner */}
+      {criticalAlerts > 0 && (
+        <TouchableOpacity
+          style={styles.criticalAlertBanner}
+          onPress={() => router.push("./settings" as any)}
+        >
+          <AlertTriangle size={20} color={colors.danger} />
+          <Text style={styles.criticalAlertText}>
+            {criticalAlerts} critical alert{criticalAlerts > 1 ? 's' : ''} require attention
+          </Text>
+          <Eye size={16} color={colors.danger} />
+        </TouchableOpacity>
+      )}
+
+      {/* Enhanced Stats Grid */}
       <View style={styles.statsContainer}>
         <View style={styles.statsGrid}>
-          <StatCard
-            title="Daily Bookings"
-            value={dashboardStats.dailyBookings.count.toString()}
-            subtitle={`$${dashboardStats.dailyBookings.revenue} Revenue`}
-            icon={<CreditCard size={isTablet ? 20 : 18} color={colors.primary} />}
-            size={isTablet ? "large" : "medium"}
-          />
-          <StatCard
-            title="Active Trips"
-            value={dashboardStats.activeTrips.toString()}
-            icon={<Ship size={isTablet ? 20 : 18} color={colors.secondary} />}
-            color={colors.secondary}
-            size={isTablet ? "large" : "medium"}
-          />
-          <StatCard
-            title="Active Users"
-            value={dashboardStats.activeUsers.toString()}
-            icon={<Users size={isTablet ? 20 : 18} color="#34C759" />}
-            color="#34C759"
-            size={isTablet ? "large" : "medium"}
-          />
-          <StatCard
-            title="Payments"
-            value={dashboardStats.paymentStatus.completed.toString()}
-            subtitle={`${dashboardStats.paymentStatus.pending} Pending`}
-            icon={<DollarSign size={isTablet ? 20 : 18} color="#FF9500" />}
-            color="#FF9500"
-            size={isTablet ? "large" : "medium"}
-          />
+          {canViewBookings() && (
+            <StatCard
+              title="Today's Bookings"
+              value={todayBookings.toString()}
+              subtitle={`MVR ${dashboardStats.dailyBookings.revenue.toFixed(2)} Revenue`}
+              icon={<CreditCard size={isTablet ? 20 : 18} color={colors.primary} />}
+              size={isTablet ? "large" : "medium"}
+              trend={dashboardStats.dailyBookings.change_percentage > 0 ? "up" : "down"}
+              trendValue={`${Math.abs(dashboardStats.dailyBookings.change_percentage || 0)}%`}
+            />
+          )}
+
+          {canViewTrips() && (
+            <StatCard
+              title="Active Trips"
+              value={activeTripsCount.toString()}
+              subtitle={`${dashboardStats.activeTrips?.in_progress || 0} in progress`}
+              icon={<Ship size={isTablet ? 20 : 18} color={colors.secondary} />}
+              color={colors.secondary}
+              size={isTablet ? "large" : "medium"}
+            />
+          )}
+
+          {canViewUsers() && (
+            <StatCard
+              title="Active Users"
+              value={dashboardStats.activeUsers?.total?.toString() || users.length.toString()}
+              subtitle={`${dashboardStats.activeUsers?.online_now || 0} online now`}
+              icon={<Users size={isTablet ? 20 : 18} color="#34C759" />}
+              color="#34C759"
+              size={isTablet ? "large" : "medium"}
+            />
+          )}
+
+          {canViewWallets() && (
+            <StatCard
+              title="Wallet Balance"
+              value={`MVR ${totalWalletBalance.toFixed(2)}`}
+              subtitle={`${dashboardStats.walletStats?.active_wallets || wallets.length} wallets`}
+              icon={<Wallet size={isTablet ? 20 : 18} color="#FF9500" />}
+              color="#FF9500"
+              size={isTablet ? "large" : "medium"}
+            />
+          )}
         </View>
       </View>
 
-      {/* System Status */}
-      <View style={[styles.statusCard, { padding: isTablet ? 20 : 16 }]}>
-        <View style={styles.statusHeader}>
-          <Text style={[styles.statusTitle, { fontSize: isTablet ? 18 : 16 }]}>
-            System Status
-          </Text>
-          <View style={styles.statusIndicatorGreen}>
-            <Text style={[styles.statusText, { fontSize: isTablet ? 14 : 12 }]}>
-              All Systems Operational
+      {/* System Health Dashboard */}
+      <View style={styles.systemHealthContainer}>
+        <SectionHeader
+          title="System Health"
+          subtitle="Real-time system status"
+        />
+        <View style={styles.healthGrid}>
+          <View style={styles.healthItem}>
+            <View style={[styles.healthIcon, { backgroundColor: colors.success + "20" }]}>
+              <Database size={16} color={colors.success} />
+            </View>
+            <Text style={styles.healthLabel}>Database</Text>
+            <Text style={[styles.healthStatus, { color: colors.success }]}>
+              {dashboardStats.systemHealth?.status === "healthy" ? "Healthy" : "Warning"}
+            </Text>
+          </View>
+
+          <View style={styles.healthItem}>
+            <View style={[styles.healthIcon, { backgroundColor: colors.primary + "20" }]}>
+              <Wifi size={16} color={colors.primary} />
+            </View>
+            <Text style={styles.healthLabel}>API</Text>
+            <Text style={[styles.healthStatus, { color: colors.primary }]}>Online</Text>
+          </View>
+
+          <View style={styles.healthItem}>
+            <View style={[styles.healthIcon, { backgroundColor: colors.warning + "20" }]}>
+              <Activity size={16} color={colors.warning} />
+            </View>
+            <Text style={styles.healthLabel}>Load</Text>
+            <Text style={[styles.healthStatus, { color: colors.warning }]}>Normal</Text>
+          </View>
+
+          <View style={styles.healthItem}>
+            <View style={[styles.healthIcon, { backgroundColor: colors.secondary + "20" }]}>
+              <Clock size={16} color={colors.secondary} />
+            </View>
+            <Text style={styles.healthLabel}>Backup</Text>
+            <Text style={[styles.healthStatus, { color: colors.secondary }]}>
+              {dashboardStats.systemHealth?.last_backup ? "Today" : "N/A"}
             </Text>
           </View>
         </View>
-        <View style={styles.statusMetrics}>
-          <View style={styles.metric}>
-            <TrendingUp size={isTablet ? 18 : 16} color={colors.success} />
-            <Text style={[styles.metricText, { fontSize: isTablet ? 16 : 14 }]}>
-              Uptime: 99.9%
-            </Text>
-          </View>
-          <View style={styles.metric}>
-            <Activity size={isTablet ? 18 : 16} color={colors.primary} />
-            <Text style={[styles.metricText, { fontSize: isTablet ? 16 : 14 }]}>
-              Performance: Excellent
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Alerts Section */}
-      <View style={styles.section}>
-        <SectionHeader
-          title="Alerts & Notifications"
-          size={isTablet ? "large" : "medium"}
-          action={
-            alerts.some(alert => !alert.read) ? (
-              <Button
-                title="Mark All as Read"
-                variant="outline"
-                size={isTablet ? "medium" : "small"}
-                onPress={markAllAlertsAsRead}
-              />
-            ) : undefined
-          }
-        />
-
-        {alerts.length > 0 ? (
-          <FlatList
-            data={alerts}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <AlertItem
-                alert={item}
-                onPress={() => handleAlertPress(item.id)}
-              />
-            )}
-            scrollEnabled={false}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <View style={[styles.emptyStateContainer, { padding: isTablet ? 40 : 32 }]}>
-            <AlertTriangle size={isTablet ? 48 : 40} color={colors.textSecondary} />
-            <Text style={[styles.emptyStateText, { fontSize: isTablet ? 18 : 16 }]}>
-              No alerts at the moment
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Recent Bookings Section */}
-      <View style={styles.section}>
-        <SectionHeader
-          title="Recent Bookings"
-          subtitle={`${bookings.length} total bookings`}
-          onSeeAll={handleSeeAllBookings}
-          size={isTablet ? "large" : "medium"}
-        />
-
-        {bookings.slice(0, 3).map((booking) => (
-          <BookingItem
-            key={booking.id}
-            booking={booking}
-            onPress={() => handleBookingPress(booking.id)}
-            compact={!isTablet}
-          />
-        ))}
-      </View>
-
-      {/* Upcoming Trips Section */}
-      <View style={styles.section}>
-        <SectionHeader
-          title="Upcoming Trips"
-          subtitle={`${trips.length} scheduled trips`}
-          onSeeAll={handleSeeAllSchedule}
-          size={isTablet ? "large" : "medium"}
-        />
-
-        {trips.slice(0, 3).map((trip) => (
-          <TripItem
-            key={trip.id}
-            trip={trip}
-            onPress={() => handleTripPress(trip.id)}
-          />
-        ))}
       </View>
 
       {/* Quick Actions */}
-      <View style={styles.section}>
+      <View style={styles.quickActionsContainer}>
         <SectionHeader
           title="Quick Actions"
-          size={isTablet ? "large" : "medium"}
+          subtitle="Common administrative tasks"
         />
-        <View style={[styles.actionsContainer, { gap: isTablet ? 16 : 12 }]}>
-          <Button
-            title="Emergency Announcement"
-            variant="danger"
-            size={isTablet ? "large" : "medium"}
-            icon={<Bell size={isTablet ? 20 : 18} color="white" />}
-            onPress={handleEmergencyAnnouncement}
-            fullWidth={isSmallScreen}
-          />
-          <Button
-            title="New Booking"
-            variant="primary"
-            size={isTablet ? "large" : "medium"}
-            icon={<CreditCard size={isTablet ? 20 : 18} color="white" />}
-            onPress={handleAddBooking}
-            fullWidth={isSmallScreen}
-          />
-          <Button
-            title="Manage Schedule"
-            variant="secondary"
-            size={isTablet ? "large" : "medium"}
-            icon={<Calendar size={isTablet ? 20 : 18} color="white" />}
-            onPress={handleManageSchedule}
-            fullWidth={isSmallScreen}
-          />
+        <View style={styles.quickActionsGrid}>
+          {canViewBookings() && (
+            <TouchableOpacity
+              style={styles.quickActionItem}
+              onPress={() => handleQuickAction('new_booking')}
+            >
+              <CreditCard size={24} color={colors.primary} />
+              <Text style={styles.quickActionText}>New Booking</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={styles.quickActionItem}
+            onPress={() => handleQuickAction('operations')}
+          >
+            <Ship size={24} color={colors.secondary} />
+            <Text style={styles.quickActionText}>Operations</Text>
+          </TouchableOpacity>
+
+          {canViewUsers() && (
+            <TouchableOpacity
+              style={styles.quickActionItem}
+              onPress={() => handleQuickAction('users')}
+            >
+              <Users size={24} color="#34C759" />
+              <Text style={styles.quickActionText}>User Management</Text>
+            </TouchableOpacity>
+          )}
+
+          {canViewWallets() && (
+            <TouchableOpacity
+              style={styles.quickActionItem}
+              onPress={() => handleQuickAction('finance')}
+            >
+              <DollarSign size={24} color="#FF9500" />
+              <Text style={styles.quickActionText}>Finance</Text>
+            </TouchableOpacity>
+          )}
+
+          {canViewNotifications() && (
+            <TouchableOpacity
+              style={styles.quickActionItem}
+              onPress={() => handleQuickAction('communications')}
+            >
+              <MessageSquare size={24} color="#FF3B30" />
+              <Text style={styles.quickActionText}>Communications</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
+
+      {/* Recent Alerts */}
+      {alerts.length > 0 && (
+        <View style={styles.alertsSection}>
+          <View style={styles.alertsHeader}>
+            <SectionHeader
+              title="System Alerts"
+              subtitle={`${alerts.filter(a => !a.read).length} unread alerts`}
+            />
+            {alerts.filter(a => !a.read).length > 0 && (
+              <Button
+                title="Mark All Read"
+                onPress={markAllAlertsAsRead}
+                size="small"
+                variant="outline"
+              />
+            )}
+          </View>
+
+          <View style={styles.alertsList}>
+            {alerts.slice(0, 3).map((alert) => (
+              <AlertItem
+                key={alert.id}
+                alert={alert}
+                onPress={() => handleAlertPress(alert.id)}
+              />
+            ))}
+          </View>
+
+          {alerts.length > 3 && (
+            <TouchableOpacity
+              style={styles.viewAllButton}
+              onPress={() => router.push("./settings" as any)}
+            >
+              <Text style={styles.viewAllText}>View All Alerts</Text>
+              <Eye size={16} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Recent Bookings */}
+      {canViewBookings() && bookings.length > 0 && (
+        <View style={styles.recentBookingsSection}>
+          <View style={styles.sectionHeader}>
+            <SectionHeader
+              title="Recent Bookings"
+              subtitle="Latest booking activity"
+            />
+            <TouchableOpacity
+              style={styles.viewAllLink}
+              onPress={() => handleQuickAction('view_bookings')}
+            >
+              <Text style={styles.viewAllLinkText}>View All</Text>
+              <Eye size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.bookingsList}>
+            {bookings.slice(0, 5).map((booking) => (
+              <BookingItem
+                key={booking.id}
+                booking={booking}
+                onPress={() => handleBookingPress(booking.id)}
+                compact={true}
+              />
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Activity Logs */}
+      {canViewActivityLogs() && activityLogs.length > 0 && (
+        <View style={styles.activitySection}>
+          <SectionHeader
+            title="Recent Activity"
+            subtitle="System activity logs"
+          />
+
+          <View style={styles.activityList}>
+            {activityLogs.slice(0, 5).map((log) => (
+              <View key={log.id} style={styles.activityItem}>
+                <View style={styles.activityIcon}>
+                  <Activity size={16} color={colors.primary} />
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityAction}>{log.action}</Text>
+                  <Text style={styles.activityDetails}>{log.details}</Text>
+                  <Text style={styles.activityUser}>by {log.user_name}</Text>
+                </View>
+                <Text style={styles.activityTime}>
+                  {new Date(log.created_at).toLocaleTimeString()}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -342,51 +505,45 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: colors.background,
   },
   contentContainer: {
-    paddingBottom: 32,
+    flexGrow: 1,
   },
   welcomeCard: {
     backgroundColor: colors.card,
-    borderRadius: 20,
+    borderRadius: 16,
     marginBottom: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: colors.border + "20",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   welcomeContent: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
   },
   avatarContainer: {
-    position: "relative",
     backgroundColor: colors.primary,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
     marginRight: 16,
+    position: "relative",
   },
   avatarText: {
-    fontWeight: "bold",
     color: "white",
+    fontWeight: "700",
   },
   statusIndicator: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    bottom: -2,
+    right: -2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: colors.success,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: colors.card,
   },
   welcomeInfo: {
@@ -394,77 +551,48 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     color: colors.textSecondary,
-    marginBottom: 2,
-    fontWeight: "500",
+    marginBottom: 4,
   },
   adminName: {
-    fontWeight: "700",
     color: colors.text,
-    marginBottom: 6,
+    fontWeight: "700",
+    marginBottom: 8,
   },
   roleBadge: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.primary,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
     alignSelf: "flex-start",
     gap: 4,
   },
   roleText: {
     color: "white",
-    fontWeight: "700",
-  },
-  activityIndicator: {
-    padding: 10,
-    borderRadius: 20,
-    backgroundColor: colors.success + "15",
-  },
-  statusCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    marginBottom: 24,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: colors.border + "20",
-  },
-  statusHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  statusTitle: {
-    fontWeight: "700",
-    color: colors.text,
-  },
-  statusIndicatorGreen: {
-    backgroundColor: colors.success + "15",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: colors.success,
     fontWeight: "600",
   },
-  statusMetrics: {
-    flexDirection: "row",
-    gap: 20,
+  activityIndicator: {
+    padding: 8,
+    backgroundColor: colors.success + "20",
+    borderRadius: 8,
   },
-  metric: {
+  criticalAlertBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    backgroundColor: colors.danger + "10",
+    borderWidth: 1,
+    borderColor: colors.danger + "30",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    gap: 12,
   },
-  metricText: {
-    color: colors.textSecondary,
+  criticalAlertText: {
+    flex: 1,
+    fontSize: 14,
     fontWeight: "500",
+    color: colors.danger,
   },
   statsContainer: {
     marginBottom: 24,
@@ -473,26 +601,177 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
-    justifyContent: "space-between",
   },
-  section: {
-    marginBottom: 28,
+  systemHealthContainer: {
+    marginBottom: 24,
   },
-  emptyStateContainer: {
+  healthGrid: {
+    flexDirection: "row",
     backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  healthItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 8,
+  },
+  healthIcon: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
     alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border + "20",
+    justifyContent: "center",
   },
-  emptyStateText: {
+  healthLabel: {
+    fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 12,
+  },
+  healthStatus: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  quickActionsContainer: {
+    marginBottom: 24,
+  },
+  quickActionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 16,
+  },
+  quickActionItem: {
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    minWidth: "30%",
+    flex: 1,
+    gap: 8,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickActionText: {
+    fontSize: 12,
     fontWeight: "500",
+    color: colors.text,
     textAlign: "center",
   },
-  actionsContainer: {
-    flexDirection: "column",
+  alertsSection: {
+    marginBottom: 24,
+  },
+  alertsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  alertsList: {
+    gap: 12,
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: colors.primary + "10",
+    borderRadius: 8,
+    gap: 8,
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.primary,
+  },
+  recentBookingsSection: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  viewAllLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  viewAllLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.primary,
+  },
+  bookingsList: {
+    gap: 12,
+  },
+  activitySection: {
+    marginBottom: 24,
+  },
+  activityList: {
+    gap: 12,
+    marginTop: 16,
+  },
+  activityItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.card,
+    padding: 12,
+    borderRadius: 8,
+    gap: 12,
+  },
+  activityIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary + "20",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityAction: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.text,
+    marginBottom: 2,
+  },
+  activityDetails: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  activityUser: {
+    fontSize: 10,
+    color: colors.textSecondary,
+  },
+  activityTime: {
+    fontSize: 10,
+    color: colors.textSecondary,
+  },
+  noPermissionContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 64,
+    gap: 16,
+  },
+  noPermissionText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: "center",
+    maxWidth: 250,
   },
 });
