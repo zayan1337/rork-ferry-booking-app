@@ -1,202 +1,192 @@
-import React from 'react';
-import { 
-  TouchableOpacity, 
-  Text, 
-  StyleSheet, 
-  ActivityIndicator,
-  ViewStyle,
-  TextStyle
-} from 'react-native';
-import Colors from '@/constants/colors';
+import React from "react";
+import { StyleSheet, Text, TouchableOpacity, ActivityIndicator, ViewStyle, TextStyle } from "react-native";
+import Colors from "@/constants/colors";
 
-type ButtonProps = {
+interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'text';
-  size?: 'small' | 'medium' | 'large';
+  variant?: "primary" | "secondary" | "outline" | "text";
+  size?: "small" | "medium" | "large";
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  icon?: React.ReactNode;
   fullWidth?: boolean;
-};
+}
 
-const Button: React.FC<ButtonProps> = ({
+export default function Button({
   title,
   onPress,
-  variant = 'primary',
-  size = 'medium',
+  variant = "primary",
+  size = "medium",
   disabled = false,
   loading = false,
   style,
   textStyle,
+  icon,
   fullWidth = false,
-}) => {
+}: ButtonProps) {
   const getButtonStyle = () => {
-    const baseStyle: ViewStyle[] = [styles.button];
-    
-    // Add size styles
-    switch (size) {
-      case 'small':
-        baseStyle.push(styles.buttonSmall);
-        break;
-      case 'large':
-        baseStyle.push(styles.buttonLarge);
-        break;
-      default:
-        baseStyle.push(styles.buttonMedium);
-    }
-    
-    // Add variant styles
     switch (variant) {
-      case 'secondary':
-        baseStyle.push(styles.buttonSecondary);
-        break;
-      case 'outline':
-        baseStyle.push(styles.buttonOutline);
-        break;
-      case 'text':
-        baseStyle.push(styles.buttonText);
-        break;
+      case "primary":
+        return styles.primaryButton;
+      case "secondary":
+        return styles.secondaryButton;
+      case "outline":
+        return styles.outlineButton;
+      case "text":
+        return styles.textButton;
       default:
-        baseStyle.push(styles.buttonPrimary);
+        return styles.primaryButton;
     }
-    
-    // Add full width style
-    if (fullWidth) {
-      baseStyle.push(styles.buttonFullWidth);
-    }
-    
-    // Add disabled style
-    if (disabled || loading) {
-      baseStyle.push(styles.buttonDisabled);
-    }
-    
-    return baseStyle;
   };
-  
+
   const getTextStyle = () => {
-    const baseStyle: TextStyle[] = [styles.buttonLabel];
-    
-    // Add size styles
-    switch (size) {
-      case 'small':
-        baseStyle.push(styles.buttonLabelSmall);
-        break;
-      case 'large':
-        baseStyle.push(styles.buttonLabelLarge);
-        break;
-      default:
-        baseStyle.push(styles.buttonLabelMedium);
-    }
-    
-    // Add variant styles
     switch (variant) {
-      case 'outline':
-        baseStyle.push(styles.buttonLabelOutline);
-        break;
-      case 'text':
-        baseStyle.push(styles.buttonLabelText);
-        break;
-      case 'secondary':
-        baseStyle.push(styles.buttonLabelSecondary);
-        break;
+      case "primary":
+        return styles.primaryText;
+      case "secondary":
+        return styles.secondaryText;
+      case "outline":
+        return styles.outlineText;
+      case "text":
+        return styles.textButtonText;
       default:
-        baseStyle.push(styles.buttonLabelPrimary);
+        return styles.primaryText;
     }
-    
-    // Add disabled style
-    if (disabled || loading) {
-      baseStyle.push(styles.buttonLabelDisabled);
-    }
-    
-    return baseStyle;
   };
-  
+
+  const getSizeStyle = () => {
+    switch (size) {
+      case "small":
+        return styles.smallButton;
+      case "medium":
+        return styles.mediumButton;
+      case "large":
+        return styles.largeButton;
+      default:
+        return styles.mediumButton;
+    }
+  };
+
+  const getTextSizeStyle = () => {
+    switch (size) {
+      case "small":
+        return styles.smallText;
+      case "medium":
+        return styles.mediumText;
+      case "large":
+        return styles.largeText;
+      default:
+        return styles.mediumText;
+    }
+  };
+
   return (
     <TouchableOpacity
-      style={[...getButtonStyle(), style]}
+      style={[
+        styles.button,
+        getButtonStyle(),
+        getSizeStyle(),
+        disabled && styles.disabledButton,
+        fullWidth && styles.fullWidth,
+        style,
+      ]}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator 
-          size="small" 
-          color={variant === 'primary' ? '#fff' : Colors.primary} 
+        <ActivityIndicator
+          color={variant === "outline" || variant === "text" ? Colors.primary : "white"}
+          size="small"
         />
       ) : (
-        <Text style={[...getTextStyle(), textStyle]}>{title}</Text>
+        <>
+          {icon && icon}
+          <Text
+            style={[
+              getTextStyle(),
+              getTextSizeStyle(),
+              disabled && styles.disabledText,
+              icon ? { marginLeft: 8 } : undefined,
+              textStyle,
+            ]}
+          >
+            {title}
+          </Text>
+        </>
       )}
     </TouchableOpacity>
   );
-};
+}
 
 const styles = StyleSheet.create({
   button: {
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  buttonSmall: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  buttonMedium: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  buttonLarge: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-  },
-  buttonPrimary: {
+  primaryButton: {
     backgroundColor: Colors.primary,
   },
-  buttonSecondary: {
+  secondaryButton: {
     backgroundColor: Colors.secondary,
   },
-  buttonOutline: {
-    backgroundColor: 'transparent',
+  outlineButton: {
+    backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: Colors.primary,
   },
-  buttonText: {
-    backgroundColor: 'transparent',
+  textButton: {
+    backgroundColor: "transparent",
   },
-  buttonDisabled: {
-    opacity: 0.6,
+  smallButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
-  buttonFullWidth: {
-    width: '100%',
+  mediumButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
   },
-  buttonLabel: {
-    fontWeight: '600',
+  largeButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
-  buttonLabelSmall: {
+  primaryText: {
+    color: "white",
+    fontWeight: "600",
+  },
+  secondaryText: {
+    color: "white",
+    fontWeight: "600",
+  },
+  outlineText: {
+    color: Colors.primary,
+    fontWeight: "600",
+  },
+  textButtonText: {
+    color: Colors.primary,
+    fontWeight: "600",
+  },
+  smallText: {
     fontSize: 14,
   },
-  buttonLabelMedium: {
+  mediumText: {
     fontSize: 16,
   },
-  buttonLabelLarge: {
+  largeText: {
     fontSize: 18,
   },
-  buttonLabelPrimary: {
-    color: '#fff',
+  disabledButton: {
+    backgroundColor: Colors.inactive,
+    borderColor: Colors.inactive,
   },
-  buttonLabelSecondary: {
-    color: '#fff',
+  disabledText: {
+    color: Colors.subtext,
   },
-  buttonLabelOutline: {
-    color: Colors.primary,
-  },
-  buttonLabelText: {
-    color: Colors.primary,
-  },
-  buttonLabelDisabled: {
-    color: '#999',
+  fullWidth: {
+    width: '100%',
   },
 });
-
-export default Button;

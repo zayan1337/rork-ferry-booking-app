@@ -11,23 +11,7 @@ import {
 import { ChevronDown, Search, X } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Button from './Button';
-
-type DropdownItem = {
-  label: string;
-  value: string;
-};
-
-type DropdownProps = {
-  label?: string;
-  items: DropdownItem[];
-  value: string | null;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  error?: string;
-  disabled?: boolean;
-  searchable?: boolean;
-  required?: boolean;
-};
+import { DropdownItem, DropdownProps } from '@/types/components';
 
 const Dropdown: React.FC<DropdownProps> = ({
   label,

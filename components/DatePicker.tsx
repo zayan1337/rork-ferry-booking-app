@@ -11,18 +11,7 @@ import {
 import { Calendar } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Button from './Button';
-
-type DatePickerProps = {
-  label?: string;
-  value: string | null;
-  onChange: (date: string) => void;
-  minDate?: string;
-  maxDate?: string;
-  placeholder?: string;
-  error?: string;
-  disabled?: boolean;
-  required?: boolean;
-};
+import { DatePickerProps } from '@/types/components';
 
 const DatePicker: React.FC<DatePickerProps> = ({
   label,

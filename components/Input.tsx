@@ -1,34 +1,17 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  TextInput, 
-  Text, 
-  StyleSheet, 
-  ViewStyle, 
+import {
+  View,
+  TextInput,
+  Text,
+  StyleSheet,
+  ViewStyle,
   TextStyle,
   TouchableOpacity,
   Platform
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-
-type InputProps = {
-  label?: string;
-  placeholder?: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  error?: string;
-  disabled?: boolean;
-  multiline?: boolean;
-  numberOfLines?: number;
-  style?: ViewStyle;
-  inputStyle?: TextStyle;
-  labelStyle?: TextStyle;
-  required?: boolean;
-};
+import { InputProps } from '@/types/components';
 
 const Input: React.FC<InputProps> = ({
   label,
@@ -46,13 +29,15 @@ const Input: React.FC<InputProps> = ({
   inputStyle,
   labelStyle,
   required = false,
+  onFocus,
+  leftIcon,
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  
+
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
   };
-  
+
   return (
     <View style={[styles.container, style]}>
       {label && (
@@ -60,22 +45,30 @@ const Input: React.FC<InputProps> = ({
           {label} {required && <Text style={styles.required}>*</Text>}
         </Text>
       )}
-      
+
       <View style={[
         styles.inputContainer,
         error ? styles.inputError : null,
         disabled ? styles.inputDisabled : null,
         multiline ? styles.inputMultiline : null
       ]}>
+        {leftIcon && (
+          <View style={styles.leftIconContainer}>
+            {leftIcon}
+          </View>
+        )}
+
         <TextInput
           style={[
             styles.input,
+            leftIcon ? styles.inputWithLeftIcon : null,
             multiline ? styles.textMultiline : null,
             inputStyle
           ]}
           placeholder={placeholder}
           value={value}
           onChangeText={onChangeText}
+          onFocus={onFocus}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -84,10 +77,10 @@ const Input: React.FC<InputProps> = ({
           numberOfLines={multiline ? numberOfLines : 1}
           placeholderTextColor={Colors.textSecondary}
         />
-        
+
         {secureTextEntry && (
-          <TouchableOpacity 
-            style={styles.iconContainer} 
+          <TouchableOpacity
+            style={styles.iconContainer}
             onPress={togglePasswordVisibility}
           >
             {isPasswordVisible ? (
@@ -98,7 +91,7 @@ const Input: React.FC<InputProps> = ({
           </TouchableOpacity>
         )}
       </View>
-      
+
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
@@ -131,6 +124,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 16,
     color: Colors.text,
+  },
+  inputWithLeftIcon: {
+    paddingLeft: 8,
+  },
+  leftIconContainer: {
+    paddingLeft: 12,
+    paddingRight: 8,
+    justifyContent: 'center',
   },
   textMultiline: {
     textAlignVertical: 'top',

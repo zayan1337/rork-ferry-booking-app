@@ -1,16 +1,52 @@
-import { useEffect } from 'react';
-import { Redirect, Stack } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
+import AuthLoadingScreen from '@/components/AuthLoadingScreen';
 
 export default function AppLayout() {
-  const { isAuthenticated } = useAuthStore();
-  
-  // If user is not authenticated, redirect to login
-  if (!isAuthenticated) {
-    return <Redirect href="/" />;
+  const { isAuthenticated, isLoading, user, isRehydrated } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    // If user is not authenticated and we're not loading, redirect to auth
+    if (!isAuthenticated && !isLoading && isRehydrated) {
+      router.replace('/(auth)' as any);
+    }
+  }, [isAuthenticated, isLoading, router, isRehydrated]);
+
+  // Show loading while waiting for auth data to load
+  if (!isRehydrated || !isAuthenticated || isLoading || !user?.profile) {
+    return (
+      <AuthLoadingScreen
+        message={
+          !isRehydrated ? "Loading app data..." :
+            !isAuthenticated ? "Redirecting to login..." :
+              isLoading ? "Loading your account..." :
+                "Setting up your profile..."
+        }
+      />
+    );
   }
-  
+
+  // Determine initial route based on user role
+  const getInitialRouteName = () => {
+    if (!user?.profile) {
+      return "(customer)";
+    }
+
+    switch (user.profile.role) {
+      case 'admin':
+      case 'captain':
+        return "(admin)";
+      case 'agent':
+        return "(agent)";
+      case 'customer':
+      default:
+        return "(customer)";
+    }
+  };
+
   return (
     <Stack
       screenOptions={{
@@ -22,36 +58,11 @@ export default function AppLayout() {
           fontWeight: '600',
         },
       }}
+      initialRouteName={getInitialRouteName()}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="booking-details/[id]" 
-        options={{ 
-          title: "Booking Details",
-          presentation: "card",
-        }} 
-      />
-      <Stack.Screen 
-        name="modify-booking/[id]" 
-        options={{ 
-          title: "Modify Booking",
-          presentation: "card",
-        }} 
-      />
-      <Stack.Screen 
-        name="cancel-booking/[id]" 
-        options={{ 
-          title: "Cancel Booking",
-          presentation: "card",
-        }} 
-      />
-      <Stack.Screen 
-        name="validate-ticket" 
-        options={{ 
-          title: "Validate Ticket",
-          presentation: "modal",
-        }} 
-      />
+      <Stack.Screen name="(customer)" options={{ headerShown: false }} />
+      <Stack.Screen name="(agent)" options={{ headerShown: false }} />
+      <Stack.Screen name="(admin)" options={{ headerShown: false }} />
     </Stack>
   );
 }

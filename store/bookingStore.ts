@@ -1,485 +1,744 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Booking, Island, Route, Seat, Passenger } from '@/types';
+import { supabase } from '../utils/supabase';
+import type { BookingStoreState, CurrentBooking, TripType, Trip } from '@/types/booking';
+import type { Route, Seat, Passenger, PaymentMethod } from '@/types';
+import { calculateBookingFare } from '@/utils/bookingUtils';
 
-type BookingState = {
-  // Current booking in progress
-  currentBooking: {
-    tripType: 'one_way' | 'round_trip';
-    departureDate: string | null;
-    returnDate: string | null;
-    route: Route | null;
-    returnRoute: Route | null;
-    selectedSeats: Seat[];
-    returnSelectedSeats: Seat[];
-    passengers: Passenger[];
-    totalFare: number;
-  };
-  
-  // User's bookings
-  bookings: Booking[];
-  
-  // Available data for booking
-  availableIslands: Island[];
-  availableRoutes: Route[];
-  
-  // UI state
-  isLoading: boolean;
-  error: string | null;
-  
-  // Actions
-  setTripType: (type: 'one_way' | 'round_trip') => void;
-  setDepartureDate: (date: string) => void;
-  setReturnDate: (date: string | null) => void;
-  setRoute: (route: Route) => void;
-  setReturnRoute: (route: Route | null) => void;
-  toggleSeatSelection: (seat: Seat, isReturn?: boolean) => void;
-  clearSelectedSeats: (isReturn?: boolean) => void;
-  updatePassengers: (passengers: Passenger[]) => void;
-  calculateTotalFare: () => void;
-  resetCurrentBooking: () => void;
-  
-  // Mock data loading functions
-  fetchAvailableIslands: () => Promise<void>;
-  fetchAvailableRoutes: () => Promise<void>;
-  fetchUserBookings: () => Promise<void>;
-  
-  // Booking actions
-  confirmBooking: (paymentMethod: string) => Promise<Booking>;
-  cancelBooking: (bookingId: string, reason: string) => Promise<void>;
+const initialCurrentBooking: CurrentBooking = {
+    tripType: 'one_way',
+    route: null,
+    returnRoute: null,
+    trip: null,
+    returnTrip: null,
+    departureDate: null,
+    returnDate: null,
+    passengers: [],
+    selectedSeats: [],
+    returnSelectedSeats: [],
+    totalFare: 0,
 };
 
-// Initial state for current booking
-const initialCurrentBooking = {
-  tripType: 'one_way' as const,
-  departureDate: null,
-  returnDate: null,
-  route: null,
-  returnRoute: null,
-  selectedSeats: [],
-  returnSelectedSeats: [],
-  passengers: [],
-  totalFare: 0,
-};
+interface BookingStoreActions {
+    // Customer booking actions
+    setTripType: (tripType: TripType) => void;
+    setDepartureDate: (date: string) => void;
+    setReturnDate: (date: string) => void;
+    setRoute: (route: Route) => void;
+    setReturnRoute: (route: Route) => void;
+    setTrip: (trip: Trip | null) => void;
+    setReturnTrip: (trip: Trip | null) => void;
+    updatePassengers: (passengers: Passenger[]) => void;
+    setCurrentStep: (currentStep: number) => void;
+    calculateTotalFare: () => void;
+    resetBooking: () => void;
+    setError: (error: string | null) => void;
+    setLoading: (isLoading: boolean) => void;
+    setQuickBookingData: (route: Route, departureDate: string) => void;
+    resetCurrentBooking: () => void;
 
-export const useBookingStore = create<BookingState>()(
-  persist(
-    (set, get) => ({
-      currentBooking: { ...initialCurrentBooking },
-      bookings: [],
-      availableIslands: [],
-      availableRoutes: [],
-      isLoading: false,
-      error: null,
-      
-      // Trip type selection
-      setTripType: (type) => {
-        set((state) => ({
-          currentBooking: {
-            ...state.currentBooking,
-            tripType: type,
-            // Reset return-related fields if switching to one-way
-            ...(type === 'one_way' && {
-              returnDate: null,
-              returnRoute: null,
-              returnSelectedSeats: [],
-            }),
-          },
-        }));
-        get().calculateTotalFare();
-      },
-      
-      // Date selection
-      setDepartureDate: (date) => {
-        set((state) => ({
-          currentBooking: {
-            ...state.currentBooking,
-            departureDate: date,
-          },
-        }));
-      },
-      
-      setReturnDate: (date) => {
-        set((state) => ({
-          currentBooking: {
-            ...state.currentBooking,
-            returnDate: date,
-          },
-        }));
-      },
-      
-      // Route selection
-      setRoute: (route) => {
-        set((state) => ({
-          currentBooking: {
-            ...state.currentBooking,
-            route,
-            // Clear selected seats when route changes
-            selectedSeats: [],
-          },
-        }));
-        get().calculateTotalFare();
-      },
-      
-      setReturnRoute: (route) => {
-        set((state) => ({
-          currentBooking: {
-            ...state.currentBooking,
-            returnRoute: route,
-            // Clear return selected seats when return route changes
-            returnSelectedSeats: [],
-          },
-        }));
-        get().calculateTotalFare();
-      },
-      
-      // Seat selection
-      toggleSeatSelection: (seat, isReturn = false) => {
-        set((state) => {
-          const seatKey = isReturn ? 'returnSelectedSeats' : 'selectedSeats';
-          const currentSeats = state.currentBooking[seatKey];
-          
-          // Check if seat is already selected
-          const isAlreadySelected = currentSeats.some(s => s.id === seat.id);
-          
-          // Toggle selection
-          const updatedSeats = isAlreadySelected
-            ? currentSeats.filter(s => s.id !== seat.id)
-            : [...currentSeats, { ...seat, isSelected: true }];
-          
-          return {
-            currentBooking: {
-              ...state.currentBooking,
-              [seatKey]: updatedSeats,
-              // Reset passengers if seat count changes
-              ...(seatKey === 'selectedSeats' && {
-                passengers: updatedSeats.map(() => ({ fullName: "" })),
-              }),
-            },
-          };
-        });
-        get().calculateTotalFare();
-      },
-      
-      clearSelectedSeats: (isReturn = false) => {
-        set((state) => {
-          const seatKey = isReturn ? 'returnSelectedSeats' : 'selectedSeats';
-          return {
-            currentBooking: {
-              ...state.currentBooking,
-              [seatKey]: [],
-              ...(seatKey === 'selectedSeats' && { passengers: [] }),
-            },
-          };
-        });
-        get().calculateTotalFare();
-      },
-      
-      // Passenger details
-      updatePassengers: (passengers) => {
-        set((state) => ({
-          currentBooking: {
-            ...state.currentBooking,
-            passengers,
-          },
-        }));
-      },
-      
-      // Fare calculation
-      calculateTotalFare: () => {
-        set((state) => {
-          const { route, returnRoute, selectedSeats, returnSelectedSeats } = state.currentBooking;
-          
-          let totalFare = 0;
-          
-          // Add departure fare
-          if (route && selectedSeats.length > 0) {
-            totalFare += route.baseFare * selectedSeats.length;
-          }
-          
-          // Add return fare if applicable
-          if (returnRoute && returnSelectedSeats.length > 0) {
-            totalFare += returnRoute.baseFare * returnSelectedSeats.length;
-          }
-          
-          return {
-            currentBooking: {
-              ...state.currentBooking,
-              totalFare,
-            },
-          };
-        });
-      },
-      
-      resetCurrentBooking: () => {
-        set({ currentBooking: { ...initialCurrentBooking } });
-      },
-      
-      // Mock data fetching functions
-      fetchAvailableIslands: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          const mockIslands: Island[] = [
-            { id: "1", name: "Malé", zone: "Central" },
-            { id: "2", name: "Hulhumalé", zone: "Central" },
-            { id: "3", name: "Maafushi", zone: "South" },
-            { id: "4", name: "Thulusdhoo", zone: "North" },
-            { id: "5", name: "Dhiffushi", zone: "North" },
-            { id: "6", name: "Gulhi", zone: "South" },
-          ];
-          
-          set({ availableIslands: mockIslands, isLoading: false });
-        } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : "Failed to fetch islands", 
-            isLoading: false 
-          });
-        }
-      },
-      
-      fetchAvailableRoutes: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          const { availableIslands } = get();
-          
-          if (availableIslands.length === 0) {
-            await get().fetchAvailableIslands();
-          }
-          
-          const islands = get().availableIslands;
-          
-          const mockRoutes: Route[] = [
-            { 
-              id: "1", 
-              fromIsland: islands[0], 
-              toIsland: islands[1], 
-              baseFare: 25, 
-              duration: "0h 30m" 
-            },
-            { 
-              id: "2", 
-              fromIsland: islands[0], 
-              toIsland: islands[2], 
-              baseFare: 50, 
-              duration: "1h 30m" 
-            },
-            { 
-              id: "3", 
-              fromIsland: islands[0], 
-              toIsland: islands[3], 
-              baseFare: 45, 
-              duration: "1h 15m" 
-            },
-            { 
-              id: "4", 
-              fromIsland: islands[1], 
-              toIsland: islands[0], 
-              baseFare: 25, 
-              duration: "0h 30m" 
-            },
-            { 
-              id: "5", 
-              fromIsland: islands[2], 
-              toIsland: islands[0], 
-              baseFare: 50, 
-              duration: "1h 30m" 
-            },
-          ];
-          
-          set({ availableRoutes: mockRoutes, isLoading: false });
-        } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : "Failed to fetch routes", 
-            isLoading: false 
-          });
-        }
-      },
-      
-      fetchUserBookings: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          const { availableRoutes } = get();
-          
-          if (availableRoutes.length === 0) {
-            await get().fetchAvailableRoutes();
-          }
-          
-          const routes = get().availableRoutes;
-          
-          const mockBookings: Booking[] = [
-            {
-              id: "1",
-              bookingNumber: "1234567",
-              tripType: "one_way",
-              departureDate: "2025-06-15",
-              departureTime: "09:00",
-              route: routes[0],
-              seats: [
-                { id: "A1", number: "A1", isAvailable: false, isSelected: true },
-                { id: "A2", number: "A2", isAvailable: false, isSelected: true }
-              ],
-              passengers: [
-                { fullName: "John Doe" },
-                { fullName: "Jane Doe" }
-              ],
-              totalFare: 50,
-              status: "confirmed",
-              paymentStatus: "paid",
-              paymentMethod: "bml",
-              createdAt: "2025-06-03T10:30:00Z"
-            },
-            {
-              id: "2",
-              bookingNumber: "2345678",
-              tripType: "round_trip",
-              departureDate: "2025-07-10",
-              departureTime: "10:00",
-              returnDate: "2025-07-15",
-              returnTime: "16:00",
-              route: routes[1],
-              returnRoute: routes[4],
-              seats: [
-                { id: "B3", number: "B3", isAvailable: false, isSelected: true }
-              ],
-              returnSeats: [
-                { id: "C5", number: "C5", isAvailable: false, isSelected: true }
-              ],
-              passengers: [
-                { fullName: "Alice Smith" }
-              ],
-              totalFare: 100,
-              status: "confirmed",
-              paymentStatus: "paid",
-              paymentMethod: "ooredoo",
-              createdAt: "2025-06-01T14:45:00Z"
-            },
-            {
-              id: "3",
-              bookingNumber: "3456789",
-              tripType: "one_way",
-              departureDate: "2025-05-20",
-              departureTime: "08:30",
-              route: routes[2],
-              seats: [
-                { id: "D7", number: "D7", isAvailable: false, isSelected: true }
-              ],
-              passengers: [
-                { fullName: "Bob Johnson" }
-              ],
-              totalFare: 45,
-              status: "completed",
-              paymentStatus: "paid",
-              paymentMethod: "bank_transfer",
-              createdAt: "2025-05-15T09:20:00Z"
-            }
-          ];
-          
-          set({ bookings: mockBookings, isLoading: false });
-        } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : "Failed to fetch bookings", 
-            isLoading: false 
-          });
-        }
-      },
-      
-      // Booking actions
-      confirmBooking: async (paymentMethod) => {
-        set({ isLoading: true, error: null });
-        try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          
-          const { currentBooking } = get();
-          
-          // Validate booking data
-          if (!currentBooking.route || !currentBooking.departureDate || currentBooking.selectedSeats.length === 0) {
-            throw new Error("Incomplete booking information");
-          }
-          
-          // Create new booking
-          const newBooking: Booking = {
-            id: `booking-${Date.now()}`,
-            bookingNumber: Math.floor(1000000 + Math.random() * 9000000).toString(),
-            tripType: currentBooking.tripType,
-            departureDate: currentBooking.departureDate,
-            departureTime: "09:00", // Mock time
-            returnDate: currentBooking.returnDate || undefined,
-            returnTime: currentBooking.returnDate ? "16:00" : undefined, // Mock time
-            route: currentBooking.route,
-            returnRoute: currentBooking.returnRoute || undefined,
-            seats: currentBooking.selectedSeats,
-            returnSeats: currentBooking.returnSelectedSeats.length > 0 
-              ? currentBooking.returnSelectedSeats 
-              : undefined,
-            passengers: currentBooking.passengers,
-            totalFare: currentBooking.totalFare,
-            status: "confirmed",
-            paymentStatus: "paid",
-            paymentMethod: paymentMethod as any,
-            createdAt: new Date().toISOString()
-          };
-          
-          // Add to bookings list
-          set((state) => ({
-            bookings: [newBooking, ...state.bookings],
-            isLoading: false
-          }));
-          
-          // Reset current booking
-          get().resetCurrentBooking();
-          
-          return newBooking;
-        } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : "Failed to confirm booking", 
-            isLoading: false 
-          });
-          throw error;
-        }
-      },
-      
-      cancelBooking: async (bookingId, reason) => {
-        set({ isLoading: true, error: null });
-        try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Update booking status
-          set((state) => ({
-            bookings: state.bookings.map(booking => 
-              booking.id === bookingId 
-                ? { ...booking, status: "cancelled" } 
-                : booking
-            ),
-            isLoading: false
-          }));
-        } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : "Failed to cancel booking", 
-            isLoading: false 
-          });
-          throw error;
-        }
-      }
-    }),
-    {
-      name: 'ferry-booking-storage',
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        bookings: state.bookings,
-        // Don't persist loading states or current booking
-      }),
+    // Navigation actions
+    nextStep: () => void;
+    previousStep: () => void;
+
+    // Seat management
+    fetchAvailableSeats: (tripId: string, isReturn?: boolean) => Promise<void>;
+    toggleSeatSelection: (seat: Seat, isReturn?: boolean) => Promise<void>;
+
+    // Booking validation and creation
+    validateCurrentStep: () => string | null;
+    createCustomerBooking: (paymentMethod: string) => Promise<{ bookingId: string; returnBookingId: string | null }>;
+}
+
+interface ExtendedBookingStoreState extends BookingStoreState {
+    availableSeats: Seat[];
+    availableReturnSeats: Seat[];
+}
+
+interface BookingStore extends ExtendedBookingStoreState, BookingStoreActions { }
+
+// QR Code utilities
+const generateBookingQrCodeUrl = (booking: any) => {
+    try {
+        // Generate QR code URL using the auto-generated booking number
+        return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${booking.booking_number}`)}`;
+    } catch (error) {
+        console.error('Error generating QR code URL:', error);
+        return '';
     }
-  )
-);
+};
+
+const updateBookingWithQrCode = async (bookingId: string, qrCodeUrl: string, maxRetries: number = 3) => {
+    let success = false;
+    let attempts = 0;
+
+    while (!success && attempts < maxRetries) {
+        attempts++;
+
+        try {
+            const { data, error } = await supabase
+                .from('bookings')
+                .update({ qr_code_url: qrCodeUrl })
+                .eq('id', bookingId)
+                .select('id, qr_code_url, booking_number');
+
+            if (error) {
+                console.error(`QR code update attempt ${attempts} failed:`, error);
+                if (attempts < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+                }
+            } else {
+                success = true;
+                console.log(`QR code updated successfully for booking:`, bookingId);
+
+                // Verify the QR code was stored
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                const { data: verifyData, error: verifyError } = await supabase
+                    .from('bookings')
+                    .select('qr_code_url')
+                    .eq('id', bookingId)
+                    .single();
+
+                if (verifyError || !verifyData.qr_code_url) {
+                    console.error('QR code verification failed:', verifyError);
+                    success = false;
+                }
+            }
+        } catch (error) {
+            console.error(`QR code update exception attempt ${attempts}:`, error);
+            if (attempts < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+            }
+        }
+    }
+
+    return success;
+};
+
+export const useBookingStore = create<BookingStore>((set, get) => ({
+    // State
+    currentBooking: { ...initialCurrentBooking },
+    currentStep: 1,
+    isLoading: false,
+    error: null,
+    availableSeats: [],
+    availableReturnSeats: [],
+
+    // Customer booking actions
+    setTripType: (tripType: TripType) => {
+        set((state) => ({
+            currentBooking: {
+                ...state.currentBooking,
+                tripType,
+                returnDate: tripType === 'one_way' ? null : state.currentBooking.returnDate,
+                returnTrip: tripType === 'one_way' ? null : state.currentBooking.returnTrip,
+                returnSelectedSeats: tripType === 'one_way' ? [] : state.currentBooking.returnSelectedSeats,
+            }
+        }));
+        get().calculateTotalFare();
+    },
+
+    setDepartureDate: (date: string) => {
+        set((state) => ({
+            currentBooking: {
+                ...state.currentBooking,
+                departureDate: date,
+                trip: null, // Reset trip when date changes
+                selectedSeats: [], // Reset selected seats
+            }
+        }));
+    },
+
+    setReturnDate: (date: string) => {
+        set((state) => ({
+            currentBooking: {
+                ...state.currentBooking,
+                returnDate: date,
+                returnTrip: null, // Reset return trip when date changes
+                returnSelectedSeats: [], // Reset return selected seats
+            }
+        }));
+    },
+
+    setRoute: (route: Route) => {
+        set((state) => ({
+            currentBooking: {
+                ...state.currentBooking,
+                route,
+                trip: null, // Reset trip when route changes
+                selectedSeats: [], // Reset selected seats
+            }
+        }));
+        get().calculateTotalFare();
+    },
+
+    setReturnRoute: (route: Route) => {
+        set((state) => ({
+            currentBooking: {
+                ...state.currentBooking,
+                returnRoute: route,
+                returnTrip: null, // Reset return trip when route changes
+                returnSelectedSeats: [], // Reset return selected seats
+            }
+        }));
+        get().calculateTotalFare();
+    },
+
+    setTrip: (trip: Trip | null) => {
+        set((state) => ({
+            currentBooking: {
+                ...state.currentBooking,
+                trip,
+                selectedSeats: [], // Reset selected seats when trip changes
+                // Update passengers array to match selected seats count
+                passengers: state.currentBooking.selectedSeats.length > 0
+                    ? state.currentBooking.selectedSeats.map((_, index) => ({
+                        fullName: state.currentBooking.passengers[index]?.fullName || '',
+                        idNumber: state.currentBooking.passengers[index]?.idNumber || '',
+                        specialAssistance: state.currentBooking.passengers[index]?.specialAssistance || '',
+                    }))
+                    : state.currentBooking.passengers
+            }
+        }));
+
+        // Fetch seats for the new trip
+        if (trip?.id) {
+            get().fetchAvailableSeats(trip.id, false);
+        }
+    },
+
+    setReturnTrip: (trip: Trip | null) => {
+        set((state) => ({
+            currentBooking: {
+                ...state.currentBooking,
+                returnTrip: trip,
+                returnSelectedSeats: [], // Reset return selected seats when trip changes
+            }
+        }));
+
+        // Fetch return seats for the new trip
+        if (trip?.id) {
+            get().fetchAvailableSeats(trip.id, true);
+        }
+    },
+
+    updatePassengers: (passengers: Passenger[]) => {
+        set((state) => ({
+            currentBooking: {
+                ...state.currentBooking,
+                passengers
+            }
+        }));
+    },
+
+    setCurrentStep: (currentStep: number) => {
+        set({ currentStep });
+    },
+
+    calculateTotalFare: () => {
+        const { currentBooking } = get();
+
+        // Only calculate fare if we have the minimum required data
+        if (!currentBooking.route) {
+            set((state) => ({
+                currentBooking: {
+                    ...state.currentBooking,
+                    totalFare: 0
+                }
+            }));
+            return;
+        }
+
+        const fareCalculation = calculateBookingFare(
+            currentBooking.route,
+            currentBooking.returnRoute,
+            currentBooking.selectedSeats,
+            currentBooking.returnSelectedSeats,
+            currentBooking.tripType
+        );
+
+        // Only log warnings if we have some data but validation fails
+        if (!fareCalculation.isValid && (currentBooking.selectedSeats.length > 0 || currentBooking.returnSelectedSeats.length > 0)) {
+            console.warn('Fare calculation validation failed:', fareCalculation.errors);
+        }
+
+        set((state) => ({
+            currentBooking: {
+                ...state.currentBooking,
+                totalFare: fareCalculation.totalFare,
+            }
+        }));
+    },
+
+    resetBooking: () => {
+        set({
+            currentBooking: { ...initialCurrentBooking },
+            error: null,
+            currentStep: 1,
+            availableSeats: [],
+            availableReturnSeats: [],
+        });
+    },
+
+    setError: (error: string | null) => set({ error }),
+
+    setLoading: (isLoading: boolean) => set({ isLoading }),
+
+    setQuickBookingData: (route: Route, departureDate: string) => {
+        set((state) => ({
+            currentBooking: {
+                ...state.currentBooking,
+                tripType: 'one_way',
+                route,
+                returnRoute: null,
+                departureDate,
+                returnDate: null,
+                trip: null,
+                returnTrip: null,
+                passengers: [],
+                selectedSeats: [],
+                returnSelectedSeats: [],
+                totalFare: 0,
+            }
+        }));
+        get().calculateTotalFare();
+    },
+
+    resetCurrentBooking: () => {
+        set((state) => ({
+            currentBooking: { ...initialCurrentBooking }
+        }));
+    },
+
+    // Navigation actions
+    nextStep: () => {
+        const { currentStep } = get();
+        const error = get().validateCurrentStep();
+        if (error) {
+            set({ error });
+            return;
+        }
+        set({ currentStep: currentStep + 1, error: null });
+    },
+
+    previousStep: () => {
+        const { currentStep } = get();
+        if (currentStep > 1) {
+            set({ currentStep: currentStep - 1, error: null });
+        }
+    },
+
+    // Seat management
+    fetchAvailableSeats: async (tripId: string, isReturn = false) => {
+        const { setError, setLoading } = get();
+        setLoading(true);
+        setError(null);
+
+        try {
+            // First, get the trip details to find the vessel
+            const { data: tripData, error: tripError } = await supabase
+                .from('trips')
+                .select('vessel_id')
+                .eq('id', tripId)
+                .single();
+
+            if (tripError) throw tripError;
+
+            // Get all seats for this vessel
+            const { data: allVesselSeats, error: seatsError } = await supabase
+                .from('seats')
+                .select('*')
+                .eq('vessel_id', tripData.vessel_id)
+                .order('row_number', { ascending: true })
+                .order('seat_number', { ascending: true });
+
+            if (seatsError) throw seatsError;
+
+            if (!allVesselSeats || allVesselSeats.length === 0) {
+                console.warn(`No seats found for vessel ${tripData.vessel_id}`);
+                set(state => ({
+                    [isReturn ? 'availableReturnSeats' : 'availableSeats']: []
+                }));
+                return;
+            }
+
+            // Get seat reservations for this trip
+            const { data: seatReservations, error: reservationsError } = await supabase
+                .from('seat_reservations')
+                .select(`
+                    id,
+                    trip_id,
+                    seat_id,
+                    is_available,
+                    is_reserved,
+                    booking_id,
+                    reservation_expiry
+                `)
+                .eq('trip_id', tripId);
+
+            if (reservationsError) throw reservationsError;
+
+            // Create a map of seat reservations for quick lookup
+            const reservationMap = new Map();
+            (seatReservations || []).forEach(reservation => {
+                reservationMap.set(reservation.seat_id, reservation);
+            });
+
+            // Process all vessel seats and match with reservations
+            const allSeats: Seat[] = allVesselSeats.map(vesselSeat => {
+                const reservation = reservationMap.get(vesselSeat.id);
+
+                let isAvailable = true;
+
+                if (reservation) {
+                    isAvailable = reservation.is_available && !reservation.booking_id;
+
+                    // Handle temporary reservations
+                    if (reservation.is_reserved && reservation.reservation_expiry) {
+                        const expiryTime = new Date(reservation.reservation_expiry);
+                        const currentTime = new Date();
+
+                        if (currentTime > expiryTime) {
+                            isAvailable = reservation.is_available && !reservation.booking_id;
+                        } else {
+                            isAvailable = false;
+                        }
+                    }
+                }
+
+                return {
+                    id: vesselSeat.id,
+                    number: String(vesselSeat.seat_number || ''),
+                    rowNumber: Number(vesselSeat.row_number || 0),
+                    isWindow: Boolean(vesselSeat.is_window),
+                    isAisle: Boolean(vesselSeat.is_aisle),
+                    isAvailable: isAvailable,
+                    isSelected: false
+                };
+            });
+
+            // Update state with all seats
+            set(state => ({
+                [isReturn ? 'availableReturnSeats' : 'availableSeats']: allSeats
+            }));
+
+        } catch (error: any) {
+            console.error('Error fetching available seats:', error);
+            setError('Failed to fetch seats. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    },
+
+    toggleSeatSelection: async (seat: Seat, isReturn = false) => {
+        const { currentBooking } = get();
+        const currentSeats = isReturn ? currentBooking.returnSelectedSeats : currentBooking.selectedSeats;
+        const isSelected = currentSeats.some(s => s.id === seat.id);
+
+        if (isSelected) {
+            // Remove seat
+            const updatedSeats = currentSeats.filter(s => s.id !== seat.id);
+            set(state => ({
+                currentBooking: {
+                    ...state.currentBooking,
+                    [isReturn ? 'returnSelectedSeats' : 'selectedSeats']: updatedSeats,
+                    passengers: isReturn ? state.currentBooking.passengers : updatedSeats.map((_, index) => ({
+                        fullName: state.currentBooking.passengers[index]?.fullName || '',
+                        idNumber: state.currentBooking.passengers[index]?.idNumber || '',
+                        specialAssistance: state.currentBooking.passengers[index]?.specialAssistance || '',
+                    }))
+                }
+            }));
+        } else {
+            // Add seat
+            const updatedSeats = [...currentSeats, { ...seat, isSelected: true }];
+            set(state => ({
+                currentBooking: {
+                    ...state.currentBooking,
+                    [isReturn ? 'returnSelectedSeats' : 'selectedSeats']: updatedSeats,
+                    passengers: isReturn ? state.currentBooking.passengers : updatedSeats.map((_, index) => ({
+                        fullName: state.currentBooking.passengers[index]?.fullName || '',
+                        idNumber: state.currentBooking.passengers[index]?.idNumber || '',
+                        specialAssistance: state.currentBooking.passengers[index]?.specialAssistance || '',
+                    }))
+                }
+            }));
+        }
+
+        // Update available seats to reflect the change
+        const availableSeats = isReturn ? get().availableReturnSeats : get().availableSeats;
+        const updatedAvailableSeats = availableSeats.map(s =>
+            s.id === seat.id ? { ...s, isSelected: !isSelected } : s
+        );
+
+        set(state => ({
+            [isReturn ? 'availableReturnSeats' : 'availableSeats']: updatedAvailableSeats
+        }));
+
+        get().calculateTotalFare();
+    },
+
+    // Validation for customer bookings
+    validateCurrentStep: () => {
+        const { currentBooking, currentStep } = get();
+
+        switch (currentStep) {
+            case 1: // Route & Date
+                if (!currentBooking.route) return 'Please select a departure route';
+                if (!currentBooking.departureDate) return 'Please select a departure date';
+                if (currentBooking.tripType === 'round_trip') {
+                    if (!currentBooking.returnRoute) return 'Please select a return route';
+                    if (!currentBooking.returnDate) return 'Please select a return date';
+                }
+                break;
+
+            case 2: // Trip Selection
+                if (!currentBooking.trip) return 'Please select a departure trip';
+                if (currentBooking.tripType === 'round_trip' && !currentBooking.returnTrip) {
+                    return 'Please select a return trip';
+                }
+                break;
+
+            case 3: // Seat Selection
+                if (!currentBooking.selectedSeats.length) return 'Please select at least one seat';
+                if (currentBooking.tripType === 'round_trip' && !currentBooking.returnSelectedSeats.length) {
+                    return 'Please select return seats';
+                }
+                if (currentBooking.tripType === 'round_trip' &&
+                    currentBooking.selectedSeats.length !== currentBooking.returnSelectedSeats.length) {
+                    return 'Number of departure and return seats must match';
+                }
+                break;
+
+            case 4: // Passenger Details
+                if (currentBooking.passengers.some(p => !p.fullName)) {
+                    return 'Please provide names for all passengers';
+                }
+                break;
+
+            case 5: // Payment (handled by booking operations store)
+                break;
+        }
+
+        return null;
+    },
+
+    createCustomerBooking: async (paymentMethod: string) => {
+        try {
+            set({ isLoading: true, error: null });
+
+            const { currentBooking } = get();
+            const { route, trip, returnRoute, returnTrip, selectedSeats, returnSelectedSeats, passengers, tripType } = currentBooking;
+
+            if (!route || !trip || !selectedSeats.length || !passengers.length) {
+                throw new Error('Incomplete booking information');
+            }
+
+            // For round trip, check return trip requirements
+            if (tripType === 'round_trip' && (!returnRoute || !returnTrip || !returnSelectedSeats.length)) {
+                throw new Error('Incomplete return trip information');
+            }
+
+            // Get current authenticated user
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+            if (authError || !user) {
+                throw new Error('User must be authenticated to create booking');
+            }
+
+            // Create the main booking first with user_id for RLS policy
+            const bookingData = {
+                user_id: user.id, // Required for RLS policy
+                trip_id: trip.id,
+                total_fare: selectedSeats.length * (route.baseFare || 0), // Only departure fare
+                payment_method_type: paymentMethod,
+                status: 'pending_payment' as const, // Start with pending_payment like booking operations
+                is_round_trip: tripType === 'round_trip',
+                check_in_status: false, // Initialize check-in status
+            };
+
+            const { data: booking, error: bookingError } = await supabase
+                .from('bookings')
+                .insert(bookingData)
+                .select()
+                .single();
+
+            if (bookingError) {
+                console.error('Booking creation error:', bookingError);
+                throw new Error(`Failed to create booking: ${bookingError.message}`);
+            }
+
+            // Generate QR code URL for customer booking
+            const qrCodeUrl = generateBookingQrCodeUrl(booking);
+
+            // Update booking with QR code
+            await updateBookingWithQrCode(booking.id, qrCodeUrl);
+
+            // Create passengers and seat reservations for main booking
+            const passengerInserts = passengers.map((passenger, index) => ({
+                booking_id: booking.id,
+                seat_id: selectedSeats[index]?.id,
+                passenger_name: passenger.fullName,
+                passenger_contact_number: passenger.idNumber || '',
+                special_assistance_request: passenger.specialAssistance || null,
+            }));
+
+            const { error: passengersError } = await supabase
+                .from('passengers')
+                .insert(passengerInserts);
+
+            if (passengersError) {
+                // Clean up booking if passenger creation fails
+                await supabase.from('bookings').delete().eq('id', booking.id);
+                throw new Error(`Failed to create passengers: ${passengersError.message}`);
+            }
+
+            // Reserve seats
+            const seatReservations = selectedSeats.map(seat => ({
+                trip_id: trip.id,
+                seat_id: seat.id,
+                booking_id: booking.id,
+                is_available: false,
+                is_reserved: false,
+            }));
+
+            const { error: seatError } = await supabase
+                .from('seat_reservations')
+                .upsert(seatReservations, { onConflict: 'trip_id,seat_id' });
+
+            if (seatError) {
+                // Clean up booking and passengers if seat reservation fails
+                await supabase.from('passengers').delete().eq('booking_id', booking.id);
+                await supabase.from('bookings').delete().eq('id', booking.id);
+                throw new Error(`Failed to reserve seats: ${seatError.message}`);
+            }
+
+            // Create payment record
+            const { error: paymentError } = await supabase
+                .from('payments')
+                .insert({
+                    booking_id: booking.id,
+                    payment_method: paymentMethod as PaymentMethod,
+                    amount: selectedSeats.length * (route.baseFare || 0),
+                    status: 'completed', // Mark as completed for immediate confirmation
+                });
+
+            if (paymentError) {
+                console.warn('Failed to create payment record:', paymentError);
+            }
+
+            // Update booking status to confirmed after successful payment
+            const { error: statusUpdateError } = await supabase
+                .from('bookings')
+                .update({ status: 'confirmed' })
+                .eq('id', booking.id);
+
+            if (statusUpdateError) {
+                console.warn('Failed to update booking status to confirmed:', statusUpdateError);
+            }
+
+            let returnBookingId = null;
+
+            // Handle return trip if round trip
+            if (tripType === 'round_trip' && returnTrip && returnRoute && returnSelectedSeats.length > 0) {
+                const returnBookingData = {
+                    user_id: user.id, // Required for RLS policy
+                    trip_id: returnTrip.id,
+                    total_fare: returnSelectedSeats.length * (returnRoute.baseFare || 0),
+                    payment_method_type: paymentMethod,
+                    status: 'pending_payment' as const, // Start with pending_payment like booking operations
+                    is_round_trip: true,
+                    check_in_status: false, // Initialize check-in status
+                };
+
+                const { data: returnBooking, error: returnBookingError } = await supabase
+                    .from('bookings')
+                    .insert(returnBookingData)
+                    .select()
+                    .single();
+
+                if (returnBookingError) {
+                    console.error('Return booking creation error:', returnBookingError);
+                    // Don't fail the main booking for return trip issues
+                } else {
+                    returnBookingId = returnBooking.id;
+
+                    // Generate return QR code URL
+                    const returnQrCodeUrl = generateBookingQrCodeUrl(returnBooking);
+
+                    // Update return booking with QR code
+                    await updateBookingWithQrCode(returnBooking.id, returnQrCodeUrl);
+
+                    // Create passengers for return trip
+                    const returnPassengerInserts = passengers.map((passenger, index) => ({
+                        booking_id: returnBooking.id,
+                        seat_id: returnSelectedSeats[index]?.id,
+                        passenger_name: passenger.fullName,
+                        passenger_contact_number: passenger.idNumber || '',
+                        special_assistance_request: passenger.specialAssistance || null,
+                    }));
+
+                    const { error: returnPassengersError } = await supabase
+                        .from('passengers')
+                        .insert(returnPassengerInserts);
+
+                    if (returnPassengersError) {
+                        console.warn('Failed to create return passengers:', returnPassengersError);
+                    }
+
+                    // Reserve return seats
+                    const returnSeatReservations = returnSelectedSeats.map(seat => ({
+                        trip_id: returnTrip.id,
+                        seat_id: seat.id,
+                        booking_id: returnBooking.id,
+                        is_available: false,
+                        is_reserved: false,
+                    }));
+
+                    const { error: returnSeatError } = await supabase
+                        .from('seat_reservations')
+                        .upsert(returnSeatReservations, { onConflict: 'trip_id,seat_id' });
+
+                    if (returnSeatError) {
+                        console.warn('Failed to reserve return seats:', returnSeatError);
+                    }
+
+                    // Create payment record for return trip
+                    const { error: returnPaymentError } = await supabase
+                        .from('payments')
+                        .insert({
+                            booking_id: returnBooking.id,
+                            payment_method: paymentMethod as PaymentMethod,
+                            amount: returnSelectedSeats.length * (returnRoute.baseFare || 0),
+                            status: 'completed', // Mark as completed for immediate confirmation
+                        });
+
+                    if (returnPaymentError) {
+                        console.warn('Failed to create return payment record:', returnPaymentError);
+                    }
+
+                    // Update return booking status to confirmed after successful payment
+                    const { error: returnStatusUpdateError } = await supabase
+                        .from('bookings')
+                        .update({ status: 'confirmed' })
+                        .eq('id', returnBooking.id);
+
+                    if (returnStatusUpdateError) {
+                        console.warn('Failed to update return booking status to confirmed:', returnStatusUpdateError);
+                    }
+                }
+            }
+
+            set({ isLoading: false });
+            return { bookingId: booking.id, returnBookingId };
+
+        } catch (error: any) {
+            console.error('Error creating customer booking:', error);
+            set({
+                error: error.message || 'Failed to create booking',
+                isLoading: false
+            });
+            throw error;
+        }
+    },
+})); 
