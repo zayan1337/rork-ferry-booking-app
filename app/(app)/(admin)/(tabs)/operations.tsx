@@ -460,16 +460,23 @@ export default function OperationsScreen() {
 
       {/* Operations Stats */}
       <View style={styles.statsContainer}>
+        <SectionHeader
+          title="Operations Overview"
+          subtitle="Fleet and route performance metrics"
+          size={isTablet ? "large" : "medium"}
+        />
         <View style={styles.statsGrid}>
           <StatCard
             title="Active Routes"
             value={activeRoutes.toString()}
+            subtitle={`of ${routes.length} total`}
             icon={<MapPin size={isTablet ? 20 : 18} color={colors.primary} />}
             size={isTablet ? "large" : "medium"}
           />
           <StatCard
             title="Active Vessels"
             value={activeVessels.toString()}
+            subtitle={`of ${vessels.length} total`}
             icon={<Ship size={isTablet ? 20 : 18} color={colors.secondary} />}
             color={colors.secondary}
             size={isTablet ? "large" : "medium"}
@@ -477,6 +484,7 @@ export default function OperationsScreen() {
           <StatCard
             title="Today's Trips"
             value={todayTrips.toString()}
+            subtitle="scheduled trips"
             icon={<Calendar size={isTablet ? 20 : 18} color="#34C759" />}
             color="#34C759"
             size={isTablet ? "large" : "medium"}

@@ -543,6 +543,11 @@ export default function CommunicationsScreen() {
 
             {/* Communication Stats */}
             <View style={styles.statsContainer}>
+                <SectionHeader
+                    title="Communications Overview"
+                    subtitle="Messaging and notification performance metrics"
+                    size={isTablet ? "large" : "medium"}
+                />
                 <View style={styles.statsGrid}>
                     <StatCard
                         title="Notifications"
@@ -554,7 +559,7 @@ export default function CommunicationsScreen() {
                     <StatCard
                         title="Bulk Messages"
                         value={bulkMessages.length.toString()}
-                        subtitle={`${activeBulkMessages} active`}
+                        subtitle={`${activeBulkMessages} active campaigns`}
                         icon={<MessageSquare size={isTablet ? 20 : 18} color={colors.secondary} />}
                         color={colors.secondary}
                         size={isTablet ? "large" : "medium"}
@@ -562,6 +567,7 @@ export default function CommunicationsScreen() {
                     <StatCard
                         title="Total Recipients"
                         value={totalRecipients.toString()}
+                        subtitle="across all campaigns"
                         icon={<Users size={isTablet ? 20 : 18} color="#34C759" />}
                         color="#34C759"
                         size={isTablet ? "large" : "medium"}
@@ -569,6 +575,7 @@ export default function CommunicationsScreen() {
                     <StatCard
                         title="Today's Messages"
                         value={todayNotifications.toString()}
+                        subtitle="notifications sent"
                         icon={<Clock size={isTablet ? 20 : 18} color="#FF9500" />}
                         color="#FF9500"
                         size={isTablet ? "large" : "medium"}
@@ -763,6 +770,7 @@ const styles = StyleSheet.create({
     statsGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
+        justifyContent: "space-between",
         gap: 12,
     },
     sectionSelector: {
