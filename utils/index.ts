@@ -16,4 +16,7 @@ export * from './seatSelectionUtils';
 export * from './shareUtils';
 
 // New dashboard utilities
-export * from './dashboardUtils'; 
+export * from './dashboardUtils';
+
+// Settings utilities
+export * from './settingsUtils'; 

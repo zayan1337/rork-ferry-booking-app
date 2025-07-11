@@ -18,4 +18,9 @@ export { useClientForm } from './useClientForm';
 // New dashboard, bookings, and operations hooks
 export { useDashboardData } from './useDashboardData';
 export { useBookingsData } from './useBookingsData';
-export { useOperationsData } from './useOperationsData'; 
+export { useOperationsData } from './useOperationsData';
+
+// Settings hooks
+export { useSettingsData } from './useSettingsData';
+export { useSettingsActions } from './useSettingsActions';
+export { useSettingsModals } from './useSettingsModals'; 

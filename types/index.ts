@@ -88,6 +88,7 @@ export * from './store';
 export * from './booking';
 export * from './customer';
 export * from './components';
+export * from './settings';
 
 // New dashboard, bookings, and operations types
 export * from './admin/dashboard';
