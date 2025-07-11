@@ -41,6 +41,9 @@ import SectionHeader from "@/components/admin/SectionHeader";
 import Button from "@/components/admin/Button";
 import SearchBar from "@/components/admin/SearchBar";
 
+// Finance Components
+import { FinanceStats, PaymentMethodCard } from "@/components/admin/finance";
+
 const { width: screenWidth } = Dimensions.get("window");
 
 export default function FinanceScreen() {
@@ -681,94 +684,42 @@ export default function FinanceScreen() {
                     <View style={styles.dataSection}>
                         <Text style={styles.sectionTitle}>Payment Methods Distribution</Text>
                         {render4CardGrid([
-                            <View key="gateway" style={styles.paymentMethodCard}>
-                                <View>
-                                    <View style={styles.dataCardHeader}>
-                                        <View style={[styles.dataCardIcon, { backgroundColor: colors.primary + "20" }]}>
-                                            <CreditCard size={16} color={colors.primary} />
-                                        </View>
-                                        <Text style={styles.dataCardTitle}>Gateway</Text>
-                                    </View>
-                                    <View style={styles.dataCardStats}>
-                                        <Text style={styles.dataCardValue}>156</Text>
-                                        <Text style={[styles.dataCardPercentage, { color: colors.primary }]}>45%</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.progressBar}>
-                                    <View
-                                        style={[
-                                            styles.progressFill,
-                                            { width: "45%", backgroundColor: colors.primary }
-                                        ]}
-                                    />
-                                </View>
-                            </View>,
-                            <View key="wallet" style={styles.paymentMethodCard}>
-                                <View>
-                                    <View style={styles.dataCardHeader}>
-                                        <View style={[styles.dataCardIcon, { backgroundColor: "#34C759" + "20" }]}>
-                                            <Wallet size={16} color="#34C759" />
-                                        </View>
-                                        <Text style={styles.dataCardTitle}>Wallet</Text>
-                                    </View>
-                                    <View style={styles.dataCardStats}>
-                                        <Text style={styles.dataCardValue}>89</Text>
-                                        <Text style={[styles.dataCardPercentage, { color: "#34C759" }]}>25%</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.progressBar}>
-                                    <View
-                                        style={[
-                                            styles.progressFill,
-                                            { width: "25%", backgroundColor: "#34C759" }
-                                        ]}
-                                    />
-                                </View>
-                            </View>,
-                            <View key="bank-transfer" style={styles.paymentMethodCard}>
-                                <View>
-                                    <View style={styles.dataCardHeader}>
-                                        <View style={[styles.dataCardIcon, { backgroundColor: "#FF9500" + "20" }]}>
-                                            <DollarSign size={16} color="#FF9500" />
-                                        </View>
-                                        <Text style={styles.dataCardTitle}>Bank Transfer</Text>
-                                    </View>
-                                    <View style={styles.dataCardStats}>
-                                        <Text style={styles.dataCardValue}>67</Text>
-                                        <Text style={[styles.dataCardPercentage, { color: "#FF9500" }]}>20%</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.progressBar}>
-                                    <View
-                                        style={[
-                                            styles.progressFill,
-                                            { width: "20%", backgroundColor: "#FF9500" }
-                                        ]}
-                                    />
-                                </View>
-                            </View>,
-                            <View key="cash" style={styles.paymentMethodCard}>
-                                <View>
-                                    <View style={styles.dataCardHeader}>
-                                        <View style={[styles.dataCardIcon, { backgroundColor: "#8E44AD" + "20" }]}>
-                                            <Activity size={16} color="#8E44AD" />
-                                        </View>
-                                        <Text style={styles.dataCardTitle}>Cash</Text>
-                                    </View>
-                                    <View style={styles.dataCardStats}>
-                                        <Text style={styles.dataCardValue}>34</Text>
-                                        <Text style={[styles.dataCardPercentage, { color: "#8E44AD" }]}>10%</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.progressBar}>
-                                    <View
-                                        style={[
-                                            styles.progressFill,
-                                            { width: "10%", backgroundColor: "#8E44AD" }
-                                        ]}
-                                    />
-                                </View>
-                            </View>
+                            <PaymentMethodCard
+                                key="gateway"
+                                icon={<CreditCard size={16} color={colors.primary} />}
+                                title="Gateway"
+                                value={156}
+                                percentage={45}
+                                color={colors.primary}
+                                isTablet={isTablet}
+                            />,
+                            <PaymentMethodCard
+                                key="wallet"
+                                icon={<Wallet size={16} color="#34C759" />}
+                                title="Wallet"
+                                value={89}
+                                percentage={25}
+                                color="#34C759"
+                                isTablet={isTablet}
+                            />,
+                            <PaymentMethodCard
+                                key="bank-transfer"
+                                icon={<DollarSign size={16} color="#FF9500" />}
+                                title="Bank Transfer"
+                                value={67}
+                                percentage={20}
+                                color="#FF9500"
+                                isTablet={isTablet}
+                            />,
+                            <PaymentMethodCard
+                                key="cash"
+                                icon={<Activity size={16} color="#8E44AD" />}
+                                title="Cash"
+                                value={34}
+                                percentage={10}
+                                color="#8E44AD"
+                                isTablet={isTablet}
+                            />
                         ])}
                     </View>
 
@@ -1185,49 +1136,17 @@ export default function FinanceScreen() {
             />
 
             {/* Enhanced Financial Stats */}
-            <View style={styles.statsContainer}>
-                <SectionHeader
-                    title="Financial Overview"
-                    subtitle="Performance metrics and trends"
-                    size={isTablet ? "large" : "medium"}
-                />
-                <View style={styles.statsGrid}>
-                    <StatCard
-                        title="Total Balance"
-                        value={`MVR ${totalWalletBalance.toFixed(2)}`}
-                        subtitle={`${activeWallets} wallets`}
-                        icon={<Wallet size={isTablet ? 20 : 18} color={colors.primary} />}
-                        size={isTablet ? "large" : "medium"}
-                    />
-                    <StatCard
-                        title="Today's Revenue"
-                        value={`MVR ${dashboardStats.dailyBookings.revenue.toFixed(2)}`}
-                        subtitle={`${dashboardStats.dailyBookings.count} transactions`}
-                        icon={<TrendingUp size={isTablet ? 20 : 18} color="#34C759" />}
-                        color="#34C759"
-                        size={isTablet ? "large" : "medium"}
-                        trend={Number(dashboardStats.dailyBookings.change_percentage || 0) >= 0 ? "up" : "down"}
-                        trendValue={`${Math.abs(Number(dashboardStats.dailyBookings.change_percentage || 0))}%`}
-                    />
-                    <StatCard
-                        title="Payment Success"
-                        value={`${Math.round((dashboardStats.paymentStatus.completed /
-                            Math.max(1, dashboardStats.paymentStatus.completed + dashboardStats.paymentStatus.failed)) * 100)}%`}
-                        subtitle={`${dashboardStats.paymentStatus.completed} completed`}
-                        icon={<CreditCard size={isTablet ? 20 : 18} color="#FF9500" />}
-                        color="#FF9500"
-                        size={isTablet ? "large" : "medium"}
-                    />
-                    <StatCard
-                        title="Transactions"
-                        value={todayTransactions.toString()}
-                        subtitle="today"
-                        icon={<Activity size={isTablet ? 20 : 18} color="#8E44AD" />}
-                        color="#8E44AD"
-                        size={isTablet ? "large" : "medium"}
-                    />
-                </View>
-            </View>
+            <FinanceStats
+                totalWalletBalance={totalWalletBalance}
+                activeWallets={activeWallets}
+                todayRevenue={dashboardStats.dailyBookings.revenue}
+                todayTransactions={todayTransactions}
+                paymentSuccessRate={(dashboardStats.paymentStatus.completed /
+                    Math.max(1, dashboardStats.paymentStatus.completed + dashboardStats.paymentStatus.failed)) * 100}
+                completedPayments={dashboardStats.paymentStatus.completed}
+                revenueChangePercentage={Number(dashboardStats.dailyBookings.change_percentage || 0)}
+                isTablet={isTablet}
+            />
 
             {/* Section Selector */}
             {renderSectionSelector()}

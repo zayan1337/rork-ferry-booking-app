@@ -34,6 +34,9 @@ import SectionHeader from "@/components/admin/SectionHeader";
 import Button from "@/components/admin/Button";
 import SearchBar from "@/components/admin/SearchBar";
 
+// Communications Components
+import { CommunicationStats } from "@/components/admin/communications";
+
 const { width: screenWidth } = Dimensions.get("window");
 
 export default function CommunicationsScreen() {
@@ -870,74 +873,21 @@ export default function CommunicationsScreen() {
             />
 
             {/* Communication Stats */}
-            <View style={styles.statsContainer}>
-                <SectionHeader
-                    title="Communications Overview"
-                    subtitle="Messaging and notification performance metrics"
-                    size={isTablet ? "large" : "medium"}
-                />
-                <View style={styles.statsGrid}>
-                    <StatCard
-                        title="Total Notifications"
-                        value={notifications.length.toString()}
-                        subtitle={`${unreadNotifications} unread, ${weeklyNotifications} this week`}
-                        trend={weeklyNotifications > 0 ? "up" : "neutral"}
-                        trendValue={weeklyNotifications > 0 ? `+${weeklyNotifications}` : "0"}
-                        icon={<Bell size={isTablet ? 20 : 18} color={colors.primary} />}
-                        size={isTablet ? "large" : "medium"}
-                    />
-                    <StatCard
-                        title="Bulk Campaigns"
-                        value={bulkMessages.length.toString()}
-                        subtitle={`${activeBulkMessages} active, ${bulkMessages.filter(m => m.status === "draft").length} drafts`}
-                        trend={activeBulkMessages > 0 ? "up" : "neutral"}
-                        trendValue={activeBulkMessages > 0 ? `+${activeBulkMessages}` : "0"}
-                        icon={<MessageSquare size={isTablet ? 20 : 18} color={colors.secondary} />}
-                        color={colors.secondary}
-                        size={isTablet ? "large" : "medium"}
-                    />
-                    <StatCard
-                        title="Delivery Rate"
-                        value={`${deliveryRate}%`}
-                        subtitle={`${deliveredMessages} delivered, ${failedMessages} failed`}
-                        trend={deliveryRate >= 90 ? "up" : deliveryRate >= 70 ? "neutral" : "down"}
-                        trendValue={deliveryRate >= 90 ? "+5%" : deliveryRate >= 70 ? "+2%" : "-3%"}
-                        icon={<CheckCircle size={isTablet ? 20 : 18} color="#34C759" />}
-                        color="#34C759"
-                        size={isTablet ? "large" : "medium"}
-                    />
-                    <StatCard
-                        title="Emergency Alerts"
-                        value={emergencyNotifications.toString()}
-                        subtitle={`${emergencyNotifications > 0 ? 'Active alerts' : 'No active alerts'}`}
-                        trend={emergencyNotifications > 0 ? "up" : "neutral"}
-                        trendValue={emergencyNotifications > 0 ? `+${emergencyNotifications}` : "0"}
-                        icon={<AlertTriangle size={isTablet ? 20 : 18} color="#FF3B30" />}
-                        color="#FF3B30"
-                        size={isTablet ? "large" : "medium"}
-                    />
-                    <StatCard
-                        title="Response Time"
-                        value={averageResponseTime}
-                        subtitle="average customer response"
-                        trend="down"
-                        trendValue="-0.5 min"
-                        icon={<Clock size={isTablet ? 20 : 18} color="#FF9500" />}
-                        color="#FF9500"
-                        size={isTablet ? "large" : "medium"}
-                    />
-                    <StatCard
-                        title="Engagement Rate"
-                        value={engagementRate}
-                        subtitle="message open and interaction rate"
-                        trend="up"
-                        trendValue="+4%"
-                        icon={<Eye size={isTablet ? 20 : 18} color="#5856D6" />}
-                        color="#5856D6"
-                        size={isTablet ? "large" : "medium"}
-                    />
-                </View>
-            </View>
+            <CommunicationStats
+                totalNotifications={notifications.length}
+                unreadNotifications={unreadNotifications}
+                weeklyNotifications={weeklyNotifications}
+                bulkMessages={bulkMessages.length}
+                activeBulkMessages={activeBulkMessages}
+                drafts={bulkMessages.filter(m => m.status === "draft").length}
+                deliveryRate={deliveryRate}
+                deliveredMessages={deliveredMessages}
+                failedMessages={failedMessages}
+                emergencyNotifications={emergencyNotifications}
+                averageResponseTime={averageResponseTime}
+                engagementRate={engagementRate}
+                isTablet={isTablet}
+            />
 
             {/* Section Selector */}
             {renderSectionSelector()}
