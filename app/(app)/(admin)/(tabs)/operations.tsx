@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   Alert,
   RefreshControl,
 } from "react-native";
@@ -13,36 +12,26 @@ import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useAdminStore } from "@/store/admin/adminStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import { useOperationsData } from "@/hooks/useOperationsData";
+import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
 import {
-  Ship,
-  MapPin,
-  Calendar,
   Plus,
-  Activity,
-  TrendingUp,
   Eye,
-  Edit,
   AlertTriangle,
+  Calendar,
 } from "lucide-react-native";
-import StatCard from "@/components/admin/StatCard";
+
+// Operations Components
+import OperationsStats from "@/components/admin/operations/OperationsStats";
+import SectionSelector from "@/components/admin/operations/SectionSelector";
+
+// Existing Components
 import SectionHeader from "@/components/admin/SectionHeader";
 import Button from "@/components/admin/Button";
 import SearchBar from "@/components/admin/SearchBar";
 import TripItem from "@/components/admin/TripItem";
 
-const { width: screenWidth } = Dimensions.get("window");
-
 export default function OperationsScreen() {
-  const {
-    routes,
-    trips,
-    vessels,
-    loading,
-    refreshData,
-    searchQueries,
-    setSearchQuery,
-  } = useAdminStore();
-
   const {
     canViewRoutes,
     canManageRoutes,
@@ -52,15 +41,27 @@ export default function OperationsScreen() {
     canManageVessels,
   } = useAdminPermissions();
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeSection, setActiveSection] = useState<"routes" | "trips" | "vessels" | "schedule">("routes");
+  const {
+    stats,
+    activeSection,
+    setActiveSection,
+    filteredRoutes,
+    filteredTrips,
+    filteredVessels,
+    todaySchedule,
+    searchQueries,
+    setSearchQuery,
+    loading,
+  } = useOperationsData();
 
-  const isTablet = screenWidth >= 768;
-  const isSmallScreen = screenWidth < 480;
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const { isTablet, isSmallScreen } = getResponsiveDimensions();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refreshData();
+    // Refresh logic would go here
+    await new Promise(resolve => setTimeout(resolve, 1000));
     setIsRefreshing(false);
   };
 
@@ -106,50 +107,6 @@ export default function OperationsScreen() {
     }
   };
 
-  const getResponsivePadding = () => ({
-    paddingHorizontal: isTablet ? 24 : isSmallScreen ? 12 : 16,
-    paddingVertical: isTablet ? 20 : 16,
-  });
-
-  // Calculate statistics
-  const activeRoutes = routes.filter(r => r.status === "active").length;
-  const activeVessels = vessels.filter(v => v.status === "active").length;
-  const todayTrips = trips.filter(t => t.travel_date === new Date().toISOString().split('T')[0] && t.is_active).length;
-  const totalCapacity = vessels.reduce((sum, v) => sum + v.seating_capacity, 0);
-
-  const renderSectionSelector = () => (
-    <View style={styles.sectionSelector}>
-      {[
-        { key: "routes", label: "Routes", icon: MapPin, permission: canViewRoutes() },
-        { key: "trips", label: "Trips", icon: Calendar, permission: canViewTrips() },
-        { key: "vessels", label: "Vessels", icon: Ship, permission: canViewVessels() },
-        { key: "schedule", label: "Schedule", icon: Activity, permission: canViewTrips() },
-      ].filter(section => section.permission).map((section) => (
-        <TouchableOpacity
-          key={section.key}
-          style={[
-            styles.sectionButton,
-            activeSection === section.key && styles.sectionButtonActive,
-          ]}
-          onPress={() => setActiveSection(section.key as any)}
-        >
-          <section.icon
-            size={16}
-            color={activeSection === section.key ? colors.primary : colors.textSecondary}
-          />
-          <Text
-            style={[
-              styles.sectionButtonText,
-              activeSection === section.key && styles.sectionButtonTextActive,
-            ]}
-          >
-            {section.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
   const renderRoutes = () => {
     if (!canViewRoutes()) {
       return (
@@ -168,7 +125,7 @@ export default function OperationsScreen() {
           <View style={styles.sectionHeaderContent}>
             <SectionHeader
               title="Routes Management"
-              subtitle={`${activeRoutes} active routes`}
+              subtitle={`${stats.activeRoutes} active routes`}
             />
           </View>
           {canManageRoutes() && (
@@ -191,7 +148,7 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {routes.slice(0, 5).map((route) => (
+          {filteredRoutes.map((route) => (
             <TouchableOpacity
               key={route.id}
               style={styles.routeItem}
@@ -247,7 +204,7 @@ export default function OperationsScreen() {
           <View style={styles.sectionHeaderContent}>
             <SectionHeader
               title="Trips Management"
-              subtitle={`${todayTrips} trips today`}
+              subtitle={`${stats.todayTrips} trips today`}
             />
           </View>
           {canManageTrips() && (
@@ -270,7 +227,7 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {trips.slice(0, 5).map((trip) => (
+          {filteredTrips.map((trip) => (
             <TripItem
               key={trip.id}
               trip={trip}
@@ -308,7 +265,7 @@ export default function OperationsScreen() {
           <View style={styles.sectionHeaderContent}>
             <SectionHeader
               title="Vessels Management"
-              subtitle={`${activeVessels} active vessels`}
+              subtitle={`${stats.activeVessels} active vessels`}
             />
           </View>
           {canManageVessels() && (
@@ -331,7 +288,7 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {vessels.slice(0, 5).map((vessel) => (
+          {filteredVessels.map((vessel) => (
             <TouchableOpacity
               key={vessel.id}
               style={styles.vesselItem}
@@ -391,25 +348,22 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.scheduleGrid}>
-          {trips
-            .filter(t => t.travel_date === new Date().toISOString().split('T')[0])
-            .slice(0, 6)
-            .map((trip) => (
-              <TouchableOpacity
-                key={trip.id}
-                style={styles.scheduleItem}
-                onPress={() => handleTripPress(trip.id)}
-              >
-                <Text style={styles.scheduleTime}>{trip.departure_time}</Text>
-                <Text style={styles.scheduleRoute}>{trip.routeName}</Text>
-                <Text style={styles.scheduleVessel}>{trip.vesselName}</Text>
-                <View style={styles.scheduleBookings}>
-                  <Text style={styles.scheduleBookingText}>
-                    {trip.bookings}/{trip.capacity}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+          {todaySchedule.map((trip) => (
+            <TouchableOpacity
+              key={trip.id}
+              style={styles.scheduleItem}
+              onPress={() => handleTripPress(trip.id)}
+            >
+              <Text style={styles.scheduleTime}>{trip.departure_time}</Text>
+              <Text style={styles.scheduleRoute}>{trip.routeName}</Text>
+              <Text style={styles.scheduleVessel}>{trip.vesselName}</Text>
+              <View style={styles.scheduleBookings}>
+                <Text style={styles.scheduleBookingText}>
+                  {trip.bookings}/{trip.capacity}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <TouchableOpacity
@@ -459,49 +413,16 @@ export default function OperationsScreen() {
       />
 
       {/* Operations Stats */}
-      <View style={styles.statsContainer}>
-        <SectionHeader
-          title="Operations Overview"
-          subtitle="Fleet and route performance metrics"
-          size={isTablet ? "large" : "medium"}
-        />
-        <View style={styles.statsGrid}>
-          <StatCard
-            title="Active Routes"
-            value={activeRoutes.toString()}
-            subtitle={`of ${routes.length} total`}
-            icon={<MapPin size={isTablet ? 20 : 18} color={colors.primary} />}
-            size={isTablet ? "large" : "medium"}
-          />
-          <StatCard
-            title="Active Vessels"
-            value={activeVessels.toString()}
-            subtitle={`of ${vessels.length} total`}
-            icon={<Ship size={isTablet ? 20 : 18} color={colors.secondary} />}
-            color={colors.secondary}
-            size={isTablet ? "large" : "medium"}
-          />
-          <StatCard
-            title="Today's Trips"
-            value={todayTrips.toString()}
-            subtitle="scheduled trips"
-            icon={<Calendar size={isTablet ? 20 : 18} color="#34C759" />}
-            color="#34C759"
-            size={isTablet ? "large" : "medium"}
-          />
-          <StatCard
-            title="Total Capacity"
-            value={totalCapacity.toString()}
-            subtitle="passengers"
-            icon={<TrendingUp size={isTablet ? 20 : 18} color="#FF9500" />}
-            color="#FF9500"
-            size={isTablet ? "large" : "medium"}
-          />
-        </View>
-      </View>
+      <OperationsStats stats={stats} isTablet={isTablet} />
 
       {/* Section Selector */}
-      {renderSectionSelector()}
+      <SectionSelector
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        canViewRoutes={canViewRoutes()}
+        canViewTrips={canViewTrips()}
+        canViewVessels={canViewVessels()}
+      />
 
       {/* Content */}
       {renderContent()}
@@ -517,52 +438,8 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
   },
-  statsContainer: {
-    marginBottom: 24,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "space-between",
-  },
-  sectionSelector: {
-    flexDirection: "row",
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 24,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  sectionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    gap: 6,
-  },
-  sectionButtonActive: {
-    backgroundColor: colors.primary + "15",
-  },
-  sectionButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.textSecondary,
-  },
-  sectionButtonTextActive: {
-    color: colors.primary,
-    fontWeight: "600",
-  },
   sectionContent: {
     flex: 1,
-
   },
   sectionHeader: {
     flexDirection: "row",

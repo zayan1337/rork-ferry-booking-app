@@ -79,10 +79,15 @@ export type Booking = {
   isAgentBooking?: boolean;
 };
 
-export * from './components';
+// Exporting all types for easier importing
+export * from './admin';
 export * from './auth';
-export * from './pages';
+export * from './agent';
 export * from './database';
 export * from './store';
 export * from './booking';
 export * from './customer';
+export * from './components';
+
+// New dashboard, bookings, and operations types
+export * from './admin/dashboard';

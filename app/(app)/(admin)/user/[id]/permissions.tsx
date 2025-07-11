@@ -444,208 +444,217 @@ export default function UserPermissionsScreen() {
                 }}
             />
 
-            {/* User Info Header */}
-            <View style={styles.userInfoHeader}>
-                {/* Gradient Background */}
-                <View style={styles.headerGradient} />
+            {/* Main Content with Sticky Category Tabs */}
+            <ScrollView
+                style={styles.mainScrollView}
+                showsVerticalScrollIndicator={false}
+                stickyHeaderIndices={[4]} // Index of category tabs in the scroll view
+            >
+                {/* User Info Header */}
+                <View style={styles.userInfoHeader}>
+                    {/* Gradient Background */}
+                    <View style={styles.headerGradient} />
 
-                <View style={styles.userAvatar}>
-                    <Text style={styles.userAvatarText}>
-                        {adminUser.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                    </Text>
-                </View>
-                <View style={styles.userInfoContent}>
-                    <Text style={styles.userInfoName}>{adminUser.name}</Text>
-                    <Text style={styles.userInfoEmail}>{adminUser.email}</Text>
-                    <View style={styles.userInfoMeta}>
-                        <View style={styles.roleTag}>
-                            <Shield size={12} color={colors.primary} />
-                            <Text style={styles.roleTagText}>{adminUser.role}</Text>
+                    <View style={styles.userAvatar}>
+                        <Text style={styles.userAvatarText}>
+                            {adminUser.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </Text>
+                    </View>
+                    <View style={styles.userInfoContent}>
+                        <Text style={styles.userInfoName}>{adminUser.name}</Text>
+                        <Text style={styles.userInfoEmail}>{adminUser.email}</Text>
+                        <View style={styles.userInfoMeta}>
+                            <View style={styles.roleTag}>
+                                <Shield size={12} color={colors.primary} />
+                                <Text style={styles.roleTagText}>{adminUser.role}</Text>
+                            </View>
+                            <StatusBadge status={adminUser.status as any} size="small" />
                         </View>
-                        <StatusBadge status={adminUser.status as any} size="small" />
                     </View>
                 </View>
-            </View>
 
-            {/* Permission Statistics */}
-            <View style={styles.statsContainer}>
-                <View style={styles.statCard}>
-                    <Text style={styles.statValue}>{permissionStats.selected}</Text>
-                    <Text style={styles.statLabel}>Permissions</Text>
-                </View>
-                <View style={styles.statCard}>
-                    <Text style={styles.statValue}>{permissionStats.percentage}%</Text>
-                    <Text style={styles.statLabel}>Coverage</Text>
-                </View>
-                <View style={styles.statCard}>
-                    <Text style={[styles.statValue, { color: colors.danger }]}>{permissionStats.critical}</Text>
-                    <Text style={styles.statLabel}>Critical</Text>
-                </View>
-            </View>
-
-            {/* Action Bar */}
-            <View style={styles.actionBar}>
-                <View style={styles.actionBarLeft}>
-                    <TouchableOpacity
-                        style={styles.outlineButton}
-                        onPress={() => setShowRoleTemplates(true)}
-
-                    >
-                        <Copy size={16} color={colors.primary} />
-                        <Text style={styles.outlineButtonText}>Templates</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.outlineButton}
-                        onPress={() => setShowBulkActions(true)}
-                    >
-                        <Plus size={16} color={colors.primary} />
-                        <Text style={styles.outlineButtonText}>Bulk Actions</Text>
-                    </TouchableOpacity>
+                {/* Permission Statistics */}
+                <View style={styles.statsContainer}>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statValue}>{permissionStats.selected}</Text>
+                        <Text style={styles.statLabel}>Permissions</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statValue}>{permissionStats.percentage}%</Text>
+                        <Text style={styles.statLabel}>Coverage</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={[styles.statValue, { color: colors.danger }]}>{permissionStats.critical}</Text>
+                        <Text style={styles.statLabel}>Critical</Text>
+                    </View>
                 </View>
 
-                <View style={styles.actionBarRight}>
-                    <TouchableOpacity
-                        style={[styles.outlineButton, filterLevel && styles.outlineButtonActive]}
-                        onPress={() => {
-                            // Cycle through filter levels
-                            const levels = ['read', 'write', 'delete', 'admin'];
-                            const currentIndex = levels.indexOf(filterLevel || '');
-                            const nextLevel = currentIndex === levels.length - 1 ? null : levels[currentIndex + 1];
-                            setFilterLevel(nextLevel);
-                        }}
-                    >
-                        <Filter size={16} color={filterLevel ? colors.primary : colors.textSecondary} />
-                        <Text style={[styles.outlineButtonText, filterLevel && styles.outlineButtonTextActive]}>
-                            {filterLevel ? filterLevel.toUpperCase() : 'All Levels'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <SearchBar
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Search permissions..."
-                />
-            </View>
-
-            {/* Category Tabs - Following Settings Style */}
-            <View style={styles.categoryTabContainer}>
-                <ScrollView horizontal style={styles.categorySelector} showsHorizontalScrollIndicator={false}>
-                    <TouchableOpacity
-                        style={[styles.categoryTab, !selectedCategory && styles.categoryTabActive]}
-                        onPress={() => setSelectedCategory(null)}
-                    >
-                        <Settings size={16} color={!selectedCategory ? colors.primary : colors.textSecondary} />
-                        <Text style={[styles.categoryTabText, !selectedCategory && styles.categoryTabTextActive]}>
-                            All
-                        </Text>
-                    </TouchableOpacity>
-                    {permissionCategories.map(category => (
+                {/* Action Bar */}
+                <View style={styles.actionBar}>
+                    <View style={styles.actionBarLeft}>
                         <TouchableOpacity
-                            key={category.id}
-                            style={[styles.categoryTab, selectedCategory === category.id && styles.categoryTabActive]}
-                            onPress={() => setSelectedCategory(category.id === selectedCategory ? null : category.id)}
+                            style={styles.outlineButton}
+                            onPress={() => setShowRoleTemplates(true)}
+
                         >
-                            <Settings size={16} color={selectedCategory === category.id ? colors.primary : colors.textSecondary} />
-                            <Text style={[styles.categoryTabText, selectedCategory === category.id && styles.categoryTabTextActive]}>
-                                {category.name}
+                            <Copy size={16} color={colors.primary} />
+                            <Text style={styles.outlineButtonText}>Templates</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.outlineButton}
+                            onPress={() => setShowBulkActions(true)}
+                        >
+                            <Plus size={16} color={colors.primary} />
+                            <Text style={styles.outlineButtonText}>Bulk Actions</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.actionBarRight}>
+                        <TouchableOpacity
+                            style={[styles.outlineButton, filterLevel && styles.outlineButtonActive]}
+                            onPress={() => {
+                                // Cycle through filter levels
+                                const levels = ['read', 'write', 'delete', 'admin'];
+                                const currentIndex = levels.indexOf(filterLevel || '');
+                                const nextLevel = currentIndex === levels.length - 1 ? null : levels[currentIndex + 1];
+                                setFilterLevel(nextLevel);
+                            }}
+                        >
+                            <Filter size={16} color={filterLevel ? colors.primary : colors.textSecondary} />
+                            <Text style={[styles.outlineButtonText, filterLevel && styles.outlineButtonTextActive]}>
+                                {filterLevel ? filterLevel.toUpperCase() : 'All Levels'}
                             </Text>
                         </TouchableOpacity>
-                    ))}
-                </ScrollView>
-            </View>
+                    </View>
+                </View>
 
-            {/* Permissions List */}
-            <ScrollView style={styles.permissionsContainer} showsVerticalScrollIndicator={false}>
-                {filteredCategories.map(category => (
-                    <View key={category.id} style={styles.categorySection}>
-                        <TouchableOpacity
-                            style={styles.categoryHeader}
-                            onPress={() => toggleCategoryExpansion(category.id)}
-                        >
-                            <View style={styles.categoryHeaderLeft}>
-                                <View style={styles.categoryIcon}>
-                                    <Settings size={20} color={colors.primary} />
-                                </View>
-                                <View style={styles.categoryHeaderInfo}>
-                                    <Text style={styles.categoryName}>{category.name}</Text>
-                                    <Text style={styles.categoryDescription}>{category.description}</Text>
-                                </View>
-                            </View>
-                            <View style={styles.categoryHeaderRight}>
-                                <Text style={styles.categoryCount}>
-                                    {category.permissions.filter(p => selectedPermissions.has(p.id)).length}/{category.permissions.length}
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                    <SearchBar
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder="Search permissions..."
+                    />
+                </View>
+
+                {/* Category Tabs - Sticky Header */}
+                <View style={styles.stickyTabContainer}>
+                    <View style={styles.categoryTabContainer}>
+                        <ScrollView horizontal style={styles.categorySelector} showsHorizontalScrollIndicator={false}>
+                            <TouchableOpacity
+                                style={[styles.categoryTab, !selectedCategory && styles.categoryTabActive]}
+                                onPress={() => setSelectedCategory(null)}
+                            >
+                                <Settings size={16} color={!selectedCategory ? colors.primary : colors.textSecondary} />
+                                <Text style={[styles.categoryTabText, !selectedCategory && styles.categoryTabTextActive]}>
+                                    All
                                 </Text>
-                                {expandedCategories.has(category.id) ?
-                                    <ChevronDown size={20} color={colors.textSecondary} /> :
-                                    <ChevronRight size={20} color={colors.textSecondary} />
-                                }
-                            </View>
-                        </TouchableOpacity>
+                            </TouchableOpacity>
+                            {permissionCategories.map(category => (
+                                <TouchableOpacity
+                                    key={category.id}
+                                    style={[styles.categoryTab, selectedCategory === category.id && styles.categoryTabActive]}
+                                    onPress={() => setSelectedCategory(category.id === selectedCategory ? null : category.id)}
+                                >
+                                    <Settings size={16} color={selectedCategory === category.id ? colors.primary : colors.textSecondary} />
+                                    <Text style={[styles.categoryTabText, selectedCategory === category.id && styles.categoryTabTextActive]}>
+                                        {category.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </View>
 
-                        {expandedCategories.has(category.id) && (
-                            <View style={styles.permissionsList}>
-                                {category.permissions.map(permission => (
-                                    <View key={permission.id} style={styles.permissionRow}>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.permissionItem,
-                                                selectedPermissions.has(permission.id) && styles.permissionItemSelected
-                                            ]}
-                                            onPress={() => handlePermissionToggle(permission.id)}
-                                        >
-                                            <View style={styles.permissionLeft}>
-                                                <View style={styles.permissionCheckbox}>
-                                                    {selectedPermissions.has(permission.id) ? (
-                                                        <CheckCircle size={20} color={colors.primary} />
-                                                    ) : (
-                                                        <Circle size={20} color={colors.border} />
-                                                    )}
-                                                </View>
+                {/* Permissions List */}
+                <View style={styles.permissionsContainer}>
+                    {filteredCategories.map(category => (
+                        <View key={category.id} style={styles.categorySection}>
+                            <TouchableOpacity
+                                style={styles.categoryHeader}
+                                onPress={() => toggleCategoryExpansion(category.id)}
+                            >
+                                <View style={styles.categoryHeaderLeft}>
+                                    <View style={styles.categoryIcon}>
+                                        <Settings size={20} color={colors.primary} />
+                                    </View>
+                                    <View style={styles.categoryHeaderInfo}>
+                                        <Text style={styles.categoryName}>{category.name}</Text>
+                                        <Text style={styles.categoryDescription}>{category.description}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.categoryHeaderRight}>
+                                    <Text style={styles.categoryCount}>
+                                        {category.permissions.filter(p => selectedPermissions.has(p.id)).length}/{category.permissions.length}
+                                    </Text>
+                                    {expandedCategories.has(category.id) ?
+                                        <ChevronDown size={20} color={colors.textSecondary} /> :
+                                        <ChevronRight size={20} color={colors.textSecondary} />
+                                    }
+                                </View>
+                            </TouchableOpacity>
 
-                                                <View style={styles.permissionContent}>
-                                                    <View style={styles.permissionHeader}>
-                                                        <Text style={styles.permissionName}>{permission.name}</Text>
-                                                        <View style={styles.permissionMeta}>
-                                                            {permission.critical && (
-                                                                <View style={styles.criticalBadge}>
-                                                                    <AlertTriangle size={10} color={colors.danger} />
-                                                                </View>
-                                                            )}
-                                                            <View style={[styles.levelBadge, { backgroundColor: getPermissionLevelColor(permission.level) + "20" }]}>
-                                                                {getPermissionLevelIcon(permission.level)}
-                                                                <Text style={[styles.levelText, { color: getPermissionLevelColor(permission.level) }]}>
-                                                                    {permission.level.toUpperCase()}
-                                                                </Text>
-                                                            </View>
-                                                        </View>
+                            {expandedCategories.has(category.id) && (
+                                <View style={styles.permissionsList}>
+                                    {category.permissions.map(permission => (
+                                        <View key={permission.id} style={styles.permissionRow}>
+                                            <TouchableOpacity
+                                                style={[
+                                                    styles.permissionItem,
+                                                    selectedPermissions.has(permission.id) && styles.permissionItemSelected
+                                                ]}
+                                                onPress={() => handlePermissionToggle(permission.id)}
+                                            >
+                                                <View style={styles.permissionLeft}>
+                                                    <View style={styles.permissionCheckbox}>
+                                                        {selectedPermissions.has(permission.id) ? (
+                                                            <CheckCircle size={20} color={colors.primary} />
+                                                        ) : (
+                                                            <Circle size={20} color={colors.border} />
+                                                        )}
                                                     </View>
 
-                                                    <Text style={styles.permissionDescription}>
-                                                        {permission.description}
-                                                    </Text>
-
-                                                    {permission.dependencies && permission.dependencies.length > 0 && (
-                                                        <View style={styles.dependencyInfo}>
-                                                            <Key size={10} color={colors.warning} />
-                                                            <Text style={styles.dependencyLabel}>
-                                                                Requires: {permission.dependencies.join(', ')}
-                                                            </Text>
+                                                    <View style={styles.permissionContent}>
+                                                        <View style={styles.permissionHeader}>
+                                                            <Text style={styles.permissionName}>{permission.name}</Text>
+                                                            <View style={styles.permissionMeta}>
+                                                                {permission.critical && (
+                                                                    <View style={styles.criticalBadge}>
+                                                                        <AlertTriangle size={10} color={colors.danger} />
+                                                                    </View>
+                                                                )}
+                                                                <View style={[styles.levelBadge, { backgroundColor: getPermissionLevelColor(permission.level) + "20" }]}>
+                                                                    {getPermissionLevelIcon(permission.level)}
+                                                                    <Text style={[styles.levelText, { color: getPermissionLevelColor(permission.level) }]}>
+                                                                        {permission.level.toUpperCase()}
+                                                                    </Text>
+                                                                </View>
+                                                            </View>
                                                         </View>
-                                                    )}
+
+                                                        <Text style={styles.permissionDescription}>
+                                                            {permission.description}
+                                                        </Text>
+
+                                                        {permission.dependencies && permission.dependencies.length > 0 && (
+                                                            <View style={styles.dependencyInfo}>
+                                                                <Key size={10} color={colors.warning} />
+                                                                <Text style={styles.dependencyLabel}>
+                                                                    Requires: {permission.dependencies.join(', ')}
+                                                                </Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
                                                 </View>
-                                            </View>
-                                        </TouchableOpacity>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
-                    </View>
-                ))}
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+                        </View>
+                    ))}
+                </View>
             </ScrollView>
 
             {/* Role Templates Modal */}
@@ -754,6 +763,22 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
+    },
+    mainScrollView: {
+        flex: 1,
+        backgroundColor: colors.backgroundSecondary,
+    },
+    stickyTabContainer: {
+        backgroundColor: colors.backgroundSecondary,
+        paddingTop: 4,
+        paddingBottom: 4,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border + "20",
     },
     backButton: {
         padding: 8,

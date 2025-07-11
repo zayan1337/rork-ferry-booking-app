@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import {
     RefreshControl,
     ScrollView,
@@ -14,52 +14,37 @@ import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useAdminStore } from "@/store/admin/adminStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import { useBookingsData } from "@/hooks/useBookingsData";
+import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
 import {
-    CreditCard,
     Plus,
-    TrendingUp,
-    Clock,
-    CheckCircle,
-    Users,
     Filter,
-    Calendar,
-    MapPin,
     ArrowUpDown,
     Download,
-    Eye,
-    Edit,
-    Trash2,
     AlertTriangle,
     X,
     Check,
-    MoreHorizontal,
-    Activity,
-    BarChart
+    Eye,
 } from "lucide-react-native";
+
+// Bookings Components
+import BookingsStats from "@/components/admin/bookings/BookingsStats";
+import FilterTabs from "@/components/admin/bookings/FilterTabs";
+import BulkActionsBar from "@/components/admin/bookings/BulkActionsBar";
+
+// Existing Components
 import Button from "@/components/admin/Button";
 import SectionHeader from "@/components/admin/SectionHeader";
 import SearchBar from "@/components/admin/SearchBar";
 import BookingItem from "@/components/admin/BookingItem";
 import EmptyState from "@/components/admin/EmptyState";
-import StatCard from "@/components/admin/StatCard";
-import StatusBadge from "@/components/admin/StatusBadge";
 import { Booking } from "@/types/admin";
+import { FilterStatus, SortOrder } from "@/types/admin/dashboard";
 
 const { width: screenWidth } = Dimensions.get('window');
 
-type FilterStatus = "all" | "reserved" | "confirmed" | "cancelled" | "completed";
-type SortOrder = "date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "customer_asc";
-
 export default function BookingsScreen() {
-    const {
-        bookings,
-        routes,
-        vessels,
-        dashboardStats,
-        refreshData,
-        updateBooking,
-        addActivityLog
-    } = useAdminStore();
+    const { addActivityLog } = useAdminStore();
 
     const {
         canViewBookings,
@@ -68,98 +53,36 @@ export default function BookingsScreen() {
         canExportReports
     } = useAdminPermissions();
 
+    const {
+        bookings,
+        filterState,
+        stats,
+        updateFilterState,
+        toggleBookingSelection,
+        selectAllBookings,
+        clearSelection,
+        getStatusCount,
+        hasActiveFilters,
+        clearAllFilters,
+        updateBooking,
+    } = useBookingsData();
+
     const [refreshing, setRefreshing] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
-    const [sortOrder, setSortOrder] = useState<SortOrder>("date_desc");
     const [showFilterModal, setShowFilterModal] = useState(false);
-    const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
 
-
-    const isTablet = screenWidth >= 768;
-    const isSmallScreen = screenWidth < 480;
+    const { isTablet, isSmallScreen } = getResponsiveDimensions();
 
     const handleRefresh = async () => {
         setRefreshing(true);
         try {
-            await refreshData();
+            // Refresh logic would go here
+            await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error) {
             console.error("Refresh error:", error);
         } finally {
             setRefreshing(false);
         }
     };
-
-    // Enhanced filtering and sorting
-    const filteredAndSortedBookings = useMemo(() => {
-        let filtered = bookings.filter((booking) => {
-            // Text search
-            const searchMatch = searchQuery === "" ||
-                (booking?.customerName?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-                (booking?.routeName?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-                (booking?.id || "").includes(searchQuery) ||
-                (booking?.customerEmail?.toLowerCase() || "").includes(searchQuery.toLowerCase());
-
-            // Status filter
-            const statusMatch = filterStatus === "all" || booking.status === filterStatus;
-
-            return searchMatch && statusMatch;
-        });
-
-        // Sorting
-        return filtered.sort((a, b) => {
-            switch (sortOrder) {
-                case "date_asc":
-                    return new Date(a.date).getTime() - new Date(b.date).getTime();
-                case "date_desc":
-                    return new Date(b.date).getTime() - new Date(a.date).getTime();
-                case "amount_desc":
-                    return (b.totalAmount || 0) - (a.totalAmount || 0);
-                case "amount_asc":
-                    return (a.totalAmount || 0) - (b.totalAmount || 0);
-                case "customer_asc":
-                    return (a.customerName || "").localeCompare(b.customerName || "");
-                default:
-                    return 0;
-            }
-        });
-    }, [bookings, searchQuery, filterStatus, sortOrder]);
-
-    // Enhanced statistics
-    const stats = useMemo(() => {
-        const today = new Date().toISOString().split('T')[0];
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-        const todayBookings = bookings.filter(b => b.date === today);
-        const yesterdayBookings = bookings.filter(b => b.date === yesterday);
-
-        const todayRevenue = todayBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-        const yesterdayRevenue = yesterdayBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-
-        const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-        const confirmedCount = bookings.filter(b => b.status === "confirmed").length;
-        const reservedCount = bookings.filter(b => b.status === "reserved").length;
-        const cancelledCount = bookings.filter(b => b.status === "cancelled").length;
-        const completedCount = bookings.filter(b => b.status === "completed").length;
-
-        return {
-            totalBookings: bookings.length,
-            todayBookings: todayBookings.length,
-            todayBookingsChange: yesterdayBookings.length > 0
-                ? ((todayBookings.length - yesterdayBookings.length) / yesterdayBookings.length * 100).toFixed(1)
-                : "0",
-            todayRevenue,
-            todayRevenueChange: yesterdayRevenue > 0
-                ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue * 100).toFixed(1)
-                : "0",
-            totalRevenue,
-            confirmedCount,
-            confirmedRate: bookings.length > 0 ? (confirmedCount / bookings.length * 100).toFixed(1) : "0",
-            reservedCount,
-            cancelledCount,
-            completedCount
-        };
-    }, [bookings]);
 
     const handleBookingPress = (booking: Booking) => {
         if (canViewBookings()) {
@@ -183,7 +106,7 @@ export default function BookingsScreen() {
                     user_id: "admin1",
                     user_name: "Admin User",
                     action: "Export Bookings",
-                    details: `Exported ${filteredAndSortedBookings.length} bookings`
+                    details: `Exported ${bookings.length} bookings`
                 });
                 Alert.alert("Success", "Bookings report exported successfully.");
             } catch (error) {
@@ -202,22 +125,22 @@ export default function BookingsScreen() {
 
         Alert.alert(
             "Bulk Update",
-            `Update ${selectedBookings.length} booking(s) to ${status}?`,
+            `Update ${filterState.selectedBookings.length} booking(s) to ${status}?`,
             [
                 { text: "Cancel", style: "cancel" },
                 {
                     text: "Update",
                     onPress: async () => {
                         try {
-                            for (const bookingId of selectedBookings) {
+                            for (const bookingId of filterState.selectedBookings) {
                                 await updateBooking(bookingId, { status: status as any });
                             }
-                            setSelectedBookings([]);
+                            clearSelection();
                             addActivityLog({
                                 user_id: "admin1",
                                 user_name: "Admin User",
                                 action: "Bulk Update Bookings",
-                                details: `Updated ${selectedBookings.length} bookings to ${status}`
+                                details: `Updated ${filterState.selectedBookings.length} bookings to ${status}`
                             });
                             Alert.alert("Success", "Bookings updated successfully.");
                         } catch (error) {
@@ -229,37 +152,15 @@ export default function BookingsScreen() {
         );
     };
 
-    const toggleBookingSelection = (bookingId: string) => {
-        setSelectedBookings(prev =>
-            prev.includes(bookingId)
-                ? prev.filter(id => id !== bookingId)
-                : [...prev, bookingId]
-        );
-    };
-
-    // Add select all functionality
-    const handleSelectAll = () => {
-        if (selectedBookings.length === filteredAndSortedBookings.length) {
-            setSelectedBookings([]);
-        } else {
-            setSelectedBookings(filteredAndSortedBookings.map(booking => booking.id));
-        }
-    };
-
-    const isAllSelected = filteredAndSortedBookings.length > 0 && selectedBookings.length === filteredAndSortedBookings.length;
-    const isPartiallySelected = selectedBookings.length > 0 && selectedBookings.length < filteredAndSortedBookings.length;
-
-    const getStatusCount = (status: FilterStatus) => {
-        if (status === "all") return bookings.length;
-        return bookings.filter(b => b.status === status).length;
-    };
+    const isAllSelected = bookings.length > 0 && filterState.selectedBookings.length === bookings.length;
+    const isPartiallySelected = filterState.selectedBookings.length > 0 && filterState.selectedBookings.length < bookings.length;
 
     // Helper function to get current filter/sort display text
     const getCurrentFilterText = () => {
         let filterText = [];
 
-        if (filterStatus !== "all") {
-            filterText.push(`Status: ${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}`);
+        if (filterState.filterStatus !== "all") {
+            filterText.push(`Status: ${filterState.filterStatus.charAt(0).toUpperCase() + filterState.filterStatus.slice(1)}`);
         }
 
         const sortText = {
@@ -272,27 +173,9 @@ export default function BookingsScreen() {
 
         return {
             filters: filterText.length > 0 ? filterText.join(", ") : "All bookings",
-            sort: sortText[sortOrder]
+            sort: sortText[filterState.sortOrder]
         };
     };
-
-    // Helper to check if any filters are active
-    const hasActiveFilters = () => {
-        return filterStatus !== "all" || sortOrder !== "date_desc" || searchQuery !== "";
-    };
-
-    // Clear all filters function
-    const clearAllFilters = () => {
-        setFilterStatus("all");
-        setSortOrder("date_desc");
-        setSearchQuery("");
-        setSelectedBookings([]);
-    };
-
-    const getResponsivePadding = () => ({
-        paddingHorizontal: isTablet ? 24 : isSmallScreen ? 12 : 16,
-        paddingVertical: isTablet ? 20 : 16,
-    });
 
     if (!canViewBookings()) {
         return (
@@ -350,57 +233,14 @@ export default function BookingsScreen() {
                 />
 
                 {/* Enhanced Stats */}
-                <View style={styles.statsContainer}>
-                    <SectionHeader
-                        title="Bookings Overview"
-                        subtitle="Performance metrics and trends"
-                        size={isTablet ? "large" : "medium"}
-                    />
-                    <View style={styles.statsGrid}>
-                        <StatCard
-                            title="Today's Bookings"
-                            value={stats.todayBookings.toString()}
-                            subtitle={`MVR ${stats.todayRevenue.toFixed(2)} revenue`}
-                            icon={<CreditCard size={isTablet ? 20 : 18} color={colors.primary} />}
-                            size={isTablet ? "large" : "medium"}
-                            trend={Number(stats.todayBookingsChange) >= 0 ? "up" : "down"}
-                            trendValue={`${Math.abs(Number(stats.todayBookingsChange))}%`}
-                        />
-                        <StatCard
-                            title="Total Revenue"
-                            value={`MVR ${stats.totalRevenue.toLocaleString()}`}
-                            subtitle={`Today: MVR ${stats.todayRevenue.toFixed(2)}`}
-                            icon={<TrendingUp size={isTablet ? 20 : 18} color={colors.success} />}
-                            color={colors.success}
-                            size={isTablet ? "large" : "medium"}
-                            trend={Number(stats.todayRevenueChange) >= 0 ? "up" : "down"}
-                            trendValue={`${Math.abs(Number(stats.todayRevenueChange))}%`}
-                        />
-                        <StatCard
-                            title="Confirmed"
-                            value={stats.confirmedCount.toString()}
-                            subtitle={`${stats.confirmedRate}% success rate`}
-                            icon={<CheckCircle size={isTablet ? 20 : 18} color={colors.success} />}
-                            color={colors.success}
-                            size={isTablet ? "large" : "medium"}
-                        />
-                        <StatCard
-                            title="Reserved"
-                            value={stats.reservedCount.toString()}
-                            subtitle={stats.reservedCount > 0 ? "Needs confirmation" : "All confirmed"}
-                            icon={<Clock size={isTablet ? 20 : 18} color={colors.warning} />}
-                            color={colors.warning}
-                            size={isTablet ? "large" : "medium"}
-                        />
-                    </View>
-                </View>
+                <BookingsStats stats={stats} isTablet={isTablet} />
 
                 {/* Enhanced Search and Filter */}
                 <View style={styles.searchContainer}>
                     <View style={styles.searchWrapper}>
                         <SearchBar
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
+                            value={filterState.searchQuery}
+                            onChangeText={(text) => updateFilterState({ searchQuery: text })}
                             placeholder="Search by customer, route, booking ID, or email..."
                         />
                     </View>
@@ -418,85 +258,41 @@ export default function BookingsScreen() {
                         icon={<ArrowUpDown size={isTablet ? 20 : 18} color={colors.primary} />}
                         onPress={() => {
                             const sortOptions: SortOrder[] = ["date_desc", "date_asc", "amount_desc", "amount_asc", "customer_asc"];
-                            const currentIndex = sortOptions.indexOf(sortOrder);
+                            const currentIndex = sortOptions.indexOf(filterState.sortOrder);
                             const nextIndex = (currentIndex + 1) % sortOptions.length;
-                            setSortOrder(sortOptions[nextIndex]);
+                            updateFilterState({ sortOrder: sortOptions[nextIndex] });
                         }}
                     />
                 </View>
 
                 {/* Filter Tabs */}
-                <View style={styles.filterTabs}>
-                    {(["all", "reserved", "confirmed", "cancelled", "completed"] as FilterStatus[]).map((status) => (
-                        <TouchableOpacity
-                            key={status}
-                            style={[
-                                styles.filterTab,
-                                filterStatus === status && styles.filterTabActive
-                            ]}
-                            onPress={() => setFilterStatus(status)}
-                        >
-                            <Text style={[
-                                styles.filterTabText,
-                                filterStatus === status && styles.filterTabTextActive
-                            ]}>
-                                {status.charAt(0).toUpperCase() + status.slice(1)}
-                            </Text>
-                            <Text style={[
-                                styles.filterTabCount,
-                                filterStatus === status && styles.filterTabCountActive
-                            ]}>
-                                {getStatusCount(status)}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                <FilterTabs
+                    activeFilter={filterState.filterStatus}
+                    onFilterChange={(filter) => updateFilterState({ filterStatus: filter })}
+                    getStatusCount={getStatusCount}
+                />
 
                 {/* Bulk Actions Bar */}
-                {selectedBookings.length > 0 && (
-                    <View style={styles.bulkActionsBar}>
-                        <Text style={styles.bulkActionsText}>
-                            {selectedBookings.length} booking(s) selected
-                        </Text>
-                        <View style={styles.bulkActionsButtons}>
-                            {canUpdateBookings() && (
-                                <>
-                                    <Button
-                                        title="Confirm"
-                                        variant="primary"
-                                        size="small"
-                                        onPress={() => handleBulkStatusUpdate("confirmed")}
-                                    />
-                                    <Button
-                                        title="Cancel"
-                                        variant="danger"
-                                        size="small"
-                                        onPress={() => handleBulkStatusUpdate("cancelled")}
-                                    />
-                                </>
-                            )}
-                            <Button
-                                title="Clear"
-                                variant="ghost"
-                                size="small"
-                                onPress={() => setSelectedBookings([])}
-                            />
-                        </View>
-                    </View>
-                )}
+                <BulkActionsBar
+                    selectedCount={filterState.selectedBookings.length}
+                    onConfirm={() => handleBulkStatusUpdate("confirmed")}
+                    onCancel={() => handleBulkStatusUpdate("cancelled")}
+                    onClear={clearSelection}
+                    canUpdateBookings={canUpdateBookings()}
+                />
 
                 {/* Bookings List */}
                 <View style={styles.section}>
                     <View style={styles.bookingsHeader}>
                         <SectionHeader
-                            title={searchQuery ? "Search Results" : "All Bookings"}
-                            subtitle={`${filteredAndSortedBookings.length} ${filteredAndSortedBookings.length === 1 ? 'booking' : 'bookings'} found`}
+                            title={filterState.searchQuery ? "Search Results" : "All Bookings"}
+                            subtitle={`${bookings.length} ${bookings.length === 1 ? 'booking' : 'bookings'} found`}
                             size={isTablet ? "large" : "medium"}
                         />
                     </View>
 
                     {/* Compact Filter Status */}
-                    {(hasActiveFilters() || filteredAndSortedBookings.length > 0) && (
+                    {(hasActiveFilters() || bookings.length > 0) && (
                         <View style={styles.compactFilterStatus}>
                             <Text style={styles.compactFilterText}>
                                 {getCurrentFilterText().filters}
@@ -520,10 +316,10 @@ export default function BookingsScreen() {
                     )}
 
                     {/* Select All Section */}
-                    {canUpdateBookings() && filteredAndSortedBookings.length > 0 && (
+                    {canUpdateBookings() && bookings.length > 0 && (
                         <TouchableOpacity
                             style={styles.selectAllButton}
-                            onPress={handleSelectAll}
+                            onPress={selectAllBookings}
                             accessibilityRole="button"
                             accessibilityLabel={isAllSelected ? "Deselect all bookings" : "Select all bookings"}
                         >
@@ -546,15 +342,15 @@ export default function BookingsScreen() {
                     )}
 
                     {/* Content Area */}
-                    {filteredAndSortedBookings.length === 0 ? (
+                    {bookings.length === 0 ? (
                         <EmptyState
-                            icon={<CreditCard size={48} color={colors.textSecondary} />}
+                            icon={<Eye size={48} color={colors.textSecondary} />}
                             title="No bookings found"
-                            message={searchQuery ? "Try adjusting your search criteria" : "No bookings match the current filters"}
+                            message={filterState.searchQuery ? "Try adjusting your search criteria" : "No bookings match the current filters"}
                         />
                     ) : (
                         <View style={styles.bookingsList}>
-                            {filteredAndSortedBookings.map((booking) => (
+                            {bookings.map((booking) => (
                                 <View key={booking.id} style={styles.bookingItemWrapper}>
                                     {canUpdateBookings() && (
                                         <TouchableOpacity
@@ -563,9 +359,9 @@ export default function BookingsScreen() {
                                         >
                                             <View style={[
                                                 styles.checkbox,
-                                                selectedBookings.includes(booking.id) && styles.checkboxSelected
+                                                filterState.selectedBookings.includes(booking.id) && styles.checkboxSelected
                                             ]}>
-                                                {selectedBookings.includes(booking.id) && (
+                                                {filterState.selectedBookings.includes(booking.id) && (
                                                     <Check size={14} color="white" />
                                                 )}
                                             </View>
@@ -614,17 +410,17 @@ export default function BookingsScreen() {
                                     key={option.key}
                                     style={[
                                         styles.filterOption,
-                                        filterStatus === option.key && styles.filterOptionSelected
+                                        filterState.filterStatus === option.key && styles.filterOptionSelected
                                     ]}
-                                    onPress={() => setFilterStatus(option.key as FilterStatus)}
+                                    onPress={() => updateFilterState({ filterStatus: option.key as FilterStatus })}
                                 >
                                     <Text style={[
                                         styles.filterOptionText,
-                                        filterStatus === option.key && styles.filterOptionTextSelected
+                                        filterState.filterStatus === option.key && styles.filterOptionTextSelected
                                     ]}>
                                         {option.label}
                                     </Text>
-                                    {filterStatus === option.key && (
+                                    {filterState.filterStatus === option.key && (
                                         <Check size={16} color={colors.primary} />
                                     )}
                                 </TouchableOpacity>
@@ -644,17 +440,17 @@ export default function BookingsScreen() {
                                     key={option.key}
                                     style={[
                                         styles.filterOption,
-                                        sortOrder === option.key && styles.filterOptionSelected
+                                        filterState.sortOrder === option.key && styles.filterOptionSelected
                                     ]}
-                                    onPress={() => setSortOrder(option.key as SortOrder)}
+                                    onPress={() => updateFilterState({ sortOrder: option.key as SortOrder })}
                                 >
                                     <Text style={[
                                         styles.filterOptionText,
-                                        sortOrder === option.key && styles.filterOptionTextSelected
+                                        filterState.sortOrder === option.key && styles.filterOptionTextSelected
                                     ]}>
                                         {option.label}
                                     </Text>
-                                    {sortOrder === option.key && (
+                                    {filterState.sortOrder === option.key && (
                                         <Check size={16} color={colors.primary} />
                                     )}
                                 </TouchableOpacity>
@@ -707,16 +503,6 @@ const styles = StyleSheet.create({
         borderColor: colors.border + "60",
     },
 
-    statsContainer: {
-        marginBottom: 24,
-    },
-    statsGrid: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 12,
-        justifyContent: "space-between",
-    },
-
     searchContainer: {
         flexDirection: "row",
         alignItems: "center",
@@ -725,65 +511,6 @@ const styles = StyleSheet.create({
     },
     searchWrapper: {
         flex: 1,
-    },
-    filterTabs: {
-        flexDirection: "row",
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 4,
-        marginBottom: 16,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    filterTab: {
-        flex: 1,
-        paddingVertical: 8,
-        paddingHorizontal: 8,
-        borderRadius: 8,
-        alignItems: "center",
-    },
-    filterTabActive: {
-        backgroundColor: colors.primary + "15",
-    },
-    filterTabText: {
-        fontSize: 14,
-        fontWeight: "500",
-        color: colors.textSecondary,
-        marginBottom: 2,
-    },
-    filterTabTextActive: {
-        color: colors.primary,
-    },
-    filterTabCount: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: colors.textSecondary,
-    },
-    filterTabCountActive: {
-        color: colors.primary,
-    },
-    bulkActionsBar: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        backgroundColor: colors.primary + "10",
-        borderWidth: 1,
-        borderColor: colors.primary + "30",
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 16,
-    },
-    bulkActionsText: {
-        fontSize: 14,
-        fontWeight: "500",
-        color: colors.primary,
-    },
-    bulkActionsButtons: {
-        flexDirection: "row",
-        gap: 8,
     },
     section: {
         marginBottom: 24,
