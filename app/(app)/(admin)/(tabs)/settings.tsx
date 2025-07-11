@@ -648,17 +648,18 @@ export default function SettingsScreen() {
                                                     return (
                                                         <TouchableOpacity
                                                             key={user.id}
-                                                            style={styles.enhancedUserCard}
+                                                            style={[styles.enhancedUserCard, {
+                                                                borderColor: userRole?.color + "30" || colors.primary + "30"
+                                                            }]}
                                                             onPress={() => {
-                                                                setSelectedUser(user);
-                                                                const permissions: Record<string, boolean> = {};
-                                                                availablePermissions.forEach(perm => {
-                                                                    permissions[perm.id] = user.permissions.includes(perm.id);
-                                                                });
-                                                                setUserPermissions(permissions);
-                                                                setShowUserPermissionsModal(true);
+                                                                router.push(`/user/${user.id}/permissions` as any);
                                                             }}
                                                         >
+                                                            {/* Gradient Background */}
+                                                            <View style={[styles.cardGradient, {
+                                                                backgroundColor: userRole?.color + "08" || colors.primary + "08"
+                                                            }]} />
+
                                                             <View style={styles.enhancedUserHeader}>
                                                                 <View style={styles.userAvatarContainer}>
                                                                     <View style={[styles.userAvatar, { backgroundColor: userRole?.color || colors.primary }]}>
@@ -666,10 +667,12 @@ export default function SettingsScreen() {
                                                                             {user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                                                                         </Text>
                                                                     </View>
-                                                                    <StatusBadge
-                                                                        status={user.status === 'active' ? 'active' : 'inactive'}
-                                                                        size="small"
-                                                                    />
+                                                                    <View style={styles.userStatusBadge}>
+                                                                        <StatusBadge
+                                                                            status={user.status === 'active' ? 'active' : 'inactive'}
+                                                                            size="small"
+                                                                        />
+                                                                    </View>
                                                                 </View>
                                                                 <View style={styles.enhancedUserInfo}>
                                                                     <View style={styles.userNameRow}>
@@ -734,6 +737,7 @@ export default function SettingsScreen() {
                                                                         </Text>
                                                                     </View>
                                                                 </View>
+                                                               
                                                             </View>
                                                         </TouchableOpacity>
                                                     );
@@ -2123,32 +2127,43 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     userAvatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: colors.primary,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
         alignItems: "center",
         justifyContent: "center",
         marginRight: 12,
+        borderWidth: 3,
+        borderColor: "white",
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
     },
     userAvatarText: {
-        fontSize: 16,
-        fontWeight: "700",
+        fontSize: 18,
+        fontWeight: "800",
         color: "white",
+        textShadowColor: "rgba(0,0,0,0.3)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     userInfo: {
         flex: 1,
     },
     userName: {
-        fontSize: 16,
-        fontWeight: "600",
+        fontSize: 18,
+        fontWeight: "700",
         color: colors.text,
-        marginBottom: 2,
+        marginBottom: 4,
+        letterSpacing: -0.5,
     },
     userEmail: {
         fontSize: 14,
         color: colors.textSecondary,
-        marginBottom: 2,
+        marginBottom: 8,
+        opacity: 0.8,
     },
     userRole: {
         fontSize: 12,
@@ -2896,16 +2911,27 @@ const styles = StyleSheet.create({
     // Enhanced User Card styles
     enhancedUserCard: {
         backgroundColor: colors.card,
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
+        borderRadius: 20,
+        padding: 24,
+        marginBottom: 20,
         shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+        elevation: 8,
         borderWidth: 1,
-        borderColor: colors.border + "30",
+        borderColor: colors.border + "20",
+        position: "relative",
+        overflow: "hidden",
+    },
+    cardGradient: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderRadius: 20,
+        opacity: 0.6,
     },
     enhancedUserHeader: {
         flexDirection: "row",
@@ -2914,12 +2940,13 @@ const styles = StyleSheet.create({
     },
     userAvatarContainer: {
         position: "relative",
-        marginRight: 16,
+        marginRight: 20,
     },
     userStatusBadge: {
         position: "absolute",
-        top: -2,
-        right: -2,
+        top: -4,
+        right: -4,
+        zIndex: 2,
     },
     enhancedUserInfo: {
         flex: 1,
@@ -2977,21 +3004,26 @@ const styles = StyleSheet.create({
     enhancedPermissionTags: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 8,
+        gap: 10,
     },
     enhancedPermissionTag: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
         backgroundColor: colors.background,
-        borderWidth: 1,
+        borderWidth: 1.5,
         gap: 6,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     enhancedPermissionTagText: {
         fontSize: 11,
-        fontWeight: "500",
+        fontWeight: "600",
         color: colors.text,
     },
     morePermissionsTag: {
@@ -3532,5 +3564,26 @@ const styles = StyleSheet.create({
     summaryDetailLabel: {
         fontWeight: "600",
         color: colors.text,
+    },
+    managePermissionsButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: colors.primary,
+        borderRadius: 12,
+        borderWidth: 0,
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 6,
+    },
+    managePermissionsText: {
+        fontSize: 12,
+        fontWeight: "700",
+        color: "white",
+        letterSpacing: 0.5,
     },
 }); 
