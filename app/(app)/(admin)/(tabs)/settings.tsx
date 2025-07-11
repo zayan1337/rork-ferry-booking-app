@@ -1412,27 +1412,33 @@ export default function SettingsScreen() {
 
                             {/* Quick Actions Bar */}
                             <View style={styles.quickActionsBar}>
-                                <Button
-                                    title="System Health Check"
-                                    variant="outline"
-                                    size="small"
-                                    icon={<CheckCircle size={16} color={colors.primary} />}
-                                    onPress={() => Alert.alert("Health Check", "Running system diagnostics...")}
-                                />
-                                <Button
-                                    title="Generate Report"
-                                    variant="outline"
-                                    size="small"
-                                    icon={<FileText size={16} color={colors.primary} />}
-                                    onPress={() => Alert.alert("Report", "Generating system report...")}
-                                />
-                                <Button
-                                    title="Export Logs"
-                                    variant="outline"
-                                    size="small"
-                                    icon={<Download size={16} color={colors.primary} />}
-                                    onPress={() => Alert.alert("Export", "Preparing log files...")}
-                                />
+                                <View style={styles.quickActionButton}>
+                                    <Button
+                                        title={isSmallScreen ? "Health" : "Health Check"}
+                                        variant="outline"
+                                        size="small"
+                                        icon={<CheckCircle size={16} color={colors.primary} />}
+                                        onPress={() => Alert.alert("Health Check", "Running system diagnostics...")}
+                                    />
+                                </View>
+                                <View style={styles.quickActionButton}>
+                                    <Button
+                                        title={isSmallScreen ? "Report" : "Generate Report"}
+                                        variant="outline"
+                                        size="small"
+                                        icon={<FileText size={16} color={colors.primary} />}
+                                        onPress={() => Alert.alert("Report", "Generating system report...")}
+                                    />
+                                </View>
+                                <View style={styles.quickActionButton}>
+                                    <Button
+                                        title={isSmallScreen ? "Logs" : "Export Logs"}
+                                        variant="outline"
+                                        size="small"
+                                        icon={<Download size={16} color={colors.primary} />}
+                                        onPress={() => Alert.alert("Export", "Preparing log files...")}
+                                    />
+                                </View>
                             </View>
                         </View>
                     </View>
@@ -2831,6 +2837,11 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
+    },
+    quickActionButton: {
+        flex: 1,
+        flexShrink: 1,
+        minWidth: 0,
     },
     noPermissionContainer: {
         flex: 1,
