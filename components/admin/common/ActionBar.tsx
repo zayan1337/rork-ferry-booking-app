@@ -71,7 +71,7 @@ export default function ActionBar({
                 {message}
             </Text>
             <View style={styles.actionBarButtons}>
-                {actions.map((action, index) => (
+                {(actions || []).map((action, index) => (
                     <Button
                         key={index}
                         title={action.title}

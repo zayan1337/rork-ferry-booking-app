@@ -49,28 +49,32 @@ export default function SearchFilterBar({
             </View>
 
             {/* Filter Actions */}
-            {filterActions.map((action, index) => (
-                <Button
-                    key={`filter-${index}`}
-                    title={action.title || ""}
-                    variant={action.variant || "outline"}
-                    size={action.size || "medium"}
-                    icon={action.icon}
-                    onPress={action.onPress}
-                />
-            ))}
+            <View style={styles.filterActions}>
+                {(filterActions || []).map((action, index) => (
+                    <Button
+                        key={`filter-${index}`}
+                        title={action.title || ""}
+                        variant={action.variant || "outline"}
+                        size={action.size || "medium"}
+                        icon={action.icon}
+                        onPress={action.onPress}
+                    />
+                ))}
+            </View>
 
             {/* Right Actions */}
-            {rightActions.map((action, index) => (
-                <Button
-                    key={`right-${index}`}
-                    title={action.title || ""}
-                    variant={action.variant || "outline"}
-                    size={action.size || "medium"}
-                    icon={action.icon}
-                    onPress={action.onPress}
-                />
-            ))}
+            <View style={styles.rightActions}>
+                {(rightActions || []).map((action, index) => (
+                    <Button
+                        key={`right-${index}`}
+                        title={action.title || ""}
+                        variant={action.variant || "outline"}
+                        size={action.size || "medium"}
+                        icon={action.icon}
+                        onPress={action.onPress}
+                    />
+                ))}
+            </View>
         </View>
     );
 }
@@ -84,5 +88,13 @@ const styles = StyleSheet.create({
     },
     searchWrapper: {
         flex: 1,
+    },
+    filterActions: {
+        flexDirection: "row",
+        gap: 8,
+    },
+    rightActions: {
+        flexDirection: "row",
+        gap: 8,
     },
 }); 

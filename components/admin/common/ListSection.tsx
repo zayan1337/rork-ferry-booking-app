@@ -145,7 +145,7 @@ export default function ListSection({
                     {children || (
                         data && renderItem && (
                             <View style={styles.itemsList}>
-                                {data.map((item, index) => (
+                                {(data || []).map((item, index) => (
                                     <View key={keyExtractor ? keyExtractor(item, index) : index}>
                                         {renderItem(item, index)}
                                     </View>

@@ -40,7 +40,7 @@ export default function StatsSection({
                 size={headerSize}
             />
             <View style={styles.statsGrid}>
-                {stats.map((stat, index) => (
+                {(stats || []).map((stat, index) => (
                     <StatCard
                         key={index}
                         title={stat.title}

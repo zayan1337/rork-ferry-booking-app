@@ -81,7 +81,7 @@ export default function TabSelector({
 
     return (
         <View style={[getTabStyle(), style]}>
-            {options.map((option) => {
+            {(options || []).map((option) => {
                 const isActive = activeTab === option.key;
                 const IconComponent = option.icon;
 
