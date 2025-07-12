@@ -25,8 +25,8 @@ export default function BookingDetailsScreen() {
     const { bookings, users, updateBooking, deleteBooking } = useAdminStore();
     const [loading, setLoading] = useState(false);
 
-    const booking = bookings.find(b => b.id === id);
-    const customer = users.find(u => u.id === booking?.customerId);
+    const booking = bookings?.find(b => b.id === id);
+    const customer = users?.find(u => u.id === booking?.customerId);
 
     if (!booking) {
         return (

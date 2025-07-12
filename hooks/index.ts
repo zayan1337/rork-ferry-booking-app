@@ -23,4 +23,12 @@ export { useOperationsData } from './useOperationsData';
 // Settings hooks
 export { useSettingsData } from './useSettingsData';
 export { useSettingsActions } from './useSettingsActions';
-export { useSettingsModals } from './useSettingsModals'; 
+export { useSettingsModals } from './useSettingsModals';
+
+// Operations Management Hooks
+export { useRouteForm } from './useRouteForm';
+export { useVesselForm } from './useVesselForm';
+export { useTripForm } from './useTripForm';
+
+// User Management Hooks
+export { useUserForm } from './useUserForm'; 

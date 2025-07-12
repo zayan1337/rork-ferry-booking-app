@@ -103,8 +103,8 @@ export default function NewBookingScreen() {
 
         setLoading(true);
         try {
-            const selectedRoute = routes.find(r => r.id === formData.routeId);
-            const selectedCustomer = customers.find(c => c.id === formData.customerId);
+            const selectedRoute = routes?.find(r => r.id === formData.routeId);
+            const selectedCustomer = customers?.find(c => c.id === formData.customerId);
 
             if (!selectedRoute || !selectedCustomer) {
                 Alert.alert("Error", "Invalid route or customer selected");

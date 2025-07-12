@@ -2,18 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { UserDetails } from '@/components/admin/users';
-import { UserProfile } from '@/types/userManagement';
+import { UserForm } from '@/components/admin/users';
+import { UserProfile, UserFormData } from '@/types/userManagement';
 import { useAdminStore } from '@/store/admin/adminStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import RoleGuard from '@/components/RoleGuard';
 import EmptyState from '@/components/admin/EmptyState';
 import { AlertTriangle } from 'lucide-react-native';
 
-export default function UserDetailsPage() {
+export default function EditUserPage() {
     const { id } = useLocalSearchParams();
-    const { users, getUser, updateUser, deleteUser } = useAdminStore();
-    const { canViewUsers, canUpdateUsers, canDeleteUsers } = useAdminPermissions();
+    const { users, getUser, updateUser } = useAdminStore();
+    const { canUpdateUsers } = useAdminPermissions();
 
     const [user, setUser] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -54,19 +54,14 @@ export default function UserDetailsPage() {
         loadUser();
     }, [id, users, getUser]);
 
-    const handleEdit = () => {
-        if (!user) return;
-        router.push(`../user/${user.id}/edit` as any);
-    };
-
-    const handleArchive = async () => {
+    const handleSave = async (userData: UserFormData) => {
         if (!user) return;
 
         try {
-            await updateUser(user.id, { status: 'inactive' });
+            await updateUser(user.id, userData);
             Alert.alert(
                 'Success',
-                'User has been archived successfully',
+                'User updated successfully!',
                 [
                     {
                         text: 'OK',
@@ -77,27 +72,13 @@ export default function UserDetailsPage() {
         } catch (error) {
             Alert.alert(
                 'Error',
-                'Failed to archive user'
+                error instanceof Error ? error.message : 'Failed to update user'
             );
         }
     };
 
-    const handleViewActivity = () => {
-        if (!user) return;
-        // Navigate to activity page
-        router.push(`../user/${user.id}/activity` as any);
-    };
-
-    const handleViewPermissions = () => {
-        if (!user) return;
-        // Navigate to permissions page
-        router.push(`../user/${user.id}/permissions` as any);
-    };
-
-    const handleViewBookings = () => {
-        if (!user) return;
-        // Navigate to bookings page
-        router.push(`../user/${user.id}/bookings` as any);
+    const handleCancel = () => {
+        router.back();
     };
 
     if (loading) {
@@ -155,19 +136,16 @@ export default function UserDetailsPage() {
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: user.name || 'User Details',
+                        title: `Edit ${user.name}`,
                         headerShown: true,
+                        presentation: 'card',
                     }}
                 />
 
-                <UserDetails
-                    user={user}
-                    onEdit={canUpdateUsers() ? handleEdit : undefined}
-                    onArchive={canDeleteUsers() ? handleArchive : undefined}
-                    onViewActivity={handleViewActivity}
-                    onViewPermissions={handleViewPermissions}
-                    onViewBookings={handleViewBookings}
-                    showActions={canUpdateUsers() || canDeleteUsers()}
+                <UserForm
+                    userId={user.id}
+                    onSave={handleSave}
+                    onCancel={handleCancel}
                 />
             </View>
         </RoleGuard>

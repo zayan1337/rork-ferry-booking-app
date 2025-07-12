@@ -2,22 +2,22 @@ import React from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { VesselForm } from '@/components/admin/operations';
-import { VesselFormData } from '@/types/operations';
+import { RouteForm } from '@/components/admin/operations';
+import { RouteFormData } from '@/types/operations';
 import { useAdminStore } from '@/store/admin/adminStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import RoleGuard from '@/components/RoleGuard';
 
-export default function NewVesselPage() {
-    const { createVessel } = useAdminStore();
-    const { canManageVessels } = useAdminPermissions();
+export default function NewRoutePage() {
+    const { addRoute } = useAdminStore();
+    const { canManageRoutes } = useAdminPermissions();
 
-    const handleSave = async (vesselData: VesselFormData) => {
+    const handleSave = async (routeData: RouteFormData) => {
         try {
-            await createVessel(vesselData);
+            await addRoute(routeData as any);
             Alert.alert(
                 'Success',
-                'Vessel created successfully!',
+                'Route created successfully!',
                 [
                     {
                         text: 'OK',
@@ -28,7 +28,7 @@ export default function NewVesselPage() {
         } catch (error) {
             Alert.alert(
                 'Error',
-                error instanceof Error ? error.message : 'Failed to create vessel'
+                error instanceof Error ? error.message : 'Failed to create route'
             );
         }
     };
@@ -39,18 +39,18 @@ export default function NewVesselPage() {
 
     return (
         <RoleGuard
-            allowedRoles={['admin', 'captain']}
+            allowedRoles={['admin']}
         >
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: 'New Vessel',
+                        title: 'New Route',
                         headerShown: true,
                         presentation: 'card',
                     }}
                 />
 
-                <VesselForm
+                <RouteForm
                     onSave={handleSave}
                     onCancel={handleCancel}
                 />

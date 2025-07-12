@@ -3,10 +3,10 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "@/constants/adminColors";
 import { Mail } from "lucide-react-native";
 import StatusBadge from "./StatusBadge";
-import { User } from "@/types/admin";
+import { UserProfile } from "@/types/userManagement";
 
 interface UserItemProps {
-  user: User;
+  user: UserProfile;
   onPress?: () => void;
 }
 
@@ -54,7 +54,7 @@ export default function UserItem({ user, onPress }: UserItemProps) {
             </Text>
           </View>
           <Text style={styles.date}>
-            Joined {new Date(user.createdAt).toLocaleDateString()}
+            Joined {new Date(user.created_at).toLocaleDateString()}
           </Text>
         </View>
       </View>

@@ -11,7 +11,7 @@ interface StatCardProps {
   color?: string;
   size?: "small" | "medium" | "large";
   fullWidth?: boolean;
-  trend?: "up" | "down" | "neutral";
+  trend?: "up" | "down" | "neutral" | string; // Allow string values
   trendValue?: string;
 }
 
@@ -80,8 +80,16 @@ export default function StatCard({
     }
   };
 
+  const getNormalizedTrend = (): "up" | "down" | "neutral" => {
+    if (!trend) return "neutral";
+    if (trend === "up" || trend === "+" || trend.includes("+")) return "up";
+    if (trend === "down" || trend === "-" || trend.includes("-")) return "down";
+    return "neutral";
+  };
+
   const getTrendColor = () => {
-    switch (trend) {
+    const normalizedTrend = getNormalizedTrend();
+    switch (normalizedTrend) {
       case "up":
         return colors.success;
       case "down":
@@ -92,6 +100,7 @@ export default function StatCard({
   };
 
   const sizeStyles = getSizeStyles();
+  const normalizedTrend = getNormalizedTrend();
 
   return (
     <View style={[
@@ -131,9 +140,9 @@ export default function StatCard({
           </Text>
           {trend && trendValue && (
             <View style={[styles.trendContainer, { backgroundColor: getTrendColor() + "15" }]}>
-              {trend === "up" ? (
+              {normalizedTrend === "up" ? (
                 <TrendingUp size={sizeStyles.trendSize} color={getTrendColor()} />
-              ) : trend === "down" ? (
+              ) : normalizedTrend === "down" ? (
                 <TrendingDown size={sizeStyles.trendSize} color={getTrendColor()} />
               ) : null}
               <Text style={[styles.trendText, { fontSize: sizeStyles.trendSize - 1, color: getTrendColor() }]}>

@@ -205,7 +205,7 @@ export const formatBookingSummary = (booking: any) => {
  */
 export const generateBookingSuccessMessage = (result: any, tripType: string) => {
   let message = `Your ${tripType === 'round_trip' ? 'round trip' : 'one way'} booking has been confirmed with QR codes generated.`;
-  
+
   if (typeof result === 'string') {
     // Legacy single booking ID
     message += `\n\nBooking ID: ${result}`;

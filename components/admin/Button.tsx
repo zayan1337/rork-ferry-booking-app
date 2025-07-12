@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, Dimensions } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, Dimensions, ViewStyle } from "react-native";
 import { colors } from "@/constants/adminColors";
 
 interface ButtonProps {
@@ -12,6 +12,7 @@ interface ButtonProps {
   icon?: React.ReactNode;
   fullWidth?: boolean;
   rounded?: boolean;
+  style?: ViewStyle | ViewStyle[];
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -26,6 +27,7 @@ export default function Button({
   icon,
   fullWidth = false,
   rounded = false,
+  style,
 }: ButtonProps) {
 
   const isSmallScreen = screenWidth < 480;
@@ -120,6 +122,7 @@ export default function Button({
     },
     variant === "ghost" && styles.ghostButton,
     disabled && styles.disabledButton,
+    style, // Apply the custom style prop
   ];
 
   const textStyle = [

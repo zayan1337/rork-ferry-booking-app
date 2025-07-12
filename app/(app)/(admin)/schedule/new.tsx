@@ -1,35 +1,61 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { Stack, router } from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { Calendar } from "lucide-react-native";
-import Button from "@/components/admin/Button";
+import React from 'react';
+import { View, StyleSheet, Alert } from 'react-native';
+import { Stack, router } from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { TripForm } from '@/components/admin/operations';
+import { TripFormData } from '@/types/operations';
+import { useAdminStore } from '@/store/admin/adminStore';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import RoleGuard from '@/components/RoleGuard';
 
-export default function NewScheduleScreen() {
+export default function NewTripPage() {
+    const { createTrip } = useAdminStore();
+    const { canManageTrips } = useAdminPermissions();
+
+    const handleSave = async (tripData: TripFormData) => {
+        try {
+            await createTrip(tripData);
+            Alert.alert(
+                'Success',
+                'Trip scheduled successfully!',
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => router.back(),
+                    },
+                ]
+            );
+        } catch (error) {
+            Alert.alert(
+                'Error',
+                error instanceof Error ? error.message : 'Failed to schedule trip'
+            );
+        }
+    };
+
+    const handleCancel = () => {
+        router.back();
+    };
+
     return (
-        <View style={styles.container}>
-            <Stack.Screen
-                options={{
-                    title: "New Schedule",
-                }}
-            />
+        <RoleGuard
+            allowedRoles={['admin', 'captain']}
+        >
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: 'Schedule New Trip',
+                        headerShown: true,
+                        presentation: 'card',
+                    }}
+                />
 
-            <View style={styles.content}>
-                <Calendar size={64} color={colors.primary} />
-                <Text style={styles.title}>Schedule Management</Text>
-                <Text style={styles.description}>
-                    Schedule management is currently handled through the main schedule tab.
-                    Go to the Schedule tab to create and manage trips.
-                </Text>
-
-                <Button
-                    title="Go to Schedule"
-                    variant="primary"
-                    onPress={() => router.push("/(admin)/(tabs)/schedule" as any)}
-                    fullWidth
+                <TripForm
+                    onSave={handleSave}
+                    onCancel={handleCancel}
                 />
             </View>
-        </View>
+        </RoleGuard>
     );
 }
 
@@ -37,26 +63,5 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
-    },
-    content: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 32,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: colors.text,
-        marginTop: 24,
-        marginBottom: 16,
-        textAlign: "center",
-    },
-    description: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        textAlign: "center",
-        lineHeight: 24,
-        marginBottom: 32,
     },
 }); 

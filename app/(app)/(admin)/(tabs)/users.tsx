@@ -51,10 +51,10 @@ import UserItem from "@/components/admin/UserItem";
 import EmptyState from "@/components/admin/EmptyState";
 import StatCard from "@/components/admin/StatCard";
 import StatusBadge from "@/components/admin/StatusBadge";
-import { User as AdminUser } from "@/types/admin";
+import { UserProfile } from "@/types/userManagement";
 
 // Users Components
-import { UserStats } from "@/components/admin/users";
+import UserStats from "@/components/admin/users/UserStats";
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -173,7 +173,7 @@ export default function UsersScreen() {
         };
     }, [users, passengers]);
 
-    const handleUserPress = (user: AdminUser) => {
+    const handleUserPress = (user: UserProfile) => {
         if (canViewUsers()) {
             router.push(`../user/${user.id}` as any);
         }

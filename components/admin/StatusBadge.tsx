@@ -5,7 +5,7 @@ import { colors } from "@/constants/adminColors";
 type StatusType =
   | "confirmed" | "pending" | "cancelled" | "completed"
   | "paid" | "refunded" | "failed"
-  | "active" | "inactive" | "suspended" | "maintenance"
+  | "active" | "inactive" | "suspended" | "banned" | "maintenance"
   | "scheduled" | "in-progress";
 
 interface StatusBadgeProps {
@@ -70,6 +70,11 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
         return {
           bg: "#FFE5E5",
           text: "#FF3B30",
+        };
+      case "banned":
+        return {
+          bg: "#2C2C2E",
+          text: "#FFFFFF",
         };
       default:
         return {

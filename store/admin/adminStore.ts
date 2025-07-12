@@ -5,10 +5,6 @@ import { mockAlerts, mockBookings, mockUsers, mockVessels, mockRoutes, mockTrips
 import {
   Alert,
   Booking,
-  User,
-  Vessel,
-  Route,
-  Trip,
   DashboardStats,
   Wallet,
   WalletTransaction,
@@ -21,6 +17,8 @@ import {
   ActivityLog,
   AdminPermission
 } from "@/types/admin";
+import { UserProfile } from "@/types/userManagement";
+import { Route, Vessel, Trip } from "@/types/operations";
 
 interface LoadingState {
   [key: string]: boolean;
@@ -30,7 +28,7 @@ interface AdminState {
   // Existing Data
   alerts: Alert[];
   bookings: Booking[];
-  users: User[];
+  users: UserProfile[];
   vessels: Vessel[];
   routes: Route[];
   trips: Trip[];
@@ -70,13 +68,16 @@ interface AdminState {
   updateBooking: (id: string, updates: Partial<Booking>) => void;
   deleteBooking: (id: string) => void;
 
-  addUser: (user: Omit<User, 'id' | 'createdAt'>) => void;
-  updateUser: (id: string, updates: Partial<User>) => void;
+  addUser: (user: Omit<UserProfile, 'id' | 'created_at'>) => void;
+  updateUser: (id: string, updates: Partial<UserProfile>) => void;
   deleteUser: (id: string) => void;
+  getUser: (id: string) => UserProfile | undefined;
 
   addVessel: (vessel: Omit<Vessel, 'id'>) => void;
   updateVessel: (id: string, updates: Partial<Vessel>) => void;
   deleteVessel: (id: string) => void;
+  getVessel: (id: string) => Promise<Vessel>;
+  createVessel: (vesselData: any) => Promise<void>;
 
   addRoute: (route: Omit<Route, 'id'>) => void;
   updateRoute: (id: string, updates: Partial<Route>) => void;
@@ -85,6 +86,8 @@ interface AdminState {
   addTrip: (trip: Omit<Trip, 'id'>) => void;
   updateTrip: (id: string, updates: Partial<Trip>) => void;
   deleteTrip: (id: string) => void;
+  getTrip: (id: string) => Promise<Trip>;
+  createTrip: (tripData: any) => Promise<void>;
 
   // New CRUD operations
   // Wallet operations
@@ -143,7 +146,7 @@ interface AdminState {
   // User management functions
   updateUserStatus: (id: string, status: string) => void;
   updateUserRole: (id: string, role: string) => void;
-  exportUsersReport: (users: User[]) => Promise<void>;
+  exportUsersReport: (users: UserProfile[]) => Promise<void>;
 
   // Alert management functions
   deleteAlert: (id: string) => void;
@@ -258,7 +261,7 @@ export const useAdminStore = create<AdminState>()(
       // Existing data
       alerts: mockAlerts,
       bookings: mockBookings,
-      users: mockUsers,
+      users: mockUsers || [],
       vessels: mockVessels,
       routes: mockRoutes,
       trips: mockTrips,
@@ -347,7 +350,8 @@ export const useAdminStore = create<AdminState>()(
           users: [{
             ...user,
             id: `u${Date.now()}`,
-            createdAt: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           }, ...state.users]
         })),
 
@@ -362,6 +366,14 @@ export const useAdminStore = create<AdminState>()(
         set((state) => ({
           users: state.users.filter((user) => user.id !== id)
         })),
+
+      getUser: (id) => {
+        const state = get();
+        if (!state.users || !Array.isArray(state.users)) {
+          return undefined;
+        }
+        return state.users?.find(user => user.id === id);
+      },
 
       addVessel: (vessel) =>
         set((state) => ({
@@ -382,6 +394,28 @@ export const useAdminStore = create<AdminState>()(
         set((state) => ({
           vessels: state.vessels.filter((vessel) => vessel.id !== id)
         })),
+
+      getVessel: async (id) => {
+        const state = get();
+        const vessel = state.vessels?.find(v => v.id === id);
+        if (!vessel) {
+          throw new Error(`Vessel with id ${id} not found`);
+        }
+        return vessel;
+      },
+
+      createVessel: async (vesselData) => {
+        const state = get();
+        const newVessel = {
+          ...vesselData,
+          id: `v${Date.now()}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        set((state) => ({
+          vessels: [newVessel, ...state.vessels]
+        }));
+      },
 
       addRoute: (route) =>
         set((state) => ({
@@ -422,6 +456,28 @@ export const useAdminStore = create<AdminState>()(
         set((state) => ({
           trips: state.trips.filter((trip) => trip.id !== id)
         })),
+
+      getTrip: async (id) => {
+        const state = get();
+        const trip = state.trips?.find(t => t.id === id);
+        if (!trip) {
+          throw new Error(`Trip with id ${id} not found`);
+        }
+        return trip;
+      },
+
+      createTrip: async (tripData) => {
+        const state = get();
+        const newTrip = {
+          ...tripData,
+          id: `t${Date.now()}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        set((state) => ({
+          trips: [newTrip, ...state.trips]
+        }));
+      },
 
       // New CRUD operations
       // Wallet operations

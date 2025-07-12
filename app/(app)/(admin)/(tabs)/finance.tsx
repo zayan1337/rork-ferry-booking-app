@@ -102,8 +102,8 @@ export default function FinanceScreen() {
                         if (value && !isNaN(Number(value))) {
                             addWalletTransaction({
                                 wallet_id: walletId,
-                                user_id: wallets.find(w => w.id === walletId)?.user_id || "",
-                                user_name: wallets.find(w => w.id === walletId)?.user_name || "",
+                                user_id: wallets?.find(w => w.id === walletId)?.user_id || "",
+                                user_name: wallets?.find(w => w.id === walletId)?.user_name || "",
                                 amount: Number(value),
                                 transaction_type: "credit",
                                 description: "Manual credit addition",

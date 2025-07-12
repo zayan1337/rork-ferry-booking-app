@@ -31,7 +31,7 @@ export default function RoleGuard({
     }
 
     // Check if user role is allowed - if not, show unauthorized message
-    if (!allowedRoles.includes(user.profile.role)) {
+    if (!user.profile?.role || !allowedRoles.includes(user.profile.role)) {
         return (
             <AuthLoadingScreen message="Access denied. Redirecting..." />
         );

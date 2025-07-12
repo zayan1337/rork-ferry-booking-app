@@ -79,16 +79,77 @@ export type Booking = {
   isAgentBooking?: boolean;
 };
 
-// Exporting all types for easier importing
-export * from './admin';
-export * from './auth';
-export * from './agent';
+// Base exports without conflicts
 export * from './database';
 export * from './store';
-export * from './booking';
 export * from './customer';
 export * from './components';
-export * from './settings';
+
+// Admin types with explicit re-exports to avoid conflicts  
+export type {
+  Trip as AdminTrip,
+  Vessel as AdminVessel,
+  Route as AdminRoute,
+  User as AdminUser,
+  Booking as AdminBooking,
+  DashboardStats,
+  ActivityLog,
+  WalletTransaction
+} from './admin';
+
+// Auth types with explicit re-exports to avoid conflicts
+export type {
+  UserProfile as AuthUserProfile,
+  UserRole as AuthUserRole
+} from './auth';
+
+// Agent types
+export * from './agent';
+
+// Booking types with explicit re-exports to avoid conflicts
+export type {
+  Trip as BookingTrip,
+  Vessel as BookingVessel
+} from './booking';
+
+// Settings types with explicit re-exports to avoid conflicts - only export what exists
+export type {
+  Permission as SettingsPermission,
+  SystemSettings as SettingsSystemSettings,
+  SettingsStats,
+  SettingsActions
+} from './settings';
+
+// Operations types with aliases for conflicting names - only export what exists
+export type {
+  Trip as OperationsTrip,
+  Vessel as OperationsVessel,
+  Route as OperationsRoute,
+  RouteFormData,
+  VesselFormData,
+  TripFormData,
+  RouteValidationErrors,
+  VesselValidationErrors,
+  TripValidationErrors,
+  RouteStats,
+  VesselStats,
+  TripStats
+} from './operations';
+
+// Export the Route status type as RouteStatus
+export type RouteStatus = "active" | "inactive" | "maintenance";
+
+// User management types with aliases for conflicting names - only export what exists
+export type {
+  UserProfile as UserManagementProfile,
+  UserRole as UserManagementRole,
+  Permission as UserManagementPermission,
+  UserFormData,
+  UserValidationErrors,
+  UserStats,
+  UserActivity as UserManagementActivity,
+  UserSession
+} from './userManagement';
 
 // New dashboard, bookings, and operations types
 export * from './admin/dashboard';
