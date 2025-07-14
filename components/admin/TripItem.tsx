@@ -1,16 +1,29 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "@/constants/adminColors";
-import { ArrowRight, Calendar, Clock, Ship, MapPin } from "lucide-react-native";
+import { ArrowRight, Calendar, Clock, Ship, MapPin, Users, CheckCircle } from "lucide-react-native";
 import StatusBadge from "./StatusBadge";
 import { Trip } from "@/types/admin";
 
 interface TripItemProps {
   trip: Trip;
+  viewMode?: 'card' | 'list' | 'compact';
+  isSelected?: boolean;
+  showSelection?: boolean;
   onPress?: () => void;
+  onLongPress?: () => void;
+  onSelectionToggle?: () => void;
 }
 
-export default function TripItem({ trip, onPress }: TripItemProps) {
+export default function TripItem({ 
+  trip, 
+  viewMode = 'card', 
+  isSelected = false,
+  showSelection = false,
+  onPress, 
+  onLongPress,
+  onSelectionToggle 
+}: TripItemProps) {
   const occupancyPercentage = Math.round((trip.bookings / trip.capacity) * 100);
 
   const getOccupancyColor = () => {
@@ -19,8 +32,91 @@ export default function TripItem({ trip, onPress }: TripItemProps) {
     return colors.success;
   };
 
+  // List view mode - compact horizontal layout
+  if (viewMode === 'list') {
+    return (
+      <TouchableOpacity 
+        style={[styles.listContainer, isSelected && styles.selectedContainer]} 
+        onPress={onPress}
+        onLongPress={onLongPress || onSelectionToggle}
+        activeOpacity={0.7}
+      >
+        <View style={styles.listContent}>
+          <View style={styles.listMain}>
+            <View style={styles.routeInfo}>
+              <MapPin size={14} color={colors.textSecondary} />
+              <Text style={styles.listRouteName} numberOfLines={1}>
+                {trip.routeName}
+              </Text>
+            </View>
+            <Text style={styles.listDateTime}>
+              {trip.date} • {trip.departureTime}
+            </Text>
+          </View>
+          <View style={styles.listMeta}>
+            <StatusBadge status={trip.status} size="small" />
+            <Text style={[styles.occupancyPercent, { color: getOccupancyColor() }]}>
+              {occupancyPercentage}%
+            </Text>
+          </View>
+        </View>
+        {showSelection && (
+          <TouchableOpacity 
+            style={styles.selectionButton}
+            onPress={onSelectionToggle}
+          >
+            <CheckCircle 
+              size={20} 
+              color={isSelected ? colors.primary : colors.textSecondary} 
+              fill={isSelected ? colors.primary : "transparent"}
+            />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  }
+
+  // Compact view mode - minimal info
+  if (viewMode === 'compact') {
+    return (
+      <TouchableOpacity 
+        style={[styles.compactContainer, isSelected && styles.selectedContainer]} 
+        onPress={onPress}
+        onLongPress={onLongPress || onSelectionToggle}
+        activeOpacity={0.7}
+      >
+        <View style={styles.compactHeader}>
+          <Text style={styles.compactTime}>{trip.departureTime}</Text>
+          <StatusBadge status={trip.status} size="small" />
+        </View>
+        <Text style={styles.compactRoute} numberOfLines={1}>
+          {trip.routeName}
+        </Text>
+        <View style={styles.compactMeta}>
+          <Text style={styles.compactVessel} numberOfLines={1}>
+            {trip.vesselName}
+          </Text>
+          <Text style={[styles.compactOccupancy, { color: getOccupancyColor() }]}>
+            {trip.bookings}/{trip.capacity}
+          </Text>
+        </View>
+        {showSelection && isSelected && (
+          <View style={styles.compactSelection}>
+            <CheckCircle size={16} color={colors.primary} fill={colors.primary} />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  }
+
+  // Default card view mode
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity 
+      style={[styles.container, isSelected && styles.selectedContainer]} 
+      onPress={onPress} 
+      onLongPress={onLongPress || onSelectionToggle}
+      activeOpacity={0.7}
+    >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -32,7 +128,21 @@ export default function TripItem({ trip, onPress }: TripItemProps) {
             </Text>
           </View>
         </View>
-        <StatusBadge status={trip.status} size="small" />
+        <View style={styles.headerRight}>
+          <StatusBadge status={trip.status} size="small" />
+          {showSelection && (
+            <TouchableOpacity 
+              style={styles.selectionButton}
+              onPress={onSelectionToggle}
+            >
+              <CheckCircle 
+                size={20} 
+                color={isSelected ? colors.primary : colors.textSecondary} 
+                fill={isSelected ? colors.primary : "transparent"}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Vessel Info */}
@@ -47,40 +157,40 @@ export default function TripItem({ trip, onPress }: TripItemProps) {
           <Calendar size={14} color={colors.textSecondary} />
           <Text style={styles.detailText}>{trip.date}</Text>
         </View>
-
+        
         <View style={styles.timeContainer}>
           <View style={styles.timeItem}>
-            <Clock size={14} color={colors.primary} />
+            <Clock size={12} color={colors.textSecondary} />
             <Text style={styles.timeText}>{trip.departureTime}</Text>
-            <Text style={styles.timeLabel}>Dep</Text>
+            <Text style={styles.timeLabel}>Departure</Text>
           </View>
-
           <ArrowRight size={14} color={colors.textSecondary} />
-
           <View style={styles.timeItem}>
-            <Clock size={14} color={colors.secondary} />
-            <Text style={styles.timeText}>{trip.arrivalTime}</Text>
-            <Text style={styles.timeLabel}>Arr</Text>
+            <Clock size={12} color={colors.textSecondary} />
+            <Text style={styles.timeText}>{trip.arrivalTime || '--:--'}</Text>
+            <Text style={styles.timeLabel}>Arrival</Text>
           </View>
         </View>
       </View>
 
-      {/* Occupancy Info */}
+      {/* Occupancy Section */}
       <View style={styles.occupancySection}>
         <View style={styles.occupancyInfo}>
-          <Text style={styles.passengerCount}>
-            {trip.bookings}/{trip.capacity} passengers
-          </Text>
+          <View style={styles.passengerInfo}>
+            <Users size={14} color={colors.textSecondary} />
+            <Text style={styles.passengerCount}>
+              {trip.bookings}/{trip.capacity} passengers
+            </Text>
+          </View>
           <Text style={[styles.occupancyPercent, { color: getOccupancyColor() }]}>
             {occupancyPercentage}%
           </Text>
         </View>
-
         <View style={styles.occupancyBar}>
           <View
             style={[
               styles.occupancyFill,
-              {
+              { 
                 width: `${Math.min(occupancyPercentage, 100)}%`,
                 backgroundColor: getOccupancyColor()
               }
@@ -88,6 +198,11 @@ export default function TripItem({ trip, onPress }: TripItemProps) {
           />
         </View>
       </View>
+
+      {/* Selection Overlay */}
+      {isSelected && (
+        <View style={styles.selectedOverlay} />
+      )}
     </TouchableOpacity>
   );
 }
@@ -97,11 +212,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
+    marginBottom: 12,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  selectedContainer: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  selectedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.primary + '10',
+    borderRadius: 12,
+    pointerEvents: 'none',
   },
   header: {
     flexDirection: "row",
@@ -111,6 +241,11 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   tripId: {
     fontSize: 12,
@@ -185,6 +320,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  passengerInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   passengerCount: {
     fontSize: 14,
     color: colors.text,
@@ -203,5 +343,96 @@ const styles = StyleSheet.create({
   occupancyFill: {
     height: "100%",
     borderRadius: 3,
+  },
+  selectionButton: {
+    padding: 4,
+  },
+  // List view styles
+  listContainer: {
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  listContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  listMain: {
+    flex: 1,
+  },
+  listRouteName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    flex: 1,
+  },
+  listDateTime: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  listMeta: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  // Compact view styles
+  compactContainer: {
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    padding: 10,
+    margin: 4,
+    minWidth: 140,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    position: 'relative',
+  },
+  compactHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  compactTime: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  compactRoute: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.text,
+    marginBottom: 6,
+  },
+  compactMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  compactVessel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  compactOccupancy: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  compactSelection: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
   },
 });
