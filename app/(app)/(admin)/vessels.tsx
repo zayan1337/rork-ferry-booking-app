@@ -44,6 +44,15 @@ import StatusBadge from "@/components/admin/StatusBadge";
 import StatCard from "@/components/admin/StatCard";
 import EmptyState from "@/components/admin/EmptyState";
 
+// Reusable Admin Components
+import {
+    StatsSection,
+    SearchFilterBar,
+    TabSelector,
+    ListSection
+} from "@/components/admin/common";
+import { VesselStats } from "@/components/admin/operations";
+
 interface VesselListFilters {
     status: "all" | "active" | "inactive" | "maintenance" | "decommissioned";
     vessel_type: "all" | "ferry" | "speedboat" | "catamaran";
@@ -52,6 +61,199 @@ interface VesselListFilters {
 }
 
 const { width: screenWidth } = Dimensions.get('window');
+
+// VesselItem Component
+interface VesselItemProps {
+    vessel: any;
+    onPress: (id: string) => void;
+    onEdit?: (id: string) => void;
+    onDelete?: (vessel: any) => void;
+    canManage?: boolean;
+}
+
+const VesselItem: React.FC<VesselItemProps> = ({ vessel, onPress, onEdit, onDelete, canManage = false }) => {
+    if (!vessel || typeof vessel !== 'object' || !vessel.id) {
+        return null;
+    }
+
+    // Safe string conversion function
+    const safeString = (value: any, fallback: string = '') => {
+        if (value === null || value === undefined) return fallback;
+        return String(value);
+    };
+
+    // Safe utility function calls with fallbacks
+    const getVesselCapacityDisplay = () => {
+        try {
+            if (vessel && vessel.seating_capacity && vessel.crew_capacity && vessel.capacity) {
+                return formatVesselCapacity(vessel);
+            }
+            return 'N/A';
+        } catch (error) {
+            return 'N/A';
+        }
+    };
+
+    const getVesselAgeDisplay = () => {
+        try {
+            if (vessel) {
+                return getVesselAge(vessel);
+            }
+            return 0;
+        } catch (error) {
+            return 0;
+        }
+    };
+
+    const getVesselRatingDisplay = () => {
+        try {
+            if (vessel) {
+                return getVesselEfficiencyRating(vessel);
+            }
+            return 'N/A';
+        } catch (error) {
+            return 'N/A';
+        }
+    };
+
+    const getStatusVariant = (status: string) => {
+        switch (status) {
+            case "active":
+                return "confirmed" as const;
+            case "maintenance":
+                return "pending" as const;
+            case "inactive":
+                return "cancelled" as const;
+            case "decommissioned":
+                return "failed" as const;
+            default:
+                return "pending" as const;
+        }
+    };
+
+    const getEfficiencyColor = (rating: string) => {
+        switch (rating) {
+            case "excellent":
+                return colors.success;
+            case "good":
+                return colors.primary;
+            case "fair":
+                return colors.warning;
+            case "poor":
+                return colors.danger;
+            case "N/A":
+                return colors.textSecondary;
+            default:
+                return colors.textSecondary;
+        }
+    };
+
+    return (
+        <TouchableOpacity
+            style={styles.vesselItem}
+            onPress={() => onPress(vessel.id)}
+            activeOpacity={0.7}
+        >
+            <View style={styles.vesselHeader}>
+                <View style={styles.vesselInfo}>
+                    <View style={styles.vesselNameRow}>
+                        <Ship size={20} color={colors.primary} />
+                        <Text style={styles.vesselName}>
+                            {safeString(vessel?.name, 'Unknown Vessel')}
+                        </Text>
+                        <StatusBadge
+                            status={getStatusVariant(vessel?.status || 'inactive')}
+                        />
+                    </View>
+                    <Text style={styles.vesselRegistration}>
+                        Registration: {safeString(vessel?.registration_number, 'N/A')}
+                    </Text>
+                    <Text style={styles.vesselType}>
+                        {vessel?.vessel_type ?
+                            safeString(vessel.vessel_type.charAt(0).toUpperCase() + vessel.vessel_type.slice(1)) :
+                            'Unknown Type'
+                        }
+                        {vessel?.manufacturer && ` • ${safeString(vessel.manufacturer)}`}
+                    </Text>
+                </View>
+
+                {canManage && (
+                    <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => {
+                            Alert.alert(
+                                "Vessel Actions",
+                                "Choose an action",
+                                [
+                                    { text: "Cancel", style: "cancel" },
+                                    { text: "Edit", onPress: () => onEdit?.(vessel.id) },
+                                    { text: "Archive", style: "destructive", onPress: () => onDelete?.(vessel) },
+                                ]
+                            );
+                        }}
+                    >
+                        <MoreVertical size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            <View style={styles.vesselStats}>
+                <View style={styles.statRow}>
+                    <View style={styles.statItem}>
+                        <Users size={16} color={colors.textSecondary} />
+                        <Text style={styles.statLabel}>Capacity</Text>
+                        <Text style={styles.statValue}>
+                            {getVesselCapacityDisplay()}
+                        </Text>
+                    </View>
+
+                    <View style={styles.statItem}>
+                        <TrendingUp size={16} color={colors.textSecondary} />
+                        <Text style={styles.statLabel}>Utilization</Text>
+                        <Text style={[
+                            styles.statValue,
+                            { color: (vessel?.capacity_utilization_30d || 0) >= 70 ? colors.success : colors.warning }
+                        ]}>
+                            {safeString(vessel?.capacity_utilization_30d || 0)}%
+                        </Text>
+                    </View>
+
+                    <View style={styles.statItem}>
+                        <Calendar size={16} color={colors.textSecondary} />
+                        <Text style={styles.statLabel}>Age</Text>
+                        <Text style={styles.statValue}>
+                            {safeString(getVesselAgeDisplay())} years
+                        </Text>
+                    </View>
+
+                    <View style={styles.statItem}>
+                        <Gauge size={16} color={colors.textSecondary} />
+                        <Text style={styles.statLabel}>Rating</Text>
+                        <Text style={[
+                            styles.statValue,
+                            { color: getEfficiencyColor(getVesselRatingDisplay()) }
+                        ]}>
+                            {safeString(getVesselRatingDisplay())}
+                        </Text>
+                    </View>
+                </View>
+
+                {vessel?.total_trips_30d !== undefined && vessel?.total_trips_30d !== null && (
+                    <View style={styles.additionalStats}>
+                        <Text style={styles.tripsStat}>
+                            {safeString(vessel.total_trips_30d || 0)} trips in last 30 days
+                        </Text>
+                        {vessel?.total_revenue_30d && vessel.total_revenue_30d > 0 && (
+                            <Text style={styles.revenueStat}>
+                                MVR {safeString((vessel.total_revenue_30d || 0).toLocaleString())} revenue
+                            </Text>
+                        )}
+                    </View>
+                )}
+            </View>
+        </TouchableOpacity>
+    );
+};
 
 export default function VesselsScreen() {
     const { vessels, deleteVessel, loading } = useAdminStore();
@@ -71,7 +273,12 @@ export default function VesselsScreen() {
 
     // Filter and sort vessels
     const filteredVessels = useMemo(() => {
-        let result = Array.isArray(vessels) ? vessels : [];
+        let result = Array.isArray(vessels) ? vessels.filter(vessel =>
+            vessel &&
+            typeof vessel === 'object' &&
+            vessel.id &&
+            vessel.name
+        ) : [];
 
         // Apply search
         if (searchQuery.trim()) {
@@ -84,22 +291,25 @@ export default function VesselsScreen() {
             vessel_type: filters.vessel_type === "all" ? undefined : filters.vessel_type,
         });
 
-        // Apply sorting
+        // Apply sorting with safe property access
         result.sort((a, b) => {
+            // Ensure both items exist and have required properties
+            if (!a || !b) return 0;
+
             let aValue, bValue;
 
             switch (filters.sortBy) {
                 case "name":
-                    aValue = a.name.toLowerCase();
-                    bValue = b.name.toLowerCase();
+                    aValue = (a.name || '').toLowerCase();
+                    bValue = (b.name || '').toLowerCase();
                     break;
                 case "created_at":
-                    aValue = new Date(a.created_at).getTime();
-                    bValue = new Date(b.created_at).getTime();
+                    aValue = a.created_at ? new Date(a.created_at).getTime() : 0;
+                    bValue = b.created_at ? new Date(b.created_at).getTime() : 0;
                     break;
                 case "seating_capacity":
-                    aValue = a.seating_capacity;
-                    bValue = b.seating_capacity;
+                    aValue = a.seating_capacity || 0;
+                    bValue = b.seating_capacity || 0;
                     break;
                 case "capacity_utilization_30d":
                     aValue = a.capacity_utilization_30d || 0;
@@ -228,250 +438,9 @@ export default function VesselsScreen() {
         }));
     };
 
-    const getStatusVariant = (status: string) => {
-        switch (status) {
-            case "active":
-                return "confirmed" as const;
-            case "maintenance":
-                return "pending" as const;
-            case "inactive":
-                return "cancelled" as const;
-            case "decommissioned":
-                return "failed" as const;
-            default:
-                return "pending" as const;
-        }
-    };
 
-    const getEfficiencyColor = (rating: string) => {
-        switch (rating) {
-            case "excellent":
-                return colors.success;
-            case "good":
-                return colors.primary;
-            case "fair":
-                return colors.warning;
-            case "poor":
-                return colors.danger;
-            default:
-                return colors.textSecondary;
-        }
-    };
 
-    const renderVesselItem = ({ item: vessel }: { item: any }) => {
-        // Ensure vessel has required properties
-        if (!vessel || typeof vessel !== 'object') {
-            return null;
-        }
 
-        // Safe string conversion function
-        const safeString = (value: any, fallback: string = '') => {
-            if (value === null || value === undefined) return fallback;
-            return String(value);
-        };
-
-        return (
-            <TouchableOpacity
-                key={vessel.id || 'unknown'}
-                style={styles.vesselItem}
-                onPress={() => handleVesselPress(vessel.id)}
-            >
-                <View style={styles.vesselHeader}>
-                    <View style={styles.vesselInfo}>
-                        <View style={styles.vesselNameRow}>
-                            <Ship size={20} color={colors.primary} />
-                            <Text style={styles.vesselName}>
-                                {safeString(vessel?.name, 'Unknown Vessel')}
-                            </Text>
-                            <StatusBadge
-                                status={getStatusVariant(vessel?.status || 'inactive')}
-                                label={safeString(vessel?.status, 'unknown')}
-                            />
-                        </View>
-                        <Text style={styles.vesselRegistration}>
-                            Registration: {safeString(vessel?.registration_number, 'N/A')}
-                        </Text>
-                        <Text style={styles.vesselType}>
-                            {vessel?.vessel_type ?
-                                safeString(vessel.vessel_type.charAt(0).toUpperCase() + vessel.vessel_type.slice(1)) :
-                                'Unknown Type'
-                            }
-                            {vessel?.manufacturer && ` • ${safeString(vessel.manufacturer)}`}
-                        </Text>
-                    </View>
-
-                    {canManageVessels() && (
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => {
-                                Alert.alert(
-                                    "Vessel Actions",
-                                    "Choose an action",
-                                    [
-                                        { text: "Cancel", style: "cancel" },
-                                        { text: "Edit", onPress: () => handleEditVessel(vessel.id) },
-                                        { text: "Archive", style: "destructive", onPress: () => handleDeleteVessel(vessel) },
-                                    ]
-                                );
-                            }}
-                        >
-                            <MoreVertical size={20} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                    )}
-                </View>
-
-                <View style={styles.vesselStats}>
-                    <View style={styles.statRow}>
-                        <View style={styles.statItem}>
-                            <Users size={16} color={colors.textSecondary} />
-                            <Text style={styles.statLabel}>Capacity</Text>
-                            <Text style={styles.statValue}>
-                                {vessel ? String(formatVesselCapacity(vessel)) : 'N/A'}
-                            </Text>
-                        </View>
-
-                        <View style={styles.statItem}>
-                            <TrendingUp size={16} color={colors.textSecondary} />
-                            <Text style={styles.statLabel}>Utilization</Text>
-                            <Text style={[
-                                styles.statValue,
-                                { color: (vessel?.capacity_utilization_30d || 0) >= 70 ? colors.success : colors.warning }
-                            ]}>
-                                {String(vessel?.capacity_utilization_30d || 0)}%
-                            </Text>
-                        </View>
-
-                        <View style={styles.statItem}>
-                            <Calendar size={16} color={colors.textSecondary} />
-                            <Text style={styles.statLabel}>Age</Text>
-                            <Text style={styles.statValue}>
-                                {vessel ? String(getVesselAge(vessel)) : '0'} years
-                            </Text>
-                        </View>
-
-                        <View style={styles.statItem}>
-                            <Gauge size={16} color={colors.textSecondary} />
-                            <Text style={styles.statLabel}>Rating</Text>
-                            <Text style={[
-                                styles.statValue,
-                                { color: vessel ? getEfficiencyColor(getVesselEfficiencyRating(vessel)) : colors.textSecondary }
-                            ]}>
-                                {vessel ? String(getVesselEfficiencyRating(vessel)) : 'N/A'}
-                            </Text>
-                        </View>
-                    </View>
-
-                    {vessel?.total_trips_30d !== undefined && vessel?.total_trips_30d !== null && (
-                        <View style={styles.additionalStats}>
-                            <Text style={styles.tripsStat}>
-                                {String(vessel.total_trips_30d || 0)} trips in last 30 days
-                            </Text>
-                            {vessel?.total_revenue_30d && vessel.total_revenue_30d > 0 && (
-                                <Text style={styles.revenueStat}>
-                                    MVR {String((vessel.total_revenue_30d || 0).toLocaleString())} revenue
-                                </Text>
-                            )}
-                        </View>
-                    )}
-                </View>
-            </TouchableOpacity>
-        );
-    };
-
-    const renderFilters = () => (
-        <View style={styles.filtersContainer}>
-            <View style={styles.filterRow}>
-                <View style={styles.filterGroup}>
-                    <Text style={styles.filterLabel}>Status</Text>
-                    <View style={styles.filterButtons}>
-                        {[
-                            { key: "all", label: "All" },
-                            { key: "active", label: "Active" },
-                            { key: "maintenance", label: "Maintenance" },
-                            { key: "inactive", label: "Inactive" },
-                        ].map(status => (
-                            <TouchableOpacity
-                                key={status.key}
-                                style={[
-                                    styles.filterButton,
-                                    filters.status === status.key && styles.filterButtonActive
-                                ]}
-                                onPress={() => setFilters(prev => ({ ...prev, status: status.key as any }))}
-                            >
-                                <Text style={[
-                                    styles.filterButtonText,
-                                    filters.status === status.key && styles.filterButtonTextActive
-                                ]}>
-                                    {status.label}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                <View style={styles.filterGroup}>
-                    <Text style={styles.filterLabel}>Type</Text>
-                    <View style={styles.filterButtons}>
-                        {[
-                            { key: "all", label: "All" },
-                            { key: "ferry", label: "Ferry" },
-                            { key: "speedboat", label: "Speedboat" },
-                            { key: "catamaran", label: "Catamaran" },
-                        ].map(type => (
-                            <TouchableOpacity
-                                key={type.key}
-                                style={[
-                                    styles.filterButton,
-                                    filters.vessel_type === type.key && styles.filterButtonActive
-                                ]}
-                                onPress={() => setFilters(prev => ({ ...prev, vessel_type: type.key as any }))}
-                            >
-                                <Text style={[
-                                    styles.filterButtonText,
-                                    filters.vessel_type === type.key && styles.filterButtonTextActive
-                                ]}>
-                                    {type.label}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-            </View>
-
-            <View style={styles.sortRow}>
-                <Text style={styles.filterLabel}>Sort by</Text>
-                <View style={styles.sortButtons}>
-                    {[
-                        { key: "name", label: "Name" },
-                        { key: "seating_capacity", label: "Capacity" },
-                        { key: "capacity_utilization_30d", label: "Utilization" },
-                        { key: "year_built", label: "Age" },
-                    ].map(sort => (
-                        <TouchableOpacity
-                            key={sort.key}
-                            style={[
-                                styles.sortButton,
-                                filters.sortBy === sort.key && styles.sortButtonActive
-                            ]}
-                            onPress={() => handleSort(sort.key as any)}
-                        >
-                            <Text style={[
-                                styles.sortButtonText,
-                                filters.sortBy === sort.key && styles.sortButtonTextActive
-                            ]}>
-                                {sort.label}
-                            </Text>
-                            {filters.sortBy === sort.key && (
-                                filters.sortDirection === "asc"
-                                    ? <SortAsc size={16} color={colors.primary} />
-                                    : <SortDesc size={16} color={colors.primary} />
-                            )}
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
-        </View>
-    );
 
     if (!canViewVessels()) {
         return (
@@ -510,74 +479,157 @@ export default function VesselsScreen() {
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <SectionHeader
-                        title="Vessels Management"
-                        subtitle={`${filteredVessels.length} vessels found`}
-                    />
-                    {canManageVessels() && (
-                        <Button
-                            title="Add Vessel"
-                            onPress={handleAddVessel}
-                            size="small"
-                            variant="primary"
-                            icon={<Plus size={16} color="white" />}
+                    <View style={styles.headerContent}>
+                        <SectionHeader
+                            title="Vessels Management"
+                            subtitle={`${filteredVessels.length} vessels found`}
                         />
+                    </View>
+                    {canManageVessels() && (
+                        <View style={styles.headerAction}>
+                            <Button
+                                title={isSmallScreen ? "Add" : "Add Vessel"}
+                                onPress={handleAddVessel}
+                                size="small"
+                                variant="primary"
+                                icon={<Plus size={16} color="white" />}
+                            />
+                        </View>
                     )}
                 </View>
 
                 {/* Statistics */}
-                <View style={[styles.statsGrid, isTablet && styles.statsGridTablet]}>
-                    {stats.map((stat, index) => (
-                        <StatCard
-                            key={index}
-                            title={stat.title}
-                            value={stat.value}
-                            icon={stat.icon}
-                            trend={stat.trend}
-                            style={isTablet ? styles.statCardTablet : styles.statCard}
-                        />
-                    ))}
-                </View>
+                <StatsSection
+                    title=""
+                    subtitle=""
+                    stats={stats.map(stat => ({
+                        title: stat.title,
+                        value: stat.value,
+                        icon: stat.icon,
+                        trend: stat.trend === "up" ? "up" : stat.trend === "down" ? "down" : undefined
+                    }))}
+                    isTablet={isTablet}
+                    headerSize="small"
+                />
 
                 {/* Search and Filters */}
-                <View style={styles.searchContainer}>
-                    <SearchBar
-                        placeholder="Search vessels..."
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
+                <SearchFilterBar
+                    searchValue={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    searchPlaceholder="Search vessels..."
+                    rightActions={[
+                        {
+                            icon: <Filter size={20} color={showFilters ? "white" : colors.primary} />,
+                            onPress: () => setShowFilters(!showFilters),
+                            variant: showFilters ? "primary" : "outline",
+                            size: "medium",
+                            title: showFilters ? "Hide Filters" : "Filters"
+                        }
+                    ]}
+                />
+
+                {/* Quick Filter Tabs */}
+                <View style={styles.quickFilters}>
+                    <TabSelector
+                        options={[
+                            { key: "all", label: "All", },
+                            { key: "active", label: "Active" },
+                            { key: "maintenance", label: "Maintenance" },
+                            { key: "inactive", label: "Inactive" },
+                        ]}
+                        activeTab={filters.status}
+                        onTabChange={(tab) => setFilters(prev => ({ ...prev, status: tab as any }))}
+                        variant="pills"
+                        showCounts={filters.status === "all"}
                     />
-                    <TouchableOpacity
-                        style={[styles.filterToggle, showFilters && styles.filterToggleActive]}
-                        onPress={() => setShowFilters(!showFilters)}
-                    >
-                        <Filter size={20} color={showFilters ? colors.primary : colors.textSecondary} />
-                    </TouchableOpacity>
+
+                    <TabSelector
+                        options={[
+                            { key: "all", label: "All Types" },
+                            { key: "ferry", label: "Ferry" },
+                            { key: "speedboat", label: "Speedboat" },
+                            { key: "catamaran", label: "Catamaran" },
+                        ]}
+                        activeTab={filters.vessel_type}
+                        onTabChange={(tab) => setFilters(prev => ({ ...prev, vessel_type: tab as any }))}
+                        variant="pills"
+                    />
                 </View>
 
-                {showFilters && renderFilters()}
+                {/* Advanced Filters */}
+                {showFilters && (
+                    <View style={styles.advancedFilters}>
+                        <Text style={styles.filterSectionTitle}>Sort Options</Text>
+                        <TabSelector
+                            options={[
+                                { key: "name", label: "Name" },
+                                { key: "seating_capacity", label: "Capacity" },
+                                { key: "capacity_utilization_30d", label: "Utilization" },
+                                { key: "year_built", label: "Age" },
+                            ]}
+                            activeTab={filters.sortBy}
+                            onTabChange={(tab) => handleSort(tab as any)}
+                            variant="cards"
+                        />
+                        <View style={styles.sortDirection}>
+                            <TouchableOpacity
+                                style={[styles.sortDirectionButton, filters.sortDirection === "asc" && styles.sortDirectionActive]}
+                                onPress={() => setFilters(prev => ({ ...prev, sortDirection: "asc" }))}
+                            >
+                                <SortAsc size={16} color={filters.sortDirection === "asc" ? colors.primary : colors.textSecondary} />
+                                <Text style={[styles.sortDirectionText, filters.sortDirection === "asc" && styles.sortDirectionTextActive]}>
+                                    Ascending
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.sortDirectionButton, filters.sortDirection === "desc" && styles.sortDirectionActive]}
+                                onPress={() => setFilters(prev => ({ ...prev, sortDirection: "desc" }))}
+                            >
+                                <SortDesc size={16} color={filters.sortDirection === "desc" ? colors.primary : colors.textSecondary} />
+                                <Text style={[styles.sortDirectionText, filters.sortDirection === "desc" && styles.sortDirectionTextActive]}>
+                                    Descending
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
 
                 {/* Vessels List */}
-                {filteredVessels.length > 0 ? (
-                    <FlatList
-                        data={filteredVessels.filter(vessel => vessel && vessel.id)}
-                        renderItem={renderVesselItem}
-                        keyExtractor={(item) => item?.id || 'unknown'}
-                        scrollEnabled={false}
-                        style={styles.vesselsList}
-                        contentContainerStyle={styles.vesselsListContent}
-                        ItemSeparatorComponent={() => <View style={styles.separator} />}
-                    />
-                ) : (
-                    <EmptyState
-                        title="No vessels found"
-                        message={searchQuery ? "Try adjusting your search terms" : "No vessels available"}
-                        icon={<Ship size={48} color={colors.textSecondary} />}
-                        action={canManageVessels() ? {
-                            label: "Add First Vessel",
-                            onPress: handleAddVessel,
-                        } : undefined}
-                    />
-                )}
+                <View style={styles.vesselsList}>
+                    {filteredVessels.length > 0 ? (
+                        <View style={styles.vesselsContainer}>
+                            {filteredVessels.filter(vessel =>
+                                vessel &&
+                                typeof vessel === 'object' &&
+                                vessel.id &&
+                                vessel.name
+                            ).map((vessel) => (
+                                <VesselItem
+                                    key={vessel.id}
+                                    vessel={vessel}
+                                    onPress={handleVesselPress}
+                                    onEdit={handleEditVessel}
+                                    onDelete={handleDeleteVessel}
+                                    canManage={canManageVessels()}
+                                />
+                            ))}
+                        </View>
+                    ) : (
+                        <EmptyState
+                            title="No vessels found"
+                            message={searchQuery ? "Try adjusting your search terms" : "No vessels available"}
+                            icon={<Ship size={48} color={colors.textSecondary} />}
+                            action={canManageVessels() ? (
+                                <Button
+                                    title="Add First Vessel"
+                                    onPress={handleAddVessel}
+                                    variant="primary"
+                                    size="small"
+                                />
+                            ) : undefined}
+                        />
+                    )}
+                </View>
             </ScrollView>
         </View>
     );
@@ -598,121 +650,71 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 20,
         minHeight: 44,
-    },
-    statsGrid: {
-        flexDirection: "row",
-        flexWrap: "wrap",
         gap: 12,
-        marginBottom: 20,
     },
-    statsGridTablet: {
-        justifyContent: "space-between",
+    headerContent: {
+        flex: 1,
+        minWidth: 0, // Allow shrinking
     },
-    statCard: {
-        width: screenWidth >= 768 ? "23%" : "48%",
+    headerAction: {
+        flexShrink: 0, // Prevent shrinking
     },
-    statCardTablet: {
-        width: "23%",
-    },
-    searchContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
+    quickFilters: {
+        gap: 16,
         marginBottom: 16,
     },
-    filterToggle: {
-        padding: 12,
-        borderRadius: 8,
-        backgroundColor: colors.card,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    filterToggleActive: {
-        backgroundColor: colors.primary + "10",
-        borderColor: colors.primary,
-    },
-    filtersContainer: {
+    advancedFilters: {
         backgroundColor: colors.card,
         padding: 16,
         borderRadius: 12,
         marginBottom: 16,
         gap: 16,
     },
-    filterRow: {
-        gap: 16,
-    },
-    filterGroup: {
-        gap: 8,
-    },
-    filterLabel: {
-        fontSize: 14,
+    filterSectionTitle: {
+        fontSize: 16,
         fontWeight: "600",
         color: colors.text,
+        marginBottom: 8,
     },
-    filterButtons: {
+    sortDirection: {
         flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
+        gap: 12,
+        marginTop: 12,
     },
-    filterButton: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 6,
-        backgroundColor: colors.backgroundSecondary,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    filterButtonActive: {
-        backgroundColor: colors.primary,
-        borderColor: colors.primary,
-    },
-    filterButtonText: {
-        fontSize: 12,
-        color: colors.textSecondary,
-    },
-    filterButtonTextActive: {
-        color: "white",
-        fontWeight: "500",
-    },
-    sortRow: {
-        gap: 8,
-    },
-    sortButtons: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
-    },
-    sortButton: {
+    sortDirectionButton: {
+        flex: 1,
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 6,
+        justifyContent: "center",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 8,
         backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
         borderColor: colors.border,
-        gap: 4,
+        gap: 8,
     },
-    sortButtonActive: {
+    sortDirectionActive: {
         backgroundColor: colors.primary + "10",
         borderColor: colors.primary,
     },
-    sortButtonText: {
-        fontSize: 12,
+    sortDirectionText: {
+        fontSize: 14,
+        fontWeight: "500",
         color: colors.textSecondary,
     },
-    sortButtonTextActive: {
+    sortDirectionTextActive: {
         color: colors.primary,
-        fontWeight: "500",
     },
     vesselsList: {
         flex: 1,
     },
-    vesselsListContent: {
+    vesselsContainer: {
         gap: 12,
     },
+
+
     vesselItem: {
         backgroundColor: colors.card,
         borderRadius: 12,
@@ -797,11 +799,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: colors.success,
         fontWeight: "500",
-    },
-    separator: {
-        height: 1,
-        backgroundColor: colors.border,
-        marginVertical: 6,
     },
     noPermissionContainer: {
         flex: 1,
