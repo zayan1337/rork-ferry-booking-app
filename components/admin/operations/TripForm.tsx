@@ -23,13 +23,9 @@ import {
     Calendar,
     Ship,
     Users,
-    AlertCircle,
     Save,
     X,
-    CheckCircle,
-    AlertTriangle,
-    Route,
-    Navigation
+    DollarSign
 } from 'lucide-react-native';
 
 interface TripFormProps {
@@ -78,72 +74,55 @@ export default function TripForm({
         formData,
         errors,
         isLoading,
-        isSubmitting,
-        availableRoutes,
-        availableVessels,
+        updateFormData,
+        resetForm,
         selectedRoute,
         selectedVessel,
-        updateFormData,
-        handleSubmit,
-        resetForm,
+        routeOptions,
+        vesselOptions,
         getFieldError,
+        validateField,
+        isFormValid,
+        hasChanges: formHasChanges,
     } = useTripForm(hookOptions);
 
-    // Don't render the form until initial data is loaded in edit mode
-    if (isEditMode && loadingInitialData) {
+    const handleSave = async () => {
+        if (!isFormValid()) {
+            Alert.alert('Validation Error', 'Please fix the form errors before saving.');
+            return;
+        }
+
+        try {
+            if (onSave) {
+                await onSave(formData);
+            }
+        } catch (error) {
+            console.error('Error saving trip:', error);
+        }
+    };
+
+    const handleCancel = () => {
+        if (isEditMode && formHasChanges()) {
+            Alert.alert(
+                'Discard Changes?',
+                'You have unsaved changes. Are you sure you want to cancel?',
+                [
+                    { text: 'Keep Editing', style: 'cancel' },
+                    { text: 'Discard', style: 'destructive', onPress: onCancel },
+                ]
+            );
+        } else {
+            onCancel?.();
+        }
+    };
+
+    if (loadingInitialData) {
         return (
             <View style={styles.loadingContainer}>
                 <Text style={styles.loadingText}>Loading trip data...</Text>
             </View>
         );
     }
-
-    const handleSave = async () => {
-        try {
-            const savedTrip = await handleSubmit();
-            if (savedTrip) {
-                onSave?.(formData);
-                if (!isEditMode) {
-                    Alert.alert('Success', 'Trip scheduled successfully!');
-                } else {
-                    Alert.alert('Success', 'Trip updated successfully!');
-                }
-            }
-        } catch (error) {
-            Alert.alert('Error', error instanceof Error ? error.message : 'Failed to save trip');
-        }
-    };
-
-    const handleCancel = () => {
-        if (isEditMode) {
-            resetForm();
-        }
-        onCancel?.();
-    };
-
-    const routeOptions = availableRoutes.map(route => ({
-        label: `${route.name} (${route.origin} → ${route.destination})`,
-        value: route.id,
-    }));
-
-    const vesselOptions = availableVessels.map(vessel => ({
-        label: `${vessel.name} (${vessel.vessel_type} - ${vessel.seating_capacity} seats)`,
-        value: vessel.id,
-    }));
-
-    const hasChanges = () => {
-        return Object.values(formData).some(value =>
-            value !== null && value !== undefined && value !== ''
-        );
-    };
-
-    const formatTime = (time: string) => {
-        if (!time) return '';
-        return new Date(`1970-01-01T${time}`).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
 
     return (
         <KeyboardAvoidingView
@@ -156,240 +135,184 @@ export default function TripForm({
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerContent}>
-                        <Text style={styles.title}>
-                            {isEditMode ? 'Edit Trip' : 'Schedule New Trip'}
-                        </Text>
-                        <Text style={styles.subtitle}>
-                            {isEditMode ? 'Update trip details' : 'Create a new ferry trip'}
-                        </Text>
+                {/* Route & Vessel Section */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <MapPin size={20} color={colors.primary} />
+                        <Text style={styles.sectionTitle}>Route & Vessel</Text>
                     </View>
-                    {isModal && (
-                        <TouchableOpacity
-                            style={styles.closeButton}
-                            onPress={handleCancel}
-                        >
-                            <X size={24} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                    )}
+
+                    <View style={styles.fieldGroup}>
+                        <Dropdown
+                            label="Route"
+                            value={formData.route_id || ''}
+                            onChange={(value) => updateFormData({ route_id: value })}
+                            items={routeOptions}
+                            placeholder="Select a route"
+                            error={getFieldError('route_id')}
+                            required
+                        />
+                        {selectedRoute && (
+                            <View style={styles.infoBox}>
+                                <Text style={styles.infoText}>
+                                    {selectedRoute.origin} → {selectedRoute.destination} •
+                                    {selectedRoute.distance} • Duration: {selectedRoute.duration} •
+                                    Base Fare: MVR {selectedRoute.base_fare}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                        <Dropdown
+                            label="Vessel"
+                            value={formData.vessel_id || ''}
+                            onChange={(value) => updateFormData({ vessel_id: value })}
+                            items={vesselOptions}
+                            placeholder="Select a vessel"
+                            error={getFieldError('vessel_id')}
+                            required
+                        />
+                        {selectedVessel && (
+                            <View style={styles.infoBox}>
+                                <Text style={styles.infoText}>
+                                    Type: {selectedVessel.vessel_type} •
+                                    Capacity: {selectedVessel.seating_capacity} passengers
+                                </Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
 
-                {/* Form Fields */}
-                <View style={styles.formContainer}>
-                    {/* Route and Vessel Selection */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Route & Vessel</Text>
-
-                        <View style={styles.field}>
-                            <Dropdown
-                                label="Select Route"
-                                value={formData.route_id || ''}
-                                onChange={(value) => {
-                                    updateFormData({ route_id: value });
-                                }}
-                                items={routeOptions}
-                                placeholder="Choose a route"
-                                error={getFieldError('route_id')}
-                                required
-                            />
-                            {selectedRoute && (
-                                <View style={styles.routeInfo}>
-                                    <Text style={styles.routeInfoText}>
-                                        Distance: {selectedRoute.distance} •
-                                        Duration: {selectedRoute.duration} •
-                                        Fare: MVR {selectedRoute.base_fare}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
-
-                        <View style={styles.field}>
-                            <Dropdown
-                                label="Select Vessel"
-                                value={formData.vessel_id || ''}
-                                onChange={(value) => {
-                                    updateFormData({ vessel_id: value });
-                                }}
-                                items={vesselOptions}
-                                placeholder="Choose a vessel"
-                                error={getFieldError('vessel_id')}
-                                required
-                            />
-                            {selectedVessel && (
-                                <View style={styles.vesselInfo}>
-                                    <Text style={styles.vesselInfoText}>
-                                        Type: {selectedVessel.vessel_type} •
-                                        Capacity: {selectedVessel.seating_capacity} passengers
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
+                {/* Schedule Section */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Calendar size={20} color={colors.primary} />
+                        <Text style={styles.sectionTitle}>Schedule</Text>
                     </View>
 
-                    {/* Schedule Details */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Schedule</Text>
-
-                        <View style={styles.field}>
+                    <View style={styles.fieldRow}>
+                        <View style={styles.fieldHalf}>
                             <Input
                                 label="Travel Date"
                                 value={formData.travel_date || ''}
-                                onChangeText={(date) => {
-                                    updateFormData({ travel_date: date });
-                                }}
+                                onChangeText={(date) => updateFormData({ travel_date: date })}
                                 placeholder="YYYY-MM-DD"
                                 error={getFieldError('travel_date')}
-                                leftIcon={<Calendar size={20} color={colors.textSecondary} />}
                                 required
                             />
                         </View>
-
-                        <View style={styles.row}>
-                            <View style={[styles.field, styles.halfWidth]}>
-                                <Input
-                                    label="Departure Time"
-                                    value={formData.departure_time || ''}
-                                    onChangeText={(time) => {
-                                        updateFormData({ departure_time: time });
-                                    }}
-                                    placeholder="HH:MM"
-                                    error={getFieldError('departure_time')}
-                                    leftIcon={<Clock size={20} color={colors.textSecondary} />}
-                                    required
-                                />
-                            </View>
-
-                            <View style={[styles.field, styles.halfWidth]}>
-                                <Input
-                                    label="Arrival Time"
-                                    value={formData.arrival_time || ''}
-                                    onChangeText={(time) => {
-                                        updateFormData({ arrival_time: time });
-                                    }}
-                                    placeholder="Auto-calculated"
-                                    error={getFieldError('arrival_time')}
-                                    leftIcon={<Clock size={20} color={colors.textSecondary} />}
-                                />
-                                {formData.arrival_time && (
-                                    <Text style={styles.autoCalculatedText}>
-                                        Based on route duration
-                                    </Text>
-                                )}
-                            </View>
+                        <View style={styles.fieldHalf}>
+                            <Input
+                                label="Departure Time"
+                                value={formData.departure_time || ''}
+                                onChangeText={(time) => updateFormData({ departure_time: time })}
+                                placeholder="HH:MM"
+                                error={getFieldError('departure_time')}
+                                required
+                            />
                         </View>
                     </View>
 
-                    {/* Pricing */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Pricing</Text>
+                    <View style={styles.fieldRow}>
+                        <View style={styles.fieldHalf}>
+                            <Input
+                                label="Arrival Time"
+                                value={formData.arrival_time || ''}
+                                onChangeText={(time) => updateFormData({ arrival_time: time })}
+                                placeholder="HH:MM"
+                                error={getFieldError('arrival_time')}
+                            />
+                        </View>
+                        <View style={styles.fieldHalf}>
+                            <Input
+                                label="Estimated Duration"
+                                value={formData.estimated_duration?.toString() || ''}
+                                onChangeText={(duration) => updateFormData({ estimated_duration: parseInt(duration) || 0 })}
+                                placeholder="Minutes"
+                                keyboardType="numeric"
+                                error={getFieldError('estimated_duration')}
+                            />
+                        </View>
+                    </View>
+                </View>
 
-                        <View style={styles.field}>
+                {/* Pricing & Capacity Section */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <DollarSign size={20} color={colors.primary} />
+                        <Text style={styles.sectionTitle}>Pricing & Capacity</Text>
+                    </View>
+
+                    <View style={styles.fieldRow}>
+                        <View style={styles.fieldHalf}>
                             <Input
                                 label="Fare Multiplier"
                                 value={formData.fare_multiplier?.toString() || '1'}
-                                onChangeText={(text) => {
-                                    const value = parseFloat(text) || 1;
-                                    updateFormData({ fare_multiplier: value });
-                                }}
+                                onChangeText={(multiplier) => updateFormData({ fare_multiplier: parseFloat(multiplier) || 1 })}
                                 placeholder="1.0"
-                                keyboardType="numeric"
+                                keyboardType="decimal-pad"
                                 error={getFieldError('fare_multiplier')}
-                                leftIcon={<MapPin size={20} color={colors.textSecondary} />}
                                 required
                             />
-                            <Text style={styles.fieldHint}>
-                                Multiplier for base fare (1.0 = normal price, 1.5 = 50% increase)
-                            </Text>
+                        </View>
+                        <View style={styles.fieldHalf}>
+                            <Input
+                                label="Available Seats"
+                                value={formData.available_seats?.toString() || ''}
+                                onChangeText={(seats) => updateFormData({ available_seats: parseInt(seats) || undefined })}
+                                placeholder="Auto"
+                                keyboardType="numeric"
+                                error={getFieldError('available_seats')}
+                            />
                         </View>
                     </View>
 
-                    {/* Additional Information */}
-                    <View style={styles.section}>
+                    {selectedRoute && formData.fare_multiplier && (
+                        <View style={styles.infoBox}>
+                            <Text style={styles.infoText}>
+                                Trip Fare: MVR {(selectedRoute.base_fare * formData.fare_multiplier).toFixed(2)} per passenger
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Additional Information */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Additional Information</Text>
-
-                        <View style={styles.field}>
-                            <Input
-                                label="Notes"
-                                value={formData.notes || ''}
-                                onChangeText={(text) => {
-                                    updateFormData({ notes: text });
-                                }}
-                                placeholder="Any special instructions or notes (optional)"
-                                multiline
-                                numberOfLines={3}
-                                error={getFieldError('notes')}
-                            />
-                        </View>
-
-                        <View style={styles.field}>
-                            <Input
-                                label="Weather Conditions"
-                                value={formData.weather_conditions || ''}
-                                onChangeText={(text) => {
-                                    updateFormData({ weather_conditions: text });
-                                }}
-                                placeholder="Weather conditions for this trip (optional)"
-                                error={getFieldError('weather_conditions')}
-                            />
-                        </View>
-
-                        <View style={styles.field}>
-                            <Input
-                                label="Captain ID"
-                                value={formData.captain_id || ''}
-                                onChangeText={(text) => {
-                                    updateFormData({ captain_id: text });
-                                }}
-                                placeholder="Captain identifier (optional)"
-                                error={getFieldError('captain_id')}
-                            />
-                        </View>
                     </View>
 
-                    {/* Error Summary */}
-                    {Object.keys(errors).length > 0 && (
-                        <View style={styles.errorContainer}>
-                            <View style={styles.errorHeader}>
-                                <AlertCircle size={16} color={colors.danger} />
-                                <Text style={styles.errorTitle}>Please fix the following errors:</Text>
-                            </View>
-                            {Object.entries(errors).map(([field, error]) => (
-                                <Text key={field} style={styles.errorText}>
-                                    • {error}
-                                </Text>
-                            ))}
-                        </View>
-                    )}
-
-                    {/* Success Message */}
-                    {selectedRoute && selectedVessel && formData.departure_time && Object.keys(errors).length === 0 && (
-                        <View style={styles.successContainer}>
-                            <CheckCircle size={16} color={colors.success} />
-                            <Text style={styles.successText}>
-                                Trip is ready to be scheduled.
-                            </Text>
-                        </View>
-                    )}
+                    <Input
+                        label="Special Notes"
+                        value={formData.special_notes || ''}
+                        onChangeText={(notes) => updateFormData({ special_notes: notes })}
+                        placeholder="Any special instructions or notes for this trip"
+                        multiline
+                        numberOfLines={3}
+                        error={getFieldError('special_notes')}
+                    />
                 </View>
             </ScrollView>
 
             {/* Action Buttons */}
-            <View style={styles.actionContainer}>
+            <View style={styles.actionButtons}>
                 <Button
                     title="Cancel"
-                    variant="ghost"
                     onPress={handleCancel}
-                    disabled={isSubmitting}
+                    variant="outline"
+                    size="large"
+                    style={styles.cancelButton}
                 />
                 <Button
-                    title={isEditMode ? 'Update Trip' : 'Schedule Trip'}
-                    variant="primary"
+                    title={isEditMode ? "Update Trip" : "Create Trip"}
                     onPress={handleSave}
-                    loading={isSubmitting}
-                    disabled={!hasChanges()}
+                    variant="primary"
+                    size="large"
+                    loading={isLoading}
+                    disabled={!isFormValid()}
                     icon={<Save size={18} color="#FFFFFF" />}
+                    style={styles.saveButton}
                 />
             </View>
         </KeyboardAvoidingView>
@@ -401,142 +324,78 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+    },
     scrollView: {
         flex: 1,
     },
     contentContainer: {
         padding: 16,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 24,
-    },
-    headerContent: {
-        flex: 1,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: colors.text,
-        marginBottom: 4,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: colors.textSecondary,
-    },
-    closeButton: {
-        padding: 8,
-        borderRadius: 8,
-        backgroundColor: colors.card,
-    },
-    formContainer: {
-        gap: 24,
+        gap: 20,
     },
     section: {
-        gap: 16,
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        gap: 8,
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: '600',
+        fontWeight: '700',
         color: colors.text,
     },
-    field: {
-        gap: 8,
+    fieldGroup: {
+        marginBottom: 16,
     },
-    fieldHint: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        marginTop: 4,
-    },
-    row: {
+    fieldRow: {
         flexDirection: 'row',
         gap: 12,
+        marginBottom: 16,
     },
-    halfWidth: {
+    fieldHalf: {
         flex: 1,
     },
-    routeInfo: {
-        backgroundColor: colors.card,
-        borderRadius: 6,
-        padding: 8,
-        marginTop: 4,
-    },
-    routeInfoText: {
-        fontSize: 12,
-        color: colors.textSecondary,
-    },
-    vesselInfo: {
-        backgroundColor: colors.card,
-        borderRadius: 6,
-        padding: 8,
-        marginTop: 4,
-    },
-    vesselInfoText: {
-        fontSize: 12,
-        color: colors.textSecondary,
-    },
-    autoCalculatedText: {
-        fontSize: 11,
-        color: colors.textSecondary,
-        marginTop: 4,
-        fontStyle: 'italic',
-    },
-    errorContainer: {
-        backgroundColor: colors.danger + '10',
-        borderWidth: 1,
-        borderColor: colors.danger + '30',
+    infoBox: {
+        backgroundColor: colors.backgroundSecondary,
         borderRadius: 8,
-        padding: 16,
+        padding: 12,
+        marginTop: 8,
     },
-    errorHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 8,
+    infoText: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        lineHeight: 18,
     },
-    errorTitle: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.danger,
-    },
-    errorText: {
-        fontSize: 14,
-        color: colors.danger,
-        marginBottom: 4,
-    },
-    successContainer: {
-        backgroundColor: colors.success + '10',
-        borderWidth: 1,
-        borderColor: colors.success + '30',
-        borderRadius: 8,
-        padding: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    successText: {
-        fontSize: 14,
-        color: colors.success,
-        flex: 1,
-    },
-    actionContainer: {
+    actionButtons: {
         flexDirection: 'row',
         gap: 12,
         padding: 16,
         backgroundColor: colors.card,
         borderTopWidth: 1,
-        borderTopColor: colors.border,
+        borderTopColor: colors.border + '30',
     },
-    loadingContainer: {
+    cancelButton: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: colors.backgroundSecondary,
     },
-    loadingText: {
-        fontSize: 18,
-        color: colors.textSecondary,
+    saveButton: {
+        flex: 2,
     },
 }); 

@@ -390,8 +390,6 @@ export default function UsersScreen() {
                     {[
                         { key: "overview", label: "Overview", icon: <BarChart size={16} color={activeTab === "overview" ? colors.primary : colors.primary} /> },
                         { key: "users", label: "All Users", icon: <Users size={16} color={activeTab === "users" ? colors.primary : colors.primary} /> },
-                        { key: "agents", label: "Agents", icon: <UserCheck size={16} color={activeTab === "agents" ? colors.primary : colors.primary} /> },
-                        { key: "passengers", label: "Passengers", icon: <User size={16} color={activeTab === "passengers" ? colors.primary : colors.primary} /> }
                     ].map((tab) => (
                         <TouchableOpacity
                             key={tab.key}

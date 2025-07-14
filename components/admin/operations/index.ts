@@ -15,4 +15,6 @@ export { default as VesselStats } from './VesselStats';
 // Trip Components
 export { default as TripForm } from './TripForm';
 export { default as TripDetails } from './TripDetails';
+export { default as TripAnalytics } from './TripAnalytics';
+export { default as BulkTripOperations } from './BulkTripOperations';
 export { default as ScheduleManager } from './ScheduleManager'; 

@@ -20,6 +20,8 @@ import {
   Eye,
   AlertTriangle,
   Calendar,
+  MapPin,
+  Ship,
 } from "lucide-react-native";
 
 // Operations Components
@@ -74,7 +76,7 @@ export default function OperationsScreen() {
 
   const handleTripPress = (tripId: string) => {
     if (canViewTrips()) {
-      router.push(`../schedule/${tripId}` as any);
+      router.push(`../trips/${tripId}` as any);
     }
   };
 
@@ -94,7 +96,7 @@ export default function OperationsScreen() {
 
   const handleAddTrip = () => {
     if (canManageTrips()) {
-      router.push("../schedule/new" as any);
+      router.push("../trips/new" as any);
     } else {
       Alert.alert("Access Denied", "You don't have permission to create trips.");
     }
@@ -149,31 +151,41 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {filteredRoutes.map((route) => (
-            <TouchableOpacity
-              key={route.id}
-              style={styles.routeItem}
-              onPress={() => handleRoutePress(route.id)}
-            >
-              <View style={styles.routeInfo}>
-                <Text style={styles.routeName}>{route.name || 'Unknown Route'}</Text>
-                <Text style={styles.routeDetails}>
-                  {route.origin || 'Unknown'} → {route.destination || 'Unknown'}
-                </Text>
-                <Text style={styles.routeFare}>MVR {route.base_fare || 0}</Text>
-              </View>
-              <View style={styles.routeStats}>
-                <View style={[styles.statusBadge, route.status === "active" ? styles.statusActive : styles.statusInactive]}>
-                  <Text style={[styles.statusText, route.status === "active" ? styles.statusTextActive : styles.statusTextInactive]}>
-                    {route.status || 'unknown'}
+          {filteredRoutes.length > 0 ? (
+            filteredRoutes.map((route) => (
+              <TouchableOpacity
+                key={route.id}
+                style={styles.routeItem}
+                onPress={() => handleRoutePress(route.id)}
+              >
+                <View style={styles.routeInfo}>
+                  <Text style={styles.routeName}>{route.name || 'Unknown Route'}</Text>
+                  <Text style={styles.routeDetails}>
+                    {route.origin || 'Unknown'} → {route.destination || 'Unknown'}
                   </Text>
+                  <Text style={styles.routeFare}>MVR {route.base_fare || 0}</Text>
                 </View>
-                {route.total_trips_30d !== null && route.total_trips_30d !== undefined && (
-                  <Text style={styles.routeTrips}>{route.total_trips_30d} trips/30d</Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
+                <View style={styles.routeStats}>
+                  <View style={[styles.statusBadge, route.status === "active" ? styles.statusActive : styles.statusInactive]}>
+                    <Text style={[styles.statusText, route.status === "active" ? styles.statusTextActive : styles.statusTextInactive]}>
+                      {route.status || 'unknown'}
+                    </Text>
+                  </View>
+                  {route.total_trips_30d !== null && route.total_trips_30d !== undefined && (
+                    <Text style={styles.routeTrips}>{route.total_trips_30d} trips/30d</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <MapPin size={48} color={colors.textSecondary} />
+              <Text style={styles.emptyStateTitle}>No routes found</Text>
+              <Text style={styles.emptyStateText}>
+                {searchQueries.routes ? 'Try adjusting your search terms' : 'No routes available'}
+              </Text>
+            </View>
+          )}
         </View>
 
         <TouchableOpacity
@@ -228,31 +240,41 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {filteredTrips.map((trip) => (
-            <TripItem
-              key={trip.id}
-              trip={{
-                ...trip,
-                routeId: trip.route_id,
-                vesselId: trip.vessel_id,
-                date: trip.travel_date,
-                departureTime: trip.departure_time,
-                routeName: trip.routeName || 'Unknown Route',
-                vesselName: trip.vesselName || 'Unknown Vessel',
-                status: trip.status === 'boarding' || trip.status === 'departed' ? 'in-progress' :
-                  trip.status === 'arrived' ? 'completed' :
-                    trip.status === 'delayed' ? 'scheduled' :
-                      trip.status as any,
-                bookings: trip.bookings || 0,
-              } as any}
-              onPress={() => handleTripPress(trip.id)}
-            />
-          ))}
+          {filteredTrips.length > 0 ? (
+            filteredTrips.map((trip) => (
+              <TripItem
+                key={trip.id}
+                trip={{
+                  ...trip,
+                  routeId: trip.route_id,
+                  vesselId: trip.vessel_id,
+                  date: trip.travel_date,
+                  departureTime: trip.departure_time,
+                  routeName: trip.routeName || 'Unknown Route',
+                  vesselName: trip.vesselName || 'Unknown Vessel',
+                  status: trip.status === 'boarding' || trip.status === 'departed' ? 'in-progress' :
+                    trip.status === 'arrived' ? 'completed' :
+                      trip.status === 'delayed' ? 'scheduled' :
+                        trip.status as any,
+                  bookings: trip.bookings || 0,
+                } as any}
+                onPress={() => handleTripPress(trip.id)}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Calendar size={48} color={colors.textSecondary} />
+              <Text style={styles.emptyStateTitle}>No trips found</Text>
+              <Text style={styles.emptyStateText}>
+                {searchQueries.trips ? 'Try adjusting your search terms' : 'No trips scheduled for today'}
+              </Text>
+            </View>
+          )}
         </View>
 
         <TouchableOpacity
           style={styles.viewAllButton}
-          onPress={() => setActiveSection("trips")}
+          onPress={() => router.push("../trips" as any)}
         >
           <Text style={styles.viewAllText}>View All Trips</Text>
           <Eye size={16} color={colors.primary} />
@@ -302,33 +324,43 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {filteredVessels.map((vessel) => (
-            <TouchableOpacity
-              key={vessel.id}
-              style={styles.vesselItem}
-              onPress={() => handleVesselPress(vessel.id)}
-            >
-              <View style={styles.vesselInfo}>
-                <Text style={styles.vesselName}>{vessel.name || 'Unknown Vessel'}</Text>
-                <Text style={styles.vesselCapacity}>
-                  Capacity: {vessel.seating_capacity || 0} passengers
-                </Text>
-                {vessel.capacity_utilization_30d !== null && vessel.capacity_utilization_30d !== undefined && (
-                  <Text style={styles.vesselUtilization}>
-                    Utilization: {vessel.capacity_utilization_30d}%
+          {filteredVessels.length > 0 ? (
+            filteredVessels.map((vessel) => (
+              <TouchableOpacity
+                key={vessel.id}
+                style={styles.vesselItem}
+                onPress={() => handleVesselPress(vessel.id)}
+              >
+                <View style={styles.vesselInfo}>
+                  <Text style={styles.vesselName}>{vessel.name || 'Unknown Vessel'}</Text>
+                  <Text style={styles.vesselCapacity}>
+                    Capacity: {vessel.seating_capacity || 0} passengers
                   </Text>
-                )}
-              </View>
-              <View style={styles.vesselStats}>
-                <View style={[styles.statusBadge, vessel.status === "active" ? styles.statusActive :
-                  vessel.status === "maintenance" ? styles.statusMaintenance : styles.statusInactive]}>
-                  <Text style={[styles.statusText, vessel.status === "active" ? styles.statusTextActive : styles.statusTextInactive]}>
-                    {vessel.status || 'unknown'}
-                  </Text>
+                  {vessel.capacity_utilization_30d !== null && vessel.capacity_utilization_30d !== undefined && (
+                    <Text style={styles.vesselUtilization}>
+                      Utilization: {vessel.capacity_utilization_30d}%
+                    </Text>
+                  )}
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+                <View style={styles.vesselStats}>
+                  <View style={[styles.statusBadge, vessel.status === "active" ? styles.statusActive :
+                    vessel.status === "maintenance" ? styles.statusMaintenance : styles.statusInactive]}>
+                    <Text style={[styles.statusText, vessel.status === "active" ? styles.statusTextActive : styles.statusTextInactive]}>
+                      {vessel.status || 'unknown'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Ship size={48} color={colors.textSecondary} />
+              <Text style={styles.emptyStateTitle}>No vessels found</Text>
+              <Text style={styles.emptyStateText}>
+                {searchQueries.vessels ? 'Try adjusting your search terms' : 'No vessels available'}
+              </Text>
+            </View>
+          )}
         </View>
 
         <TouchableOpacity
@@ -361,28 +393,38 @@ export default function OperationsScreen() {
           subtitle="Today's trip schedule"
         />
 
-        <View style={styles.scheduleGrid}>
-          {todaySchedule.map((trip: any) => (
-            <TouchableOpacity
-              key={trip.id}
-              style={styles.scheduleItem}
-              onPress={() => handleTripPress(trip.id)}
-            >
-              <Text style={styles.scheduleTime}>{trip.departure_time || '--:--'}</Text>
-              <Text style={styles.scheduleRoute}>{trip.routeName || 'Unknown Route'}</Text>
-              <Text style={styles.scheduleVessel}>{trip.vesselName || 'Unknown Vessel'}</Text>
-              <View style={styles.scheduleBookings}>
-                <Text style={styles.scheduleBookingText}>
-                  {trip.bookings || 0}/{trip.capacity || 0}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {todaySchedule.length > 0 ? (
+          <View style={styles.scheduleGrid}>
+            {todaySchedule.map((trip: any) => (
+              <TouchableOpacity
+                key={trip.id}
+                style={styles.scheduleItem}
+                onPress={() => handleTripPress(trip.id)}
+              >
+                <Text style={styles.scheduleTime}>{trip.departure_time || '--:--'}</Text>
+                <Text style={styles.scheduleRoute}>{trip.routeName || 'Unknown Route'}</Text>
+                <Text style={styles.scheduleVessel}>{trip.vesselName || 'Unknown Vessel'}</Text>
+                <View style={styles.scheduleBookings}>
+                  <Text style={styles.scheduleBookingText}>
+                    {trip.bookings || 0}/{trip.capacity || 0}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <Calendar size={48} color={colors.textSecondary} />
+            <Text style={styles.emptyStateTitle}>No trips scheduled</Text>
+            <Text style={styles.emptyStateText}>
+              No trips are scheduled for today
+            </Text>
+          </View>
+        )}
 
         <TouchableOpacity
           style={styles.viewAllButton}
-          onPress={() => setActiveSection("trips")}
+          onPress={() => router.push("../trips" as any)}
         >
           <Text style={styles.viewAllText}>View All Trips</Text>
           <Calendar size={16} color={colors.primary} />
@@ -459,8 +501,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
     minHeight: 44,
+    paddingHorizontal: 4,
   },
   sectionHeaderContent: {
     flex: 1,
@@ -631,6 +674,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: colors.primary,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 40,
+    gap: 12,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: "center",
+    maxWidth: 280,
   },
   noPermissionContainer: {
     flex: 1,

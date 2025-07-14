@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors } from "@/constants/adminColors";
-import { ArrowRight, Calendar, Clock, Ship } from "lucide-react-native";
+import { ArrowRight, Calendar, Clock, Ship, MapPin } from "lucide-react-native";
 import StatusBadge from "./StatusBadge";
 import { Trip } from "@/types/admin";
 
@@ -21,59 +21,72 @@ export default function TripItem({ trip, onPress }: TripItemProps) {
 
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.id}>#{trip.id}</Text>
-        <StatusBadge status={trip.status} />
+        <View style={styles.headerLeft}>
+          <Text style={styles.tripId}>#{trip.id}</Text>
+          <View style={styles.routeInfo}>
+            <MapPin size={14} color={colors.textSecondary} />
+            <Text style={styles.routeName} numberOfLines={1}>
+              {trip.routeName}
+            </Text>
+          </View>
+        </View>
+        <StatusBadge status={trip.status} size="small" />
       </View>
 
-      <View style={styles.routeContainer}>
-        <Text style={styles.routeName}>{trip.routeName}</Text>
+      {/* Vessel Info */}
+      <View style={styles.vesselContainer}>
+        <Ship size={14} color={colors.textSecondary} />
         <Text style={styles.vesselName}>{trip.vesselName}</Text>
       </View>
 
-      <View style={styles.timeContainer}>
-        <View style={styles.timeBlock}>
-          <Text style={styles.time}>{trip.departureTime}</Text>
-          <Text style={styles.timeLabel}>Departure</Text>
-        </View>
-
-        <ArrowRight size={20} color={colors.textSecondary} />
-
-        <View style={styles.timeBlock}>
-          <Text style={styles.time}>{trip.arrivalTime}</Text>
-          <Text style={styles.timeLabel}>Arrival</Text>
-        </View>
-      </View>
-
-      <View style={styles.detailsContainer}>
+      {/* Time and Date Info */}
+      <View style={styles.detailsGrid}>
         <View style={styles.detailItem}>
-          <Calendar size={16} color={colors.textSecondary} />
+          <Calendar size={14} color={colors.textSecondary} />
           <Text style={styles.detailText}>{trip.date}</Text>
         </View>
 
-        <View style={styles.detailItem}>
-          <Ship size={16} color={colors.textSecondary} />
-          <Text style={styles.detailText}>
-            {trip.bookings}/{trip.capacity} passengers
-          </Text>
+        <View style={styles.timeContainer}>
+          <View style={styles.timeItem}>
+            <Clock size={14} color={colors.primary} />
+            <Text style={styles.timeText}>{trip.departureTime}</Text>
+            <Text style={styles.timeLabel}>Dep</Text>
+          </View>
+
+          <ArrowRight size={14} color={colors.textSecondary} />
+
+          <View style={styles.timeItem}>
+            <Clock size={14} color={colors.secondary} />
+            <Text style={styles.timeText}>{trip.arrivalTime}</Text>
+            <Text style={styles.timeLabel}>Arr</Text>
+          </View>
         </View>
       </View>
 
-      <View style={styles.occupancyContainer}>
+      {/* Occupancy Info */}
+      <View style={styles.occupancySection}>
+        <View style={styles.occupancyInfo}>
+          <Text style={styles.passengerCount}>
+            {trip.bookings}/{trip.capacity} passengers
+          </Text>
+          <Text style={[styles.occupancyPercent, { color: getOccupancyColor() }]}>
+            {occupancyPercentage}%
+          </Text>
+        </View>
+
         <View style={styles.occupancyBar}>
           <View
             style={[
               styles.occupancyFill,
               {
-                width: `${occupancyPercentage}%`,
+                width: `${Math.min(occupancyPercentage, 100)}%`,
                 backgroundColor: getOccupancyColor()
               }
             ]}
           />
         </View>
-        <Text style={[styles.occupancyText, { color: getOccupancyColor() }]}>
-          {occupancyPercentage}% Full
-        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -84,93 +97,111 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 1,
+    elevation: 2,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
-  id: {
-    fontSize: 14,
+  headerLeft: {
+    flex: 1,
+  },
+  tripId: {
+    fontSize: 12,
     color: colors.textSecondary,
     fontWeight: "500",
+    marginBottom: 4,
   },
-  routeContainer: {
-    marginBottom: 16,
+  routeInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   routeName: {
     fontSize: 16,
     fontWeight: "600",
     color: colors.text,
-    marginBottom: 4,
+    flex: 1,
+  },
+  vesselContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
   },
   vesselName: {
     fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: "500",
+  },
+  detailsGrid: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  detailText: {
+    fontSize: 13,
     color: colors.textSecondary,
   },
   timeContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
-    paddingHorizontal: 10,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    padding: 8,
   },
-  timeBlock: {
+  timeItem: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
+    gap: 4,
   },
-  time: {
-    fontSize: 16,
+  timeText: {
+    fontSize: 14,
     fontWeight: "600",
     color: colors.text,
-    marginBottom: 4,
   },
   timeLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
+    marginLeft: 2,
   },
-  detailsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 12,
+  occupancySection: {
+    gap: 8,
   },
-  detailItem: {
+  occupancyInfo: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginRight: 16,
-    marginBottom: 8,
   },
-  detailText: {
+  passengerCount: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginLeft: 6,
+    color: colors.text,
+    fontWeight: "500",
   },
-  occupancyContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+  occupancyPercent: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   occupancyBar: {
-    flex: 1,
-    height: 8,
+    height: 6,
     backgroundColor: colors.backgroundSecondary,
-    borderRadius: 4,
-    marginRight: 10,
+    borderRadius: 3,
     overflow: "hidden",
   },
   occupancyFill: {
     height: "100%",
-    borderRadius: 4,
-  },
-  occupancyText: {
-    fontSize: 14,
-    fontWeight: "600",
-    width: 70,
-    textAlign: "right",
+    borderRadius: 3,
   },
 });

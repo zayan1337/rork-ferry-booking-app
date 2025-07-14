@@ -182,6 +182,13 @@ export const useTripForm = ({ initialData, onSuccess, onError }: UseTripFormProp
 
     const hasErrors = Object.keys(errors).length > 0;
 
+    const isFormValid = () => !hasErrors &&
+        formData.route_id !== '' &&
+        formData.vessel_id !== '' &&
+        formData.travel_date !== '' &&
+        formData.departure_time !== '' &&
+        formData.fare_multiplier > 0;
+
     const canSubmit = !isSubmitting && !hasErrors && isDirty &&
         formData.route_id !== '' &&
         formData.vessel_id !== '' &&
@@ -205,16 +212,21 @@ export const useTripForm = ({ initialData, onSuccess, onError }: UseTripFormProp
         isSubmitting,
         hasErrors,
         canSubmit,
+        isFormValid,
+        hasChanges: () => isDirty,
 
         // Available data
         availableRoutes,
         availableVessels,
+        routeOptions: availableRoutes,
+        vesselOptions: availableVessels,
         selectedRoute,
         selectedVessel,
 
         // Form actions
         updateFormData,
         validateForm,
+        validateField: validateForm,
         resetForm,
         handleSubmit,
         getFieldError,

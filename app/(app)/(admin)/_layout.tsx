@@ -66,14 +66,14 @@ export default function AdminLayout() {
           }}
         />
         <Stack.Screen
-          name="schedule/[id]"
+          name="trips/[id]"
           options={{
             title: "Trip Details",
             presentation: "card",
           }}
         />
         <Stack.Screen
-          name="schedule/new"
+          name="trips/new"
           options={{
             title: "New Trip",
             presentation: "card",
