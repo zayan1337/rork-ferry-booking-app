@@ -3,17 +3,43 @@ import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Scr
 import { Stack, router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { TripDetails, TripForm, TripAnalytics } from '@/components/admin/operations';
+import { OperationsTrip } from '@/types/database';
 import { Trip, TripFormData } from '@/types/operations';
-import { useAdminStore } from '@/store/admin/adminStore';
+import { useOperationsStore } from '@/store/admin/operationsStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import RoleGuard from '@/components/RoleGuard';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatTripStatus, getTripOccupancy } from '@/utils/tripUtils';
 import { BarChart3, Info, Edit, Trash, Users, MapPin, Clock, Share, ArrowLeft, MoreHorizontal, RefreshCw, Calendar, Ship } from 'lucide-react-native';
 
+// Function to convert OperationsTrip to Trip type expected by components
+const mapOperationsTripToTrip = (operationsTrip: OperationsTrip): Trip => {
+    return {
+        id: operationsTrip.id,
+        route_id: operationsTrip.route_id,
+        vessel_id: operationsTrip.vessel_id,
+        travel_date: operationsTrip.travel_date,
+        departure_time: operationsTrip.departure_time,
+        arrival_time: operationsTrip.arrival_time || undefined,
+        estimated_duration: "1h 30m", // Default estimate
+        status: operationsTrip.status as any,
+        available_seats: operationsTrip.available_seats,
+        booked_seats: operationsTrip.booked_seats || operationsTrip.bookings || 0,
+        fare_multiplier: 1.0, // Default multiplier
+        created_at: operationsTrip.created_at,
+        updated_at: operationsTrip.created_at, // Use created_at as fallback
+        // Display fields
+        routeName: operationsTrip.route_name || operationsTrip.routeName,
+        vesselName: operationsTrip.vessel_name || operationsTrip.vesselName,
+        bookings: operationsTrip.bookings || operationsTrip.booked_seats || 0,
+        capacity: operationsTrip.seating_capacity || operationsTrip.capacity,
+        is_active: operationsTrip.is_active,
+    };
+};
+
 export default function TripDetailsPage() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const { getTrip, updateTrip, deleteTrip, routes, vessels } = useAdminStore();
+    const { fetchTrip, updateTripData, removeTrip, routes, vessels } = useOperationsStore();
     const { canViewTrips, canManageTrips } = useAdminPermissions();
 
     const [trip, setTrip] = useState<Trip | null>(null);
@@ -46,8 +72,10 @@ export default function TripDetailsPage() {
                 setLoading(true);
             }
 
-            const tripData = await getTrip(id);
-            setTrip(tripData);
+            const tripData = await fetchTrip(id);
+            if (tripData) {
+                setTrip(mapOperationsTripToTrip(tripData));
+            }
         } catch (error) {
             Alert.alert(
                 'Error',
@@ -76,10 +104,22 @@ export default function TripDetailsPage() {
         if (!id) return;
 
         try {
-            await updateTrip(id, tripData);
-            await loadTrip(); // Refresh the trip data
-            setEditMode(false);
-            Alert.alert('Success', 'Trip updated successfully!');
+            const success = await updateTripData(id, {
+                route_id: tripData.route_id,
+                vessel_id: tripData.vessel_id,
+                travel_date: tripData.travel_date,
+                departure_time: tripData.departure_time,
+                available_seats: trip?.available_seats || 0, // Keep current available seats
+                is_active: true,
+            });
+
+            if (success) {
+                await loadTrip(); // Refresh the trip data
+                setEditMode(false);
+                Alert.alert('Success', 'Trip updated successfully!');
+            } else {
+                throw new Error('Failed to update trip');
+            }
         } catch (error) {
             Alert.alert(
                 'Error',
@@ -96,7 +136,7 @@ export default function TripDetailsPage() {
         if (!id || !trip) return;
 
         const route = routes?.find(r => r.id === trip.route_id);
-        const routeName = route ? `${route.origin} → ${route.destination}` : 'this trip';
+        const routeName = route ? `${route.origin || route.from_island_name} → ${route.destination || route.to_island_name}` : 'this trip';
 
         Alert.alert(
             'Cancel Trip',
@@ -108,7 +148,7 @@ export default function TripDetailsPage() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await deleteTrip(id);
+                            await removeTrip(id);
                             Alert.alert(
                                 'Trip Cancelled',
                                 'The trip has been cancelled successfully. Passengers will be notified.',

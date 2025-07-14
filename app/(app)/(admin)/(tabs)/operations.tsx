@@ -14,7 +14,6 @@ import { useAdminStore } from "@/store/admin/adminStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { useOperationsData } from "@/hooks/useOperationsData";
 import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
-import { Trip as OperationsTrip } from "@/types/operations";
 import {
   Plus,
   Eye,
@@ -122,6 +121,11 @@ export default function OperationsScreen() {
       );
     }
 
+    // Filter out duplicate routes by ID to prevent key conflicts
+    const uniqueRoutes = filteredRoutes.filter((route, index, self) =>
+      index === self.findIndex(r => r.id === route.id)
+    );
+
     return (
       <View style={styles.sectionContent}>
         <View style={styles.sectionHeader}>
@@ -151,17 +155,17 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {filteredRoutes.length > 0 ? (
-            filteredRoutes.map((route) => (
+          {uniqueRoutes.length > 0 ? (
+            uniqueRoutes.map((route, index) => (
               <TouchableOpacity
-                key={route.id}
+                key={`route-${route.id}-${index}`}
                 style={styles.routeItem}
                 onPress={() => handleRoutePress(route.id)}
               >
                 <View style={styles.routeInfo}>
-                  <Text style={styles.routeName}>{route.name || 'Unknown Route'}</Text>
+                  <Text style={styles.routeName}>{route.name || route.route_name || 'Unknown Route'}</Text>
                   <Text style={styles.routeDetails}>
-                    {route.origin || 'Unknown'} → {route.destination || 'Unknown'}
+                    {route.origin || route.from_island_name || 'Unknown'} → {route.destination || route.to_island_name || 'Unknown'}
                   </Text>
                   <Text style={styles.routeFare}>MVR {route.base_fare || 0}</Text>
                 </View>
@@ -211,6 +215,11 @@ export default function OperationsScreen() {
       );
     }
 
+    // Filter out duplicate trips by ID to prevent key conflicts
+    const uniqueTrips = filteredTrips.filter((trip, index, self) =>
+      index === self.findIndex(t => t.id === trip.id)
+    );
+
     return (
       <View style={styles.sectionContent}>
         <View style={styles.sectionHeader}>
@@ -240,20 +249,20 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {filteredTrips.length > 0 ? (
-            filteredTrips.map((trip) => (
+          {uniqueTrips.length > 0 ? (
+            uniqueTrips.map((trip, index) => (
               <TripItem
-                key={trip.id}
+                key={`trip-${trip.id}-${index}`}
                 trip={{
                   ...trip,
                   routeId: trip.route_id,
                   vesselId: trip.vessel_id,
                   date: trip.travel_date,
                   departureTime: trip.departure_time,
-                  routeName: trip.routeName || 'Unknown Route',
-                  vesselName: trip.vesselName || 'Unknown Vessel',
+                  routeName: trip.routeName || trip.route_name || 'Unknown Route',
+                  vesselName: trip.vesselName || trip.vessel_name || 'Unknown Vessel',
                   status: trip.status === 'boarding' || trip.status === 'departed' ? 'in-progress' :
-                    trip.status === 'arrived' ? 'completed' :
+                    trip.status === 'arrived' || trip.status === 'completed' ? 'completed' :
                       trip.status === 'delayed' ? 'scheduled' :
                         trip.status as any,
                   bookings: trip.bookings || 0,
@@ -295,6 +304,11 @@ export default function OperationsScreen() {
       );
     }
 
+    // Filter out duplicate vessels by ID to prevent key conflicts
+    const uniqueVessels = filteredVessels.filter((vessel, index, self) =>
+      index === self.findIndex(v => v.id === vessel.id)
+    );
+
     return (
       <View style={styles.sectionContent}>
         <View style={styles.sectionHeader}>
@@ -324,10 +338,10 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {filteredVessels.length > 0 ? (
-            filteredVessels.map((vessel) => (
+          {uniqueVessels.length > 0 ? (
+            uniqueVessels.map((vessel, index) => (
               <TouchableOpacity
-                key={vessel.id}
+                key={`vessel-${vessel.id}-${index}`}
                 style={styles.vesselItem}
                 onPress={() => handleVesselPress(vessel.id)}
               >
@@ -386,6 +400,11 @@ export default function OperationsScreen() {
       );
     }
 
+    // Filter out duplicate trips by ID to prevent key conflicts
+    const uniqueSchedule = todaySchedule.filter((trip, index, self) =>
+      index === self.findIndex(t => t.id === trip.id)
+    );
+
     return (
       <View style={styles.sectionContent}>
         <SectionHeader
@@ -393,17 +412,17 @@ export default function OperationsScreen() {
           subtitle="Today's trip schedule"
         />
 
-        {todaySchedule.length > 0 ? (
+        {uniqueSchedule.length > 0 ? (
           <View style={styles.scheduleGrid}>
-            {todaySchedule.map((trip: any) => (
+            {uniqueSchedule.map((trip: any, index: number) => (
               <TouchableOpacity
-                key={trip.id}
+                key={`schedule-${trip.id}-${index}`}
                 style={styles.scheduleItem}
                 onPress={() => handleTripPress(trip.id)}
               >
                 <Text style={styles.scheduleTime}>{trip.departure_time || '--:--'}</Text>
-                <Text style={styles.scheduleRoute}>{trip.routeName || 'Unknown Route'}</Text>
-                <Text style={styles.scheduleVessel}>{trip.vesselName || 'Unknown Vessel'}</Text>
+                <Text style={styles.scheduleRoute}>{trip.routeName || trip.route_name || 'Unknown Route'}</Text>
+                <Text style={styles.scheduleVessel}>{trip.vesselName || trip.vessel_name || 'Unknown Vessel'}</Text>
                 <View style={styles.scheduleBookings}>
                   <Text style={styles.scheduleBookingText}>
                     {trip.bookings || 0}/{trip.capacity || 0}

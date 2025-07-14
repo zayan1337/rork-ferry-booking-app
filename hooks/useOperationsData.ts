@@ -1,37 +1,32 @@
-import { useState, useMemo } from "react";
-import { useAdminStore } from "@/store/admin/adminStore";
-import { OperationsSection, OperationsStatsData } from "@/types/admin/dashboard";
+import { useState, useMemo, useEffect } from "react";
+import { useOperationsStore } from "@/store/admin/operationsStore";
+import { OperationsSection } from "@/types/admin/dashboard";
 
 export const useOperationsData = () => {
     const {
         routes,
         trips,
         vessels,
+        todaySchedule,
         loading,
         searchQueries,
+        stats,
         setSearchQuery,
-    } = useAdminStore();
+        fetchRoutes,
+        fetchTrips,
+        fetchVessels,
+        fetchTodaySchedule,
+        refreshAll,
+    } = useOperationsStore();
 
     const [activeSection, setActiveSection] = useState<OperationsSection>("routes");
 
-    // Calculate statistics
-    const stats: OperationsStatsData = useMemo(() => {
-        const activeRoutes = routes.filter(r => r.status === "active").length;
-        const activeVessels = vessels.filter(v => v.status === "active").length;
-        const todayTrips = trips.filter(t =>
-            t.travel_date === new Date().toISOString().split('T')[0] && t.is_active
-        ).length;
-        const totalCapacity = vessels.reduce((sum, v) => sum + v.seating_capacity, 0);
-
-        return {
-            activeRoutes,
-            totalRoutes: routes.length,
-            activeVessels,
-            totalVessels: vessels.length,
-            todayTrips,
-            totalCapacity,
-        };
-    }, [routes, vessels, trips]);
+    // Initialize data on first load
+    useEffect(() => {
+        if (routes.length === 0 && trips.length === 0 && vessels.length === 0) {
+            refreshAll();
+        }
+    }, [routes.length, trips.length, vessels.length, refreshAll]);
 
     // Filtered data based on search queries
     const filteredRoutes = useMemo(() => {
@@ -39,9 +34,12 @@ export const useOperationsData = () => {
         if (!query) return routes.slice(0, 5);
 
         return routes.filter(route =>
-            route.name.toLowerCase().includes(query) ||
-            route.origin.toLowerCase().includes(query) ||
-            route.destination.toLowerCase().includes(query)
+            route.name?.toLowerCase().includes(query) ||
+            route.origin?.toLowerCase().includes(query) ||
+            route.destination?.toLowerCase().includes(query) ||
+            route.route_name?.toLowerCase().includes(query) ||
+            route.from_island_name?.toLowerCase().includes(query) ||
+            route.to_island_name?.toLowerCase().includes(query)
         ).slice(0, 5);
     }, [routes, searchQueries.routes]);
 
@@ -51,7 +49,9 @@ export const useOperationsData = () => {
 
         return trips.filter(trip =>
             trip.routeName?.toLowerCase().includes(query) ||
-            trip.vesselName?.toLowerCase().includes(query)
+            trip.vesselName?.toLowerCase().includes(query) ||
+            trip.route_name?.toLowerCase().includes(query) ||
+            trip.vessel_name?.toLowerCase().includes(query)
         ).slice(0, 5);
     }, [trips, searchQueries.trips]);
 
@@ -64,14 +64,18 @@ export const useOperationsData = () => {
         ).slice(0, 5);
     }, [vessels, searchQueries.vessels]);
 
-    const todaySchedule = useMemo(() => {
-        return trips
-            .filter(t => t.travel_date === new Date().toISOString().split('T')[0])
-            .slice(0, 6);
-    }, [trips]);
+    // Enhanced stats with real data
+    const enhancedStats = useMemo(() => ({
+        activeRoutes: stats.activeRoutes,
+        totalRoutes: stats.totalRoutes,
+        activeVessels: stats.activeVessels,
+        totalVessels: stats.totalVessels,
+        todayTrips: stats.todayTrips,
+        totalCapacity: stats.totalCapacity,
+    }), [stats]);
 
     return {
-        stats,
+        stats: enhancedStats,
         activeSection,
         setActiveSection,
         filteredRoutes,
@@ -80,6 +84,16 @@ export const useOperationsData = () => {
         todaySchedule,
         searchQueries,
         setSearchQuery,
-        loading,
+        loading: loading.routes || loading.trips || loading.vessels || loading.schedule,
+        // Additional data and functions for detail pages
+        allRoutes: routes,
+        allTrips: trips,
+        allVessels: vessels,
+        // Refresh functions
+        refreshRoutes: fetchRoutes,
+        refreshTrips: fetchTrips,
+        refreshVessels: fetchVessels,
+        refreshSchedule: fetchTodaySchedule,
+        refreshAll,
     };
 }; 

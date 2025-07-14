@@ -457,7 +457,7 @@ export default function UserPermissionsScreen() {
 
                     <View style={styles.userAvatar}>
                         <Text style={styles.userAvatarText}>
-                            {adminUser.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            {(adminUser.name || '').split(' ').filter(n => n).map(n => n[0]).join('').toUpperCase() || 'U'}
                         </Text>
                     </View>
                     <View style={styles.userInfoContent}>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,10 +8,11 @@ import {
   Alert,
   Dimensions,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useAdminStore } from "@/store/admin/adminStore";
+import { useOperationsStore } from "@/store/admin/operationsStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import {
   ArrowLeft,
@@ -41,15 +42,38 @@ const { width: screenWidth } = Dimensions.get('window');
 
 export default function RouteDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { routes, trips, loading, deleteRoute } = useAdminStore();
+  const { fetchRoute, updateRouteData, removeRoute, trips, fetchTrips } = useOperationsStore();
   const { canViewRoutes, canUpdateRoutes, canDeleteRoutes } = useAdminPermissions();
+  const [routeData, setRouteData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isTablet = screenWidth >= 768;
 
-  // Safe find with null check
-  const routeData = routes?.find(r => r.id === id);
+  useEffect(() => {
+    loadRouteData();
+    // Also fetch trips to calculate statistics
+    fetchTrips();
+  }, [id]);
+
+  const loadRouteData = async () => {
+    if (!id) return;
+
+    try {
+      setLoading(true);
+      const route = await fetchRoute(id);
+      setRouteData(route);
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'Failed to load route details'
+      );
+      router.back();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Calculate additional statistics
   const routeStats = useMemo(() => {
@@ -57,7 +81,7 @@ export default function RouteDetailsScreen() {
 
     const routeTrips = trips.filter(trip => trip.route_id === id);
     const totalTrips = routeTrips.length;
-    const completedTrips = routeTrips.filter(trip => trip.status === 'arrived').length;
+    const completedTrips = routeTrips.filter(trip => trip.status === 'arrived' || trip.status === 'completed').length;
     const cancelledTrips = routeTrips.filter(trip => trip.status === 'cancelled').length;
     const delayedTrips = routeTrips.filter(trip => trip.status === 'delayed').length;
 
@@ -66,7 +90,7 @@ export default function RouteDetailsScreen() {
 
     // Calculate total revenue estimate
     const estimatedRevenue = routeTrips.reduce((total, trip) => {
-      return total + ((trip.booked_seats || 0) * (routeData.base_fare || 0) * (trip.fare_multiplier || 1));
+      return total + ((trip.booked_seats || trip.bookings || 0) * (routeData.base_fare || 0));
     }, 0);
 
     return {
@@ -83,8 +107,8 @@ export default function RouteDetailsScreen() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // In a real app, this would refresh data from the server
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await loadRouteData();
+    await fetchTrips();
     setIsRefreshing(false);
   };
 
@@ -104,7 +128,7 @@ export default function RouteDetailsScreen() {
 
     Alert.alert(
       "Delete Route",
-      `Are you sure you want to delete the route "${routeData?.name}"? This action cannot be undone and will affect all associated trips and bookings.`,
+      `Are you sure you want to delete the route "${routeData?.name || routeData?.route_name}"? This action cannot be undone and will affect all associated trips and bookings.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -114,9 +138,13 @@ export default function RouteDetailsScreen() {
             setIsDeleting(true);
             try {
               if (id) {
-                await deleteRoute(id);
-                Alert.alert("Success", "Route deleted successfully.");
-                router.back();
+                const success = await removeRoute(id);
+                if (success) {
+                  Alert.alert("Success", "Route deleted successfully.");
+                  router.back();
+                } else {
+                  throw new Error("Failed to delete route");
+                }
               }
             } catch (error) {
               Alert.alert("Error", "Failed to delete route. There may be active bookings on this route.");
@@ -169,11 +197,11 @@ export default function RouteDetailsScreen() {
     );
   }
 
-  if (loading.routes) {
+  if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <Stack.Screen options={{ title: "Loading..." }} />
-        <Activity size={48} color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading route details...</Text>
       </View>
     );
@@ -212,7 +240,7 @@ export default function RouteDetailsScreen() {
     >
       <Stack.Screen
         options={{
-          title: routeData.name || "Route Details",
+          title: routeData.name || routeData.route_name || "Route Details",
           headerLeft: () => (
             <TouchableOpacity
               style={styles.backButton}
@@ -254,11 +282,11 @@ export default function RouteDetailsScreen() {
             <RouteIcon size={24} color={colors.primary} />
           </View>
           <View style={styles.headerContent}>
-            <Text style={styles.routeName}>{routeData.name}</Text>
+            <Text style={styles.routeName}>{routeData.name || routeData.route_name}</Text>
             <View style={styles.routeDirection}>
               <MapPin size={16} color={colors.textSecondary} />
               <Text style={styles.routeDescription}>
-                {routeData.origin} → {routeData.destination}
+                {routeData.origin || routeData.from_island_name} → {routeData.destination || routeData.to_island_name}
               </Text>
             </View>
           </View>
@@ -315,7 +343,7 @@ export default function RouteDetailsScreen() {
               <MapPin size={20} color={colors.primary} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Origin</Text>
-                <Text style={styles.infoValue}>{routeData.origin}</Text>
+                <Text style={styles.infoValue}>{routeData.origin || routeData.from_island_name}</Text>
               </View>
             </View>
 
@@ -323,7 +351,7 @@ export default function RouteDetailsScreen() {
               <Navigation size={20} color={colors.primary} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Destination</Text>
-                <Text style={styles.infoValue}>{routeData.destination}</Text>
+                <Text style={styles.infoValue}>{routeData.destination || routeData.to_island_name}</Text>
               </View>
             </View>
           </View>
