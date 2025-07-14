@@ -14,6 +14,7 @@ import { useAdminStore } from "@/store/admin/adminStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { useOperationsData } from "@/hooks/useOperationsData";
 import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
+import { Trip as OperationsTrip } from "@/types/operations";
 import {
   Plus,
   Eye,
@@ -155,19 +156,19 @@ export default function OperationsScreen() {
               onPress={() => handleRoutePress(route.id)}
             >
               <View style={styles.routeInfo}>
-                <Text style={styles.routeName}>{route.name}</Text>
+                <Text style={styles.routeName}>{route.name || 'Unknown Route'}</Text>
                 <Text style={styles.routeDetails}>
-                  {route.origin} → {route.destination}
+                  {route.origin || 'Unknown'} → {route.destination || 'Unknown'}
                 </Text>
-                <Text style={styles.routeFare}>MVR {route.base_fare}</Text>
+                <Text style={styles.routeFare}>MVR {route.base_fare || 0}</Text>
               </View>
               <View style={styles.routeStats}>
                 <View style={[styles.statusBadge, route.status === "active" ? styles.statusActive : styles.statusInactive]}>
                   <Text style={[styles.statusText, route.status === "active" ? styles.statusTextActive : styles.statusTextInactive]}>
-                    {route.status}
+                    {route.status || 'unknown'}
                   </Text>
                 </View>
-                {route.total_trips_30d && (
+                {route.total_trips_30d !== null && route.total_trips_30d !== undefined && (
                   <Text style={styles.routeTrips}>{route.total_trips_30d} trips/30d</Text>
                 )}
               </View>
@@ -177,9 +178,9 @@ export default function OperationsScreen() {
 
         <TouchableOpacity
           style={styles.viewAllButton}
-          onPress={() => {/* Already showing all routes in this section */ }}
+          onPress={() => router.push("../routes" as any)}
         >
-          <Text style={styles.viewAllText}>Showing Routes</Text>
+          <Text style={styles.viewAllText}>View All Routes</Text>
           <Eye size={16} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -230,7 +231,20 @@ export default function OperationsScreen() {
           {filteredTrips.map((trip) => (
             <TripItem
               key={trip.id}
-              trip={trip}
+              trip={{
+                ...trip,
+                routeId: trip.route_id,
+                vesselId: trip.vessel_id,
+                date: trip.travel_date,
+                departureTime: trip.departure_time,
+                routeName: trip.routeName || 'Unknown Route',
+                vesselName: trip.vesselName || 'Unknown Vessel',
+                status: trip.status === 'boarding' || trip.status === 'departed' ? 'in-progress' :
+                  trip.status === 'arrived' ? 'completed' :
+                    trip.status === 'delayed' ? 'scheduled' :
+                      trip.status as any,
+                bookings: trip.bookings || 0,
+              } as any}
               onPress={() => handleTripPress(trip.id)}
             />
           ))}
@@ -238,9 +252,9 @@ export default function OperationsScreen() {
 
         <TouchableOpacity
           style={styles.viewAllButton}
-          onPress={() => {/* Already showing all trips in this section */ }}
+          onPress={() => setActiveSection("trips")}
         >
-          <Text style={styles.viewAllText}>Showing Trips</Text>
+          <Text style={styles.viewAllText}>View All Trips</Text>
           <Eye size={16} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -295,11 +309,11 @@ export default function OperationsScreen() {
               onPress={() => handleVesselPress(vessel.id)}
             >
               <View style={styles.vesselInfo}>
-                <Text style={styles.vesselName}>{vessel.name}</Text>
+                <Text style={styles.vesselName}>{vessel.name || 'Unknown Vessel'}</Text>
                 <Text style={styles.vesselCapacity}>
-                  Capacity: {vessel.seating_capacity} passengers
+                  Capacity: {vessel.seating_capacity || 0} passengers
                 </Text>
-                {vessel.capacity_utilization_30d && (
+                {vessel.capacity_utilization_30d !== null && vessel.capacity_utilization_30d !== undefined && (
                   <Text style={styles.vesselUtilization}>
                     Utilization: {vessel.capacity_utilization_30d}%
                   </Text>
@@ -309,7 +323,7 @@ export default function OperationsScreen() {
                 <View style={[styles.statusBadge, vessel.status === "active" ? styles.statusActive :
                   vessel.status === "maintenance" ? styles.statusMaintenance : styles.statusInactive]}>
                   <Text style={[styles.statusText, vessel.status === "active" ? styles.statusTextActive : styles.statusTextInactive]}>
-                    {vessel.status}
+                    {vessel.status || 'unknown'}
                   </Text>
                 </View>
               </View>
@@ -319,9 +333,9 @@ export default function OperationsScreen() {
 
         <TouchableOpacity
           style={styles.viewAllButton}
-          onPress={() => {/* Already showing all vessels in this section */ }}
+          onPress={() => setActiveSection("vessels")}
         >
-          <Text style={styles.viewAllText}>Showing Vessels</Text>
+          <Text style={styles.viewAllText}>View All Vessels</Text>
           <Eye size={16} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -348,18 +362,18 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.scheduleGrid}>
-          {todaySchedule.map((trip) => (
+          {todaySchedule.map((trip: any) => (
             <TouchableOpacity
               key={trip.id}
               style={styles.scheduleItem}
               onPress={() => handleTripPress(trip.id)}
             >
-              <Text style={styles.scheduleTime}>{trip.departure_time}</Text>
-              <Text style={styles.scheduleRoute}>{trip.routeName}</Text>
-              <Text style={styles.scheduleVessel}>{trip.vesselName}</Text>
+              <Text style={styles.scheduleTime}>{trip.departure_time || '--:--'}</Text>
+              <Text style={styles.scheduleRoute}>{trip.routeName || 'Unknown Route'}</Text>
+              <Text style={styles.scheduleVessel}>{trip.vesselName || 'Unknown Vessel'}</Text>
               <View style={styles.scheduleBookings}>
                 <Text style={styles.scheduleBookingText}>
-                  {trip.bookings}/{trip.capacity}
+                  {trip.bookings || 0}/{trip.capacity || 0}
                 </Text>
               </View>
             </TouchableOpacity>
