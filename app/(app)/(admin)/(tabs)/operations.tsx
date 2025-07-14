@@ -365,7 +365,7 @@ export default function OperationsScreen() {
 
         <TouchableOpacity
           style={styles.viewAllButton}
-          onPress={() => setActiveSection("vessels")}
+          onPress={() => router.push("../vessels" as any)}
         >
           <Text style={styles.viewAllText}>View All Vessels</Text>
           <Eye size={16} color={colors.primary} />

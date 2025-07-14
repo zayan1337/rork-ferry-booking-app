@@ -95,6 +95,16 @@ export default function VesselDetails({
     const vesselAge = vessel.year_built ? new Date().getFullYear() - vessel.year_built : 0;
     const vesselTypeLabel = vessel.vessel_type.charAt(0).toUpperCase() + vessel.vessel_type.slice(1);
 
+    const maintenanceStatus = vessel.next_maintenance ? (() => {
+        const nextMaintenance = new Date(vessel.next_maintenance);
+        const now = new Date();
+        const daysUntil = Math.ceil((nextMaintenance.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysUntil < 0) return { status: 'overdue', message: `${Math.abs(daysUntil)} days overdue`, color: colors.danger };
+        if (daysUntil <= 30) return { status: 'due_soon', message: `Due in ${daysUntil} days`, color: colors.warning };
+        return { status: 'up_to_date', message: `Due in ${daysUntil} days`, color: colors.success };
+    })() : { status: 'unknown', message: 'Not scheduled', color: colors.textSecondary };
+
     const stats = [
         {
             title: 'Utilization',
@@ -189,6 +199,21 @@ export default function VesselDetails({
                     />
                 ))}
             </View>
+
+            {/* Maintenance Alert */}
+            {maintenanceStatus.status !== 'up_to_date' && (
+                <View style={[styles.alertContainer, { borderLeftColor: maintenanceStatus.color }]}>
+                    <View style={styles.alertIcon}>
+                        <AlertTriangle size={20} color={maintenanceStatus.color} />
+                    </View>
+                    <View style={styles.alertContent}>
+                        <Text style={[styles.alertTitle, { color: maintenanceStatus.color }]}>
+                            Maintenance {maintenanceStatus.status === 'overdue' ? 'Overdue' : 'Due Soon'}
+                        </Text>
+                        <Text style={styles.alertMessage}>{maintenanceStatus.message}</Text>
+                    </View>
+                </View>
+            )}
 
             {/* Basic Information */}
             <View style={styles.section}>
@@ -589,5 +614,34 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: colors.warning,
         flex: 1,
+    },
+    alertContainer: {
+        flexDirection: 'row',
+        backgroundColor: colors.card,
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+        borderLeftWidth: 4,
+        alignItems: 'center',
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    alertIcon: {
+        marginRight: 12,
+    },
+    alertContent: {
+        flex: 1,
+    },
+    alertTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+    alertMessage: {
+        fontSize: 12,
+        color: colors.textSecondary,
     },
 }); 

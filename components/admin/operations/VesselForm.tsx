@@ -96,6 +96,12 @@ export default function VesselForm({
         );
     }
 
+    const statusOptions = [
+        { value: 'active', label: 'Active' },
+        { value: 'maintenance', label: 'Maintenance' },
+        { value: 'inactive', label: 'Inactive' },
+    ];
+
     const handleSave = async () => {
         try {
             const success = await handleSubmit();
@@ -123,12 +129,6 @@ export default function VesselForm({
         label: type.label,
         value: type.value,
     }));
-
-    const statusOptions = [
-        { label: 'Active', value: 'active' },
-        { label: 'Inactive', value: 'inactive' },
-        { label: 'Maintenance', value: 'maintenance' },
-    ];
 
     const hasChanges = () => {
         return Object.values(formData).some(value =>
@@ -202,17 +202,41 @@ export default function VesselForm({
                         </View>
 
                         <View style={styles.field}>
-                            <Dropdown
-                                label="Vessel Type"
-                                value={formData.vessel_type || ''}
-                                onChange={(value) => {
-                                    updateFormData({ vessel_type: value as "ferry" | "speedboat" | "catamaran" });
-                                }}
-                                items={vesselTypeOptions}
-                                placeholder="Select vessel type"
-                                error={getFieldError('vessel_type')}
-                                required
-                            />
+                            <Text style={styles.fieldLabel}>
+                                Vessel Type <Text style={styles.required}>*</Text>
+                            </Text>
+                            <View style={styles.vesselTypeContainer}>
+                                {vesselTypes.map((type) => (
+                                    <TouchableOpacity
+                                        key={type.value}
+                                        style={[
+                                            styles.vesselTypeOption,
+                                            formData.vessel_type === type.value && styles.vesselTypeOptionSelected
+                                        ]}
+                                        onPress={() => updateFormData({ vessel_type: type.value as any })}
+                                    >
+                                        <Ship
+                                            size={24}
+                                            color={formData.vessel_type === type.value ? 'white' : colors.primary}
+                                        />
+                                        <Text style={[
+                                            styles.vesselTypeLabel,
+                                            formData.vessel_type === type.value && styles.vesselTypeLabelSelected
+                                        ]}>
+                                            {type.label}
+                                        </Text>
+                                        <Text style={[
+                                            styles.vesselTypeDescription,
+                                            formData.vessel_type === type.value && styles.vesselTypeDescriptionSelected
+                                        ]}>
+                                            {type.description}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                            {getFieldError('vessel_type') && (
+                                <Text style={styles.errorText}>{getFieldError('vessel_type')}</Text>
+                            )}
                         </View>
 
                         <View style={styles.field}>
@@ -229,17 +253,40 @@ export default function VesselForm({
                         </View>
 
                         <View style={styles.field}>
-                            <Dropdown
-                                label="Status"
-                                value={formData.status || 'active'}
-                                onChange={(value) => {
-                                    updateFormData({ status: value as "active" | "maintenance" | "inactive" });
-                                }}
-                                items={statusOptions}
-                                placeholder="Select status"
-                                error={getFieldError('status')}
-                                required
-                            />
+                            <Text style={styles.fieldLabel}>
+                                Status <Text style={styles.required}>*</Text>
+                            </Text>
+                            <View style={styles.statusContainer}>
+                                {statusOptions.map((status) => (
+                                    <TouchableOpacity
+                                        key={status.value}
+                                        style={[
+                                            styles.statusOption,
+                                            formData.status === status.value && styles.statusOptionSelected
+                                        ]}
+                                        onPress={() => updateFormData({ status: status.value as any })}
+                                    >
+                                        <View style={[
+                                            styles.statusIndicator,
+                                            {
+                                                backgroundColor:
+                                                    status.value === 'active' ? colors.success :
+                                                        status.value === 'maintenance' ? colors.warning :
+                                                            colors.textSecondary
+                                            }
+                                        ]} />
+                                        <Text style={[
+                                            styles.statusLabel,
+                                            formData.status === status.value && styles.statusLabelSelected
+                                        ]}>
+                                            {status.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                            {getFieldError('status') && (
+                                <Text style={styles.errorText}>{getFieldError('status')}</Text>
+                            )}
                         </View>
                     </View>
 
@@ -531,5 +578,81 @@ const styles = StyleSheet.create({
     loadingText: {
         fontSize: 18,
         color: colors.textSecondary,
+    },
+    fieldLabel: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: colors.text,
+        marginBottom: 8,
+    },
+    required: {
+        color: colors.danger,
+    },
+    vesselTypeContainer: {
+        gap: 12,
+    },
+    vesselTypeOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: 12,
+        backgroundColor: colors.card,
+        borderWidth: 2,
+        borderColor: colors.border,
+        gap: 12,
+    },
+    vesselTypeOptionSelected: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    vesselTypeLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.text,
+        flex: 1,
+    },
+    vesselTypeLabelSelected: {
+        color: 'white',
+    },
+    vesselTypeDescription: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        flex: 2,
+    },
+    vesselTypeDescriptionSelected: {
+        color: 'white',
+        opacity: 0.8,
+    },
+    statusContainer: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    statusOption: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 8,
+        backgroundColor: colors.card,
+        borderWidth: 2,
+        borderColor: colors.border,
+        gap: 8,
+    },
+    statusOptionSelected: {
+        borderColor: colors.primary,
+        backgroundColor: colors.primary + '10',
+    },
+    statusIndicator: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+    },
+    statusLabel: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: colors.text,
+    },
+    statusLabelSelected: {
+        color: colors.primary,
     },
 }); 
