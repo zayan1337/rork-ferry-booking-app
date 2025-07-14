@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View, TextInput, Platform } from "react-native";
-import { Stack, router } from "expo-router";
+import React, { useState, useEffect } from "react";
+import { Alert, ScrollView, StyleSheet, Text, View, TextInput } from "react-native";
+import { Stack, router, useLocalSearchParams } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useAdminStore } from "@/store/admin/adminStore";
 import Dropdown from "@/components/Dropdown";
@@ -22,13 +22,19 @@ interface BookingFormData {
     departureTime: string;
     passengers: string;
     totalAmount: string;
-    status: "confirmed" | "pending" | "cancelled" | "completed";
-    paymentStatus: "paid" | "pending" | "refunded" | "failed";
+    status: "reserved" | "pending_payment" | "confirmed" | "checked_in" | "completed" | "cancelled";
+    paymentStatus: "pending" | "completed" | "failed" | "refunded";
 }
 
-export default function NewBookingScreen() {
-    const { routes, users, addBooking } = useAdminStore();
+export default function EditBookingScreen() {
+    const { id } = useLocalSearchParams<{ id: string }>();
+    const { routes, users, bookings, updateBooking } = useAdminStore();
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState<Partial<BookingFormData>>({});
+
+    const booking = bookings?.find(b => b.id === id);
+    const customers = users.filter(user => user.role === "customer");
+
     const [formData, setFormData] = useState<BookingFormData>({
         routeId: "",
         customerId: "",
@@ -36,14 +42,37 @@ export default function NewBookingScreen() {
         departureTime: "",
         passengers: "1",
         totalAmount: "",
-        status: "pending",
+        status: "pending_payment",
         paymentStatus: "pending",
     });
 
-    const [errors, setErrors] = useState<Partial<BookingFormData>>({});
+    useEffect(() => {
+        if (booking) {
+            setFormData({
+                routeId: booking.routeId,
+                customerId: booking.customerId,
+                date: booking.date,
+                departureTime: booking.departureTime,
+                passengers: booking.passengers.toString(),
+                totalAmount: booking.totalAmount.toString(),
+                status: booking.status,
+                paymentStatus: booking.paymentStatus,
+            });
+        }
+    }, [booking]);
 
-    // Get customers only (filter out agents and admins)
-    const customers = users.filter(user => user.role === "customer");
+    if (!booking) {
+        return (
+            <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Booking not found</Text>
+                <Button
+                    title="Go Back"
+                    onPress={() => router.back()}
+                    variant="primary"
+                />
+            </View>
+        );
+    }
 
     // Format options for dropdowns
     const routeOptions = routes
@@ -59,15 +88,19 @@ export default function NewBookingScreen() {
     }));
 
     const statusOptions = [
-        { label: "Pending", value: "pending" },
+        { label: "Reserved", value: "reserved" },
+        { label: "Pending Payment", value: "pending_payment" },
         { label: "Confirmed", value: "confirmed" },
+        { label: "Checked In", value: "checked_in" },
+        { label: "Completed", value: "completed" },
         { label: "Cancelled", value: "cancelled" },
     ];
 
     const paymentStatusOptions = [
         { label: "Pending", value: "pending" },
-        { label: "Paid", value: "paid" },
+        { label: "Completed", value: "completed" },
         { label: "Failed", value: "failed" },
+        { label: "Refunded", value: "refunded" },
     ];
 
     const validateForm = (): boolean => {
@@ -84,13 +117,13 @@ export default function NewBookingScreen() {
             newErrors.totalAmount = "Valid amount is required";
         }
 
-        // Validate date is not in the past
-        if (formData.date) {
+        // Validate date is not in the past for future bookings
+        if (formData.date && booking.status !== "completed") {
             const selectedDate = new Date(formData.date);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            if (selectedDate < today) {
-                newErrors.date = "Date cannot be in the past";
+            if (selectedDate < today && formData.status !== "completed") {
+                newErrors.date = "Date cannot be in the past for active bookings";
             }
         }
 
@@ -111,11 +144,12 @@ export default function NewBookingScreen() {
                 return;
             }
 
-            const newBooking = {
+            const updatedBooking = {
                 routeId: formData.routeId,
                 routeName: selectedRoute.name,
                 customerId: formData.customerId,
                 customerName: selectedCustomer.name,
+                customerEmail: selectedCustomer.email,
                 date: formData.date,
                 departureTime: formData.departureTime,
                 status: formData.status,
@@ -124,18 +158,18 @@ export default function NewBookingScreen() {
                 totalAmount: parseFloat(formData.totalAmount),
             };
 
-            addBooking(newBooking);
+            updateBooking(booking.id, updatedBooking);
 
             // Simulate API call
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             Alert.alert(
                 "Success",
-                "Booking created successfully!",
+                "Booking updated successfully!",
                 [{ text: "OK", onPress: () => router.back() }]
             );
         } catch (error) {
-            Alert.alert("Error", "Failed to create booking. Please try again.");
+            Alert.alert("Error", "Failed to update booking. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -164,7 +198,7 @@ export default function NewBookingScreen() {
         <View style={styles.container}>
             <Stack.Screen
                 options={{
-                    title: "New Booking",
+                    title: `Edit Booking #${booking.id}`,
                 }}
             />
 
@@ -173,6 +207,27 @@ export default function NewBookingScreen() {
                 contentContainerStyle={styles.contentContainer}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Status Information */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Booking Status</Text>
+
+                    <Dropdown
+                        label="Booking Status"
+                        items={statusOptions}
+                        value={formData.status}
+                        onChange={(value) => updateFormData("status", value)}
+                        placeholder="Select booking status..."
+                    />
+
+                    <Dropdown
+                        label="Payment Status"
+                        items={paymentStatusOptions}
+                        value={formData.paymentStatus}
+                        onChange={(value) => updateFormData("paymentStatus", value)}
+                        placeholder="Select payment status..."
+                    />
+                </View>
+
                 {/* Route Selection */}
                 <View style={styles.card}>
                     <Text style={styles.cardTitle}>Trip Information</Text>
@@ -200,7 +255,7 @@ export default function NewBookingScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
                         </View>
-                        {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
+                        {errors.date && <Text style={styles.fieldErrorText}>{errors.date}</Text>}
                     </View>
 
                     <View style={styles.inputGroup}>
@@ -215,7 +270,7 @@ export default function NewBookingScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
                         </View>
-                        {errors.departureTime && <Text style={styles.errorText}>{errors.departureTime}</Text>}
+                        {errors.departureTime && <Text style={styles.fieldErrorText}>{errors.departureTime}</Text>}
                     </View>
                 </View>
 
@@ -247,7 +302,7 @@ export default function NewBookingScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
                         </View>
-                        {errors.passengers && <Text style={styles.errorText}>{errors.passengers}</Text>}
+                        {errors.passengers && <Text style={styles.fieldErrorText}>{errors.passengers}</Text>}
                     </View>
                 </View>
 
@@ -268,24 +323,25 @@ export default function NewBookingScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
                         </View>
-                        {errors.totalAmount && <Text style={styles.errorText}>{errors.totalAmount}</Text>}
+                        {errors.totalAmount && <Text style={styles.fieldErrorText}>{errors.totalAmount}</Text>}
+                    </View>
+                </View>
+
+                {/* Original Booking Information */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Original Booking Info</Text>
+
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Booking ID:</Text>
+                        <Text style={styles.infoValue}>#{booking.id}</Text>
                     </View>
 
-                    <Dropdown
-                        label="Payment Status"
-                        items={paymentStatusOptions}
-                        value={formData.paymentStatus}
-                        onChange={(value) => updateFormData("paymentStatus", value)}
-                        placeholder="Select payment status..."
-                    />
-
-                    <Dropdown
-                        label="Booking Status"
-                        items={statusOptions}
-                        value={formData.status}
-                        onChange={(value) => updateFormData("status", value)}
-                        placeholder="Select booking status..."
-                    />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Created:</Text>
+                        <Text style={styles.infoValue}>
+                            {new Date(booking.created_at).toLocaleDateString()} {new Date(booking.created_at).toLocaleTimeString()}
+                        </Text>
+                    </View>
                 </View>
             </ScrollView>
 
@@ -301,7 +357,7 @@ export default function NewBookingScreen() {
                         style={styles.cancelButton}
                     />
                     <Button
-                        title="Create Booking"
+                        title="Save Changes"
                         variant="primary"
                         size="large"
                         icon={<Save size={20} color="#FFFFFF" />}
@@ -327,6 +383,18 @@ const styles = StyleSheet.create({
     contentContainer: {
         padding: 16,
         paddingBottom: 100, // Space for action bar
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 32,
+    },
+    errorText: {
+        fontSize: 18,
+        color: colors.textSecondary,
+        marginBottom: 24,
+        textAlign: "center",
     },
     card: {
         backgroundColor: colors.card,
@@ -376,10 +444,25 @@ const styles = StyleSheet.create({
     inputError: {
         borderColor: colors.danger,
     },
-    errorText: {
+    fieldErrorText: {
         fontSize: 12,
         color: colors.danger,
         marginTop: 4,
+    },
+    infoRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 8,
+    },
+    infoLabel: {
+        fontSize: 14,
+        color: colors.textSecondary,
+    },
+    infoValue: {
+        fontSize: 14,
+        color: colors.text,
+        fontWeight: "500",
     },
     // Enhanced Action Bar Styles
     actionBar: {

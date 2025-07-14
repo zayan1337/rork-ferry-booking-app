@@ -64,7 +64,7 @@ export default function BookingDetailsScreen() {
     };
 
     const handleEdit = () => {
-        router.push(`/(admin)/booking/${booking.id}/edit`);
+        router.push(`/booking/${booking.id}/edit` as any);
     };
 
     const handleDelete = () => {
@@ -109,8 +109,8 @@ export default function BookingDetailsScreen() {
                 <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle}>Booking Status</Text>
                     <View style={styles.statusContainer}>
-                        <StatusBadge status={booking.status} />
-                        <StatusBadge status={booking.paymentStatus} size="small" />
+                        <StatusBadge status={booking.status as any} />
+                        <StatusBadge status={booking.paymentStatus as any} size="small" variant="payment" />
                     </View>
                 </View>
 
@@ -195,7 +195,7 @@ export default function BookingDetailsScreen() {
                         <View style={styles.detailRow}>
                             <View style={styles.detailContent}>
                                 <Text style={styles.detailLabel}>Customer Status</Text>
-                                <StatusBadge status={customer.status} size="small" />
+                                <StatusBadge status={customer.status as any} size="small" />
                             </View>
                         </View>
                     </>
@@ -205,7 +205,7 @@ export default function BookingDetailsScreen() {
                     title="View Customer Profile"
                     variant="outline"
                     size="small"
-                    onPress={() => router.push(`/(admin)/user/${booking.customerId}`)}
+                    onPress={() => router.push(`/user/${booking.customerId}` as any)}
                 />
             </View>
 
@@ -224,18 +224,18 @@ export default function BookingDetailsScreen() {
                 <View style={styles.detailRow}>
                     <View style={styles.detailContent}>
                         <Text style={styles.detailLabel}>Payment Status</Text>
-                        <StatusBadge status={booking.paymentStatus} />
+                        <StatusBadge status={booking.paymentStatus as any} variant="payment" />
                     </View>
                 </View>
 
                 <View style={styles.paymentActions}>
                     <Button
-                        title="Mark as Paid"
+                        title="Mark as Completed"
                         variant="primary"
                         size="small"
-                        disabled={booking.paymentStatus === "paid" || loading}
+                        disabled={booking.paymentStatus === "completed" || loading}
                         icon={<CheckCircle size={16} color="#FFFFFF" />}
-                        onPress={() => handlePaymentStatusUpdate("paid")}
+                        onPress={() => handlePaymentStatusUpdate("completed")}
                     />
                     <Button
                         title="Refund"
