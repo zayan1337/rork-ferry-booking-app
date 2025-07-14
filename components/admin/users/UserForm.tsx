@@ -77,7 +77,26 @@ export default function UserForm({
         try {
             const savedUser = await handleSubmit();
             if (savedUser) {
-                onSave?.(savedUser);
+                // Convert UserProfile to UserFormData for the callback
+                const userFormData: UserFormData = {
+                    name: savedUser.name,
+                    email: savedUser.email,
+                    mobile_number: savedUser.mobile_number,
+                    role: savedUser.role,
+                    status: savedUser.status,
+                    profile_picture: savedUser.profile_picture,
+                    date_of_birth: savedUser.date_of_birth,
+                    gender: savedUser.gender,
+                    address: savedUser.address,
+                    emergency_contact: savedUser.emergency_contact,
+                    preferences: savedUser.preferences,
+                    password: '',
+                    confirm_password: '',
+                    send_welcome_email: false,
+                    send_credentials_sms: false
+                };
+
+                onSave?.(userFormData);
                 if (!isEditMode) {
                     Alert.alert('Success', 'User created successfully!');
                 } else {
@@ -226,11 +245,11 @@ export default function UserForm({
                             <Dropdown
                                 label="Role"
                                 value={formData.role || ''}
-                                onValueChange={(value) => {
+                                onChange={(value) => {
                                     setFieldValue('role', value);
                                     clearFieldError('role');
                                 }}
-                                options={roleOptions}
+                                items={roleOptions}
                                 placeholder="Select user role"
                                 error={getFieldError('role')}
                                 required
@@ -241,11 +260,11 @@ export default function UserForm({
                             <Dropdown
                                 label="Status"
                                 value={formData.status || 'active'}
-                                onValueChange={(value) => {
+                                onChange={(value) => {
                                     setFieldValue('status', value);
                                     clearFieldError('status');
                                 }}
-                                options={statusOptions}
+                                items={statusOptions}
                                 placeholder="Select status"
                                 error={getFieldError('status')}
                                 required
@@ -263,17 +282,9 @@ export default function UserForm({
                                             clearFieldError('password');
                                         }}
                                         placeholder="Enter password"
-                                        secureTextEntry={!showPassword}
+                                        secureTextEntry={true}
                                         error={getFieldError('password')}
                                         leftIcon={<Key size={20} color={colors.textSecondary} />}
-                                        rightIcon={
-                                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                                {showPassword ?
-                                                    <EyeOff size={20} color={colors.textSecondary} /> :
-                                                    <Eye size={20} color={colors.textSecondary} />
-                                                }
-                                            </TouchableOpacity>
-                                        }
                                         required
                                     />
                                 </View>
@@ -281,23 +292,15 @@ export default function UserForm({
                                 <View style={styles.field}>
                                     <Input
                                         label="Confirm Password"
-                                        value={formData.confirmPassword || ''}
+                                        value={formData.confirm_password || ''}
                                         onChangeText={(text) => {
-                                            setFieldValue('confirmPassword', text);
-                                            clearFieldError('confirmPassword');
+                                            setFieldValue('confirm_password', text);
+                                            clearFieldError('confirm_password');
                                         }}
                                         placeholder="Confirm password"
-                                        secureTextEntry={!showConfirmPassword}
-                                        error={getFieldError('confirmPassword')}
+                                        secureTextEntry={true}
+                                        error={getFieldError('confirm_password')}
                                         leftIcon={<Key size={20} color={colors.textSecondary} />}
-                                        rightIcon={
-                                            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                                                {showConfirmPassword ?
-                                                    <EyeOff size={20} color={colors.textSecondary} /> :
-                                                    <Eye size={20} color={colors.textSecondary} />
-                                                }
-                                            </TouchableOpacity>
-                                        }
                                         required
                                     />
                                 </View>

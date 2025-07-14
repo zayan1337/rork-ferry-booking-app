@@ -263,7 +263,7 @@ export default function BookingDetailsScreen() {
                     <View style={styles.detailContent}>
                         <Text style={styles.detailLabel}>Created At</Text>
                         <Text style={styles.detailValue}>
-                            {new Date(booking.createdAt).toLocaleDateString()} {new Date(booking.createdAt).toLocaleTimeString()}
+                            {new Date(booking.created_at).toLocaleDateString()} {new Date(booking.created_at).toLocaleTimeString()}
                         </Text>
                     </View>
                 </View>

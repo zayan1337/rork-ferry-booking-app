@@ -22,7 +22,7 @@ export const useDashboardData = () => {
     // Calculate real-time statistics
     const stats: DashboardStatsData = useMemo(() => {
         const todayBookings = bookings.filter(b =>
-            new Date(b.createdAt).toDateString() === new Date().toDateString()
+            new Date(b.created_at).toDateString() === new Date().toDateString()
         ).length;
 
         const activeTripsCount = trips.filter(t =>

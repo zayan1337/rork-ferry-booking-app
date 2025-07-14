@@ -14,19 +14,26 @@ export function useUserForm(userId?: string): ReturnType<typeof useUserFormImpl>
 export function useUserForm(props?: UseUserFormProps): ReturnType<typeof useUserFormImpl>;
 export function useUserForm(userIdOrProps?: string | UseUserFormProps): ReturnType<typeof useUserFormImpl> {
     let props: UseUserFormProps = {};
+    let userId: string | undefined;
 
     if (typeof userIdOrProps === 'string') {
         // Handle case where userId is passed directly
+        // We'll fetch the user data inside the hook implementation
+        userId = userIdOrProps;
         props = { initialData: undefined };
     } else if (userIdOrProps) {
         props = userIdOrProps;
+        userId = undefined;
     }
 
-    return useUserFormImpl(props);
+    return useUserFormImpl(props, userId);
 }
 
-const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps = {}) => {
-    const { users = [], addUser, updateUser, loading, setLoading } = useAdminStore();
+const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps = {}, userId?: string) => {
+    const { users = [], addUser, updateUser, loading, setLoading, getUser } = useAdminStore();
+
+    // Ensure users is always an array to prevent .find() errors
+    const safeUsers = Array.isArray(users) ? users : [];
 
     const [formData, setFormData] = useState<UserFormData>({
         name: '',
@@ -61,6 +68,50 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
     const [errors, setErrors] = useState<UserValidationErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
+
+    // Fetch user data when userId is provided but no initialData
+    useEffect(() => {
+        if (userId && !initialData && safeUsers.length > 0) {
+            try {
+                const userData = getUser(userId);
+                if (userData) {
+                    // Set the fetched user data as initialData
+                    setFormData({
+                        name: userData.name,
+                        email: userData.email,
+                        mobile_number: userData.mobile_number,
+                        role: userData.role,
+                        status: userData.status === 'banned' ? 'suspended' : userData.status,
+                        profile_picture: userData.profile_picture || '',
+                        date_of_birth: userData.date_of_birth || '',
+                        gender: userData.gender,
+                        address: userData.address,
+                        emergency_contact: userData.emergency_contact,
+                        preferences: userData.preferences || {
+                            language: 'en',
+                            currency: 'MVR',
+                            notifications: {
+                                email: true,
+                                sms: true,
+                                push: true
+                            },
+                            accessibility: {
+                                assistance_required: false,
+                                assistance_type: ''
+                            }
+                        },
+                        password: '',
+                        confirm_password: '',
+                        send_welcome_email: false,
+                        send_credentials_sms: false
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                onError?.('Failed to fetch user data');
+            }
+        }
+    }, [userId, initialData, safeUsers, getUser, onError]);
 
     // Initialize form data when initialData changes
     useEffect(() => {
@@ -97,22 +148,56 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
         }
     }, [initialData]);
 
-    const updateFormData = useCallback((updates: Partial<UserFormData>) => {
-        setFormData(prev => ({ ...prev, ...updates }));
+    const updateFormData = useCallback((fieldOrUpdates: string | Partial<UserFormData>, value?: any) => {
+        if (typeof fieldOrUpdates === 'string') {
+            // Handle dot notation for nested fields
+            const field = fieldOrUpdates;
+            const keys = field.split('.');
+
+            setFormData(prev => {
+                const newData = { ...prev };
+                if (keys.length === 1) {
+                    (newData as any)[keys[0]] = value;
+                } else if (keys.length === 2) {
+                    if (!newData[keys[0] as keyof UserFormData]) {
+                        (newData as any)[keys[0]] = {};
+                    }
+                    (newData as any)[keys[0]][keys[1]] = value;
+                }
+                return newData;
+            });
+        } else {
+            // Handle object updates
+            setFormData(prev => ({ ...prev, ...fieldOrUpdates }));
+        }
+
         setIsDirty(true);
 
         // Clear errors for updated fields
         const updatedErrors = { ...errors };
-        Object.keys(updates).forEach(key => {
-            delete updatedErrors[key as keyof UserValidationErrors];
-        });
+        if (typeof fieldOrUpdates === 'string') {
+            // Clear specific field error
+            const topLevelField = fieldOrUpdates.split('.')[0];
+            if (topLevelField === 'address' && errors.address) {
+                delete updatedErrors.address;
+            } else if (topLevelField === 'emergency_contact' && errors.emergency_contact) {
+                delete updatedErrors.emergency_contact;
+            } else if (topLevelField in errors) {
+                delete updatedErrors[topLevelField as keyof UserValidationErrors];
+            }
+        } else {
+            // Clear errors for all updated fields
+            Object.keys(fieldOrUpdates).forEach(key => {
+                delete updatedErrors[key as keyof UserValidationErrors];
+            });
 
-        // Clear nested errors if applicable
-        if (updates.address && errors.address) {
-            delete updatedErrors.address;
-        }
-        if (updates.emergency_contact && errors.emergency_contact) {
-            delete updatedErrors.emergency_contact;
+            // Clear nested errors if applicable
+            if (fieldOrUpdates.address && errors.address) {
+                delete updatedErrors.address;
+            }
+            if (fieldOrUpdates.emergency_contact && errors.emergency_contact) {
+                delete updatedErrors.emergency_contact;
+            }
         }
 
         setErrors(updatedErrors);
@@ -169,8 +254,8 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
         const validationErrors = validateUserForm(formData);
 
         // Check uniqueness (only if users array is available and has data)
-        if (users && Array.isArray(users) && users.length > 0) {
-            const uniqueCheck = validateUserUniqueness(formData, users, initialData?.id);
+        if (safeUsers.length > 0) {
+            const uniqueCheck = validateUserUniqueness(formData, safeUsers, initialData?.id);
             if (uniqueCheck.emailExists) {
                 validationErrors.email = 'A user with this email already exists';
             }
@@ -181,7 +266,7 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
 
         setErrors(validationErrors);
         return Object.keys(validationErrors).length === 0;
-    }, [formData, users, initialData]);
+    }, [formData, safeUsers, initialData]);
 
     const resetForm = useCallback(() => {
         setFormData({
@@ -217,7 +302,7 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
         setIsDirty(false);
     }, []);
 
-    const handleSubmit = useCallback(async () => {
+    const handleSubmit = useCallback(async (): Promise<UserProfile | false> => {
         if (!validateForm()) {
             return false;
         }
@@ -267,7 +352,7 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
                 resetForm();
             }
 
-            return true;
+            return userData;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'An error occurred while saving the user';
             setErrors({ general: errorMessage });
@@ -279,8 +364,9 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
         }
     }, [formData, validateForm, initialData, addUser, updateUser, onSuccess, onError, resetForm, setLoading]);
 
-    const getFieldError = useCallback((fieldName: keyof UserFormData) => {
-        return errors[fieldName];
+    const getFieldError = useCallback((fieldName: string) => {
+        const topLevelField = fieldName.split('.')[0];
+        return errors[topLevelField as keyof UserValidationErrors];
     }, [errors]);
 
     const getAddressError = useCallback((field: string) => {
@@ -342,13 +428,20 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
 
         // Field-specific actions
         setFieldValue: updateFormData,
-        setFieldError: useCallback((fieldName: keyof UserFormData, error: string) => {
-            setErrors(prev => ({ ...prev, [fieldName]: error }));
+        setFieldError: useCallback((fieldName: string, error: string) => {
+            setErrors(prev => ({ ...prev, [fieldName.split('.')[0]]: error }));
         }, []),
-        clearFieldError: useCallback((fieldName: keyof UserFormData) => {
+        clearFieldError: useCallback((fieldName: string) => {
             setErrors(prev => {
                 const newErrors = { ...prev };
-                delete newErrors[fieldName];
+                const topLevelField = fieldName.split('.')[0];
+                if (topLevelField === 'address' && newErrors.address) {
+                    delete newErrors.address;
+                } else if (topLevelField === 'emergency_contact' && newErrors.emergency_contact) {
+                    delete newErrors.emergency_contact;
+                } else if (topLevelField in newErrors) {
+                    delete newErrors[topLevelField as keyof UserValidationErrors];
+                }
                 return newErrors;
             });
         }, []),

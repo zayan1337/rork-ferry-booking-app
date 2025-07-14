@@ -133,9 +133,9 @@ export default function UsersScreen() {
                 case "name_desc":
                     return (b.name || "").localeCompare(a.name || "");
                 case "date_asc":
-                    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
                 case "date_desc":
-                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                 case "role_asc":
                     return (a.role || "").localeCompare(b.role || "");
                 case "status_asc":
@@ -155,7 +155,7 @@ export default function UsersScreen() {
         const customerCount = users.filter(u => u.role === "customer").length;
         const passengerCount = passengers?.length || 0;
         const newUsersThisMonth = users.filter(u => {
-            const userDate = new Date(u.createdAt);
+            const userDate = new Date(u.created_at);
             const now = new Date();
             return userDate.getMonth() === now.getMonth() && userDate.getFullYear() === now.getFullYear();
         }).length;

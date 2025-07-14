@@ -94,7 +94,7 @@ export const mockBookings: Booking[] = [
     paymentStatus: "completed",
     passengers: 2,
     totalAmount: 300,
-    createdAt: "2025-06-01T10:00:00Z",
+    created_at: "2025-06-01T10:00:00Z",
   },
   {
     id: "b2",
@@ -109,7 +109,7 @@ export const mockBookings: Booking[] = [
     paymentStatus: "completed",
     passengers: 1,
     totalAmount: 200,
-    createdAt: "2025-06-01T11:30:00Z",
+    created_at: "2025-06-01T11:30:00Z",
   },
   {
     id: "b3",
@@ -124,7 +124,7 @@ export const mockBookings: Booking[] = [
     paymentStatus: "refunded",
     passengers: 3,
     totalAmount: 900,
-    createdAt: "2025-06-01T16:45:00Z",
+    created_at: "2025-06-01T16:45:00Z",
   },
   {
     id: "b4",
@@ -139,7 +139,7 @@ export const mockBookings: Booking[] = [
     paymentStatus: "completed",
     passengers: 1,
     totalAmount: 150,
-    createdAt: "2025-06-02T09:15:00Z",
+    created_at: "2025-06-02T09:15:00Z",
   },
   {
     id: "b5",
@@ -154,7 +154,7 @@ export const mockBookings: Booking[] = [
     paymentStatus: "completed",
     passengers: 2,
     totalAmount: 400,
-    createdAt: "2025-06-02T14:20:00Z",
+    created_at: "2025-06-02T14:20:00Z",
   },
 ];
 
@@ -456,16 +456,15 @@ export const mockDashboardStats: DashboardStats = {
     total_value: 1680,
   },
   walletStats: {
-    total_wallets: 45,
     total_balance: 45280.50,
     active_wallets: 38,
-    pending_transactions: 3,
+    total_transactions_today: 3,
   },
   systemHealth: {
-    server_status: "healthy",
-    database_status: "healthy",
-    api_response_time: 125,
-    uptime_percentage: 99.8,
+    status: "healthy",
+    last_backup: "2025-01-01T00:00:00Z",
+    database_size: "1.2GB",
+    active_sessions: 24,
   },
 };
 

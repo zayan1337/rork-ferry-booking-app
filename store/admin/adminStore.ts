@@ -64,7 +64,7 @@ interface AdminState {
 
   // CRUD operations
   // Existing CRUD
-  addBooking: (booking: Omit<Booking, 'id' | 'createdAt'>) => void;
+  addBooking: (booking: Omit<Booking, 'id' | 'created_at'>) => void;
   updateBooking: (id: string, updates: Partial<Booking>) => void;
   deleteBooking: (id: string) => void;
 
@@ -259,13 +259,24 @@ export const useAdminStore = create<AdminState>()(
   persist(
     (set, get) => ({
       // Existing data
-      alerts: mockAlerts,
-      bookings: mockBookings,
+      alerts: mockAlerts || [],
+      bookings: mockBookings || [],
       users: mockUsers || [],
-      vessels: mockVessels,
-      routes: mockRoutes,
-      trips: mockTrips,
-      dashboardStats: mockDashboardStats,
+      vessels: mockVessels || [],
+      routes: mockRoutes || [],
+      trips: mockTrips || [],
+      dashboardStats: mockDashboardStats || {
+        totalUsers: 0,
+        totalBookings: 0,
+        totalRevenue: 0,
+        completedTrips: 0,
+        pendingBookings: 0,
+        activeUsers: 0,
+        recentBookings: [],
+        userGrowth: 0,
+        revenueGrowth: 0,
+        systemHealth: { status: 'healthy', last_backup: '', database_size: '', active_sessions: 0 }
+      },
 
       // New data
       wallets: mockWallets,
@@ -346,33 +357,57 @@ export const useAdminStore = create<AdminState>()(
         })),
 
       addUser: (user) =>
-        set((state) => ({
-          users: [{
+        set((state) => {
+          const newUser = {
             ...user,
             id: `u${Date.now()}`,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
-          }, ...state.users]
-        })),
+          };
+
+          // Ensure users array exists
+          const currentUsers = Array.isArray(state.users) ? state.users : [];
+
+          return {
+            users: [newUser, ...currentUsers]
+          };
+        }),
 
       updateUser: (id, updates) =>
-        set((state) => ({
-          users: state.users.map((user) =>
-            user.id === id ? { ...user, ...updates } : user
-          )
-        })),
+        set((state) => {
+          // Ensure users array exists
+          if (!Array.isArray(state.users)) {
+            console.warn('updateUser: users array is not available');
+            return state;
+          }
+          
+          return {
+            users: state.users.map((user) =>
+              user.id === id ? { ...user, ...updates, updated_at: new Date().toISOString() } : user
+            )
+          };
+        }),
 
       deleteUser: (id) =>
-        set((state) => ({
-          users: state.users.filter((user) => user.id !== id)
-        })),
+        set((state) => {
+          // Ensure users array exists
+          if (!Array.isArray(state.users)) {
+            console.warn('deleteUser: users array is not available');
+            return state;
+          }
+          
+          return {
+            users: state.users.filter((user) => user.id !== id)
+          };
+        }),
 
       getUser: (id) => {
         const state = get();
         if (!state.users || !Array.isArray(state.users)) {
+          console.warn('getUser: users array is not available or not an array', state.users);
           return undefined;
         }
-        return state.users?.find(user => user.id === id);
+        return state.users.find(user => user.id === id);
       },
 
       addVessel: (vessel) =>

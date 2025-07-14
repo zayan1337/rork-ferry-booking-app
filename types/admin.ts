@@ -35,7 +35,7 @@ export type User = {
   total_spent?: number;
   last_booking_date?: string;
   permissions?: AdminPermission[];
-  createdAt: string;
+  created_at: string;
 };
 
 // Enhanced Booking Types
@@ -60,7 +60,7 @@ export type Booking = {
   paymentMethod?: string;
   qrCodeUrl?: string;
   checkInStatus?: boolean;
-  createdAt: string;
+  created_at: string;
 };
 
 // Enhanced Route Types

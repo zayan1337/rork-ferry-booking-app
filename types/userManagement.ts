@@ -4,7 +4,7 @@ export interface UserProfile {
     name: string;
     email: string;
     mobile_number: string;
-    role: "admin" | "agent" | "customer" | "passenger";
+    role: "admin" | "agent" | "customer" | "passenger" | "captain";
     status: "active" | "inactive" | "suspended" | "banned";
     email_verified: boolean;
     mobile_verified: boolean;
@@ -156,7 +156,7 @@ export interface UserFormData {
     name: string;
     email: string;
     mobile_number: string;
-    role: "admin" | "agent" | "customer" | "passenger";
+    role: "admin" | "agent" | "customer" | "passenger" | "captain";
     status: "active" | "inactive" | "suspended";
     profile_picture?: string;
     date_of_birth?: string;
@@ -267,7 +267,7 @@ export interface RoleValidationErrors {
 
 // Filter and Search Types
 export interface UserFilters {
-    role?: "all" | "admin" | "agent" | "customer" | "passenger";
+    role?: "all" | "admin" | "agent" | "customer" | "passenger" | "captain";
     status?: "all" | "active" | "inactive" | "suspended" | "banned";
     email_verified?: boolean;
     mobile_verified?: boolean;

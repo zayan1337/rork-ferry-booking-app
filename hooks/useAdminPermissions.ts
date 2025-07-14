@@ -124,16 +124,25 @@ export const useAdminPermissions = () => {
 
     // Operations permissions
     const canViewRoutes = () => hasPermission(PERMISSION_RESOURCES.ROUTES, PERMISSION_ACTIONS.VIEW);
+    const canCreateRoutes = () => hasPermission(PERMISSION_RESOURCES.ROUTES, PERMISSION_ACTIONS.CREATE);
+    const canUpdateRoutes = () => hasPermission(PERMISSION_RESOURCES.ROUTES, PERMISSION_ACTIONS.UPDATE);
+    const canDeleteRoutes = () => hasPermission(PERMISSION_RESOURCES.ROUTES, PERMISSION_ACTIONS.DELETE);
     const canManageRoutes = () => hasPermission(PERMISSION_RESOURCES.ROUTES, PERMISSION_ACTIONS.CREATE) ||
         hasPermission(PERMISSION_RESOURCES.ROUTES, PERMISSION_ACTIONS.UPDATE) ||
         hasPermission(PERMISSION_RESOURCES.ROUTES, PERMISSION_ACTIONS.DELETE);
 
     const canViewTrips = () => hasPermission(PERMISSION_RESOURCES.TRIPS, PERMISSION_ACTIONS.VIEW);
+    const canCreateTrips = () => hasPermission(PERMISSION_RESOURCES.TRIPS, PERMISSION_ACTIONS.CREATE);
+    const canUpdateTrips = () => hasPermission(PERMISSION_RESOURCES.TRIPS, PERMISSION_ACTIONS.UPDATE);
+    const canDeleteTrips = () => hasPermission(PERMISSION_RESOURCES.TRIPS, PERMISSION_ACTIONS.DELETE);
     const canManageTrips = () => hasPermission(PERMISSION_RESOURCES.TRIPS, PERMISSION_ACTIONS.CREATE) ||
         hasPermission(PERMISSION_RESOURCES.TRIPS, PERMISSION_ACTIONS.UPDATE) ||
         hasPermission(PERMISSION_RESOURCES.TRIPS, PERMISSION_ACTIONS.DELETE);
 
     const canViewVessels = () => hasPermission(PERMISSION_RESOURCES.VESSELS, PERMISSION_ACTIONS.VIEW);
+    const canCreateVessels = () => hasPermission(PERMISSION_RESOURCES.VESSELS, PERMISSION_ACTIONS.CREATE);
+    const canUpdateVessels = () => hasPermission(PERMISSION_RESOURCES.VESSELS, PERMISSION_ACTIONS.UPDATE);
+    const canDeleteVessels = () => hasPermission(PERMISSION_RESOURCES.VESSELS, PERMISSION_ACTIONS.DELETE);
     const canManageVessels = () => hasPermission(PERMISSION_RESOURCES.VESSELS, PERMISSION_ACTIONS.CREATE) ||
         hasPermission(PERMISSION_RESOURCES.VESSELS, PERMISSION_ACTIONS.UPDATE) ||
         hasPermission(PERMISSION_RESOURCES.VESSELS, PERMISSION_ACTIONS.DELETE);
@@ -205,10 +214,19 @@ export const useAdminPermissions = () => {
 
         // Operations
         canViewRoutes,
+        canCreateRoutes,
+        canUpdateRoutes,
+        canDeleteRoutes,
         canManageRoutes,
         canViewTrips,
+        canCreateTrips,
+        canUpdateTrips,
+        canDeleteTrips,
         canManageTrips,
         canViewVessels,
+        canCreateVessels,
+        canUpdateVessels,
+        canDeleteVessels,
         canManageVessels,
         canAccessOperationsTab,
 
