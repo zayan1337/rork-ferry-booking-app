@@ -13,16 +13,20 @@ import {
     fetchVessels,
     fetchVessel,
     fetchIslands,
+    fetchIsland,
     fetchTodaySchedule,
     createRoute,
     createTrip,
     createVessel,
+    createIsland,
     updateRoute,
     updateTrip,
     updateVessel,
+    updateIsland,
     deleteRoute,
     deleteTrip,
     deleteVessel,
+    deleteIsland,
 } from "@/utils/operationsService";
 
 interface LoadingState {
@@ -37,6 +41,7 @@ interface SearchQueries {
     routes: string;
     trips: string;
     vessels: string;
+    islands: string;
 }
 
 interface OperationsStats {
@@ -77,6 +82,7 @@ interface OperationsStore {
     fetchVessels: () => Promise<void>;
     fetchVessel: (id: string) => Promise<OperationsVessel | null>;
     fetchIslands: () => Promise<void>;
+    fetchIsland: (id: string) => Promise<DatabaseIsland | null>;
     fetchTodaySchedule: () => Promise<void>;
 
     // CRUD operations
@@ -91,6 +97,10 @@ interface OperationsStore {
     addVessel: (vesselData: { name: string; seating_capacity: number }) => Promise<boolean>;
     updateVesselData: (id: string, updates: Partial<OperationsVessel>) => Promise<boolean>;
     removeVessel: (id: string) => Promise<boolean>;
+
+    addIsland: (islandData: { name: string; zone: string; is_active?: boolean }) => Promise<boolean>;
+    updateIslandData: (id: string, updates: Partial<DatabaseIsland>) => Promise<boolean>;
+    removeIsland: (id: string) => Promise<boolean>;
 
     // Utility
     refreshAll: () => Promise<void>;
@@ -117,6 +127,7 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
         routes: "",
         trips: "",
         vessels: "",
+        islands: "",
     },
 
     stats: {
@@ -370,6 +381,51 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
         }
     },
 
+    fetchIsland: async (id: string) => {
+        const island = await fetchIsland(id);
+        return island;
+    },
+
+    addIsland: async (islandData) => {
+        try {
+            const newIsland = await createIsland(islandData);
+            if (newIsland) {
+                await get().fetchIslands(); // Refresh the list
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error adding island:', error);
+            return false;
+        }
+    },
+
+    updateIslandData: async (id, updates) => {
+        try {
+            const success = await updateIsland(id, updates);
+            if (success) {
+                await get().fetchIslands(); // Refresh the list
+            }
+            return success;
+        } catch (error) {
+            console.error('Error updating island:', error);
+            return false;
+        }
+    },
+
+    removeIsland: async (id) => {
+        try {
+            const success = await deleteIsland(id);
+            if (success) {
+                await get().fetchIslands(); // Refresh the list
+            }
+            return success;
+        } catch (error) {
+            console.error('Error deleting island:', error);
+            return false;
+        }
+    },
+
     // Utility
     refreshAll: async () => {
         const { fetchRoutes, fetchTrips, fetchVessels, fetchIslands, fetchTodaySchedule } = get();
@@ -392,6 +448,7 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
             routes: "",
             trips: "",
             vessels: "",
+            islands: "",
         },
     }),
 })); 

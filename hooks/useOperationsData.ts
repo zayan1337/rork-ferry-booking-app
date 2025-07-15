@@ -7,6 +7,7 @@ export const useOperationsData = () => {
         routes,
         trips,
         vessels,
+        islands,
         todaySchedule,
         loading,
         searchQueries,
@@ -15,6 +16,7 @@ export const useOperationsData = () => {
         fetchRoutes,
         fetchTrips,
         fetchVessels,
+        fetchIslands,
         fetchTodaySchedule,
         refreshAll,
     } = useOperationsStore();
@@ -23,10 +25,10 @@ export const useOperationsData = () => {
 
     // Initialize data on first load
     useEffect(() => {
-        if (routes.length === 0 && trips.length === 0 && vessels.length === 0) {
+        if (routes.length === 0 && trips.length === 0 && vessels.length === 0 && islands.length === 0) {
             refreshAll();
         }
-    }, [routes.length, trips.length, vessels.length, refreshAll]);
+    }, [routes.length, trips.length, vessels.length, islands.length, refreshAll]);
 
     // Filtered data based on search queries
     const filteredRoutes = useMemo(() => {
@@ -64,6 +66,16 @@ export const useOperationsData = () => {
         ).slice(0, 5);
     }, [vessels, searchQueries.vessels]);
 
+    const filteredIslands = useMemo(() => {
+        const query = searchQueries.islands?.toLowerCase() || "";
+        if (!query) return islands.slice(0, 5);
+
+        return islands.filter(island =>
+            island.name.toLowerCase().includes(query) ||
+            island.zone.toLowerCase().includes(query)
+        ).slice(0, 5);
+    }, [islands, searchQueries.islands]);
+
     // Enhanced stats with real data
     const enhancedStats = useMemo(() => ({
         activeRoutes: stats.activeRoutes,
@@ -81,18 +93,21 @@ export const useOperationsData = () => {
         filteredRoutes,
         filteredTrips,
         filteredVessels,
+        filteredIslands,
         todaySchedule,
         searchQueries,
         setSearchQuery,
-        loading: loading.routes || loading.trips || loading.vessels || loading.schedule,
+        loading: loading.routes || loading.trips || loading.vessels || loading.islands || loading.schedule,
         // Additional data and functions for detail pages
         allRoutes: routes,
         allTrips: trips,
         allVessels: vessels,
+        allIslands: islands,
         // Refresh functions
         refreshRoutes: fetchRoutes,
         refreshTrips: fetchTrips,
         refreshVessels: fetchVessels,
+        refreshIslands: fetchIslands,
         refreshSchedule: fetchTodaySchedule,
         refreshAll,
     };

@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Calendar,
   MapPin,
+  Route as RouteIcon,
   Ship,
 } from "lucide-react-native";
 
@@ -32,6 +33,7 @@ import SectionHeader from "@/components/admin/SectionHeader";
 import Button from "@/components/admin/Button";
 import SearchBar from "@/components/admin/SearchBar";
 import TripItem from "@/components/admin/TripItem";
+import IslandItem from "@/components/admin/IslandItem";
 
 export default function OperationsScreen() {
   const {
@@ -41,6 +43,8 @@ export default function OperationsScreen() {
     canManageTrips,
     canViewVessels,
     canManageVessels,
+    canViewIslands,
+    canManageIslands,
   } = useAdminPermissions();
 
   const {
@@ -50,6 +54,7 @@ export default function OperationsScreen() {
     filteredRoutes,
     filteredTrips,
     filteredVessels,
+    filteredIslands,
     todaySchedule,
     searchQueries,
     setSearchQuery,
@@ -106,6 +111,20 @@ export default function OperationsScreen() {
       router.push("../vessel/new" as any);
     } else {
       Alert.alert("Access Denied", "You don't have permission to create vessels.");
+    }
+  };
+
+  const handleIslandPress = (islandId: string) => {
+    if (canViewIslands()) {
+      router.push(`../island/${islandId}` as any);
+    }
+  };
+
+  const handleAddIsland = () => {
+    if (canManageIslands()) {
+      router.push("../island/new" as any);
+    } else {
+      Alert.alert("Access Denied", "You don't have permission to create islands.");
     }
   };
 
@@ -183,7 +202,7 @@ export default function OperationsScreen() {
             ))
           ) : (
             <View style={styles.emptyState}>
-              <MapPin size={48} color={colors.textSecondary} />
+              <RouteIcon size={48} color={colors.textSecondary} />
               <Text style={styles.emptyStateTitle}>No routes found</Text>
               <Text style={styles.emptyStateText}>
                 {searchQueries.routes ? 'Try adjusting your search terms' : 'No routes available'}
@@ -388,6 +407,92 @@ export default function OperationsScreen() {
     );
   };
 
+  const renderIslands = () => {
+    if (!canViewIslands()) {
+      return (
+        <View style={styles.noPermissionContainer}>
+          <View style={styles.noPermissionIcon}>
+            <AlertTriangle size={48} color={colors.warning} />
+          </View>
+          <Text style={styles.noPermissionTitle}>Access Denied</Text>
+          <Text style={styles.noPermissionText}>
+            You don't have permission to view islands.
+          </Text>
+        </View>
+      );
+    }
+
+    // Filter out duplicate islands by ID to prevent key conflicts
+    const uniqueIslands = filteredIslands.filter((island, index, self) =>
+      index === self.findIndex(i => i.id === island.id)
+    );
+
+    return (
+      <View style={styles.sectionContent}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeaderContent}>
+            <View style={styles.sectionTitleContainer}>
+              <View style={styles.sectionIcon}>
+                <MapPin size={20} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={styles.sectionTitle}>Islands Management</Text>
+                <Text style={styles.sectionSubtitle}>{uniqueIslands.length} islands available</Text>
+              </View>
+            </View>
+          </View>
+          {canManageIslands() && (
+            <View style={styles.sectionHeaderButton}>
+              <Button
+                title="Add Island"
+                onPress={handleAddIsland}
+                size="small"
+                variant="outline"
+                icon={<Plus size={16} color={colors.primary} />}
+              />
+            </View>
+          )}
+        </View>
+
+        <SearchBar
+          placeholder="Search islands..."
+          value={searchQueries.islands || ""}
+          onChangeText={(text) => setSearchQuery("islands", text)}
+        />
+
+        <View style={styles.itemsList}>
+          {uniqueIslands.length > 0 ? (
+            uniqueIslands.map((island, index) => (
+              <IslandItem
+                key={`island-${island.id}-${index}`}
+                island={island}
+                onPress={handleIslandPress}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyStateIcon}>
+                <MapPin size={48} color={colors.textSecondary} />
+              </View>
+              <Text style={styles.emptyStateTitle}>No islands found</Text>
+              <Text style={styles.emptyStateText}>
+                {searchQueries.islands ? 'Try adjusting your search terms' : 'No islands available'}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={styles.viewAllButton}
+          onPress={() => router.push("../islands" as any)}
+        >
+          <Text style={styles.viewAllText}>View All Islands</Text>
+          <MapPin size={16} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderSchedule = () => {
     if (!canViewTrips()) {
       return (
@@ -460,6 +565,8 @@ export default function OperationsScreen() {
         return renderTrips();
       case "vessels":
         return renderVessels();
+      case "islands":
+        return renderIslands();
       case "schedule":
         return renderSchedule();
       default:
@@ -497,6 +604,7 @@ export default function OperationsScreen() {
         canViewRoutes={canViewRoutes()}
         canViewTrips={canViewTrips()}
         canViewVessels={canViewVessels()}
+        canViewIslands={canViewIslands()}
       />
 
       {/* Content */}
@@ -722,5 +830,44 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: "center",
     maxWidth: 250,
+  },
+  noPermissionIcon: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    backgroundColor: colors.warning + "10",
+    borderRadius: 24,
+  },
+  noPermissionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 8,
+  },
+  sectionTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sectionIcon: {
+    padding: 8,
+    backgroundColor: colors.primary + "10",
+    borderRadius: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  emptyStateIcon: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    backgroundColor: colors.textSecondary + "10",
+    borderRadius: 24,
   },
 }); 

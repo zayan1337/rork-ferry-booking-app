@@ -39,42 +39,48 @@ export const useAdminPermissions = () => {
             { id: '17', name: 'vessels:update', description: 'Update vessels', resource: PERMISSION_RESOURCES.VESSELS, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
             { id: '18', name: 'vessels:delete', description: 'Delete vessels', resource: PERMISSION_RESOURCES.VESSELS, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
 
+            // Islands permissions
+            { id: '19', name: 'islands:view', description: 'View islands', resource: PERMISSION_RESOURCES.ISLANDS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '20', name: 'islands:create', description: 'Create islands', resource: PERMISSION_RESOURCES.ISLANDS, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
+            { id: '21', name: 'islands:update', description: 'Update islands', resource: PERMISSION_RESOURCES.ISLANDS, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
+            { id: '22', name: 'islands:delete', description: 'Delete islands', resource: PERMISSION_RESOURCES.ISLANDS, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
+
             // User management permissions
-            { id: '19', name: 'users:view', description: 'View users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '20', name: 'users:create', description: 'Create users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
-            { id: '21', name: 'users:update', description: 'Update users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
-            { id: '22', name: 'users:delete', description: 'Delete users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
+            { id: '23', name: 'users:view', description: 'View users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '24', name: 'users:create', description: 'Create users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
+            { id: '25', name: 'users:update', description: 'Update users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
+            { id: '26', name: 'users:delete', description: 'Delete users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
 
-            { id: '23', name: 'agents:view', description: 'View agents', resource: PERMISSION_RESOURCES.AGENTS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '24', name: 'agents:manage', description: 'Manage agents', resource: PERMISSION_RESOURCES.AGENTS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
+            { id: '27', name: 'agents:view', description: 'View agents', resource: PERMISSION_RESOURCES.AGENTS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '28', name: 'agents:manage', description: 'Manage agents', resource: PERMISSION_RESOURCES.AGENTS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
 
-            { id: '25', name: 'passengers:view', description: 'View passengers', resource: PERMISSION_RESOURCES.PASSENGERS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '26', name: 'passengers:manage', description: 'Manage passengers', resource: PERMISSION_RESOURCES.PASSENGERS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
+            { id: '29', name: 'passengers:view', description: 'View passengers', resource: PERMISSION_RESOURCES.PASSENGERS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '30', name: 'passengers:manage', description: 'Manage passengers', resource: PERMISSION_RESOURCES.PASSENGERS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
 
             // Financial permissions
-            { id: '27', name: 'wallets:view', description: 'View wallets', resource: PERMISSION_RESOURCES.WALLETS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '28', name: 'wallets:manage', description: 'Manage wallets', resource: PERMISSION_RESOURCES.WALLETS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
-            { id: '29', name: 'payments:view', description: 'View payments', resource: PERMISSION_RESOURCES.PAYMENTS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '30', name: 'payments:manage', description: 'Manage payments', resource: PERMISSION_RESOURCES.PAYMENTS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
+            { id: '31', name: 'wallets:view', description: 'View wallets', resource: PERMISSION_RESOURCES.WALLETS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '32', name: 'wallets:manage', description: 'Manage wallets', resource: PERMISSION_RESOURCES.WALLETS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
+            { id: '33', name: 'payments:view', description: 'View payments', resource: PERMISSION_RESOURCES.PAYMENTS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '34', name: 'payments:manage', description: 'Manage payments', resource: PERMISSION_RESOURCES.PAYMENTS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
 
             // Communication permissions
-            { id: '31', name: 'notifications:view', description: 'View notifications', resource: PERMISSION_RESOURCES.NOTIFICATIONS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '32', name: 'notifications:send', description: 'Send notifications', resource: PERMISSION_RESOURCES.NOTIFICATIONS, action: PERMISSION_ACTIONS.SEND, created_at: new Date().toISOString() },
-            { id: '33', name: 'bulk_messages:view', description: 'View bulk messages', resource: PERMISSION_RESOURCES.BULK_MESSAGES, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '34', name: 'bulk_messages:send', description: 'Send bulk messages', resource: PERMISSION_RESOURCES.BULK_MESSAGES, action: PERMISSION_ACTIONS.SEND, created_at: new Date().toISOString() },
+            { id: '35', name: 'notifications:view', description: 'View notifications', resource: PERMISSION_RESOURCES.NOTIFICATIONS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '36', name: 'notifications:send', description: 'Send notifications', resource: PERMISSION_RESOURCES.NOTIFICATIONS, action: PERMISSION_ACTIONS.SEND, created_at: new Date().toISOString() },
+            { id: '37', name: 'bulk_messages:view', description: 'View bulk messages', resource: PERMISSION_RESOURCES.BULK_MESSAGES, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '38', name: 'bulk_messages:send', description: 'Send bulk messages', resource: PERMISSION_RESOURCES.BULK_MESSAGES, action: PERMISSION_ACTIONS.SEND, created_at: new Date().toISOString() },
 
             // Settings and administration
-            { id: '35', name: 'reports:view', description: 'View reports', resource: PERMISSION_RESOURCES.REPORTS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '36', name: 'reports:create', description: 'Create reports', resource: PERMISSION_RESOURCES.REPORTS, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
-            { id: '37', name: 'reports:export', description: 'Export reports', resource: PERMISSION_RESOURCES.REPORTS, action: PERMISSION_ACTIONS.EXPORT, created_at: new Date().toISOString() },
+            { id: '39', name: 'reports:view', description: 'View reports', resource: PERMISSION_RESOURCES.REPORTS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '40', name: 'reports:create', description: 'Create reports', resource: PERMISSION_RESOURCES.REPORTS, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
+            { id: '41', name: 'reports:export', description: 'Export reports', resource: PERMISSION_RESOURCES.REPORTS, action: PERMISSION_ACTIONS.EXPORT, created_at: new Date().toISOString() },
 
-            { id: '38', name: 'settings:view', description: 'View settings', resource: PERMISSION_RESOURCES.SETTINGS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '39', name: 'settings:manage', description: 'Manage settings', resource: PERMISSION_RESOURCES.SETTINGS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
+            { id: '42', name: 'settings:view', description: 'View settings', resource: PERMISSION_RESOURCES.SETTINGS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '43', name: 'settings:manage', description: 'Manage settings', resource: PERMISSION_RESOURCES.SETTINGS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
 
-            { id: '40', name: 'permissions:view', description: 'View permissions', resource: PERMISSION_RESOURCES.PERMISSIONS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '41', name: 'permissions:manage', description: 'Manage permissions', resource: PERMISSION_RESOURCES.PERMISSIONS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
+            { id: '44', name: 'permissions:view', description: 'View permissions', resource: PERMISSION_RESOURCES.PERMISSIONS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '45', name: 'permissions:manage', description: 'Manage permissions', resource: PERMISSION_RESOURCES.PERMISSIONS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
 
-            { id: '42', name: 'activity_logs:view', description: 'View activity logs', resource: PERMISSION_RESOURCES.ACTIVITY_LOGS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() }
+            { id: '46', name: 'activity_logs:view', description: 'View activity logs', resource: PERMISSION_RESOURCES.ACTIVITY_LOGS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() }
         ];
 
         return allPermissions;
@@ -146,6 +152,15 @@ export const useAdminPermissions = () => {
     const canManageVessels = () => hasPermission(PERMISSION_RESOURCES.VESSELS, PERMISSION_ACTIONS.CREATE) ||
         hasPermission(PERMISSION_RESOURCES.VESSELS, PERMISSION_ACTIONS.UPDATE) ||
         hasPermission(PERMISSION_RESOURCES.VESSELS, PERMISSION_ACTIONS.DELETE);
+
+    // Islands permissions
+    const canViewIslands = () => hasPermission(PERMISSION_RESOURCES.ISLANDS, PERMISSION_ACTIONS.VIEW);
+    const canCreateIslands = () => hasPermission(PERMISSION_RESOURCES.ISLANDS, PERMISSION_ACTIONS.CREATE);
+    const canUpdateIslands = () => hasPermission(PERMISSION_RESOURCES.ISLANDS, PERMISSION_ACTIONS.UPDATE);
+    const canDeleteIslands = () => hasPermission(PERMISSION_RESOURCES.ISLANDS, PERMISSION_ACTIONS.DELETE);
+    const canManageIslands = () => hasPermission(PERMISSION_RESOURCES.ISLANDS, PERMISSION_ACTIONS.CREATE) ||
+        hasPermission(PERMISSION_RESOURCES.ISLANDS, PERMISSION_ACTIONS.UPDATE) ||
+        hasPermission(PERMISSION_RESOURCES.ISLANDS, PERMISSION_ACTIONS.DELETE);
 
     // User management permissions
     const canViewUsers = () => hasPermission(PERMISSION_RESOURCES.USERS, PERMISSION_ACTIONS.VIEW);
@@ -229,6 +244,13 @@ export const useAdminPermissions = () => {
         canDeleteVessels,
         canManageVessels,
         canAccessOperationsTab,
+
+        // Islands
+        canViewIslands,
+        canCreateIslands,
+        canUpdateIslands,
+        canDeleteIslands,
+        canManageIslands,
 
         // Users
         canViewUsers,

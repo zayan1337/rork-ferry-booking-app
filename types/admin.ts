@@ -343,6 +343,7 @@ export const PERMISSION_RESOURCES = {
   ROUTES: 'routes',
   TRIPS: 'trips',
   VESSELS: 'vessels',
+  ISLANDS: 'islands',
   USERS: 'users',
   AGENTS: 'agents',
   PASSENGERS: 'passengers',

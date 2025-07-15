@@ -235,7 +235,6 @@ export const fetchIslands = async (): Promise<DatabaseIsland[]> => {
         const { data, error } = await supabase
             .from('islands')
             .select('*')
-            .eq('is_active', true)
             .order('name', { ascending: true });
 
         if (error) throw error;
@@ -243,6 +242,74 @@ export const fetchIslands = async (): Promise<DatabaseIsland[]> => {
     } catch (error) {
         console.error('Error fetching islands:', error);
         return [];
+    }
+};
+
+export const fetchIsland = async (id: string): Promise<DatabaseIsland | null> => {
+    try {
+        const { data, error } = await supabase
+            .from('islands')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching island:', error);
+        return null;
+    }
+};
+
+export const createIsland = async (islandData: { name: string; zone: string; is_active?: boolean }): Promise<DatabaseIsland | null> => {
+    try {
+        const { data, error } = await supabase
+            .from('islands')
+            .insert([{
+                name: islandData.name,
+                zone: islandData.zone,
+                is_active: islandData.is_active ?? true
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error creating island:', error);
+        throw error;
+    }
+};
+
+export const updateIsland = async (id: string, updates: Partial<DatabaseIsland>): Promise<DatabaseIsland | null> => {
+    try {
+        const { data, error } = await supabase
+            .from('islands')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error updating island:', error);
+        throw error;
+    }
+};
+
+export const deleteIsland = async (id: string): Promise<boolean> => {
+    try {
+        const { error } = await supabase
+            .from('islands')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return true;
+    } catch (error) {
+        console.error('Error deleting island:', error);
+        throw error;
     }
 };
 
