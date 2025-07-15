@@ -8,10 +8,11 @@ import {
     Alert,
     RefreshControl,
     FlatList,
+    Dimensions,
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useAdminStore } from "@/store/admin/adminStore";
+import { useOperationsStore } from "@/store/admin/operationsStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
 import {
@@ -20,42 +21,45 @@ import {
     SortAsc,
     SortDesc,
     MapPin,
-    Clock,
     DollarSign,
     Activity,
     TrendingUp,
     Users,
-    MoreVertical,
-    Edit,
-    Trash2,
     Eye,
     Navigation,
     BarChart3,
+    ArrowLeft,
+    Search,
+    AlertTriangle,
 } from "lucide-react-native";
 
 // Components
 import SectionHeader from "@/components/admin/SectionHeader";
 import Button from "@/components/admin/Button";
 import SearchBar from "@/components/admin/SearchBar";
-import StatusBadge from "@/components/admin/StatusBadge";
+import RouteItem from "@/components/admin/RouteItem";
 import StatCard from "@/components/admin/StatCard";
 import EmptyState from "@/components/admin/EmptyState";
+import LoadingSpinner from "@/components/admin/LoadingSpinner";
+
+const { width: screenWidth } = Dimensions.get('window');
+const isTablet = screenWidth >= 768;
 
 interface RouteListFilters {
     status: "all" | "active" | "inactive" | "maintenance";
-    sortBy: "name" | "created_at" | "base_fare" | "total_trips_30d";
+    sortBy: "name" | "created_at" | "base_fare" | "total_trips_30d" | "total_revenue_30d";
     sortDirection: "asc" | "desc";
 }
 
 export default function RoutesScreen() {
     const {
         routes,
-        trips,
         loading,
-        deleteRoute,
+        removeRoute,
         searchQueries,
         setSearchQuery,
-    } = useAdminStore();
+        fetchRoutes,
+    } = useOperationsStore();
 
     const {
         canViewRoutes,
@@ -72,46 +76,56 @@ export default function RoutesScreen() {
     });
     const [showFilters, setShowFilters] = useState(false);
 
-    const { isTablet } = getResponsiveDimensions();
+    // Fetch routes on mount
+    React.useEffect(() => {
+        if (!routes || routes.length === 0) {
+            fetchRoutes();
+        }
+    }, []);
 
     // Calculate route statistics
     const routeStats = useMemo(() => {
-        if (!routes) return null;
+        if (!routes || !Array.isArray(routes)) return null;
 
-        const activeRoutes = routes.filter(r => r.status === "active").length;
+        const activeRoutes = routes.filter(r => r.status === "active" || r.is_active).length;
         const totalRoutes = routes.length;
-        const avgFare = routes.reduce((sum, r) => sum + (r.base_fare || 0), 0) / totalRoutes;
+        const inactiveRoutes = totalRoutes - activeRoutes;
 
-        // Calculate total revenue estimate from trips
-        const totalRevenue = trips?.reduce((total, trip) => {
-            const route = routes.find(r => r.id === trip.route_id);
-            if (route) {
-                return total + ((trip.booked_seats || 0) * (route.base_fare || 0) * (trip.fare_multiplier || 1));
-            }
-            return total;
-        }, 0) || 0;
+        const avgFare = routes.reduce((sum, r) => sum + (r.base_fare || 0), 0) / (totalRoutes || 1);
+
+        // Calculate total revenue estimate
+        const totalRevenue = routes.reduce((total, route) => {
+            return total + (route.total_revenue_30d || 0);
+        }, 0);
+
+        const totalTrips = routes.reduce((total, route) => {
+            return total + (route.total_trips_30d || 0);
+        }, 0);
 
         return {
             totalRoutes,
             activeRoutes,
-            inactiveRoutes: totalRoutes - activeRoutes,
+            inactiveRoutes,
             avgFare: Math.round(avgFare),
             totalRevenue: Math.round(totalRevenue),
+            totalTrips,
         };
-    }, [routes, trips]);
+    }, [routes]);
 
     // Filter and sort routes
     const filteredAndSortedRoutes = useMemo(() => {
-        if (!routes) return [];
+        if (!routes || !Array.isArray(routes)) return [];
 
         let filtered = routes.filter(route => {
             const searchQuery = searchQueries.routes?.toLowerCase() || '';
             const matchesSearch = !searchQuery ||
-                route.name?.toLowerCase().includes(searchQuery) ||
-                route.origin?.toLowerCase().includes(searchQuery) ||
-                route.destination?.toLowerCase().includes(searchQuery);
+                (route.name && route.name.toLowerCase().includes(searchQuery)) ||
+                (route.route_name && route.route_name.toLowerCase().includes(searchQuery)) ||
+                (route.from_island_name && route.from_island_name.toLowerCase().includes(searchQuery)) ||
+                (route.to_island_name && route.to_island_name.toLowerCase().includes(searchQuery));
 
-            const matchesStatus = filters.status === "all" || route.status === filters.status;
+            const routeStatus = route.status || (route.is_active ? 'active' : 'inactive');
+            const matchesStatus = filters.status === "all" || routeStatus === filters.status;
 
             return matchesSearch && matchesStatus;
         });
@@ -122,8 +136,8 @@ export default function RoutesScreen() {
 
             switch (filters.sortBy) {
                 case "name":
-                    aValue = a.name || "";
-                    bValue = b.name || "";
+                    aValue = a.name || a.route_name || "";
+                    bValue = b.name || b.route_name || "";
                     break;
                 case "base_fare":
                     aValue = a.base_fare || 0;
@@ -132,6 +146,10 @@ export default function RoutesScreen() {
                 case "total_trips_30d":
                     aValue = a.total_trips_30d || 0;
                     bValue = b.total_trips_30d || 0;
+                    break;
+                case "total_revenue_30d":
+                    aValue = a.total_revenue_30d || 0;
+                    bValue = b.total_revenue_30d || 0;
                     break;
                 case "created_at":
                 default:
@@ -151,7 +169,7 @@ export default function RoutesScreen() {
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await fetchRoutes();
         setIsRefreshing(false);
     };
 
@@ -169,41 +187,6 @@ export default function RoutesScreen() {
         }
     };
 
-    const handleEditRoute = (routeId: string) => {
-        if (canUpdateRoutes()) {
-            router.push(`./route/${routeId}/edit` as any);
-        } else {
-            Alert.alert("Access Denied", "You don't have permission to edit routes.");
-        }
-    };
-
-    const handleDeleteRoute = (route: any) => {
-        if (!canDeleteRoutes()) {
-            Alert.alert("Access Denied", "You don't have permission to delete routes.");
-            return;
-        }
-
-        Alert.alert(
-            "Delete Route",
-            `Are you sure you want to delete "${route.name}"? This action cannot be undone.`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await deleteRoute(route.id);
-                            Alert.alert("Success", "Route deleted successfully.");
-                        } catch (error) {
-                            Alert.alert("Error", "Failed to delete route.");
-                        }
-                    },
-                },
-            ]
-        );
-    };
-
     const handleSort = (field: RouteListFilters["sortBy"]) => {
         setFilters(prev => ({
             ...prev,
@@ -212,111 +195,213 @@ export default function RoutesScreen() {
         }));
     };
 
-    const getStatusVariant = (status: string) => {
-        switch (status) {
-            case 'active': return 'default';
-            case 'inactive': return 'payment';
-            case 'maintenance': return 'payment';
-            default: return 'default';
-        }
-    };
-
     const formatCurrency = (amount: number) => {
         return `MVR ${amount.toLocaleString()}`;
     };
 
-    const renderRouteItem = ({ item: route }: { item: any }) => (
-        <TouchableOpacity
-            style={styles.routeCard}
-            onPress={() => handleRoutePress(route.id)}
-        >
-            <View style={styles.routeCardHeader}>
-                <View style={styles.routeIcon}>
-                    <Navigation size={20} color={colors.primary} />
+    const renderRouteItem = ({ item, index }: { item: any; index: number }) => (
+        <RouteItem
+            key={`route-${item.id}-${index}`}
+            route={item}
+            onPress={handleRoutePress}
+            showStats={true}
+        />
+    );
+
+    const renderListHeader = () => (
+        <View style={styles.listHeader}>
+            {/* Quick Stats Summary */}
+            {routeStats && (
+                <View style={styles.quickStats}>
+                    <View style={styles.quickStatsRow}>
+                        <View style={styles.quickStatItem}>
+                            <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
+                                <Navigation size={16} color={colors.primary} />
+                            </View>
+                            <Text style={styles.quickStatValue}>{routeStats.totalRoutes}</Text>
+                            <Text style={styles.quickStatLabel}>Total</Text>
+                        </View>
+                        <View style={styles.quickStatItem}>
+                            <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
+                                <Activity size={16} color={colors.success} />
+                            </View>
+                            <Text style={styles.quickStatValue}>{routeStats.activeRoutes}</Text>
+                            <Text style={styles.quickStatLabel}>Active</Text>
+                        </View>
+                        <View style={styles.quickStatItem}>
+                            <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
+                                <TrendingUp size={16} color={colors.info} />
+                            </View>
+                            <Text style={styles.quickStatValue}>{routeStats.totalTrips}</Text>
+                            <Text style={styles.quickStatLabel}>Trips</Text>
+                        </View>
+                        <View style={styles.quickStatItem}>
+                            <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
+                                <DollarSign size={16} color={colors.success} />
+                            </View>
+                            <Text style={styles.quickStatValue}>{(routeStats.totalRevenue / 1000).toFixed(0)}K</Text>
+                            <Text style={styles.quickStatLabel}>Revenue</Text>
                 </View>
-                <View style={styles.routeMainInfo}>
-                    <Text style={styles.routeName}>{route.name}</Text>
-                    <View style={styles.routeDirection}>
-                        <MapPin size={14} color={colors.textSecondary} />
-                        <Text style={styles.routeDetails}>
-                            {route.origin} → {route.destination}
-                        </Text>
                     </View>
                 </View>
-                <StatusBadge
-                    status={route.status}
-                    variant={getStatusVariant(route.status)}
+            )}
+
+            {/* Search Section */}
+            <View style={styles.searchSection}>
+                <SearchBar
+                    placeholder="Search routes by name or islands..."
+                    value={searchQueries.routes || ""}
+                    onChangeText={(text) => setSearchQuery("routes", text)}
+                    style={styles.searchBar}
                 />
             </View>
 
-            <View style={styles.routeCardContent}>
-                <View style={styles.routeMetrics}>
-                    <View style={styles.metricItem}>
-                        <Activity size={16} color={colors.textSecondary} />
-                        <Text style={styles.metricLabel}>Distance</Text>
-                        <Text style={styles.metricValue}>{route.distance || "N/A"}</Text>
-                    </View>
-
-                    <View style={styles.metricItem}>
-                        <Clock size={16} color={colors.textSecondary} />
-                        <Text style={styles.metricLabel}>Duration</Text>
-                        <Text style={styles.metricValue}>{route.duration || "N/A"}</Text>
-                    </View>
-
-                    <View style={styles.metricItem}>
-                        <DollarSign size={16} color={colors.textSecondary} />
-                        <Text style={styles.metricLabel}>Base Fare</Text>
-                        <Text style={styles.metricValue}>{formatCurrency(route.base_fare || 0)}</Text>
-                    </View>
-
-                    {route.total_trips_30d !== null && route.total_trips_30d !== undefined && (
-                        <View style={styles.metricItem}>
-                            <BarChart3 size={16} color={colors.textSecondary} />
-                            <Text style={styles.metricLabel}>Trips (30d)</Text>
-                            <Text style={styles.metricValue}>{route.total_trips_30d}</Text>
-                        </View>
-                    )}
-                </View>
-
-                <View style={styles.routeActions}>
+            {/* Controls Row */}
+            <View style={styles.controlsRow}>
+                <View style={styles.controlsLeft}>
                     <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => handleRoutePress(route.id)}
+                        style={[styles.controlButton, showFilters && styles.controlButtonActive]}
+                        onPress={() => setShowFilters(!showFilters)}
                     >
-                        <Eye size={16} color={colors.primary} />
+                        <Filter size={16} color={showFilters ? colors.primary : colors.textSecondary} />
+                        <Text style={[styles.controlButtonText, showFilters && styles.controlButtonTextActive]}>
+                            Filters
+                        </Text>
                     </TouchableOpacity>
 
-                    {canUpdateRoutes() && (
+                    <View style={styles.sortControl}>
+                        <Text style={styles.sortLabel}>Sort:</Text>
                         <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => handleEditRoute(route.id)}
+                            style={[styles.sortButton, filters.sortBy === "name" && styles.sortButtonActive]}
+                            onPress={() => handleSort("name")}
                         >
-                            <Edit size={16} color={colors.primary} />
+                            <Text style={[styles.sortButtonText, filters.sortBy === "name" && styles.sortButtonTextActive]}>
+                                Name
+                            </Text>
+                            {filters.sortBy === "name" && (
+                                filters.sortDirection === "asc" ?
+                                    <SortAsc size={12} color={colors.primary} /> :
+                                    <SortDesc size={12} color={colors.primary} />
+                            )}
                         </TouchableOpacity>
-                    )}
+                        <TouchableOpacity
+                            style={[styles.sortButton, filters.sortBy === "base_fare" && styles.sortButtonActive]}
+                            onPress={() => handleSort("base_fare")}
+                        >
+                            <Text style={[styles.sortButtonText, filters.sortBy === "base_fare" && styles.sortButtonTextActive]}>
+                                Fare
+                            </Text>
+                            {filters.sortBy === "base_fare" && (
+                                filters.sortDirection === "asc" ?
+                                    <SortAsc size={12} color={colors.primary} /> :
+                                    <SortDesc size={12} color={colors.primary} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
-                    {canDeleteRoutes() && (
-                        <TouchableOpacity
-                            style={[styles.actionButton, styles.dangerAction]}
-                            onPress={() => handleDeleteRoute(route)}
-                        >
-                            <Trash2 size={16} color={colors.danger} />
-                        </TouchableOpacity>
-                    )}
+                <View style={styles.controlsRight}>
+                    <Text style={styles.resultsCount}>
+                        {filteredAndSortedRoutes.length} route{filteredAndSortedRoutes.length !== 1 ? 's' : ''}
+                    </Text>
                 </View>
             </View>
-        </TouchableOpacity>
+
+            {/* Filter Options (Collapsible) */}
+            {showFilters && (
+                <View style={styles.filtersSection}>
+                    <Text style={styles.filterSectionTitle}>Filter by Status</Text>
+                    <View style={styles.filterRow}>
+                        <TouchableOpacity
+                            style={[styles.filterChip, filters.status === "all" && styles.filterChipActive]}
+                            onPress={() => setFilters(prev => ({ ...prev, status: "all" }))}
+                        >
+                            <Text style={[styles.filterChipText, filters.status === "all" && styles.filterChipTextActive]}>
+                                All Routes
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.filterChip, filters.status === "active" && styles.filterChipActive]}
+                            onPress={() => setFilters(prev => ({ ...prev, status: "active" }))}
+                        >
+                            <Text style={[styles.filterChipText, filters.status === "active" && styles.filterChipTextActive]}>
+                                Active Only
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.filterChip, filters.status === "inactive" && styles.filterChipActive]}
+                            onPress={() => setFilters(prev => ({ ...prev, status: "inactive" }))}
+                        >
+                            <Text style={[styles.filterChipText, filters.status === "inactive" && styles.filterChipTextActive]}>
+                                Inactive Only
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+                    )}
+
+            {/* Section Divider */}
+            {filteredAndSortedRoutes.length > 0 && (
+                <View style={styles.sectionDivider}>
+                    <Text style={styles.listTitle}>Routes</Text>
+                </View>
+            )}
+        </View>
+    );
+
+    const renderEmptyState = () => (
+        <View style={styles.emptyState}>
+            <View style={styles.emptyStateIcon}>
+                <Navigation size={64} color={colors.textTertiary} />
+            </View>
+            <Text style={styles.emptyStateTitle}>No routes found</Text>
+            <Text style={styles.emptyStateText}>
+                {searchQueries.routes || filters.status !== "all"
+                    ? "Try adjusting your search or filter criteria"
+                    : "No routes have been created yet"}
+            </Text>
+            {canManageRoutes() && !searchQueries.routes && filters.status === "all" && (
+                <Button
+                    title="Create First Route"
+                    onPress={handleAddRoute}
+                    variant="primary"
+                    icon={<Plus size={20} color={colors.white} />}
+                    style={styles.emptyStateButton}
+                />
+            )}
+        </View>
     );
 
     if (!canViewRoutes()) {
         return (
             <View style={styles.container}>
-                <Stack.Screen options={{ title: "Access Denied" }} />
-                <EmptyState
-                    icon={<MapPin size={48} color={colors.warning} />}
-                    title="Access Denied"
-                    message="You don't have permission to view routes."
+                <Stack.Screen
+                    options={{
+                        title: "Access Denied",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
+                    }}
                 />
+                <View style={styles.noPermissionContainer}>
+                    <View style={styles.noAccessIcon}>
+                        <AlertTriangle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                    <Text style={styles.noPermissionText}>
+                        You don't have permission to view routes.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
+                </View>
             </View>
         );
     }
@@ -325,148 +410,31 @@ export default function RoutesScreen() {
         <View style={styles.container}>
             <Stack.Screen
                 options={{
-                    title: "Routes Management",
-                    headerShown: true,
+                    title: "Routes",
+                    headerLeft: () => (
+                        <TouchableOpacity
+                            onPress={() => router.back()}
+                            style={styles.backButton}
+                        >
+                            <ArrowLeft size={24} color={colors.primary} />
+                        </TouchableOpacity>
+                    ),
                 }}
             />
 
-            {/* Header with Stats */}
-            {routeStats && (
-                <View style={styles.statsContainer}>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.statsContent}
-                    >
-                        <StatCard
-                            title="Total Routes"
-                            value={routeStats.totalRoutes.toString()}
-                            icon={<Navigation size={20} color={colors.primary} />}
-                            trend="neutral"
-                            size="small"
-                        />
-                        <StatCard
-                            title="Active Routes"
-                            value={routeStats.activeRoutes.toString()}
-                            icon={<TrendingUp size={20} color={colors.success} />}
-                            trend="up"
-                            size="small"
-                        />
-                        <StatCard
-                            title="Avg Fare"
-                            value={formatCurrency(routeStats.avgFare)}
-                            icon={<DollarSign size={20} color={colors.primary} />}
-                            trend="neutral"
-                            size="small"
-                        />
-                        <StatCard
-                            title="Est. Revenue"
-                            value={formatCurrency(routeStats.totalRevenue)}
-                            icon={<BarChart3 size={20} color={colors.success} />}
-                            trend="up"
-                            size="small"
-                        />
-                    </ScrollView>
+            {loading.routes ? (
+                <View style={styles.loadingContainer}>
+                    <LoadingSpinner />
+                    <Text style={styles.loadingText}>Loading routes...</Text>
                 </View>
-            )}
-
-            {/* Controls */}
-            <View style={styles.controlsContainer}>
-                <View style={styles.headerSection}>
-                    <SectionHeader
-                        title="All Routes"
-                        subtitle={`${filteredAndSortedRoutes.length} routes found`}
-                    />
-                </View>
-
-                {canManageRoutes() && (
-                    <View style={styles.buttonSection}>
-                        <Button
-                            title={isTablet ? "Add Route" : "Add"}
-                            variant="primary"
-                            size="small"
-                            icon={<Plus size={16} color="#FFFFFF" />}
-                            onPress={handleAddRoute}
-                        />
-                    </View>
-                )}
-            </View>
-
-            {/* Search and Filters */}
-            <View style={styles.filtersContainer}>
-                <SearchBar
-                    placeholder="Search routes..."
-                    value={searchQueries.routes || ""}
-                    onChangeText={(text) => setSearchQuery("routes", text)}
-                    style={styles.searchBar}
-                />
-
-                <TouchableOpacity
-                    style={styles.filterButton}
-                    onPress={() => setShowFilters(!showFilters)}
-                >
-                    <Filter size={16} color={colors.primary} />
-                </TouchableOpacity>
-            </View>
-
-            {/* Filter Options */}
-            {showFilters && (
-                <View style={styles.filtersPanel}>
-                    <Text style={styles.filterTitle}>Status</Text>
-                    <View style={styles.filterOptions}>
-                        {["all", "active", "inactive", "maintenance"].map((status) => (
-                            <TouchableOpacity
-                                key={status}
-                                style={[
-                                    styles.filterOption,
-                                    filters.status === status && styles.filterOptionActive,
-                                ]}
-                                onPress={() => setFilters(prev => ({ ...prev, status: status as any }))}
-                            >
-                                <Text
-                                    style={[
-                                        styles.filterOptionText,
-                                        filters.status === status && styles.filterOptionTextActive,
-                                    ]}
-                                >
-                                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-
-                    <Text style={styles.filterTitle}>Sort By</Text>
-                    <View style={styles.sortOptions}>
-                        {[
-                            { key: "name", label: "Name" },
-                            { key: "base_fare", label: "Fare" },
-                            { key: "total_trips_30d", label: "Trips" },
-                            { key: "created_at", label: "Date" },
-                        ].map((option) => (
-                            <TouchableOpacity
-                                key={option.key}
-                                style={styles.sortOption}
-                                onPress={() => handleSort(option.key as any)}
-                            >
-                                <Text style={styles.sortOptionText}>{option.label}</Text>
-                                {filters.sortBy === option.key && (
-                                    filters.sortDirection === "asc" ?
-                                        <SortAsc size={16} color={colors.primary} /> :
-                                        <SortDesc size={16} color={colors.primary} />
-                                )}
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-            )}
-
-            {/* Routes List */}
+            ) : (
             <FlatList
                 data={filteredAndSortedRoutes}
                 renderItem={renderRouteItem}
+                    ListHeaderComponent={renderListHeader}
+                    ListEmptyComponent={renderEmptyState}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.listContainer}
                 refreshControl={
                     <RefreshControl
                         refreshing={isRefreshing}
@@ -475,14 +443,20 @@ export default function RoutesScreen() {
                         tintColor={colors.primary}
                     />
                 }
-                ListEmptyComponent={() => (
-                    <EmptyState
-                        icon={<Navigation size={48} color={colors.textSecondary} />}
-                        title="No Routes Found"
-                        message="No routes match your current filters. Try adjusting your search or filters."
-                    />
-                )}
-            />
+                    showsVerticalScrollIndicator={false}
+                />
+            )}
+
+            {/* Floating Add Button */}
+            {canManageRoutes() && filteredAndSortedRoutes.length > 0 && (
+                <TouchableOpacity
+                    style={styles.floatingButton}
+                    onPress={handleAddRoute}
+                    activeOpacity={0.8}
+                >
+                    <Plus size={24} color={colors.white} />
+                </TouchableOpacity>
+            )}
         </View>
     );
 }
@@ -492,191 +466,283 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
-    statsContainer: {
-        paddingVertical: 16,
-    },
-    statsContent: {
-        paddingHorizontal: 16,
-        gap: 12,
-    },
-    controlsContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "flex-start", // Changed to flex-start for better alignment
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        minHeight: 60, // Ensure minimum height
-    },
-    headerSection: {
+    noPermissionContainer: {
         flex: 1,
-        paddingRight: 12, // Add some padding to prevent overlap
-        minWidth: 0, // Allow shrinking if needed
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        gap: 20,
     },
-    buttonSection: {
-        flexShrink: 0,
+    noAccessIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.warningLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    noPermissionText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
+    backButton: {
+        padding: 8,
+        marginLeft: -8,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 16,
+        padding: 20,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        fontWeight: "500",
+    },
+    listContainer: {
+        flexGrow: 1,
+        paddingHorizontal: 20,
+        paddingBottom: 100, // Space for floating button
+    },
+    listHeader: {
+        paddingTop: 20,
+        paddingBottom: 16,
+    },
+    quickStats: {
+        marginBottom: 20,
+    },
+    quickStatsRow: {
+        flexDirection: "row",
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 20,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    quickStatItem: {
+        flex: 1,
+        alignItems: "center",
+        gap: 8,
+    },
+    quickStatIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: "center",
         justifyContent: "center",
     },
-    filtersContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 16,
-        paddingBottom: 12,
-        gap: 12,
+    quickStatValue: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        lineHeight: 24,
+    },
+    quickStatLabel: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    searchSection: {
+        marginBottom: 20,
     },
     searchBar: {
-        flex: 1,
-    },
-    filterButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 8,
         backgroundColor: colors.card,
-        alignItems: "center",
-        justifyContent: "center",
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    filtersPanel: {
-        backgroundColor: colors.card,
-        marginHorizontal: 16,
-        marginBottom: 12,
-        padding: 16,
         borderRadius: 12,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    filterTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.text,
-        marginBottom: 12,
-        marginTop: 12,
-    },
-    filterOptions: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
-    },
-    filterOption: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
-        backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: colors.borderLight,
     },
-    filterOptionActive: {
-        backgroundColor: colors.primary,
-        borderColor: colors.primary,
-    },
-    filterOptionText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-    },
-    filterOptionTextActive: {
-        color: "#FFFFFF",
-    },
-    sortOptions: {
-        gap: 8,
-    },
-    sortOption: {
+    controlsRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: 8,
+        marginBottom: 16,
+        gap: 16,
     },
-    sortOptionText: {
-        fontSize: 14,
-        color: colors.text,
-    },
-    listContent: {
-        padding: 16,
-        gap: 12,
-    },
-    routeCard: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 16,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    routeCardHeader: {
+    controlsLeft: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 16,
-    },
-    routeIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 8,
-        backgroundColor: colors.primary + "15",
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 12,
-    },
-    routeMainInfo: {
+        gap: 16,
         flex: 1,
     },
-    routeName: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.text,
-        marginBottom: 4,
+    controlsRight: {
+        alignItems: "flex-end",
     },
-    routeDirection: {
+    controlButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    controlButtonActive: {
+        backgroundColor: colors.primaryLight,
+        borderColor: colors.primary,
+    },
+    controlButtonText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "600",
+    },
+    controlButtonTextActive: {
+        color: colors.primary,
+    },
+    sortControl: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    sortLabel: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "600",
+    },
+    sortButton: {
         flexDirection: "row",
         alignItems: "center",
         gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
     },
-    routeDetails: {
+    sortButtonActive: {
+        backgroundColor: colors.primaryLight,
+        borderColor: colors.primary,
+    },
+    sortButtonText: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        fontWeight: "600",
+    },
+    sortButtonTextActive: {
+        color: colors.primary,
+    },
+    resultsCount: {
         fontSize: 14,
-        color: colors.textSecondary,
-    },
-    routeCardContent: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "flex-end",
-    },
-    routeMetrics: {
-        flex: 1,
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 16,
-    },
-    metricItem: {
-        alignItems: "center",
-        minWidth: 60,
-    },
-    metricLabel: {
-        fontSize: 11,
-        color: colors.textSecondary,
-        marginTop: 2,
-        marginBottom: 2,
-    },
-    metricValue: {
-        fontSize: 12,
+        color: colors.textTertiary,
         fontWeight: "500",
-        color: colors.text,
     },
-    routeActions: {
+    filtersSection: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    filterSectionTitle: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 12,
+    },
+    filterRow: {
         flexDirection: "row",
         gap: 8,
+        flexWrap: "wrap",
     },
-    actionButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 6,
-        backgroundColor: colors.backgroundSecondary,
+    filterChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: colors.backgroundTertiary,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    filterChipActive: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    filterChipText: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: colors.textSecondary,
+    },
+    filterChipTextActive: {
+        color: colors.white,
+    },
+    sectionDivider: {
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+        marginBottom: 8,
+    },
+    listTitle: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+    },
+    emptyState: {
+        alignItems: "center",
+        paddingVertical: 80,
+        paddingHorizontal: 20,
+        gap: 20,
+    },
+    emptyStateIcon: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: colors.backgroundTertiary,
         alignItems: "center",
         justifyContent: "center",
+        marginBottom: 8,
     },
-    dangerAction: {
-        backgroundColor: colors.danger + "15",
+    emptyStateTitle: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+    },
+    emptyStateText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 320,
+        lineHeight: 24,
+    },
+    emptyStateButton: {
+        marginTop: 16,
+        minWidth: 200,
+    },
+    floatingButton: {
+        position: "absolute",
+        bottom: 30,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: colors.primary,
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
     },
 }); 

@@ -1,92 +1,128 @@
-import React from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { colors } from '@/constants/adminColors';
-import { RouteForm } from '@/components/admin/operations';
-import { RouteFormData } from '@/types/operations';
-import { useAdminStore } from '@/store/admin/adminStore';
-import { useAdminPermissions } from '@/hooks/useAdminPermissions';
-import RoleGuard from '@/components/RoleGuard';
+import React from "react";
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text } from "react-native";
+import { Stack, router, useLocalSearchParams } from "expo-router";
+import { colors } from "@/constants/adminColors";
+import { ArrowLeft, AlertCircle, Route as RouteIcon } from "lucide-react-native";
+import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import { RouteFormData } from "@/types/operations";
+import { useOperationsStore } from "@/store/admin/operationsStore";
 
-export default function EditRoutePage() {
+// Components
+import RouteForm from "@/components/admin/operations/RouteForm";
+import Button from "@/components/admin/Button";
+
+export default function EditRouteScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const { routes, updateRoute, loading } = useAdminStore();
     const { canUpdateRoutes } = useAdminPermissions();
+    const { routes } = useOperationsStore();
 
     // Find the current route data
     const currentRoute = routes?.find(r => r.id === id);
 
-    const handleSave = async (routeData: RouteFormData) => {
-        if (!id) {
-            Alert.alert('Error', 'Route ID is missing');
-            return;
-        }
-
-        try {
-            await updateRoute(id, routeData as any);
-            Alert.alert(
-                'Success',
-                'Route updated successfully!',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => router.back(),
-                    },
-                ]
-            );
-        } catch (error) {
-            Alert.alert(
-                'Error',
-                error instanceof Error ? error.message : 'Failed to update route'
-            );
-        }
+    const handleSuccess = (routeData: RouteFormData) => {
+        router.back();
     };
 
     const handleCancel = () => {
         router.back();
     };
 
-    if (loading.routes) {
+    if (!canUpdateRoutes()) {
         return (
-            <View style={[styles.container, styles.loading]}>
+            <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: 'Loading...',
-                        headerShown: true,
-                        presentation: 'card',
+                        title: "Access Denied",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
                     }}
                 />
+                <View style={styles.noPermissionContainer}>
+                    <View style={styles.noAccessIcon}>
+                        <AlertCircle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                    <Text style={styles.noPermissionText}>
+                        You don't have permission to edit routes.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                />
+                </View>
             </View>
         );
     }
 
     if (!currentRoute) {
-        Alert.alert('Error', 'Route not found', [
-            { text: 'OK', onPress: () => router.back() }
-        ]);
-        return null;
-    }
-
     return (
-        <RoleGuard
-            allowedRoles={['admin']}
-        >
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: `Edit ${currentRoute.name}`,
-                        headerShown: true,
-                        presentation: 'card',
+                        title: "Route Not Found",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
+                    }}
+                />
+                <View style={styles.noPermissionContainer}>
+                    <View style={styles.noAccessIcon}>
+                        <AlertCircle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.noPermissionTitle}>Route Not Found</Text>
+                    <Text style={styles.noPermissionText}>
+                        The route you're trying to edit doesn't exist or may have been deleted.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
+                </View>
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.container}>
+            <Stack.Screen
+                options={{
+                    title: `Edit ${currentRoute.name || currentRoute.route_name}`,
+                    headerLeft: () => (
+                        <TouchableOpacity
+                            onPress={() => router.back()}
+                            style={styles.backButton}
+                        >
+                            <ArrowLeft size={24} color={colors.primary} />
+                        </TouchableOpacity>
+                    ),
                     }}
                 />
 
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+            >
                 <RouteForm
                     routeId={id}
-                    onSave={handleSave}
+                    onSave={handleSuccess}
                     onCancel={handleCancel}
                 />
+            </ScrollView>
             </View>
-        </RoleGuard>
     );
 }
 
@@ -95,8 +131,47 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
-    loading: {
-        justifyContent: 'center',
-        alignItems: 'center',
+    noPermissionContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        gap: 20,
+    },
+    noAccessIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.warningLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    noPermissionText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
+    backButton: {
+        padding: 8,
+        marginLeft: -8,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    contentContainer: {
+        flexGrow: 1,
+        padding: 20,
+        paddingBottom: 40,
     },
 }); 

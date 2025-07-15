@@ -86,20 +86,56 @@ interface OperationsStore {
     fetchTodaySchedule: () => Promise<void>;
 
     // CRUD operations
-    addRoute: (routeData: { from_island_id: string; to_island_id: string; base_fare: number }) => Promise<boolean>;
-    updateRouteData: (id: string, updates: Partial<OperationsRoute>) => Promise<boolean>;
+    addRoute: (routeData: {
+        name?: string;
+        from_island_id: string;
+        to_island_id: string;
+        base_fare: number;
+        distance?: string;
+        duration?: string;
+        description?: string;
+        status?: string;
+    }) => Promise<boolean>;
+    updateRouteData: (id: string, updates: Partial<{
+        name: string;
+        from_island_id: string;
+        to_island_id: string;
+        base_fare: number;
+        distance: string;
+        duration: string;
+        description: string;
+        status: string;
+        is_active: boolean;
+    }>) => Promise<boolean>;
     removeRoute: (id: string) => Promise<boolean>;
 
     addTrip: (tripData: { route_id: string; travel_date: string; departure_time: string; vessel_id: string; available_seats: number }) => Promise<boolean>;
-    updateTripData: (id: string, updates: Partial<OperationsTrip>) => Promise<boolean>;
+    updateTripData: (id: string, updates: Partial<{
+        route_id: string;
+        travel_date: string;
+        departure_time: string;
+        vessel_id: string;
+        available_seats: number;
+        is_active: boolean;
+        status: string;
+    }>) => Promise<boolean>;
     removeTrip: (id: string) => Promise<boolean>;
 
     addVessel: (vesselData: { name: string; seating_capacity: number }) => Promise<boolean>;
-    updateVesselData: (id: string, updates: Partial<OperationsVessel>) => Promise<boolean>;
+    updateVesselData: (id: string, updates: Partial<{
+        name: string;
+        seating_capacity: number;
+        is_active: boolean;
+        status: string;
+    }>) => Promise<boolean>;
     removeVessel: (id: string) => Promise<boolean>;
 
     addIsland: (islandData: { name: string; zone: string; is_active?: boolean }) => Promise<boolean>;
-    updateIslandData: (id: string, updates: Partial<DatabaseIsland>) => Promise<boolean>;
+    updateIslandData: (id: string, updates: Partial<{
+        name: string;
+        zone: string;
+        is_active: boolean;
+    }>) => Promise<boolean>;
     removeIsland: (id: string) => Promise<boolean>;
 
     // Utility

@@ -1,31 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Route, RouteFormData, RouteValidationErrors, Island } from '@/types/operations';
+import { RouteFormData, RouteValidationErrors } from '@/types/operations';
+import { DatabaseIsland, OperationsRoute } from '@/types/database';
 import { validateRouteForm } from '@/utils/routeUtils';
-import { useAdminStore } from '@/store/admin/adminStore';
+import { useOperationsStore } from '@/store/admin/operationsStore';
 
 interface UseRouteFormProps {
-    initialData?: Route;
-    onSuccess?: (route: Route) => void;
+    initialData?: OperationsRoute;
+    onSuccess?: (route: OperationsRoute) => void;
     onError?: (error: string) => void;
 }
 
-// Helper function to validate route uniqueness with type conversion
+// Helper function to validate route uniqueness
 const validateRouteUniqueness = (
     formData: RouteFormData,
-    adminRoutes: any[],
+    routes: OperationsRoute[],
     currentRouteId?: string
 ): boolean => {
-    // Convert admin routes to operations routes for validation
-    const operationsRoutes = adminRoutes.map(route => ({
-        ...route,
-        created_at: route.created_at || new Date().toISOString(),
-        updated_at: route.updated_at || new Date().toISOString(),
-    }));
-
-    // Check if route with same name and islands exists
-    const existingRoute = operationsRoutes.find(route =>
+    // Check if route with same islands exists
+    const existingRoute = routes.find(route =>
         route.id !== currentRouteId &&
-        route.name === formData.name &&
         route.from_island_id === formData.from_island_id &&
         route.to_island_id === formData.to_island_id
     );
@@ -34,7 +27,14 @@ const validateRouteUniqueness = (
 };
 
 export const useRouteForm = ({ initialData, onSuccess, onError }: UseRouteFormProps = {}) => {
-    const { routes, addRoute, updateRoute, loading, setLoading } = useAdminStore();
+    const {
+        routes,
+        islands,
+        loading,
+        addRoute,
+        updateRouteData,
+        fetchIslands
+    } = useOperationsStore();
 
     const [formData, setFormData] = useState<RouteFormData>({
         name: '',
@@ -51,41 +51,34 @@ export const useRouteForm = ({ initialData, onSuccess, onError }: UseRouteFormPr
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
 
-    // Available islands for selection
-    const [islands, setIslands] = useState<Island[]>([]);
-
     // Initialize form data when initialData changes
     useEffect(() => {
         if (initialData) {
             setFormData({
-                name: initialData.name,
+                name: initialData.name || '',
                 from_island_id: initialData.from_island_id,
                 to_island_id: initialData.to_island_id,
-                distance: initialData.distance,
-                duration: initialData.duration,
+                distance: initialData.distance || '',
+                duration: initialData.duration || '',
                 base_fare: initialData.base_fare,
                 description: initialData.description || '',
-                status: initialData.status === 'maintenance' ? 'active' : initialData.status
+                status: initialData.status || 'active'
             });
         }
     }, [initialData?.id]); // Only depend on ID to prevent infinite re-renders
 
-    // Mock islands data - In real implementation, this would fetch from API
+    // Fetch islands if not already loaded
     useEffect(() => {
-        setIslands([
-            { id: 'island1', name: 'Male', zone: 'A', created_at: '', updated_at: '' },
-            { id: 'island2', name: 'Hulhule', zone: 'A', created_at: '', updated_at: '' },
-            { id: 'island3', name: 'Villingili', zone: 'B', created_at: '', updated_at: '' },
-            { id: 'island4', name: 'Hulhumale', zone: 'A', created_at: '', updated_at: '' },
-            { id: 'island5', name: 'Kaafu Atoll', zone: 'B', created_at: '', updated_at: '' }
-        ]);
-    }, []);
+        if (!islands || islands.length === 0) {
+            fetchIslands();
+        }
+    }, [islands, fetchIslands]);
 
     const updateFormData = useCallback((updates: Partial<RouteFormData>) => {
         setFormData(prev => ({ ...prev, ...updates }));
         setIsDirty(true);
 
-        // Clear errors for updated fields using functional update
+        // Clear errors for updated fields
         setErrors(prev => {
             const updatedErrors = { ...prev };
             Object.keys(updates).forEach(key => {
@@ -93,20 +86,20 @@ export const useRouteForm = ({ initialData, onSuccess, onError }: UseRouteFormPr
             });
             return updatedErrors;
         });
-    }, []); // No dependencies to prevent circular updates
+    }, []);
 
     const validateForm = useCallback((): boolean => {
         const validationErrors = validateRouteForm(formData);
 
-        // Check uniqueness using our wrapper function
+        // Check uniqueness
         const uniqueCheck = validateRouteUniqueness(formData, routes, initialData?.id);
         if (!uniqueCheck) {
-            validationErrors.general = 'A route with this name and islands already exists';
+            validationErrors.general = 'A route between these islands already exists';
         }
 
         setErrors(validationErrors);
         return Object.keys(validationErrors).length === 0;
-    }, [formData, routes, initialData?.id]); // Only essential dependencies
+    }, [formData, routes, initialData?.id]);
 
     const resetForm = useCallback(() => {
         setFormData({
@@ -129,40 +122,49 @@ export const useRouteForm = ({ initialData, onSuccess, onError }: UseRouteFormPr
         }
 
         setIsSubmitting(true);
-        setLoading('routes', true);
 
         try {
-            const routeData: Route = {
-                id: initialData?.id || `route_${Date.now()}`,
+            const routeData = {
                 name: formData.name,
-                origin: islands?.find(i => i.id === formData.from_island_id)?.name || '',
-                destination: islands?.find(i => i.id === formData.to_island_id)?.name || '',
                 from_island_id: formData.from_island_id,
                 to_island_id: formData.to_island_id,
-                from_island: islands.find(i => i.id === formData.from_island_id),
-                to_island: islands.find(i => i.id === formData.to_island_id),
                 distance: formData.distance,
                 duration: formData.duration,
                 base_fare: formData.base_fare,
                 description: formData.description,
-                status: formData.status as "active" | "inactive" | "maintenance",
-                created_at: initialData?.created_at || new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                status: formData.status,
             };
 
+            let success = false;
+            let resultRoute: OperationsRoute | null = null;
+
             if (initialData) {
-                await updateRoute(initialData.id, routeData);
+                success = await updateRouteData(initialData.id, routeData);
+                if (success) {
+                    // Find the updated route from the store
+                    resultRoute = routes.find(r => r.id === initialData.id) || null;
+                }
             } else {
-                await addRoute(routeData);
+                success = await addRoute(routeData);
+                if (success) {
+                    // Find the newly created route from the store
+                    resultRoute = routes.find(r =>
+                        r.from_island_id === formData.from_island_id &&
+                        r.to_island_id === formData.to_island_id &&
+                        r.base_fare === formData.base_fare
+                    ) || null;
+                }
             }
 
-            onSuccess?.(routeData);
-
-            if (!initialData) {
-                resetForm();
+            if (success && resultRoute) {
+                onSuccess?.(resultRoute);
+                if (!initialData) {
+                    resetForm();
+                }
+                return true;
+            } else {
+                throw new Error('Failed to save route');
             }
-
-            return true;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'An error occurred while saving the route';
             setErrors({ general: errorMessage });
@@ -170,9 +172,8 @@ export const useRouteForm = ({ initialData, onSuccess, onError }: UseRouteFormPr
             return false;
         } finally {
             setIsSubmitting(false);
-            setLoading('routes', false);
         }
-    }, [formData, validateForm, initialData, islands, addRoute, updateRoute, onSuccess, onError, resetForm, setLoading]);
+    }, [formData, validateForm, initialData, routes, addRoute, updateRouteData, onSuccess, onError, resetForm]);
 
     const getFieldError = (fieldName: keyof RouteFormData) => {
         // Only return error if the field exists in the validation errors type
@@ -202,7 +203,7 @@ export const useRouteForm = ({ initialData, onSuccess, onError }: UseRouteFormPr
         canSubmit,
 
         // Available data
-        islands,
+        islands: islands || [],
 
         // Form actions
         updateFormData,
@@ -212,7 +213,7 @@ export const useRouteForm = ({ initialData, onSuccess, onError }: UseRouteFormPr
         getFieldError,
 
         // Utilities
-        isLoading: loading['routes'] || false,
+        isLoading: loading.routes || loading.islands,
         isEditing: !!initialData
     };
 }; 
