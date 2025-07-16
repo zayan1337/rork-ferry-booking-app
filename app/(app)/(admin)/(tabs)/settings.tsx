@@ -154,30 +154,6 @@ export default function SettingsScreen() {
             category: "Security"
         },
         {
-            key: "alerts",
-            label: "Alerts",
-            icon: Bell,
-            category: "Monitoring"
-        },
-        {
-            key: "activity",
-            label: "Activity",
-            icon: Activity,
-            category: "Monitoring"
-        },
-        {
-            key: "system",
-            label: "System",
-            icon: Settings,
-            category: "Administration"
-        },
-        {
-            key: "reports",
-            label: "Reports",
-            icon: FileText,
-            category: "Analytics"
-        },
-        {
             key: "islands",
             label: "Islands",
             icon: MapPin,
@@ -206,7 +182,31 @@ export default function SettingsScreen() {
             label: "Translations",
             icon: Languages,
             category: "Localization"
-        }
+        },
+        {
+            key: "alerts",
+            label: "Alerts",
+            icon: Bell,
+            category: "Monitoring"
+        },
+        {
+            key: "activity",
+            label: "Activity",
+            icon: Activity,
+            category: "Monitoring"
+        },
+        {
+            key: "reports",
+            label: "Reports",
+            icon: FileText,
+            category: "Analytics"
+        },
+        {
+            key: "system",
+            label: "System",
+            icon: Settings,
+            category: "Administration"
+        },
     ], []);
 
 
