@@ -153,3 +153,6 @@ export type {
 
 // New dashboard, bookings, and operations types
 export * from './admin/dashboard';
+
+// Content management types
+export * from './content';

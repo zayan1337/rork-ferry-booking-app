@@ -1,4 +1,4 @@
-export type SettingsTab = "permissions" | "alerts" | "activity" | "system" | "reports";
+export type SettingsTab = "permissions" | "alerts" | "activity" | "system" | "reports" | "islands" | "zones" | "faq" | "content" | "translations";
 
 export type PermissionView = "users" | "roles" | "permissions";
 

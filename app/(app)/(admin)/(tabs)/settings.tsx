@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import {
     RefreshControl,
     ScrollView,
@@ -18,6 +18,11 @@ import {
     Activity,
     Settings,
     FileText,
+    MapPin,
+    Globe,
+    HelpCircle,
+    FileEdit,
+    Languages,
 } from "lucide-react-native";
 import {
     useSettingsData,
@@ -36,6 +41,11 @@ import {
     ActivityTab,
     SystemTab,
     ReportsTab,
+    IslandsTab,
+    ZonesTab,
+    FAQTab,
+    ContentTab,
+    TranslationsTab,
 } from "@/components/admin/settings";
 import {
     SystemSettingsModal,
@@ -45,6 +55,10 @@ import { SettingsTab } from "@/types/settings";
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function SettingsScreen() {
+    const tabScrollRef = useRef<ScrollView>(null);
+    const [currentScrollX, setCurrentScrollX] = useState(0);
+    const [isUserScrolling, setIsUserScrolling] = useState(false);
+
     const {
         alerts,
         activityLogs,
@@ -100,7 +114,7 @@ export default function SettingsScreen() {
     // System modal state
     const { showSystemModal, setShowSystemModal } = useSettingsModals();
 
-    // Calculate statistics
+    // Calculate statistics - memoized to prevent unnecessary recalculations
     const stats = useMemo(() => calculateSettingsStats(
         adminUsers,
         permissionCategories,
@@ -111,7 +125,7 @@ export default function SettingsScreen() {
         systemSettings
     ), [adminUsers, permissionCategories, roleTemplates, alerts, activityLogs, selectedTimeframe, systemSettings]);
 
-    // Filter data based on search and active tab
+    // Filter data based on search and active tab - memoized to prevent unnecessary filtering
     const filteredData = useMemo(() => filterSettingsData(
         activeTab,
         searchQuery,
@@ -130,6 +144,70 @@ export default function SettingsScreen() {
             setRefreshing(false);
         }
     };
+
+    // Memoized tab data to prevent unnecessary re-renders
+    const tabsData = useMemo(() => [
+        {
+            key: "permissions",
+            label: "Permissions",
+            icon: Shield,
+            category: "Security"
+        },
+        {
+            key: "alerts",
+            label: "Alerts",
+            icon: Bell,
+            category: "Monitoring"
+        },
+        {
+            key: "activity",
+            label: "Activity",
+            icon: Activity,
+            category: "Monitoring"
+        },
+        {
+            key: "system",
+            label: "System",
+            icon: Settings,
+            category: "Administration"
+        },
+        {
+            key: "reports",
+            label: "Reports",
+            icon: FileText,
+            category: "Analytics"
+        },
+        {
+            key: "islands",
+            label: "Islands",
+            icon: MapPin,
+            category: "Geography"
+        },
+        {
+            key: "zones",
+            label: "Zones",
+            icon: Globe,
+            category: "Geography"
+        },
+        {
+            key: "faq",
+            label: "FAQ",
+            icon: HelpCircle,
+            category: "Content"
+        },
+        {
+            key: "content",
+            label: "Content",
+            icon: FileEdit,
+            category: "Content"
+        },
+        {
+            key: "translations",
+            label: "Translations",
+            icon: Languages,
+            category: "Localization"
+        }
+    ], []);
 
 
 
@@ -195,74 +273,190 @@ export default function SettingsScreen() {
                     />
                 );
 
+            case "islands":
+                return (
+                    <IslandsTab
+                        isActive={activeTab === "islands"}
+                    />
+                );
+
+            case "zones":
+                return (
+                    <ZonesTab
+                        isActive={activeTab === "zones"}
+                    />
+                );
+
+            case "faq":
+                return (
+                    <FAQTab
+                        isActive={activeTab === "faq"}
+                    />
+                );
+
+            case "content":
+                return (
+                    <ContentTab
+                        isActive={activeTab === "content"}
+                    />
+                );
+
+            case "translations":
+                return (
+                    <TranslationsTab
+                        isActive={activeTab === "translations"}
+                    />
+                );
+
             default:
                 return null;
         }
     };
 
+    // Tabs that use FlatList internally and should not be wrapped in ScrollView
+    const flatListTabs = ['islands', 'zones'];
+    const useScrollView = !flatListTabs.includes(activeTab);
+
+    // Optimized scroll to active tab - only when tab changes and user isn't manually scrolling
+    const scrollToActiveTab = useCallback((immediate = false) => {
+        if (isUserScrolling) return;
+
+        const tabIndex = tabsData.findIndex(tab => tab.key === activeTab);
+        if (tabIndex === -1 || !tabScrollRef.current) return;
+
+        const tabWidth = 86; // minWidth (80) + marginHorizontal (6)
+        const targetScrollX = Math.max(0, (tabIndex * tabWidth) - (screenWidth / 2) + (tabWidth / 2));
+
+        // Only scroll if the target position is significantly different from current
+        const scrollDifference = Math.abs(targetScrollX - currentScrollX);
+        if (scrollDifference < 50) return; // Don't scroll if tab is already roughly in view
+
+        const scrollAction = () => {
+            tabScrollRef.current?.scrollTo({
+                x: targetScrollX,
+                animated: !immediate,
+            });
+        };
+
+        if (immediate) {
+            scrollAction();
+        } else {
+            setTimeout(scrollAction, 100);
+        }
+    }, [activeTab, tabsData, currentScrollX, isUserScrolling, screenWidth]);
+
+    // Only scroll when activeTab changes, not on every re-render
+    useEffect(() => {
+        scrollToActiveTab();
+    }, [activeTab]); // Removed scrollToActiveTab from dependencies to prevent loops
+
+    const TabNavigation = useMemo(() => (
+        <View style={styles.tabWrapper}>
+            <ScrollView
+                ref={tabScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabScrollContainer}
+                style={styles.tabScrollView}
+                bounces={false}
+                decelerationRate="fast"
+                onScroll={(event) => {
+                    setCurrentScrollX(event.nativeEvent.contentOffset.x);
+                }}
+                onScrollBeginDrag={() => setIsUserScrolling(true)}
+                onScrollEndDrag={() => {
+                    setTimeout(() => setIsUserScrolling(false), 500);
+                }}
+                scrollEventThrottle={16}
+            >
+                {tabsData.map((tab) => {
+                    const IconComponent = tab.icon;
+                    const isActive = activeTab === tab.key;
+
+                    return (
+                        <TouchableOpacity
+                            key={tab.key}
+                            style={[
+                                styles.tab,
+                                isActive && styles.tabActive
+                            ]}
+                            onPress={() => setActiveTab(tab.key as SettingsTab)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={styles.tabIconContainer}>
+                                <IconComponent
+                                    size={18}
+                                    color={isActive ? colors.primary : colors.textSecondary}
+                                />
+                            </View>
+                            <Text style={[
+                                styles.tabText,
+                                isActive && styles.tabTextActive
+                            ]}>
+                                {tab.label}
+                            </Text>
+                            {isActive && <View style={styles.tabIndicator} />}
+                        </TouchableOpacity>
+                    );
+                })}
+            </ScrollView>
+        </View>
+    ), [activeTab, tabsData]); // Only re-render when activeTab changes
+
+    const SearchBarComponent = useMemo(() => {
+        const showSearch = ["permissions", "alerts", "activity", "islands", "zones", "faq", "content", "translations"].includes(activeTab);
+
+        return showSearch ? (
+            <View style={styles.searchContainer}>
+                <SearchBar
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder={`Search ${activeTab}...`}
+                />
+            </View>
+        ) : null;
+    }, [activeTab, searchQuery, setSearchQuery]);
+
+    const FixedHeader = useMemo(() => (
+        <View style={[styles.fixedHeader, getResponsivePadding(screenWidth)]}>
+            {TabNavigation}
+            {SearchBarComponent}
+        </View>
+    ), [TabNavigation, SearchBarComponent, screenWidth]);
+
     return (
         <>
-            <ScrollView
-                style={styles.container}
-                contentContainerStyle={[styles.contentContainer, getResponsivePadding(screenWidth)]}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        colors={[colors.primary]}
-                        tintColor={colors.primary}
-                    />
-                }
-                showsVerticalScrollIndicator={false}
-            >
+            <View style={styles.container}>
                 <Stack.Screen
                     options={{
                         title: "Settings",
                     }}
                 />
 
-                {/* Tab Navigation */}
-                <View style={styles.tabContainer}>
-                    {[
-                        { key: "permissions", label: "Permissions", icon: <Shield size={16} color={activeTab === "permissions" ? colors.primary : colors.textSecondary} /> },
-                        { key: "alerts", label: "Alerts", icon: <Bell size={16} color={activeTab === "alerts" ? colors.primary : colors.textSecondary} /> },
-                        { key: "activity", label: "Activity", icon: <Activity size={16} color={activeTab === "activity" ? colors.primary : colors.textSecondary} /> },
-                        { key: "system", label: "System", icon: <Settings size={16} color={activeTab === "system" ? colors.primary : colors.textSecondary} /> },
-                        { key: "reports", label: "Reports", icon: <FileText size={16} color={activeTab === "reports" ? colors.primary : colors.textSecondary} /> }
-                    ].map((tab) => (
-                        <TouchableOpacity
-                            key={tab.key}
-                            style={[
-                                styles.tab,
-                                activeTab === tab.key && styles.tabActive
-                            ]}
-                            onPress={() => setActiveTab(tab.key as SettingsTab)}
-                        >
-                            {tab.icon}
-                            <Text style={[
-                                styles.tabText,
-                                activeTab === tab.key && styles.tabTextActive
-                            ]}>
-                                {tab.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                {FixedHeader}
 
-                {/* Search Bar */}
-                {(activeTab === "permissions" || activeTab === "alerts" || activeTab === "activity") && (
-                    <View style={styles.searchContainer}>
-                        <SearchBar
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            placeholder={`Search ${activeTab}...`}
-                        />
+                {useScrollView ? (
+                    <ScrollView
+                        style={styles.scrollContent}
+                        contentContainerStyle={[styles.scrollContentContainer, getResponsivePadding(screenWidth)]}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                colors={[colors.primary]}
+                                tintColor={colors.primary}
+                            />
+                        }
+                        showsVerticalScrollIndicator={false}
+                    >
+                        {renderTabContent()}
+                    </ScrollView>
+                ) : (
+                    <View style={styles.flatListContent}>
+                        {renderTabContent()}
                     </View>
                 )}
-
-                {/* Tab Content */}
-                {renderTabContent()}
-            </ScrollView>
+            </View>
 
             {/* Modals */}
             <SystemSettingsModal
@@ -272,8 +466,6 @@ export default function SettingsScreen() {
                 setTempSettings={setTempSettings}
                 onSave={handleSaveSettings}
             />
-
-
         </>
     );
 }
@@ -283,43 +475,95 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
-    contentContainer: {
-        flexGrow: 1,
+    fixedHeader: {
+        backgroundColor: colors.backgroundSecondary,
+        paddingTop: 12,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.background + "20",
+        elevation: 4,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        zIndex: 1,
     },
-    tabContainer: {
-        flexDirection: "row",
+    scrollContent: {
+        flex: 1,
+    },
+    scrollContentContainer: {
+        flexGrow: 1,
+        paddingTop: 16,
+    },
+    flatListContent: {
+        flex: 1,
+    },
+    tabWrapper: {
         backgroundColor: colors.card,
         borderRadius: 12,
-        padding: 4,
-        marginBottom: 24,
+        marginBottom: 16,
+        paddingVertical: 8,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
+        height: 64,
+    },
+    tabScrollView: {
+        flex: 1,
+    },
+    tabScrollContainer: {
+        alignItems: "center",
+        paddingHorizontal: 16,
+        minWidth: screenWidth,
     },
     tab: {
-        flex: 1,
-        flexDirection: "row",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        paddingVertical: 12,
-        paddingHorizontal: 8,
-        borderRadius: 8,
-        gap: 6,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+        gap: 4,
+        marginHorizontal: 3,
+        position: 'relative',
+        minWidth: 80,
+        height: 48,
     },
     tabActive: {
         backgroundColor: colors.primary + "15",
+        transform: [{ scale: 1.05 }],
+    },
+    tabIconContainer: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: "transparent",
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 2,
     },
     tabText: {
-        fontSize: 11,
-        fontWeight: "500",
+        fontSize: 10,
+        fontWeight: "600",
         color: colors.textSecondary,
+        textAlign: "center",
+        lineHeight: 12,
     },
     tabTextActive: {
         color: colors.primary,
+        fontWeight: "700",
+    },
+    tabIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        width: "70%",
+        height: 2,
+        backgroundColor: colors.primary,
+        borderRadius: 1,
     },
     searchContainer: {
-        marginBottom: 16,
+        marginBottom: 8,
     },
 }); 

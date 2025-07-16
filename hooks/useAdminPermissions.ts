@@ -45,17 +45,39 @@ export const useAdminPermissions = () => {
             { id: '21', name: 'islands:update', description: 'Update islands', resource: PERMISSION_RESOURCES.ISLANDS, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
             { id: '22', name: 'islands:delete', description: 'Delete islands', resource: PERMISSION_RESOURCES.ISLANDS, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
 
+            // Content Management permissions
+            { id: '23', name: 'zones:view', description: 'View zones', resource: PERMISSION_RESOURCES.ZONES, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '24', name: 'zones:create', description: 'Create zones', resource: PERMISSION_RESOURCES.ZONES, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
+            { id: '25', name: 'zones:update', description: 'Update zones', resource: PERMISSION_RESOURCES.ZONES, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
+            { id: '26', name: 'zones:delete', description: 'Delete zones', resource: PERMISSION_RESOURCES.ZONES, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
+
+            { id: '27', name: 'faq:view', description: 'View FAQ', resource: PERMISSION_RESOURCES.FAQ, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '28', name: 'faq:create', description: 'Create FAQ', resource: PERMISSION_RESOURCES.FAQ, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
+            { id: '29', name: 'faq:update', description: 'Update FAQ', resource: PERMISSION_RESOURCES.FAQ, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
+            { id: '30', name: 'faq:delete', description: 'Delete FAQ', resource: PERMISSION_RESOURCES.FAQ, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
+
+            { id: '31', name: 'content:view', description: 'View content', resource: PERMISSION_RESOURCES.CONTENT, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '32', name: 'content:create', description: 'Create content', resource: PERMISSION_RESOURCES.CONTENT, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
+            { id: '33', name: 'content:update', description: 'Update content', resource: PERMISSION_RESOURCES.CONTENT, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
+            { id: '34', name: 'content:delete', description: 'Delete content', resource: PERMISSION_RESOURCES.CONTENT, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
+
+            { id: '35', name: 'translations:view', description: 'View translations', resource: PERMISSION_RESOURCES.TRANSLATIONS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '36', name: 'translations:create', description: 'Create translations', resource: PERMISSION_RESOURCES.TRANSLATIONS, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
+            { id: '37', name: 'translations:update', description: 'Update translations', resource: PERMISSION_RESOURCES.TRANSLATIONS, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
+            { id: '38', name: 'translations:delete', description: 'Delete translations', resource: PERMISSION_RESOURCES.TRANSLATIONS, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
+            { id: '39', name: 'translations:export', description: 'Export translations', resource: PERMISSION_RESOURCES.TRANSLATIONS, action: PERMISSION_ACTIONS.EXPORT, created_at: new Date().toISOString() },
+
             // User management permissions
-            { id: '23', name: 'users:view', description: 'View users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '24', name: 'users:create', description: 'Create users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
-            { id: '25', name: 'users:update', description: 'Update users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
-            { id: '26', name: 'users:delete', description: 'Delete users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
+            { id: '40', name: 'users:view', description: 'View users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '41', name: 'users:create', description: 'Create users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
+            { id: '42', name: 'users:update', description: 'Update users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
+            { id: '43', name: 'users:delete', description: 'Delete users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
 
-            { id: '27', name: 'agents:view', description: 'View agents', resource: PERMISSION_RESOURCES.AGENTS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '28', name: 'agents:manage', description: 'Manage agents', resource: PERMISSION_RESOURCES.AGENTS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
+            { id: '44', name: 'agents:view', description: 'View agents', resource: PERMISSION_RESOURCES.AGENTS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '45', name: 'agents:manage', description: 'Manage agents', resource: PERMISSION_RESOURCES.AGENTS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
 
-            { id: '29', name: 'passengers:view', description: 'View passengers', resource: PERMISSION_RESOURCES.PASSENGERS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '30', name: 'passengers:manage', description: 'Manage passengers', resource: PERMISSION_RESOURCES.PASSENGERS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
+            { id: '46', name: 'passengers:view', description: 'View passengers', resource: PERMISSION_RESOURCES.PASSENGERS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
+            { id: '47', name: 'passengers:manage', description: 'Manage passengers', resource: PERMISSION_RESOURCES.PASSENGERS, action: PERMISSION_ACTIONS.MANAGE, created_at: new Date().toISOString() },
 
             // Financial permissions
             { id: '31', name: 'wallets:view', description: 'View wallets', resource: PERMISSION_RESOURCES.WALLETS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
@@ -162,6 +184,40 @@ export const useAdminPermissions = () => {
         hasPermission(PERMISSION_RESOURCES.ISLANDS, PERMISSION_ACTIONS.UPDATE) ||
         hasPermission(PERMISSION_RESOURCES.ISLANDS, PERMISSION_ACTIONS.DELETE);
 
+    // Content Management permissions
+    const canViewZones = () => hasPermission(PERMISSION_RESOURCES.ZONES, PERMISSION_ACTIONS.VIEW);
+    const canCreateZones = () => hasPermission(PERMISSION_RESOURCES.ZONES, PERMISSION_ACTIONS.CREATE);
+    const canUpdateZones = () => hasPermission(PERMISSION_RESOURCES.ZONES, PERMISSION_ACTIONS.UPDATE);
+    const canDeleteZones = () => hasPermission(PERMISSION_RESOURCES.ZONES, PERMISSION_ACTIONS.DELETE);
+    const canManageZones = () => hasPermission(PERMISSION_RESOURCES.ZONES, PERMISSION_ACTIONS.CREATE) ||
+        hasPermission(PERMISSION_RESOURCES.ZONES, PERMISSION_ACTIONS.UPDATE) ||
+        hasPermission(PERMISSION_RESOURCES.ZONES, PERMISSION_ACTIONS.DELETE);
+
+    const canViewFAQ = () => hasPermission(PERMISSION_RESOURCES.FAQ, PERMISSION_ACTIONS.VIEW);
+    const canCreateFAQ = () => hasPermission(PERMISSION_RESOURCES.FAQ, PERMISSION_ACTIONS.CREATE);
+    const canUpdateFAQ = () => hasPermission(PERMISSION_RESOURCES.FAQ, PERMISSION_ACTIONS.UPDATE);
+    const canDeleteFAQ = () => hasPermission(PERMISSION_RESOURCES.FAQ, PERMISSION_ACTIONS.DELETE);
+    const canManageFAQ = () => hasPermission(PERMISSION_RESOURCES.FAQ, PERMISSION_ACTIONS.CREATE) ||
+        hasPermission(PERMISSION_RESOURCES.FAQ, PERMISSION_ACTIONS.UPDATE) ||
+        hasPermission(PERMISSION_RESOURCES.FAQ, PERMISSION_ACTIONS.DELETE);
+
+    const canViewContent = () => hasPermission(PERMISSION_RESOURCES.CONTENT, PERMISSION_ACTIONS.VIEW);
+    const canCreateContent = () => hasPermission(PERMISSION_RESOURCES.CONTENT, PERMISSION_ACTIONS.CREATE);
+    const canUpdateContent = () => hasPermission(PERMISSION_RESOURCES.CONTENT, PERMISSION_ACTIONS.UPDATE);
+    const canDeleteContent = () => hasPermission(PERMISSION_RESOURCES.CONTENT, PERMISSION_ACTIONS.DELETE);
+    const canManageContent = () => hasPermission(PERMISSION_RESOURCES.CONTENT, PERMISSION_ACTIONS.CREATE) ||
+        hasPermission(PERMISSION_RESOURCES.CONTENT, PERMISSION_ACTIONS.UPDATE) ||
+        hasPermission(PERMISSION_RESOURCES.CONTENT, PERMISSION_ACTIONS.DELETE);
+
+    const canViewTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.VIEW);
+    const canCreateTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.CREATE);
+    const canUpdateTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.UPDATE);
+    const canDeleteTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.DELETE);
+    const canExportTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.EXPORT);
+    const canManageTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.CREATE) ||
+        hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.UPDATE) ||
+        hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.DELETE);
+
     // User management permissions
     const canViewUsers = () => hasPermission(PERMISSION_RESOURCES.USERS, PERMISSION_ACTIONS.VIEW);
     const canCreateUsers = () => hasPermission(PERMISSION_RESOURCES.USERS, PERMISSION_ACTIONS.CREATE);
@@ -251,6 +307,29 @@ export const useAdminPermissions = () => {
         canUpdateIslands,
         canDeleteIslands,
         canManageIslands,
+
+        // Content Management
+        canViewZones,
+        canCreateZones,
+        canUpdateZones,
+        canDeleteZones,
+        canManageZones,
+        canViewFAQ,
+        canCreateFAQ,
+        canUpdateFAQ,
+        canDeleteFAQ,
+        canManageFAQ,
+        canViewContent,
+        canCreateContent,
+        canUpdateContent,
+        canDeleteContent,
+        canManageContent,
+        canViewTranslations,
+        canCreateTranslations,
+        canUpdateTranslations,
+        canDeleteTranslations,
+        canExportTranslations,
+        canManageTranslations,
 
         // Users
         canViewUsers,

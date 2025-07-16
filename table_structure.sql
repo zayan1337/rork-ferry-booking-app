@@ -507,56 +507,6 @@ create table public.modifications (
 ) TABLESPACE pg_default;
 
 
-create view public.operations_routes_view as
-select
-  r.id,
-  r.from_island_id,
-  r.to_island_id,
-  r.base_fare,
-  r.is_active,
-  r.created_at,
-  oi.name as from_island_name,
-  di.name as to_island_name,
-  concat(oi.name, ' to ', di.name) as route_name,
-  COALESCE(route_stats.total_trips_30d, 0::bigint) as total_trips_30d,
-  COALESCE(route_stats.total_bookings_30d, 0::bigint) as total_bookings_30d,
-  COALESCE(route_stats.avg_occupancy_30d, 0::numeric) as avg_occupancy_30d,
-  COALESCE(route_stats.total_revenue_30d, 0::numeric) as total_revenue_30d
-from
-  routes r
-  left join islands oi on r.from_island_id = oi.id
-  left join islands di on r.to_island_id = di.id
-  left join (
-    select
-      t.route_id,
-      count(distinct t.id) as total_trips_30d,
-      count(b.id) as total_bookings_30d,
-      round(
-        case
-          when count(distinct t.id) > 0
-          and avg(v.seating_capacity) > 0::numeric then count(b.id)::numeric * 100.0 / (
-            count(distinct t.id)::numeric * avg(v.seating_capacity)
-          )
-          else 0::numeric
-        end,
-        2
-      ) as avg_occupancy_30d,
-      sum(
-        case
-          when b.status = 'confirmed'::booking_status then b.total_fare
-          else 0::numeric
-        end
-      ) as total_revenue_30d
-    from
-      trips t
-      left join bookings b on t.id = b.trip_id
-      left join vessels v on t.vessel_id = v.id
-    where
-      t.travel_date >= (CURRENT_DATE - '30 days'::interval)
-    group by
-      t.route_id
-  ) route_stats on r.id = route_stats.route_id;
-
 
 create view public.operations_stats_view as
 select
@@ -1146,6 +1096,7 @@ create table public.route_price_history (
 ) TABLESPACE pg_default;
 
 
+
 create table public.routes (
   id uuid not null default gen_random_uuid (),
   from_island_id uuid not null,
@@ -1154,7 +1105,12 @@ create table public.routes (
   is_active boolean not null default true,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
   status character varying(20) null default 'active'::character varying,
+  name character varying(255) null,
+  distance character varying(50) null,
+  duration character varying(50) null,
+  description text null,
   constraint routes_pkey primary key (id),
+  constraint unique_route_islands unique (from_island_id, to_island_id),
   constraint routes_from_island_id_fkey foreign KEY (from_island_id) references islands (id),
   constraint routes_to_island_id_fkey foreign KEY (to_island_id) references islands (id),
   constraint different_islands check ((from_island_id <> to_island_id))
@@ -1163,6 +1119,15 @@ create table public.routes (
 create index IF not exists idx_routes_status on public.routes using btree (status) TABLESPACE pg_default;
 
 create index IF not exists idx_routes_active on public.routes using btree (is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_name on public.routes using btree (name) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_from_to on public.routes using btree (from_island_id, to_island_id) TABLESPACE pg_default;
+
+create trigger trigger_set_route_name BEFORE INSERT
+or
+update on routes for EACH row
+execute FUNCTION set_route_name ();
 
 
 create table public.seat_reservations (
@@ -1685,3 +1650,60 @@ create table public.wallets (
   constraint wallets_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
+create view public.operations_routes_view as
+select
+  r.id,
+  r.from_island_id,
+  r.to_island_id,
+  r.base_fare,
+  r.is_active,
+  r.created_at,
+  r.name,
+  r.distance,
+  r.duration,
+  r.description,
+  r.status,
+  oi.name as from_island_name,
+  di.name as to_island_name,
+  COALESCE(
+    r.name,
+    concat(oi.name, ' to ', di.name)::character varying
+  ) as route_name,
+  COALESCE(route_stats.total_trips_30d, 0::bigint) as total_trips_30d,
+  COALESCE(route_stats.total_bookings_30d, 0::bigint) as total_bookings_30d,
+  COALESCE(route_stats.avg_occupancy_30d, 0::numeric) as avg_occupancy_30d,
+  COALESCE(route_stats.total_revenue_30d, 0::numeric) as total_revenue_30d
+from
+  routes r
+  left join islands oi on r.from_island_id = oi.id
+  left join islands di on r.to_island_id = di.id
+  left join (
+    select
+      t.route_id,
+      count(distinct t.id) as total_trips_30d,
+      count(b.id) as total_bookings_30d,
+      round(
+        case
+          when count(distinct t.id) > 0
+          and avg(v.seating_capacity) > 0::numeric then count(b.id)::numeric * 100.0 / (
+            count(distinct t.id)::numeric * avg(v.seating_capacity)
+          )
+          else 0::numeric
+        end,
+        2
+      ) as avg_occupancy_30d,
+      sum(
+        case
+          when b.status = 'confirmed'::booking_status then b.total_fare
+          else 0::numeric
+        end
+      ) as total_revenue_30d
+    from
+      trips t
+      left join bookings b on t.id = b.trip_id
+      left join vessels v on t.vessel_id = v.id
+    where
+      t.travel_date >= (CURRENT_DATE - '30 days'::interval)
+    group by
+      t.route_id
+  ) route_stats on r.id = route_stats.route_id;
