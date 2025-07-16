@@ -277,13 +277,15 @@ export default function SettingsScreen() {
                 return (
                     <IslandsTab
                         isActive={activeTab === "islands"}
+                        searchQuery={searchQuery}
                     />
                 );
 
             case "zones":
                 return (
                     <ZonesTab
-                        isActive={activeTab === "zones"}
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
                     />
                 );
 

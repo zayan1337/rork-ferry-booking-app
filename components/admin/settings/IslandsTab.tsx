@@ -1,20 +1,23 @@
-import React, { useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    Dimensions,
+    Alert,
+    FlatList,
+    RefreshControl,
 } from "react-native";
 import { router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useContentStore } from "@/store/admin/contentStore";
+import { useOperationsStore } from "@/store/admin/operationsStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { Island } from "@/types";
+import { DatabaseIsland } from "@/types/database";
 import {
     MapPin,
-    ArrowRight,
+    Plus,
     Eye,
+    AlertTriangle,
 } from "lucide-react-native";
 
 // Components
@@ -22,36 +25,91 @@ import Button from "@/components/admin/Button";
 import IslandItem from "@/components/admin/IslandItem";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
 
-const { width: screenWidth } = Dimensions.get('window');
-const isTablet = screenWidth >= 768;
-
 interface IslandsTabProps {
     isActive: boolean;
+    searchQuery?: string;
 }
 
-export default function IslandsTab({ isActive }: IslandsTabProps) {
-    const { canViewIslands } = useAdminPermissions();
-    const { islands: allIslands, loading, fetchIslands } = useContentStore();
+export default function IslandsTab({ isActive, searchQuery = "" }: IslandsTabProps) {
+    const { canViewIslands, canManageIslands } = useAdminPermissions();
+    const {
+        islands,
+        loading,
+        fetchIslands
+    } = useOperationsStore();
 
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Initialize islands data when tab becomes active
     useEffect(() => {
-        if (isActive && canViewIslands()) {
+        if (isActive && canViewIslands() && islands.length === 0) {
             fetchIslands();
         }
-    }, []);
+    }, [isActive, canViewIslands, islands.length, fetchIslands]);
 
+    const filteredIslands = useMemo(() => {
+        if (!searchQuery) return islands;
+
+        const query = searchQuery.toLowerCase();
+        return islands.filter(island =>
+            island.name.toLowerCase().includes(query) ||
+            island.zone?.toLowerCase().includes(query)
+        );
+    }, [islands, searchQuery]);
+
+    // Remove duplicates by ID
+    const uniqueIslands = useMemo(() => {
+        return filteredIslands.filter((island, index, self) =>
+            index === self.findIndex(i => i.id === island.id)
+        );
+    }, [filteredIslands]);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await fetchIslands();
+        } catch (error) {
+            console.error("Failed to refresh islands:", error);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    const handleIslandPress = (islandId: string) => {
+        if (canViewIslands()) {
+            router.push(`../island/${islandId}` as any);
+        }
+    };
+
+    const handleAddIsland = () => {
+        if (canManageIslands()) {
+            router.push("../island/new" as any);
+        } else {
+            Alert.alert("Access Denied", "You don't have permission to create islands.");
+        }
+    };
+
+    const handleViewAllIslands = () => {
+        router.push("../islands" as any);
+    };
+
+    // Permission check
     if (!canViewIslands()) {
         return (
-            <View style={styles.permissionDenied}>
-                <MapPin size={64} color={colors.textTertiary} />
-                <Text style={styles.permissionTitle}>Access Denied</Text>
-                <Text style={styles.permissionText}>
+            <View style={styles.noPermissionContainer}>
+                <View style={styles.noPermissionIcon}>
+                    <AlertTriangle size={48} color={colors.warning} />
+                </View>
+                <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                <Text style={styles.noPermissionText}>
                     You don't have permission to view islands.
                 </Text>
             </View>
         );
     }
 
-    if (loading.islands) {
+    // Loading state
+    if (loading.islands && islands.length === 0) {
         return (
             <View style={styles.loadingContainer}>
                 <LoadingSpinner />
@@ -60,103 +118,88 @@ export default function IslandsTab({ isActive }: IslandsTabProps) {
         );
     }
 
-    // Show only first 3 islands for preview
-    const previewIslands = allIslands.slice(0, 3);
-    const totalIslands = allIslands.length;
+    const renderHeader = () => (
+        <View style={styles.sectionContent}>
+            <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderContent}>
+                    <View style={styles.sectionTitleContainer}>
+                        <View style={styles.sectionIcon}>
+                            <MapPin size={20} color={colors.primary} />
+                        </View>
+                        <View>
+                            <Text style={styles.sectionTitle}>Islands Management</Text>
+                            <Text style={styles.sectionSubtitle}>{uniqueIslands.length} islands available</Text>
+                        </View>
+                    </View>
+                </View>
+                {canManageIslands() && (
+                    <View style={styles.sectionHeaderButton}>
+                        <Button
+                            title="Add Island"
+                            onPress={handleAddIsland}
+                            size="small"
+                            variant="outline"
+                            icon={<Plus size={16} color={colors.primary} />}
+                        />
+                    </View>
+                )}
+            </View>
+        </View>
+    );
 
-    const handleViewAllIslands = () => {
-        router.push("../islands");
-    };
+    const renderIslandItem = ({ item, index }: { item: DatabaseIsland; index: number }) => (
+        <IslandItem
+            key={`island-${item.id}-${index}`}
+            island={item}
+            onPress={handleIslandPress}
+        />
+    );
 
-    const handleIslandPress = (island: Island) => {
-        router.push(`../island/${island.id}`);
-    };
+    const renderEmptyState = () => (
+        <View style={styles.emptyState}>
+            <View style={styles.emptyStateIcon}>
+                <MapPin size={48} color={colors.textSecondary} />
+            </View>
+            <Text style={styles.emptyStateTitle}>No islands found</Text>
+            <Text style={styles.emptyStateText}>
+                {searchQuery ? 'Try adjusting your search terms' : 'No islands available'}
+            </Text>
+        </View>
+    );
+
+    const renderFooter = () => (
+        <View style={styles.footerContainer}>
+            <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={handleViewAllIslands}
+            >
+                <Text style={styles.viewAllText}>View All Islands</Text>
+                <MapPin size={16} color={colors.primary} />
+            </TouchableOpacity>
+        </View>
+    );
 
     return (
         <View style={styles.container}>
-            {/* Header Section */}
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <View style={styles.iconContainer}>
-                        <MapPin size={24} color={colors.primary} />
-                    </View>
-                    <View style={styles.headerText}>
-                        <Text style={styles.title}>Islands</Text>
-                        <Text style={styles.subtitle}>
-                            Manage ferry destinations and zones
-                        </Text>
-                    </View>
-                </View>
-
-                <View style={styles.statsContainer}>
-                    <View style={styles.statItem}>
-                        <Text style={styles.statNumber}>{totalIslands}</Text>
-                        <Text style={styles.statLabel}>Total Islands</Text>
-                    </View>
-                    <View style={styles.statItem}>
-                        <Text style={styles.statNumber}>
-                            {allIslands.filter(i => i.is_active).length}
-                        </Text>
-                        <Text style={styles.statLabel}>Active</Text>
-                    </View>
-                </View>
-            </View>
-
-            {/* Content Section */}
-            {totalIslands === 0 ? (
-                <View style={styles.emptyState}>
-                    <View style={styles.emptyStateIcon}>
-                        <MapPin size={48} color={colors.textTertiary} />
-                    </View>
-                    <Text style={styles.emptyStateTitle}>No Islands Found</Text>
-                    <Text style={styles.emptyStateText}>
-                        No islands have been added to the system yet.
-                    </Text>
-                </View>
-            ) : (
-                <>
-                    {/* Islands Preview */}
-                    <View style={styles.contentSection}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Recent Islands</Text>
-                            <Text style={styles.sectionSubtitle}>
-                                Showing {previewIslands.length} of {totalIslands} islands
-                            </Text>
-                        </View>
-
-                        <View style={styles.islandsList}>
-                            {previewIslands.map((island, index) => (
-                                <View key={island.id} style={styles.islandItemWrapper}>
-                                    <IslandItem
-                                        island={island}
-                                        onPress={() => handleIslandPress(island)}
-                                    />
-                                    {index < previewIslands.length - 1 && (
-                                        <View style={styles.itemSeparator} />
-                                    )}
-                                </View>
-                            ))}
-                        </View>
-                    </View>
-
-                    {/* View All Button */}
-                    <View style={styles.actionSection}>
-                        <Button
-                            title="View All Islands"
-                            onPress={handleViewAllIslands}
-                            variant="outline"
-                            icon={<Eye size={18} color={colors.primary} />}
-                            style={styles.viewAllButton}
-                        />
-                        <View style={styles.viewAllHint}>
-                            <ArrowRight size={16} color={colors.textSecondary} />
-                            <Text style={styles.viewAllHintText}>
-                                Access full islands management
-                            </Text>
-                        </View>
-                    </View>
-                </>
-            )}
+            <FlatList
+                data={uniqueIslands}
+                renderItem={renderIslandItem}
+                keyExtractor={(item, index) => `island-${item.id}-${index}`}
+                ListHeaderComponent={renderHeader}
+                ListEmptyComponent={renderEmptyState}
+                ListFooterComponent={renderFooter}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefreshing}
+                        onRefresh={handleRefresh}
+                        colors={[colors.primary]}
+                        tintColor={colors.primary}
+                    />
+                }
+                ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+            />
         </View>
     );
 }
@@ -164,26 +207,119 @@ export default function IslandsTab({ isActive }: IslandsTabProps) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
     },
-    permissionDenied: {
+    contentContainer: {
+        flexGrow: 1,
+        paddingHorizontal: 16,
+    },
+    sectionContent: {
+        marginBottom: 16,
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+        minHeight: 44,
+        paddingHorizontal: 4,
+    },
+    sectionHeaderContent: {
+        flex: 1,
+        paddingRight: 8,
+    },
+    sectionHeaderButton: {
+        flexShrink: 0,
+        maxWidth: "40%",
+    },
+    sectionTitleContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    sectionIcon: {
+        padding: 8,
+        backgroundColor: colors.primary + "10",
+        borderRadius: 12,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: colors.text,
+    },
+    sectionSubtitle: {
+        fontSize: 14,
+        color: colors.textSecondary,
+    },
+    itemSeparator: {
+        height: 12,
+    },
+    footerContainer: {
+        paddingVertical: 24,
+    },
+    viewAllButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        backgroundColor: colors.primary + "10",
+        borderRadius: 8,
+        gap: 8,
+        minWidth: 200,
+    },
+    viewAllText: {
+        fontSize: 14,
+        fontWeight: "500",
+        color: colors.primary,
+    },
+    emptyState: {
+        alignItems: "center",
+        paddingVertical: 64,
+        gap: 16,
+    },
+    emptyStateIcon: {
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        backgroundColor: colors.textSecondary + "10",
+        borderRadius: 24,
+    },
+    emptyStateTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: colors.text,
+    },
+    emptyStateText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+    },
+    noPermissionContainer: {
         flex: 1,
         alignItems: "center",
         justifyContent: "center",
-        paddingHorizontal: 40,
+        paddingVertical: 64,
         gap: 16,
     },
-    permissionTitle: {
-        fontSize: 24,
+    noPermissionIcon: {
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        backgroundColor: colors.warning + "10",
+        borderRadius: 24,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
         fontWeight: "700",
         color: colors.text,
-        textAlign: "center",
+        marginBottom: 8,
     },
-    permissionText: {
+    noPermissionText: {
         fontSize: 16,
         color: colors.textSecondary,
         textAlign: "center",
-        lineHeight: 24,
+        maxWidth: 250,
     },
     loadingContainer: {
         flex: 1,
@@ -194,139 +330,5 @@ const styles = StyleSheet.create({
     loadingText: {
         fontSize: 16,
         color: colors.textSecondary,
-    },
-    header: {
-        paddingHorizontal: 20,
-        paddingVertical: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.borderLight,
-        backgroundColor: colors.backgroundSecondary,
-    },
-    headerContent: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: 16,
-    },
-    iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: colors.primaryLight,
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 16,
-    },
-    headerText: {
-        flex: 1,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 4,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        lineHeight: 22,
-    },
-    statsContainer: {
-        flexDirection: "row",
-        gap: 24,
-    },
-    statItem: {
-        alignItems: "center",
-    },
-    statNumber: {
-        fontSize: 28,
-        fontWeight: "700",
-        color: colors.primary,
-        marginBottom: 4,
-    },
-    statLabel: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        fontWeight: "500",
-    },
-    contentSection: {
-        flex: 1,
-        paddingHorizontal: 20,
-        paddingTop: 20,
-    },
-    sectionHeader: {
-        marginBottom: 16,
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: "600",
-        color: colors.text,
-        marginBottom: 4,
-    },
-    sectionSubtitle: {
-        fontSize: 14,
-        color: colors.textSecondary,
-    },
-    islandsList: {
-        backgroundColor: colors.backgroundSecondary,
-        borderRadius: 12,
-        overflow: "hidden",
-    },
-    islandItemWrapper: {
-        backgroundColor: colors.backgroundSecondary,
-    },
-    itemSeparator: {
-        height: 1,
-        backgroundColor: colors.borderLight,
-        marginHorizontal: 16,
-    },
-    actionSection: {
-        paddingHorizontal: 20,
-        paddingVertical: 24,
-        borderTopWidth: 1,
-        borderTopColor: colors.borderLight,
-        alignItems: "center",
-        gap: 12,
-    },
-    viewAllButton: {
-        minWidth: 200,
-    },
-    viewAllHint: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-    },
-    viewAllHintText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        fontStyle: "italic",
-    },
-    emptyState: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingHorizontal: 40,
-        gap: 16,
-    },
-    emptyStateIcon: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: colors.backgroundTertiary,
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: 8,
-    },
-    emptyStateTitle: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: colors.text,
-        textAlign: "center",
-    },
-    emptyStateText: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        textAlign: "center",
-        lineHeight: 24,
-        maxWidth: 320,
     },
 }); 
