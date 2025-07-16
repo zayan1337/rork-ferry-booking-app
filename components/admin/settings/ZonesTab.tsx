@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     View,
     Text,
@@ -7,344 +7,106 @@ import {
     TouchableOpacity,
     Alert,
     RefreshControl,
-    Dimensions,
 } from "react-native";
 import { router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useContentStore } from "@/store/admin/contentStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { Zone } from "@/types/content";
-import { calculateZoneStats, searchZones, filterZonesByStatus, sortZones } from "@/utils/zoneUtils";
 import {
     Plus,
-    Edit,
-    Trash2,
-    Activity,
-    MapPin,
-    Palette,
-    MoreHorizontal,
     Globe,
-    TrendingUp,
-    Filter,
-    SortAsc,
-    SortDesc,
+    AlertTriangle,
+    Eye,
 } from "lucide-react-native";
 
 // Components
 import Button from "@/components/admin/Button";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
 import ZoneItem from "@/components/admin/ZoneItem";
-import SearchBar from "@/components/admin/SearchBar";
-
-const { width: screenWidth } = Dimensions.get('window');
-const isTablet = screenWidth >= 768;
 
 interface ZonesTabProps {
     searchQuery: string;
     setSearchQuery: (query: string) => void;
 }
 
-export const ZonesTab: React.FC<ZonesTabProps> = ({
-    searchQuery,
-    setSearchQuery,
-}) => {
-    const { canManageSettings } = useAdminPermissions();
-    const { zones, loading, fetchZones, deleteZone } = useContentStore();
+export default function ZonesTab({ searchQuery = "" }: ZonesTabProps) {
+    const { canManageZones, canViewZones } = useAdminPermissions();
+    const { zones, loading, fetchZones } = useContentStore();
 
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [filterActive, setFilterActive] = useState<boolean | null>(null);
-    const [sortBy, setSortBy] = useState<"name" | "code" | "order_index" | "created_at">("order_index");
-    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-    const [showFilters, setShowFilters] = useState(false);
 
-    // Load zones on mount
+    // Initialize zones data
     useEffect(() => {
-        if (!zones || zones.length === 0) {
+        if (canViewZones() && zones.length === 0) {
             fetchZones();
         }
-    }, []);
+    }, [canViewZones, zones.length, fetchZones]);
+
+    const filteredZones = useMemo(() => {
+        if (!searchQuery) return zones;
+
+        const query = searchQuery.toLowerCase();
+        return zones.filter(zone =>
+            zone.name.toLowerCase().includes(query) ||
+            zone.code.toLowerCase().includes(query) ||
+            zone.description?.toLowerCase().includes(query)
+        );
+    }, [zones, searchQuery]);
+
+    // Remove duplicates by ID
+    const uniqueZones = useMemo(() => {
+        return filteredZones.filter((zone, index, self) =>
+            index === self.findIndex(z => z.id === zone.id)
+        );
+    }, [filteredZones]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await fetchZones();
-        setIsRefreshing(false);
+        try {
+            await fetchZones();
+        } catch (error) {
+            console.error("Failed to refresh zones:", error);
+        } finally {
+            setIsRefreshing(false);
+        }
     };
 
-    const handleAddZonePress = () => {
-        if (canManageSettings()) {
+    const handleZonePress = (zoneId: string) => {
+        if (canViewZones()) {
+            router.push(`../zone/${zoneId}` as any);
+        }
+    };
+
+    const handleAddZone = () => {
+        if (canManageZones()) {
             router.push("../zone/new" as any);
         } else {
             Alert.alert("Access Denied", "You don't have permission to create zones.");
         }
     };
 
-    const handleZonePress = (zoneId: string) => {
-        router.push(`../zone/${zoneId}` as any);
+    const handleViewAllZones = () => {
+        router.push("../zones" as any);
     };
 
-    const handleDeleteZonePress = async (zone: Zone) => {
-        if (!canManageSettings()) {
-            Alert.alert("Access Denied", "You don't have permission to delete zones.");
-            return;
-        }
-
-        Alert.alert(
-            "Delete Zone",
-            `Are you sure you want to delete "${zone.name}"? This action cannot be undone.`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await deleteZone(zone.id);
-                            Alert.alert("Success", "Zone deleted successfully");
-                        } catch (error) {
-                            Alert.alert("Error", "Failed to delete zone");
-                        }
-                    }
-                }
-            ]
+    // Permission check
+    if (!canViewZones()) {
+        return (
+            <View style={styles.noPermissionContainer}>
+                <View style={styles.noPermissionIcon}>
+                    <AlertTriangle size={48} color={colors.warning} />
+                </View>
+                <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                <Text style={styles.noPermissionText}>
+                    You don't have permission to view zones.
+                </Text>
+            </View>
         );
-    };
+    }
 
-    const toggleSort = (field: typeof sortBy) => {
-        if (sortBy === field) {
-            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-        } else {
-            setSortBy(field);
-            setSortOrder("asc");
-        }
-    };
-
-    // Calculate derived data
-    const filteredAndSortedZones = React.useMemo(() => {
-        let filtered = zones || [];
-
-        // Search filter
-        filtered = searchZones(filtered, searchQuery);
-
-        // Active status filter
-        filtered = filterZonesByStatus(filtered, filterActive);
-
-        // Sort
-        filtered = sortZones(filtered, sortBy, sortOrder);
-
-        return filtered;
-    }, [zones, searchQuery, filterActive, sortBy, sortOrder]);
-
-    const stats = React.useMemo(() => {
-        return calculateZoneStats(zones || []);
-    }, [zones]);
-
-    const renderZoneItem = ({ item }: { item: Zone }) => (
-        <ZoneItem
-            zone={item}
-            onPress={handleZonePress}
-            onMorePress={() => showZoneOptions(item)}
-        />
-    );
-
-    const showZoneOptions = (zone: Zone) => {
-        Alert.alert(
-            zone.name,
-            "Choose an action",
-            [
-                {
-                    text: "Edit",
-                    style: "default",
-                    onPress: () => handleZonePress(zone.id),
-                },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: () => handleDeleteZonePress(zone),
-                },
-                {
-                    text: "Cancel",
-                    style: "cancel",
-                },
-            ]
-        );
-    };
-
-    const renderListHeader = () => (
-        <View style={styles.listHeader}>
-            {/* Quick Stats Summary */}
-            <View style={styles.quickStats}>
-                <View style={styles.quickStatsRow}>
-                    <View style={styles.quickStatItem}>
-                        <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
-                            <Globe size={16} color={colors.primary} />
-                        </View>
-                        <Text style={styles.quickStatValue}>{stats.total}</Text>
-                        <Text style={styles.quickStatLabel}>Total</Text>
-                    </View>
-                    <View style={styles.quickStatItem}>
-                        <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
-                            <Activity size={16} color={colors.success} />
-                        </View>
-                        <Text style={styles.quickStatValue}>{stats.active}</Text>
-                        <Text style={styles.quickStatLabel}>Active</Text>
-                    </View>
-                    <View style={styles.quickStatItem}>
-                        <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
-                            <MapPin size={16} color={colors.info} />
-                        </View>
-                        <Text style={styles.quickStatValue}>{stats.withIslands}</Text>
-                        <Text style={styles.quickStatLabel}>With Islands</Text>
-                    </View>
-                    <View style={styles.quickStatItem}>
-                        <View style={[styles.quickStatIcon, { backgroundColor: colors.backgroundTertiary }]}>
-                            <Palette size={16} color={colors.textSecondary} />
-                        </View>
-                        <Text style={styles.quickStatValue}>{stats.inactive}</Text>
-                        <Text style={styles.quickStatLabel}>Inactive</Text>
-                    </View>
-                </View>
-            </View>
-
-            {/* Search Section */}
-            <View style={styles.searchSection}>
-                <SearchBar
-                    placeholder="Search zones by name, code, or description..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    style={styles.searchBar}
-                />
-            </View>
-
-            {/* Controls Row */}
-            <View style={styles.controlsRow}>
-                <View style={styles.controlsLeft}>
-                    <TouchableOpacity
-                        style={[styles.controlButton, showFilters && styles.controlButtonActive]}
-                        onPress={() => setShowFilters(!showFilters)}
-                    >
-                        <Filter size={16} color={showFilters ? colors.primary : colors.textSecondary} />
-                        <Text style={[styles.controlButtonText, showFilters && styles.controlButtonTextActive]}>
-                            Filters
-                        </Text>
-                    </TouchableOpacity>
-
-                    <View style={styles.sortControl}>
-                        <Text style={styles.sortLabel}>Sort:</Text>
-                        <TouchableOpacity
-                            style={[styles.sortButton, sortBy === "name" && styles.sortButtonActive]}
-                            onPress={() => toggleSort("name")}
-                        >
-                            <Text style={[styles.sortButtonText, sortBy === "name" && styles.sortButtonTextActive]}>
-                                Name
-                            </Text>
-                            {sortBy === "name" && (
-                                sortOrder === "asc" ?
-                                    <SortAsc size={12} color={colors.primary} /> :
-                                    <SortDesc size={12} color={colors.primary} />
-                            )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.sortButton, sortBy === "code" && styles.sortButtonActive]}
-                            onPress={() => toggleSort("code")}
-                        >
-                            <Text style={[styles.sortButtonText, sortBy === "code" && styles.sortButtonTextActive]}>
-                                Code
-                            </Text>
-                            {sortBy === "code" && (
-                                sortOrder === "asc" ?
-                                    <SortAsc size={12} color={colors.primary} /> :
-                                    <SortDesc size={12} color={colors.primary} />
-                            )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.sortButton, sortBy === "order_index" && styles.sortButtonActive]}
-                            onPress={() => toggleSort("order_index")}
-                        >
-                            <Text style={[styles.sortButtonText, sortBy === "order_index" && styles.sortButtonTextActive]}>
-                                Order
-                            </Text>
-                            {sortBy === "order_index" && (
-                                sortOrder === "asc" ?
-                                    <SortAsc size={12} color={colors.primary} /> :
-                                    <SortDesc size={12} color={colors.primary} />
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                <View style={styles.controlsRight}>
-                    <Text style={styles.resultsCount}>
-                        {filteredAndSortedZones.length} zone{filteredAndSortedZones.length !== 1 ? 's' : ''}
-                    </Text>
-                </View>
-            </View>
-
-            {/* Filter Options (Collapsible) */}
-            {showFilters && (
-                <View style={styles.filtersSection}>
-                    <Text style={styles.filterSectionTitle}>Filter by Status</Text>
-                    <View style={styles.filterRow}>
-                        <TouchableOpacity
-                            style={[styles.filterChip, filterActive === null && styles.filterChipActive]}
-                            onPress={() => setFilterActive(null)}
-                        >
-                            <Text style={[styles.filterChipText, filterActive === null && styles.filterChipTextActive]}>
-                                All Zones
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.filterChip, filterActive === true && styles.filterChipActive]}
-                            onPress={() => setFilterActive(true)}
-                        >
-                            <Text style={[styles.filterChipText, filterActive === true && styles.filterChipTextActive]}>
-                                Active Only
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.filterChip, filterActive === false && styles.filterChipActive]}
-                            onPress={() => setFilterActive(false)}
-                        >
-                            <Text style={[styles.filterChipText, filterActive === false && styles.filterChipTextActive]}>
-                                Inactive Only
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            )}
-
-            {/* Section Divider */}
-            {filteredAndSortedZones.length > 0 && (
-                <View style={styles.sectionDivider}>
-                    <Text style={styles.listTitle}>Zones</Text>
-                </View>
-            )}
-        </View>
-    );
-
-    const renderEmptyState = () => (
-        <View style={styles.emptyState}>
-            <View style={styles.emptyStateIcon}>
-                <Globe size={64} color={colors.textTertiary} />
-            </View>
-            <Text style={styles.emptyStateTitle}>No zones found</Text>
-            <Text style={styles.emptyStateText}>
-                {searchQuery || filterActive !== null
-                    ? "Try adjusting your search or filter criteria"
-                    : "No zones have been created yet"}
-            </Text>
-            {canManageSettings() && !searchQuery && filterActive === null && (
-                <Button
-                    title="Create First Zone"
-                    onPress={handleAddZonePress}
-                    variant="primary"
-                    icon={<Plus size={20} color={colors.white} />}
-                    style={styles.emptyStateButton}
-                />
-            )}
-        </View>
-    );
-
-    if (loading.zones) {
+    // Loading state
+    if (loading.zones && zones.length === 0) {
         return (
             <View style={styles.loadingContainer}>
                 <LoadingSpinner />
@@ -353,14 +115,78 @@ export const ZonesTab: React.FC<ZonesTabProps> = ({
         );
     }
 
+    const renderHeader = () => (
+        <View style={styles.sectionContent}>
+            <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderContent}>
+                    <View style={styles.sectionTitleContainer}>
+                        <View style={styles.sectionIcon}>
+                            <Globe size={20} color={colors.primary} />
+                        </View>
+                        <View>
+                            <Text style={styles.sectionTitle}>Zones Management</Text>
+                            <Text style={styles.sectionSubtitle}>{uniqueZones.length} zones available</Text>
+                        </View>
+                    </View>
+                </View>
+                {canManageZones() && (
+                    <View style={styles.sectionHeaderButton}>
+                        <Button
+                            title="Add Zone"
+                            onPress={handleAddZone}
+                            size="small"
+                            variant="outline"
+                            icon={<Plus size={16} color={colors.primary} />}
+                        />
+                    </View>
+                )}
+            </View>
+        </View>
+    );
+
+    const renderZoneItem = ({ item, index }: { item: Zone; index: number }) => (
+        <ZoneItem
+            key={`zone-${item.id}-${index}`}
+            zone={item}
+            onPress={handleZonePress}
+        />
+    );
+
+    const renderEmptyState = () => (
+        <View style={styles.emptyState}>
+            <View style={styles.emptyStateIcon}>
+                <Globe size={48} color={colors.textSecondary} />
+            </View>
+            <Text style={styles.emptyStateTitle}>No zones found</Text>
+            <Text style={styles.emptyStateText}>
+                {searchQuery ? 'Try adjusting your search terms' : 'No zones available'}
+            </Text>
+        </View>
+    );
+
+    const renderFooter = () => (
+        <View style={styles.footerContainer}>
+            <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={handleViewAllZones}
+            >
+                <Text style={styles.viewAllText}>View All Zones</Text>
+                <Globe size={16} color={colors.primary} />
+            </TouchableOpacity>
+        </View>
+    );
+
     return (
         <View style={styles.container}>
             <FlatList
-                data={filteredAndSortedZones}
+                data={uniqueZones}
                 renderItem={renderZoneItem}
-                keyExtractor={(item) => item.id}
-                ListHeaderComponent={renderListHeader}
+                keyExtractor={(item, index) => `zone-${item.id}-${index}`}
+                ListHeaderComponent={renderHeader}
                 ListEmptyComponent={renderEmptyState}
+                ListFooterComponent={renderFooter}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
                         refreshing={isRefreshing}
@@ -369,274 +195,137 @@ export const ZonesTab: React.FC<ZonesTabProps> = ({
                         tintColor={colors.primary}
                     />
                 }
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.listContainer}
                 ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
             />
-
-            {/* Floating Add Button */}
-            {canManageSettings() && filteredAndSortedZones.length > 0 && (
-                <TouchableOpacity
-                    style={styles.floatingButton}
-                    onPress={handleAddZonePress}
-                    activeOpacity={0.8}
-                >
-                    <Plus size={24} color={colors.white} />
-                </TouchableOpacity>
-            )}
         </View>
     );
-};
+}
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    contentContainer: {
+        flexGrow: 1,
+        paddingHorizontal: 16,
+    },
+    sectionContent: {
+        marginBottom: 16,
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+        minHeight: 44,
+        paddingHorizontal: 4,
+    },
+    sectionHeaderContent: {
+        flex: 1,
+        paddingRight: 8,
+    },
+    sectionHeaderButton: {
+        flexShrink: 0,
+        maxWidth: "40%",
+    },
+    sectionTitleContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    sectionIcon: {
+        padding: 8,
+        backgroundColor: colors.primary + "10",
+        borderRadius: 12,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: colors.text,
+    },
+    sectionSubtitle: {
+        fontSize: 14,
+        color: colors.textSecondary,
+    },
+    itemSeparator: {
+        height: 12,
+    },
+    footerContainer: {
+        paddingVertical: 24,
+    },
+    viewAllButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        backgroundColor: colors.primary + "10",
+        borderRadius: 8,
+        gap: 8,
+        minWidth: 200,
+    },
+    viewAllText: {
+        fontSize: 14,
+        fontWeight: "500",
+        color: colors.primary,
+    },
+    emptyState: {
+        alignItems: "center",
+        paddingVertical: 64,
+        gap: 16,
+    },
+    emptyStateIcon: {
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        backgroundColor: colors.textSecondary + "10",
+        borderRadius: 24,
+    },
+    emptyStateTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: colors.text,
+    },
+    emptyStateText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+    },
+    noPermissionContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 64,
+        gap: 16,
+    },
+    noPermissionIcon: {
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        backgroundColor: colors.warning + "10",
+        borderRadius: 24,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 8,
+    },
+    noPermissionText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 250,
+    },
     loadingContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: "center",
+        justifyContent: "center",
         gap: 16,
     },
     loadingText: {
         fontSize: 16,
         color: colors.textSecondary,
-        fontWeight: '500',
     },
-    listContainer: {
-        flexGrow: 1,
-        paddingBottom: 100, // Space for floating button
-    },
-    listHeader: {
-        paddingTop: 16,
-        paddingBottom: 16,
-    },
-    quickStats: {
-        marginBottom: 20,
-    },
-    quickStatsRow: {
-        flexDirection: "row",
-        backgroundColor: colors.card,
-        borderRadius: 16,
-        padding: 20,
-        shadowColor: colors.shadowMedium,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    quickStatItem: {
-        flex: 1,
-        alignItems: "center",
-        gap: 8,
-    },
-    quickStatIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    quickStatValue: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: colors.text,
-        lineHeight: 24,
-    },
-    quickStatLabel: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        fontWeight: "600",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-    },
-    searchSection: {
-        marginBottom: 20,
-    },
-    searchBar: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: colors.borderLight,
-    },
-    controlsRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 16,
-        gap: 16,
-    },
-    controlsLeft: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 16,
-        flex: 1,
-    },
-    controlsRight: {
-        alignItems: "flex-end",
-    },
-    controlButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 10,
-        backgroundColor: colors.card,
-        borderWidth: 1,
-        borderColor: colors.borderLight,
-    },
-    controlButtonActive: {
-        backgroundColor: colors.primaryLight,
-        borderColor: colors.primary,
-    },
-    controlButtonText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        fontWeight: "600",
-    },
-    controlButtonTextActive: {
-        color: colors.primary,
-    },
-    sortControl: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-    },
-    sortLabel: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        fontWeight: "600",
-    },
-    sortButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 8,
-        backgroundColor: colors.card,
-        borderWidth: 1,
-        borderColor: colors.borderLight,
-    },
-    sortButtonActive: {
-        backgroundColor: colors.primaryLight,
-        borderColor: colors.primary,
-    },
-    sortButtonText: {
-        fontSize: 13,
-        color: colors.textSecondary,
-        fontWeight: "600",
-    },
-    sortButtonTextActive: {
-        color: colors.primary,
-    },
-    resultsCount: {
-        fontSize: 14,
-        color: colors.textTertiary,
-        fontWeight: "500",
-    },
-    filtersSection: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: colors.borderLight,
-    },
-    filterSectionTitle: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: colors.text,
-        marginBottom: 12,
-    },
-    filterRow: {
-        flexDirection: "row",
-        gap: 8,
-        flexWrap: "wrap",
-    },
-    filterChip: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: colors.backgroundTertiary,
-        borderWidth: 1,
-        borderColor: colors.borderLight,
-    },
-    filterChipActive: {
-        backgroundColor: colors.primary,
-        borderColor: colors.primary,
-    },
-    filterChipText: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: colors.textSecondary,
-    },
-    filterChipTextActive: {
-        color: colors.white,
-    },
-    sectionDivider: {
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.borderLight,
-        marginBottom: 8,
-    },
-    listTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: colors.text,
-    },
-    itemSeparator: {
-        height: 8,
-    },
-    emptyState: {
-        alignItems: "center",
-        paddingVertical: 80,
-        paddingHorizontal: 20,
-        gap: 20,
-    },
-    emptyStateIcon: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: colors.backgroundTertiary,
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: 8,
-    },
-    emptyStateTitle: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: colors.text,
-        textAlign: "center",
-    },
-    emptyStateText: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        textAlign: "center",
-        maxWidth: 320,
-        lineHeight: 24,
-    },
-    emptyStateButton: {
-        marginTop: 16,
-        minWidth: 200,
-    },
-    floatingButton: {
-        position: "absolute",
-        bottom: 30,
-        right: 20,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: colors.primary,
-        alignItems: "center",
-        justifyContent: "center",
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-});
-
-export default ZonesTab; 
+}); 

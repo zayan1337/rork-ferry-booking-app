@@ -30,7 +30,7 @@ export interface DatabaseVessel {
 export interface DatabaseIsland {
     id: string;
     name: string;
-    zone: 'male' | 'north' | 'south' | 'central';
+    zone: 'A' | 'B';
     is_active: boolean;
     created_at: string;
 }
