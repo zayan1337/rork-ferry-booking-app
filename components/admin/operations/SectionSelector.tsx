@@ -1,6 +1,5 @@
 import React from "react";
 import {
-    MapPin,
     Calendar,
     Ship,
     Route as RouteIcon,
@@ -15,7 +14,6 @@ interface SectionSelectorProps {
     canViewRoutes: boolean;
     canViewTrips: boolean;
     canViewVessels: boolean;
-    canViewIslands: boolean;
 }
 
 export default function SectionSelector({
@@ -24,13 +22,11 @@ export default function SectionSelector({
     canViewRoutes,
     canViewTrips,
     canViewVessels,
-    canViewIslands,
 }: SectionSelectorProps) {
     const sections = [
         { key: "routes", label: "Routes", icon: RouteIcon, permission: canViewRoutes },
         { key: "trips", label: "Trips", icon: Calendar, permission: canViewTrips },
         { key: "vessels", label: "Vessels", icon: Ship, permission: canViewVessels },
-        { key: "islands", label: "Islands", icon: MapPin, permission: canViewIslands },
         { key: "schedule", label: "Schedule", icon: Activity, permission: canViewTrips },
     ].filter(section => section.permission);
 
