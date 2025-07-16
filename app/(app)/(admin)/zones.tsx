@@ -9,60 +9,49 @@ import {
     RefreshControl,
     Dimensions,
 } from "react-native";
-import { router } from "expo-router";
+import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useContentStore } from "@/store/admin/contentStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { Zone } from "@/types/content";
 import { calculateZoneStats, searchZones, filterZonesByStatus, sortZones } from "@/utils/zoneUtils";
 import {
+    ArrowLeft,
     Plus,
-    Edit,
-    Trash2,
-    Activity,
     MapPin,
-    Palette,
-    MoreHorizontal,
-    Globe,
-    TrendingUp,
+    Search,
     Filter,
     SortAsc,
     SortDesc,
+    Activity,
+    TrendingUp,
+    Grid3x3,
+    List,
+    MoreHorizontal,
+    Globe,
+    Palette,
 } from "lucide-react-native";
 
 // Components
 import Button from "@/components/admin/Button";
+import SearchBar from "@/components/admin/SearchBar";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
 import ZoneItem from "@/components/admin/ZoneItem";
-import SearchBar from "@/components/admin/SearchBar";
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
-interface ZonesTabProps {
-    searchQuery: string;
-    setSearchQuery: (query: string) => void;
-}
+export default function ZonesScreen() {
+    const { canViewSettings, canManageSettings } = useAdminPermissions();
+    const { zones, loading, fetchZones } = useContentStore();
 
-export const ZonesTab: React.FC<ZonesTabProps> = ({
-    searchQuery,
-    setSearchQuery,
-}) => {
-    const { canManageSettings } = useAdminPermissions();
-    const { zones, loading, fetchZones, deleteZone } = useContentStore();
-
-    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
     const [filterActive, setFilterActive] = useState<boolean | null>(null);
     const [sortBy, setSortBy] = useState<"name" | "code" | "order_index" | "created_at">("order_index");
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
-
-    // Load zones on mount
-    useEffect(() => {
-        if (!zones || zones.length === 0) {
-            fetchZones();
-        }
-    }, []);
+    const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -70,43 +59,16 @@ export const ZonesTab: React.FC<ZonesTabProps> = ({
         setIsRefreshing(false);
     };
 
-    const handleAddZonePress = () => {
+    const handleZonePress = (zoneId: string) => {
+        router.push(`./zone/${zoneId}` as any);
+    };
+
+    const handleAddZone = () => {
         if (canManageSettings()) {
-            router.push("../zone/new" as any);
+            router.push("./zone/new" as any);
         } else {
             Alert.alert("Access Denied", "You don't have permission to create zones.");
         }
-    };
-
-    const handleZonePress = (zoneId: string) => {
-        router.push(`../zone/${zoneId}` as any);
-    };
-
-    const handleDeleteZonePress = async (zone: Zone) => {
-        if (!canManageSettings()) {
-            Alert.alert("Access Denied", "You don't have permission to delete zones.");
-            return;
-        }
-
-        Alert.alert(
-            "Delete Zone",
-            `Are you sure you want to delete "${zone.name}"? This action cannot be undone.`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await deleteZone(zone.id);
-                            Alert.alert("Success", "Zone deleted successfully");
-                        } catch (error) {
-                            Alert.alert("Error", "Failed to delete zone");
-                        }
-                    }
-                }
-            ]
-        );
     };
 
     const toggleSort = (field: typeof sortBy) => {
@@ -118,7 +80,6 @@ export const ZonesTab: React.FC<ZonesTabProps> = ({
         }
     };
 
-    // Calculate derived data
     const filteredAndSortedZones = React.useMemo(() => {
         let filtered = zones || [];
 
@@ -138,36 +99,19 @@ export const ZonesTab: React.FC<ZonesTabProps> = ({
         return calculateZoneStats(zones || []);
     }, [zones]);
 
-    const renderZoneItem = ({ item }: { item: Zone }) => (
+    useEffect(() => {
+        if (!zones || zones.length === 0) {
+            fetchZones();
+        }
+    }, []);
+
+    const renderZoneItem = ({ item, index }: { item: Zone; index: number }) => (
         <ZoneItem
+            key={item.id}
             zone={item}
             onPress={handleZonePress}
-            onMorePress={() => showZoneOptions(item)}
         />
     );
-
-    const showZoneOptions = (zone: Zone) => {
-        Alert.alert(
-            zone.name,
-            "Choose an action",
-            [
-                {
-                    text: "Edit",
-                    style: "default",
-                    onPress: () => handleZonePress(zone.id),
-                },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: () => handleDeleteZonePress(zone),
-                },
-                {
-                    text: "Cancel",
-                    style: "cancel",
-                },
-            ]
-        );
-    };
 
     const renderListHeader = () => (
         <View style={styles.listHeader}>
@@ -335,7 +279,7 @@ export const ZonesTab: React.FC<ZonesTabProps> = ({
             {canManageSettings() && !searchQuery && filterActive === null && (
                 <Button
                     title="Create First Zone"
-                    onPress={handleAddZonePress}
+                    onPress={handleAddZone}
                     variant="primary"
                     icon={<Plus size={20} color={colors.white} />}
                     style={styles.emptyStateButton}
@@ -344,41 +288,87 @@ export const ZonesTab: React.FC<ZonesTabProps> = ({
         </View>
     );
 
-    if (loading.zones) {
+    if (!canViewSettings()) {
         return (
-            <View style={styles.loadingContainer}>
-                <LoadingSpinner />
-                <Text style={styles.loadingText}>Loading zones...</Text>
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Access Denied",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
+                    }}
+                />
+                <View style={styles.noPermissionContainer}>
+                    <View style={styles.noAccessIcon}>
+                        <Globe size={48} color={colors.textSecondary} />
+                    </View>
+                    <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                    <Text style={styles.noPermissionText}>
+                        You don't have permission to view zones.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
+                </View>
             </View>
         );
     }
 
     return (
         <View style={styles.container}>
-            <FlatList
-                data={filteredAndSortedZones}
-                renderItem={renderZoneItem}
-                keyExtractor={(item) => item.id}
-                ListHeaderComponent={renderListHeader}
-                ListEmptyComponent={renderEmptyState}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isRefreshing}
-                        onRefresh={handleRefresh}
-                        colors={[colors.primary]}
-                        tintColor={colors.primary}
-                    />
-                }
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.listContainer}
-                ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+            <Stack.Screen
+                options={{
+                    title: "Zones",
+                    headerLeft: () => (
+                        <TouchableOpacity
+                            onPress={() => router.back()}
+                            style={styles.backButton}
+                        >
+                            <ArrowLeft size={24} color={colors.primary} />
+                        </TouchableOpacity>
+                    ),
+                }}
             />
+
+            {loading.zones ? (
+                <View style={styles.loadingContainer}>
+                    <LoadingSpinner />
+                    <Text style={styles.loadingText}>Loading zones...</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredAndSortedZones}
+                    renderItem={renderZoneItem}
+                    ListHeaderComponent={renderListHeader}
+                    ListEmptyComponent={renderEmptyState}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.listContainer}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={handleRefresh}
+                            colors={[colors.primary]}
+                            tintColor={colors.primary}
+                        />
+                    }
+                    showsVerticalScrollIndicator={false}
+                    ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+                />
+            )}
 
             {/* Floating Add Button */}
             {canManageSettings() && filteredAndSortedZones.length > 0 && (
                 <TouchableOpacity
                     style={styles.floatingButton}
-                    onPress={handleAddZonePress}
+                    onPress={handleAddZone}
                     activeOpacity={0.8}
                 >
                     <Plus size={24} color={colors.white} />
@@ -386,29 +376,71 @@ export const ZonesTab: React.FC<ZonesTabProps> = ({
             )}
         </View>
     );
-};
+}
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: colors.backgroundSecondary,
+    },
+    noPermissionContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        gap: 20,
+    },
+    noAccessIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.backgroundTertiary,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    noPermissionText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
+    backButton: {
+        padding: 8,
+        marginLeft: -8,
+    },
+    headerActionButton: {
+        padding: 8,
+        marginRight: -8,
     },
     loadingContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         gap: 16,
+        padding: 20,
     },
     loadingText: {
         fontSize: 16,
         color: colors.textSecondary,
-        fontWeight: '500',
+        fontWeight: "500",
     },
     listContainer: {
         flexGrow: 1,
+        paddingHorizontal: 20,
         paddingBottom: 100, // Space for floating button
     },
     listHeader: {
-        paddingTop: 16,
+        paddingTop: 20,
         paddingBottom: 16,
     },
     quickStats: {
@@ -637,6 +669,4 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 8,
     },
-});
-
-export default ZonesTab; 
+}); 

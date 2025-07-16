@@ -26,6 +26,13 @@ import {
   updateIsland,
   deleteIsland,
 } from "@/utils/operationsService";
+import {
+  fetchZones as fetchZonesService,
+  fetchZone as fetchZoneService,
+  createZone as createZoneService,
+  updateZone as updateZoneService,
+  deleteZone as deleteZoneService,
+} from "@/utils/zoneService";
 
 interface ContentState {
   // Data
@@ -128,36 +135,40 @@ const mockZones: Zone[] = [
   {
     id: "1",
     name: "Male Zone",
+    code: "MALE",
     description: "Capital and airport area",
-    color: "#4A90E2",
     is_active: true,
+    order_index: 1,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
   {
     id: "2",
     name: "North Zone",
+    code: "NORTH",
     description: "Northern atolls",
-    color: "#007AFF",
     is_active: true,
+    order_index: 2,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
   {
     id: "3",
     name: "South Zone",
+    code: "SOUTH",
     description: "Southern atolls",
-    color: "#FF9500",
     is_active: true,
+    order_index: 3,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
   {
     id: "4",
     name: "Central Zone",
+    code: "CENTRAL",
     description: "Central atolls",
-    color: "#34C759",
     is_active: true,
+    order_index: 4,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -374,8 +385,11 @@ export const useContentStore = create<ContentState>()(
       fetchZones: async () => {
         set((state) => ({ loading: { ...state.loading, zones: true } }));
         try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          set((state) => ({ loading: { ...state.loading, zones: false } }));
+          const zones = await fetchZonesService();
+          set((state) => ({
+            zones,
+            loading: { ...state.loading, zones: false }
+          }));
           get().calculateStats();
         } catch (error) {
           console.error('Failed to fetch zones:', error);
@@ -384,34 +398,44 @@ export const useContentStore = create<ContentState>()(
       },
 
       addZone: async (zone) => {
-        const newZone: Zone = {
-          id: Date.now().toString(),
-          ...zone,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        set((state) => ({
-          zones: [...state.zones, newZone],
-        }));
-        get().calculateStats();
+        try {
+          const newZone = await createZoneService(zone);
+          set((state) => ({
+            zones: [...state.zones, newZone],
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to add zone:', error);
+          throw error;
+        }
       },
 
       updateZone: async (id, updates) => {
-        set((state) => ({
-          zones: state.zones.map((zone) =>
-            zone.id === id
-              ? { ...zone, ...updates, updated_at: new Date().toISOString() }
-              : zone
-          ),
-        }));
-        get().calculateStats();
+        try {
+          const updatedZone = await updateZoneService(id, updates);
+          set((state) => ({
+            zones: state.zones.map((zone) =>
+              zone.id === id ? updatedZone : zone
+            ),
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to update zone:', error);
+          throw error;
+        }
       },
 
       deleteZone: async (id) => {
-        set((state) => ({
-          zones: state.zones.filter((zone) => zone.id !== id),
-        }));
-        get().calculateStats();
+        try {
+          await deleteZoneService(id);
+          set((state) => ({
+            zones: state.zones.filter((zone) => zone.id !== id),
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to delete zone:', error);
+          throw error;
+        }
       },
 
       getZone: (id) => {
