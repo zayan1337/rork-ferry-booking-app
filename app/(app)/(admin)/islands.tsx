@@ -12,8 +12,17 @@ import {
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useOperationsStore } from "@/store/admin/operationsStore";
+import { useContentStore } from "@/store/admin/contentStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { DatabaseIsland } from "@/types/database";
+import {
+    searchIslands,
+    filterIslandsByStatus,
+    filterIslandsByZone,
+    sortIslands,
+    calculateIslandStats,
+    getZoneStatistics,
+} from "@/utils/islandUtils";
 import {
     ArrowLeft,
     Plus,
@@ -41,10 +50,12 @@ const isTablet = screenWidth >= 768;
 export default function IslandsScreen() {
     const { canViewIslands, canManageIslands } = useAdminPermissions();
     const { islands: allIslands, loading, fetchIslands } = useOperationsStore();
+    const { zones, fetchZones } = useContentStore();
 
     const [searchQuery, setSearchQuery] = useState("");
     const [filterActive, setFilterActive] = useState<boolean | null>(null);
-    const [sortBy, setSortBy] = useState<"name" | "zone" | "created_at">("name");
+    const [filterZone, setFilterZone] = useState<string | null>(null);
+    const [sortBy, setSortBy] = useState<"name" | "zone" | "created_at" | "zone_name">("name");
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
@@ -52,7 +63,7 @@ export default function IslandsScreen() {
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await fetchIslands();
+        await Promise.all([fetchIslands(), fetchZones()]);
         setIsRefreshing(false);
     };
 
@@ -81,60 +92,35 @@ export default function IslandsScreen() {
         let filtered = allIslands || [];
 
         // Search filter
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(
-                (island) =>
-                    island.name.toLowerCase().includes(query) ||
-                    island.zone.toLowerCase().includes(query)
-            );
-        }
+        filtered = searchIslands(filtered, searchQuery);
 
         // Active status filter
-        if (filterActive !== null) {
-            filtered = filtered.filter((island) => island.is_active === filterActive);
-        }
+        filtered = filterIslandsByStatus(filtered, filterActive);
+
+        // Zone filter
+        filtered = filterIslandsByZone(filtered, filterZone);
 
         // Sort
-        filtered.sort((a, b) => {
-            let aValue: any = a[sortBy];
-            let bValue: any = b[sortBy];
-
-            if (sortBy === "created_at") {
-                aValue = new Date(aValue).getTime();
-                bValue = new Date(bValue).getTime();
-            } else {
-                aValue = String(aValue).toLowerCase();
-                bValue = String(bValue).toLowerCase();
-            }
-
-            if (sortOrder === "asc") {
-                return aValue > bValue ? 1 : -1;
-            } else {
-                return aValue < bValue ? 1 : -1;
-            }
-        });
+        filtered = sortIslands(filtered, sortBy, sortOrder);
 
         return filtered;
-    }, [allIslands, searchQuery, filterActive, sortBy, sortOrder]);
+    }, [allIslands, searchQuery, filterActive, filterZone, sortBy, sortOrder]);
 
-    const getZoneStats = () => {
-        if (!allIslands || !Array.isArray(allIslands)) {
-            return {};
+    // Fetch zones if not already loaded
+    useEffect(() => {
+        if (!zones || zones.length === 0) {
+            fetchZones();
         }
+    }, [zones, fetchZones]);
 
-        const stats = allIslands.reduce((acc, island) => {
-            acc[island.zone] = (acc[island.zone] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
+    const stats = React.useMemo(() => {
+        return calculateIslandStats(allIslands || []);
+    }, [allIslands]);
 
-        return stats;
-    };
-
-    const zoneStats = getZoneStats();
-    const activeIslands = allIslands ? allIslands.filter(i => i.is_active).length : 0;
-    const totalIslands = allIslands ? allIslands.length : 0;
-    const inactiveIslands = totalIslands - activeIslands;
+    const zoneStats = React.useMemo(() => {
+        if (!zones || !allIslands) return [];
+        return getZoneStatistics(allIslands, zones);
+    }, [allIslands, zones]);
 
     useEffect(() => {
         if (!allIslands || allIslands.length === 0) {
@@ -159,28 +145,28 @@ export default function IslandsScreen() {
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
                             <MapPin size={16} color={colors.primary} />
                         </View>
-                        <Text style={styles.quickStatValue}>{totalIslands}</Text>
+                        <Text style={styles.quickStatValue}>{stats.total}</Text>
                         <Text style={styles.quickStatLabel}>Total</Text>
                     </View>
                     <View style={styles.quickStatItem}>
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
                             <Activity size={16} color={colors.success} />
                         </View>
-                        <Text style={styles.quickStatValue}>{activeIslands}</Text>
+                        <Text style={styles.quickStatValue}>{stats.active}</Text>
                         <Text style={styles.quickStatLabel}>Active</Text>
                     </View>
                     <View style={styles.quickStatItem}>
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
                             <TrendingUp size={16} color={colors.info} />
                         </View>
-                        <Text style={styles.quickStatValue}>{Object.keys(zoneStats).length}</Text>
+                        <Text style={styles.quickStatValue}>{stats.totalZones}</Text>
                         <Text style={styles.quickStatLabel}>Zones</Text>
                     </View>
                     <View style={styles.quickStatItem}>
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.backgroundTertiary }]}>
                             <MapPin size={16} color={colors.textSecondary} />
                         </View>
-                        <Text style={styles.quickStatValue}>{inactiveIslands}</Text>
+                        <Text style={styles.quickStatValue}>{stats.inactive}</Text>
                         <Text style={styles.quickStatLabel}>Inactive</Text>
                     </View>
                 </View>

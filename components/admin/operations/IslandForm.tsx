@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
 import { colors } from "@/constants/adminColors";
 import { DatabaseIsland } from "@/types/database";
+import { Zone } from "@/types/content";
 import { useOperationsStore } from "@/store/admin/operationsStore";
+import { useContentStore } from "@/store/admin/contentStore";
 import {
     MapPin,
     Activity,
@@ -12,6 +14,8 @@ import {
     RotateCcw,
     Info,
     Zap,
+    Globe,
+    Hash,
 } from "lucide-react-native";
 
 // Components
@@ -28,27 +32,25 @@ interface IslandFormProps {
 
 interface FormData {
     name: string;
-    zone: "A" | "B";
+    zone_id: string;
+    zone: string; // Keep for backward compatibility
     is_active: boolean;
 }
 
 interface ValidationErrors {
     name?: string;
-    zone?: string;
+    zone_id?: string;
     general?: string;
 }
 
-const ZONE_OPTIONS = [
-    { label: 'Zone A', value: 'A' },
-    { label: 'Zone B', value: 'B' },
-];
-
 export default function IslandForm({ initialData, onSuccess, onError }: IslandFormProps) {
     const { addIsland, updateIslandData } = useOperationsStore();
+    const { zones, fetchZones } = useContentStore();
 
     const [formData, setFormData] = useState<FormData>({
         name: initialData?.name || '',
-        zone: (initialData?.zone as "A" | "B") || 'A',
+        zone_id: initialData?.zone_id || '',
+        zone: initialData?.zone || '', // Backward compatibility
         is_active: initialData?.is_active ?? true,
     });
 
@@ -56,18 +58,25 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
     const [loading, setLoading] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
+    // Fetch zones on component mount
+    useEffect(() => {
+        if (!zones || zones.length === 0) {
+            fetchZones();
+        }
+    }, [zones, fetchZones]);
+
     // Track form changes
     useEffect(() => {
         if (initialData) {
             const hasFormChanges =
                 formData.name !== initialData.name ||
-                formData.zone !== (initialData.zone as "A" | "B") ||
+                formData.zone_id !== (initialData.zone_id || '') ||
                 formData.is_active !== initialData.is_active;
             setHasChanges(hasFormChanges);
         } else {
             const hasFormChanges =
                 formData.name.trim() !== '' ||
-                formData.zone !== 'A' ||
+                formData.zone_id !== '' ||
                 formData.is_active !== true;
             setHasChanges(hasFormChanges);
         }
@@ -88,10 +97,8 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
         }
 
         // Zone validation
-        if (!formData.zone) {
-            errors.zone = 'Zone is required';
-        } else if (!ZONE_OPTIONS.find(option => option.value === formData.zone)) {
-            errors.zone = 'Please select a valid zone';
+        if (!formData.zone_id) {
+            errors.zone_id = 'Zone is required';
         }
 
         setValidationErrors(errors);
@@ -109,20 +116,21 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
         try {
             let success = false;
 
+            // Get selected zone for backward compatibility
+            const selectedZone = zones?.find(z => z.id === formData.zone_id);
+            const submitData = {
+                name: formData.name.trim(),
+                zone_id: formData.zone_id,
+                zone: selectedZone?.name || formData.zone, // Backward compatibility
+                is_active: formData.is_active,
+            };
+
             if (initialData) {
                 // Update existing island
-                success = await updateIslandData(initialData.id, {
-                    name: formData.name.trim(),
-                    zone: formData.zone as any,
-                    is_active: formData.is_active,
-                });
+                success = await updateIslandData(initialData.id, submitData);
             } else {
                 // Create new island
-                success = await addIsland({
-                    name: formData.name.trim(),
-                    zone: formData.zone as any,
-                    is_active: formData.is_active,
-                });
+                success = await addIsland(submitData);
             }
 
             if (success) {
@@ -145,7 +153,8 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
                 if (!initialData) {
                     setFormData({
                         name: '',
-                        zone: 'A',
+                        zone_id: '',
+                        zone: '',
                         is_active: true,
                     });
                     setHasChanges(false);
@@ -177,13 +186,15 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
         if (initialData) {
             setFormData({
                 name: initialData.name,
-                zone: initialData.zone as "A" | "B",
+                zone_id: initialData.zone_id || '',
+                zone: initialData.zone || '',
                 is_active: initialData.is_active,
             });
         } else {
             setFormData({
                 name: '',
-                zone: 'A',
+                zone_id: '',
+                zone: '',
                 is_active: true,
             });
         }
@@ -191,27 +202,30 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
         setHasChanges(false);
     };
 
-    const getZoneDescription = (zone: string) => {
-        switch (zone) {
-            case 'A':
-                return 'Zone A - Primary ferry routes and main destinations';
-            case 'B':
-                return 'Zone B - Secondary routes and outer islands';
-            default:
-                return '';
-        }
+    const getZoneDescription = (zoneId: string) => {
+        const zone = zones?.find(z => z.id === zoneId);
+        if (!zone) return '';
+
+        return zone.description || `${zone.name} - ${zone.code}`;
     };
 
-    const getZoneColor = (zone: string) => {
-        switch (zone) {
-            case 'A':
-                return colors.primary;
-            case 'B':
-                return colors.info;
-            default:
-                return colors.textSecondary;
-        }
+    const getZoneColor = (zoneId: string) => {
+        const zone = zones?.find(z => z.id === zoneId);
+        if (!zone) return colors.textSecondary;
+
+        // Generate color based on zone index for consistency
+        const zoneIndex = zones?.findIndex(z => z.id === zoneId) || 0;
+        const colorOptions = [colors.primary, colors.info, colors.success, colors.warning];
+        return colorOptions[zoneIndex % colorOptions.length];
     };
+
+    // Convert zones to dropdown options
+    const zoneOptions = (zones || []).map(zone => ({
+        label: `${zone.name} (${zone.code})`,
+        value: zone.id,
+    }));
+
+    const selectedZone = zones?.find(z => z.id === formData.zone_id);
 
     return (
         <View style={styles.container}>
@@ -233,7 +247,7 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
                 </View>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 {/* Basic Information */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
@@ -257,30 +271,50 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
                     <View style={styles.formGroup}>
                         <Dropdown
                             label="Zone"
-                            value={formData.zone}
-                            onValueChange={(value) => setFormData(prev => ({ ...prev, zone: value as "A" | "B" }))}
-                            options={ZONE_OPTIONS}
+                            value={formData.zone_id}
+                            onValueChange={(value) => setFormData(prev => ({
+                                ...prev,
+                                zone_id: value,
+                                zone: zones?.find(z => z.id === value)?.name || ''
+                            }))}
+                            options={zoneOptions}
                             placeholder="Select zone"
-                            error={validationErrors.zone}
+                            error={validationErrors.zone_id}
                             required
                         />
-                        {formData.zone && (
+                        {selectedZone && (
                             <View style={[
                                 styles.zoneDescription,
-                                { backgroundColor: getZoneColor(formData.zone) + '10' }
+                                { backgroundColor: getZoneColor(formData.zone_id) + '10' }
                             ]}>
                                 <View style={[
                                     styles.zoneDescriptionIcon,
-                                    { backgroundColor: getZoneColor(formData.zone) + '20' }
+                                    { backgroundColor: getZoneColor(formData.zone_id) + '20' }
                                 ]}>
-                                    <Info size={14} color={getZoneColor(formData.zone)} />
+                                    <Globe size={14} color={getZoneColor(formData.zone_id)} />
                                 </View>
-                                <Text style={[
-                                    styles.zoneDescriptionText,
-                                    { color: getZoneColor(formData.zone) }
-                                ]}>
-                                    {getZoneDescription(formData.zone)}
-                                </Text>
+                                <View style={styles.zoneDescriptionContent}>
+                                    <Text style={[
+                                        styles.zoneDescriptionTitle,
+                                        { color: getZoneColor(formData.zone_id) }
+                                    ]}>
+                                        {selectedZone.name} ({selectedZone.code})
+                                    </Text>
+                                    <Text style={[
+                                        styles.zoneDescriptionText,
+                                        { color: getZoneColor(formData.zone_id) }
+                                    ]}>
+                                        {selectedZone.description || 'Zone for ferry operations and island management'}
+                                    </Text>
+                                    {selectedZone.total_islands !== undefined && (
+                                        <Text style={[
+                                            styles.zoneDescriptionStats,
+                                            { color: getZoneColor(formData.zone_id) }
+                                        ]}>
+                                            {selectedZone.total_islands} island(s) • {selectedZone.total_routes || 0} route(s)
+                                        </Text>
+                                    )}
+                                </View>
                             </View>
                         )}
                     </View>
@@ -398,6 +432,9 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         fontWeight: "500",
     },
+    scrollView: {
+        flex: 1,
+    },
     section: {
         backgroundColor: colors.card,
         borderRadius: 16,
@@ -434,26 +471,42 @@ const styles = StyleSheet.create({
     },
     zoneDescription: {
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: "flex-start",
         gap: 12,
         marginTop: 12,
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingVertical: 16,
         borderRadius: 12,
         borderLeftWidth: 3,
     },
     zoneDescriptionIcon: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
         alignItems: "center",
         justifyContent: "center",
+        marginTop: 2,
+    },
+    zoneDescriptionContent: {
+        flex: 1,
+        gap: 4,
+    },
+    zoneDescriptionTitle: {
+        fontSize: 14,
+        fontWeight: "700",
+        lineHeight: 18,
     },
     zoneDescriptionText: {
         fontSize: 13,
-        flex: 1,
-        fontWeight: "600",
+        fontWeight: "500",
         lineHeight: 18,
+        opacity: 0.8,
+    },
+    zoneDescriptionStats: {
+        fontSize: 12,
+        fontWeight: "600",
+        lineHeight: 16,
+        opacity: 0.7,
     },
     switchContainer: {
         marginBottom: 8,

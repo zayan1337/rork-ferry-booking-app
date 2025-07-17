@@ -45,6 +45,7 @@ export {
 export * from './routeUtils';
 export * from './vesselUtils';
 export * from './tripUtils';
+export * from './islandUtils';
 
 // User management utilities
 export * from './userManagementUtils'; 

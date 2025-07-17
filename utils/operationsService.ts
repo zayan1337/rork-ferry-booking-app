@@ -515,16 +515,30 @@ export const deleteVessel = async (id: string): Promise<boolean> => {
     }
 };
 
-// Islands - using the islands table directly
+// Islands - using the islands table with zone information
 export const fetchIslands = async (): Promise<DatabaseIsland[]> => {
     try {
         const { data, error } = await supabase
             .from('islands')
-            .select('*')
+            .select(`
+                *,
+                zones (
+                    id,
+                    name,
+                    code,
+                    description,
+                    is_active
+                )
+            `)
             .order('name', { ascending: true });
 
         if (error) throw error;
-        return data || [];
+        
+        // Transform the data to include zone information directly
+        return (data || []).map(island => ({
+            ...island,
+            zone_info: island.zones || null
+        }));
     } catch (error) {
         console.error('Error fetching islands:', error);
         return [];
@@ -535,12 +549,26 @@ export const fetchIsland = async (id: string): Promise<DatabaseIsland | null> =>
     try {
         const { data, error } = await supabase
             .from('islands')
-            .select('*')
+            .select(`
+                *,
+                zones (
+                    id,
+                    name,
+                    code,
+                    description,
+                    is_active
+                )
+            `)
             .eq('id', id)
             .single();
 
         if (error) throw error;
-        return data;
+        
+        // Transform the data to include zone information directly
+        return data ? {
+            ...data,
+            zone_info: data.zones || null
+        } : null;
     } catch (error) {
         console.error('Error fetching island:', error);
         return null;
@@ -549,7 +577,8 @@ export const fetchIsland = async (id: string): Promise<DatabaseIsland | null> =>
 
 export const createIsland = async (islandData: {
     name: string;
-    zone: string;
+    zone_id?: string;
+    zone?: string; // Keep for backward compatibility
     is_active?: boolean;
 }): Promise<DatabaseIsland | null> => {
     try {
@@ -557,7 +586,8 @@ export const createIsland = async (islandData: {
             .from('islands')
             .insert([{
                 name: islandData.name,
-                zone: islandData.zone,
+                zone_id: islandData.zone_id,
+                zone: islandData.zone || islandData.name, // Fallback for backward compatibility
                 is_active: islandData.is_active ?? true,
             }])
             .select()
@@ -575,7 +605,8 @@ export const updateIsland = async (
     id: string,
     updates: Partial<{
         name: string;
-        zone: string;
+        zone_id: string;
+        zone: string; // Keep for backward compatibility
         is_active: boolean;
     }>
 ): Promise<DatabaseIsland | null> => {

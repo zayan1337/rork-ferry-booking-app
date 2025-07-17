@@ -130,9 +130,10 @@ interface OperationsStore {
     }>) => Promise<boolean>;
     removeVessel: (id: string) => Promise<boolean>;
 
-    addIsland: (islandData: { name: string; zone: string; is_active?: boolean }) => Promise<boolean>;
+    addIsland: (islandData: { name: string; zone_id?: string; zone?: string; is_active?: boolean }) => Promise<boolean>;
     updateIslandData: (id: string, updates: Partial<{
         name: string;
+        zone_id: string;
         zone: string;
         is_active: boolean;
     }>) => Promise<boolean>;
