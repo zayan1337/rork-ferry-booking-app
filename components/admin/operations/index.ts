@@ -2,6 +2,10 @@
 export { default as OperationsStats } from './OperationsStats';
 export { default as SectionSelector } from './SectionSelector';
 
+// FAQ Components
+export { default as FAQForm } from './FAQForm';
+export { default as FAQCategoryForm } from './FAQCategoryForm';
+
 // Island Components
 export { default as IslandForm } from './IslandForm';
 

@@ -35,4 +35,7 @@ export { useVesselForm } from './useVesselForm';
 export { useTripForm } from './useTripForm';
 
 // User Management Hooks
-export { useUserForm } from './useUserForm'; 
+export { useUserForm } from './useUserForm';
+
+// FAQ Management Hooks
+export { useFAQManagement } from './useFAQManagement'; 

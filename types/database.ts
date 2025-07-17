@@ -208,4 +208,52 @@ export interface OperationsVessel extends DatabaseVessel {
     avg_passengers_per_trip?: number;
     days_in_service_30d?: number;
     status: 'active' | 'maintenance' | 'inactive';
+}
+
+// FAQ Database Types
+export interface DBFaqCategory {
+    id: string;
+    name: string;
+    created_at: string;
+}
+
+export interface DBFaq {
+    id: string;
+    category_id: string;
+    question: string;
+    answer: string;
+    created_at: string;
+    updated_at: string;
+    category?: DBFaqCategory;
+}
+
+// Enhanced FAQ types for management
+export interface DatabaseFAQCategory extends DBFaqCategory {
+    description?: string;
+    order_index: number;
+    is_active: boolean;
+    faq_count?: number;
+    active_faq_count?: number;
+    last_updated?: string;
+}
+
+export interface DatabaseFAQ extends DBFaq {
+    is_active: boolean;
+    order_index: number;
+    created_by?: string;
+    updated_by?: string;
+    category?: DatabaseFAQCategory;
+}
+
+// FAQ views for management interface
+export interface FAQManagementView extends DatabaseFAQ {
+    category_name: string;
+    category_order: number;
+    is_category_active: boolean;
+}
+
+export interface FAQCategoryManagementView extends DatabaseFAQCategory {
+    total_faqs: number;
+    active_faqs: number;
+    recent_updates: number;
 } 

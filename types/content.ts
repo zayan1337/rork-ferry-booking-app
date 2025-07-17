@@ -66,8 +66,8 @@ export interface FAQCategory {
     id: string;
     name: string;
     description?: string;
-    is_active: boolean;
     order_index: number;
+    is_active: boolean;
     created_at: string;
     updated_at: string;
     faq_count?: number;
@@ -79,6 +79,41 @@ export interface FAQFormData {
     answer: string;
     is_active: boolean;
     order_index: number;
+}
+
+export interface FAQCategoryFormData {
+    name: string;
+    description?: string;
+    order_index: number;
+    is_active: boolean;
+}
+
+export interface FAQStats {
+    total: number;
+    active: number;
+    inactive: number;
+    byCategory: Record<string, number>;
+    recentlyUpdated: number;
+    totalCategories: number;
+    activeCategories: number;
+}
+
+export interface FAQFilters {
+    category_id?: string;
+    is_active?: boolean;
+    search?: string;
+}
+
+export interface FAQWithDetails extends FAQ {
+    category: FAQCategory;
+    created_by?: string;
+    updated_by?: string;
+}
+
+export interface FAQCategoryWithStats extends FAQCategory {
+    faq_count: number;
+    active_faq_count: number;
+    last_updated: string;
 }
 
 // Terms and Conditions Types

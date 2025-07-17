@@ -33,6 +33,7 @@ import {
   updateZone as updateZoneService,
   deleteZone as deleteZoneService,
 } from "@/utils/zoneService";
+import { supabase } from "@/utils/supabase";
 
 interface ContentState {
   // Data
@@ -127,6 +128,20 @@ interface ContentState {
   calculateStats: () => void;
   clearSearchQueries: () => void;
   clearFilters: () => void;
+
+  // FAQ specific methods
+  searchFAQs: (query: string) => FAQ[];
+  filterFAQsByCategory: (categoryId: string, searchQuery?: string) => FAQ[];
+  filterFAQsByStatus: (isActive: boolean) => FAQ[];
+  getFAQStats: () => {
+    total: number;
+    active: number;
+    inactive: number;
+    byCategory: Record<string, number>;
+    recentlyUpdated: number;
+    totalCategories: number;
+    activeCategories: number;
+  };
 }
 
 // Mock data for development (islands will be fetched from API)
@@ -401,90 +416,313 @@ export const useContentStore = create<ContentState>()(
 
       // FAQ CRUD
       fetchFAQs: async () => {
-        set((state) => ({ loading: { ...state.loading, faq: true } }));
+        set((state) => ({ loading: { ...state.loading, faqs: true } }));
         try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          set((state) => ({ loading: { ...state.loading, faq: false } }));
+          const { data: faqs, error } = await supabase
+            .from('faqs')
+            .select(`
+              *,
+              category:faq_categories(*)
+            `)
+            .order('order_index', { ascending: true });
+
+          if (error) throw error;
+
+          const processedFaqs = (faqs || []).map(faq => ({
+            ...faq,
+            is_active: true, // Default since not in DB schema
+            order_index: faq.order_index || 0,
+          }));
+
+          set((state) => ({
+            faqs: processedFaqs,
+            loading: { ...state.loading, faq: false }
+          }));
           get().calculateStats();
         } catch (error) {
           console.error('Failed to fetch FAQs:', error);
           set((state) => ({ loading: { ...state.loading, faq: false } }));
+          throw error;
         }
       },
 
       fetchFAQCategories: async () => {
         set((state) => ({ loading: { ...state.loading, faqCategories: true } }));
         try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          set((state) => ({ loading: { ...state.loading, faqCategories: false } }));
+          const { data: categories, error } = await supabase
+            .from('faq_categories')
+            .select('*')
+            .order('name', { ascending: true });
+
+          if (error) throw error;
+
+          const processedCategories = (categories || []).map(category => ({
+            ...category,
+            description: category.description || '',
+            order_index: category.order_index || 0,
+            is_active: true, // Default since not in DB schema
+          }));
+
+          set((state) => ({
+            faqCategories: processedCategories,
+            loading: { ...state.loading, faqCategories: false }
+          }));
         } catch (error) {
           console.error('Failed to fetch FAQ categories:', error);
           set((state) => ({ loading: { ...state.loading, faqCategories: false } }));
+          throw error;
         }
       },
 
-      addFAQ: async (faq) => {
-        const newFAQ: FAQ = {
-          id: Date.now().toString(),
-          ...faq,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        set((state) => ({
-          faqs: [...state.faqs, newFAQ],
-        }));
-        get().calculateStats();
+      addFAQ: async (faqData) => {
+        try {
+          const { data: newFAQ, error } = await supabase
+            .from('faqs')
+            .insert([{
+              category_id: faqData.category_id,
+              question: faqData.question,
+              answer: faqData.answer,
+            }])
+            .select(`
+              *,
+              category:faq_categories(*)
+            `)
+            .single();
+
+          if (error) throw error;
+
+          const processedFAQ: FAQ = {
+            ...newFAQ,
+            is_active: faqData.is_active,
+            order_index: faqData.order_index,
+          };
+
+          set((state) => ({
+            faqs: [...state.faqs, processedFAQ],
+          }));
+          get().calculateStats();
+          return processedFAQ;
+        } catch (error) {
+          console.error('Failed to add FAQ:', error);
+          throw error;
+        }
       },
 
       updateFAQ: async (id, updates) => {
-        set((state) => ({
-          faqs: state.faqs.map((faq) =>
-            faq.id === id
-              ? { ...faq, ...updates, updated_at: new Date().toISOString() }
-              : faq
-          ),
-        }));
-        get().calculateStats();
+        try {
+          const { data: updatedFAQ, error } = await supabase
+            .from('faqs')
+            .update({
+              category_id: updates.category_id,
+              question: updates.question,
+              answer: updates.answer,
+            })
+            .eq('id', id)
+            .select(`
+              *,
+              category:faq_categories(*)
+            `)
+            .single();
+
+          if (error) throw error;
+
+          const processedFAQ: FAQ = {
+            ...updatedFAQ,
+            is_active: updates.is_active !== undefined ? updates.is_active : true,
+            order_index: updates.order_index !== undefined ? updates.order_index : 0,
+          };
+
+          set((state) => ({
+            faqs: state.faqs.map((faq) =>
+              faq.id === id ? processedFAQ : faq
+            ),
+          }));
+          get().calculateStats();
+          return processedFAQ;
+        } catch (error) {
+          console.error('Failed to update FAQ:', error);
+          throw error;
+        }
       },
 
       deleteFAQ: async (id) => {
-        set((state) => ({
-          faqs: state.faqs.filter((faq) => faq.id !== id),
-        }));
-        get().calculateStats();
+        try {
+          const { error } = await supabase
+            .from('faqs')
+            .delete()
+            .eq('id', id);
+
+          if (error) throw error;
+
+          set((state) => ({
+            faqs: state.faqs.filter((faq) => faq.id !== id),
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to delete FAQ:', error);
+          throw error;
+        }
       },
 
       getFAQ: (id) => {
         return get().faqs.find((faq) => faq.id === id);
       },
 
-      addFAQCategory: async (category) => {
-        const newCategory: FAQCategory = {
-          id: Date.now().toString(),
-          ...category,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        set((state) => ({
-          faqCategories: [...state.faqCategories, newCategory],
-        }));
+      addFAQCategory: async (categoryData) => {
+        try {
+          const { data: newCategory, error } = await supabase
+            .from('faq_categories')
+            .insert([{
+              name: categoryData.name,
+            }])
+            .select('*')
+            .single();
+
+          if (error) throw error;
+
+          const processedCategory: FAQCategory = {
+            ...newCategory,
+            description: categoryData.description || '',
+            order_index: categoryData.order_index,
+            is_active: true,
+          };
+
+          set((state) => ({
+            faqCategories: [...state.faqCategories, processedCategory],
+          }));
+          return processedCategory;
+        } catch (error) {
+          console.error('Failed to add FAQ category:', error);
+          throw error;
+        }
       },
 
       updateFAQCategory: async (id, updates) => {
-        set((state) => ({
-          faqCategories: state.faqCategories.map((category) =>
-            category.id === id
-              ? { ...category, ...updates, updated_at: new Date().toISOString() }
-              : category
-          ),
-        }));
+        try {
+          const { data: updatedCategory, error } = await supabase
+            .from('faq_categories')
+            .update({
+              name: updates.name,
+            })
+            .eq('id', id)
+            .select('*')
+            .single();
+
+          if (error) throw error;
+
+          const processedCategory: FAQCategory = {
+            ...updatedCategory,
+            description: updates.description || '',
+            order_index: updates.order_index !== undefined ? updates.order_index : 0,
+            is_active: updates.is_active !== undefined ? updates.is_active : true,
+          };
+
+          set((state) => ({
+            faqCategories: state.faqCategories.map((category) =>
+              category.id === id ? processedCategory : category
+            ),
+          }));
+          return processedCategory;
+        } catch (error) {
+          console.error('Failed to update FAQ category:', error);
+          throw error;
+        }
       },
 
       deleteFAQCategory: async (id) => {
-        set((state) => ({
-          faqCategories: state.faqCategories.filter((category) => category.id !== id),
-        }));
+        try {
+          // Check if category has FAQs
+          const { faqs } = get();
+          const categoryFAQs = faqs.filter(faq => faq.category_id === id);
+
+          if (categoryFAQs.length > 0) {
+            throw new Error('Cannot delete category with existing FAQs. Please move or delete the FAQs first.');
+          }
+
+          const { error } = await supabase
+            .from('faq_categories')
+            .delete()
+            .eq('id', id);
+
+          if (error) throw error;
+
+          set((state) => ({
+            faqCategories: state.faqCategories.filter((category) => category.id !== id),
+          }));
+        } catch (error) {
+          console.error('Failed to delete FAQ category:', error);
+          throw error;
+        }
+      },
+
+      getFAQCategory: (id) => {
+        return get().faqCategories.find((category) => category.id === id);
+      },
+
+      // Search and filter methods
+      searchFAQs: (query: string) => {
+        const { faqs } = get();
+        if (!query.trim()) return faqs;
+
+        const lowerQuery = query.toLowerCase();
+        return faqs.filter(faq =>
+          faq.question.toLowerCase().includes(lowerQuery) ||
+          faq.answer.toLowerCase().includes(lowerQuery)
+        );
+      },
+
+      filterFAQsByCategory: (categoryId: string, searchQuery?: string) => {
+        const { faqs } = get();
+        let filtered = faqs.filter(faq => faq.category_id === categoryId);
+
+        if (searchQuery?.trim()) {
+          const lowerQuery = searchQuery.toLowerCase();
+          filtered = filtered.filter(faq =>
+            faq.question.toLowerCase().includes(lowerQuery) ||
+            faq.answer.toLowerCase().includes(lowerQuery)
+          );
+        }
+
+        return filtered;
+      },
+
+      filterFAQsByStatus: (isActive: boolean) => {
+        const { faqs } = get();
+        return faqs.filter(faq => faq.is_active === isActive);
+      },
+
+      // Stats calculation
+      getFAQStats: () => {
+        const { faqs, faqCategories } = get();
+
+        const stats = {
+          total: faqs.length,
+          active: faqs.filter(faq => faq.is_active).length,
+          inactive: faqs.filter(faq => !faq.is_active).length,
+          byCategory: {} as Record<string, number>,
+          recentlyUpdated: 0,
+          totalCategories: faqCategories.length,
+          activeCategories: faqCategories.filter(cat => cat.is_active).length,
+        };
+
+        // Count FAQs by category
+        faqs.forEach(faq => {
+          if (stats.byCategory[faq.category_id]) {
+            stats.byCategory[faq.category_id]++;
+          } else {
+            stats.byCategory[faq.category_id] = 1;
+          }
+        });
+
+        // Count recently updated (last 7 days)
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        stats.recentlyUpdated = faqs.filter(faq =>
+          new Date(faq.updated_at) > sevenDaysAgo
+        ).length;
+
+        return stats;
       },
 
       // Terms CRUD
