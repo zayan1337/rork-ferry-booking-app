@@ -2184,7 +2184,169 @@ create index IF not exists idx_zone_activity_logs_zone_id on public.zone_activit
 
 create index IF not exists idx_zone_activity_logs_created_at on public.zone_activity_logs using btree (created_at) TABLESPACE pg_default;
 
-create table public.zones (
+create view public.zone_detailed_stats_view as
+with
+  zone_islands as (
+    select
+      z_1.id as zone_id,
+      count(i.id) as total_islands,
+      count(
+        case
+          when i.is_active = true then 1
+          else null::integer
+        end
+      ) as active_islands,
+      string_agg(
+        i.name::text,
+        ', '::text
+        order by
+          (i.name::text)
+      ) as island_names
+    from
+      zones z_1
+      left join islands i on z_1.id = i.zone_id
+    group by
+      z_1.id
+  ),
+  zone_routes as (
+    select
+      z_1.id as zone_id,
+      count(distinct r.id) as total_routes,
+      count(
+        distinct case
+          when r.is_active = true then r.id
+          else null::uuid
+        end
+      ) as active_routes,
+      sum(distinct r.base_fare) as total_base_fare,
+      avg(distinct r.base_fare) as avg_base_fare
+    from
+      zones z_1
+      left join islands i on z_1.id = i.zone_id
+      left join routes r on i.id = r.from_island_id
+      or i.id = r.to_island_id
+    group by
+      z_1.id
+  ),
+  zone_trips as (
+    select
+      z_1.id as zone_id,
+      count(distinct t.id) as total_trips_30d,
+      count(
+        distinct case
+          when t.travel_date >= (CURRENT_DATE - '7 days'::interval) then t.id
+          else null::uuid
+        end
+      ) as trips_7d,
+      count(
+        distinct case
+          when t.travel_date = CURRENT_DATE then t.id
+          else null::uuid
+        end
+      ) as trips_today
+    from
+      zones z_1
+      left join islands i on z_1.id = i.zone_id
+      left join routes r on i.id = r.from_island_id
+      or i.id = r.to_island_id
+      left join trips t on r.id = t.route_id
+      and t.travel_date >= (CURRENT_DATE - '30 days'::interval)
+    group by
+      z_1.id
+  ),
+  zone_bookings as (
+    select
+      z_1.id as zone_id,
+      count(distinct b.id) as total_bookings_30d,
+      count(
+        distinct case
+          when b.status = 'confirmed'::booking_status then b.id
+          else null::uuid
+        end
+      ) as confirmed_bookings_30d,
+      COALESCE(
+        sum(
+          case
+            when b.status = 'confirmed'::booking_status then b.total_fare
+            else 0::numeric
+          end
+        ),
+        0::numeric
+      ) as total_revenue_30d
+    from
+      zones z_1
+      left join islands i on z_1.id = i.zone_id
+      left join routes r on i.id = r.from_island_id
+      or i.id = r.to_island_id
+      left join trips t on r.id = t.route_id
+      left join bookings b on t.id = b.trip_id
+      and b.created_at >= (CURRENT_DATE - '30 days'::interval)
+    group by
+      z_1.id
+  )
+select
+  z.id,
+  z.name,
+  z.code,
+  z.description,
+  z.is_active,
+  z.order_index,
+  z.created_at,
+  z.updated_at,
+  COALESCE(zi.total_islands, 0::bigint) as total_islands,
+  COALESCE(zi.active_islands, 0::bigint) as active_islands,
+  COALESCE(zi.island_names, ''::text) as island_names,
+  COALESCE(zr.total_routes, 0::bigint) as total_routes,
+  COALESCE(zr.active_routes, 0::bigint) as active_routes,
+  COALESCE(zr.avg_base_fare, 0::numeric) as avg_base_fare,
+  COALESCE(zt.total_trips_30d, 0::bigint) as total_trips_30d,
+  COALESCE(zt.trips_7d, 0::bigint) as trips_7d,
+  COALESCE(zt.trips_today, 0::bigint) as trips_today,
+  COALESCE(zb.total_bookings_30d, 0::bigint) as total_bookings_30d,
+  COALESCE(zb.confirmed_bookings_30d, 0::bigint) as confirmed_bookings_30d,
+  COALESCE(zb.total_revenue_30d, 0::numeric) as total_revenue_30d,
+  round(
+    case
+      when COALESCE(zb.total_bookings_30d, 0::bigint) > 0 then COALESCE(zb.confirmed_bookings_30d, 0::bigint)::numeric / zb.total_bookings_30d::numeric * 100::numeric
+      else 0::numeric
+    end,
+    2
+  ) as booking_conversion_rate_30d
+from
+  zones z
+  left join zone_islands zi on z.id = zi.zone_id
+  left join zone_routes zr on z.id = zr.zone_id
+  left join zone_trips zt on z.id = zt.zone_id
+  left join zone_bookings zb on z.id = zb.zone_id
+order by
+  z.order_index,
+  z.name;
+
+  create view public.zone_management_summary as
+select
+  count(*) as total_zones,
+  count(
+    case
+      when is_active then 1
+      else null::integer
+    end
+  ) as active_zones,
+  count(
+    case
+      when not is_active then 1
+      else null::integer
+    end
+  ) as inactive_zones,
+  sum(total_islands) as total_islands_across_zones,
+  sum(active_islands) as active_islands_across_zones,
+  sum(total_routes) as total_routes_across_zones,
+  sum(active_routes) as active_routes_across_zones,
+  round(avg(total_islands), 2) as avg_islands_per_zone,
+  round(avg(total_routes), 2) as avg_routes_per_zone
+from
+  zones_stats_view;
+
+  create table public.zones (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
   code character varying(10) not null,
@@ -2226,6 +2388,41 @@ update on zones for EACH row
 execute FUNCTION update_zones_updated_at ();
 
 create view public.zones_stats_view as
+with
+  zone_islands as (
+    select
+      z_1.id as zone_id,
+      count(i.id) as total_islands,
+      count(
+        case
+          when i.is_active = true then 1
+          else null::integer
+        end
+      ) as active_islands
+    from
+      zones z_1
+      left join islands i on z_1.id = i.zone_id
+    group by
+      z_1.id
+  ),
+  zone_routes as (
+    select
+      z_1.id as zone_id,
+      count(distinct r.id) as total_routes,
+      count(
+        distinct case
+          when r.is_active = true then r.id
+          else null::uuid
+        end
+      ) as active_routes
+    from
+      zones z_1
+      left join islands i on z_1.id = i.zone_id
+      left join routes r on i.id = r.from_island_id
+      or i.id = r.to_island_id
+    group by
+      z_1.id
+  )
 select
   z.id,
   z.name,
@@ -2235,40 +2432,16 @@ select
   z.order_index,
   z.created_at,
   z.updated_at,
-  count(i.id) as total_islands,
-  count(
-    case
-      when i.is_active = true then 1
-      else null::integer
-    end
-  ) as active_islands,
-  count(distinct r1.id) + count(distinct r2.id) as total_routes,
-  count(
-    distinct case
-      when r1.is_active = true then r1.id
-      else null::uuid
-    end
-  ) + count(
-    distinct case
-      when r2.is_active = true then r2.id
-      else null::uuid
-    end
-  ) as active_routes
+  COALESCE(zi.total_islands, 0::bigint) as total_islands,
+  COALESCE(zi.active_islands, 0::bigint) as active_islands,
+  COALESCE(zr.total_routes, 0::bigint) as total_routes,
+  COALESCE(zr.active_routes, 0::bigint) as active_routes
 from
   zones z
-  left join islands i on z.id = i.zone_id
-  left join routes r1 on i.id = r1.from_island_id
-  left join routes r2 on i.id = r2.to_island_id
-group by
-  z.id,
-  z.name,
-  z.code,
-  z.description,
-  z.is_active,
-  z.order_index,
-  z.created_at,
-  z.updated_at
+  left join zone_islands zi on z.id = zi.zone_id
+  left join zone_routes zr on z.id = zr.zone_id
 order by
-  z.order_index;
+  z.order_index,
+  z.name;
 
   

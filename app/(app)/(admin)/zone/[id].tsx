@@ -58,10 +58,10 @@ export default function ZoneDetailScreen() {
             if (zoneData) {
                 setZone(zoneData);
             } else {
-                        // Zone not found in store, try to fetch
-        await fetchZones();
-        const refreshedZone = getZone(id);
-        setZone(refreshedZone || null);
+                // Zone not found in store, try to fetch
+                await fetchZones();
+                const refreshedZone = getZone(id);
+                setZone(refreshedZone || null);
             }
         } catch (error) {
             console.error("Error loading zone:", error);

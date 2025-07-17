@@ -59,9 +59,7 @@ export const createZone = async (zoneData: ZoneFormData): Promise<Zone> => {
             throw error;
         }
 
-        // Log the activity
-        await logZoneActivity(data.id, 'created', null, zoneData);
-
+        // Activity logging is handled automatically by database triggers
         return data;
     } catch (error) {
         console.error('Failed to create zone:', error);
@@ -72,13 +70,6 @@ export const createZone = async (zoneData: ZoneFormData): Promise<Zone> => {
 // Update an existing zone
 export const updateZone = async (id: string, updates: Partial<ZoneFormData>): Promise<Zone> => {
     try {
-        // First get the current zone data for logging
-        const { data: currentZone } = await supabase
-            .from('zones')
-            .select('*')
-            .eq('id', id)
-            .single();
-
         const { data, error } = await supabase
             .from('zones')
             .update(updates)
@@ -91,9 +82,7 @@ export const updateZone = async (id: string, updates: Partial<ZoneFormData>): Pr
             throw error;
         }
 
-        // Log the activity
-        await logZoneActivity(id, 'updated', currentZone, updates);
-
+        // Activity logging is handled automatically by database triggers
         return data;
     } catch (error) {
         console.error('Failed to update zone:', error);
@@ -104,13 +93,6 @@ export const updateZone = async (id: string, updates: Partial<ZoneFormData>): Pr
 // Delete a zone
 export const deleteZone = async (id: string): Promise<void> => {
     try {
-        // First get the zone data for logging
-        const { data: zoneToDelete } = await supabase
-            .from('zones')
-            .select('*')
-            .eq('id', id)
-            .single();
-
         const { error } = await supabase
             .from('zones')
             .delete()
@@ -121,10 +103,7 @@ export const deleteZone = async (id: string): Promise<void> => {
             throw error;
         }
 
-        // Log the activity
-        if (zoneToDelete) {
-            await logZoneActivity(id, 'deleted', zoneToDelete, null);
-        }
+        // Activity logging is handled automatically by database triggers
     } catch (error) {
         console.error('Failed to delete zone:', error);
         throw error;
@@ -146,9 +125,7 @@ export const toggleZoneStatus = async (id: string, isActive: boolean): Promise<Z
             throw error;
         }
 
-        // Log the activity
-        await logZoneActivity(id, isActive ? 'activated' : 'deactivated', null, { is_active: isActive });
-
+        // Activity logging is handled automatically by database triggers
         return data;
     } catch (error) {
         console.error('Failed to toggle zone status:', error);
@@ -181,50 +158,16 @@ export const getZoneActivityLogs = async (zoneId: string): Promise<ZoneActivityL
     }
 };
 
-// Helper function to log zone activities
-const logZoneActivity = async (
-    zoneId: string,
-    action: string,
-    oldValues: any,
-    newValues: any
-): Promise<void> => {
-    try {
-        // Get current user ID from the session
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            console.warn('No user found for activity logging');
-            return;
-        }
-
-        await supabase
-            .from('zone_activity_logs')
-            .insert([{
-                zone_id: zoneId,
-                action,
-                old_values: oldValues,
-                new_values: newValues,
-                user_id: user.id,
-            }]);
-    } catch (error) {
-        console.warn('Failed to log zone activity:', error);
-        // Don't throw here as it's not critical
-    }
-};
-
 // Reorder zones
-export const reorderZones = async (zoneIds: string[]): Promise<void> => {
+export const reorderZones = async (zoneUpdates: { id: string; order_index: number }[]): Promise<void> => {
     try {
-        const updates = zoneIds.map((id, index) => ({
-            id,
-            order_index: index,
-        }));
+        const { error } = await supabase.rpc('reorder_zones', {
+            zone_updates: zoneUpdates
+        });
 
-        for (const update of updates) {
-            await supabase
-                .from('zones')
-                .update({ order_index: update.order_index })
-                .eq('id', update.id);
+        if (error) {
+            console.error('Error reordering zones:', error);
+            throw error;
         }
     } catch (error) {
         console.error('Failed to reorder zones:', error);
@@ -232,11 +175,12 @@ export const reorderZones = async (zoneIds: string[]): Promise<void> => {
     }
 };
 
-// Bulk operations
-export const bulkUpdateZones = async (updates: { id: string; updates: Partial<ZoneFormData> }[]): Promise<void> => {
+// Bulk update zones
+export const bulkUpdateZones = async (zoneUpdates: { id: string; updates: Partial<ZoneFormData> }[]): Promise<void> => {
     try {
-        for (const update of updates) {
-            await updateZone(update.id, update.updates);
+        // Process updates one by one to maintain data integrity
+        for (const { id, updates } of zoneUpdates) {
+            await updateZone(id, updates);
         }
     } catch (error) {
         console.error('Failed to bulk update zones:', error);
@@ -244,13 +188,54 @@ export const bulkUpdateZones = async (updates: { id: string; updates: Partial<Zo
     }
 };
 
-export const bulkDeleteZones = async (ids: string[]): Promise<void> => {
+// Bulk delete zones
+export const bulkDeleteZones = async (zoneIds: string[]): Promise<void> => {
     try {
-        for (const id of ids) {
-            await deleteZone(id);
+        const { error } = await supabase
+            .from('zones')
+            .delete()
+            .in('id', zoneIds);
+
+        if (error) {
+            console.error('Error bulk deleting zones:', error);
+            throw error;
         }
     } catch (error) {
         console.error('Failed to bulk delete zones:', error);
+        throw error;
+    }
+};
+
+// Import zones from CSV
+export const importZonesFromCSV = async (csvData: string): Promise<{ success: number; errors: string[] }> => {
+    try {
+        const lines = csvData.split('\n').filter(line => line.trim());
+        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+        const dataLines = lines.slice(1);
+
+        const results = { success: 0, errors: [] as string[] };
+
+        for (let i = 0; i < dataLines.length; i++) {
+            try {
+                const values = dataLines[i].split(',').map(v => v.replace(/"/g, '').trim());
+                const zoneData: ZoneFormData = {
+                    name: values[headers.indexOf('name')] || values[headers.indexOf('Name')] || '',
+                    code: values[headers.indexOf('code')] || values[headers.indexOf('Code')] || '',
+                    description: values[headers.indexOf('description')] || values[headers.indexOf('Description')] || '',
+                    is_active: (values[headers.indexOf('is_active')] || values[headers.indexOf('Active')] || 'true').toLowerCase() === 'true',
+                    order_index: parseInt(values[headers.indexOf('order_index')] || values[headers.indexOf('Order')] || '0') || 0,
+                };
+
+                await createZone(zoneData);
+                results.success++;
+            } catch (error) {
+                results.errors.push(`Line ${i + 2}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        }
+
+        return results;
+    } catch (error) {
+        console.error('Failed to import zones:', error);
         throw error;
     }
 };
