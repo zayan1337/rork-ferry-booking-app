@@ -7,237 +7,138 @@ import {
     TouchableOpacity,
     Alert,
     RefreshControl,
-    TextInput,
     Dimensions,
-    ActivityIndicator,
 } from "react-native";
-import { Stack, router, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useContentStore } from "@/store/admin/contentStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { Zone, ZoneFormData, ZONE_COLOR_OPTIONS, ZONE_ICON_OPTIONS } from "@/types/content";
-import {
-    validateZoneForm,
-    zoneToFormData,
-    isDuplicateZoneName,
-    isDuplicateZoneCode,
-    formatZoneCode
-} from "@/utils/zoneUtils";
+import { Zone } from "@/types/content";
 import {
     ArrowLeft,
-    Edit3,
-    Save,
-    X,
+    Edit,
     Trash2,
-    MapPin,
     Globe,
-    Palette,
+    Calendar,
+    AlertCircle,
+    Activity,
+    MapPin,
+    BarChart3,
+    TrendingUp,
     Hash,
     FileText,
-    ToggleLeft,
-    ToggleRight,
-    Calendar,
-    Activity,
-    AlertTriangle,
+    Settings,
+    Info,
 } from "lucide-react-native";
 
 // Components
 import Button from "@/components/admin/Button";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
-import Switch from "@/components/admin/Switch";
 
 const { width: screenWidth } = Dimensions.get('window');
-const isTablet = screenWidth >= 768;
 
 export default function ZoneDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const { canViewSettings, canManageSettings } = useAdminPermissions();
-    const { zones, getZone, updateZone, deleteZone, loading, fetchZones } = useContentStore();
+    const { zones, getZone, deleteZone, fetchZones } = useContentStore();
 
     const [zone, setZone] = useState<Zone | null>(null);
-    const [isEditing, setIsEditing] = useState(false);
-    const [formData, setFormData] = useState<ZoneFormData>({
-        name: '',
-        code: '',
-        description: '',
-        color: ZONE_COLOR_OPTIONS[0],
-        icon: ZONE_ICON_OPTIONS[0],
-        is_active: true,
-        order_index: 0,
-    });
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [loading, setLoading] = useState(true);
+    const [deleting, setDeleting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
 
-    // Load zone data
-    useEffect(() => {
-        if (id) {
+    const isTablet = screenWidth >= 768;
+
+    const loadZone = async () => {
+        if (!id) return;
+
+        try {
+            setLoading(true);
             const zoneData = getZone(id);
             if (zoneData) {
                 setZone(zoneData);
-                setFormData(zoneToFormData(zoneData));
             } else {
-                // Zone not found in store, try to fetch
-                fetchZones();
+                        // Zone not found in store, try to fetch
+        await fetchZones();
+        const refreshedZone = getZone(id);
+        setZone(refreshedZone || null);
             }
+        } catch (error) {
+            console.error("Error loading zone:", error);
+            Alert.alert("Error", "Failed to load zone details");
+        } finally {
+            setLoading(false);
         }
-    }, [id, zones]);
+    };
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await fetchZones();
-        if (id) {
-            const refreshedZone = getZone(id);
-            if (refreshedZone) {
-                setZone(refreshedZone);
-                if (!isEditing) {
-                    setFormData(zoneToFormData(refreshedZone));
-                }
-            }
-        }
+        await loadZone();
         setIsRefreshing(false);
     };
 
-    const validateForm = (): boolean => {
-        const validationErrors = validateZoneForm(formData);
-        const errorMap: Record<string, string> = {};
-
-        // Check for duplicates if name or code changed
-        if (zone && formData.name !== zone.name) {
-            if (isDuplicateZoneName(zones || [], formData.name, zone.id)) {
-                validationErrors.push({ field: 'name', message: 'Zone name already exists' });
-            }
+    const handleEdit = () => {
+        if (!canManageSettings()) {
+            Alert.alert("Access Denied", "You don't have permission to edit zones.");
+            return;
         }
-
-        if (zone && formData.code !== zone.code) {
-            if (isDuplicateZoneCode(zones || [], formData.code, zone.id)) {
-                validationErrors.push({ field: 'code', message: 'Zone code already exists' });
-            }
-        }
-
-        validationErrors.forEach(error => {
-            errorMap[error.field] = error.message;
-        });
-
-        setErrors(errorMap);
-        return validationErrors.length === 0;
-    };
-
-    const handleSave = async () => {
-        if (!validateForm() || !zone) return;
-
-        setIsSaving(true);
-        try {
-            await updateZone(zone.id, {
-                ...formData,
-                code: formatZoneCode(formData.code),
-            });
-
-            // Refresh zone data
-            const updatedZone = getZone(zone.id);
-            if (updatedZone) {
-                setZone(updatedZone);
-                setFormData(zoneToFormData(updatedZone));
-            }
-
-            setIsEditing(false);
-            setErrors({});
-            Alert.alert("Success", "Zone updated successfully");
-        } catch (error) {
-            Alert.alert("Error", "Failed to update zone");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleCancel = () => {
-        if (zone) {
-            setFormData(zoneToFormData(zone));
-        }
-        setIsEditing(false);
-        setErrors({});
+        router.push(`../zone/edit/${id}` as any);
     };
 
     const handleDelete = () => {
-        if (!zone) return;
+        if (!canManageSettings()) {
+            Alert.alert("Access Denied", "You don't have permission to delete zones.");
+            return;
+        }
 
         Alert.alert(
             "Delete Zone",
-            `Are you sure you want to delete "${zone.name}"? This action cannot be undone.`,
+            `Are you sure you want to delete "${zone?.name}"? This action cannot be undone and will affect all islands in this zone.`,
             [
-                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Cancel",
+                    style: "cancel",
+                },
                 {
                     text: "Delete",
                     style: "destructive",
                     onPress: async () => {
-                        setIsDeleting(true);
+                        setDeleting(true);
                         try {
-                            await deleteZone(zone.id);
-                            router.back();
+                            await deleteZone(id);
                             Alert.alert("Success", "Zone deleted successfully");
+                            router.back();
                         } catch (error) {
-                            Alert.alert("Error", "Failed to delete zone");
+                            console.error("Error deleting zone:", error);
+                            Alert.alert("Error", "Failed to delete zone. There may be islands using this zone.");
                         } finally {
-                            setIsDeleting(false);
+                            setDeleting(false);
                         }
-                    }
-                }
+                    },
+                },
             ]
         );
     };
 
-    const updateFormField = (field: keyof ZoneFormData, value: any) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-        if (errors[field]) {
-            setErrors(prev => ({ ...prev, [field]: '' }));
-        }
+    const getStatusVariant = (status: boolean) => {
+        return status ? 'default' : 'warning';
     };
 
-    const renderColorPicker = () => (
-        <View style={styles.colorPickerContainer}>
-            <Text style={styles.sectionLabel}>Color</Text>
-            <View style={styles.colorGrid}>
-                {ZONE_COLOR_OPTIONS.map((color) => (
-                    <TouchableOpacity
-                        key={color}
-                        style={[
-                            styles.colorOption,
-                            { backgroundColor: color },
-                            formData.color === color && styles.colorOptionSelected
-                        ]}
-                        onPress={() => updateFormField('color', color)}
-                    >
-                        {formData.color === color && (
-                            <View style={styles.colorSelectedIndicator} />
-                        )}
-                    </TouchableOpacity>
-                ))}
-            </View>
-            {errors.color && <Text style={styles.errorText}>{errors.color}</Text>}
-        </View>
-    );
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(date);
+    };
 
-    const renderIconPicker = () => (
-        <View style={styles.iconPickerContainer}>
-            <Text style={styles.sectionLabel}>Icon</Text>
-            <View style={styles.iconGrid}>
-                {ZONE_ICON_OPTIONS.map((icon) => (
-                    <TouchableOpacity
-                        key={icon}
-                        style={[
-                            styles.iconOption,
-                            formData.icon === icon && styles.iconOptionSelected
-                        ]}
-                        onPress={() => updateFormField('icon', icon)}
-                    >
-                        <Text style={styles.iconText}>{icon}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-            {errors.icon && <Text style={styles.errorText}>{errors.icon}</Text>}
-        </View>
-    );
+    useEffect(() => {
+        loadZone();
+    }, [id]);
 
     if (!canViewSettings()) {
         return (
@@ -246,30 +147,44 @@ export default function ZoneDetailScreen() {
                     options={{
                         title: "Access Denied",
                         headerLeft: () => (
-                            <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
                                 <ArrowLeft size={24} color={colors.primary} />
                             </TouchableOpacity>
                         ),
                     }}
                 />
-                <View style={styles.errorContainer}>
-                    <AlertTriangle size={48} color={colors.error} />
-                    <Text style={styles.errorTitle}>Access Denied</Text>
-                    <Text style={styles.errorText}>You don't have permission to view zone details.</Text>
-                    <Button title="Go Back" onPress={() => router.back()} variant="primary" />
+                <View style={styles.noPermissionContainer}>
+                    <View style={styles.noAccessIcon}>
+                        <AlertCircle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                    <Text style={styles.noPermissionText}>
+                        You don't have permission to view zone details.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
                 </View>
             </View>
         );
     }
 
-    if (loading.zones || !zone) {
+    if (loading) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
                         title: "Loading...",
                         headerLeft: () => (
-                            <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
                                 <ArrowLeft size={24} color={colors.primary} />
                             </TouchableOpacity>
                         ),
@@ -283,53 +198,71 @@ export default function ZoneDetailScreen() {
         );
     }
 
+    if (!zone) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Zone Not Found",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
+                    }}
+                />
+                <View style={styles.notFoundContainer}>
+                    <View style={styles.notFoundIcon}>
+                        <AlertCircle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.notFoundTitle}>Zone Not Found</Text>
+                    <Text style={styles.notFoundText}>
+                        The zone you're looking for doesn't exist or may have been deleted.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             <Stack.Screen
                 options={{
-                    title: isEditing ? "Edit Zone" : zone.name,
+                    title: zone.name,
                     headerLeft: () => (
-                        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+                        <TouchableOpacity
+                            style={styles.backButton}
+                            onPress={() => router.back()}
+                        >
                             <ArrowLeft size={24} color={colors.primary} />
                         </TouchableOpacity>
                     ),
                     headerRight: () => (
-                        <View style={styles.headerRightContainer}>
-                            {canManageSettings() && !isEditing && (
-                                <>
-                                    <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.headerButton}>
-                                        <Edit3 size={20} color={colors.primary} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        onPress={handleDelete}
-                                        style={[styles.headerButton, styles.deleteButton]}
-                                        disabled={isDeleting}
-                                    >
-                                        {isDeleting ? (
-                                            <ActivityIndicator size="small" color={colors.error} />
-                                        ) : (
-                                            <Trash2 size={20} color={colors.error} />
-                                        )}
-                                    </TouchableOpacity>
-                                </>
+                        <View style={styles.headerActions}>
+                            {canManageSettings() && (
+                                <TouchableOpacity
+                                    onPress={handleEdit}
+                                    style={styles.headerActionButton}
+                                >
+                                    <Edit size={20} color={colors.primary} />
+                                </TouchableOpacity>
                             )}
-                            {isEditing && (
-                                <>
-                                    <TouchableOpacity
-                                        onPress={handleSave}
-                                        style={styles.headerButton}
-                                        disabled={isSaving}
-                                    >
-                                        {isSaving ? (
-                                            <ActivityIndicator size="small" color={colors.primary} />
-                                        ) : (
-                                            <Save size={20} color={colors.primary} />
-                                        )}
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={handleCancel} style={styles.headerButton}>
-                                        <X size={20} color={colors.textSecondary} />
-                                    </TouchableOpacity>
-                                </>
+                            {canManageSettings() && (
+                                <TouchableOpacity
+                                    onPress={handleDelete}
+                                    style={[styles.headerActionButton, styles.deleteActionButton]}
+                                    disabled={deleting}
+                                >
+                                    <Trash2 size={20} color={colors.error} />
+                                </TouchableOpacity>
                             )}
                         </View>
                     ),
@@ -338,7 +271,7 @@ export default function ZoneDetailScreen() {
 
             <ScrollView
                 style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={styles.contentContainer}
                 refreshControl={
                     <RefreshControl
                         refreshing={isRefreshing}
@@ -349,204 +282,239 @@ export default function ZoneDetailScreen() {
                 }
                 showsVerticalScrollIndicator={false}
             >
-                {/* Zone Preview */}
-                <View style={styles.previewCard}>
-                    <View style={styles.previewHeader}>
-                        <View style={[styles.previewIcon, { backgroundColor: formData.color + '20' }]}>
-                            <Text style={[styles.previewIconText, { color: formData.color }]}>
-                                {formData.icon}
-                            </Text>
+                {/* Zone Header */}
+                <View style={styles.header}>
+                    <View style={styles.headerLeft}>
+                        <View style={[styles.zoneIcon, { backgroundColor: colors.primaryLight }]}>
+                            <Globe size={24} color={colors.primary} />
                         </View>
-                        <View style={styles.previewInfo}>
-                            <Text style={styles.previewName}>{formData.name || 'Zone Name'}</Text>
-                            <View style={[styles.previewCodeBadge, { backgroundColor: formData.color + '15' }]}>
-                                <Text style={[styles.previewCode, { color: formData.color }]}>
-                                    {formData.code || 'CODE'}
+                        <View style={styles.headerContent}>
+                            <Text style={styles.zoneName}>{zone.name}</Text>
+                            <View style={styles.zoneCode}>
+                                <Hash size={16} color={colors.primary} />
+                                <Text style={[styles.codeText, { color: colors.primary }]}>
+                                    {zone.code}
                                 </Text>
                             </View>
                         </View>
+                    </View>
+                    <View style={[
+                        styles.statusBadge,
+                        zone.is_active ? styles.statusActive : styles.statusInactive
+                    ]}>
                         <View style={[
-                            styles.previewStatus,
-                            formData.is_active ? styles.statusActive : styles.statusInactive
+                            styles.statusDot,
+                            { backgroundColor: zone.is_active ? colors.success : colors.textSecondary }
+                        ]} />
+                        <Text style={[
+                            styles.statusText,
+                            zone.is_active ? styles.statusTextActive : styles.statusTextInactive
                         ]}>
-                            <View style={[
-                                styles.statusDot,
-                                { backgroundColor: formData.is_active ? colors.success : colors.textTertiary }
-                            ]} />
-                            <Text style={[
-                                styles.statusText,
-                                { color: formData.is_active ? colors.success : colors.textTertiary }
-                            ]}>
-                                {formData.is_active ? 'Active' : 'Inactive'}
-                            </Text>
-                        </View>
-                    </View>
-                    {formData.description && (
-                        <Text style={styles.previewDescription}>{formData.description}</Text>
-                    )}
-                </View>
-
-                {/* Basic Information */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Basic Information</Text>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>
-                            Zone Name <Text style={styles.required}>*</Text>
+                            {zone.is_active ? 'Active' : 'Inactive'}
                         </Text>
-                        <TextInput
-                            style={[styles.input, errors.name && styles.inputError]}
-                            value={formData.name}
-                            onChangeText={(text) => updateFormField('name', text)}
-                            placeholder="Enter zone name"
-                            editable={isEditing}
-                            placeholderTextColor={colors.textTertiary}
-                        />
-                        {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>
-                            Zone Code <Text style={styles.required}>*</Text>
-                        </Text>
-                        <TextInput
-                            style={[styles.input, errors.code && styles.inputError]}
-                            value={formData.code}
-                            onChangeText={(text) => updateFormField('code', text.toUpperCase())}
-                            placeholder="Enter zone code (e.g., NORTH)"
-                            editable={isEditing}
-                            placeholderTextColor={colors.textTertiary}
-                            autoCapitalize="characters"
-                            maxLength={10}
-                        />
-                        {errors.code && <Text style={styles.errorText}>{errors.code}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Description</Text>
-                        <TextInput
-                            style={[styles.input, styles.textArea, errors.description && styles.inputError]}
-                            value={formData.description}
-                            onChangeText={(text) => updateFormField('description', text)}
-                            placeholder="Enter zone description"
-                            editable={isEditing}
-                            placeholderTextColor={colors.textTertiary}
-                            multiline
-                            numberOfLines={3}
-                            textAlignVertical="top"
-                        />
-                        {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Order Index</Text>
-                        <TextInput
-                            style={[styles.input, errors.order_index && styles.inputError]}
-                            value={formData.order_index.toString()}
-                            onChangeText={(text) => updateFormField('order_index', parseInt(text) || 0)}
-                            placeholder="0"
-                            editable={isEditing}
-                            placeholderTextColor={colors.textTertiary}
-                            keyboardType="numeric"
-                        />
-                        {errors.order_index && <Text style={styles.errorText}>{errors.order_index}</Text>}
                     </View>
                 </View>
 
-                {/* Appearance */}
-                {isEditing && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Appearance</Text>
-                        {renderColorPicker()}
-                        {renderIconPicker()}
-                    </View>
-                )}
-
-                {/* Status */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Status</Text>
-                    <View style={styles.switchContainer}>
-                        <View style={styles.switchInfo}>
-                            <Text style={styles.switchLabel}>Active Status</Text>
-                            <Text style={styles.switchDescription}>
-                                {formData.is_active
-                                    ? "Zone is active and visible to users"
-                                    : "Zone is inactive and hidden from users"
-                                }
-                            </Text>
-                        </View>
-                        <Switch
-                            value={formData.is_active}
-                            onValueChange={(value) => updateFormField('is_active', value)}
-                            disabled={!isEditing}
-                        />
-                    </View>
-                </View>
-
-                {/* Statistics */}
-                {!isEditing && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Statistics</Text>
-                        <View style={styles.statsGrid}>
+                {/* Quick Stats */}
+                <View style={styles.quickStats}>
+                    <View style={styles.statsGrid}>
+                        <View style={styles.statsRow}>
                             <View style={styles.statCard}>
-                                <View style={styles.statIcon}>
+                                <View style={styles.statCardIcon}>
                                     <MapPin size={20} color={colors.primary} />
                                 </View>
-                                <Text style={styles.statValue}>{zone.total_islands || 0}</Text>
-                                <Text style={styles.statLabel}>Total Islands</Text>
-                                {zone.active_islands !== undefined && (
-                                    <Text style={styles.statSubLabel}>
-                                        {zone.active_islands} active
-                                    </Text>
-                                )}
+                                <View style={styles.statCardContent}>
+                                    <Text style={styles.statCardValue}>{zone.total_islands || 0}</Text>
+                                    <Text style={styles.statCardLabel}>Total Islands</Text>
+                                </View>
                             </View>
 
                             <View style={styles.statCard}>
-                                <View style={styles.statIcon}>
-                                    <Globe size={20} color={colors.info} />
+                                <View style={[styles.statCardIcon, { backgroundColor: colors.successLight }]}>
+                                    <Activity size={20} color={colors.success} />
                                 </View>
-                                <Text style={styles.statValue}>{zone.total_routes || 0}</Text>
-                                <Text style={styles.statLabel}>Total Routes</Text>
-                                {zone.active_routes !== undefined && (
-                                    <Text style={styles.statSubLabel}>
-                                        {zone.active_routes} active
-                                    </Text>
-                                )}
+                                <View style={styles.statCardContent}>
+                                    <Text style={styles.statCardValue}>{zone.active_islands || 0}</Text>
+                                    <Text style={styles.statCardLabel}>Active Islands</Text>
+                                </View>
                             </View>
+                        </View>
+
+                        <View style={styles.statsRow}>
+                            <View style={styles.statCard}>
+                                <View style={[styles.statCardIcon, { backgroundColor: colors.infoLight }]}>
+                                    <TrendingUp size={20} color={colors.info} />
+                                </View>
+                                <View style={styles.statCardContent}>
+                                    <Text style={styles.statCardValue}>{zone.total_routes || 0}</Text>
+                                    <Text style={styles.statCardLabel}>Total Routes</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.statCard}>
+                                <View style={[styles.statCardIcon, { backgroundColor: colors.warningLight }]}>
+                                    <BarChart3 size={20} color={colors.warning} />
+                                </View>
+                                <View style={styles.statCardContent}>
+                                    <Text style={styles.statCardValue}>{zone.active_routes || 0}</Text>
+                                    <Text style={styles.statCardLabel}>Active Routes</Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Zone Information */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Zone Information</Text>
+
+                    <View style={styles.infoGrid}>
+                        <View style={styles.infoRow}>
+                            <View style={styles.infoItem}>
+                                <View style={styles.infoIcon}>
+                                    <Globe size={20} color={colors.primary} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Zone Name</Text>
+                                    <Text style={styles.infoValue}>{zone.name}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.infoItem}>
+                                <View style={[styles.infoIcon, { backgroundColor: colors.primaryLight }]}>
+                                    <Hash size={20} color={colors.primary} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Zone Code</Text>
+                                    <Text style={[styles.infoValue, { color: colors.primary }]}>
+                                        {zone.code}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        <View style={styles.infoRow}>
+                            <View style={styles.infoItem}>
+                                <View style={[
+                                    styles.infoIcon,
+                                    { backgroundColor: zone.is_active ? colors.successLight : colors.backgroundTertiary }
+                                ]}>
+                                    <Settings size={20} color={zone.is_active ? colors.success : colors.textSecondary} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Status</Text>
+                                    <Text style={[
+                                        styles.infoValue,
+                                        { color: zone.is_active ? colors.success : colors.textSecondary }
+                                    ]}>
+                                        {zone.is_active ? 'Active' : 'Inactive'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.infoItem}>
+                                <View style={styles.infoIcon}>
+                                    <BarChart3 size={20} color={colors.textSecondary} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Order Index</Text>
+                                    <Text style={styles.infoValue}>
+                                        {zone.order_index}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Description */}
+                {zone.description && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Description</Text>
+                        <View style={styles.descriptionCard}>
+                            <View style={styles.descriptionIcon}>
+                                <FileText size={20} color={colors.info} />
+                            </View>
+                            <Text style={styles.descriptionText}>
+                                {zone.description}
+                            </Text>
                         </View>
                     </View>
                 )}
 
-                {/* Metadata */}
-                {!isEditing && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Metadata</Text>
-                        <View style={styles.metadataContainer}>
-                            <View style={styles.metadataItem}>
-                                <Calendar size={16} color={colors.textSecondary} />
-                                <Text style={styles.metadataLabel}>Created:</Text>
-                                <Text style={styles.metadataValue}>
-                                    {new Date(zone.created_at).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    })}
-                                </Text>
+                {/* Islands Overview */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Islands Overview</Text>
+
+                    <View style={styles.islandsSummary}>
+                        <View style={styles.summaryCard}>
+                            <View style={styles.summaryIcon}>
+                                <Info size={20} color={colors.info} />
                             </View>
-                            <View style={styles.metadataItem}>
-                                <Activity size={16} color={colors.textSecondary} />
-                                <Text style={styles.metadataLabel}>Last Updated:</Text>
-                                <Text style={styles.metadataValue}>
-                                    {new Date(zone.updated_at).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    })}
-                                </Text>
-                            </View>
+                            <Text style={styles.islandsDescription}>
+                                This zone contains {zone.total_islands || 0} island{(zone.total_islands || 0) !== 1 ? 's' : ''},
+                                with {zone.active_islands || 0} active island{(zone.active_islands || 0) !== 1 ? 's' : ''} and {zone.total_routes || 0} route{(zone.total_routes || 0) !== 1 ? 's' : ''}.
+                            </Text>
+                        </View>
+
+                        {(zone.total_islands || 0) > 0 && (
+                            <Button
+                                title="View Islands"
+                                variant="outline"
+                                onPress={() => router.push(`../islands?zone=${id}` as any)}
+                                icon={<MapPin size={16} color={colors.primary} />}
+                            />
+                        )}
+                    </View>
+                </View>
+
+                {/* System Information */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>System Information</Text>
+
+                    <View style={styles.systemInfo}>
+                        <View style={styles.systemRow}>
+                            <Text style={styles.systemLabel}>Zone ID</Text>
+                            <Text style={styles.systemValue} selectable>{zone.id}</Text>
+                        </View>
+
+                        <View style={styles.systemRow}>
+                            <Text style={styles.systemLabel}>Created Date</Text>
+                            <Text style={styles.systemValue}>
+                                {formatDate(zone.created_at)}
+                            </Text>
+                        </View>
+
+                        <View style={styles.systemRow}>
+                            <Text style={styles.systemLabel}>Last Updated</Text>
+                            <Text style={styles.systemValue}>
+                                {formatDate(zone.updated_at)}
+                            </Text>
                         </View>
                     </View>
-                )}
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.actionsContainer}>
+                    {canManageSettings() && (
+                        <Button
+                            title="Edit Zone"
+                            onPress={handleEdit}
+                            variant="primary"
+                            icon={<Edit size={20} color={colors.white} />}
+                        />
+                    )}
+                    {canManageSettings() && (
+                        <Button
+                            title="Delete Zone"
+                            onPress={handleDelete}
+                            variant="outline"
+                            loading={deleting}
+                            style={styles.deleteButton}
+                            icon={<Trash2 size={20} color={colors.error} />}
+                        />
+                    )}
+                </View>
             </ScrollView>
         </View>
     );
@@ -557,57 +525,115 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
-    headerButton: {
-        padding: 8,
-        marginHorizontal: 4,
-    },
-    headerRightContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    deleteButton: {
-        marginLeft: 8,
-    },
     scrollView: {
         flex: 1,
     },
-    scrollContent: {
+    contentContainer: {
+        flexGrow: 1,
         padding: 20,
         paddingBottom: 40,
     },
+    noPermissionContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        gap: 20,
+    },
+    noAccessIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.warningLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    noPermissionText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
     loadingContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         gap: 16,
     },
     loadingText: {
         fontSize: 16,
         color: colors.textSecondary,
-        fontWeight: '500',
+        fontWeight: "500",
     },
-    errorContainer: {
+    notFoundContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         padding: 20,
-        gap: 16,
+        gap: 20,
     },
-    errorTitle: {
+    notFoundIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.warningLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    notFoundTitle: {
         fontSize: 20,
-        fontWeight: '700',
+        fontWeight: "700",
         color: colors.text,
-        textAlign: 'center',
+        textAlign: "center",
+        marginBottom: 8,
     },
-    errorText: {
-        fontSize: 14,
-        color: colors.error,
-        marginTop: 4,
+    notFoundText: {
+        fontSize: 15,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 300,
+        lineHeight: 22,
+        marginBottom: 20,
     },
-    previewCard: {
+    backButton: {
+        padding: 8,
+        marginLeft: -8,
+    },
+    headerActions: {
+        flexDirection: "row",
+        gap: 8,
+    },
+    headerActionButton: {
+        padding: 8,
+        borderRadius: 20,
         backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
+    },
+    deleteActionButton: {
+        backgroundColor: colors.errorLight,
+    },
+    header: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: colors.card,
+        padding: 24,
         borderRadius: 16,
-        padding: 20,
         marginBottom: 24,
         shadowColor: colors.shadowMedium,
         shadowOffset: { width: 0, height: 2 },
@@ -615,49 +641,45 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 3,
     },
-    previewHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    previewIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 16,
-    },
-    previewIconText: {
-        fontSize: 24,
-    },
-    previewInfo: {
+    headerLeft: {
+        flexDirection: "row",
+        alignItems: "center",
         flex: 1,
     },
-    previewName: {
-        fontSize: 20,
-        fontWeight: '700',
+    zoneIcon: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 16,
+    },
+    headerContent: {
+        flex: 1,
+    },
+    zoneName: {
+        fontSize: 24,
+        fontWeight: "700",
         color: colors.text,
-        marginBottom: 4,
+        marginBottom: 6,
+        lineHeight: 30,
     },
-    previewCodeBadge: {
-        alignSelf: 'flex-start',
+    zoneCode: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+    },
+    codeText: {
+        fontSize: 15,
+        fontWeight: "600",
+        letterSpacing: 0.1,
+    },
+    statusBadge: {
+        flexDirection: "row",
+        alignItems: "center",
         paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    previewCode: {
-        fontSize: 14,
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    previewStatus: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
+        paddingVertical: 8,
+        borderRadius: 12,
         gap: 6,
     },
     statusActive: {
@@ -672,190 +694,202 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     statusText: {
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: 13,
+        fontWeight: "600",
+        letterSpacing: 0.2,
     },
-    previewDescription: {
-        fontSize: 16,
+    statusTextActive: {
+        color: colors.success,
+    },
+    statusTextInactive: {
         color: colors.textSecondary,
-        lineHeight: 24,
-        marginTop: 8,
     },
-    section: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-        shadowColor: colors.shadowLight,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.text,
-        marginBottom: 16,
-    },
-    inputGroup: {
-        marginBottom: 16,
-    },
-    inputLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 8,
-    },
-    required: {
-        color: colors.error,
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: colors.borderLight,
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
-        color: colors.text,
-        backgroundColor: colors.card,
-    },
-    inputError: {
-        borderColor: colors.error,
-    },
-    textArea: {
-        minHeight: 80,
-    },
-    colorPickerContainer: {
-        marginBottom: 16,
-    },
-    sectionLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 12,
-    },
-    colorGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    colorOption: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: 'transparent',
-    },
-    colorOptionSelected: {
-        borderColor: colors.text,
-    },
-    colorSelectedIndicator: {
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: colors.white,
-    },
-    iconPickerContainer: {
-        marginBottom: 16,
-    },
-    iconGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    iconOption: {
-        width: 48,
-        height: 48,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.backgroundTertiary,
-        borderWidth: 2,
-        borderColor: 'transparent',
-    },
-    iconOptionSelected: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primaryLight,
-    },
-    iconText: {
-        fontSize: 24,
-    },
-    switchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    switchInfo: {
-        flex: 1,
-        marginRight: 16,
-    },
-    switchLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 4,
-    },
-    switchDescription: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        lineHeight: 20,
+    quickStats: {
+        marginBottom: 24,
     },
     statsGrid: {
-        flexDirection: 'row',
-        gap: 16,
+        gap: 12,
+    },
+    statsRow: {
+        flexDirection: "row",
+        gap: 12,
     },
     statCard: {
         flex: 1,
-        backgroundColor: colors.backgroundTertiary,
-        borderRadius: 12,
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.card,
         padding: 16,
-        alignItems: 'center',
+        borderRadius: 12,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+        gap: 12,
     },
-    statIcon: {
+    statCardIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: colors.primaryLight,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    statCardContent: {
+        flex: 1,
+    },
+    statCardValue: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+        lineHeight: 22,
+        marginBottom: 2,
+    },
+    statCardLabel: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    section: {
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 20,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 20,
+        lineHeight: 24,
+    },
+    infoGrid: {
+        gap: 20,
+    },
+    infoRow: {
+        flexDirection: "row",
+        gap: 16,
+    },
+    infoItem: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+    infoIcon: {
         width: 40,
         height: 40,
         borderRadius: 20,
         backgroundColor: colors.primaryLight,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 8,
+        alignItems: "center",
+        justifyContent: "center",
     },
-    statValue: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: colors.text,
-        marginBottom: 4,
+    infoContent: {
+        flex: 1,
     },
-    statLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.textSecondary,
-        textAlign: 'center',
-    },
-    statSubLabel: {
+    infoLabel: {
         fontSize: 12,
         color: colors.textTertiary,
-        marginTop: 2,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        fontWeight: "600",
+        marginBottom: 4,
     },
-    metadataContainer: {
+    infoValue: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.text,
+        lineHeight: 20,
+    },
+    descriptionCard: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        backgroundColor: colors.infoLight,
+        padding: 16,
+        borderRadius: 12,
         gap: 12,
     },
-    metadataItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+    descriptionIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.info + '20',
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 2,
     },
-    metadataLabel: {
+    descriptionText: {
+        flex: 1,
         fontSize: 14,
-        fontWeight: '500',
-        color: colors.textSecondary,
-        minWidth: 100,
+        color: colors.info,
+        lineHeight: 20,
+        fontWeight: "500",
     },
-    metadataValue: {
+    islandsSummary: {
+        gap: 20,
+    },
+    summaryCard: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        backgroundColor: colors.infoLight,
+        padding: 16,
+        borderRadius: 12,
+        gap: 12,
+    },
+    summaryIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.info + '20',
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 2,
+    },
+    islandsDescription: {
+        flex: 1,
+        fontSize: 14,
+        color: colors.info,
+        lineHeight: 20,
+        fontWeight: "500",
+    },
+    systemInfo: {
+        gap: 16,
+    },
+    systemRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+    },
+    systemLabel: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "600",
+        flex: 1,
+    },
+    systemValue: {
         fontSize: 14,
         color: colors.text,
-        flex: 1,
+        fontWeight: "500",
+        flex: 2,
+        textAlign: "right",
+        lineHeight: 18,
+    },
+    actionsContainer: {
+        gap: 16,
+        marginTop: 8,
+    },
+    deleteButton: {
+        borderColor: colors.error,
     },
 }); 

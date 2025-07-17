@@ -819,9 +819,13 @@ create table public.islands (
   zone text not null,
   is_active boolean not null default true,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  zone_id uuid null,
   constraint islands_pkey primary key (id),
-  constraint islands_name_key unique (name)
+  constraint islands_name_key unique (name),
+  constraint islands_zone_id_fkey foreign KEY (zone_id) references zones (id)
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_islands_zone_id on public.islands using btree (zone_id) TABLESPACE pg_default;
 
 create table public.manifest_passengers (
   id uuid not null default gen_random_uuid (),
@@ -2162,3 +2166,109 @@ create table public.wallets (
   constraint wallets_user_id_key unique (user_id),
   constraint wallets_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
+
+create table public.zone_activity_logs (
+  id uuid not null default gen_random_uuid (),
+  zone_id uuid not null,
+  action character varying(50) not null,
+  old_values jsonb null,
+  new_values jsonb null,
+  user_id uuid null,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint zone_activity_logs_pkey primary key (id),
+  constraint zone_activity_logs_user_id_fkey foreign KEY (user_id) references user_profiles (id),
+  constraint zone_activity_logs_zone_id_fkey foreign KEY (zone_id) references zones (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_zone_activity_logs_zone_id on public.zone_activity_logs using btree (zone_id) TABLESPACE pg_default;
+
+create index IF not exists idx_zone_activity_logs_created_at on public.zone_activity_logs using btree (created_at) TABLESPACE pg_default;
+
+create table public.zones (
+  id uuid not null default gen_random_uuid (),
+  name character varying(100) not null,
+  code character varying(10) not null,
+  description text null,
+  is_active boolean not null default true,
+  order_index integer not null default 0,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint zones_pkey primary key (id),
+  constraint zones_code_key unique (code),
+  constraint zones_name_key unique (name),
+  constraint zones_order_index_positive check ((order_index >= 0))
+) TABLESPACE pg_default;
+
+create index IF not exists idx_zones_active on public.zones using btree (is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_zones_order on public.zones using btree (order_index) TABLESPACE pg_default;
+
+create index IF not exists idx_zones_name on public.zones using btree (name) TABLESPACE pg_default;
+
+create index IF not exists idx_zones_code on public.zones using btree (code) TABLESPACE pg_default;
+
+create trigger audit_zones_trigger
+after INSERT
+or DELETE
+or
+update on zones for EACH row
+execute FUNCTION enhanced_audit_trigger ();
+
+create trigger zones_activity_trigger
+after INSERT
+or DELETE
+or
+update on zones for EACH row
+execute FUNCTION log_zone_activity ();
+
+create trigger zones_updated_at_trigger BEFORE
+update on zones for EACH row
+execute FUNCTION update_zones_updated_at ();
+
+create view public.zones_stats_view as
+select
+  z.id,
+  z.name,
+  z.code,
+  z.description,
+  z.is_active,
+  z.order_index,
+  z.created_at,
+  z.updated_at,
+  count(i.id) as total_islands,
+  count(
+    case
+      when i.is_active = true then 1
+      else null::integer
+    end
+  ) as active_islands,
+  count(distinct r1.id) + count(distinct r2.id) as total_routes,
+  count(
+    distinct case
+      when r1.is_active = true then r1.id
+      else null::uuid
+    end
+  ) + count(
+    distinct case
+      when r2.is_active = true then r2.id
+      else null::uuid
+    end
+  ) as active_routes
+from
+  zones z
+  left join islands i on z.id = i.zone_id
+  left join routes r1 on i.id = r1.from_island_id
+  left join routes r2 on i.id = r2.to_island_id
+group by
+  z.id,
+  z.name,
+  z.code,
+  z.description,
+  z.is_active,
+  z.order_index,
+  z.created_at,
+  z.updated_at
+order by
+  z.order_index;
+
+  

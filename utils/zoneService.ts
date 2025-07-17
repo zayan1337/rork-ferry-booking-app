@@ -163,7 +163,7 @@ export const getZoneActivityLogs = async (zoneId: string): Promise<ZoneActivityL
             .from('zone_activity_logs')
             .select(`
         *,
-        changed_by_user:user_profiles!zone_activity_logs_changed_by_fkey(full_name, email)
+        user:user_profiles!zone_activity_logs_user_id_fkey(full_name, email)
       `)
             .eq('zone_id', zoneId)
             .order('created_at', { ascending: false })
@@ -204,7 +204,7 @@ const logZoneActivity = async (
                 action,
                 old_values: oldValues,
                 new_values: newValues,
-                changed_by: user.id,
+                user_id: user.id,
             }]);
     } catch (error) {
         console.warn('Failed to log zone activity:', error);

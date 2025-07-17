@@ -131,49 +131,6 @@ interface ContentState {
 
 // Mock data for development (islands will be fetched from API)
 
-const mockZones: Zone[] = [
-  {
-    id: "1",
-    name: "Male Zone",
-    code: "MALE",
-    description: "Capital and airport area",
-    is_active: true,
-    order_index: 1,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "2",
-    name: "North Zone",
-    code: "NORTH",
-    description: "Northern atolls",
-    is_active: true,
-    order_index: 2,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "3",
-    name: "South Zone",
-    code: "SOUTH",
-    description: "Southern atolls",
-    is_active: true,
-    order_index: 3,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "4",
-    name: "Central Zone",
-    code: "CENTRAL",
-    description: "Central atolls",
-    is_active: true,
-    order_index: 4,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-];
-
 const mockFAQCategories: FAQCategory[] = [
   {
     id: "1",
@@ -242,7 +199,7 @@ export const useContentStore = create<ContentState>()(
     (set, get) => ({
       // Initial data
       islands: [],
-      zones: mockZones,
+      zones: [],
       faqs: mockFAQs,
       faqCategories: mockFAQCategories,
       terms: [],

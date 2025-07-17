@@ -60,8 +60,8 @@ export const searchZones = (zones: Zone[], query: string): Zone[] => {
     );
 };
 
-export const filterZonesByStatus = (zones: Zone[], isActive?: boolean): Zone[] => {
-    if (isActive === undefined) return zones;
+export const filterZonesByStatus = (zones: Zone[], isActive?: boolean | null): Zone[] => {
+    if (isActive === undefined || isActive === null) return zones;
     return zones.filter(zone => zone.is_active === isActive);
 };
 

@@ -30,7 +30,8 @@ export interface DatabaseVessel {
 export interface DatabaseIsland {
     id: string;
     name: string;
-    zone: 'A' | 'B';
+    zone: 'A' | 'B';  // Legacy field - will be removed after migration
+    zone_id?: string;  // New field - references zones table
     is_active: boolean;
     created_at: string;
 }

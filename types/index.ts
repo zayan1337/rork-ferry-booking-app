@@ -10,7 +10,8 @@ export type User = {
 export interface Island {
   id: string;
   name: string;
-  zone: 'A' | 'B';
+  zone: 'A' | 'B';  // Legacy field - will be removed after migration
+  zone_id?: string;  // New field - references zones table
 }
 
 export interface Route {

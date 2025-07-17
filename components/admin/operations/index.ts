@@ -2,6 +2,12 @@
 export { default as OperationsStats } from './OperationsStats';
 export { default as SectionSelector } from './SectionSelector';
 
+// Island Components
+export { default as IslandForm } from './IslandForm';
+
+// Zone Components
+export { default as ZoneForm } from './ZoneForm';
+
 // Route Components
 export { default as RouteForm } from './RouteForm';
 export { default as RouteDetails } from './RouteDetails';

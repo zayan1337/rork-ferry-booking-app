@@ -2,7 +2,8 @@
 export interface Island {
     id: string;
     name: string;
-    zone: string;
+    zone: string;  // Legacy field - will be removed after migration
+    zone_id?: string;  // New field - references zones table
     coordinates?: {
         latitude: number;
         longitude: number;
