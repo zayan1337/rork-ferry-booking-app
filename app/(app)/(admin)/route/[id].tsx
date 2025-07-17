@@ -158,7 +158,7 @@ export default function RouteDetailsScreen() {
   };
 
   const handleViewTrips = () => {
-    router.push(`../schedule?route=${id}` as any);
+    router.push(`../trips?route=${id}` as any);
   };
 
   const getStatusVariant = (status: string) => {
@@ -576,7 +576,7 @@ export default function RouteDetailsScreen() {
               <Button
                 title="Schedule New Trip"
                 variant="primary"
-                onPress={() => router.push(`../schedule/new?route=${id}` as any)}
+                onPress={() => router.push(`../trips/new?route=${id}` as any)}
                 icon={<Plane size={16} color={colors.white} />}
                 style={styles.operationButton}
               />

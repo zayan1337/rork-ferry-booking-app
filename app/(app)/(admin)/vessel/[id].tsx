@@ -138,7 +138,7 @@ export default function VesselDetailsPage() {
     const handleViewTrips = () => {
         if (!id) return;
         // Navigate to trips filtered by this vessel
-        router.push(`../schedule?vesselId=${id}` as any);
+        router.push(`../trips?vesselId=${id}` as any);
     };
 
     const handleViewMaintenance = () => {
