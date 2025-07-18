@@ -119,13 +119,12 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
         }));
 
         try {
+            // Use the database view for enhanced data
             const { data: faqs, error } = await supabase
-                .from('faqs')
-                .select(`
-          *,
-          category:faq_categories(*)
-        `)
-                .order('created_at', { ascending: false });
+                .from('faqs_with_category')
+                .select('*')
+                .order('category_order_index', { ascending: true })
+                .order('order_index', { ascending: true });
 
             if (error) throw error;
 
@@ -134,11 +133,19 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
                 category_id: faq.category_id,
                 question: faq.question,
                 answer: faq.answer,
-                is_active: true, // Default value since not in DB schema
-                order_index: 0, // Default value since not in DB schema  
+                is_active: faq.is_active ?? true,
+                order_index: faq.order_index ?? 0,
                 created_at: faq.created_at,
                 updated_at: faq.updated_at,
-                category: faq.category,
+                category: faq.category_name ? {
+                    id: faq.category_id,
+                    name: faq.category_name,
+                    description: '',
+                    order_index: faq.category_order_index ?? 0,
+                    is_active: true,
+                    created_at: faq.created_at,
+                    updated_at: faq.updated_at,
+                } : undefined,
             }));
 
             set((state) => ({
@@ -164,11 +171,8 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
 
         try {
             const { data: faq, error } = await supabase
-                .from('faqs')
-                .select(`
-          *,
-          category:faq_categories(*)
-        `)
+                .from('faqs_with_category')
+                .select('*')
                 .eq('id', id)
                 .single();
 
@@ -180,11 +184,19 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
                     category_id: faq.category_id,
                     question: faq.question,
                     answer: faq.answer,
-                    is_active: true,
-                    order_index: 0,
+                    is_active: faq.is_active ?? true,
+                    order_index: faq.order_index ?? 0,
                     created_at: faq.created_at,
                     updated_at: faq.updated_at,
-                    category: faq.category,
+                    category: faq.category_name ? {
+                        id: faq.category_id,
+                        name: faq.category_name,
+                        description: '',
+                        order_index: faq.category_order_index ?? 0,
+                        is_active: true,
+                        created_at: faq.created_at,
+                        updated_at: faq.updated_at,
+                    } : undefined,
                 };
 
                 set((state) => ({
@@ -220,13 +232,15 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
                 .from('faqs')
                 .insert([{
                     category_id: data.category_id,
-                    question: data.question,
-                    answer: data.answer,
+                    question: data.question.trim(),
+                    answer: data.answer.trim(),
+                    is_active: data.is_active,
+                    order_index: data.order_index,
                 }])
                 .select(`
-          *,
-          category:faq_categories(*)
-        `)
+                    *,
+                    category:faq_categories(*)
+                `)
                 .single();
 
             if (error) throw error;
@@ -236,8 +250,8 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
                 category_id: newFAQ.category_id,
                 question: newFAQ.question,
                 answer: newFAQ.answer,
-                is_active: data.is_active,
-                order_index: data.order_index,
+                is_active: newFAQ.is_active ?? data.is_active,
+                order_index: newFAQ.order_index ?? data.order_index,
                 created_at: newFAQ.created_at,
                 updated_at: newFAQ.updated_at,
                 category: newFAQ.category,
@@ -269,18 +283,20 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
 
         try {
             const updateData: any = {};
-            if (data.category_id) updateData.category_id = data.category_id;
-            if (data.question) updateData.question = data.question;
-            if (data.answer) updateData.answer = data.answer;
+            if (data.category_id !== undefined) updateData.category_id = data.category_id;
+            if (data.question !== undefined) updateData.question = data.question.trim();
+            if (data.answer !== undefined) updateData.answer = data.answer.trim();
+            if (data.is_active !== undefined) updateData.is_active = data.is_active;
+            if (data.order_index !== undefined) updateData.order_index = data.order_index;
 
             const { data: updatedFAQ, error } = await supabase
                 .from('faqs')
                 .update(updateData)
                 .eq('id', id)
                 .select(`
-          *,
-          category:faq_categories(*)
-        `)
+                    *,
+                    category:faq_categories(*)
+                `)
                 .single();
 
             if (error) throw error;
@@ -290,8 +306,8 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
                 category_id: updatedFAQ.category_id,
                 question: updatedFAQ.question,
                 answer: updatedFAQ.answer,
-                is_active: data.is_active !== undefined ? data.is_active : true,
-                order_index: data.order_index !== undefined ? data.order_index : 0,
+                is_active: updatedFAQ.is_active ?? true,
+                order_index: updatedFAQ.order_index ?? 0,
                 created_at: updatedFAQ.created_at,
                 updated_at: updatedFAQ.updated_at,
                 category: updatedFAQ.category,
@@ -356,21 +372,23 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
         }));
 
         try {
+            // Use the database view for enhanced category data with counts
             const { data: categories, error } = await supabase
-                .from('faq_categories')
+                .from('faq_categories_with_stats')
                 .select('*')
-                .order('name', { ascending: true });
+                .order('order_index', { ascending: true });
 
             if (error) throw error;
 
             const processedCategories: FAQCategory[] = (categories || []).map(category => ({
                 id: category.id,
                 name: category.name,
-                description: '',
-                order_index: 0,
-                is_active: true,
+                description: category.description || '',
+                order_index: category.order_index ?? 0,
+                is_active: category.is_active ?? true,
                 created_at: category.created_at,
-                updated_at: category.created_at, // Use created_at as updated_at since not in schema
+                updated_at: category.updated_at,
+                faq_count: category.faq_count || 0,
             }));
 
             set((state) => ({
@@ -396,7 +414,7 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
 
         try {
             const { data: category, error } = await supabase
-                .from('faq_categories')
+                .from('faq_categories_with_stats')
                 .select('*')
                 .eq('id', id)
                 .single();
@@ -407,11 +425,12 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
                 const processedCategory: FAQCategory = {
                     id: category.id,
                     name: category.name,
-                    description: '',
-                    order_index: 0,
-                    is_active: true,
+                    description: category.description || '',
+                    order_index: category.order_index ?? 0,
+                    is_active: category.is_active ?? true,
                     created_at: category.created_at,
-                    updated_at: category.created_at,
+                    updated_at: category.updated_at,
+                    faq_count: category.faq_count || 0,
                 };
 
                 set((state) => ({
@@ -446,7 +465,10 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
             const { data: newCategory, error } = await supabase
                 .from('faq_categories')
                 .insert([{
-                    name: data.name,
+                    name: data.name.trim(),
+                    description: data.description?.trim() || null,
+                    order_index: data.order_index,
+                    is_active: data.is_active,
                 }])
                 .select('*')
                 .single();
@@ -456,11 +478,12 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
             const processedCategory: FAQCategory = {
                 id: newCategory.id,
                 name: newCategory.name,
-                description: data.description || '',
-                order_index: data.order_index,
-                is_active: data.is_active,
+                description: newCategory.description || '',
+                order_index: newCategory.order_index ?? data.order_index,
+                is_active: newCategory.is_active ?? data.is_active,
                 created_at: newCategory.created_at,
-                updated_at: newCategory.created_at,
+                updated_at: newCategory.updated_at || newCategory.created_at,
+                faq_count: 0,
             };
 
             set((state) => ({
@@ -489,7 +512,10 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
 
         try {
             const updateData: any = {};
-            if (data.name) updateData.name = data.name;
+            if (data.name !== undefined) updateData.name = data.name.trim();
+            if (data.description !== undefined) updateData.description = data.description?.trim() || null;
+            if (data.order_index !== undefined) updateData.order_index = data.order_index;
+            if (data.is_active !== undefined) updateData.is_active = data.is_active;
 
             const { data: updatedCategory, error } = await supabase
                 .from('faq_categories')
@@ -503,11 +529,12 @@ export const useFAQManagementStore = create<FAQStore>((set, get) => ({
             const processedCategory: FAQCategory = {
                 id: updatedCategory.id,
                 name: updatedCategory.name,
-                description: data.description || '',
-                order_index: data.order_index !== undefined ? data.order_index : 0,
-                is_active: data.is_active !== undefined ? data.is_active : true,
+                description: updatedCategory.description || '',
+                order_index: updatedCategory.order_index ?? 0,
+                is_active: updatedCategory.is_active ?? true,
                 created_at: updatedCategory.created_at,
-                updated_at: updatedCategory.created_at,
+                updated_at: updatedCategory.updated_at,
+                faq_count: 0, // Will be recalculated
             };
 
             set((state) => ({

@@ -14,6 +14,8 @@ import {
     getNextFaqOrderIndex,
     getNextCategoryOrderIndex,
     groupFaqsByCategory,
+    normalizeFaqData,
+    normalizeCategoryData,
 } from '@/utils/faqUtils';
 
 interface UseFAQManagementOptions {
@@ -124,101 +126,267 @@ export const useFAQManagement = (options: UseFAQManagementOptions = {}): UseFAQM
         }
     }, [autoLoad, store.fetchFAQs, store.fetchCategories]);
 
-    // Computed values
+    // Computed values with error handling
     const filteredFaqs = useMemo(() => {
-        const filtered = filterFaqs(store.faqs, store.filters);
-        return sortFaqs(filtered, sortBy as any, sortOrder);
+        try {
+            const filtered = filterFaqs(store.faqs, store.filters);
+            return sortFaqs(filtered, sortBy as any, sortOrder);
+        } catch (error) {
+            console.error('Error filtering/sorting FAQs:', error);
+            return store.faqs;
+        }
     }, [store.faqs, store.filters, sortBy, sortOrder]);
 
     const sortedCategories = useMemo(() => {
-        return sortFaqCategories(store.categories, categorySortBy as any, 'asc');
+        try {
+            return sortFaqCategories(store.categories, categorySortBy as any, 'asc');
+        } catch (error) {
+            console.error('Error sorting categories:', error);
+            return store.categories;
+        }
     }, [store.categories, categorySortBy]);
 
     const categoriesWithCounts = useMemo(() => {
-        return getCategoriesWithFaqCount(sortedCategories, store.faqs);
+        try {
+            return getCategoriesWithFaqCount(sortedCategories, store.faqs);
+        } catch (error) {
+            console.error('Error calculating category counts:', error);
+            return sortedCategories.map(cat => ({ ...cat, faq_count: 0, active_faq_count: 0 }));
+        }
     }, [sortedCategories, store.faqs]);
 
     const groupedFaqs = useMemo(() => {
-        return groupFaqsByCategory(filteredFaqs, sortedCategories);
+        try {
+            return groupFaqsByCategory(filteredFaqs, sortedCategories);
+        } catch (error) {
+            console.error('Error grouping FAQs:', error);
+            return [];
+        }
     }, [filteredFaqs, sortedCategories]);
 
     const faqStats = useMemo(() => {
-        return calculateFaqStats(store.faqs, store.categories);
+        try {
+            return calculateFaqStats(store.faqs, store.categories);
+        } catch (error) {
+            console.error('Error calculating FAQ stats:', error);
+            return {
+                total: 0,
+                active: 0,
+                inactive: 0,
+                byCategory: {},
+                recentlyUpdated: 0,
+                totalCategories: 0,
+                activeCategories: 0,
+            };
+        }
     }, [store.faqs, store.categories]);
 
     const categoryStats = useMemo(() => {
-        return calculateCategoryStats(store.categories, store.faqs);
+        try {
+            return calculateCategoryStats(store.categories, store.faqs);
+        } catch (error) {
+            console.error('Error calculating category stats:', error);
+            return {
+                total: 0,
+                active: 0,
+                inactive: 0,
+                withFaqs: 0,
+                averageFaqsPerCategory: 0,
+            };
+        }
     }, [store.categories, store.faqs]);
 
     // FAQ Actions
     const loadFAQs = useCallback(async () => {
-        await store.fetchFAQs();
+        try {
+            await store.fetchFAQs();
+        } catch (error) {
+            console.error('Error loading FAQs:', error);
+            throw error;
+        }
     }, [store.fetchFAQs]);
 
     const loadFAQ = useCallback(async (id: string) => {
-        return await store.fetchFAQ(id);
+        try {
+            return await store.fetchFAQ(id);
+        } catch (error) {
+            console.error('Error loading FAQ:', error);
+            throw error;
+        }
     }, [store.fetchFAQ]);
 
     const createFAQ = useCallback(async (data: FAQFormData) => {
-        const enhancedData = {
-            ...data,
-            order_index: data.order_index || getNextFaqOrderIndex(store.faqs, data.category_id),
-        };
-        return await store.createFAQ(enhancedData);
+        try {
+            // Validate data before creating
+            const validation = validateFaqData({
+                question: data.question,
+                answer: data.answer,
+                category_id: data.category_id,
+            });
+
+            if (!validation.isValid) {
+                throw new Error(Object.values(validation.errors)[0]);
+            }
+
+            const enhancedData = {
+                ...data,
+                question: data.question.trim(),
+                answer: data.answer.trim(),
+                order_index: data.order_index || getNextFaqOrderIndex(store.faqs, data.category_id),
+            };
+
+            return await store.createFAQ(enhancedData);
+        } catch (error) {
+            console.error('Error creating FAQ:', error);
+            throw error;
+        }
     }, [store.createFAQ, store.faqs]);
 
     const updateFAQ = useCallback(async (id: string, data: Partial<FAQFormData>) => {
-        return await store.updateFAQ(id, data);
-    }, [store.updateFAQ]);
+        try {
+            // Validate data if provided
+            if (data.question || data.answer || data.category_id) {
+                const existingFAQ = store.faqs.find(faq => faq.id === id);
+                if (!existingFAQ) {
+                    throw new Error('FAQ not found');
+                }
+
+                const validation = validateFaqData({
+                    question: data.question || existingFAQ.question,
+                    answer: data.answer || existingFAQ.answer,
+                    category_id: data.category_id || existingFAQ.category_id,
+                });
+
+                if (!validation.isValid) {
+                    throw new Error(Object.values(validation.errors)[0]);
+                }
+            }
+
+            // Trim string fields
+            const cleanedData = { ...data };
+            if (cleanedData.question) cleanedData.question = cleanedData.question.trim();
+            if (cleanedData.answer) cleanedData.answer = cleanedData.answer.trim();
+
+            return await store.updateFAQ(id, cleanedData);
+        } catch (error) {
+            console.error('Error updating FAQ:', error);
+            throw error;
+        }
+    }, [store.updateFAQ, store.faqs]);
 
     const deleteFAQ = useCallback(async (id: string) => {
-        await store.deleteFAQ(id);
+        try {
+            await store.deleteFAQ(id);
+        } catch (error) {
+            console.error('Error deleting FAQ:', error);
+            throw error;
+        }
     }, [store.deleteFAQ]);
 
     const duplicateFAQ = useCallback(async (id: string) => {
-        const originalFAQ = store.faqs.find(faq => faq.id === id);
-        if (!originalFAQ) {
-            throw new Error('FAQ not found');
+        try {
+            const originalFAQ = store.faqs.find(faq => faq.id === id);
+            if (!originalFAQ) {
+                throw new Error('FAQ not found');
+            }
+
+            const duplicateData: FAQFormData = {
+                category_id: originalFAQ.category_id,
+                question: `${originalFAQ.question} (Copy)`,
+                answer: originalFAQ.answer,
+                is_active: false, // Start as inactive
+                order_index: getNextFaqOrderIndex(store.faqs, originalFAQ.category_id),
+            };
+
+            return await store.createFAQ(duplicateData);
+        } catch (error) {
+            console.error('Error duplicating FAQ:', error);
+            throw error;
         }
-
-        const duplicateData: FAQFormData = {
-            category_id: originalFAQ.category_id,
-            question: `${originalFAQ.question} (Copy)`,
-            answer: originalFAQ.answer,
-            is_active: false, // Start as inactive
-            order_index: getNextFaqOrderIndex(store.faqs, originalFAQ.category_id),
-        };
-
-        return await store.createFAQ(duplicateData);
     }, [store.faqs, store.createFAQ]);
 
     // Category Actions
     const loadCategories = useCallback(async () => {
-        await store.fetchCategories();
+        try {
+            await store.fetchCategories();
+        } catch (error) {
+            console.error('Error loading categories:', error);
+            throw error;
+        }
     }, [store.fetchCategories]);
 
     const loadCategory = useCallback(async (id: string) => {
-        return await store.fetchCategory(id);
+        try {
+            return await store.fetchCategory(id);
+        } catch (error) {
+            console.error('Error loading category:', error);
+            throw error;
+        }
     }, [store.fetchCategory]);
 
     const createCategory = useCallback(async (data: FAQCategoryFormData) => {
-        const enhancedData = {
-            ...data,
-            order_index: data.order_index || getNextCategoryOrderIndex(store.categories),
-        };
-        return await store.createCategory(enhancedData);
+        try {
+            // Validate data before creating
+            const validation = validateCategoryData({
+                name: data.name,
+                description: data.description,
+            });
+
+            if (!validation.isValid) {
+                throw new Error(Object.values(validation.errors)[0]);
+            }
+
+            const enhancedData = {
+                ...data,
+                name: data.name.trim(),
+                description: data.description?.trim(),
+                order_index: data.order_index || getNextCategoryOrderIndex(store.categories),
+            };
+
+            return await store.createCategory(enhancedData);
+        } catch (error) {
+            console.error('Error creating category:', error);
+            throw error;
+        }
     }, [store.createCategory, store.categories]);
 
     const updateCategory = useCallback(async (id: string, data: Partial<FAQCategoryFormData>) => {
-        return await store.updateCategory(id, data);
+        try {
+            // Validate data if provided
+            if (data.name !== undefined) {
+                const validation = validateCategoryData({
+                    name: data.name,
+                    description: data.description,
+                });
+
+                if (!validation.isValid) {
+                    throw new Error(Object.values(validation.errors)[0]);
+                }
+            }
+
+            // Trim string fields
+            const cleanedData = { ...data };
+            if (cleanedData.name) cleanedData.name = cleanedData.name.trim();
+            if (cleanedData.description) cleanedData.description = cleanedData.description.trim();
+
+            return await store.updateCategory(id, cleanedData);
+        } catch (error) {
+            console.error('Error updating category:', error);
+            throw error;
+        }
     }, [store.updateCategory]);
 
     const deleteCategory = useCallback(async (id: string) => {
-        // Check if category can be deleted
-        if (!canDeleteCategory(id, store.faqs)) {
-            throw new Error('Cannot delete category that contains FAQs');
+        try {
+            // Check if category can be deleted
+            if (!canDeleteCategory(id, store.faqs)) {
+                throw new Error('Cannot delete category that contains FAQs');
+            }
+            await store.deleteCategory(id);
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            throw error;
         }
-        await store.deleteCategory(id);
     }, [store.deleteCategory, store.faqs]);
 
     // Search and Filter Actions
@@ -236,10 +404,15 @@ export const useFAQManagement = (options: UseFAQManagementOptions = {}): UseFAQM
 
     // Utility Actions
     const refreshAll = useCallback(async () => {
-        await Promise.all([
-            store.fetchFAQs(),
-            store.fetchCategories(),
-        ]);
+        try {
+            await Promise.all([
+                store.fetchFAQs(),
+                store.fetchCategories(),
+            ]);
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+            throw error;
+        }
     }, [store.fetchFAQs, store.fetchCategories]);
 
     const getFAQById = useCallback((id: string) => {

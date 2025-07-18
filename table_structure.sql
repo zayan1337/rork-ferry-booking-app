@@ -792,26 +792,104 @@ create table public.check_ins (
   constraint check_ins_booking_id_fkey foreign KEY (booking_id) references bookings (id),
   constraint check_ins_checked_in_by_fkey foreign KEY (checked_in_by) references auth.users (id)
 ) TABLESPACE pg_default;
-
-
 create table public.faq_categories (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  description text null,
+  order_index integer not null default 0,
+  is_active boolean not null default true,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
   constraint faq_categories_pkey primary key (id),
-  constraint faq_categories_name_key unique (name)
+  constraint faq_categories_name_key unique (name),
+  constraint faq_categories_order_index_positive check ((order_index >= 0))
 ) TABLESPACE pg_default;
 
-create table public.faqs (
+create index IF not exists idx_faq_categories_active on public.faq_categories using btree (is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_faq_categories_order on public.faq_categories using btree (order_index) TABLESPACE pg_default;
+
+create index IF not exists idx_faq_categories_name on public.faq_categories using btree (name) TABLESPACE pg_default;
+
+create trigger faq_categories_updated_at_trigger BEFORE
+update on faq_categories for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create view public.faq_categories_with_stats as
+select
+  fc.id,
+  fc.name,
+  fc.created_at,
+  fc.description,
+  fc.order_index,
+  fc.is_active,
+  fc.updated_at,
+  COALESCE(faq_counts.total_faqs, 0::bigint) as faq_count,
+  COALESCE(faq_counts.active_faqs, 0::bigint) as active_faq_count
+from
+  faq_categories fc
+  left join (
+    select
+      faqs.category_id,
+      count(*) as total_faqs,
+      count(*) filter (
+        where
+          faqs.is_active = true
+      ) as active_faqs
+    from
+      faqs
+    group by
+      faqs.category_id
+  ) faq_counts on fc.id = faq_counts.category_id
+order by
+  fc.order_index,
+  fc.name;
+
+  create table public.faqs (
   id uuid not null default gen_random_uuid (),
   category_id uuid not null,
   question text not null,
   answer text not null,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
   updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  is_active boolean not null default true,
+  order_index integer not null default 0,
   constraint faqs_pkey primary key (id),
-  constraint faqs_category_id_fkey foreign KEY (category_id) references faq_categories (id)
+  constraint faqs_category_id_fkey foreign KEY (category_id) references faq_categories (id),
+  constraint faqs_order_index_positive check ((order_index >= 0))
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_faqs_category_id on public.faqs using btree (category_id) TABLESPACE pg_default;
+
+create index IF not exists idx_faqs_active on public.faqs using btree (is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_faqs_order on public.faqs using btree (category_id, order_index) TABLESPACE pg_default;
+
+create index IF not exists idx_faqs_category_active on public.faqs using btree (category_id, is_active) TABLESPACE pg_default;
+
+create trigger faqs_updated_at_trigger BEFORE
+update on faqs for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create view public.faqs_with_category as
+select
+  f.id,
+  f.category_id,
+  f.question,
+  f.answer,
+  f.created_at,
+  f.updated_at,
+  f.is_active,
+  f.order_index,
+  fc.name as category_name,
+  fc.order_index as category_order_index
+from
+  faqs f
+  left join faq_categories fc on f.category_id = fc.id
+order by
+  fc.order_index,
+  f.order_index,
+  f.created_at;
 
 create table public.islands (
   id uuid not null default gen_random_uuid (),

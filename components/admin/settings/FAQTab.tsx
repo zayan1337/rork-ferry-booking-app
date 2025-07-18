@@ -39,6 +39,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
     const {
         faqs,
         categories,
+        categoriesWithCounts,
         loading,
         error,
         refreshAll,
@@ -51,20 +52,20 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
 
     // Initialize data when tab becomes active
     useEffect(() => {
-        if (isActive && (faqs.length === 0 || categories.length === 0)) {
+        if (isActive && (faqs.length === 0 || categoriesWithCounts.length === 0)) {
             refreshAll();
         }
-    }, [isActive, faqs.length, categories.length, refreshAll]);
+    }, [isActive, faqs.length, categoriesWithCounts.length, refreshAll]);
 
     // Filter categories based on search query
     const filteredCategories = useMemo(() => {
-        if (!searchQuery) return categories;
+        if (!searchQuery) return categoriesWithCounts;
 
         const query = searchQuery.toLowerCase();
-        return categories.filter(category =>
+        return categoriesWithCounts.filter(category =>
             category.name.toLowerCase().includes(query)
         );
-    }, [categories, searchQuery]);
+    }, [categoriesWithCounts, searchQuery]);
 
     // Filter FAQs based on search query
     const filteredFaqs = useMemo(() => {
@@ -163,7 +164,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
                             <Text style={styles.sectionSubtitle}>
                                 {searchQuery ?
                                     `${filteredCategories.length} categories, ${filteredFaqs.length} FAQs found` :
-                                    `${categories.length} categories, ${faqs.length} FAQs`
+                                    `${categoriesWithCounts.length} categories, ${faqs.length} FAQs`
                                 }
                             </Text>
                         </View>
@@ -206,7 +207,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
                         styles.tabToggleText,
                         activeTab === 'categories' && styles.tabToggleTextActive
                     ]}>
-                        FAQ Categories ({searchQuery ? filteredCategories.length : categories.length})
+                        FAQ Categories ({searchQuery ? filteredCategories.length : categoriesWithCounts.length})
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -228,12 +229,14 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
         </View>
     );
 
-    const renderItem = ({ item }: { item: FAQ | FAQCategory }) => {
+    const renderItem = ({ item }: { item: FAQ | (FAQCategory & { faq_count: number; active_faq_count: number }) }) => {
         if (activeTab === 'categories') {
-            const category = item as FAQCategory;
+            const category = item as FAQCategory & { faq_count: number; active_faq_count: number };
+
             return (
                 <FAQCategoryItem
                     category={category}
+                    faqCount={category.faq_count}
                     onPress={handleCategoryPress}
                 />
             );

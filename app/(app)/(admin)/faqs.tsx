@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     View,
     Text,
@@ -13,7 +13,8 @@ import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { useFAQManagement } from "@/hooks/useFAQManagement";
-import { FAQ } from "@/types/content";
+import { useFAQManagementStore } from "@/store/admin/faqStore";
+import { FAQ, FAQCategory } from "@/types/content";
 import {
     ArrowLeft,
     Plus,
@@ -36,6 +37,7 @@ import {
 import Button from "@/components/admin/Button";
 import SearchBar from "@/components/admin/SearchBar";
 import FAQItem from "@/components/admin/FAQItem";
+import FAQCategoryItem from "@/components/admin/FAQCategoryItem";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
 import StatCard from "@/components/admin/StatCard";
 
@@ -70,7 +72,14 @@ export default function FAQsScreen() {
     const [filterActive, setFilterActive] = useState<boolean | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
+    const [currentView, setCurrentView] = useState<"faqs" | "categories">("faqs");
     const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+
+    // Category-specific state
+    const [categorySearchQuery, setCategorySearchQuery] = useState("");
+    const [categorySortBy, setCategorySortBy] = useState<'name' | 'order_index' | 'created_at'>('name');
+    const [categorySortOrder, setCategorySortOrder] = useState<'asc' | 'desc'>('asc');
+    const [categoryFilterActive, setCategoryFilterActive] = useState<boolean | null>(null);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -137,11 +146,118 @@ export default function FAQsScreen() {
         );
     };
 
-    const handleManageCategories = () => {
-        router.push("./faq-categories" as any);
+    const handleToggleView = () => {
+        setCurrentView(currentView === "faqs" ? "categories" : "faqs");
+        // Reset filters when switching views
+        if (currentView === "categories") {
+            setShowFilters(false);
+        }
     };
 
-    const toggleSort = (field: string) => {
+    // Category management functions
+    const handleCategoryPress = (categoryId: string) => {
+        // Switch back to FAQs view and filter by this category
+        setCurrentView("faqs");
+        handleCategoryFilter(categoryId);
+    };
+
+    const handleEditCategory = (categoryId: string) => {
+        if (canManageSettings()) {
+            router.push(`./faq-categories/edit/${categoryId}` as any);
+        } else {
+            Alert.alert("Access Denied", "You don't have permission to edit categories.");
+        }
+    };
+
+    const handleDeleteCategory = (categoryId: string) => {
+        if (!canManageSettings()) {
+            Alert.alert("Access Denied", "You don't have permission to delete categories.");
+            return;
+        }
+
+        const category = categories.find(c => c.id === categoryId);
+        if (!category) return;
+
+        Alert.alert(
+            "Delete Category",
+            `Are you sure you want to delete "${category.name}"? This action cannot be undone.`,
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel",
+                },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await useFAQManagementStore.getState().deleteCategory(categoryId);
+                            Alert.alert("Success", "Category deleted successfully");
+                        } catch (error) {
+                            console.error("Error deleting category:", error);
+                            const errorMessage = error instanceof Error ? error.message : "Failed to delete category";
+                            Alert.alert("Error", errorMessage);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const toggleCategorySort = (field: 'name' | 'order_index' | 'created_at') => {
+        if (categorySortBy === field) {
+            setCategorySortOrder(categorySortOrder === "asc" ? "desc" : "asc");
+        } else {
+            setCategorySortBy(field);
+            setCategorySortOrder("asc");
+        }
+    };
+
+    const handleCategoryStatusFilter = (isActive: boolean | null) => {
+        setCategoryFilterActive(isActive);
+    };
+
+    // Filter and sort categories
+    const filteredAndSortedCategories = useMemo(() => {
+        let filtered = [...categoriesWithCounts];
+
+        // Apply search filter
+        if (categorySearchQuery.trim()) {
+            const query = categorySearchQuery.toLowerCase();
+            filtered = filtered.filter(category =>
+                category.name.toLowerCase().includes(query) ||
+                category.description?.toLowerCase().includes(query)
+            );
+        }
+
+        // Apply status filter
+        if (categoryFilterActive !== null) {
+            filtered = filtered.filter(category => category.is_active === categoryFilterActive);
+        }
+
+        // Apply sorting
+        filtered.sort((a, b) => {
+            let comparison = 0;
+
+            switch (categorySortBy) {
+                case 'name':
+                    comparison = a.name.localeCompare(b.name);
+                    break;
+                case 'order_index':
+                    comparison = a.order_index - b.order_index;
+                    break;
+                case 'created_at':
+                    comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                    break;
+            }
+
+            return categorySortOrder === 'asc' ? comparison : -comparison;
+        });
+
+        return filtered;
+    }, [categoriesWithCounts, categorySearchQuery, categoryFilterActive, categorySortBy, categorySortOrder]);
+
+    const toggleSort = (field: 'question' | 'category' | 'order_index' | 'created_at' | 'updated_at') => {
         if (sortBy === field) {
             setSortOrder(sortOrder === "asc" ? "desc" : "asc");
         } else {
@@ -224,7 +340,7 @@ export default function FAQsScreen() {
 
                     <TouchableOpacity
                         style={styles.sortButton}
-                        onPress={() => toggleSort('question')}
+                        onPress={() => toggleSort('question' as const)}
                     >
                         {sortBy === 'question' ? (
                             sortOrder === 'asc' ? (
@@ -241,11 +357,20 @@ export default function FAQsScreen() {
 
                 <View style={styles.actionBarRight}>
                     <TouchableOpacity
-                        style={styles.manageButton}
-                        onPress={handleManageCategories}
+                        style={[styles.manageButton, currentView === "categories" && styles.manageButtonActive]}
+                        onPress={handleToggleView}
                     >
-                        <Settings size={16} color={colors.textSecondary} />
-                        <Text style={styles.manageButtonText}>Categories</Text>
+                        {currentView === "faqs" ? (
+                            <Folder size={16} color={colors.primary} />
+                        ) : (
+                            <MessageSquare size={16} color={colors.primary} />
+                        )}
+                        <Text style={[
+                            styles.manageButtonText,
+
+                        ]}>
+                            {currentView === "faqs" ? "Categories" : "FAQs"}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -340,16 +465,18 @@ export default function FAQsScreen() {
                 </View>
             )}
 
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <SearchBar
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Search FAQs..."
-                />
-            </View>
+            {/* Search Bar - Only show for FAQs view */}
+            {currentView === "faqs" && (
+                <View style={styles.searchContainer}>
+                    <SearchBar
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder="Search FAQs..."
+                    />
+                </View>
+            )}
 
-            {filteredFaqs.length > 0 && (
+            {currentView === "faqs" && filteredFaqs.length > 0 && (
                 <View style={styles.sectionDivider}>
                     <Text style={styles.listTitle}>FAQs ({filteredFaqs.length})</Text>
                 </View>
@@ -376,6 +503,195 @@ export default function FAQsScreen() {
                     icon={<Plus size={20} color={colors.white} />}
                     style={styles.emptyStateButton}
                 />
+            )}
+        </View>
+    );
+
+    const renderCategoryItem = ({ item, index }: { item: FAQCategory & { faq_count: number; active_faq_count: number }; index: number }) => (
+        <FAQCategoryItem
+            key={item.id}
+            category={item}
+            faqCount={item.faq_count}
+            onPress={handleCategoryPress}
+            onEdit={canManageSettings() ? handleEditCategory : undefined}
+            onDelete={canManageSettings() ? handleDeleteCategory : undefined}
+        />
+    );
+
+    const renderCategoriesEmptyState = () => (
+        <View style={styles.emptyState}>
+            <View style={styles.emptyStateIcon}>
+                <Folder size={64} color={colors.textTertiary} />
+            </View>
+            <Text style={styles.emptyStateTitle}>No Categories found</Text>
+            <Text style={styles.emptyStateText}>
+                {categorySearchQuery || categoryFilterActive !== null
+                    ? "Try adjusting your search or filter criteria"
+                    : "No FAQ categories have been created yet"}
+            </Text>
+            {canManageSettings() && !categorySearchQuery && categoryFilterActive === null && (
+                <Button
+                    title="Create First Category"
+                    onPress={() => router.push("./faq-categories/new" as any)}
+                    variant="primary"
+                    icon={<Plus size={20} color={colors.white} />}
+                    style={styles.emptyStateButton}
+                />
+            )}
+        </View>
+    );
+
+    const renderCategoriesHeader = () => (
+        <View style={styles.listHeader}>
+            {/* Categories Stats */}
+            <View style={styles.quickStats}>
+                <View style={styles.quickStatsRow}>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
+                            <Folder size={16} color={colors.primary} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{categoryStats.total}</Text>
+                        <Text style={styles.quickStatLabel}>Total Categories</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
+                            <Activity size={16} color={colors.success} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{categoryStats.active}</Text>
+                        <Text style={styles.quickStatLabel}>Active</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
+                            <MessageSquare size={16} color={colors.info} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{faqStats.total}</Text>
+                        <Text style={styles.quickStatLabel}>Total FAQs</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.warningLight }]}>
+                            <TrendingUp size={16} color={colors.warning} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{categoryStats.withFaqs}</Text>
+                        <Text style={styles.quickStatLabel}>With FAQs</Text>
+                    </View>
+                </View>
+            </View>
+
+            {/* Action Bar */}
+            <View style={styles.actionBar}>
+                <View style={styles.actionBarLeft}>
+                    <TouchableOpacity
+                        style={[styles.filterButton, showFilters && styles.filterButtonActive]}
+                        onPress={() => setShowFilters(!showFilters)}
+                    >
+                        <Filter size={16} color={showFilters ? colors.primary : colors.textSecondary} />
+                        <Text style={[
+                            styles.filterButtonText,
+                            showFilters && styles.filterButtonTextActive
+                        ]}>
+                            Filters
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.sortButton}
+                        onPress={() => toggleCategorySort('name')}
+                    >
+                        {categorySortBy === 'name' ? (
+                            categorySortOrder === 'asc' ? (
+                                <SortAsc size={16} color={colors.primary} />
+                            ) : (
+                                <SortDesc size={16} color={colors.primary} />
+                            )
+                        ) : (
+                            <SortAsc size={16} color={colors.textSecondary} />
+                        )}
+                        <Text style={styles.sortButtonText}>Name</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.actionBarRight}>
+                    <TouchableOpacity
+                        style={[styles.manageButton, currentView === "faqs" && styles.manageButtonActive]}
+                        onPress={handleToggleView}
+                    >
+                        <MessageSquare size={16} color={colors.primary} />
+                        <Text style={[
+                            styles.manageButtonText,
+                            styles.manageButtonTextActive
+                        ]}>
+                            FAQs
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* Filters Panel */}
+            {showFilters && (
+                <View style={styles.filtersPanel}>
+                    <View style={styles.filterRow}>
+                        <Text style={styles.filterLabel}>Status:</Text>
+                        <View style={styles.filterChips}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    categoryFilterActive === null && styles.filterChipActive
+                                ]}
+                                onPress={() => handleCategoryStatusFilter(null)}
+                            >
+                                <Text style={[
+                                    styles.filterChipText,
+                                    categoryFilterActive === null && styles.filterChipTextActive
+                                ]}>
+                                    All
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    categoryFilterActive === true && styles.filterChipActive
+                                ]}
+                                onPress={() => handleCategoryStatusFilter(true)}
+                            >
+                                <Text style={[
+                                    styles.filterChipText,
+                                    categoryFilterActive === true && styles.filterChipTextActive
+                                ]}>
+                                    Active
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    categoryFilterActive === false && styles.filterChipActive
+                                ]}
+                                onPress={() => handleCategoryStatusFilter(false)}
+                            >
+                                <Text style={[
+                                    styles.filterChipText,
+                                    categoryFilterActive === false && styles.filterChipTextActive
+                                ]}>
+                                    Inactive
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            )}
+
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+                <SearchBar
+                    value={categorySearchQuery}
+                    onChangeText={setCategorySearchQuery}
+                    placeholder="Search categories..."
+                />
+            </View>
+
+            {filteredAndSortedCategories.length > 0 && (
+                <View style={styles.sectionDivider}>
+                    <Text style={styles.listTitle}>Categories ({filteredAndSortedCategories.length})</Text>
+                </View>
             )}
         </View>
     );
@@ -409,37 +725,65 @@ export default function FAQsScreen() {
                 }}
             />
 
-            {loading.faqs ? (
-                <View style={styles.loadingContainer}>
-                    <LoadingSpinner />
-                    <Text style={styles.loadingText}>Loading FAQs...</Text>
-                </View>
+            {currentView === "faqs" ? (
+                loading.faqs ? (
+                    <View style={styles.loadingContainer}>
+                        <LoadingSpinner />
+                        <Text style={styles.loadingText}>Loading FAQs...</Text>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={filteredFaqs}
+                        renderItem={renderFAQItem}
+                        ListHeaderComponent={renderListHeader}
+                        ListEmptyComponent={renderEmptyState}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={styles.listContainer}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={handleRefresh}
+                                colors={[colors.primary]}
+                                tintColor={colors.primary}
+                            />
+                        }
+                        showsVerticalScrollIndicator={false}
+                        ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+                    />
+                )
             ) : (
-                <FlatList
-                    data={filteredFaqs}
-                    renderItem={renderFAQItem}
-                    ListHeaderComponent={renderListHeader}
-                    ListEmptyComponent={renderEmptyState}
-                    keyExtractor={(item) => item.id}
-                    contentContainerStyle={styles.listContainer}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isRefreshing}
-                            onRefresh={handleRefresh}
-                            colors={[colors.primary]}
-                            tintColor={colors.primary}
-                        />
-                    }
-                    showsVerticalScrollIndicator={false}
-                    ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-                />
+                loading.categories ? (
+                    <View style={styles.loadingContainer}>
+                        <LoadingSpinner />
+                        <Text style={styles.loadingText}>Loading Categories...</Text>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={filteredAndSortedCategories}
+                        renderItem={renderCategoryItem}
+                        ListHeaderComponent={renderCategoriesHeader}
+                        ListEmptyComponent={renderCategoriesEmptyState}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={styles.listContainer}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={handleRefresh}
+                                colors={[colors.primary]}
+                                tintColor={colors.primary}
+                            />
+                        }
+                        showsVerticalScrollIndicator={false}
+                        ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+                    />
+                )
             )}
 
             {/* Floating Add Button */}
-            {canManageSettings() && filteredFaqs.length > 0 && (
+            {canManageSettings() && (
                 <TouchableOpacity
                     style={styles.floatingButton}
-                    onPress={handleAddFAQ}
+                    onPress={currentView === "faqs" ? handleAddFAQ : () => router.push("./faq-categories/new" as any)}
                     activeOpacity={0.8}
                 >
                     <Plus size={24} color={colors.white} />
@@ -601,6 +945,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: colors.textSecondary,
         fontWeight: '500',
+    },
+    manageButtonActive: {
+        backgroundColor: colors.primaryLight,
+    },
+    manageButtonTextActive: {
+        color: colors.primary,
     },
     filtersPanel: {
         backgroundColor: colors.card,

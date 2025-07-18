@@ -81,12 +81,16 @@ const FAQForm: React.FC<FAQFormProps> = ({
             newErrors.question = "Question is required";
         } else if (formData.question.trim().length < 10) {
             newErrors.question = "Question must be at least 10 characters long";
+        } else if (formData.question.trim().length > 500) {
+            newErrors.question = "Question must be less than 500 characters";
         }
 
         if (!formData.answer.trim()) {
             newErrors.answer = "Answer is required";
         } else if (formData.answer.trim().length < 20) {
             newErrors.answer = "Answer must be at least 20 characters long";
+        } else if (formData.answer.trim().length > 5000) {
+            newErrors.answer = "Answer must be less than 5000 characters";
         }
 
         if (formData.order_index < 0) {
@@ -103,16 +107,34 @@ const FAQForm: React.FC<FAQFormProps> = ({
         }
 
         setSubmitting(true);
+        setErrors({});
+
         try {
+            const cleanData = {
+                ...formData,
+                question: formData.question.trim(),
+                answer: formData.answer.trim(),
+            };
+
             if (isEditing) {
-                await updateFAQ(faq.id, formData);
+                await updateFAQ(faq!.id, cleanData);
             } else {
-                await createFAQ(formData);
+                await createFAQ(cleanData);
             }
+
             onSuccess();
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "Failed to save FAQ";
+            const errorMessage = error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} FAQ`;
             onError(errorMessage);
+
+            // Set field-specific errors if they exist in the error message
+            if (errorMessage.toLowerCase().includes('question')) {
+                setErrors({ question: errorMessage });
+            } else if (errorMessage.toLowerCase().includes('answer')) {
+                setErrors({ answer: errorMessage });
+            } else if (errorMessage.toLowerCase().includes('category')) {
+                setErrors({ category_id: errorMessage });
+            }
         } finally {
             setSubmitting(false);
         }

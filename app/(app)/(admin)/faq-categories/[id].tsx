@@ -37,8 +37,8 @@ export default function FAQCategoryDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const { canManageSettings } = useAdminPermissions();
     const {
-        loadFAQCategory,
-        deleteFAQCategory,
+        loadCategory,
+        deleteCategory,
         categories,
         faqs,
         refreshAll
@@ -118,7 +118,7 @@ export default function FAQCategoryDetailScreen() {
                     onPress: async () => {
                         setDeleting(true);
                         try {
-                            await deleteFAQCategory(id);
+                            await deleteCategory(id);
                             Alert.alert("Success", "FAQ category deleted successfully");
                             router.back();
                         } catch (error) {

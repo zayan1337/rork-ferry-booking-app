@@ -61,10 +61,12 @@ const FAQCategoryForm: React.FC<FAQCategoryFormProps> = ({
             newErrors.name = "Category name is required";
         } else if (formData.name.trim().length < 3) {
             newErrors.name = "Category name must be at least 3 characters long";
+        } else if (formData.name.trim().length > 100) {
+            newErrors.name = "Category name must be less than 100 characters";
         }
 
-        if (formData.description && formData.description.length > 200) {
-            newErrors.description = "Description must be less than 200 characters";
+        if (formData.description && formData.description.length > 500) {
+            newErrors.description = "Description must be less than 500 characters";
         }
 
         if (formData.order_index < 0) {
@@ -81,16 +83,32 @@ const FAQCategoryForm: React.FC<FAQCategoryFormProps> = ({
         }
 
         setSubmitting(true);
+        setErrors({});
+
         try {
+            const cleanData = {
+                ...formData,
+                name: formData.name.trim(),
+                description: formData.description?.trim(),
+            };
+
             if (isEditing) {
-                await updateCategory(category.id, formData);
+                await updateCategory(category!.id, cleanData);
             } else {
-                await createCategory(formData);
+                await createCategory(cleanData);
             }
+
             onSuccess();
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "Failed to save category";
+            const errorMessage = error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} category`;
             onError(errorMessage);
+
+            // Set field-specific errors if they exist in the error message
+            if (errorMessage.toLowerCase().includes('name')) {
+                setErrors({ name: errorMessage });
+            } else if (errorMessage.toLowerCase().includes('description')) {
+                setErrors({ description: errorMessage });
+            }
         } finally {
             setSubmitting(false);
         }

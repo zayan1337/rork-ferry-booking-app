@@ -173,13 +173,15 @@ export const calculateFaqStats = (faqs: FAQ[], categories: FAQCategory[]): FAQSt
  * Calculate category statistics
  */
 export const calculateCategoryStats = (categories: FAQCategory[], faqs: FAQ[]) => {
+  const categoriesWithFaqs = categories.filter(cat =>
+    faqs.some(faq => faq.category_id === cat.id)
+  ).length;
+
   return {
     total: categories.length,
     active: categories.filter(cat => cat.is_active).length,
     inactive: categories.filter(cat => !cat.is_active).length,
-    withFaqs: categories.filter(cat =>
-      faqs.some(faq => faq.category_id === cat.id)
-    ).length,
+    withFaqs: categoriesWithFaqs,
     averageFaqsPerCategory: categories.length > 0
       ? Math.round(faqs.length / categories.length * 10) / 10
       : 0,
@@ -252,12 +254,16 @@ export const validateFaqData = (data: {
     errors.question = 'Question is required';
   } else if (data.question.trim().length < 10) {
     errors.question = 'Question must be at least 10 characters long';
+  } else if (data.question.trim().length > 500) {
+    errors.question = 'Question must be less than 500 characters';
   }
 
   if (!data.answer?.trim()) {
     errors.answer = 'Answer is required';
   } else if (data.answer.trim().length < 20) {
     errors.answer = 'Answer must be at least 20 characters long';
+  } else if (data.answer.trim().length > 5000) {
+    errors.answer = 'Answer must be less than 5000 characters';
   }
 
   if (!data.category_id?.trim()) {
@@ -283,10 +289,12 @@ export const validateCategoryData = (data: {
     errors.name = 'Category name is required';
   } else if (data.name.trim().length < 3) {
     errors.name = 'Category name must be at least 3 characters long';
+  } else if (data.name.trim().length > 100) {
+    errors.name = 'Category name must be less than 100 characters';
   }
 
-  if (data.description && data.description.length > 200) {
-    errors.description = 'Description must be less than 200 characters';
+  if (data.description && data.description.length > 500) {
+    errors.description = 'Description must be less than 500 characters';
   }
 
   return {
@@ -358,6 +366,39 @@ export const getNextCategoryOrderIndex = (categories: FAQCategory[]): number => 
 };
 
 /**
+ * Normalize FAQ data for consistency
+ */
+export const normalizeFaqData = (faq: any): FAQ => {
+  return {
+    id: faq.id,
+    category_id: faq.category_id,
+    question: faq.question?.trim() || '',
+    answer: faq.answer?.trim() || '',
+    is_active: faq.is_active ?? true,
+    order_index: faq.order_index ?? 0,
+    created_at: faq.created_at,
+    updated_at: faq.updated_at,
+    category: faq.category || undefined,
+  };
+};
+
+/**
+ * Normalize category data for consistency
+ */
+export const normalizeCategoryData = (category: any): FAQCategory => {
+  return {
+    id: category.id,
+    name: category.name?.trim() || '',
+    description: category.description?.trim() || '',
+    order_index: category.order_index ?? 0,
+    is_active: category.is_active ?? true,
+    created_at: category.created_at,
+    updated_at: category.updated_at,
+    faq_count: category.faq_count || 0,
+  };
+};
+
+/**
  * Export FAQs to various formats
  */
 export const exportFaqsToText = (faqs: FAQ[]): string => {
@@ -380,6 +421,7 @@ export const exportFaqsToJson = (faqs: FAQ[]): string => {
     answer: faq.answer,
     category: faq.category?.name || 'Uncategorized',
     isActive: faq.is_active,
+    orderIndex: faq.order_index,
     createdAt: faq.created_at,
     updatedAt: faq.updated_at
   }));
@@ -391,12 +433,14 @@ export const exportFaqsToJson = (faqs: FAQ[]): string => {
  * Group FAQs by category for organized display
  */
 export const groupFaqsByCategory = (faqs: FAQ[], categories: FAQCategory[]) => {
-  const grouped = categories.map(category => ({
-    category,
-    faqs: faqs
-      .filter(faq => faq.category_id === category.id)
-      .sort((a, b) => a.order_index - b.order_index)
-  }));
+  const grouped = categories
+    .filter(category => category.is_active)
+    .map(category => ({
+      category,
+      faqs: faqs
+        .filter(faq => faq.category_id === category.id)
+        .sort((a, b) => a.order_index - b.order_index)
+    }));
 
   // Add uncategorized FAQs if any
   const uncategorizedFaqs = faqs.filter(faq =>

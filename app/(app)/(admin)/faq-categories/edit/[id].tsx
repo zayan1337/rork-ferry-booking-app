@@ -14,7 +14,7 @@ import Button from "@/components/admin/Button";
 
 export default function EditFAQCategoryScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const { categories, refreshAll } = useFAQManagement();
+    const { loadCategory, categories, refreshAll } = useFAQManagement();
     const { canManageSettings } = useAdminPermissions();
 
     const [category, setCategory] = useState<FAQCategory | null>(null);
@@ -32,14 +32,7 @@ export default function EditFAQCategoryScreen() {
             setLoading(true);
             setError(null);
 
-            // Try to find in existing categories first
-            let categoryData = categories.find(c => c.id === id);
-
-            // If not found, refresh data and try again
-            if (!categoryData) {
-                await refreshAll();
-                categoryData = categories.find(c => c.id === id);
-            }
+            const categoryData = await loadCategory(id);
 
             if (categoryData) {
                 setCategory(categoryData);
