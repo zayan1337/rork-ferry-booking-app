@@ -792,6 +792,7 @@ create table public.check_ins (
   constraint check_ins_booking_id_fkey foreign KEY (booking_id) references bookings (id),
   constraint check_ins_checked_in_by_fkey foreign KEY (checked_in_by) references auth.users (id)
 ) TABLESPACE pg_default;
+
 create table public.faq_categories (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
@@ -814,6 +815,17 @@ create index IF not exists idx_faq_categories_name on public.faq_categories usin
 create trigger faq_categories_updated_at_trigger BEFORE
 update on faq_categories for EACH row
 execute FUNCTION update_updated_at_column ();
+
+create trigger trigger_compact_faq_categories
+after DELETE on faq_categories for EACH row
+execute FUNCTION compact_faq_category_order ();
+
+create trigger trigger_reorder_faq_categories_insert BEFORE INSERT on faq_categories for EACH row
+execute FUNCTION reorder_faq_categories_on_insert ();
+
+create trigger trigger_reorder_faq_categories_update BEFORE
+update OF order_index on faq_categories for EACH row when (old.order_index is distinct from new.order_index)
+execute FUNCTION reorder_faq_categories_on_insert ();
 
 create view public.faq_categories_with_stats as
 select
@@ -871,6 +883,21 @@ create trigger faqs_updated_at_trigger BEFORE
 update on faqs for EACH row
 execute FUNCTION update_updated_at_column ();
 
+create trigger trigger_compact_faqs
+after DELETE on faqs for EACH row
+execute FUNCTION compact_faq_order ();
+
+create trigger trigger_reorder_faqs_insert BEFORE INSERT on faqs for EACH row
+execute FUNCTION reorder_faqs_on_insert ();
+
+create trigger trigger_reorder_faqs_update BEFORE
+update OF order_index,
+category_id on faqs for EACH row when (
+  old.order_index is distinct from new.order_index
+  or old.category_id is distinct from new.category_id
+)
+execute FUNCTION reorder_faqs_on_insert ();
+
 create view public.faqs_with_category as
 select
   f.id,
@@ -904,6 +931,34 @@ create table public.islands (
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_islands_zone_id on public.islands using btree (zone_id) TABLESPACE pg_default;
+
+create index IF not exists idx_islands_zone_id_active on public.islands using btree (zone_id, is_active) TABLESPACE pg_default
+where
+  (zone_id is not null);
+
+create trigger zones_stats_change_trigger
+after INSERT
+or DELETE
+or
+update on islands for EACH row
+execute FUNCTION notify_zone_stats_change ();
+
+create view public.islands_with_zones as
+select
+  i.id,
+  i.name,
+  i.zone as old_zone_text,
+  i.zone_id,
+  i.is_active,
+  i.created_at,
+  z.name as zone_name,
+  z.code as zone_code,
+  z.description as zone_description,
+  z.is_active as zone_is_active
+from
+  islands i
+  left join zones z on i.zone_id = z.id;
+
 
 create table public.manifest_passengers (
   id uuid not null default gen_random_uuid (),
@@ -2522,4 +2577,3 @@ order by
   z.order_index,
   z.name;
 
-  

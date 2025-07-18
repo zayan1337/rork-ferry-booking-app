@@ -366,6 +366,197 @@ export const getNextCategoryOrderIndex = (categories: FAQCategory[]): number => 
 };
 
 /**
+ * Get available order positions for FAQ categories
+ */
+export const getAvailableCategoryOrderPositions = (categories: FAQCategory[]): { label: string; value: number }[] => {
+  const positions = [];
+
+  // Sort categories by their current order
+  const sortedCategories = [...categories].sort((a, b) => a.order_index - b.order_index);
+
+  // Add "First position" option
+  positions.push({
+    label: "1. First position",
+    value: 0
+  });
+
+  // Add positions after each existing category
+  sortedCategories.forEach((category, index) => {
+    positions.push({
+      label: `${index + 2}. After "${category.name}"`,
+      value: index + 1
+    });
+  });
+
+  return positions;
+};
+
+/**
+ * Get available order positions for FAQs within a category
+ */
+export const getAvailableFaqOrderPositions = (faqs: FAQ[], categoryId: string): { label: string; value: number }[] => {
+  const categoryFaqs = faqs.filter(faq => faq.category_id === categoryId);
+  const positions = [];
+
+  // Add position at the beginning
+  positions.push({
+    label: "1. First position",
+    value: 0
+  });
+
+  // Sort FAQs by their current order and add positions after each
+  const sortedFaqs = categoryFaqs.sort((a, b) => a.order_index - b.order_index);
+
+  sortedFaqs.forEach((faq, index) => {
+    const truncatedQuestion = faq.question.length > 50
+      ? `${faq.question.substring(0, 50)}...`
+      : faq.question;
+
+    positions.push({
+      label: `${index + 2}. After "${truncatedQuestion}"`,
+      value: index + 1
+    });
+  });
+
+  return positions;
+};
+
+/**
+ * Validate order index for category
+ */
+export const validateCategoryOrderIndex = (
+  orderIndex: number,
+  categories: FAQCategory[],
+  excludeId?: string
+): { isValid: boolean; error?: string } => {
+  if (orderIndex < 0) {
+    return { isValid: false, error: 'Order index must be 0 or greater' };
+  }
+
+  const filteredCategories = excludeId
+    ? categories.filter(cat => cat.id !== excludeId)
+    : categories;
+
+  const maxOrder = filteredCategories.length > 0
+    ? Math.max(...filteredCategories.map(cat => cat.order_index))
+    : -1;
+
+  if (orderIndex > maxOrder + 1) {
+    return { isValid: false, error: `Order index cannot be greater than ${maxOrder + 2}` };
+  }
+
+  return { isValid: true };
+};
+
+/**
+ * Validate order index for FAQ
+ */
+export const validateFaqOrderIndex = (
+  orderIndex: number,
+  faqs: FAQ[],
+  categoryId: string,
+  excludeId?: string
+): { isValid: boolean; error?: string } => {
+  if (orderIndex < 0) {
+    return { isValid: false, error: 'Order index must be 0 or greater' };
+  }
+
+  const categoryFaqs = faqs
+    .filter(faq => faq.category_id === categoryId)
+    .filter(faq => excludeId ? faq.id !== excludeId : true);
+
+  const maxOrder = categoryFaqs.length > 0
+    ? Math.max(...categoryFaqs.map(faq => faq.order_index))
+    : -1;
+
+  if (orderIndex > maxOrder + 1) {
+    return { isValid: false, error: `Order index cannot be greater than ${maxOrder + 2}` };
+  }
+
+  return { isValid: true };
+};
+
+/**
+ * Get suggested order index for new category
+ */
+export const getSuggestedCategoryOrderIndex = (categories: FAQCategory[]): number => {
+  return getNextCategoryOrderIndex(categories);
+};
+
+/**
+ * Get suggested order index for new FAQ
+ */
+export const getSuggestedFaqOrderIndex = (faqs: FAQ[], categoryId: string): number => {
+  return getNextFaqOrderIndex(faqs, categoryId);
+};
+
+/**
+ * Reorder categories locally (for optimistic updates)
+ */
+export const reorderCategoriesLocally = (
+  categories: FAQCategory[],
+  movedCategoryId: string,
+  newOrderIndex: number
+): FAQCategory[] => {
+  const movedCategory = categories.find(cat => cat.id === movedCategoryId);
+  if (!movedCategory) return categories;
+
+  const otherCategories = categories.filter(cat => cat.id !== movedCategoryId);
+
+  // Adjust order indices for other categories
+  const adjustedCategories = otherCategories.map(cat => {
+    if (cat.order_index >= newOrderIndex) {
+      return { ...cat, order_index: cat.order_index + 1 };
+    }
+    return cat;
+  });
+
+  // Add the moved category with new order index
+  const updatedCategories = [
+    ...adjustedCategories,
+    { ...movedCategory, order_index: newOrderIndex }
+  ];
+
+  return updatedCategories.sort((a, b) => a.order_index - b.order_index);
+};
+
+/**
+ * Reorder FAQs locally (for optimistic updates)
+ */
+export const reorderFaqsLocally = (
+  faqs: FAQ[],
+  movedFaqId: string,
+  newOrderIndex: number
+): FAQ[] => {
+  const movedFaq = faqs.find(faq => faq.id === movedFaqId);
+  if (!movedFaq) return faqs;
+
+  const categoryFaqs = faqs.filter(faq =>
+    faq.category_id === movedFaq.category_id && faq.id !== movedFaqId
+  );
+  const otherFaqs = faqs.filter(faq =>
+    faq.category_id !== movedFaq.category_id
+  );
+
+  // Adjust order indices for FAQs in the same category
+  const adjustedCategoryFaqs = categoryFaqs.map(faq => {
+    if (faq.order_index >= newOrderIndex) {
+      return { ...faq, order_index: faq.order_index + 1 };
+    }
+    return faq;
+  });
+
+  // Add the moved FAQ with new order index
+  const updatedFaqs = [
+    ...otherFaqs,
+    ...adjustedCategoryFaqs,
+    { ...movedFaq, order_index: newOrderIndex }
+  ];
+
+  return updatedFaqs;
+};
+
+/**
  * Normalize FAQ data for consistency
  */
 export const normalizeFaqData = (faq: any): FAQ => {

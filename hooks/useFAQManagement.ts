@@ -16,6 +16,12 @@ import {
     groupFaqsByCategory,
     normalizeFaqData,
     normalizeCategoryData,
+    getAvailableCategoryOrderPositions,
+    getAvailableFaqOrderPositions,
+    validateCategoryOrderIndex,
+    validateFaqOrderIndex,
+    getSuggestedCategoryOrderIndex,
+    getSuggestedFaqOrderIndex
 } from '@/utils/faqUtils';
 
 interface UseFAQManagementOptions {
@@ -73,6 +79,19 @@ interface UseFAQManagementReturn {
     createCategory: (data: FAQCategoryFormData) => Promise<FAQCategory>;
     updateCategory: (id: string, data: Partial<FAQCategoryFormData>) => Promise<FAQCategory>;
     deleteCategory: (id: string) => Promise<void>;
+
+    // Order Management Actions
+    getAvailableCategoryOrderOptions: () => { label: string; value: number }[];
+    getAvailableFaqOrderOptions: (categoryId: string) => { label: string; value: number }[];
+    getSuggestedCategoryOrder: () => number;
+    getSuggestedFaqOrder: (categoryId: string) => number;
+    validateCategoryOrder: (orderIndex: number, excludeId?: string) => { isValid: boolean; error?: string };
+    validateFaqOrder: (orderIndex: number, categoryId: string, excludeId?: string) => { isValid: boolean; error?: string };
+    moveCategory: (categoryId: string, newOrderIndex: number) => Promise<void>;
+    moveFaq: (faqId: string, newOrderIndex: number) => Promise<void>;
+    moveFaqToCategory: (faqId: string, newCategoryId: string, newOrderIndex?: number) => Promise<void>;
+    reorderCategories: (categoryOrders: { id: string; order_index: number }[]) => Promise<void>;
+    reorderFaqs: (faqOrders: { id: string; order_index: number }[]) => Promise<void>;
 
     // Search and Filter Actions
     setSearchQuery: (query: string) => void;
@@ -378,16 +397,169 @@ export const useFAQManagement = (options: UseFAQManagementOptions = {}): UseFAQM
 
     const deleteCategory = useCallback(async (id: string) => {
         try {
-            // Check if category can be deleted
-            if (!canDeleteCategory(id, store.faqs)) {
-                throw new Error('Cannot delete category that contains FAQs');
+            // Check if category has FAQs
+            const categoryFaqs = store.faqs.filter(faq => faq.category_id === id);
+            if (categoryFaqs.length > 0) {
+                throw new Error(`Cannot delete category. It contains ${categoryFaqs.length} FAQ(s). Please move or delete the FAQs first.`);
             }
+
             await store.deleteCategory(id);
         } catch (error) {
             console.error('Error deleting category:', error);
             throw error;
         }
     }, [store.deleteCategory, store.faqs]);
+
+    // Order Management Methods
+    const getAvailableCategoryOrderOptions = useCallback(() => {
+        return getAvailableCategoryOrderPositions(store.categories);
+    }, [store.categories]);
+
+    const getAvailableFaqOrderOptions = useCallback((categoryId: string) => {
+        return getAvailableFaqOrderPositions(store.faqs, categoryId);
+    }, [store.faqs]);
+
+    const getSuggestedCategoryOrder = useCallback(() => {
+        return getSuggestedCategoryOrderIndex(store.categories);
+    }, [store.categories]);
+
+    const getSuggestedFaqOrder = useCallback((categoryId: string) => {
+        return getSuggestedFaqOrderIndex(store.faqs, categoryId);
+    }, [store.faqs]);
+
+    const validateCategoryOrder = useCallback((orderIndex: number, excludeId?: string) => {
+        return validateCategoryOrderIndex(orderIndex, store.categories, excludeId);
+    }, [store.categories]);
+
+    const validateFaqOrder = useCallback((orderIndex: number, categoryId: string, excludeId?: string) => {
+        return validateFaqOrderIndex(orderIndex, store.faqs, categoryId, excludeId);
+    }, [store.faqs]);
+
+    const moveCategory = useCallback(async (categoryId: string, newOrderIndex: number) => {
+        try {
+            const validation = validateCategoryOrder(newOrderIndex, categoryId);
+            if (!validation.isValid) {
+                throw new Error(validation.error);
+            }
+
+            await store.updateCategory(categoryId, { order_index: newOrderIndex });
+            await store.fetchCategories(); // Refresh to get updated order
+        } catch (error) {
+            console.error('Error moving category:', error);
+            throw error;
+        }
+    }, [store.updateCategory, store.fetchCategories, validateCategoryOrder]);
+
+    const moveFaq = useCallback(async (faqId: string, newOrderIndex: number) => {
+        try {
+            const faq = store.faqs.find(f => f.id === faqId);
+            if (!faq) {
+                throw new Error('FAQ not found');
+            }
+
+            const validation = validateFaqOrder(newOrderIndex, faq.category_id, faqId);
+            if (!validation.isValid) {
+                throw new Error(validation.error);
+            }
+
+            await store.updateFAQ(faqId, { order_index: newOrderIndex });
+            await store.fetchFAQs(); // Refresh to get updated order
+        } catch (error) {
+            console.error('Error moving FAQ:', error);
+            throw error;
+        }
+    }, [store.updateFAQ, store.fetchFAQs, store.faqs, validateFaqOrder]);
+
+    const moveFaqToCategory = useCallback(async (faqId: string, newCategoryId: string, newOrderIndex?: number) => {
+        try {
+            const faq = store.faqs.find(f => f.id === faqId);
+            if (!faq) {
+                throw new Error('FAQ not found');
+            }
+
+            const targetCategory = store.categories.find(c => c.id === newCategoryId);
+            if (!targetCategory) {
+                throw new Error('Target category not found');
+            }
+
+            const orderIndex = newOrderIndex ?? getSuggestedFaqOrderIndex(store.faqs, newCategoryId);
+
+            const validation = validateFaqOrder(orderIndex, newCategoryId);
+            if (!validation.isValid) {
+                throw new Error(validation.error);
+            }
+
+            await store.updateFAQ(faqId, {
+                category_id: newCategoryId,
+                order_index: orderIndex
+            });
+            await store.fetchFAQs(); // Refresh to get updated order
+        } catch (error) {
+            console.error('Error moving FAQ to category:', error);
+            throw error;
+        }
+    }, [store.updateFAQ, store.fetchFAQs, store.faqs, store.categories, validateFaqOrder]);
+
+    // Bulk Order Operations
+    const reorderCategories = useCallback(async (categoryOrders: { id: string; order_index: number }[]) => {
+        try {
+            // Validate all order indices
+            for (const categoryOrder of categoryOrders) {
+                const validation = validateCategoryOrder(categoryOrder.order_index, categoryOrder.id);
+                if (!validation.isValid) {
+                    throw new Error(`Invalid order for category: ${validation.error}`);
+                }
+            }
+
+            // Update all categories
+            const updatePromises = categoryOrders.map(categoryOrder =>
+                store.updateCategory(categoryOrder.id, { order_index: categoryOrder.order_index })
+            );
+
+            await Promise.all(updatePromises);
+            await store.fetchCategories(); // Refresh to get updated order
+        } catch (error) {
+            console.error('Error reordering categories:', error);
+            throw error;
+        }
+    }, [store.updateCategory, store.fetchCategories, validateCategoryOrder]);
+
+    const reorderFaqs = useCallback(async (faqOrders: { id: string; order_index: number }[]) => {
+        try {
+            // Group by category and validate
+            const faqsByCategory = faqOrders.reduce((acc, faqOrder) => {
+                const faq = store.faqs.find(f => f.id === faqOrder.id);
+                if (faq) {
+                    if (!acc[faq.category_id]) {
+                        acc[faq.category_id] = [];
+                    }
+                    acc[faq.category_id].push(faqOrder);
+                }
+                return acc;
+            }, {} as Record<string, typeof faqOrders>);
+
+            // Validate all order indices
+            for (const [categoryId, categoryFaqOrders] of Object.entries(faqsByCategory)) {
+                for (const faqOrder of categoryFaqOrders) {
+                    const validation = validateFaqOrder(faqOrder.order_index, categoryId, faqOrder.id);
+                    if (!validation.isValid) {
+                        throw new Error(`Invalid order for FAQ: ${validation.error}`);
+                    }
+                }
+            }
+
+            // Update all FAQs
+            const updatePromises = faqOrders.map(faqOrder =>
+                store.updateFAQ(faqOrder.id, { order_index: faqOrder.order_index })
+            );
+
+            await Promise.all(updatePromises);
+            await store.fetchFAQs(); // Refresh to get updated order
+        } catch (error) {
+            console.error('Error reordering FAQs:', error);
+            throw error;
+        }
+    }, [store.updateFAQ, store.fetchFAQs, store.faqs, validateFaqOrder]);
 
     // Search and Filter Actions
     const setSearchQuery = useCallback((query: string) => {
@@ -492,6 +664,19 @@ export const useFAQManagement = (options: UseFAQManagementOptions = {}): UseFAQM
         createCategory,
         updateCategory,
         deleteCategory,
+
+        // Order Management Actions
+        getAvailableCategoryOrderOptions,
+        getAvailableFaqOrderOptions,
+        getSuggestedCategoryOrder,
+        getSuggestedFaqOrder,
+        validateCategoryOrder,
+        validateFaqOrder,
+        moveCategory,
+        moveFaq,
+        moveFaqToCategory,
+        reorderCategories,
+        reorderFaqs,
 
         // Search and Filter Actions
         setSearchQuery,

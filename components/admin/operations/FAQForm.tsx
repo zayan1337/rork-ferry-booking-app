@@ -11,6 +11,7 @@ import {
 import { colors } from "@/constants/adminColors";
 import { FAQ, FAQCategory, FAQFormData } from "@/types/content";
 import { useFAQManagementStore } from "@/store/admin/faqStore";
+import { useFAQManagement } from "@/hooks/useFAQManagement";
 import {
     HelpCircle,
     Save,
@@ -48,11 +49,13 @@ const FAQForm: React.FC<FAQFormProps> = ({
 }) => {
     const {
         categories,
-        fetchCategories,
+        loadCategories,
         createFAQ,
         updateFAQ,
-        loading
-    } = useFAQManagementStore();
+        loading,
+        getAvailableFaqOrderOptions,
+        getSuggestedFaqOrder
+    } = useFAQManagement();
 
     const [formData, setFormData] = useState<FAQFormData>({
         category_id: faq?.category_id || "",
@@ -84,9 +87,17 @@ const FAQForm: React.FC<FAQFormProps> = ({
 
     useEffect(() => {
         if (categories.length === 0) {
-            fetchCategories();
+            loadCategories();
         }
-    }, [categories.length, fetchCategories]);
+    }, [categories.length, loadCategories]);
+
+    // Update suggested order when category changes
+    useEffect(() => {
+        if (formData.category_id && !isEditing) {
+            const suggestedOrder = getSuggestedFaqOrder(formData.category_id);
+            setFormData(prev => ({ ...prev, order_index: suggestedOrder }));
+        }
+    }, [formData.category_id, isEditing, getSuggestedFaqOrder]);
 
     const validateForm = (): boolean => {
         const newErrors: Record<string, string> = {};
@@ -181,6 +192,14 @@ const FAQForm: React.FC<FAQFormProps> = ({
     }));
 
     const selectedCategory = categories.find(cat => cat.id === formData.category_id);
+
+    // Get available order options for the selected category
+    const orderOptions = formData.category_id
+        ? getAvailableFaqOrderOptions(formData.category_id).map(option => ({
+            label: option.label,
+            value: option.value.toString()
+        }))
+        : [];
 
     return (
         <View style={styles.container}>
@@ -316,16 +335,17 @@ const FAQForm: React.FC<FAQFormProps> = ({
                         </View>
 
                         <View style={styles.formGroup}>
-                            <TextInput
+                            <Dropdown
                                 label="Display Order"
                                 value={formData.order_index.toString()}
-                                onChangeText={(value) => {
+                                onValueChange={(value: string) => {
                                     const numValue = parseInt(value) || 0;
                                     handleFieldChange('order_index', numValue);
                                 }}
-                                placeholder="0"
-                                keyboardType="numeric"
+                                options={orderOptions}
+                                placeholder="Select order"
                                 error={errors.order_index}
+                                required
                             />
                             <Text style={styles.helperText}>
                                 Lower numbers appear first in the list

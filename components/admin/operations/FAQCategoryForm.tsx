@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { colors } from "@/constants/adminColors";
 import { FAQCategory, FAQCategoryFormData } from "@/types/content";
-import { useFAQManagementStore } from "@/store/admin/faqStore";
+import { useFAQManagement } from "@/hooks/useFAQManagement";
 import {
     Folder,
     Save,
@@ -29,6 +29,7 @@ import {
 import Button from "@/components/admin/Button";
 import TextInput from "@/components/admin/TextInput";
 import Switch from "@/components/admin/Switch";
+import Dropdown from "@/components/admin/Dropdown";
 
 interface FAQCategoryFormProps {
     category?: FAQCategory;
@@ -43,7 +44,12 @@ const FAQCategoryForm: React.FC<FAQCategoryFormProps> = ({
     onError,
     onCancel,
 }) => {
-    const { createCategory, updateCategory } = useFAQManagementStore();
+    const {
+        createCategory,
+        updateCategory,
+        getAvailableCategoryOrderOptions,
+        getSuggestedCategoryOrder
+    } = useFAQManagement();
 
     const [formData, setFormData] = useState<FAQCategoryFormData>({
         name: category?.name || "",
@@ -70,6 +76,20 @@ const FAQCategoryForm: React.FC<FAQCategoryFormProps> = ({
         const hasFormChanges = JSON.stringify(formData) !== JSON.stringify(initialData);
         setHasChanges(hasFormChanges);
     }, [formData, initialData]);
+
+    // Set suggested order for new categories
+    useEffect(() => {
+        if (!isEditing && formData.order_index === 0) {
+            const suggestedOrder = getSuggestedCategoryOrder();
+            setFormData(prev => ({ ...prev, order_index: suggestedOrder }));
+        }
+    }, [isEditing, getSuggestedCategoryOrder, formData.order_index]);
+
+    // Get available order options
+    const orderOptions = getAvailableCategoryOrderOptions().map(option => ({
+        label: option.label,
+        value: option.value.toString()
+    }));
 
     const validateForm = (): boolean => {
         const newErrors: Record<string, string> = {};
@@ -234,19 +254,20 @@ const FAQCategoryForm: React.FC<FAQCategoryFormProps> = ({
                         </View>
 
                         <View style={styles.formGroup}>
-                            <TextInput
+                            <Dropdown
                                 label="Display Order"
                                 value={formData.order_index.toString()}
-                                onChangeText={(value) => {
+                                onValueChange={(value: string) => {
                                     const numValue = parseInt(value) || 0;
                                     handleFieldChange('order_index', numValue);
                                 }}
-                                placeholder="0"
-                                keyboardType="numeric"
+                                options={orderOptions}
+                                placeholder="Select position"
                                 error={errors.order_index}
+                                required
                             />
                             <Text style={styles.helperText}>
-                                Lower numbers appear first in the list
+                                Choose where this category should appear in the list
                             </Text>
                         </View>
 
