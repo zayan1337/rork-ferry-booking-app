@@ -2479,7 +2479,7 @@ select
 from
   zones_stats_view;
 
-  create table public.zones (
+create table public.zones (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
   code character varying(10) not null,
@@ -2508,6 +2508,17 @@ or DELETE
 or
 update on zones for EACH row
 execute FUNCTION enhanced_audit_trigger ();
+
+create trigger trigger_compact_zones
+after DELETE on zones for EACH row
+execute FUNCTION compact_zone_order ();
+
+create trigger trigger_reorder_zones_insert BEFORE INSERT on zones for EACH row
+execute FUNCTION reorder_zones_on_insert ();
+
+create trigger trigger_reorder_zones_update BEFORE
+update OF order_index on zones for EACH row when (old.order_index is distinct from new.order_index)
+execute FUNCTION reorder_zones_on_insert ();
 
 create trigger zones_activity_trigger
 after INSERT

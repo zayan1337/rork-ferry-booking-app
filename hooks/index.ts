@@ -38,4 +38,5 @@ export { useTripForm } from './useTripForm';
 export { useUserForm } from './useUserForm';
 
 // FAQ Management Hooks
-export { useFAQManagement } from './useFAQManagement'; 
+export { useFAQManagement } from './useFAQManagement';
+export { useZoneManagement } from './useZoneManagement'; 

@@ -226,4 +226,143 @@ const formatTimeAgo = (dateString: string): string => {
     } else {
         return date.toLocaleDateString();
     }
+};
+
+/**
+ * Get next order index for zone
+ */
+export const getNextZoneOrderIndex = (zones: Zone[]): number => {
+    if (zones.length === 0) return 0;
+
+    const maxOrder = Math.max(...zones.map(zone => zone.order_index));
+    return maxOrder + 1;
+};
+
+/**
+ * Get available order positions for zones
+ */
+export const getAvailableZoneOrderPositions = (zones: Zone[]): { label: string; value: number }[] => {
+    const positions = [];
+
+    // Sort zones by their current order
+    const sortedZones = [...zones].sort((a, b) => a.order_index - b.order_index);
+
+    // Add "First position" option
+    positions.push({
+        label: "1. First position",
+        value: 0
+    });
+
+    // Add positions after each existing zone
+    sortedZones.forEach((zone, index) => {
+        positions.push({
+            label: `${index + 2}. After "${zone.name}"`,
+            value: index + 1
+        });
+    });
+
+    return positions;
+};
+
+/**
+ * Validate order index for zone
+ */
+export const validateZoneOrderIndex = (
+    orderIndex: number,
+    zones: Zone[],
+    excludeId?: string
+): { isValid: boolean; error?: string } => {
+    if (orderIndex < 0) {
+        return { isValid: false, error: 'Order index must be 0 or greater' };
+    }
+
+    const filteredZones = excludeId
+        ? zones.filter(zone => zone.id !== excludeId)
+        : zones;
+
+    const maxOrder = filteredZones.length > 0
+        ? Math.max(...filteredZones.map(zone => zone.order_index))
+        : -1;
+
+    if (orderIndex > maxOrder + 1) {
+        return { isValid: false, error: `Order index cannot be greater than ${maxOrder + 2}` };
+    }
+
+    return { isValid: true };
+};
+
+/**
+ * Get suggested order index for new zone
+ */
+export const getSuggestedZoneOrderIndex = (zones: Zone[]): number => {
+    return getNextZoneOrderIndex(zones);
+};
+
+/**
+ * Reorder zones locally (for optimistic updates)
+ */
+export const reorderZonesLocally = (
+    zones: Zone[],
+    movedZoneId: string,
+    newOrderIndex: number
+): Zone[] => {
+    const movedZone = zones.find(zone => zone.id === movedZoneId);
+    if (!movedZone) return zones;
+
+    const otherZones = zones.filter(zone => zone.id !== movedZoneId);
+
+    // Adjust order indices for other zones
+    const adjustedZones = otherZones.map(zone => {
+        if (zone.order_index >= newOrderIndex) {
+            return { ...zone, order_index: zone.order_index + 1 };
+        }
+        return zone;
+    });
+
+    // Add the moved zone with new order index
+    const updatedZones = [
+        ...adjustedZones,
+        { ...movedZone, order_index: newOrderIndex }
+    ];
+
+    return updatedZones.sort((a, b) => a.order_index - b.order_index);
+};
+
+/**
+ * Validate zone data for creation/update
+ */
+export const validateZoneData = (data: Partial<{ name: string; code: string; order_index: number }>): {
+    isValid: boolean;
+    errors: Record<string, string>;
+} => {
+    const errors: Record<string, string> = {};
+
+    if (data.name !== undefined) {
+        if (!data.name.trim()) {
+            errors.name = 'Zone name is required';
+        } else if (data.name.trim().length < 2) {
+            errors.name = 'Zone name must be at least 2 characters long';
+        } else if (data.name.trim().length > 100) {
+            errors.name = 'Zone name must be less than 100 characters';
+        }
+    }
+
+    if (data.code !== undefined) {
+        if (!data.code.trim()) {
+            errors.code = 'Zone code is required';
+        } else if (data.code.trim().length < 2) {
+            errors.code = 'Zone code must be at least 2 characters long';
+        } else if (data.code.trim().length > 10) {
+            errors.code = 'Zone code must be less than 10 characters';
+        }
+    }
+
+    if (data.order_index !== undefined && data.order_index < 0) {
+        errors.order_index = 'Order index must be 0 or greater';
+    }
+
+    return {
+        isValid: Object.keys(errors).length === 0,
+        errors
+    };
 }; 

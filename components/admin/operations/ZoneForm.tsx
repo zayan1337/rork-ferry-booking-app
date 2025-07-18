@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
 import { colors } from "@/constants/adminColors";
 import { Zone } from "@/types/content";
-import { useContentStore } from "@/store/admin/contentStore";
+import { useZoneManagement } from "@/hooks/useZoneManagement";
 import {
     Globe,
     MapPin,
@@ -21,6 +21,7 @@ import {
 import TextInput from "@/components/admin/TextInput";
 import Button from "@/components/admin/Button";
 import Switch from "@/components/admin/Switch";
+import Dropdown from "@/components/admin/Dropdown";
 
 interface ZoneFormProps {
     initialData?: Zone;
@@ -45,19 +46,28 @@ interface ValidationErrors {
 }
 
 export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormProps) {
-    const { zones, addZone, updateZone } = useContentStore();
+    const {
+        zones,
+        createZone,
+        updateZone,
+        getAvailableZoneOrderOptions,
+        getSuggestedZoneOrder,
+        validateZoneOrder
+    } = useZoneManagement();
 
     const [formData, setFormData] = useState<FormData>({
         name: initialData?.name || '',
         code: initialData?.code || '',
         description: initialData?.description || '',
         is_active: initialData?.is_active ?? true,
-        order_index: initialData?.order_index || 0,
+        order_index: initialData?.order_index ?? getSuggestedZoneOrder(),
     });
 
     const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
     const [loading, setLoading] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+
+    const isEditing = !!initialData;
 
     // Track form changes
     useEffect(() => {
@@ -75,10 +85,24 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
                 formData.code.trim() !== '' ||
                 formData.description.trim() !== '' ||
                 formData.is_active !== true ||
-                formData.order_index !== 0;
+                formData.order_index !== getSuggestedZoneOrder();
             setHasChanges(hasFormChanges);
         }
-    }, [formData, initialData]);
+    }, [formData, initialData, getSuggestedZoneOrder]);
+
+    // Set suggested order for new zones
+    useEffect(() => {
+        if (!isEditing && formData.order_index === 0) {
+            const suggestedOrder = getSuggestedZoneOrder();
+            setFormData(prev => ({ ...prev, order_index: suggestedOrder }));
+        }
+    }, [isEditing, getSuggestedZoneOrder, formData.order_index]);
+
+    // Get available order options
+    const orderOptions = getAvailableZoneOrderOptions().map(option => ({
+        label: option.label,
+        value: option.value.toString()
+    }));
 
     const validateForm = (): boolean => {
         const errors: ValidationErrors = {};
@@ -129,9 +153,10 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
             errors.description = 'Description must be less than 500 characters';
         }
 
-        // Order index validation
-        if (formData.order_index < 0) {
-            errors.order_index = 'Order index must be a non-negative number';
+        // Order index validation using the new validation function
+        const orderValidation = validateZoneOrder(formData.order_index, initialData?.id);
+        if (!orderValidation.isValid) {
+            errors.order_index = orderValidation.error;
         }
 
         setValidationErrors(errors);
@@ -161,7 +186,7 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
                 success = true;
             } else {
                 // Create new zone
-                await addZone({
+                await createZone({
                     name: formData.name.trim(),
                     code: formData.code.trim().toUpperCase(),
                     description: formData.description.trim(),
@@ -194,7 +219,7 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
                         code: '',
                         description: '',
                         is_active: true,
-                        order_index: 0,
+                        order_index: getSuggestedZoneOrder(),
                     });
                     setHasChanges(false);
                 }
@@ -228,7 +253,7 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
                 code: '',
                 description: '',
                 is_active: true,
-                order_index: 0,
+                order_index: getSuggestedZoneOrder(),
             });
         }
         setValidationErrors({});
@@ -322,20 +347,20 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
                     </View>
 
                     <View style={styles.formGroup}>
-                        <TextInput
+                        <Dropdown
                             label="Order Index"
                             value={formData.order_index.toString()}
-                            onChangeText={(text) => setFormData(prev => ({ ...prev, order_index: parseInt(text) || 0 }))}
-                            placeholder="0"
+                            onValueChange={(value) => setFormData(prev => ({ ...prev, order_index: parseInt(value) || 0 }))}
+                            options={orderOptions}
+                            placeholder="Select order position"
                             error={validationErrors.order_index}
-                            keyboardType="numeric"
                         />
                         <View style={styles.orderDescription}>
                             <View style={styles.orderDescriptionIcon}>
                                 <Activity size={14} color={colors.info} />
                             </View>
                             <Text style={styles.orderDescriptionText}>
-                                Used to determine the display order of zones (lower numbers appear first)
+                                Choose where this zone should appear in the list
                             </Text>
                         </View>
                     </View>
