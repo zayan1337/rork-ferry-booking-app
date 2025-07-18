@@ -57,12 +57,17 @@ export default function IslandsTab({ isActive, searchQuery = "" }: IslandsTabPro
         );
     }, [islands, searchQuery]);
 
-    // Remove duplicates by ID
+    // Remove duplicates by ID and limit to 4 preview items
     const uniqueIslands = useMemo(() => {
         return filteredIslands.filter((island, index, self) =>
             index === self.findIndex(i => i.id === island.id)
         );
     }, [filteredIslands]);
+
+    // Create preview items (first 4 items)
+    const previewItems = useMemo(() => {
+        return uniqueIslands.slice(0, 4);
+    }, [uniqueIslands]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -167,22 +172,29 @@ export default function IslandsTab({ isActive, searchQuery = "" }: IslandsTabPro
         </View>
     );
 
-    const renderFooter = () => (
-        <View style={styles.footerContainer}>
-            <TouchableOpacity
-                style={styles.viewAllButton}
-                onPress={handleViewAllIslands}
-            >
-                <Text style={styles.viewAllText}>View All Islands</Text>
-                <MapPin size={16} color={colors.primary} />
-            </TouchableOpacity>
-        </View>
-    );
+    const renderFooter = () => {
+        if (uniqueIslands.length <= 4) return null; // Don't show footer if all items are displayed
+
+        return (
+            <View style={styles.footerContainer}>
+                <Text style={styles.previewText}>
+                    Showing {previewItems.length} of {uniqueIslands.length} islands
+                </Text>
+                <TouchableOpacity
+                    style={styles.viewAllButton}
+                    onPress={handleViewAllIslands}
+                >
+                    <Text style={styles.viewAllText}>View All Islands</Text>
+                    <MapPin size={16} color={colors.primary} />
+                </TouchableOpacity>
+            </View>
+        );
+    };
 
     return (
         <View style={styles.container}>
             <FlatList
-                data={uniqueIslands}
+                data={previewItems}
                 renderItem={renderIslandItem}
                 keyExtractor={(item, index) => `island-${item.id}-${index}`}
                 ListHeaderComponent={renderHeader}
@@ -271,6 +283,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "500",
         color: colors.primary,
+    },
+    previewText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: "center",
+        marginBottom: 12,
     },
     emptyState: {
         alignItems: "center",

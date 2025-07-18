@@ -54,12 +54,17 @@ export default function ZonesTab({ searchQuery = "" }: ZonesTabProps) {
         );
     }, [zones, searchQuery]);
 
-    // Remove duplicates by ID
+    // Remove duplicates by ID and limit to 4 preview items
     const uniqueZones = useMemo(() => {
         return filteredZones.filter((zone, index, self) =>
             index === self.findIndex(z => z.id === zone.id)
         );
     }, [filteredZones]);
+
+    // Create preview items (first 4 items)
+    const previewItems = useMemo(() => {
+        return uniqueZones.slice(0, 4);
+    }, [uniqueZones]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -164,22 +169,29 @@ export default function ZonesTab({ searchQuery = "" }: ZonesTabProps) {
         </View>
     );
 
-    const renderFooter = () => (
-        <View style={styles.footerContainer}>
-            <TouchableOpacity
-                style={styles.viewAllButton}
-                onPress={handleViewAllZones}
-            >
-                <Text style={styles.viewAllText}>View All Zones</Text>
-                <Globe size={16} color={colors.primary} />
-            </TouchableOpacity>
-        </View>
-    );
+    const renderFooter = () => {
+        if (uniqueZones.length <= 4) return null; // Don't show footer if all items are displayed
+
+        return (
+            <View style={styles.footerContainer}>
+                <Text style={styles.previewText}>
+                    Showing {previewItems.length} of {uniqueZones.length} zones
+                </Text>
+                <TouchableOpacity
+                    style={styles.viewAllButton}
+                    onPress={handleViewAllZones}
+                >
+                    <Text style={styles.viewAllText}>View All Zones</Text>
+                    <Globe size={16} color={colors.primary} />
+                </TouchableOpacity>
+            </View>
+        );
+    };
 
     return (
         <View style={styles.container}>
             <FlatList
-                data={uniqueZones}
+                data={previewItems}
                 renderItem={renderZoneItem}
                 keyExtractor={(item, index) => `zone-${item.id}-${index}`}
                 ListHeaderComponent={renderHeader}
@@ -268,6 +280,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "500",
         color: colors.primary,
+    },
+    previewText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: "center",
+        marginBottom: 12,
     },
     emptyState: {
         alignItems: "center",
