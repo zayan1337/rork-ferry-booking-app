@@ -11,10 +11,18 @@ import {
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useContentStore } from "@/store/admin/contentStore";
+// UPDATED: Replace old content store with new zone store
+import { useZoneStore } from "@/store/admin/zoneStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { Zone } from "@/types/content";
-import { calculateZoneStats, searchZones, filterZonesByStatus, sortZones } from "@/utils/zoneUtils";
+// UPDATED: Use AdminManagement types for consistency
+import { AdminManagement } from "@/types";
+// UPDATED: Use new utility functions from admin folder, but keep legacy stats for UI compatibility
+import {
+    searchZones,
+    filterZonesByStatus,
+    sortZones
+} from "@/utils/admin/zoneUtils";
+import { calculateZoneStats } from "@/utils/zoneUtils"; // Keep legacy stats calculation for UI compatibility
 import {
     ArrowLeft,
     Plus,
@@ -41,10 +49,23 @@ import ZoneItem from "@/components/admin/ZoneItem";
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
+type Zone = AdminManagement.Zone;
+
 export default function ZonesScreen() {
     const { canViewSettings, canManageSettings } = useAdminPermissions();
-    const { zones, loading, fetchZones } = useContentStore();
 
+    // UPDATED: Use new zone store instead of content store
+    const {
+        data: zones,
+        loading,
+        error,
+        stats: zoneStoreStats,
+        fetchAll: fetchZones,
+        refreshAll,
+        setSearchQuery: setStoreSearchQuery,
+    } = useZoneStore();
+
+    // Maintain existing local state for filters and UI (zone store doesn't have sort state management)
     const [searchQuery, setSearchQuery] = useState("");
     const [filterActive, setFilterActive] = useState<boolean | null>(null);
     const [sortBy, setSortBy] = useState<"name" | "code" | "order_index" | "created_at">("order_index");
@@ -53,9 +74,14 @@ export default function ZonesScreen() {
     const [showFilters, setShowFilters] = useState(false);
     const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
+    // Sync search query with store
+    useEffect(() => {
+        setStoreSearchQuery(searchQuery);
+    }, [searchQuery, setStoreSearchQuery]);
+
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await fetchZones();
+        await refreshAll();
         setIsRefreshing(false);
     };
 
@@ -95,6 +121,7 @@ export default function ZonesScreen() {
         return filtered;
     }, [zones, searchQuery, filterActive, sortBy, sortOrder]);
 
+    // UPDATED: Calculate stats using new utility function
     const stats = React.useMemo(() => {
         return calculateZoneStats(zones || []);
     }, [zones]);
@@ -105,10 +132,11 @@ export default function ZonesScreen() {
         }
     }, []);
 
+    // UPDATED: Cast zone to content Zone type for component compatibility
     const renderZoneItem = ({ item, index }: { item: Zone; index: number }) => (
         <ZoneItem
             key={item.id}
-            zone={item}
+            zone={item as any} // Safe cast since our Zone type includes all required fields
             onPress={handleZonePress}
         />
     );
@@ -136,6 +164,7 @@ export default function ZonesScreen() {
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
                             <MapPin size={16} color={colors.info} />
                         </View>
+                        {/* UPDATED: Use withIslands from legacy stats calculation for UI compatibility */}
                         <Text style={styles.quickStatValue}>{stats.withIslands}</Text>
                         <Text style={styles.quickStatLabel}>With Islands</Text>
                     </View>
@@ -338,6 +367,7 @@ export default function ZonesScreen() {
                 }}
             />
 
+            {/* UPDATED: Use loading state from new zone store */}
             {loading.zones ? (
                 <View style={styles.loadingContainer}>
                     <LoadingSpinner />

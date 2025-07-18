@@ -1,3 +1,13 @@
+// ============================================================================
+// MANAGEMENT TYPES - Consistent types for admin management  
+// ============================================================================
+// Import admin management types to avoid conflicts with legacy types
+import * as AdminManagement from './admin/management';
+export { AdminManagement };
+
+// ============================================================================
+// LEGACY USER TYPES
+// ============================================================================
 export type User = {
   id: string;
   fullName: string;

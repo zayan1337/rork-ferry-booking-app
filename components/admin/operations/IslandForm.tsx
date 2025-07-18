@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
 import { colors } from "@/constants/adminColors";
-import { DatabaseIsland } from "@/types/database";
-import { Zone } from "@/types/content";
-import { useOperationsStore } from "@/store/admin/operationsStore";
-import { useContentStore } from "@/store/admin/contentStore";
+// UPDATED: Use AdminManagement types for consistency
+import { AdminManagement } from "@/types";
+// UPDATED: Replace old stores with new implementation
+import { useIslandManagement } from "@/hooks/useIslandManagement";
+import { useZoneStore } from "@/store/admin/zoneStore";
 import {
     MapPin,
     Activity,
@@ -24,9 +25,12 @@ import Button from "@/components/admin/Button";
 import Dropdown from "@/components/admin/Dropdown";
 import Switch from "@/components/admin/Switch";
 
+type Island = AdminManagement.Island;
+type Zone = AdminManagement.Zone;
+
 interface IslandFormProps {
-    initialData?: DatabaseIsland;
-    onSuccess?: (island: DatabaseIsland) => void;
+    initialData?: Island; // Use new Island type
+    onSuccess?: (island: Island) => void;
     onError?: (error: string) => void;
 }
 
@@ -44,8 +48,17 @@ interface ValidationErrors {
 }
 
 export default function IslandForm({ initialData, onSuccess, onError }: IslandFormProps) {
-    const { addIsland, updateIslandData } = useOperationsStore();
-    const { zones, fetchZones } = useContentStore();
+    // UPDATED: Use new island management and zone store
+    const {
+        create: addIsland,
+        update: updateIslandData,
+        validateData,
+    } = useIslandManagement();
+
+    const {
+        data: zones,
+        fetchAll: fetchZones
+    } = useZoneStore();
 
     const [formData, setFormData] = useState<FormData>({
         name: initialData?.name || '',
@@ -85,15 +98,14 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
     const validateForm = (): boolean => {
         const errors: ValidationErrors = {};
 
-        // Name validation
-        if (!formData.name.trim()) {
-            errors.name = 'Island name is required';
-        } else if (formData.name.trim().length < 2) {
-            errors.name = 'Island name must be at least 2 characters long';
-        } else if (formData.name.trim().length > 100) {
-            errors.name = 'Island name must be less than 100 characters';
-        } else if (!/^[a-zA-Z0-9\s.-]+$/.test(formData.name.trim())) {
-            errors.name = 'Island name can only contain letters, numbers, spaces, dots, and dashes';
+        // UPDATED: Use new validation method
+        const validation = validateData({
+            name: formData.name,
+            zone_id: formData.zone_id,
+        });
+
+        if (!validation.isValid) {
+            Object.assign(errors, validation.errors);
         }
 
         // Zone validation
@@ -114,8 +126,6 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
         setValidationErrors({});
 
         try {
-            let success = false;
-
             // Get selected zone for backward compatibility
             const selectedZone = zones?.find(z => z.id === formData.zone_id);
             const submitData = {
@@ -125,54 +135,47 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
                 is_active: formData.is_active,
             };
 
+            let result: Island;
+
             if (initialData) {
-                // Update existing island
-                success = await updateIslandData(initialData.id, submitData);
+                // UPDATED: Use new update method
+                result = await updateIslandData(initialData.id, submitData);
             } else {
-                // Create new island
-                success = await addIsland(submitData);
+                // UPDATED: Use new create method
+                result = await addIsland(submitData);
             }
 
-            if (success) {
-                Alert.alert(
-                    "Success",
-                    initialData ? "Island updated successfully" : "Island created successfully",
-                    [
-                        {
-                            text: "OK",
-                            onPress: () => {
-                                if (onSuccess) {
-                                    onSuccess(formData as any);
-                                }
+            Alert.alert(
+                "Success",
+                initialData ? "Island updated successfully" : "Island created successfully",
+                [
+                    {
+                        text: "OK",
+                        onPress: () => {
+                            if (onSuccess) {
+                                onSuccess(result);
                             }
                         }
-                    ]
-                );
+                    }
+                ]
+            );
 
-                // Reset form if creating new island
-                if (!initialData) {
-                    setFormData({
-                        name: '',
-                        zone_id: '',
-                        zone: '',
-                        is_active: true,
-                    });
-                    setHasChanges(false);
-                }
-            } else {
-                const errorMessage = initialData
-                    ? "Failed to update island"
-                    : "Failed to create island";
-                setValidationErrors({ general: errorMessage });
-                if (onError) {
-                    onError(errorMessage);
-                }
+            // Reset form if creating new island
+            if (!initialData) {
+                setFormData({
+                    name: '',
+                    zone_id: '',
+                    zone: '',
+                    is_active: true,
+                });
+                setHasChanges(false);
             }
         } catch (error) {
             console.error('Error saving island:', error);
-            const errorMessage = initialData
-                ? "Failed to update island. Please check your connection and try again."
-                : "Failed to create island. Please check your connection and try again.";
+            const errorMessage = error instanceof Error ? error.message :
+                (initialData
+                    ? "Failed to update island. Please check your connection and try again."
+                    : "Failed to create island. Please check your connection and try again.");
             setValidationErrors({ general: errorMessage });
             if (onError) {
                 onError(errorMessage);

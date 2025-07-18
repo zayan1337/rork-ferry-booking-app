@@ -11,9 +11,11 @@ import {
 } from "react-native";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useContentStore } from "@/store/admin/contentStore";
+// UPDATED: Replace old content store with new zone store
+import { useZoneStore } from "@/store/admin/zoneStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { Zone } from "@/types/content";
+// UPDATED: Use AdminManagement types for consistency
+import { AdminManagement } from "@/types";
 import {
     ArrowLeft,
     Edit,
@@ -37,10 +39,20 @@ import LoadingSpinner from "@/components/admin/LoadingSpinner";
 
 const { width: screenWidth } = Dimensions.get('window');
 
+type Zone = AdminManagement.Zone;
+
 export default function ZoneDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const { canViewSettings, canManageSettings } = useAdminPermissions();
-    const { zones, getZone, deleteZone, fetchZones } = useContentStore();
+
+    // UPDATED: Use new zone store instead of content store
+    const {
+        data: zones,
+        getZoneById,
+        delete: deleteZone,
+        fetchAll: fetchZones,
+        fetchById,
+    } = useZoneStore();
 
     const [zone, setZone] = useState<Zone | null>(null);
     const [loading, setLoading] = useState(true);
@@ -54,14 +66,23 @@ export default function ZoneDetailScreen() {
 
         try {
             setLoading(true);
-            const zoneData = getZone(id);
+
+            // UPDATED: Use new zone store methods
+            // First try to get from current store data
+            const zoneData = getZoneById(id);
             if (zoneData) {
                 setZone(zoneData);
             } else {
-                // Zone not found in store, try to fetch
-                await fetchZones();
-                const refreshedZone = getZone(id);
-                setZone(refreshedZone || null);
+                // Zone not found in store, fetch it
+                const fetchedZone = await fetchById(id);
+                setZone(fetchedZone);
+
+                // If still not found, refresh all zones
+                if (!fetchedZone) {
+                    await fetchZones();
+                    const refreshedZone = getZoneById(id);
+                    setZone(refreshedZone || null);
+                }
             }
         } catch (error) {
             console.error("Error loading zone:", error);

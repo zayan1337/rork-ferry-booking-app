@@ -3,8 +3,10 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Text } from "rea
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { ArrowLeft, Edit, AlertCircle, RotateCcw } from "lucide-react-native";
-import { DatabaseIsland } from "@/types/database";
-import { useOperationsStore } from "@/store/admin/operationsStore";
+// UPDATED: Use AdminManagement types for consistency
+import { AdminManagement } from "@/types";
+// UPDATED: Replace old store with new implementation
+import { useIslandManagement, useIslandDetails } from "@/hooks/useIslandManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 
 // Components
@@ -12,16 +14,25 @@ import IslandForm from "@/components/admin/operations/IslandForm";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
 import Button from "@/components/admin/Button";
 
+type Island = AdminManagement.Island;
+
 export default function EditIslandScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const { fetchIsland } = useOperationsStore();
     const { canUpdateIslands } = useAdminPermissions();
 
-    const [island, setIsland] = useState<DatabaseIsland | null>(null);
+    // UPDATED: Use new island management hooks
+    const { getById: getIslandById } = useIslandManagement();
+    const {
+        island: currentIsland,
+        loading: detailLoading,
+        loadIsland,
+    } = useIslandDetails(id || '');
+
+    const [island, setIsland] = useState<Island | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const loadIsland = async () => {
+    const loadIslandData = async () => {
         if (!id) {
             setError("Invalid island ID");
             setLoading(false);
@@ -31,7 +42,17 @@ export default function EditIslandScreen() {
         try {
             setLoading(true);
             setError(null);
-            const islandData = await fetchIsland(id);
+
+            // UPDATED: Use new island loading methods
+            // First try to get from current store data
+            let islandData = getIslandById(id);
+
+            if (!islandData) {
+                // Island not in store, fetch it
+                await loadIsland();
+                islandData = currentIsland || undefined;
+            }
+
             if (islandData) {
                 setIsland(islandData);
             } else {
@@ -48,7 +69,7 @@ export default function EditIslandScreen() {
     const handleSuccess = () => {
         Alert.alert(
             "Success",
-            "Island updated successfully!",
+            "Island updated successfully",
             [
                 {
                     text: "OK",
@@ -58,17 +79,26 @@ export default function EditIslandScreen() {
         );
     };
 
-    const handleError = (errorMessage: string) => {
-        Alert.alert("Error", errorMessage);
+    const handleError = (error: string) => {
+        console.error("Error updating island:", error);
+        setError(error);
     };
 
     const handleRetry = () => {
-        loadIsland();
+        setError(null);
+        loadIslandData();
     };
 
     useEffect(() => {
-        loadIsland();
+        loadIslandData();
     }, [id]);
+
+    // Update local island state when currentIsland changes
+    useEffect(() => {
+        if (currentIsland && !island) {
+            setIsland(currentIsland);
+        }
+    }, [currentIsland, island]);
 
     if (!canUpdateIslands()) {
         return (
@@ -104,7 +134,10 @@ export default function EditIslandScreen() {
         );
     }
 
-    if (loading) {
+    // UPDATED: Use combined loading state from new hook and local state
+    const isLoading = loading || detailLoading;
+
+    if (isLoading) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
@@ -128,7 +161,7 @@ export default function EditIslandScreen() {
         );
     }
 
-    if (error || !island) {
+    if (error) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
@@ -148,30 +181,55 @@ export default function EditIslandScreen() {
                     <View style={styles.errorIcon}>
                         <AlertCircle size={48} color={colors.error} />
                     </View>
-                    <Text style={styles.errorTitle}>
-                        {error || "Island not found"}
-                    </Text>
-                    <Text style={styles.errorMessage}>
-                        {error === "Failed to load island details"
-                            ? "Please check your connection and try again."
-                            : "The island you're trying to edit doesn't exist or may have been deleted."
-                        }
-                    </Text>
-                    <View style={styles.errorActions}>
-                        {error === "Failed to load island details" && (
-                            <Button
-                                title="Retry"
-                                variant="primary"
-                                onPress={handleRetry}
-                                icon={<RotateCcw size={20} color={colors.white} />}
-                            />
-                        )}
+                    <Text style={styles.errorTitle}>Unable to Load Island</Text>
+                    <Text style={styles.errorText}>{error}</Text>
+                    <View style={styles.errorButtons}>
+                        <Button
+                            title="Try Again"
+                            variant="primary"
+                            onPress={handleRetry}
+                            icon={<RotateCcw size={20} color={colors.white} />}
+                        />
                         <Button
                             title="Go Back"
                             variant="outline"
                             onPress={() => router.back()}
                         />
                     </View>
+                </View>
+            </View>
+        );
+    }
+
+    if (!island) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Island Not Found",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
+                    }}
+                />
+                <View style={styles.errorContainer}>
+                    <View style={styles.errorIcon}>
+                        <AlertCircle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.errorTitle}>Island Not Found</Text>
+                    <Text style={styles.errorText}>
+                        The requested island could not be found.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
                 </View>
             </View>
         );
@@ -195,7 +253,7 @@ export default function EditIslandScreen() {
 
             <ScrollView
                 style={styles.scrollView}
-                contentContainerStyle={styles.contentContainer}
+                contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
                 <IslandForm
@@ -251,7 +309,7 @@ const styles = StyleSheet.create({
     scrollView: {
         flex: 1,
     },
-    contentContainer: {
+    scrollContent: {
         flexGrow: 1,
         padding: 20,
         paddingBottom: 40,
@@ -290,7 +348,7 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginBottom: 8,
     },
-    errorMessage: {
+    errorText: {
         fontSize: 15,
         color: colors.textSecondary,
         textAlign: "center",
@@ -298,7 +356,7 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         marginBottom: 20,
     },
-    errorActions: {
+    errorButtons: {
         gap: 16,
         width: "100%",
         maxWidth: 300,

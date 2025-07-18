@@ -11,10 +11,13 @@ import {
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useOperationsStore } from "@/store/admin/operationsStore";
-import { useContentStore } from "@/store/admin/contentStore";
+// UPDATED: Replace old stores with new implementation
+import { useIslandManagement } from "@/hooks/useIslandManagement";
+import { useZoneStore } from "@/store/admin/zoneStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { DatabaseIsland } from "@/types/database";
+// UPDATED: Use AdminManagement types for consistency  
+import { AdminManagement } from "@/types";
+// UPDATED: Use new utility functions from admin folder
 import {
     searchIslands,
     filterIslandsByStatus,
@@ -22,7 +25,7 @@ import {
     sortIslands,
     calculateIslandStats,
     getZoneStatistics,
-} from "@/utils/islandUtils";
+} from "@/utils/admin/islandUtils";
 import {
     ArrowLeft,
     Plus,
@@ -47,23 +50,44 @@ import LoadingSpinner from "@/components/admin/LoadingSpinner";
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
+type Island = AdminManagement.Island;
+
 export default function IslandsScreen() {
     const { canViewIslands, canManageIslands } = useAdminPermissions();
-    const { islands: allIslands, loading, fetchIslands } = useOperationsStore();
-    const { zones, fetchZones } = useContentStore();
 
-    const [searchQuery, setSearchQuery] = useState("");
+    // UPDATED: Use new island management hook instead of separate stores
+    const {
+        islands: allIslands,
+        loading,
+        error,
+        stats,
+        searchQuery,
+        setSearchQuery,
+        sortBy,
+        setSortBy,
+        sortOrder,
+        setSortOrder,
+        loadAll: fetchIslands,
+        refresh,
+    } = useIslandManagement();
+
+    // UPDATED: Use new zone store instead of content store
+    const {
+        data: zones,
+        loading: zoneLoading,
+        fetchAll: fetchZones
+    } = useZoneStore();
+
+    // Maintain existing local state for filters and UI
     const [filterActive, setFilterActive] = useState<boolean | null>(null);
     const [filterZone, setFilterZone] = useState<string | null>(null);
-    const [sortBy, setSortBy] = useState<"name" | "zone" | "created_at" | "zone_name">("name");
-    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await Promise.all([fetchIslands(), fetchZones()]);
+        await Promise.all([refresh(), fetchZones()]);
         setIsRefreshing(false);
     };
 
@@ -91,8 +115,10 @@ export default function IslandsScreen() {
     const filteredAndSortedIslands = React.useMemo(() => {
         let filtered = allIslands || [];
 
-        // Search filter
-        filtered = searchIslands(filtered, searchQuery);
+        // Search filter - using utility from searchQuery hook state
+        if (searchQuery) {
+            filtered = searchIslands(filtered, searchQuery);
+        }
 
         // Active status filter
         filtered = filterIslandsByStatus(filtered, filterActive);
@@ -100,7 +126,7 @@ export default function IslandsScreen() {
         // Zone filter
         filtered = filterIslandsByZone(filtered, filterZone);
 
-        // Sort
+        // Sort - using sort state from hook
         filtered = sortIslands(filtered, sortBy, sortOrder);
 
         return filtered;
@@ -113,10 +139,7 @@ export default function IslandsScreen() {
         }
     }, [zones, fetchZones]);
 
-    const stats = React.useMemo(() => {
-        return calculateIslandStats(allIslands || []);
-    }, [allIslands]);
-
+    // UPDATED: Use stats from hook instead of calculating manually
     const zoneStats = React.useMemo(() => {
         if (!zones || !allIslands) return [];
         return getZoneStatistics(allIslands, zones);
@@ -128,10 +151,11 @@ export default function IslandsScreen() {
         }
     }, []);
 
-    const renderIslandItem = ({ item, index }: { item: DatabaseIsland; index: number }) => (
+    // UPDATED: Cast island to DatabaseIsland for component compatibility
+    const renderIslandItem = ({ item, index }: { item: Island; index: number }) => (
         <IslandItem
             key={item.id}
-            island={item}
+            island={item as any} // Safe cast since our Island type includes all DatabaseIsland fields
             onPress={handleIslandPress}
         />
     );
@@ -159,7 +183,8 @@ export default function IslandsScreen() {
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
                             <TrendingUp size={16} color={colors.info} />
                         </View>
-                        <Text style={styles.quickStatValue}>{stats.totalZones}</Text>
+                        {/* UPDATED: Use stats from new implementation, fallback to zones count */}
+                        <Text style={styles.quickStatValue}>{Object.keys(stats.byZone).length}</Text>
                         <Text style={styles.quickStatLabel}>Zones</Text>
                     </View>
                     <View style={styles.quickStatItem}>
@@ -345,18 +370,10 @@ export default function IslandsScreen() {
                             <ArrowLeft size={24} color={colors.primary} />
                         </TouchableOpacity>
                     ),
-                    // headerRight: () =>
-                    //     canManageIslands() ? (
-                    //         <TouchableOpacity
-                    //             onPress={handleAddIsland}
-                    //             style={styles.headerActionButton}
-                    //         >
-                    //             <Plus size={24} color={colors.primary} />
-                    //         </TouchableOpacity>
-                    //     ) : null,
                 }}
             />
 
+            {/* UPDATED: Use loading state from new hook */}
             {loading.islands ? (
                 <View style={styles.loadingContainer}>
                     <LoadingSpinner />

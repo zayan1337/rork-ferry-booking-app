@@ -10,9 +10,9 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useOperationsStore } from "@/store/admin/operationsStore";
+import { useIslandManagement } from "@/hooks/useIslandManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { DatabaseIsland } from "@/types/database";
+import { AdminManagement } from "@/types";
 import {
     MapPin,
     Plus,
@@ -35,17 +35,17 @@ export default function IslandsTab({ isActive, searchQuery = "" }: IslandsTabPro
     const {
         islands,
         loading,
-        fetchIslands
-    } = useOperationsStore();
+        loadAll
+    } = useIslandManagement();
 
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Initialize islands data when tab becomes active
     useEffect(() => {
         if (isActive && canViewIslands() && islands.length === 0) {
-            fetchIslands();
+            loadAll();
         }
-    }, [isActive, canViewIslands, islands.length, fetchIslands]);
+    }, [isActive, canViewIslands, islands.length, loadAll]);
 
     const filteredIslands = useMemo(() => {
         if (!searchQuery) return islands;
@@ -53,6 +53,7 @@ export default function IslandsTab({ isActive, searchQuery = "" }: IslandsTabPro
         const query = searchQuery.toLowerCase();
         return islands.filter(island =>
             island.name.toLowerCase().includes(query) ||
+            island.zone_info?.name?.toLowerCase().includes(query) ||
             island.zone?.toLowerCase().includes(query)
         );
     }, [islands, searchQuery]);
@@ -72,7 +73,7 @@ export default function IslandsTab({ isActive, searchQuery = "" }: IslandsTabPro
     const handleRefresh = async () => {
         setIsRefreshing(true);
         try {
-            await fetchIslands();
+            await loadAll();
         } catch (error) {
             console.error("Failed to refresh islands:", error);
         } finally {
@@ -152,10 +153,10 @@ export default function IslandsTab({ isActive, searchQuery = "" }: IslandsTabPro
         </View>
     );
 
-    const renderIslandItem = ({ item, index }: { item: DatabaseIsland; index: number }) => (
+    const renderIslandItem = ({ item, index }: { item: AdminManagement.Island; index: number }) => (
         <IslandItem
             key={`island-${item.id}-${index}`}
-            island={item}
+            island={item as any}
             onPress={handleIslandPress}
         />
     );
@@ -201,7 +202,6 @@ export default function IslandsTab({ isActive, searchQuery = "" }: IslandsTabPro
                 ListEmptyComponent={renderEmptyState}
                 ListFooterComponent={renderFooter}
                 contentContainerStyle={styles.contentContainer}
-                showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
                         refreshing={isRefreshing}
@@ -210,7 +210,7 @@ export default function IslandsTab({ isActive, searchQuery = "" }: IslandsTabPro
                         tintColor={colors.primary}
                     />
                 }
-                ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+                showsVerticalScrollIndicator={false}
             />
         </View>
     );

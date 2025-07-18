@@ -37,6 +37,7 @@ export { useTripForm } from './useTripForm';
 // User Management Hooks
 export { useUserForm } from './useUserForm';
 
-// FAQ Management Hooks
+// Consistent Management Hooks
 export { useFAQManagement } from './useFAQManagement';
-export { useZoneManagement } from './useZoneManagement'; 
+export { useZoneManagement } from './useZoneManagement';
+export { useIslandManagement, useIslandsByZone, useIslandStats, useIslandDetails } from './useIslandManagement'; 

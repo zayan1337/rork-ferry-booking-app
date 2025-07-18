@@ -3,8 +3,10 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Text } from "rea
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { ArrowLeft, AlertCircle, RotateCcw } from "lucide-react-native";
-import { Zone } from "@/types/content";
-import { useContentStore } from "@/store/admin/contentStore";
+// UPDATED: Use AdminManagement types for consistency
+import { AdminManagement } from "@/types";
+// UPDATED: Replace old content store with new zone store
+import { useZoneStore } from "@/store/admin/zoneStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 
 // Components
@@ -12,10 +14,18 @@ import ZoneForm from "@/components/admin/operations/ZoneForm";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
 import Button from "@/components/admin/Button";
 
+type Zone = AdminManagement.Zone;
+
 export default function EditZoneScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const { getZone, fetchZones } = useContentStore();
     const { canManageSettings } = useAdminPermissions();
+
+    // UPDATED: Use new zone store instead of content store
+    const {
+        getZoneById,
+        fetchAll: fetchZones,
+        fetchById,
+    } = useZoneStore();
 
     const [zone, setZone] = useState<Zone | null>(null);
     const [loading, setLoading] = useState(true);
@@ -31,11 +41,21 @@ export default function EditZoneScreen() {
         try {
             setLoading(true);
             setError(null);
-            let zoneData = getZone(id);
+
+            // UPDATED: Use new zone store methods
+            // First try to get from current store data
+            let zoneData = getZoneById(id);
+
             if (!zoneData) {
-                // Zone not found in store, try to fetch
-                await fetchZones();
-                zoneData = getZone(id);
+                // Zone not found in store, fetch it
+                const fetchedZone = await fetchById(id);
+                zoneData = fetchedZone;
+
+                // If still not found, refresh all zones
+                if (!fetchedZone) {
+                    await fetchZones();
+                    zoneData = getZoneById(id);
+                }
             }
 
             if (zoneData) {
@@ -54,7 +74,7 @@ export default function EditZoneScreen() {
     const handleSuccess = () => {
         Alert.alert(
             "Success",
-            "Zone updated successfully!",
+            "Zone updated successfully",
             [
                 {
                     text: "OK",
@@ -64,11 +84,13 @@ export default function EditZoneScreen() {
         );
     };
 
-    const handleError = (errorMessage: string) => {
-        Alert.alert("Error", errorMessage);
+    const handleError = (error: string) => {
+        console.error("Error updating zone:", error);
+        setError(error);
     };
 
     const handleRetry = () => {
+        setError(null);
         loadZone();
     };
 
@@ -134,7 +156,7 @@ export default function EditZoneScreen() {
         );
     }
 
-    if (error || !zone) {
+    if (error) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
@@ -154,30 +176,55 @@ export default function EditZoneScreen() {
                     <View style={styles.errorIcon}>
                         <AlertCircle size={48} color={colors.error} />
                     </View>
-                    <Text style={styles.errorTitle}>
-                        {error || "Zone not found"}
-                    </Text>
-                    <Text style={styles.errorMessage}>
-                        {error === "Failed to load zone details"
-                            ? "Please check your connection and try again."
-                            : "The zone you're trying to edit doesn't exist or may have been deleted."
-                        }
-                    </Text>
-                    <View style={styles.errorActions}>
-                        {error === "Failed to load zone details" && (
-                            <Button
-                                title="Retry"
-                                variant="primary"
-                                onPress={handleRetry}
-                                icon={<RotateCcw size={20} color={colors.white} />}
-                            />
-                        )}
+                    <Text style={styles.errorTitle}>Unable to Load Zone</Text>
+                    <Text style={styles.errorText}>{error}</Text>
+                    <View style={styles.errorButtons}>
+                        <Button
+                            title="Try Again"
+                            variant="primary"
+                            onPress={handleRetry}
+                            icon={<RotateCcw size={20} color={colors.white} />}
+                        />
                         <Button
                             title="Go Back"
                             variant="outline"
                             onPress={() => router.back()}
                         />
                     </View>
+                </View>
+            </View>
+        );
+    }
+
+    if (!zone) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Zone Not Found",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
+                    }}
+                />
+                <View style={styles.errorContainer}>
+                    <View style={styles.errorIcon}>
+                        <AlertCircle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.errorTitle}>Zone Not Found</Text>
+                    <Text style={styles.errorText}>
+                        The requested zone could not be found.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
                 </View>
             </View>
         );
@@ -201,7 +248,7 @@ export default function EditZoneScreen() {
 
             <ScrollView
                 style={styles.scrollView}
-                contentContainerStyle={styles.contentContainer}
+                contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
                 <ZoneForm
@@ -257,7 +304,7 @@ const styles = StyleSheet.create({
     scrollView: {
         flex: 1,
     },
-    contentContainer: {
+    scrollContent: {
         flexGrow: 1,
         padding: 20,
         paddingBottom: 40,
@@ -296,7 +343,7 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginBottom: 8,
     },
-    errorMessage: {
+    errorText: {
         fontSize: 15,
         color: colors.textSecondary,
         textAlign: "center",
@@ -304,7 +351,7 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         marginBottom: 20,
     },
-    errorActions: {
+    errorButtons: {
         gap: 16,
         width: "100%",
         maxWidth: 300,

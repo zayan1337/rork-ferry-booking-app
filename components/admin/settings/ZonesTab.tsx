@@ -10,9 +10,9 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useContentStore } from "@/store/admin/contentStore";
+import { useZoneStore } from "@/store/admin/zoneStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { Zone } from "@/types/content";
+import { AdminManagement } from "@/types";
 import {
     Plus,
     Globe,
@@ -32,16 +32,17 @@ interface ZonesTabProps {
 
 export default function ZonesTab({ searchQuery = "" }: ZonesTabProps) {
     const { canManageZones, canViewZones } = useAdminPermissions();
-    const { zones, loading, fetchZones } = useContentStore();
+    const zoneStore = useZoneStore();
+    const { data: zones, loading, fetchAll } = zoneStore;
 
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Initialize zones data
     useEffect(() => {
         if (canViewZones() && zones.length === 0) {
-            fetchZones();
+            fetchAll();
         }
-    }, [canViewZones, zones.length, fetchZones]);
+    }, [canViewZones, zones.length, fetchAll]);
 
     const filteredZones = useMemo(() => {
         if (!searchQuery) return zones;
@@ -69,7 +70,7 @@ export default function ZonesTab({ searchQuery = "" }: ZonesTabProps) {
     const handleRefresh = async () => {
         setIsRefreshing(true);
         try {
-            await fetchZones();
+            await fetchAll();
         } catch (error) {
             console.error("Failed to refresh zones:", error);
         } finally {
@@ -149,10 +150,10 @@ export default function ZonesTab({ searchQuery = "" }: ZonesTabProps) {
         </View>
     );
 
-    const renderZoneItem = ({ item, index }: { item: Zone; index: number }) => (
+    const renderZoneItem = ({ item, index }: { item: AdminManagement.Zone; index: number }) => (
         <ZoneItem
             key={`zone-${item.id}-${index}`}
-            zone={item}
+            zone={item as any}
             onPress={handleZonePress}
         />
     );
@@ -198,7 +199,6 @@ export default function ZonesTab({ searchQuery = "" }: ZonesTabProps) {
                 ListEmptyComponent={renderEmptyState}
                 ListFooterComponent={renderFooter}
                 contentContainerStyle={styles.contentContainer}
-                showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
                         refreshing={isRefreshing}
@@ -207,7 +207,7 @@ export default function ZonesTab({ searchQuery = "" }: ZonesTabProps) {
                         tintColor={colors.primary}
                     />
                 }
-                ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+                showsVerticalScrollIndicator={false}
             />
         </View>
     );

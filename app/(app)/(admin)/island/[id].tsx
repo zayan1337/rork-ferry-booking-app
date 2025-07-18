@@ -11,9 +11,10 @@ import {
 } from "react-native";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
+import { useIslandDetails } from "@/hooks/useIslandManagement";
 import { useOperationsStore } from "@/store/admin/operationsStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { DatabaseIsland } from "@/types/database";
+import { AdminManagement } from "@/types";
 import {
   ArrowLeft,
   Edit,
@@ -43,22 +44,31 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function IslandDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canUpdateIslands, canDeleteIslands, canViewRoutes, canViewIslands } = useAdminPermissions();
-  const { fetchIsland, removeIsland, routes, fetchRoutes } = useOperationsStore();
 
-  const [island, setIsland] = useState<DatabaseIsland | null>(null);
+  // Use new island details hook
+  const {
+    island,
+    islandWithDetails,
+    loading: islandLoading,
+    error,
+    loadIsland
+  } = useIslandDetails(id!);
+
+  // Keep operations store for route statistics (until routes are migrated)
+  const { routes, fetchRoutes, removeIsland } = useOperationsStore();
+
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isTablet = screenWidth >= 768;
 
-  const loadIsland = async () => {
+  const loadIslandData = async () => {
     if (!id) return;
 
     try {
       setLoading(true);
-      const islandData = await fetchIsland(id);
-      setIsland(islandData);
+      await loadIsland();
       // Also fetch routes to calculate statistics
       await fetchRoutes();
     } catch (error) {
@@ -71,7 +81,7 @@ export default function IslandDetailScreen() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await loadIsland();
+    await loadIslandData();
     setIsRefreshing(false);
   };
 
@@ -192,7 +202,7 @@ export default function IslandDetailScreen() {
   };
 
   useEffect(() => {
-    loadIsland();
+    loadIslandData();
   }, [id]);
 
   if (!canViewIslands()) {
@@ -229,7 +239,7 @@ export default function IslandDetailScreen() {
     );
   }
 
-  if (loading) {
+  if (loading || islandLoading) {
     return (
       <View style={styles.container}>
         <Stack.Screen
@@ -269,13 +279,13 @@ export default function IslandDetailScreen() {
             ),
           }}
         />
-        <View style={styles.notFoundContainer}>
-          <View style={styles.notFoundIcon}>
-            <AlertCircle size={48} color={colors.warning} />
+        <View style={styles.errorContainer}>
+          <View style={styles.errorIcon}>
+            <AlertCircle size={48} color={colors.error} />
           </View>
-          <Text style={styles.notFoundTitle}>Island Not Found</Text>
-          <Text style={styles.notFoundText}>
-            The island you're looking for doesn't exist or may have been deleted.
+          <Text style={styles.errorTitle}>Island Not Found</Text>
+          <Text style={styles.errorText}>
+            The island you're looking for doesn't exist or has been removed.
           </Text>
           <Button
             title="Go Back"
@@ -612,14 +622,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: "500",
   },
-  notFoundContainer: {
+  errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
     gap: 20,
   },
-  notFoundIcon: {
+  errorIcon: {
     width: 80,
     height: 80,
     borderRadius: 40,
@@ -628,14 +638,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
-  notFoundTitle: {
+  errorTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: colors.text,
     textAlign: "center",
     marginBottom: 8,
   },
-  notFoundText: {
+  errorText: {
     fontSize: 15,
     color: colors.textSecondary,
     textAlign: "center",
