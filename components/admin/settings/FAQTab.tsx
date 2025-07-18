@@ -354,7 +354,6 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flexGrow: 1,
-        paddingHorizontal: 16,
     },
     sectionContent: {
         marginBottom: 16,
@@ -365,7 +364,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
         marginBottom: 20,
         minHeight: 44,
-        paddingHorizontal: 4,
+        paddingHorizontal: 16,
+
     },
     sectionHeaderContent: {
         flex: 1,
@@ -404,6 +404,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 2,
         marginBottom: 16,
+        marginHorizontal: 16,
     },
     tabToggle: {
         flex: 1,

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -20,6 +20,9 @@ import {
     Hash,
     ToggleLeft,
     Type,
+    Info,
+    Settings,
+    RotateCcw,
 } from "lucide-react-native";
 
 // Components
@@ -49,10 +52,24 @@ const FAQCategoryForm: React.FC<FAQCategoryFormProps> = ({
         is_active: category?.is_active ?? true,
     });
 
+    const [initialData] = useState<FAQCategoryFormData>({
+        name: category?.name || "",
+        description: category?.description || "",
+        order_index: category?.order_index || 0,
+        is_active: category?.is_active ?? true,
+    });
+
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
 
     const isEditing = !!category;
+
+    // Track form changes
+    useEffect(() => {
+        const hasFormChanges = JSON.stringify(formData) !== JSON.stringify(initialData);
+        setHasChanges(hasFormChanges);
+    }, [formData, initialData]);
 
     const validateForm = (): boolean => {
         const newErrors: Record<string, string> = {};
@@ -108,6 +125,8 @@ const FAQCategoryForm: React.FC<FAQCategoryFormProps> = ({
                 setErrors({ name: errorMessage });
             } else if (errorMessage.toLowerCase().includes('description')) {
                 setErrors({ description: errorMessage });
+            } else {
+                setErrors({ general: errorMessage });
             }
         } finally {
             setSubmitting(false);
@@ -123,166 +142,241 @@ const FAQCategoryForm: React.FC<FAQCategoryFormProps> = ({
         }
     };
 
+    const handleReset = () => {
+        setFormData(initialData);
+        setErrors({});
+        setHasChanges(false);
+    };
+
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerIcon}>
-                        <Folder size={24} color={colors.primary} />
-                    </View>
-                    <Text style={styles.headerTitle}>
+        <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <View style={styles.headerIcon}>
+                    <Folder size={24} color={colors.primary} />
+                </View>
+                <View style={styles.headerContent}>
+                    <Text style={styles.title}>
                         {isEditing ? "Edit FAQ Category" : "Create New Category"}
                     </Text>
-                    <Text style={styles.headerSubtitle}>
+                    <Text style={styles.subtitle}>
                         {isEditing
-                            ? "Update the category information below"
+                            ? "Update the category information and settings"
                             : "Create a new category to organize your FAQs"
                         }
                     </Text>
                 </View>
+            </View>
 
-                {/* Form Fields */}
-                <View style={styles.formContainer}>
-                    {/* Category Name */}
-                    <View style={styles.fieldContainer}>
-                        <Text style={styles.fieldLabel}>
-                            <Type size={16} color={colors.textSecondary} /> Category Name *
-                        </Text>
-                        <TextInput
-                            label="Category Name"
-                            value={formData.name}
-                            onChangeText={(value) => handleFieldChange('name', value)}
-                            placeholder="Enter category name"
-                            error={errors.name}
-                        />
-                        <Text style={styles.helperText}>
-                            Minimum 3 characters. Current: {formData.name.length}
-                        </Text>
-                        {errors.name && (
-                            <Text style={styles.errorText}>{errors.name}</Text>
-                        )}
-                    </View>
+            <KeyboardAvoidingView
+                style={styles.keyboardContainer}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
+                <ScrollView
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="interactive"
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled={true}
+                    contentInsetAdjustmentBehavior="automatic"
+                >
+                    {/* Basic Information */}
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <View style={styles.sectionHeaderIcon}>
+                                <Info size={20} color={colors.primary} />
+                            </View>
+                            <Text style={styles.sectionTitle}>Basic Information</Text>
+                        </View>
 
-                    {/* Description */}
-                    <View style={styles.fieldContainer}>
-                        <Text style={styles.fieldLabel}>
-                            <FileText size={16} color={colors.textSecondary} /> Description
-                        </Text>
-                        <TextInput
-                            label="Description"
-                            value={formData.description || ""}
-                            onChangeText={(value) => handleFieldChange('description', value)}
-                            placeholder="Enter a brief description (optional)"
-                            multiline
-                            numberOfLines={3}
-                            error={errors.description}
-                        />
-                        <Text style={styles.helperText}>
-                            Optional. Maximum 200 characters. Current: {(formData.description || "").length}
-                        </Text>
-                        {errors.description && (
-                            <Text style={styles.errorText}>{errors.description}</Text>
-                        )}
-                    </View>
-
-                    {/* Order Index */}
-                    <View style={styles.fieldContainer}>
-                        <Text style={styles.fieldLabel}>
-                            <Hash size={16} color={colors.textSecondary} /> Display Order
-                        </Text>
-                        <TextInput
-                            label="Display Order"
-                            value={formData.order_index.toString()}
-                            onChangeText={(value) => {
-                                const numValue = parseInt(value) || 0;
-                                handleFieldChange('order_index', numValue);
-                            }}
-                            placeholder="0"
-                            keyboardType="numeric"
-                            error={errors.order_index}
-                        />
-                        <Text style={styles.helperText}>
-                            Lower numbers appear first in the list
-                        </Text>
-                        {errors.order_index && (
-                            <Text style={styles.errorText}>{errors.order_index}</Text>
-                        )}
-                    </View>
-
-                    {/* Active Status */}
-                    <View style={styles.fieldContainer}>
-                        <Text style={styles.fieldLabel}>
-                            <ToggleLeft size={16} color={colors.textSecondary} /> Status
-                        </Text>
-                        <View style={styles.switchContainer}>
-                            <Switch
-                                label="Status"
-                                value={formData.is_active}
-                                onValueChange={(value) => handleFieldChange('is_active', value)}
+                        <View style={styles.formGroup}>
+                            <TextInput
+                                label="Category Name"
+                                value={formData.name}
+                                onChangeText={(value) => handleFieldChange('name', value)}
+                                placeholder="Enter category name"
+                                error={errors.name}
+                                required
                             />
-                            <Text style={styles.switchLabel}>
-                                {formData.is_active ? "Active" : "Inactive"}
+                            <Text style={styles.helperText}>
+                                Minimum 3 characters. Current: {formData.name.length}
                             </Text>
                         </View>
-                        <Text style={styles.helperText}>
-                            {formData.is_active
-                                ? "This category will be available for new FAQs"
-                                : "This category will be hidden from new FAQ creation"
-                            }
+
+                        <View style={styles.formGroup}>
+                            <TextInput
+                                label="Description"
+                                value={formData.description || ""}
+                                onChangeText={(value) => handleFieldChange('description', value)}
+                                placeholder="Enter a brief description (optional)"
+                                multiline
+                                numberOfLines={3}
+                                error={errors.description}
+                            />
+                            <Text style={styles.helperText}>
+                                Optional. Maximum 500 characters. Current: {(formData.description || "").length}
+                            </Text>
+                        </View>
+                    </View>
+
+                    {/* Settings */}
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <View style={[
+                                styles.sectionHeaderIcon,
+                                { backgroundColor: formData.is_active ? colors.successLight : colors.backgroundTertiary }
+                            ]}>
+                                <Settings size={20} color={formData.is_active ? colors.success : colors.textSecondary} />
+                            </View>
+                            <Text style={styles.sectionTitle}>Settings</Text>
+                        </View>
+
+                        <View style={styles.formGroup}>
+                            <TextInput
+                                label="Display Order"
+                                value={formData.order_index.toString()}
+                                onChangeText={(value) => {
+                                    const numValue = parseInt(value) || 0;
+                                    handleFieldChange('order_index', numValue);
+                                }}
+                                placeholder="0"
+                                keyboardType="numeric"
+                                error={errors.order_index}
+                            />
+                            <Text style={styles.helperText}>
+                                Lower numbers appear first in the list
+                            </Text>
+                        </View>
+
+                        <View style={styles.switchContainer}>
+                            <Switch
+                                label="Active Status"
+                                value={formData.is_active}
+                                onValueChange={(value) => handleFieldChange('is_active', value)}
+                                description={formData.is_active
+                                    ? "This category will be available for new FAQs"
+                                    : "This category will be hidden from new FAQ creation"
+                                }
+                            />
+                        </View>
+                    </View>
+
+                    {/* Error Display */}
+                    {errors.general && (
+                        <View style={styles.errorContainer}>
+                            <View style={styles.errorIcon}>
+                                <AlertCircle size={16} color={colors.error} />
+                            </View>
+                            <Text style={styles.errorText}>{errors.general}</Text>
+                        </View>
+                    )}
+
+                    {/* Action Buttons */}
+                    <View style={styles.buttonContainer}>
+                        <Button
+                            title={isEditing ? "Update Category" : "Create Category"}
+                            onPress={handleSubmit}
+                            variant="primary"
+                            icon={<Save size={20} color={hasChanges ? colors.white : colors.textSecondary} />}
+                            loading={submitting}
+                            disabled={submitting || !hasChanges}
+                        />
+
+                        {hasChanges && (
+                            <Button
+                                title="Reset Changes"
+                                onPress={handleReset}
+                                variant="outline"
+                                disabled={submitting}
+                                icon={<RotateCcw size={20} color={colors.primary} />}
+                            />
+                        )}
+
+                        {onCancel && (
+                            <Button
+                                title="Cancel"
+                                onPress={onCancel}
+                                variant="outline"
+                                icon={<X size={20} color={colors.textSecondary} />}
+                                disabled={submitting}
+                            />
+                        )}
+                    </View>
+
+                    {/* Form Status */}
+                    {hasChanges && (
+                        <View style={styles.statusContainer}>
+                            <View style={styles.statusIcon}>
+                                <AlertCircle size={14} color={colors.warning} />
+                            </View>
+                            <Text style={styles.statusText}>
+                                You have unsaved changes
+                            </Text>
+                        </View>
+                    )}
+
+                    {/* Info Card */}
+                    <View style={styles.infoCard}>
+                        <View style={styles.infoIcon}>
+                            <AlertCircle size={16} color={colors.info} />
+                        </View>
+                        <Text style={styles.infoText}>
+                            Categories help organize your FAQs and make them easier for users to find.
+                            Choose clear, descriptive names that represent the type of questions in each category.
                         </Text>
                     </View>
-                </View>
-
-                {/* Action Buttons */}
-                <View style={styles.actionContainer}>
-                    <Button
-                        title={isEditing ? "Update Category" : "Create Category"}
-                        onPress={handleSubmit}
-                        variant="primary"
-                        icon={<Save size={20} color={colors.white} />}
-                        loading={submitting}
-                        disabled={submitting}
-                        style={styles.submitButton}
-                    />
-
-                    {onCancel && (
-                        <Button
-                            title="Cancel"
-                            onPress={onCancel}
-                            variant="outline"
-                            icon={<X size={20} color={colors.textSecondary} />}
-                            disabled={submitting}
-                            style={styles.cancelButton}
-                        />
-                    )}
-                </View>
-
-                {/* Info Card */}
-                <View style={styles.infoCard}>
-                    <AlertCircle size={16} color={colors.info} />
-                    <Text style={styles.infoText}>
-                        Categories help organize your FAQs and make them easier for users to find.
-                        Choose clear, descriptive names that represent the type of questions in each category.
-                    </Text>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.backgroundSecondary,
+    },
+    keyboardContainer: {
+        flex: 1,
+    },
+    header: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.card,
+        padding: 24,
+        borderRadius: 16,
+        marginBottom: 24,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    headerIcon: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: colors.primaryLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 16,
+    },
+    headerContent: {
+        flex: 1,
+    },
+    title: {
+        fontSize: 22,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 4,
+        lineHeight: 28,
+    },
+    subtitle: {
+        fontSize: 15,
+        color: colors.textSecondary,
+        lineHeight: 20,
+        fontWeight: "500",
     },
     scrollView: {
         flex: 1,
@@ -290,94 +384,137 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingBottom: 32,
     },
-    header: {
+    section: {
         backgroundColor: colors.card,
+        borderRadius: 16,
         padding: 24,
-        alignItems: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.background,
+        marginBottom: 20,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
     },
-    headerIcon: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+    sectionHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 20,
+        gap: 12,
+    },
+    sectionHeaderIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         backgroundColor: colors.primaryLight,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
+        alignItems: "center",
+        justifyContent: "center",
     },
-    headerTitle: {
-        fontSize: 24,
-        fontWeight: '700',
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "700",
         color: colors.text,
-        marginBottom: 8,
+        lineHeight: 24,
     },
-    headerSubtitle: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        textAlign: 'center',
-    },
-    formContainer: {
-        padding: 16,
-        gap: 24,
-    },
-    fieldContainer: {
-        marginBottom: 4,
-    },
-    fieldLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 8,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+    formGroup: {
+        marginBottom: 20,
     },
     helperText: {
         fontSize: 14,
         color: colors.textTertiary,
         marginTop: 6,
-    },
-    errorText: {
-        fontSize: 14,
-        color: colors.error,
-        marginTop: 6,
+        fontWeight: "500",
     },
     switchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        marginBottom: 8,
+    },
+    errorContainer: {
+        flexDirection: "row",
+        alignItems: "center",
         gap: 12,
-        paddingVertical: 8,
+        backgroundColor: colors.errorLight,
+        padding: 20,
+        borderRadius: 16,
+        marginBottom: 20,
+        borderLeftWidth: 3,
+        borderLeftColor: colors.error,
     },
-    switchLabel: {
-        fontSize: 16,
-        color: colors.text,
-        fontWeight: '500',
+    errorIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: colors.error + '20',
+        alignItems: "center",
+        justifyContent: "center",
     },
-    actionContainer: {
+    errorText: {
+        flex: 1,
+        fontSize: 14,
+        color: colors.error,
+        fontWeight: "500",
+        lineHeight: 20,
+    },
+    buttonContainer: {
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 20,
+        gap: 12,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    statusContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        backgroundColor: colors.warningLight,
         padding: 16,
-        gap: 12,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderLeftWidth: 3,
+        borderLeftColor: colors.warning,
     },
-    submitButton: {
-        height: 56,
+    statusIcon: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: colors.warning + '20',
+        alignItems: "center",
+        justifyContent: "center",
     },
-    cancelButton: {
-        height: 48,
+    statusText: {
+        fontSize: 14,
+        color: colors.warning,
+        fontWeight: "600",
+        lineHeight: 18,
     },
     infoCard: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
+        flexDirection: "row",
+        alignItems: "flex-start",
         backgroundColor: colors.infoLight,
-        padding: 16,
-        margin: 16,
-        borderRadius: 12,
+        padding: 20,
+        borderRadius: 16,
         gap: 12,
+        borderLeftWidth: 3,
+        borderLeftColor: colors.info,
+    },
+    infoIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: colors.info + '20',
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 2,
     },
     infoText: {
         flex: 1,
         fontSize: 14,
         color: colors.info,
         lineHeight: 20,
+        fontWeight: "500",
     },
 });
 

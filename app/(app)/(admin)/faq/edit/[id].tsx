@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, TouchableOpacity, Alert, Text } from "react-native";
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Text } from "react-native";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { ArrowLeft, AlertCircle, RotateCcw } from "lucide-react-native";
@@ -68,7 +68,7 @@ export default function EditFAQScreen() {
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: "Edit FAQ",
+                        title: "Access Denied",
                         headerLeft: () => (
                             <TouchableOpacity
                                 onPress={() => router.back()}
@@ -79,17 +79,18 @@ export default function EditFAQScreen() {
                         ),
                     }}
                 />
-                <View style={styles.accessDenied}>
-                    <AlertCircle size={64} color={colors.error} />
-                    <Text style={styles.accessDeniedTitle}>Access Denied</Text>
-                    <Text style={styles.accessDeniedText}>
+                <View style={styles.noPermissionContainer}>
+                    <View style={styles.noAccessIcon}>
+                        <AlertCircle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                    <Text style={styles.noPermissionText}>
                         You don't have permission to edit FAQs.
                     </Text>
                     <Button
                         title="Go Back"
+                        variant="primary"
                         onPress={() => router.back()}
-                        variant="outline"
-                        style={styles.backButtonAction}
                     />
                 </View>
             </View>
@@ -101,7 +102,7 @@ export default function EditFAQScreen() {
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: "Edit FAQ",
+                        title: "Loading...",
                         headerLeft: () => (
                             <TouchableOpacity
                                 onPress={() => router.back()}
@@ -114,7 +115,7 @@ export default function EditFAQScreen() {
                 />
                 <View style={styles.loadingContainer}>
                     <LoadingSpinner />
-                    <Text style={styles.loadingText}>Loading FAQ...</Text>
+                    <Text style={styles.loadingText}>Loading FAQ details...</Text>
                 </View>
             </View>
         );
@@ -125,7 +126,7 @@ export default function EditFAQScreen() {
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: "Edit FAQ",
+                        title: "Error",
                         headerLeft: () => (
                             <TouchableOpacity
                                 onPress={() => router.back()}
@@ -137,24 +138,31 @@ export default function EditFAQScreen() {
                     }}
                 />
                 <View style={styles.errorContainer}>
-                    <AlertCircle size={64} color={colors.error} />
-                    <Text style={styles.errorTitle}>Error Loading FAQ</Text>
-                    <Text style={styles.errorText}>
+                    <View style={styles.errorIcon}>
+                        <AlertCircle size={48} color={colors.error} />
+                    </View>
+                    <Text style={styles.errorTitle}>
                         {error || "FAQ not found"}
                     </Text>
+                    <Text style={styles.errorMessage}>
+                        {error === "Failed to load FAQ details"
+                            ? "Please check your connection and try again."
+                            : "The FAQ you're trying to edit doesn't exist or may have been deleted."
+                        }
+                    </Text>
                     <View style={styles.errorActions}>
-                        <Button
-                            title="Retry"
-                            onPress={handleRetry}
-                            variant="primary"
-                            icon={<RotateCcw size={20} color={colors.white} />}
-                            style={styles.retryButton}
-                        />
+                        {error === "Failed to load FAQ details" && (
+                            <Button
+                                title="Retry"
+                                variant="primary"
+                                onPress={handleRetry}
+                                icon={<RotateCcw size={20} color={colors.white} />}
+                            />
+                        )}
                         <Button
                             title="Go Back"
-                            onPress={() => router.back()}
                             variant="outline"
-                            style={styles.backButtonAction}
+                            onPress={() => router.back()}
                         />
                     </View>
                 </View>
@@ -166,7 +174,7 @@ export default function EditFAQScreen() {
         <View style={styles.container}>
             <Stack.Screen
                 options={{
-                    title: "Edit FAQ",
+                    title: `Edit FAQ`,
                     headerLeft: () => (
                         <TouchableOpacity
                             onPress={() => router.back()}
@@ -178,12 +186,18 @@ export default function EditFAQScreen() {
                 }}
             />
 
-            <FAQForm
-                faq={faq}
-                onSuccess={handleSuccess}
-                onError={handleError}
-                onCancel={() => router.back()}
-            />
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+            >
+                <FAQForm
+                    faq={faq}
+                    onSuccess={handleSuccess}
+                    onError={handleError}
+                    onCancel={() => router.back()}
+                />
+            </ScrollView>
         </View>
     );
 }
@@ -193,70 +207,94 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
+    noPermissionContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        gap: 20,
+    },
+    noAccessIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.warningLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    noPermissionText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
     backButton: {
         padding: 8,
         marginLeft: -8,
     },
+    scrollView: {
+        flex: 1,
+    },
+    contentContainer: {
+        flexGrow: 1,
+        padding: 20,
+        paddingBottom: 40,
+    },
     loadingContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 16,
     },
     loadingText: {
-        marginTop: 16,
         fontSize: 16,
         color: colors.textSecondary,
-    },
-    accessDenied: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 32,
-    },
-    accessDeniedTitle: {
-        fontSize: 24,
-        fontWeight: '600',
-        color: colors.text,
-        marginTop: 24,
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    accessDeniedText: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 24,
-        marginBottom: 32,
+        fontWeight: "500",
     },
     errorContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 32,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        gap: 20,
+    },
+    errorIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.errorLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
     },
     errorTitle: {
-        fontSize: 24,
-        fontWeight: '600',
+        fontSize: 20,
+        fontWeight: "700",
         color: colors.text,
-        marginTop: 24,
-        marginBottom: 12,
-        textAlign: 'center',
+        textAlign: "center",
+        marginBottom: 8,
     },
-    errorText: {
-        fontSize: 16,
+    errorMessage: {
+        fontSize: 15,
         color: colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 24,
-        marginBottom: 32,
+        textAlign: "center",
+        maxWidth: 320,
+        lineHeight: 22,
+        marginBottom: 20,
     },
     errorActions: {
-        flexDirection: 'row',
         gap: 16,
-    },
-    retryButton: {
-        flex: 1,
-    },
-    backButtonAction: {
-        flex: 1,
+        width: "100%",
+        maxWidth: 300,
     },
 }); 
