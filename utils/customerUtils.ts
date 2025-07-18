@@ -1,4 +1,5 @@
-import type { SupabaseSeat, Seat, DateOption, CustomerBookingFormErrors } from '@/types/customer';
+import type { SupabaseSeat, DateOption, CustomerBookingFormErrors } from '@/types/customer';
+import type { Seat } from '@/types';
 import { DATE_GENERATION } from '@/constants/customer';
 
 /**

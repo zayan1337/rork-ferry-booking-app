@@ -208,7 +208,7 @@ export interface CreditTransaction {
   type: "refill" | "deduction";
   bookingId?: string;
   bookingNumber?: string;
-  description: string;
+  description?: string;
   balance: number;
 }
 

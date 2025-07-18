@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Agent } from '@/types/agent';
-import { 
-  formatCurrency, 
-  formatAgentId, 
-  formatDiscountRate, 
-  formatFreeTickets 
+import {
+  formatCurrency,
+  formatAgentId,
+  formatDiscountRate,
+  formatFreeTickets
 } from '@/utils/agentFormatters';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
@@ -13,13 +13,13 @@ import Card from '@/components/Card';
 interface AgentInfoCardProps {
   agent: Agent | null;
   variant?: 'dashboard' | 'profile';
-  style?: any;
+  style?: ViewStyle;
 }
 
-export default function AgentInfoCard({ 
-  agent, 
+export default function AgentInfoCard({
+  agent,
   variant = 'dashboard',
-  style 
+  style
 }: AgentInfoCardProps) {
   if (!agent) {
     return null;
@@ -28,7 +28,7 @@ export default function AgentInfoCard({
   const showHeader = variant === 'dashboard';
 
   return (
-    <Card variant="elevated" style={[styles.container, style]}>
+    <Card variant="elevated" style={StyleSheet.flatten([styles.container, style])}>
       {showHeader && (
         <View style={styles.header}>
           <Text style={styles.title}>Agent Information</Text>
@@ -43,12 +43,12 @@ export default function AgentInfoCard({
           <Text style={styles.infoLabel}>Credit Balance</Text>
           <Text style={styles.infoValue}>{formatCurrency(agent.creditBalance)}</Text>
         </View>
-        
+
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Discount Rate</Text>
           <Text style={styles.infoValue}>{formatDiscountRate(agent.discountRate)}</Text>
         </View>
-        
+
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Free Tickets</Text>
           <Text style={styles.infoValue}>
@@ -62,7 +62,7 @@ export default function AgentInfoCard({
               <Text style={styles.infoLabel}>Credit Ceiling</Text>
               <Text style={styles.infoValue}>{formatCurrency(agent.creditCeiling || 0)}</Text>
             </View>
-            
+
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Agent ID</Text>
               <Text style={styles.infoValue}>{formatAgentId(agent.agentId)}</Text>

@@ -155,11 +155,11 @@ export function useSettingsActions({
     };
 
     const handlePermissionToggle = (permissionId: string) => {
-        if (!setUserPermissions) return;
-        setUserPermissions(prev => ({
-            ...prev,
-            [permissionId]: !prev[permissionId]
-        }));
+        if (!setUserPermissions || !userPermissions) return;
+        setUserPermissions({
+            ...userPermissions,
+            [permissionId]: !userPermissions[permissionId]
+        });
     };
 
     const handleCreateRole = async () => {

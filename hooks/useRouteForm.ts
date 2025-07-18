@@ -61,7 +61,7 @@ export const useRouteForm = ({ initialData, onSuccess, onError }: UseRouteFormPr
                 distance: initialData.distance || '',
                 duration: initialData.duration || '',
                 base_fare: initialData.base_fare,
-                description: initialData.description || '',
+                description: '',
                 status: initialData.status || 'active'
             });
         }

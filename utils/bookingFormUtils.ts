@@ -34,7 +34,7 @@ export const AGENT_PAYMENT_OPTIONS = [
  */
 export const formatRouteOptions = (routes: Route[] = []) => {
   return routes.map(route => ({
-    label: `${route.fromIsland?.name || 'Unknown'} → ${route.toIsland?.name || 'Unknown'}`,
+    label: `${route.from_island?.name || 'Unknown'} → ${route.to_island?.name || 'Unknown'}`,
     value: route.id
   }));
 };
@@ -44,7 +44,7 @@ export const formatRouteOptions = (routes: Route[] = []) => {
  */
 export const formatTripOptions = (trips: Trip[] = []) => {
   return trips.map(trip => ({
-    label: `${String(trip.departure_time || '').slice(0, 5)} - ${trip.vessel_name || 'Unknown'} (${String(trip.available_seats || 0)} seats)`,
+    label: `${String(trip.departure_time || '').slice(0, 5)} - ${trip.vessel?.name || 'Unknown'} (${String(trip.available_seats || 0)} seats)`,
     value: trip.id,
   }));
 };

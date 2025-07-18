@@ -74,7 +74,7 @@ export const useAgentData = () => {
             };
 
             initializeAgent();
-        } else if (user && user.profile?.role !== 'agent' && agent) {
+        } else if (user && agent) {
             // Clear agent data if user is no longer an agent
             reset();
         }

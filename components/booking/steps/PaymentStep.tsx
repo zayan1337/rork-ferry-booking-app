@@ -64,10 +64,10 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
     clientName: client?.name || 'N/A',
     tripType: tripType === 'one_way' ? 'One Way' : 'Round Trip',
     routeDisplay: route
-      ? `${route.fromIsland?.name || 'Unknown'} → ${route.toIsland?.name || 'Unknown'}`
+      ? `${route.from_island?.name || 'Unknown'} → ${route.to_island?.name || 'Unknown'}`
       : 'N/A',
     returnRouteDisplay: returnRoute
-      ? `${returnRoute.fromIsland?.name || 'Unknown'} → ${returnRoute.toIsland?.name || 'Unknown'}`
+      ? `${returnRoute.from_island?.name || 'Unknown'} → ${returnRoute.to_island?.name || 'Unknown'}`
       : null,
     departureDate: departureDate
       ? new Date(departureDate).toLocaleDateString()
@@ -181,7 +181,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
       {/* Payment Method Selection */}
       <Dropdown
         label="Payment Method"
-        items={AGENT_PAYMENT_OPTIONS}
+        items={[...AGENT_PAYMENT_OPTIONS]}
         value={paymentMethod || ''}
         onChange={handlePaymentMethodChange}
         placeholder="Select payment method"

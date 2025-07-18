@@ -105,11 +105,11 @@ export default function BookingDetailsScreen() {
           departureTime={booking.departureTime}
           returnDate={booking.returnDate}
           tripType={booking.tripType}
-          route={booking.route}
+          route={booking.route || undefined}
           origin={booking.origin}
           destination={booking.destination}
           passengerCount={booking.passengers?.length || booking.passengerCount || 0}
-          vessel={booking.vessel}
+          vessel={booking.vessel || undefined}
           status={booking.status}
         />
 
@@ -133,7 +133,7 @@ export default function BookingDetailsScreen() {
           totalAmount={Number(booking.totalAmount) || 0}
           discountedAmount={booking.discountedAmount ? Number(booking.discountedAmount) : undefined}
           paymentMethod={booking.paymentMethod}
-          payment={booking.payment}
+          payment={booking.payment || undefined}
           commission={booking.commission ? Number(booking.commission) : undefined}
         />
 

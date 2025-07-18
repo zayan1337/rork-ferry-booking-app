@@ -21,71 +21,72 @@ export const useBookingForm = ({
 }: UseBookingFormProps) => {
 
     const validateStep = useCallback((step: number): StepValidation => {
-        const errors: string[] = [];
+        const errors: any = {};
 
         switch (step) {
             case BOOKING_STEPS.TRIP_TYPE_DATE:
                 if (!currentBooking.tripType) {
-                    errors.push('Please select a trip type');
+                    errors.tripType = 'Please select a trip type';
                 }
                 if (!currentBooking.departureDate) {
-                    errors.push('Please select a departure date');
+                    errors.departureDate = 'Please select a departure date';
                 }
                 if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && !currentBooking.returnDate) {
-                    errors.push('Please select a return date');
+                    errors.returnDate = 'Please select a return date';
                 }
                 break;
 
             case BOOKING_STEPS.ROUTE_SELECTION:
                 if (!currentBooking.route) {
-                    errors.push('Please select a route');
+                    errors.route = 'Please select a route';
                 }
                 if (!currentBooking.trip) {
-                    errors.push('Please select a departure time');
+                    errors.trip = 'Please select a departure time';
                 }
                 if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP) {
                     if (!currentBooking.returnRoute) {
-                        errors.push('Please select a return route');
+                        errors.returnRoute = 'Please select a return route';
                     }
                     if (!currentBooking.returnTrip) {
-                        errors.push('Please select a return time');
+                        errors.returnTrip = 'Please select a return time';
                     }
                 }
                 break;
 
             case BOOKING_STEPS.SEAT_SELECTION:
                 if (localSelectedSeats.length === 0) {
-                    errors.push('Please select at least one seat');
+                    errors.seats = 'Please select at least one seat';
                 }
                 if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && localReturnSelectedSeats.length === 0) {
-                    errors.push('Please select at least one return seat');
+                    errors.returnSeats = 'Please select at least one return seat';
                 }
                 if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
                     localSelectedSeats.length !== localReturnSelectedSeats.length) {
-                    errors.push('Number of departure and return seats must match');
+                    errors.seats = 'Number of departure and return seats must match';
                 }
                 break;
 
             case BOOKING_STEPS.PASSENGER_DETAILS:
                 const incompletePassenger = currentBooking.passengers.find((p: any) => !p.fullName.trim());
                 if (incompletePassenger) {
-                    errors.push('Please enter details for all passengers');
+                    errors.passengers = 'Please enter details for all passengers';
                 }
                 break;
 
             case BOOKING_STEPS.PAYMENT:
                 if (!paymentMethod) {
-                    errors.push('Please select a payment method');
+                    errors.paymentMethod = 'Please select a payment method';
                 }
                 if (!termsAccepted) {
-                    errors.push('You must accept the terms and conditions');
+                    errors.terms = 'You must accept the terms and conditions';
                 }
                 break;
         }
 
         return {
-            isValid: errors.length === 0,
-            errors
+            isValid: Object.keys(errors).length === 0,
+            errors,
+            step
         };
     }, [currentBooking, localSelectedSeats, localReturnSelectedSeats, paymentMethod, termsAccepted]);
 

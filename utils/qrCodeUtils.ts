@@ -79,7 +79,7 @@ export const getQrCodeDisplayData = (booking: Booking) => {
                 passengers: booking.passengerCount || 'N/A',
                 seats: 'N/A', // Simple format doesn't include seat details
                 clientName: booking.clientName || 'Unknown',
-                agentName: booking.agentName || 'Unknown Agent',
+                agentName: 'Unknown Agent',
                 totalFare: booking.totalAmount || 0,
                 timestamp: booking.bookingDate || new Date().toISOString(),
                 isAgentBooking: true, // Assume agent booking for simple format

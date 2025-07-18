@@ -94,7 +94,7 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(({ booking, onPress }
 
     return (
         <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
-            <Card variant="elevated" style={[styles.card, bookingInactive && styles.inactiveCard]}>
+            <Card variant="elevated" style={StyleSheet.flatten([styles.card, bookingInactive && styles.inactiveCard])}>
                 {/* Header Section */}
                 <View style={styles.header}>
                     <View style={styles.routeContainer}>
