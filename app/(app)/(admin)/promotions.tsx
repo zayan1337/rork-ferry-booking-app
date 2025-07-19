@@ -30,6 +30,7 @@ import {
     Trash2,
     Copy,
     MoreVertical,
+    ArrowLeft,
 } from 'lucide-react-native';
 
 // Components
@@ -232,6 +233,13 @@ export default function PromotionsScreen() {
         }
     };
 
+    const clearFilters = () => {
+        setSearchQuery("");
+        setStatusFilter('all');
+        setSortField('created_at');
+        setSortOrder('desc');
+    };
+
     const renderPromotionItem = ({ item, index }: { item: Promotion; index: number }) => (
         <PromotionItem
             key={`promotion-${item.id}-${index}`}
@@ -245,7 +253,7 @@ export default function PromotionsScreen() {
     );
 
     const renderHeader = () => (
-        <View style={styles.header}>
+        <View>
             {/* Stats */}
             <View style={styles.statsContainer}>
                 <StatCard
@@ -279,25 +287,42 @@ export default function PromotionsScreen() {
             </View>
 
             {/* Search and Filters */}
-            <View style={styles.searchContainer}>
+            <View style={styles.controlsContainer}>
                 <SearchBar
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     placeholder="Search promotions..."
+                    style={styles.searchBar}
                 />
-                <TouchableOpacity
-                    style={[styles.filterButton, showFilters && styles.filterButtonActive]}
-                    onPress={() => setShowFilters(!showFilters)}
-                >
-                    <Filter size={20} color={showFilters ? colors.primary : colors.textSecondary} />
-                </TouchableOpacity>
+                <View style={styles.controlsRow}>
+                    <TouchableOpacity
+                        style={[styles.filterButton, showFilters && styles.filterButtonActive]}
+                        onPress={() => setShowFilters(!showFilters)}
+                    >
+                        <Filter size={16} color={showFilters ? colors.primary : colors.textSecondary} />
+                        <Text style={[styles.filterButtonText, showFilters && styles.filterButtonTextActive]}>
+                            Filters
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.sortButton}
+                        onPress={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    >
+                        {sortOrder === 'asc' ? (
+                            <SortAsc size={16} color={colors.textSecondary} />
+                        ) : (
+                            <SortDesc size={16} color={colors.textSecondary} />
+                        )}
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* Filter Options */}
             {showFilters && (
-                <View style={styles.filtersContainer}>
-                    <View style={styles.filterSection}>
-                        <Text style={styles.filterLabel}>Status</Text>
+                <View style={styles.filtersPanel}>
+                    <View style={styles.filterRow}>
+                        <Text style={styles.filterLabel}>Status:</Text>
                         <View style={styles.filterOptions}>
                             {[
                                 { key: 'all', label: 'All' },
@@ -326,8 +351,8 @@ export default function PromotionsScreen() {
                         </View>
                     </View>
 
-                    <View style={styles.filterSection}>
-                        <Text style={styles.filterLabel}>Sort By</Text>
+                    <View style={styles.filterRow}>
+                        <Text style={styles.filterLabel}>Sort By:</Text>
                         <View style={styles.sortOptions}>
                             {[
                                 { key: 'name', label: 'Name' },
@@ -359,24 +384,12 @@ export default function PromotionsScreen() {
                             ))}
                         </View>
                     </View>
+
+                    <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFilters}>
+                        <Text style={styles.clearFiltersText}>Clear Filters</Text>
+                    </TouchableOpacity>
                 </View>
             )}
-
-            {/* Results Summary */}
-            <View style={styles.summaryContainer}>
-                <Text style={styles.summaryText}>
-                    {filteredAndSortedPromotions.length} promotion{filteredAndSortedPromotions.length !== 1 ? 's' : ''} found
-                </Text>
-                {canManageContent() && (
-                    <Button
-                        title="Add Promotion"
-                        variant="primary"
-                        size="small"
-                        onPress={handleAddPromotion}
-                        icon={<Plus size={16} color={colors.white} />}
-                    />
-                )}
-            </View>
         </View>
     );
 
@@ -417,6 +430,24 @@ export default function PromotionsScreen() {
                 options={{
                     title: 'Promotions',
                     headerShown: true,
+                    headerLeft: () => (
+                        <TouchableOpacity
+                            onPress={() => router.back()}
+                            style={styles.backButton}
+                        >
+                            <ArrowLeft size={24} color={colors.text} />
+                        </TouchableOpacity>
+                    ),
+                    headerRight: () => (
+                        canManageContent() ? (
+                            <Button
+                                title="Add Promotion"
+                                onPress={handleAddPromotion}
+                                size="small"
+                                icon={<Plus size={16} color={colors.card} />}
+                            />
+                        ) : null
+                    ),
                 }}
             />
 
@@ -426,27 +457,27 @@ export default function PromotionsScreen() {
                     <Text style={styles.loadingText}>Loading promotions...</Text>
                 </View>
             ) : (
-                <FlatList
-                    data={filteredAndSortedPromotions}
-                    renderItem={renderPromotionItem}
-                    keyExtractor={(item, index) => `promotion-${item.id}-${index}`}
-                    ListHeaderComponent={renderHeader}
-                    ListEmptyComponent={renderEmptyState}
-                    contentContainerStyle={[
-                        styles.listContainer,
-                        filteredAndSortedPromotions.length === 0 && styles.emptyListContainer
-                    ]}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isRefreshing}
-                            onRefresh={handleRefresh}
-                            colors={[colors.primary]}
-                            tintColor={colors.primary}
-                        />
-                    }
-                    ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-                />
+                <>
+                    {renderHeader()}
+                    <FlatList
+                        data={filteredAndSortedPromotions}
+                        renderItem={renderPromotionItem}
+                        keyExtractor={(item) => item.id}
+                        style={styles.promotionsList}
+                        contentContainerStyle={styles.promotionsListContent}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={handleRefresh}
+                                colors={[colors.primary]}
+                                tintColor={colors.primary}
+                            />
+                        }
+                        ListEmptyComponent={renderEmptyState}
+                        ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+                    />
+                </>
             )}
         </View>
     );
@@ -455,43 +486,63 @@ export default function PromotionsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.backgroundSecondary,
     },
-    header: {
-        paddingHorizontal: 16,
-        paddingBottom: 16,
+    backButton: {
+        padding: 8,
+        marginLeft: -8,
     },
     statsContainer: {
         flexDirection: 'row',
+        paddingHorizontal: 16,
+        paddingTop: 16,
         gap: 12,
-        marginBottom: 20,
     },
-    searchContainer: {
+    controlsContainer: {
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+    },
+    searchBar: {
+        marginBottom: 12,
+    },
+    controlsRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-        marginBottom: 16,
     },
     filterButton: {
-        padding: 12,
-        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
         backgroundColor: colors.card,
-        borderWidth: 1,
-        borderColor: colors.border,
+        borderRadius: 8,
+        gap: 8,
     },
     filterButtonActive: {
-        backgroundColor: colors.primary + '15',
-        borderColor: colors.primary,
+        backgroundColor: colors.primary + '20',
     },
-    filtersContainer: {
+    filterButtonText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: '500',
+    },
+    filterButtonTextActive: {
+        color: colors.primary,
+    },
+    sortButton: {
+        padding: 8,
         backgroundColor: colors.card,
+        borderRadius: 8,
+    },
+    filtersPanel: {
+        backgroundColor: colors.card,
+        marginHorizontal: 16,
+        marginBottom: 16,
         borderRadius: 12,
         padding: 16,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: colors.border,
     },
-    filterSection: {
+    filterRow: {
         marginBottom: 16,
     },
     filterLabel: {
@@ -508,14 +559,11 @@ const styles = StyleSheet.create({
     filterOption: {
         paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: 16,
         backgroundColor: colors.backgroundSecondary,
-        borderWidth: 1,
-        borderColor: colors.border,
+        borderRadius: 6,
     },
     filterOptionActive: {
         backgroundColor: colors.primary,
-        borderColor: colors.primary,
     },
     filterOptionText: {
         fontSize: 12,
@@ -523,7 +571,19 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     filterOptionTextActive: {
-        color: colors.white,
+        color: colors.card,
+    },
+    clearFiltersButton: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: colors.error + '20',
+        borderRadius: 8,
+    },
+    clearFiltersText: {
+        fontSize: 14,
+        color: colors.error,
+        fontWeight: '500',
     },
     sortOptions: {
         gap: 8,
@@ -551,27 +611,12 @@ const styles = StyleSheet.create({
     sortOptionTextActive: {
         color: colors.primary,
     },
-    summaryContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-        marginBottom: 16,
+    promotionsList: {
+        flex: 1,
     },
-    summaryText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        fontWeight: '500',
-    },
-    listContainer: {
-        flexGrow: 1,
+    promotionsListContent: {
         paddingHorizontal: 16,
-        paddingBottom: 20,
-    },
-    emptyListContainer: {
-        justifyContent: 'center',
+        paddingBottom: 16,
     },
     itemSeparator: {
         height: 12,

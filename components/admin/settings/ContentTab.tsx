@@ -352,7 +352,7 @@ const ContentTab: React.FC<ContentTabProps> = ({ isActive, searchQuery = "" }) =
                 ListHeaderComponent={renderHeader}
                 ListEmptyComponent={renderEmptyState}
                 ListFooterComponent={renderFooter}
-                contentContainerStyle={previewItems.length === 0 ? styles.emptyContentContainer : styles.contentContainer}
+                contentContainerStyle={styles.contentContainer}
                 refreshControl={
                     <RefreshControl
                         refreshing={isRefreshing}
@@ -371,32 +371,45 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    contentContainer: {
+        flexGrow: 1,
+
+    },
+    emptyContentContainer: {
+        flexGrow: 1,
+        paddingHorizontal: 16,
+        justifyContent: 'center',
+    },
     noPermissionContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 32,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 64,
+        gap: 16,
     },
     noPermissionIcon: {
-        marginBottom: 16,
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        backgroundColor: colors.warning + "10",
+        borderRadius: 24,
     },
     noPermissionTitle: {
-        fontSize: 18,
-        fontWeight: '600',
+        fontSize: 20,
+        fontWeight: "700",
         color: colors.text,
         marginBottom: 8,
-        textAlign: 'center',
     },
     noPermissionText: {
-        fontSize: 14,
+        fontSize: 16,
         color: colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 20,
+        textAlign: "center",
+        maxWidth: 250,
     },
     loadingContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: "center",
+        justifyContent: "center",
         gap: 16,
     },
     loadingText: {
@@ -404,42 +417,46 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
     },
     sectionContent: {
-        marginBottom: 20,
+        marginBottom: 16,
     },
     sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+        minHeight: 44,
+        paddingHorizontal: 16,
+
     },
     sectionHeaderContent: {
         flex: 1,
+        paddingRight: 8,
+    },
+    sectionHeaderButton: {
+        flexShrink: 0,
+        maxWidth: "40%",
     },
     sectionTitleContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
     },
     sectionIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: colors.primary + '15',
-        alignItems: 'center',
-        justifyContent: 'center',
+        padding: 8,
+        backgroundColor: colors.primary + "10",
+        borderRadius: 12,
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: '600',
+        fontWeight: "600",
         color: colors.text,
-        marginBottom: 4,
     },
     sectionSubtitle: {
         fontSize: 14,
         color: colors.textSecondary,
     },
-    sectionHeaderButton: {
-        marginLeft: 16,
+    itemSeparator: {
+        height: 12,
     },
     tabToggleContainer: {
         flexDirection: 'row',
@@ -451,6 +468,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
+        marginHorizontal: 16,
     },
     tabToggle: {
         flex: 1,
@@ -474,58 +492,53 @@ const styles = StyleSheet.create({
         color: colors.primary,
         fontWeight: '600',
     },
-    contentContainer: {
-        padding: 16,
-    },
-    emptyContentContainer: {
-        flexGrow: 1,
-        padding: 16,
-    },
+
     emptyState: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 48,
+        alignItems: "center",
+        paddingVertical: 64,
+        gap: 16,
     },
     emptyStateIcon: {
-        marginBottom: 16,
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        backgroundColor: colors.textSecondary + "10",
+        borderRadius: 24,
     },
     emptyStateTitle: {
         fontSize: 18,
-        fontWeight: '600',
+        fontWeight: "600",
         color: colors.text,
-        marginBottom: 8,
-        textAlign: 'center',
     },
     emptyStateText: {
         fontSize: 14,
         color: colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 20,
+        textAlign: "center",
+        maxWidth: 280,
     },
     footerContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: colors.card,
-        borderRadius: 8,
-        marginHorizontal: 16,
-        marginTop: 12,
+        paddingVertical: 24,
     },
     previewText: {
-        fontSize: 12,
+        fontSize: 14,
         color: colors.textSecondary,
+        textAlign: "center",
+        marginBottom: 12,
     },
     viewAllButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        backgroundColor: colors.primary + "10",
+        borderRadius: 8,
+        gap: 8,
+        minWidth: 200,
     },
     viewAllText: {
-        fontSize: 12,
-        fontWeight: '600',
+        fontSize: 14,
+        fontWeight: "500",
         color: colors.primary,
     },
 });
