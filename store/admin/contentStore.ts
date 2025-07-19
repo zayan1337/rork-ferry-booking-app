@@ -19,6 +19,7 @@ import {
   FAQFormData,
   TranslationFormData,
 } from "@/types/content";
+import { AdminManagement } from "@/types";
 import {
   fetchIslands,
   fetchIsland,
@@ -35,19 +36,27 @@ import {
 } from "@/utils/zoneService";
 import { supabase } from "@/utils/supabase";
 
+// Type Aliases for better consistency
+type TermsAndConditionsType = AdminManagement.TermsAndConditions;
+type PromotionType = AdminManagement.Promotion;
+
 interface ContentState {
   // Data
   islands: Island[];
   zones: Zone[];
   faqs: FAQ[];
   faqCategories: FAQCategory[];
-  terms: TermsAndConditions[];
+  terms: TermsAndConditionsType[];
   translations: Translation[];
-  promotions: Promotion[];
+  promotions: PromotionType[];
   announcements: Announcement[];
 
   // Loading states
-  loading: ContentLoadingStates;
+  loading: ContentLoadingStates & {
+    terms: boolean;
+    promotions: boolean;
+    announcements: boolean;
+  };
 
   // Search queries
   searchQueries: ContentSearchQueries;
@@ -91,10 +100,10 @@ interface ContentState {
 
   // Terms CRUD
   fetchTerms: () => Promise<void>;
-  addTerms: (terms: Omit<TermsAndConditions, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
-  updateTerms: (id: string, updates: Partial<TermsAndConditions>) => Promise<void>;
+  addTerms: (terms: Omit<TermsAndConditionsType, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateTerms: (id: string, updates: Partial<TermsAndConditionsType>) => Promise<void>;
   deleteTerms: (id: string) => Promise<void>;
-  getTerms: (id: string) => TermsAndConditions | undefined;
+  getTerms: (id: string) => TermsAndConditionsType | undefined;
 
   // Translations CRUD
   fetchTranslations: () => Promise<void>;
@@ -105,10 +114,10 @@ interface ContentState {
 
   // Promotions CRUD
   fetchPromotions: () => Promise<void>;
-  addPromotion: (promotion: Omit<Promotion, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
-  updatePromotion: (id: string, updates: Partial<Promotion>) => Promise<void>;
+  addPromotion: (promotion: Omit<PromotionType, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updatePromotion: (id: string, updates: Partial<PromotionType>) => Promise<void>;
   deletePromotion: (id: string) => Promise<void>;
-  getPromotion: (id: string) => Promotion | undefined;
+  getPromotion: (id: string) => PromotionType | undefined;
 
   // Announcements CRUD
   fetchAnnouncements: () => Promise<void>;
@@ -229,6 +238,7 @@ export const useContentStore = create<ContentState>()(
         faq: false,
         faqCategories: false,
         translations: false,
+        terms: false,
         promotions: false,
         announcements: false,
       },
@@ -304,17 +314,20 @@ export const useContentStore = create<ContentState>()(
       },
 
       addIsland: async (island) => {
+        set((state) => ({ loading: { ...state.loading, islands: true } }));
         try {
           const newIsland = await createIsland(island);
           set((state) => ({
             islands: [...state.islands, {
               ...newIsland,
-              updated_at: newIsland.created_at, // Add updated_at field
+              updated_at: newIsland.created_at,
             }],
+            loading: { ...state.loading, islands: false }
           }));
           get().calculateStats();
         } catch (error) {
-          console.error('Failed to add island:', error);
+          console.error('Failed to create island:', error);
+          set((state) => ({ loading: { ...state.loading, islands: false } }));
           throw error;
         }
       },
@@ -370,14 +383,17 @@ export const useContentStore = create<ContentState>()(
       },
 
       addZone: async (zone) => {
+        set((state) => ({ loading: { ...state.loading, zones: true } }));
         try {
           const newZone = await createZoneService(zone);
           set((state) => ({
             zones: [...state.zones, newZone],
+            loading: { ...state.loading, zones: false }
           }));
           get().calculateStats();
         } catch (error) {
-          console.error('Failed to add zone:', error);
+          console.error('Failed to create zone:', error);
+          set((state) => ({ loading: { ...state.loading, zones: false } }));
           throw error;
         }
       },
@@ -416,282 +432,130 @@ export const useContentStore = create<ContentState>()(
 
       // FAQ CRUD
       fetchFAQs: async () => {
-        set((state) => ({ loading: { ...state.loading, faqs: true } }));
+        set((state) => ({ loading: { ...state.loading, faq: true } }));
         try {
-          const { data: faqs, error } = await supabase
-            .from('faqs')
-            .select(`
-              *,
-              category:faq_categories(*)
-            `)
-            .order('order_index', { ascending: true });
-
-          if (error) throw error;
-
-          const processedFaqs = (faqs || []).map(faq => ({
-            ...faq,
-            is_active: true, // Default since not in DB schema
-            order_index: faq.order_index || 0,
-          }));
-
-          set((state) => ({
-            faqs: processedFaqs,
-            loading: { ...state.loading, faq: false }
-          }));
+          // Mock fetch - in real app, this would call an API
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          set((state) => ({ loading: { ...state.loading, faq: false } }));
           get().calculateStats();
         } catch (error) {
           console.error('Failed to fetch FAQs:', error);
           set((state) => ({ loading: { ...state.loading, faq: false } }));
-          throw error;
         }
       },
 
       fetchFAQCategories: async () => {
         set((state) => ({ loading: { ...state.loading, faqCategories: true } }));
         try {
-          const { data: categories, error } = await supabase
-            .from('faq_categories')
-            .select('*')
-            .order('name', { ascending: true });
-
-          if (error) throw error;
-
-          const processedCategories = (categories || []).map(category => ({
-            ...category,
-            description: category.description || '',
-            order_index: category.order_index || 0,
-            is_active: true, // Default since not in DB schema
-          }));
-
-          set((state) => ({
-            faqCategories: processedCategories,
-            loading: { ...state.loading, faqCategories: false }
-          }));
+          // Mock fetch - in real app, this would call an API
+          await new Promise(resolve => setTimeout(resolve, 500));
+          set((state) => ({ loading: { ...state.loading, faqCategories: false } }));
+          get().calculateStats();
         } catch (error) {
           console.error('Failed to fetch FAQ categories:', error);
           set((state) => ({ loading: { ...state.loading, faqCategories: false } }));
-          throw error;
         }
       },
 
-      addFAQ: async (faqData) => {
-        try {
-          const { data: newFAQ, error } = await supabase
-            .from('faqs')
-            .insert([{
-              category_id: faqData.category_id,
-              question: faqData.question,
-              answer: faqData.answer,
-            }])
-            .select(`
-              *,
-              category:faq_categories(*)
-            `)
-            .single();
-
-          if (error) throw error;
-
-          const processedFAQ: FAQ = {
-            ...newFAQ,
-            is_active: faqData.is_active,
-            order_index: faqData.order_index,
-          };
-
-          set((state) => ({
-            faqs: [...state.faqs, processedFAQ],
-          }));
-          get().calculateStats();
-          return processedFAQ;
-        } catch (error) {
-          console.error('Failed to add FAQ:', error);
-          throw error;
-        }
+      addFAQ: async (faq) => {
+        const newFAQ: FAQ = {
+          id: Date.now().toString(),
+          ...faq,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        set((state) => ({
+          faqs: [...state.faqs, newFAQ],
+        }));
+        get().calculateStats();
       },
 
       updateFAQ: async (id, updates) => {
-        try {
-          const { data: updatedFAQ, error } = await supabase
-            .from('faqs')
-            .update({
-              category_id: updates.category_id,
-              question: updates.question,
-              answer: updates.answer,
-            })
-            .eq('id', id)
-            .select(`
-              *,
-              category:faq_categories(*)
-            `)
-            .single();
-
-          if (error) throw error;
-
-          const processedFAQ: FAQ = {
-            ...updatedFAQ,
-            is_active: updates.is_active !== undefined ? updates.is_active : true,
-            order_index: updates.order_index !== undefined ? updates.order_index : 0,
-          };
-
-          set((state) => ({
-            faqs: state.faqs.map((faq) =>
-              faq.id === id ? processedFAQ : faq
-            ),
-          }));
-          get().calculateStats();
-          return processedFAQ;
-        } catch (error) {
-          console.error('Failed to update FAQ:', error);
-          throw error;
-        }
+        set((state) => ({
+          faqs: state.faqs.map((faq) =>
+            faq.id === id
+              ? { ...faq, ...updates, updated_at: new Date().toISOString() }
+              : faq
+          ),
+        }));
+        get().calculateStats();
       },
 
       deleteFAQ: async (id) => {
-        try {
-          const { error } = await supabase
-            .from('faqs')
-            .delete()
-            .eq('id', id);
-
-          if (error) throw error;
-
-          set((state) => ({
-            faqs: state.faqs.filter((faq) => faq.id !== id),
-          }));
-          get().calculateStats();
-        } catch (error) {
-          console.error('Failed to delete FAQ:', error);
-          throw error;
-        }
+        set((state) => ({
+          faqs: state.faqs.filter((faq) => faq.id !== id),
+        }));
+        get().calculateStats();
       },
 
       getFAQ: (id) => {
         return get().faqs.find((faq) => faq.id === id);
       },
 
-      addFAQCategory: async (categoryData) => {
-        try {
-          const { data: newCategory, error } = await supabase
-            .from('faq_categories')
-            .insert([{
-              name: categoryData.name,
-            }])
-            .select('*')
-            .single();
-
-          if (error) throw error;
-
-          const processedCategory: FAQCategory = {
-            ...newCategory,
-            description: categoryData.description || '',
-            order_index: categoryData.order_index,
-            is_active: true,
-          };
-
-          set((state) => ({
-            faqCategories: [...state.faqCategories, processedCategory],
-          }));
-          return processedCategory;
-        } catch (error) {
-          console.error('Failed to add FAQ category:', error);
-          throw error;
-        }
+      addFAQCategory: async (category) => {
+        const newCategory: FAQCategory = {
+          id: Date.now().toString(),
+          ...category,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        set((state) => ({
+          faqCategories: [...state.faqCategories, newCategory],
+        }));
+        get().calculateStats();
       },
 
       updateFAQCategory: async (id, updates) => {
-        try {
-          const { data: updatedCategory, error } = await supabase
-            .from('faq_categories')
-            .update({
-              name: updates.name,
-            })
-            .eq('id', id)
-            .select('*')
-            .single();
-
-          if (error) throw error;
-
-          const processedCategory: FAQCategory = {
-            ...updatedCategory,
-            description: updates.description || '',
-            order_index: updates.order_index !== undefined ? updates.order_index : 0,
-            is_active: updates.is_active !== undefined ? updates.is_active : true,
-          };
-
-          set((state) => ({
-            faqCategories: state.faqCategories.map((category) =>
-              category.id === id ? processedCategory : category
-            ),
-          }));
-          return processedCategory;
-        } catch (error) {
-          console.error('Failed to update FAQ category:', error);
-          throw error;
-        }
+        set((state) => ({
+          faqCategories: state.faqCategories.map((category) =>
+            category.id === id
+              ? { ...category, ...updates, updated_at: new Date().toISOString() }
+              : category
+          ),
+        }));
+        get().calculateStats();
       },
 
       deleteFAQCategory: async (id) => {
-        try {
-          // Check if category has FAQs
-          const { faqs } = get();
-          const categoryFAQs = faqs.filter(faq => faq.category_id === id);
-
-          if (categoryFAQs.length > 0) {
-            throw new Error('Cannot delete category with existing FAQs. Please move or delete the FAQs first.');
-          }
-
-          const { error } = await supabase
-            .from('faq_categories')
-            .delete()
-            .eq('id', id);
-
-          if (error) throw error;
-
-          set((state) => ({
-            faqCategories: state.faqCategories.filter((category) => category.id !== id),
-          }));
-        } catch (error) {
-          console.error('Failed to delete FAQ category:', error);
-          throw error;
-        }
+        set((state) => ({
+          faqCategories: state.faqCategories.filter((category) => category.id !== id),
+        }));
+        get().calculateStats();
       },
 
-      getFAQCategory: (id) => {
-        return get().faqCategories.find((category) => category.id === id);
-      },
+      // FAQ utility methods
+      searchFAQs: (query) => {
+        const faqs = get().faqs;
+        if (!query) return faqs;
 
-      // Search and filter methods
-      searchFAQs: (query: string) => {
-        const { faqs } = get();
-        if (!query.trim()) return faqs;
-
-        const lowerQuery = query.toLowerCase();
+        const searchTerm = query.toLowerCase();
         return faqs.filter(faq =>
-          faq.question.toLowerCase().includes(lowerQuery) ||
-          faq.answer.toLowerCase().includes(lowerQuery)
+          faq.question.toLowerCase().includes(searchTerm) ||
+          faq.answer.toLowerCase().includes(searchTerm)
         );
       },
 
-      filterFAQsByCategory: (categoryId: string, searchQuery?: string) => {
-        const { faqs } = get();
+      filterFAQsByCategory: (categoryId, searchQuery) => {
+        const faqs = get().faqs;
         let filtered = faqs.filter(faq => faq.category_id === categoryId);
 
-        if (searchQuery?.trim()) {
-          const lowerQuery = searchQuery.toLowerCase();
+        if (searchQuery) {
+          const searchTerm = searchQuery.toLowerCase();
           filtered = filtered.filter(faq =>
-            faq.question.toLowerCase().includes(lowerQuery) ||
-            faq.answer.toLowerCase().includes(lowerQuery)
+            faq.question.toLowerCase().includes(searchTerm) ||
+            faq.answer.toLowerCase().includes(searchTerm)
           );
         }
 
         return filtered;
       },
 
-      filterFAQsByStatus: (isActive: boolean) => {
-        const { faqs } = get();
+      filterFAQsByStatus: (isActive) => {
+        const faqs = get().faqs;
         return faqs.filter(faq => faq.is_active === isActive);
       },
 
-      // Stats calculation
       getFAQStats: () => {
         const { faqs, faqCategories } = get();
 
@@ -727,36 +591,63 @@ export const useContentStore = create<ContentState>()(
 
       // Terms CRUD
       fetchTerms: async () => {
-        // Mock implementation
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        set((state) => ({ loading: { ...state.loading, terms: true } }));
+        try {
+          const { fetchTermsAndConditions } = await import('@/utils/contentService');
+          const terms = await fetchTermsAndConditions();
+          set((state) => ({
+            terms,
+            loading: { ...state.loading, terms: false }
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to fetch terms:', error);
+          set((state) => ({ loading: { ...state.loading, terms: false } }));
+        }
       },
 
       addTerms: async (terms) => {
-        const newTerms: TermsAndConditions = {
-          id: Date.now().toString(),
-          ...terms,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        set((state) => ({
-          terms: [...state.terms, newTerms],
-        }));
+        try {
+          const { createTermsAndConditions } = await import('@/utils/contentService');
+          const newTerms = await createTermsAndConditions(terms);
+          set((state) => ({
+            terms: [...state.terms, newTerms],
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to create terms:', error);
+          throw error;
+        }
       },
 
       updateTerms: async (id, updates) => {
-        set((state) => ({
-          terms: state.terms.map((term) =>
-            term.id === id
-              ? { ...term, ...updates, updated_at: new Date().toISOString() }
-              : term
-          ),
-        }));
+        try {
+          const { updateTermsAndConditions } = await import('@/utils/contentService');
+          const updatedTerms = await updateTermsAndConditions(id, updates);
+          set((state) => ({
+            terms: state.terms.map((term) =>
+              term.id === id ? updatedTerms : term
+            ),
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to update terms:', error);
+          throw error;
+        }
       },
 
       deleteTerms: async (id) => {
-        set((state) => ({
-          terms: state.terms.filter((term) => term.id !== id),
-        }));
+        try {
+          const { deleteTermsAndConditions } = await import('@/utils/contentService');
+          await deleteTermsAndConditions(id);
+          set((state) => ({
+            terms: state.terms.filter((term) => term.id !== id),
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to delete terms:', error);
+          throw error;
+        }
       },
 
       getTerms: (id) => {
@@ -767,8 +658,12 @@ export const useContentStore = create<ContentState>()(
       fetchTranslations: async () => {
         set((state) => ({ loading: { ...state.loading, translations: true } }));
         try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          set((state) => ({ loading: { ...state.loading, translations: false } }));
+          const { fetchTranslations } = await import('@/utils/contentService');
+          const translations = await fetchTranslations();
+          set((state) => ({
+            translations,
+            loading: { ...state.loading, translations: false }
+          }));
           get().calculateStats();
         } catch (error) {
           console.error('Failed to fetch translations:', error);
@@ -777,46 +672,82 @@ export const useContentStore = create<ContentState>()(
       },
 
       addTranslation: async (translation) => {
-        const newTranslation: Translation = {
-          id: Date.now().toString(),
-          ...translation,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        set((state) => ({
-          translations: [...state.translations, newTranslation],
-        }));
-        get().calculateStats();
+        try {
+          const { createTranslation } = await import('@/utils/contentService');
+          const newTranslation = await createTranslation(translation);
+          set((state) => ({
+            translations: [...state.translations, newTranslation],
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to create translation:', error);
+          throw error;
+        }
       },
 
       updateTranslation: async (id, updates) => {
-        set((state) => ({
-          translations: state.translations.map((translation) =>
-            translation.id === id
-              ? { ...translation, ...updates, updated_at: new Date().toISOString() }
-              : translation
-          ),
-        }));
-        get().calculateStats();
+        try {
+          const { updateTranslation } = await import('@/utils/contentService');
+          const updatedTranslation = await updateTranslation(id, updates);
+          set((state) => ({
+            translations: state.translations.map((translation) =>
+              translation.id === id ? updatedTranslation : translation
+            ),
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to update translation:', error);
+          throw error;
+        }
       },
 
       deleteTranslation: async (id) => {
-        set((state) => ({
-          translations: state.translations.filter((translation) => translation.id !== id),
-        }));
-        get().calculateStats();
+        try {
+          const { deleteTranslation } = await import('@/utils/contentService');
+          await deleteTranslation(id);
+          set((state) => ({
+            translations: state.translations.filter((translation) => translation.id !== id),
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to delete translation:', error);
+          throw error;
+        }
       },
 
       getTranslation: (id) => {
         return get().translations.find((translation) => translation.id === id);
       },
 
-      // Promotions CRUD
+      // Promotions CRUD - Updated to use database
       fetchPromotions: async () => {
         set((state) => ({ loading: { ...state.loading, promotions: true } }));
         try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          set((state) => ({ loading: { ...state.loading, promotions: false } }));
+          // Fetch from promotions table
+          const { data, error } = await supabase
+            .from('promotions')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+
+          const promotions: PromotionType[] = data?.map(promotion => ({
+            id: promotion.id,
+            name: promotion.name,
+            description: promotion.description,
+            discount_percentage: promotion.discount_percentage,
+            start_date: promotion.start_date,
+            end_date: promotion.end_date,
+            is_first_time_booking_only: promotion.is_first_time_booking_only,
+            is_active: promotion.is_active,
+            created_at: promotion.created_at,
+            updated_at: promotion.created_at, // Add updated_at for consistency
+          })) || [];
+
+          set((state) => ({
+            promotions,
+            loading: { ...state.loading, promotions: false }
+          }));
           get().calculateStats();
         } catch (error) {
           console.error('Failed to fetch promotions:', error);
@@ -825,34 +756,102 @@ export const useContentStore = create<ContentState>()(
       },
 
       addPromotion: async (promotion) => {
-        const newPromotion: Promotion = {
-          id: Date.now().toString(),
-          ...promotion,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        set((state) => ({
-          promotions: [...state.promotions, newPromotion],
-        }));
-        get().calculateStats();
+        try {
+          const { data, error } = await supabase
+            .from('promotions')
+            .insert({
+              name: promotion.name,
+              description: promotion.description,
+              discount_percentage: promotion.discount_percentage,
+              start_date: promotion.start_date,
+              end_date: promotion.end_date,
+              is_first_time_booking_only: promotion.is_first_time_booking_only,
+              is_active: promotion.is_active,
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          const newPromotion: PromotionType = {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            discount_percentage: data.discount_percentage,
+            start_date: data.start_date,
+            end_date: data.end_date,
+            is_first_time_booking_only: data.is_first_time_booking_only,
+            is_active: data.is_active,
+            created_at: data.created_at,
+            updated_at: data.created_at,
+          };
+
+          set((state) => ({
+            promotions: [...state.promotions, newPromotion],
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to create promotion:', error);
+          throw error;
+        }
       },
 
       updatePromotion: async (id, updates) => {
-        set((state) => ({
-          promotions: state.promotions.map((promotion) =>
-            promotion.id === id
-              ? { ...promotion, ...updates, updated_at: new Date().toISOString() }
-              : promotion
-          ),
-        }));
-        get().calculateStats();
+        try {
+          const { data, error } = await supabase
+            .from('promotions')
+            .update({
+              ...updates,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          const updatedPromotion: PromotionType = {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            discount_percentage: data.discount_percentage,
+            start_date: data.start_date,
+            end_date: data.end_date,
+            is_first_time_booking_only: data.is_first_time_booking_only,
+            is_active: data.is_active,
+            created_at: data.created_at,
+            updated_at: new Date().toISOString(),
+          };
+
+          set((state) => ({
+            promotions: state.promotions.map((promotion) =>
+              promotion.id === id ? updatedPromotion : promotion
+            ),
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to update promotion:', error);
+          throw error;
+        }
       },
 
       deletePromotion: async (id) => {
-        set((state) => ({
-          promotions: state.promotions.filter((promotion) => promotion.id !== id),
-        }));
-        get().calculateStats();
+        try {
+          const { error } = await supabase
+            .from('promotions')
+            .delete()
+            .eq('id', id);
+
+          if (error) throw error;
+
+          set((state) => ({
+            promotions: state.promotions.filter((promotion) => promotion.id !== id),
+          }));
+          get().calculateStats();
+        } catch (error) {
+          console.error('Failed to delete promotion:', error);
+          throw error;
+        }
       },
 
       getPromotion: (id) => {

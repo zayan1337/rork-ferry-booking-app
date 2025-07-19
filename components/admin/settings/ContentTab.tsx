@@ -1,935 +1,719 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Modal, Switch } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useContentData } from '@/hooks';
-import { useContentActions } from '@/hooks';
-import { Promotion, PromotionFormData, Announcement, AnnouncementFormData } from '@/types/content';
-import { getResponsiveLayout, validateRequired } from '@/utils/contentUtils';
-import { useWindowDimensions } from 'react-native';
-import { colors } from '@/constants/adminColors';
-import StatCard from '../StatCard';
-import Button from '../Button';
-import SearchBar from '../SearchBar';
-import EmptyState from '../EmptyState';
-import LoadingSpinner from '../LoadingSpinner';
-import DatePicker from '@/components/DatePicker';
+import React, { useState, useMemo, useEffect } from "react";
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    Alert,
+    FlatList,
+    RefreshControl,
+} from "react-native";
+import { router } from "expo-router";
+import { colors } from "@/constants/adminColors";
+import { useContentStore } from "@/store/admin/contentStore";
+import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import { AdminManagement } from "@/types";
+import {
+    FileText,
+    Tag,
+    Plus,
+    Eye,
+    AlertTriangle,
+    Clock,
+    TrendingUp,
+} from "lucide-react-native";
+
+// Components
+import Button from "@/components/admin/Button";
+import LoadingSpinner from "@/components/admin/LoadingSpinner";
+import StatCard from "@/components/admin/StatCard";
+
+// Types
+type TermsAndConditions = AdminManagement.TermsAndConditions;
+type Promotion = AdminManagement.Promotion;
 
 interface ContentTabProps {
     isActive: boolean;
+    searchQuery?: string;
 }
 
-const ContentTab: React.FC<ContentTabProps> = ({ isActive }) => {
-    const dimensions = useWindowDimensions();
-    const layout = getResponsiveLayout(dimensions.width);
-    const { promotions, announcements, contentStats, searchPromotions, searchAnnouncements, loading } = useContentData();
-    const { createPromotion, updatePromotion, deletePromotion, createAnnouncement, updateAnnouncement, deleteAnnouncement } = useContentActions();
+export default function ContentTab({ isActive, searchQuery = "" }: ContentTabProps) {
+    const { canViewContent, canManageContent } = useAdminPermissions();
 
-    const [activeSection, setActiveSection] = useState<'promotions' | 'announcements' | 'terms'>('promotions');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [showPromotionForm, setShowPromotionForm] = useState(false);
-    const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
-    const [showTermsEditor, setShowTermsEditor] = useState(false);
-    const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
-    const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+    const {
+        terms,
+        promotions,
+        loading,
+        fetchTerms,
+        fetchPromotions,
+        calculateStats,
+    } = useContentStore();
 
-    // Form states
-    const [promotionForm, setPromotionForm] = useState<PromotionFormData>({
-        name: '',
-        description: '',
-        discountPercentage: 0,
-        startDate: new Date(),
-        endDate: new Date(),
-        isFirstTimeBookingOnly: false,
-        isActive: true,
-    });
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const [announcementForm, setAnnouncementForm] = useState<AnnouncementFormData>({
-        title: '',
-        content: '',
-        type: 'general',
-        priority: 'medium',
-        isActive: true,
-        startDate: new Date(),
-        endDate: new Date(),
-    });
-
-    const [termsContent, setTermsContent] = useState('');
-
-    // Filter data based on search
-    const filteredPromotions = searchPromotions(searchQuery);
-    const filteredAnnouncements = searchAnnouncements(searchQuery);
-
-    // Reset forms when modals close
+    // Initialize data when tab becomes active
     useEffect(() => {
-        if (!showPromotionForm) {
-            setPromotionForm({
-                name: '',
-                description: '',
-                discountPercentage: 0,
-                startDate: new Date(),
-                endDate: new Date(),
-                isFirstTimeBookingOnly: false,
-                isActive: true,
-            });
-            setEditingPromotion(null);
+        if (isActive && canViewContent()) {
+            if (terms.length === 0) {
+                fetchTerms();
+            }
+            if (promotions.length === 0) {
+                fetchPromotions();
+            }
         }
-    }, [showPromotionForm]);
+    }, [isActive]);
 
-    useEffect(() => {
-        if (!showAnnouncementForm) {
-            setAnnouncementForm({
-                title: '',
-                content: '',
-                type: 'general',
-                priority: 'medium',
-                isActive: true,
-                startDate: new Date(),
-                endDate: new Date(),
-            });
-            setEditingAnnouncement(null);
-        }
-    }, [showAnnouncementForm]);
+    // Filter terms and conditions by search query
+    const filteredTerms = useMemo(() => {
+        if (!searchQuery) return terms;
 
-    // Load editing data
-    useEffect(() => {
-        if (editingPromotion) {
-            setPromotionForm({
-                name: editingPromotion.name,
-                description: editingPromotion.description || '',
-                discountPercentage: editingPromotion.discountPercentage,
-                startDate: editingPromotion.startDate,
-                endDate: editingPromotion.endDate,
-                isFirstTimeBookingOnly: editingPromotion.isFirstTimeBookingOnly,
-                isActive: editingPromotion.isActive,
-            });
-            setShowPromotionForm(true);
-        }
-    }, [editingPromotion]);
-
-    useEffect(() => {
-        if (editingAnnouncement) {
-            setAnnouncementForm({
-                title: editingAnnouncement.title,
-                content: editingAnnouncement.content,
-                type: editingAnnouncement.type,
-                priority: editingAnnouncement.priority,
-                isActive: editingAnnouncement.isActive,
-                startDate: editingAnnouncement.startDate,
-                endDate: editingAnnouncement.endDate,
-            });
-            setShowAnnouncementForm(true);
-        }
-    }, [editingAnnouncement]);
-
-    const handleCreatePromotion = async () => {
-        const validation = validateRequired(promotionForm, ['name', 'discountPercentage']);
-        if (!validation.isValid) {
-            Alert.alert('Error', validation.message);
-            return;
-        }
-
-        if (promotionForm.discountPercentage < 0 || promotionForm.discountPercentage > 100) {
-            Alert.alert('Error', 'Discount percentage must be between 0 and 100');
-            return;
-        }
-
-        if (promotionForm.startDate >= promotionForm.endDate) {
-            Alert.alert('Error', 'End date must be after start date');
-            return;
-        }
-
-        const success = await createPromotion(promotionForm);
-        if (success) {
-            setShowPromotionForm(false);
-        }
-    };
-
-    const handleUpdatePromotion = async () => {
-        if (!editingPromotion) return;
-
-        const validation = validateRequired(promotionForm, ['name', 'discountPercentage']);
-        if (!validation.isValid) {
-            Alert.alert('Error', validation.message);
-            return;
-        }
-
-        if (promotionForm.discountPercentage < 0 || promotionForm.discountPercentage > 100) {
-            Alert.alert('Error', 'Discount percentage must be between 0 and 100');
-            return;
-        }
-
-        if (promotionForm.startDate >= promotionForm.endDate) {
-            Alert.alert('Error', 'End date must be after start date');
-            return;
-        }
-
-        const success = await updatePromotion(editingPromotion.id, promotionForm);
-        if (success) {
-            setShowPromotionForm(false);
-        }
-    };
-
-    const handleDeletePromotion = async (promotion: Promotion) => {
-        Alert.alert(
-            'Delete Promotion',
-            `Are you sure you want to delete "${promotion.name}"? This action cannot be undone.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => deletePromotion(promotion.id)
-                }
-            ]
+        const query = searchQuery.toLowerCase();
+        return terms.filter(term =>
+            term.title.toLowerCase().includes(query) ||
+            term.version.toLowerCase().includes(query) ||
+            term.content.toLowerCase().includes(query)
         );
-    };
+    }, [terms, searchQuery]);
 
-    const handleCreateAnnouncement = async () => {
-        const validation = validateRequired(announcementForm, ['title', 'content']);
-        if (!validation.isValid) {
-            Alert.alert('Error', validation.message);
-            return;
-        }
+    // Filter promotions by search query
+    const filteredPromotions = useMemo(() => {
+        if (!searchQuery) return promotions;
 
-        if (announcementForm.startDate >= announcementForm.endDate) {
-            Alert.alert('Error', 'End date must be after start date');
-            return;
-        }
-
-        const success = await createAnnouncement(announcementForm);
-        if (success) {
-            setShowAnnouncementForm(false);
-        }
-    };
-
-    const handleUpdateAnnouncement = async () => {
-        if (!editingAnnouncement) return;
-
-        const validation = validateRequired(announcementForm, ['title', 'content']);
-        if (!validation.isValid) {
-            Alert.alert('Error', validation.message);
-            return;
-        }
-
-        if (announcementForm.startDate >= announcementForm.endDate) {
-            Alert.alert('Error', 'End date must be after start date');
-            return;
-        }
-
-        const success = await updateAnnouncement(editingAnnouncement.id, announcementForm);
-        if (success) {
-            setShowAnnouncementForm(false);
-        }
-    };
-
-    const handleDeleteAnnouncement = async (announcement: Announcement) => {
-        Alert.alert(
-            'Delete Announcement',
-            `Are you sure you want to delete "${announcement.title}"? This action cannot be undone.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => deleteAnnouncement(announcement.id)
-                }
-            ]
+        const query = searchQuery.toLowerCase();
+        return promotions.filter(promotion =>
+            promotion.name.toLowerCase().includes(query) ||
+            (promotion.description && promotion.description.toLowerCase().includes(query))
         );
-    };
+    }, [promotions, searchQuery]);
 
-    const getStatusColor = (isActive: boolean) => {
-        return isActive ? colors.success : colors.error;
-    };
+    // Preview items (first 3 items)
+    const previewTerms = useMemo(() => {
+        return filteredTerms.slice(0, 3);
+    }, [filteredTerms]);
 
-    const getStatusText = (isActive: boolean) => {
-        return isActive ? 'Active' : 'Inactive';
-    };
+    const previewPromotions = useMemo(() => {
+        return filteredPromotions.slice(0, 3);
+    }, [filteredPromotions]);
 
-    const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case 'high': return colors.error;
-            case 'medium': return colors.warning;
-            case 'low': return colors.success;
-            default: return colors.textSecondary;
+    // Calculate stats
+    const stats = useMemo(() => {
+        const termsStats = {
+            total: terms.length,
+            active: terms.filter(t => t.is_active).length,
+            versions: [...new Set(terms.map(t => t.version))].length,
+        };
+
+        const promotionStats = {
+            total: promotions.length,
+            active: promotions.filter(p => p.is_active).length,
+            current: promotions.filter(p => {
+                const now = new Date();
+                const start = new Date(p.start_date);
+                const end = new Date(p.end_date);
+                return p.is_active && start <= now && end >= now;
+            }).length,
+        };
+
+        return { terms: termsStats, promotions: promotionStats };
+    }, [terms, promotions]);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await Promise.all([
+                fetchTerms(),
+                fetchPromotions(),
+            ]);
+        } catch (error) {
+            console.error("Failed to refresh content:", error);
+        } finally {
+            setIsRefreshing(false);
         }
     };
 
-    const renderPromotionForm = () => (
-        <Modal
-            visible={showPromotionForm}
-            animationType="slide"
-            presentationStyle="pageSheet"
-            onRequestClose={() => setShowPromotionForm(false)}
-        >
-            <View style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
-                    <TouchableOpacity onPress={() => setShowPromotionForm(false)}>
-                        <Ionicons name="close" size={24} color={colors.text} />
-                    </TouchableOpacity>
-                    <Text style={styles.modalTitle}>
-                        {editingPromotion ? 'Edit Promotion' : 'New Promotion'}
-                    </Text>
-                    <TouchableOpacity
-                        onPress={editingPromotion ? handleUpdatePromotion : handleCreatePromotion}
-                        style={styles.saveButton}
-                    >
-                        <Text style={styles.saveButtonText}>Save</Text>
-                    </TouchableOpacity>
+    const handleTermPress = (termId: string) => {
+        if (canViewContent()) {
+            router.push(`../terms/${termId}` as any);
+        }
+    };
+
+    const handlePromotionPress = (promotionId: string) => {
+        if (canViewContent()) {
+            router.push(`../promotions/${promotionId}` as any);
+        }
+    };
+
+    const handleAddTerm = () => {
+        if (canManageContent()) {
+            router.push("../terms/new" as any);
+        } else {
+            Alert.alert("Access Denied", "You don't have permission to create terms and conditions.");
+        }
+    };
+
+    const handleAddPromotion = () => {
+        if (canManageContent()) {
+            router.push("../promotions/new" as any);
+        } else {
+            Alert.alert("Access Denied", "You don't have permission to create promotions.");
+        }
+    };
+
+    const handleViewAllTerms = () => {
+        router.push("../terms" as any);
+    };
+
+    const handleViewAllPromotions = () => {
+        router.push("../promotions" as any);
+    };
+
+    // Permission check
+    if (!canViewContent()) {
+        return (
+            <View style={styles.noPermissionContainer}>
+                <View style={styles.noPermissionIcon}>
+                    <AlertTriangle size={48} color={colors.warning} />
                 </View>
-
-                <ScrollView style={styles.formContainer}>
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Name *</Text>
-                        <TextInput
-                            style={styles.textInput}
-                            value={promotionForm.name}
-                            onChangeText={(text) => setPromotionForm(prev => ({ ...prev, name: text }))}
-                            placeholder="Enter promotion name"
-                            placeholderTextColor={colors.textSecondary}
-                        />
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Description</Text>
-                        <TextInput
-                            style={[styles.textInput, styles.textArea]}
-                            value={promotionForm.description}
-                            onChangeText={(text) => setPromotionForm(prev => ({ ...prev, description: text }))}
-                            placeholder="Enter promotion description"
-                            placeholderTextColor={colors.textSecondary}
-                            multiline
-                            numberOfLines={3}
-                        />
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Discount Percentage *</Text>
-                        <TextInput
-                            style={styles.textInput}
-                            value={promotionForm.discountPercentage.toString()}
-                            onChangeText={(text) => setPromotionForm(prev => ({ ...prev, discountPercentage: parseFloat(text) || 0 }))}
-                            placeholder="Enter discount percentage"
-                            placeholderTextColor={colors.textSecondary}
-                            keyboardType="numeric"
-                        />
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Start Date *</Text>
-                        <DatePicker
-                            value={promotionForm.startDate}
-                            onDateChange={(date) => setPromotionForm(prev => ({ ...prev, startDate: date }))}
-                        />
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>End Date *</Text>
-                        <DatePicker
-                            value={promotionForm.endDate}
-                            onDateChange={(date) => setPromotionForm(prev => ({ ...prev, endDate: date }))}
-                        />
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <View style={styles.switchRow}>
-                            <Text style={styles.fieldLabel}>First Time Booking Only</Text>
-                            <Switch
-                                value={promotionForm.isFirstTimeBookingOnly}
-                                onValueChange={(value) => setPromotionForm(prev => ({ ...prev, isFirstTimeBookingOnly: value }))}
-                                trackColor={{ false: colors.border, true: colors.primary }}
-                                thumbColor={colors.background}
-                            />
-                        </View>
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <View style={styles.switchRow}>
-                            <Text style={styles.fieldLabel}>Active</Text>
-                            <Switch
-                                value={promotionForm.isActive}
-                                onValueChange={(value) => setPromotionForm(prev => ({ ...prev, isActive: value }))}
-                                trackColor={{ false: colors.border, true: colors.primary }}
-                                thumbColor={colors.background}
-                            />
-                        </View>
-                    </View>
-                </ScrollView>
-            </View>
-        </Modal>
-    );
-
-    const renderAnnouncementForm = () => (
-        <Modal
-            visible={showAnnouncementForm}
-            animationType="slide"
-            presentationStyle="pageSheet"
-            onRequestClose={() => setShowAnnouncementForm(false)}
-        >
-            <View style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
-                    <TouchableOpacity onPress={() => setShowAnnouncementForm(false)}>
-                        <Ionicons name="close" size={24} color={colors.text} />
-                    </TouchableOpacity>
-                    <Text style={styles.modalTitle}>
-                        {editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}
-                    </Text>
-                    <TouchableOpacity
-                        onPress={editingAnnouncement ? handleUpdateAnnouncement : handleCreateAnnouncement}
-                        style={styles.saveButton}
-                    >
-                        <Text style={styles.saveButtonText}>Save</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <ScrollView style={styles.formContainer}>
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Title *</Text>
-                        <TextInput
-                            style={styles.textInput}
-                            value={announcementForm.title}
-                            onChangeText={(text) => setAnnouncementForm(prev => ({ ...prev, title: text }))}
-                            placeholder="Enter announcement title"
-                            placeholderTextColor={colors.textSecondary}
-                        />
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Content *</Text>
-                        <TextInput
-                            style={[styles.textInput, styles.textArea]}
-                            value={announcementForm.content}
-                            onChangeText={(text) => setAnnouncementForm(prev => ({ ...prev, content: text }))}
-                            placeholder="Enter announcement content"
-                            placeholderTextColor={colors.textSecondary}
-                            multiline
-                            numberOfLines={5}
-                        />
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Type *</Text>
-                        <View style={styles.segmentedControl}>
-                            {['general', 'maintenance', 'promotion', 'alert'].map(type => (
-                                <TouchableOpacity
-                                    key={type}
-                                    style={[
-                                        styles.segmentButton,
-                                        announcementForm.type === type && styles.segmentButtonActive
-                                    ]}
-                                    onPress={() => setAnnouncementForm(prev => ({ ...prev, type: type as any }))}
-                                >
-                                    <Text style={[
-                                        styles.segmentButtonText,
-                                        announcementForm.type === type && styles.segmentButtonTextActive
-                                    ]}>
-                                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Priority *</Text>
-                        <View style={styles.segmentedControl}>
-                            {['low', 'medium', 'high'].map(priority => (
-                                <TouchableOpacity
-                                    key={priority}
-                                    style={[
-                                        styles.segmentButton,
-                                        announcementForm.priority === priority && styles.segmentButtonActive
-                                    ]}
-                                    onPress={() => setAnnouncementForm(prev => ({ ...prev, priority: priority as any }))}
-                                >
-                                    <Text style={[
-                                        styles.segmentButtonText,
-                                        announcementForm.priority === priority && styles.segmentButtonTextActive
-                                    ]}>
-                                        {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Start Date *</Text>
-                        <DatePicker
-                            value={announcementForm.startDate}
-                            onDateChange={(date) => setAnnouncementForm(prev => ({ ...prev, startDate: date }))}
-                        />
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>End Date *</Text>
-                        <DatePicker
-                            value={announcementForm.endDate}
-                            onDateChange={(date) => setAnnouncementForm(prev => ({ ...prev, endDate: date }))}
-                        />
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <View style={styles.switchRow}>
-                            <Text style={styles.fieldLabel}>Active</Text>
-                            <Switch
-                                value={announcementForm.isActive}
-                                onValueChange={(value) => setAnnouncementForm(prev => ({ ...prev, isActive: value }))}
-                                trackColor={{ false: colors.border, true: colors.primary }}
-                                thumbColor={colors.background}
-                            />
-                        </View>
-                    </View>
-                </ScrollView>
-            </View>
-        </Modal>
-    );
-
-    const renderPromotionItem = (promotion: Promotion) => (
-        <View key={promotion.id} style={styles.contentItem}>
-            <View style={styles.contentHeader}>
-                <View style={styles.contentInfo}>
-                    <Text style={styles.contentTitle}>{promotion.name}</Text>
-                    <Text style={styles.contentSubtitle}>{promotion.discountPercentage}% off</Text>
-                </View>
-                <View style={styles.contentActions}>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(promotion.isActive) }]}>
-                        <Text style={styles.statusText}>{getStatusText(promotion.isActive)}</Text>
-                    </View>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => setEditingPromotion(promotion)}
-                    >
-                        <Ionicons name="pencil" size={16} color={colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => handleDeletePromotion(promotion)}
-                    >
-                        <Ionicons name="trash" size={16} color={colors.error} />
-                    </TouchableOpacity>
-                </View>
-            </View>
-            {promotion.description && (
-                <Text style={styles.contentDescription} numberOfLines={2}>{promotion.description}</Text>
-            )}
-            <View style={styles.contentMeta}>
-                <Text style={styles.contentMetaText}>
-                    {new Date(promotion.startDate).toLocaleDateString()} - {new Date(promotion.endDate).toLocaleDateString()}
+                <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                <Text style={styles.noPermissionText}>
+                    You don't have permission to view content management.
                 </Text>
-                {promotion.isFirstTimeBookingOnly && (
-                    <Text style={styles.contentMetaText}>First time bookings only</Text>
+            </View>
+        );
+    }
+
+    // Loading state
+    if (loading.terms && terms.length === 0 && loading.promotions && promotions.length === 0) {
+        return (
+            <View style={styles.loadingContainer}>
+                <LoadingSpinner />
+                <Text style={styles.loadingText}>Loading content...</Text>
+            </View>
+        );
+    }
+
+    const renderTermItem = ({ item, index }: { item: TermsAndConditions; index: number }) => (
+        <TouchableOpacity
+            key={`term-${item.id}-${index}`}
+            style={styles.itemContainer}
+            onPress={() => handleTermPress(item.id)}
+            activeOpacity={0.7}
+        >
+            <View style={styles.itemContent}>
+                <View style={styles.itemHeader}>
+                    <View style={styles.itemIcon}>
+                        <FileText size={20} color={colors.primary} />
+                    </View>
+                    <View style={styles.itemInfo}>
+                        <Text style={styles.itemTitle}>{item.title}</Text>
+                        <Text style={styles.itemSubtitle}>Version {item.version}</Text>
+                        <Text style={styles.itemMeta}>
+                            Effective: {new Date(item.effective_date).toLocaleDateString()}
+                        </Text>
+                    </View>
+                    <View style={styles.itemStatus}>
+                        {item.is_active ? (
+                            <View style={styles.statusActive}>
+                                <Text style={styles.statusActiveText}>Active</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.statusInactive}>
+                                <Text style={styles.statusInactiveText}>Inactive</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+
+                <Text style={styles.itemDescription} numberOfLines={2}>
+                    {item.content}
+                </Text>
+
+                <View style={styles.itemFooter}>
+                    <View style={styles.itemDate}>
+                        <Clock size={12} color={colors.textSecondary} />
+                        <Text style={styles.itemDateText}>
+                            Updated {new Date(item.updated_at).toLocaleDateString()}
+                        </Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handleTermPress(item.id)}
+                    >
+                        <Eye size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
+
+    const renderPromotionItem = ({ item, index }: { item: Promotion; index: number }) => (
+        <TouchableOpacity
+            key={`promotion-${item.id}-${index}`}
+            style={styles.itemContainer}
+            onPress={() => handlePromotionPress(item.id)}
+            activeOpacity={0.7}
+        >
+            <View style={styles.itemContent}>
+                <View style={styles.itemHeader}>
+                    <View style={styles.itemIcon}>
+                        <Tag size={20} color={colors.success} />
+                    </View>
+                    <View style={styles.itemInfo}>
+                        <Text style={styles.itemTitle}>{item.name}</Text>
+                        <Text style={styles.itemSubtitle}>{item.discount_percentage}% off</Text>
+                        <Text style={styles.itemMeta}>
+                            {new Date(item.start_date).toLocaleDateString()} - {new Date(item.end_date).toLocaleDateString()}
+                        </Text>
+                    </View>
+                    <View style={styles.itemStatus}>
+                        {item.is_active ? (
+                            <View style={styles.statusActive}>
+                                <Text style={styles.statusActiveText}>Active</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.statusInactive}>
+                                <Text style={styles.statusInactiveText}>Inactive</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+
+                {item.description && (
+                    <Text style={styles.itemDescription} numberOfLines={2}>
+                        {item.description}
+                    </Text>
+                )}
+
+                <View style={styles.itemFooter}>
+                    <View style={styles.itemDate}>
+                        <Clock size={12} color={colors.textSecondary} />
+                        <Text style={styles.itemDateText}>
+                            Updated {new Date(item.updated_at).toLocaleDateString()}
+                        </Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handlePromotionPress(item.id)}
+                    >
+                        <Eye size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
+
+    const renderTermsSection = () => (
+        <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderContent}>
+                    <View style={styles.sectionTitleContainer}>
+                        <View style={styles.sectionIcon}>
+                            <FileText size={20} color={colors.primary} />
+                        </View>
+                        <View>
+                            <Text style={styles.sectionTitle}>Terms & Conditions</Text>
+                            <Text style={styles.sectionSubtitle}>{filteredTerms.length} terms available</Text>
+                        </View>
+                    </View>
+                </View>
+                {canManageContent() && (
+                    <View style={styles.sectionHeaderButton}>
+                        <Button
+                            title="Add Term"
+                            onPress={handleAddTerm}
+                            size="small"
+                            variant="outline"
+                            icon={<Plus size={16} color={colors.primary} />}
+                        />
+                    </View>
                 )}
             </View>
+
+            {/* Stats */}
+            <View style={styles.statsContainer}>
+                <StatCard
+                    title="Total Terms"
+                    value={stats.terms.total.toString()}
+                    icon={<FileText size={20} color={colors.primary} />}
+                />
+                <StatCard
+                    title="Active"
+                    value={stats.terms.active.toString()}
+                    icon={<FileText size={20} color={colors.success} />}
+                />
+                <StatCard
+                    title="Versions"
+                    value={stats.terms.versions.toString()}
+                    icon={<TrendingUp size={20} color={colors.info} />}
+                />
+            </View>
+
+            {/* Terms List */}
+            <FlatList
+                data={previewTerms}
+                renderItem={renderTermItem}
+                keyExtractor={(item, index) => `term-${item.id}-${index}`}
+                scrollEnabled={false}
+                ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                        <FileText size={48} color={colors.textSecondary} />
+                        <Text style={styles.emptyStateTitle}>No terms found</Text>
+                        <Text style={styles.emptyStateText}>
+                            {searchQuery ? 'Try adjusting your search terms' : 'No terms and conditions available'}
+                        </Text>
+                    </View>
+                }
+            />
+
+            {filteredTerms.length > 3 && (
+                <View style={styles.footerContainer}>
+                    <Text style={styles.previewText}>
+                        Showing {previewTerms.length} of {filteredTerms.length} terms
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.viewAllButton}
+                        onPress={handleViewAllTerms}
+                    >
+                        <Text style={styles.viewAllText}>View All Terms</Text>
+                        <FileText size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     );
 
-    const renderAnnouncementItem = (announcement: Announcement) => (
-        <View key={announcement.id} style={styles.contentItem}>
-            <View style={styles.contentHeader}>
-                <View style={styles.contentInfo}>
-                    <Text style={styles.contentTitle}>{announcement.title}</Text>
-                    <Text style={styles.contentSubtitle}>{announcement.type}</Text>
-                </View>
-                <View style={styles.contentActions}>
-                    <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(announcement.priority) }]}>
-                        <Text style={styles.statusText}>{announcement.priority}</Text>
+    const renderPromotionsSection = () => (
+        <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderContent}>
+                    <View style={styles.sectionTitleContainer}>
+                        <View style={styles.sectionIcon}>
+                            <Tag size={20} color={colors.success} />
+                        </View>
+                        <View>
+                            <Text style={styles.sectionTitle}>Promotions</Text>
+                            <Text style={styles.sectionSubtitle}>{filteredPromotions.length} promotions available</Text>
+                        </View>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(announcement.isActive) }]}>
-                        <Text style={styles.statusText}>{getStatusText(announcement.isActive)}</Text>
+                </View>
+                {canManageContent() && (
+                    <View style={styles.sectionHeaderButton}>
+                        <Button
+                            title="Add Promotion"
+                            onPress={handleAddPromotion}
+                            size="small"
+                            variant="outline"
+                            icon={<Plus size={16} color={colors.success} />}
+                        />
                     </View>
+                )}
+            </View>
+
+            {/* Stats */}
+            <View style={styles.statsContainer}>
+                <StatCard
+                    title="Total Promotions"
+                    value={stats.promotions.total.toString()}
+                    icon={<Tag size={20} color={colors.success} />}
+                />
+                <StatCard
+                    title="Active"
+                    value={stats.promotions.active.toString()}
+                    icon={<Tag size={20} color={colors.success} />}
+                />
+                <StatCard
+                    title="Current"
+                    value={stats.promotions.current.toString()}
+                    icon={<TrendingUp size={20} color={colors.warning} />}
+                />
+            </View>
+
+            {/* Promotions List */}
+            <FlatList
+                data={previewPromotions}
+                renderItem={renderPromotionItem}
+                keyExtractor={(item, index) => `promotion-${item.id}-${index}`}
+                scrollEnabled={false}
+                ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                        <Tag size={48} color={colors.textSecondary} />
+                        <Text style={styles.emptyStateTitle}>No promotions found</Text>
+                        <Text style={styles.emptyStateText}>
+                            {searchQuery ? 'Try adjusting your search terms' : 'No promotions available'}
+                        </Text>
+                    </View>
+                }
+            />
+
+            {filteredPromotions.length > 3 && (
+                <View style={styles.footerContainer}>
+                    <Text style={styles.previewText}>
+                        Showing {previewPromotions.length} of {filteredPromotions.length} promotions
+                    </Text>
                     <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => setEditingAnnouncement(announcement)}
+                        style={styles.viewAllButton}
+                        onPress={handleViewAllPromotions}
                     >
-                        <Ionicons name="pencil" size={16} color={colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => handleDeleteAnnouncement(announcement)}
-                    >
-                        <Ionicons name="trash" size={16} color={colors.error} />
+                        <Text style={styles.viewAllText}>View All Promotions</Text>
+                        <Tag size={16} color={colors.success} />
                     </TouchableOpacity>
                 </View>
-            </View>
-            <Text style={styles.contentDescription} numberOfLines={3}>{announcement.content}</Text>
-            <View style={styles.contentMeta}>
-                <Text style={styles.contentMetaText}>
-                    {new Date(announcement.startDate).toLocaleDateString()} - {new Date(announcement.endDate).toLocaleDateString()}
-                </Text>
-            </View>
+            )}
         </View>
     );
-
-    if (!isActive) return null;
 
     return (
         <View style={styles.container}>
-            {/* Statistics */}
-            <View style={[styles.statsContainer, layout.statsGrid]}>
-                <StatCard
-                    title="Active Promotions"
-                    value={contentStats.activePromotions}
-                    icon="pricetag"
-                    color={colors.primary}
-                />
-                <StatCard
-                    title="Announcements"
-                    value={contentStats.totalAnnouncements}
-                    icon="megaphone"
-                    color={colors.success}
-                />
-                <StatCard
-                    title="Terms Version"
-                    value={contentStats.currentTermsVersion}
-                    icon="document-text"
-                    color={colors.info}
-                />
-            </View>
-
-            {/* Section Toggle */}
-            <View style={styles.sectionToggle}>
-                <TouchableOpacity
-                    style={[styles.toggleButton, activeSection === 'promotions' && styles.activeToggle]}
-                    onPress={() => setActiveSection('promotions')}
-                >
-                    <Ionicons
-                        name="pricetag"
-                        size={16}
-                        color={activeSection === 'promotions' ? colors.background : colors.textSecondary}
+            <FlatList
+                data={[]} // Empty data since we're using ListHeaderComponent
+                renderItem={() => null}
+                ListHeaderComponent={
+                    <View>
+                        {renderTermsSection()}
+                        {renderPromotionsSection()}
+                    </View>
+                }
+                contentContainerStyle={styles.contentContainer}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefreshing}
+                        onRefresh={handleRefresh}
+                        colors={[colors.primary]}
+                        tintColor={colors.primary}
                     />
-                    <Text style={[styles.toggleText, activeSection === 'promotions' && styles.activeToggleText]}>
-                        Promotions
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.toggleButton, activeSection === 'announcements' && styles.activeToggle]}
-                    onPress={() => setActiveSection('announcements')}
-                >
-                    <Ionicons
-                        name="megaphone"
-                        size={16}
-                        color={activeSection === 'announcements' ? colors.background : colors.textSecondary}
-                    />
-                    <Text style={[styles.toggleText, activeSection === 'announcements' && styles.activeToggleText]}>
-                        Announcements
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.toggleButton, activeSection === 'terms' && styles.activeToggle]}
-                    onPress={() => setActiveSection('terms')}
-                >
-                    <Ionicons
-                        name="document-text"
-                        size={16}
-                        color={activeSection === 'terms' ? colors.background : colors.textSecondary}
-                    />
-                    <Text style={[styles.toggleText, activeSection === 'terms' && styles.activeToggleText]}>
-                        Terms
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Search and Actions */}
-            {activeSection !== 'terms' && (
-                <View style={styles.searchContainer}>
-                    <SearchBar
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholder={`Search ${activeSection}...`}
-                    />
-                    <Button
-                        title={activeSection === 'promotions' ? 'Add Promotion' : 'Add Announcement'}
-                        onPress={() => {
-                            if (activeSection === 'promotions') {
-                                setShowPromotionForm(true);
-                            } else {
-                                setShowAnnouncementForm(true);
-                            }
-                        }}
-                        icon="add"
-                        style={styles.addButton}
-                    />
-                </View>
-            )}
-
-            {/* Content */}
-            <ScrollView style={styles.content}>
-                {loading ? (
-                    <LoadingSpinner />
-                ) : (
-                    <>
-                        {activeSection === 'promotions' ? (
-                            filteredPromotions.length === 0 ? (
-                                <EmptyState
-                                    icon="pricetag"
-                                    title="No promotions found"
-                                    subtitle={searchQuery ? "Try adjusting your search" : "Create your first promotion"}
-                                    actionText="Add Promotion"
-                                    onAction={() => setShowPromotionForm(true)}
-                                />
-                            ) : (
-                                <View style={styles.grid}>
-                                    {filteredPromotions.map(renderPromotionItem)}
-                                </View>
-                            )
-                        ) : activeSection === 'announcements' ? (
-                            filteredAnnouncements.length === 0 ? (
-                                <EmptyState
-                                    icon="megaphone"
-                                    title="No announcements found"
-                                    subtitle={searchQuery ? "Try adjusting your search" : "Create your first announcement"}
-                                    actionText="Add Announcement"
-                                    onAction={() => setShowAnnouncementForm(true)}
-                                />
-                            ) : (
-                                <View style={styles.grid}>
-                                    {filteredAnnouncements.map(renderAnnouncementItem)}
-                                </View>
-                            )
-                        ) : (
-                            <View style={styles.termsContainer}>
-                                <Text style={styles.termsTitle}>Terms & Conditions</Text>
-                                <Text style={styles.termsSubtitle}>
-                                    Manage your terms and conditions that users must accept
-                                </Text>
-                                <Button
-                                    title="Edit Terms"
-                                    onPress={() => setShowTermsEditor(true)}
-                                    icon="pencil"
-                                    style={styles.editTermsButton}
-                                />
-                            </View>
-                        )}
-                    </>
-                )}
-            </ScrollView>
-
-            {/* Modals */}
-            {renderPromotionForm()}
-            {renderAnnouncementForm()}
+                }
+                showsVerticalScrollIndicator={false}
+            />
         </View>
     );
-};
+}
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+    },
+    contentContainer: {
+        flexGrow: 1,
+        paddingHorizontal: 16,
+    },
+    sectionContainer: {
+        marginBottom: 32,
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+        minHeight: 44,
+    },
+    sectionHeaderContent: {
+        flex: 1,
+        paddingRight: 8,
+    },
+    sectionHeaderButton: {
+        flexShrink: 0,
+        maxWidth: "40%",
+    },
+    sectionTitleContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    sectionIcon: {
+        padding: 8,
+        backgroundColor: colors.primary + "10",
+        borderRadius: 12,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: colors.text,
+    },
+    sectionSubtitle: {
+        fontSize: 14,
+        color: colors.textSecondary,
     },
     statsContainer: {
-        padding: 16,
-        gap: 16,
-    },
-    sectionToggle: {
         flexDirection: 'row',
-        margin: 16,
-        backgroundColor: colors.surface,
-        borderRadius: 8,
-        padding: 4,
-    },
-    toggleButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 8,
-        borderRadius: 6,
-        gap: 8,
-    },
-    activeToggle: {
-        backgroundColor: colors.primary,
-    },
-    toggleText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: colors.textSecondary,
-    },
-    activeToggleText: {
-        color: colors.background,
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        paddingHorizontal: 16,
         gap: 12,
-        alignItems: 'center',
+        marginBottom: 16,
     },
-    addButton: {
-        paddingHorizontal: 16,
+    itemContainer: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        marginBottom: 12,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
-    content: {
-        flex: 1,
-    },
-    grid: {
+    itemContent: {
         padding: 16,
-        gap: 12,
     },
-    contentItem: {
-        backgroundColor: colors.surface,
-        padding: 16,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: colors.border,
+    itemHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        marginBottom: 12,
     },
-    contentHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
+    itemIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.primary + "10",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 12,
     },
-    contentInfo: {
+    itemInfo: {
         flex: 1,
+        gap: 4,
     },
-    contentTitle: {
+    itemTitle: {
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: "600",
         color: colors.text,
-        marginBottom: 4,
+        marginBottom: 2,
     },
-    contentSubtitle: {
+    itemSubtitle: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "500",
+    },
+    itemMeta: {
         fontSize: 12,
         color: colors.textSecondary,
     },
-    contentActions: {
-        flexDirection: 'row',
-        gap: 8,
-        alignItems: 'center',
-    },
-    contentDescription: {
-        fontSize: 13,
+    itemDescription: {
+        fontSize: 14,
         color: colors.textSecondary,
-        lineHeight: 18,
-        marginBottom: 8,
+        lineHeight: 20,
+        marginBottom: 12,
+        fontStyle: 'italic',
     },
-    contentMeta: {
+    itemStatus: {
+        marginLeft: 8,
+    },
+    statusActive: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-    },
-    contentMetaText: {
-        fontSize: 12,
-        color: colors.textSecondary,
-    },
-    statusBadge: {
+        backgroundColor: colors.success + '10',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
     },
-    priorityBadge: {
+    statusActiveText: {
+        fontSize: 12,
+        color: colors.success,
+        fontWeight: '500',
+    },
+    statusInactive: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.error + '10',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
     },
-    statusText: {
-        fontSize: 10,
-        color: colors.background,
-        fontWeight: '600',
+    statusInactiveText: {
+        fontSize: 12,
+        color: colors.error,
+        fontWeight: '500',
+    },
+    itemFooter: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    itemDate: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+    },
+    itemDateText: {
+        fontSize: 12,
+        color: colors.textSecondary,
     },
     actionButton: {
         padding: 8,
         borderRadius: 6,
-        backgroundColor: colors.background,
+        backgroundColor: colors.backgroundSecondary,
     },
-    termsContainer: {
-        padding: 32,
-        alignItems: 'center',
+    footerContainer: {
+        paddingVertical: 16,
     },
-    termsTitle: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: colors.text,
-        marginBottom: 8,
-    },
-    termsSubtitle: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        textAlign: 'center',
-        marginBottom: 24,
-    },
-    editTermsButton: {
-        paddingHorizontal: 24,
-    },
-    modalContainer: {
-        flex: 1,
-        backgroundColor: colors.background,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: colors.text,
-    },
-    saveButton: {
-        backgroundColor: colors.primary,
+    viewAllButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 12,
         paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 6,
+        backgroundColor: colors.primary + "10",
+        borderRadius: 8,
+        gap: 8,
+        minWidth: 200,
     },
-    saveButtonText: {
-        color: colors.background,
-        fontWeight: '600',
+    viewAllText: {
+        fontSize: 14,
+        fontWeight: "500",
+        color: colors.primary,
     },
-    formContainer: {
+    previewText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: "center",
+        marginBottom: 12,
+    },
+    emptyState: {
+        alignItems: "center",
+        paddingVertical: 32,
+        gap: 16,
+    },
+    emptyStateTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: colors.text,
+    },
+    emptyStateText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+    },
+    noPermissionContainer: {
         flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 64,
+        gap: 16,
     },
-    formSection: {
+    noPermissionIcon: {
+        alignItems: "center",
+        justifyContent: "center",
         padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        backgroundColor: colors.warning + "10",
+        borderRadius: 24,
     },
-    fieldLabel: {
-        fontSize: 16,
-        fontWeight: '500',
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
         color: colors.text,
         marginBottom: 8,
     },
-    textInput: {
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 8,
-        padding: 12,
+    noPermissionText: {
         fontSize: 16,
-        color: colors.text,
-    },
-    textArea: {
-        minHeight: 80,
-        textAlignVertical: 'top',
-    },
-    switchRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    segmentedControl: {
-        flexDirection: 'row',
-        backgroundColor: colors.surface,
-        borderRadius: 8,
-        padding: 4,
-    },
-    segmentButton: {
-        flex: 1,
-        paddingVertical: 8,
-        alignItems: 'center',
-        borderRadius: 6,
-    },
-    segmentButtonActive: {
-        backgroundColor: colors.primary,
-    },
-    segmentButtonText: {
-        fontSize: 14,
         color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 250,
     },
-    segmentButtonTextActive: {
-        color: colors.background,
-        fontWeight: '600',
+    loadingContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 16,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: colors.textSecondary,
     },
 });
-
-export default ContentTab; 

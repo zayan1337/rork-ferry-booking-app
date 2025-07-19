@@ -110,6 +110,86 @@ export interface FAQCategoryWithStats extends FAQCategory {
 }
 
 // ============================================================================
+// CONTENT MANAGEMENT TYPES
+// ============================================================================
+
+export interface TermsAndConditions extends BaseEntity, ActivatableEntity {
+    title: string;
+    content: string;
+    version: string;
+    effective_date: string;
+}
+
+export interface TermsFormData {
+    title: string;
+    content: string;
+    version: string;
+    effective_date: string;
+    is_active: boolean;
+}
+
+export interface TermsStats extends StatsBase {
+    versions: number;
+    recentlyUpdated: number;
+    effectiveTerms: number;
+}
+
+export interface TermsFilters extends SearchFilters {
+    version?: string;
+    date_range?: {
+        from?: string;
+        to?: string;
+    };
+}
+
+export interface TermsWithDetails extends TermsAndConditions {
+    created_by?: string;
+    updated_by?: string;
+    is_current?: boolean;
+}
+
+export interface Promotion extends BaseEntity, ActivatableEntity, NamedEntity {
+    description?: string;
+    discount_percentage: number;
+    start_date: string;
+    end_date: string;
+    is_first_time_booking_only: boolean;
+    route_ids?: string[];
+}
+
+export interface PromotionFormData {
+    name: string;
+    description?: string;
+    discount_percentage: number;
+    start_date: string;
+    end_date: string;
+    is_first_time_booking_only: boolean;
+    is_active: boolean;
+    route_ids?: string[];
+}
+
+export interface PromotionStats extends StatsBase {
+    currentPromotions: number;
+    upcomingPromotions: number;
+    expiredPromotions: number;
+    avgDiscount: number;
+}
+
+export interface PromotionFilters extends SearchFilters {
+    status?: 'current' | 'upcoming' | 'expired';
+    discount_range?: {
+        min?: number;
+        max?: number;
+    };
+}
+
+export interface PromotionWithDetails extends Promotion {
+    route_names?: string[];
+    usage_count?: number;
+    revenue_impact?: number;
+}
+
+// ============================================================================
 // ISLAND MANAGEMENT TYPES
 // ============================================================================
 

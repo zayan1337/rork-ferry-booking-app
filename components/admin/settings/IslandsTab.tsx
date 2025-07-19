@@ -45,7 +45,7 @@ export default function IslandsTab({ isActive, searchQuery = "" }: IslandsTabPro
         if (isActive && canViewIslands() && islands.length === 0) {
             loadAll();
         }
-    }, [isActive, canViewIslands, islands.length, loadAll]);
+    }, [isActive, islands.length]); // Removed function dependencies to prevent infinite loop
 
     const filteredIslands = useMemo(() => {
         if (!searchQuery) return islands;
