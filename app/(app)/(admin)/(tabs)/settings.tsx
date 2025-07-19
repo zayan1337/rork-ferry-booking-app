@@ -301,6 +301,7 @@ export default function SettingsScreen() {
                 return (
                     <ContentTab
                         isActive={activeTab === "content"}
+                        searchQuery={searchQuery}
                     />
                 );
 
@@ -308,6 +309,7 @@ export default function SettingsScreen() {
                 return (
                     <TranslationsTab
                         isActive={activeTab === "translations"}
+                        searchQuery={searchQuery}
                     />
                 );
 
@@ -317,7 +319,7 @@ export default function SettingsScreen() {
     };
 
     // Tabs that use FlatList internally and should not be wrapped in ScrollView
-    const flatListTabs = ['islands', 'zones', 'faq'];
+    const flatListTabs = ['islands', 'zones', 'faq', 'content', 'translations', 'alerts', 'activity', 'reports', 'system'];
     const useScrollView = !flatListTabs.includes(activeTab);
 
     // Optimized scroll to active tab - only when tab changes and user isn't manually scrolling

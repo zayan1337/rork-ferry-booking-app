@@ -13,9 +13,9 @@ import {
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useContentStore } from "@/store/admin/contentStore";
+import { useContentManagement } from "@/hooks/useContentManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { AdminManagement } from "@/types";
+import { TermsFormData } from "@/types/content";
 import {
     ArrowLeft,
     FileText,
@@ -27,11 +27,9 @@ import {
 import Button from "@/components/admin/Button";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
 
-type TermsFormData = AdminManagement.TermsFormData;
-
 export default function NewTermScreen() {
     const { canManageContent } = useAdminPermissions();
-    const { addTerms, loading } = useContentStore();
+    const { createTerms, loading } = useContentManagement();
 
     const [formData, setFormData] = useState<TermsFormData>({
         title: "",
@@ -78,7 +76,7 @@ export default function NewTermScreen() {
         }
 
         try {
-            await addTerms({
+            await createTerms({
                 ...formData,
                 effective_date: formData.effective_date + 'T00:00:00Z',
             });

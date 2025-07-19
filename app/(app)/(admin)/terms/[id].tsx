@@ -7,12 +7,13 @@ import {
     TouchableOpacity,
     Alert,
     Dimensions,
+    Share,
 } from "react-native";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useContentStore } from "@/store/admin/contentStore";
+import { useContentManagement } from "@/hooks/useContentManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { AdminManagement } from "@/types";
+import { TermsAndConditions } from "@/types/content";
 import {
     ArrowLeft,
     Edit3,
@@ -23,49 +24,54 @@ import {
     CheckCircle,
     XCircle,
     Eye,
-    Share,
+    Share2,
+    AlertTriangle,
 } from "lucide-react-native";
 
 // Components
 import Button from "@/components/admin/Button";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
+import EmptyState from "@/components/admin/EmptyState";
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
-
-type TermsAndConditions = AdminManagement.TermsAndConditions;
 
 export default function TermDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const { canViewContent, canManageContent } = useAdminPermissions();
 
     const {
-        terms,
+        currentTerms,
         loading,
-        fetchTerms,
+        fetchTermsById,
         deleteTerms,
-        getTerms,
-    } = useContentStore();
+        error,
+        clearError,
+        resetCurrentTerms,
+    } = useContentManagement();
 
-    const [term, setTerm] = useState<TermsAndConditions | null>(null);
+    const [hasInitialized, setHasInitialized] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
+    // Fetch term data on component mount
     useEffect(() => {
-        if (canViewContent()) {
-            if (terms.length === 0) {
-                fetchTerms();
-            } else {
-                const foundTerm = getTerms(id);
-                setTerm(foundTerm || null);
-            }
+        if (canViewContent() && id && !hasInitialized) {
+            fetchTermsById(id).finally(() => {
+                setHasInitialized(true);
+            });
         }
-    }, [id, terms]);
+    }, [id, hasInitialized]); // Removed function dependencies
 
+    // Cleanup on unmount
     useEffect(() => {
-        if (terms.length > 0) {
-            const foundTerm = getTerms(id);
-            setTerm(foundTerm || null);
-        }
-    }, [terms, id]);
+        return () => {
+            resetCurrentTerms();
+            clearError();
+        };
+    }, []); // Empty dependency array for cleanup only
+
+    // Use currentTerms from the store
+    const term = currentTerms;
 
     const handleEdit = () => {
         if (!term) return;
@@ -85,19 +91,30 @@ export default function TermDetailScreen() {
 
         Alert.alert(
             "Delete Terms",
-            `Are you sure you want to delete "${term.title}"?`,
+            `Are you sure you want to delete "${term.title}"? This action cannot be undone.`,
             [
                 { text: "Cancel", style: "cancel" },
                 {
                     text: "Delete",
                     style: "destructive",
                     onPress: async () => {
+                        setIsDeleting(true);
                         try {
                             await deleteTerms(term.id);
-                            Alert.alert("Success", "Terms and conditions deleted successfully");
-                            router.back();
+                            Alert.alert(
+                                "Success",
+                                "Terms and conditions deleted successfully",
+                                [
+                                    {
+                                        text: "OK",
+                                        onPress: () => router.back()
+                                    }
+                                ]
+                            );
                         } catch (error) {
                             Alert.alert("Error", "Failed to delete terms and conditions");
+                        } finally {
+                            setIsDeleting(false);
                         }
                     },
                 },
@@ -105,29 +122,127 @@ export default function TermDetailScreen() {
         );
     };
 
-    const handleShare = () => {
+    const handleShare = async () => {
         if (!term) return;
-        // Implement share functionality
-        Alert.alert("Share", "Share functionality would be implemented here");
+
+        const content = `${term.title}\nVersion: ${term.version}\nEffective Date: ${new Date(term.effective_date).toLocaleDateString()}\n\n${term.content}`;
+
+        try {
+            await Share.share({
+                message: content,
+                title: term.title,
+            });
+        } catch (error) {
+            console.error('Error sharing terms:', error);
+        }
     };
 
     // Permission check
     if (!canViewContent()) {
         return (
-            <View style={styles.noPermissionContainer}>
-                <Text style={styles.noPermissionText}>
-                    You don't have permission to view terms and conditions.
-                </Text>
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Terms & Conditions",
+                        headerShown: true,
+                    }}
+                />
+                <EmptyState
+                    icon={<AlertTriangle size={48} color={colors.warning} />}
+                    title="Access Denied"
+                    message="You don't have permission to view terms and conditions."
+                />
             </View>
         );
     }
 
     // Loading state
-    if (loading.terms || !term) {
+    if ((loading.singleTerms || loading.terms) && !hasInitialized) {
         return (
-            <View style={styles.loadingContainer}>
-                <LoadingSpinner />
-                <Text style={styles.loadingText}>Loading terms and conditions...</Text>
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Terms & Conditions",
+                        headerShown: true,
+                    }}
+                />
+                <View style={styles.loadingContainer}>
+                    <LoadingSpinner />
+                    <Text style={styles.loadingText}>Loading terms and conditions...</Text>
+                </View>
+            </View>
+        );
+    }
+
+    // Not found state
+    if (hasInitialized && !term && !loading.singleTerms) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Terms Not Found",
+                        headerShown: true,
+                    }}
+                />
+                <EmptyState
+                    icon={<FileText size={48} color={colors.textSecondary} />}
+                    title="Terms & Conditions Not Found"
+                    message="The terms and conditions you're looking for don't exist or have been removed."
+                    action={
+                        <Button
+                            title="Go Back"
+                            variant="primary"
+                            onPress={() => router.back()}
+                            icon={<ArrowLeft size={16} color={colors.white} />}
+                        />
+                    }
+                />
+            </View>
+        );
+    }
+
+    // Error state
+    if (error && hasInitialized) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Error",
+                        headerShown: true,
+                    }}
+                />
+                <EmptyState
+                    icon={<AlertTriangle size={48} color={colors.error} />}
+                    title="Error Loading Terms"
+                    message={error}
+                    action={
+                        <Button
+                            title="Try Again"
+                            variant="primary"
+                            onPress={() => {
+                                clearError();
+                                setHasInitialized(false);
+                            }}
+                            icon={<Eye size={16} color={colors.white} />}
+                        />
+                    }
+                />
+            </View>
+        );
+    }
+
+    if (!term) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Terms & Conditions",
+                        headerShown: true,
+                    }}
+                />
+                <View style={styles.loadingContainer}>
+                    <LoadingSpinner />
+                </View>
             </View>
         );
     }
@@ -137,35 +252,30 @@ export default function TermDetailScreen() {
             <Stack.Screen
                 options={{
                     title: term.title,
-                    headerLeft: () => (
-                        <TouchableOpacity
-                            onPress={() => router.back()}
-                            style={styles.backButton}
-                        >
-                            <ArrowLeft size={24} color={colors.text} />
-                        </TouchableOpacity>
-                    ),
+                    headerShown: true,
                     headerRight: () => (
                         <View style={styles.headerActions}>
                             <TouchableOpacity
                                 style={styles.headerAction}
                                 onPress={handleShare}
                             >
-                                <Share size={20} color={colors.textSecondary} />
+                                <Share2 size={20} color={colors.textSecondary} />
                             </TouchableOpacity>
                             {canManageContent() && (
                                 <>
                                     <TouchableOpacity
                                         style={styles.headerAction}
                                         onPress={handleEdit}
+                                        disabled={isDeleting}
                                     >
-                                        <Edit3 size={20} color={colors.primary} />
+                                        <Edit3 size={20} color={isDeleting ? colors.textSecondary : colors.primary} />
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.headerAction}
                                         onPress={handleDelete}
+                                        disabled={isDeleting}
                                     >
-                                        <Trash2 size={20} color={colors.error} />
+                                        <Trash2 size={20} color={isDeleting ? colors.textSecondary : colors.error} />
                                     </TouchableOpacity>
                                 </>
                             )}
@@ -214,7 +324,11 @@ export default function TermDetailScreen() {
                         <View style={styles.metadataContent}>
                             <Text style={styles.metadataLabel}>Effective Date</Text>
                             <Text style={styles.metadataValue}>
-                                {new Date(term.effective_date).toLocaleDateString()}
+                                {new Date(term.effective_date).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                })}
                             </Text>
                         </View>
                     </View>
@@ -226,7 +340,11 @@ export default function TermDetailScreen() {
                         <View style={styles.metadataContent}>
                             <Text style={styles.metadataLabel}>Created</Text>
                             <Text style={styles.metadataValue}>
-                                {new Date(term.created_at).toLocaleDateString()}
+                                {new Date(term.created_at).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                })}
                             </Text>
                         </View>
                     </View>
@@ -238,7 +356,11 @@ export default function TermDetailScreen() {
                         <View style={styles.metadataContent}>
                             <Text style={styles.metadataLabel}>Last Updated</Text>
                             <Text style={styles.metadataValue}>
-                                {new Date(term.updated_at).toLocaleDateString()}
+                                {new Date(term.updated_at).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                })}
                             </Text>
                         </View>
                     </View>
@@ -254,20 +376,29 @@ export default function TermDetailScreen() {
                 {canManageContent() && (
                     <View style={styles.actionsCard}>
                         <Text style={styles.cardTitle}>Actions</Text>
-                        <View style={styles.actionButtons}>
+                        <View style={styles.actionsContainer}>
                             <Button
-                                title="Edit Terms"
-                                onPress={handleEdit}
+                                title="Share"
                                 variant="outline"
-                                icon={<Edit3 size={16} color={colors.primary} />}
-                                style={styles.actionButton}
+                                onPress={handleShare}
+                                icon={<Share2 size={16} color={colors.primary} />}
+                                disabled={isDeleting}
                             />
                             <Button
-                                title="Delete Terms"
+                                title="Edit"
+                                variant="primary"
+                                onPress={handleEdit}
+                                icon={<Edit3 size={16} color={colors.white} />}
+                                disabled={isDeleting}
+                            />
+                            <Button
+                                title="Delete"
+                                variant="ghost"
                                 onPress={handleDelete}
-                                variant="outline"
-                                style={[styles.actionButton, styles.deleteActionButton]}
+                                loading={isDeleting}
+                                disabled={isDeleting}
                                 icon={<Trash2 size={16} color={colors.error} />}
+                                style={styles.deleteButton}
                             />
                         </View>
                     </View>
@@ -282,19 +413,15 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
-    backButton: {
-        padding: 8,
-        marginLeft: -8,
-    },
-    headerActions: {
-        flexDirection: 'row',
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
         alignItems: 'center',
-        gap: 8,
+        gap: 16,
     },
-    headerAction: {
-        padding: 8,
-        borderRadius: 8,
-        backgroundColor: colors.card,
+    loadingText: {
+        fontSize: 16,
+        color: colors.textSecondary,
     },
     scrollView: {
         flex: 1,
@@ -303,105 +430,110 @@ const styles = StyleSheet.create({
         padding: 16,
         gap: 16,
     },
+    headerActions: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    headerAction: {
+        padding: 8,
+    },
     headerCard: {
         backgroundColor: colors.card,
-        borderRadius: 16,
+        borderRadius: 12,
         padding: 20,
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start',
+        gap: 16,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowRadius: 4,
+        elevation: 2,
     },
     headerIcon: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
         backgroundColor: colors.primary + '15',
-        alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 16,
+        alignItems: 'center',
     },
     headerInfo: {
         flex: 1,
-        gap: 4,
+        gap: 8,
     },
     title: {
         fontSize: 20,
         fontWeight: '700',
         color: colors.text,
-        marginBottom: 4,
+        lineHeight: 26,
     },
     version: {
-        fontSize: 16,
-        color: colors.primary,
-        fontWeight: '600',
-        marginBottom: 8,
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: '500',
     },
     statusContainer: {
-        alignSelf: 'flex-start',
+        marginTop: 4,
     },
     statusActive: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.success + '20',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
         gap: 6,
+        backgroundColor: colors.success + '15',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        alignSelf: 'flex-start',
     },
     statusActiveText: {
-        fontSize: 14,
-        color: colors.success,
+        fontSize: 12,
         fontWeight: '600',
+        color: colors.success,
     },
     statusInactive: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.error + '20',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
         gap: 6,
+        backgroundColor: colors.error + '15',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        alignSelf: 'flex-start',
     },
     statusInactiveText: {
-        fontSize: 14,
-        color: colors.error,
+        fontSize: 12,
         fontWeight: '600',
+        color: colors.error,
     },
     metadataCard: {
         backgroundColor: colors.card,
-        borderRadius: 16,
+        borderRadius: 12,
         padding: 20,
+        gap: 16,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowRadius: 4,
+        elevation: 2,
     },
     cardTitle: {
         fontSize: 18,
-        fontWeight: '700',
+        fontWeight: '600',
         color: colors.text,
-        marginBottom: 16,
     },
     metadataItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.backgroundSecondary,
+        gap: 12,
     },
     metadataIcon: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: colors.primary + '10',
-        alignItems: 'center',
+        backgroundColor: colors.primary + '15',
         justifyContent: 'center',
-        marginRight: 12,
+        alignItems: 'center',
     },
     metadataContent: {
         flex: 1,
@@ -419,13 +551,14 @@ const styles = StyleSheet.create({
     },
     contentCard: {
         backgroundColor: colors.card,
-        borderRadius: 16,
+        borderRadius: 12,
         padding: 20,
+        gap: 16,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowRadius: 4,
+        elevation: 2,
     },
     content: {
         fontSize: 16,
@@ -434,43 +567,20 @@ const styles = StyleSheet.create({
     },
     actionsCard: {
         backgroundColor: colors.card,
-        borderRadius: 16,
+        borderRadius: 12,
         padding: 20,
+        gap: 16,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowRadius: 4,
+        elevation: 2,
     },
-    actionButtons: {
-        flexDirection: isTablet ? 'row' : 'column',
+    actionsContainer: {
+        flexDirection: 'row',
         gap: 12,
     },
-    actionButton: {
-        flex: isTablet ? 1 : undefined,
-    },
-    deleteActionButton: {
-        borderColor: colors.error,
-    },
-    noPermissionContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 32,
-    },
-    noPermissionText: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        textAlign: 'center',
-    },
-    loadingContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 16,
-    },
-    loadingText: {
-        fontSize: 16,
-        color: colors.textSecondary,
+    deleteButton: {
+        borderColor: colors.error + '30',
     },
 }); 

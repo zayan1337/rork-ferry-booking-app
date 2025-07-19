@@ -128,6 +128,21 @@ export interface TermsAndConditions {
     updated_at: string;
 }
 
+export interface TermsFormData {
+    title: string;
+    content: string;
+    version: string;
+    effective_date: string;
+    is_active: boolean;
+}
+
+export interface TermsWithDetails extends TermsAndConditions {
+    created_by?: string;
+    updated_by?: string;
+    word_count?: number;
+    is_current?: boolean;
+}
+
 // Translation Types
 export interface Translation {
     id: string;
@@ -148,6 +163,13 @@ export interface TranslationFormData {
     is_active: boolean;
 }
 
+export interface TranslationWithDetails extends Translation {
+    created_by?: string;
+    updated_by?: string;
+    character_count?: number;
+    is_missing?: boolean;
+}
+
 // Promotion Types
 export interface Promotion {
     id: string;
@@ -160,6 +182,24 @@ export interface Promotion {
     is_active: boolean;
     created_at: string;
     updated_at: string;
+}
+
+export interface PromotionFormData {
+    name: string;
+    description?: string;
+    discount_percentage: number;
+    start_date: string;
+    end_date: string;
+    is_first_time_booking_only: boolean;
+    is_active: boolean;
+}
+
+export interface PromotionStats {
+    total: number;
+    active: number;
+    expired: number;
+    upcoming: number;
+    averageDiscount: number;
 }
 
 // Announcement Types
@@ -177,9 +217,9 @@ export interface Announcement {
 }
 
 // Content Tab Types
-export type ContentTab = 'islands' | 'zones' | 'faq' | 'content' | 'translations';
+export type ContentTab = 'islands' | 'zones' | 'faq' | 'content' | 'promotions';
 
-// Filter Types
+// Enhanced Filter Types
 export interface ContentFilters {
     islands: {
         zone?: string;
@@ -192,9 +232,23 @@ export interface ContentFilters {
         category_id?: string;
         is_active?: boolean;
     };
-    translations: {
-        language_code?: string;
+    terms: {
+        version?: string;
         is_active?: boolean;
+        effective_date_from?: string;
+        effective_date_to?: string;
+    };
+    promotions: {
+        is_active?: boolean;
+        is_first_time_booking_only?: boolean;
+        discount_range?: {
+            min: number;
+            max: number;
+        };
+        date_range?: {
+            start: string;
+            end: string;
+        };
     };
 }
 
@@ -210,16 +264,34 @@ export interface ContentSearchQueries {
 export interface ContentLoadingStates {
     islands: boolean;
     zones: boolean;
-    faqs: boolean;
+    faq: boolean;
     faqCategories: boolean;
-    terms: boolean;
     translations: boolean;
-    promotions: boolean;
-    announcements: boolean;
 }
 
-// Statistics Types
+// Enhanced Statistics Types
 export interface ContentStats {
+    totalIslands: number;
+    activeIslands: number;
+    totalZones: number;
+    activeZones: number;
+    totalFAQs: number;
+    activeFAQs: number;
+    totalTranslations: number;
+    completedTranslations: number;
+    totalPromotions: number;
+    activePromotions: number;
+    totalAnnouncements: number;
+    activeAnnouncements: number;
+    totalTerms: number;
+    activeTerms: number;
+    currentTermsVersion: string;
+    totalLanguages: number;
+    translationCompleteness: number;
+}
+
+// Detailed Content Statistics
+export interface DetailedContentStats {
     islands: {
         total: number;
         active: number;
@@ -238,12 +310,55 @@ export interface ContentStats {
         inactive: number;
         by_category: Record<string, number>;
     };
+    terms: {
+        total: number;
+        active: number;
+        inactive: number;
+        versions: number;
+        currentVersion: string;
+        recentlyUpdated: number;
+        byVersion: Record<string, number>;
+    };
     translations: {
         total: number;
-        by_language: Record<string, number>;
-        completion_rate: Record<string, number>;
+        active: number;
+        inactive: number;
+        languages: number;
+        completeness: number;
+        recentlyUpdated: number;
+        byLanguage: Record<string, { total: number; active: number; completeness: number }>;
+        missingKeys: string[];
     };
 }
+
+// Content Management View Types (for database views)
+export interface ContentWithDetails extends TermsAndConditions {
+    created_by_name?: string;
+    updated_by_name?: string;
+    word_count?: number;
+    is_current_version?: boolean;
+}
+
+export interface TranslationManagementView extends Translation {
+    created_by_name?: string;
+    updated_by_name?: string;
+    character_count?: number;
+    key_usage_count?: number;
+}
+
+// Content Management Actions
+export type ContentAction =
+    | 'create'
+    | 'update'
+    | 'delete'
+    | 'activate'
+    | 'deactivate'
+    | 'duplicate'
+    | 'export'
+    | 'import';
+
+// Content Type Definitions
+export type ContentType = 'terms' | 'translations' | 'faqs' | 'islands' | 'zones';
 
 // Form Validation Types
 export interface ValidationError {
@@ -254,5 +369,67 @@ export interface ValidationError {
 export interface FormValidationResult {
     isValid: boolean;
     errors: ValidationError[];
+}
+
+// Export and Import Types
+export interface ExportOptions {
+    format: 'json' | 'csv' | 'xlsx';
+    includeInactive?: boolean;
+    dateRange?: {
+        from: string;
+        to: string;
+    };
+    fields?: string[];
+}
+
+export interface ImportResult {
+    success: number;
+    failed: number;
+    errors: Array<{
+        row: number;
+        error: string;
+    }>;
+}
+
+// Language Support
+export interface SupportedLanguage {
+    code: string;
+    name: string;
+    nativeName: string;
+    direction: 'ltr' | 'rtl';
+    isActive: boolean;
+}
+
+// Common content management types
+export interface ContentItem {
+    id: string;
+    title?: string;
+    name?: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface ContentItemWithActions extends ContentItem {
+    canEdit: boolean;
+    canDelete: boolean;
+    canDuplicate: boolean;
+    canActivate: boolean;
+}
+
+// Bulk operations
+export interface BulkOperation {
+    action: ContentAction;
+    itemIds: string[];
+    options?: Record<string, any>;
+}
+
+export interface BulkOperationResult {
+    success: number;
+    failed: number;
+    errors: Array<{
+        id: string;
+        error: string;
+    }>;
 }
 

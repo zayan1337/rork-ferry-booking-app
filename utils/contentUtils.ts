@@ -12,6 +12,8 @@ import {
     ZoneFormData,
     FAQFormData,
     TranslationFormData,
+    TermsAndConditions,
+    PromotionFormData,
 } from '@/types/content';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -318,6 +320,654 @@ export const validateTranslationForm = (data: TranslationFormData): string[] => 
     }
 
     return errors;
+};
+
+// ============================================================================
+// TERMS AND CONDITIONS VALIDATION
+// ============================================================================
+
+export const validateTermsData = (data: {
+    title: string;
+    content: string;
+    version: string;
+    effective_date: string;
+}): { isValid: boolean; errors: Record<string, string> } => {
+    const errors: Record<string, string> = {};
+
+    // Title validation
+    if (!data.title || data.title.trim().length === 0) {
+        errors.title = 'Title is required';
+    } else if (data.title.trim().length < 3) {
+        errors.title = 'Title must be at least 3 characters long';
+    } else if (data.title.trim().length > 200) {
+        errors.title = 'Title must be no more than 200 characters long';
+    }
+
+    // Content validation
+    if (!data.content || data.content.trim().length === 0) {
+        errors.content = 'Content is required';
+    } else if (data.content.trim().length < 10) {
+        errors.content = 'Content must be at least 10 characters long';
+    } else if (data.content.trim().length > 50000) {
+        errors.content = 'Content must be no more than 50,000 characters long';
+    }
+
+    // Version validation
+    if (!data.version || data.version.trim().length === 0) {
+        errors.version = 'Version is required';
+    } else if (data.version.trim().length < 1) {
+        errors.version = 'Version must be at least 1 character long';
+    } else if (data.version.trim().length > 20) {
+        errors.version = 'Version must be no more than 20 characters long';
+    }
+
+    // Effective date validation
+    if (!data.effective_date) {
+        errors.effective_date = 'Effective date is required';
+    } else {
+        const date = new Date(data.effective_date);
+        if (isNaN(date.getTime())) {
+            errors.effective_date = 'Please enter a valid date';
+        }
+    }
+
+    return {
+        isValid: Object.keys(errors).length === 0,
+        errors
+    };
+};
+
+// ============================================================================
+// TRANSLATION VALIDATION
+// ============================================================================
+
+export const validateTranslationData = (data: {
+    key: string;
+    language_code: string;
+    translation: string;
+}): { isValid: boolean; errors: Record<string, string> } => {
+    const errors: Record<string, string> = {};
+
+    // Key validation
+    if (!data.key || data.key.trim().length === 0) {
+        errors.key = 'Key is required';
+    } else if (data.key.trim().length < 2) {
+        errors.key = 'Key must be at least 2 characters long';
+    } else if (data.key.trim().length > 255) {
+        errors.key = 'Key must be no more than 255 characters long';
+    } else if (!/^[a-zA-Z0-9._-]+$/.test(data.key.trim())) {
+        errors.key = 'Key can only contain letters, numbers, dots, underscores, and hyphens';
+    }
+
+    // Language code validation
+    if (!data.language_code || data.language_code.trim().length === 0) {
+        errors.language_code = 'Language code is required';
+    } else if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(data.language_code)) {
+        errors.language_code = 'Language code must be in format "en" or "en-US"';
+    }
+
+    // Translation validation
+    if (!data.translation || data.translation.trim().length === 0) {
+        errors.translation = 'Translation is required';
+    } else if (data.translation.trim().length < 1) {
+        errors.translation = 'Translation cannot be empty';
+    } else if (data.translation.trim().length > 5000) {
+        errors.translation = 'Translation must be no more than 5,000 characters long';
+    }
+
+    return {
+        isValid: Object.keys(errors).length === 0,
+        errors
+    };
+};
+
+// ============================================================================
+// TERMS AND CONDITIONS SEARCH AND FILTERING
+// ============================================================================
+
+export const searchTerms = (terms: TermsAndConditions[], query: string): TermsAndConditions[] => {
+    if (!query || query.trim().length === 0) {
+        return terms;
+    }
+
+    const searchQuery = query.toLowerCase();
+    return terms.filter(term =>
+        term.title.toLowerCase().includes(searchQuery) ||
+        term.content.toLowerCase().includes(searchQuery) ||
+        term.version.toLowerCase().includes(searchQuery)
+    );
+};
+
+export const filterTermsByStatus = (terms: TermsAndConditions[], isActive: boolean): TermsAndConditions[] => {
+    return terms.filter(term => term.is_active === isActive);
+};
+
+export const filterTermsByVersion = (terms: TermsAndConditions[], version: string): TermsAndConditions[] => {
+    return terms.filter(term => term.version === version);
+};
+
+export const filterTermsByDateRange = (
+    terms: TermsAndConditions[],
+    startDate: string,
+    endDate: string
+): TermsAndConditions[] => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    return terms.filter(term => {
+        const effectiveDate = new Date(term.effective_date);
+        return effectiveDate >= start && effectiveDate <= end;
+    });
+};
+
+// ============================================================================
+// TRANSLATION SEARCH AND FILTERING
+// ============================================================================
+
+export const searchTranslations = (translations: Translation[], query: string): Translation[] => {
+    if (!query || query.trim().length === 0) {
+        return translations;
+    }
+
+    const searchQuery = query.toLowerCase();
+    return translations.filter(translation =>
+        translation.key.toLowerCase().includes(searchQuery) ||
+        translation.translation.toLowerCase().includes(searchQuery) ||
+        translation.language_code.toLowerCase().includes(searchQuery) ||
+        (translation.context && translation.context.toLowerCase().includes(searchQuery))
+    );
+};
+
+export const filterTranslationsByStatus = (translations: Translation[], isActive: boolean): Translation[] => {
+    return translations.filter(translation => translation.is_active === isActive);
+};
+
+export const filterTranslationsByLanguage = (translations: Translation[], languageCode: string): Translation[] => {
+    return translations.filter(translation => translation.language_code === languageCode);
+};
+
+export const filterTranslationsByContext = (translations: Translation[], context: string): Translation[] => {
+    return translations.filter(translation =>
+        translation.context && translation.context.toLowerCase().includes(context.toLowerCase())
+    );
+};
+
+// ============================================================================
+// TERMS AND CONDITIONS SORTING
+// ============================================================================
+
+export const sortTerms = (
+    terms: TermsAndConditions[],
+    sortBy: 'title' | 'version' | 'effective_date' | 'created_at' | 'updated_at',
+    order: 'asc' | 'desc'
+): TermsAndConditions[] => {
+    const sortedTerms = [...terms];
+
+    sortedTerms.sort((a, b) => {
+        let aValue: string | number | Date;
+        let bValue: string | number | Date;
+
+        switch (sortBy) {
+            case 'title':
+                aValue = a.title.toLowerCase();
+                bValue = b.title.toLowerCase();
+                break;
+            case 'version':
+                aValue = a.version.toLowerCase();
+                bValue = b.version.toLowerCase();
+                break;
+            case 'effective_date':
+                aValue = new Date(a.effective_date);
+                bValue = new Date(b.effective_date);
+                break;
+            case 'created_at':
+                aValue = new Date(a.created_at);
+                bValue = new Date(b.created_at);
+                break;
+            case 'updated_at':
+                aValue = new Date(a.updated_at || a.created_at);
+                bValue = new Date(b.updated_at || b.created_at);
+                break;
+            default:
+                aValue = a.title.toLowerCase();
+                bValue = b.title.toLowerCase();
+        }
+
+        if (aValue < bValue) {
+            return order === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+            return order === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+
+    return sortedTerms;
+};
+
+// ============================================================================
+// TRANSLATION SORTING
+// ============================================================================
+
+export const sortTranslations = (
+    translations: Translation[],
+    sortBy: 'key' | 'language_code' | 'translation' | 'created_at' | 'updated_at',
+    order: 'asc' | 'desc'
+): Translation[] => {
+    const sortedTranslations = [...translations];
+
+    sortedTranslations.sort((a, b) => {
+        let aValue: string | number | Date;
+        let bValue: string | number | Date;
+
+        switch (sortBy) {
+            case 'key':
+                aValue = a.key.toLowerCase();
+                bValue = b.key.toLowerCase();
+                break;
+            case 'language_code':
+                aValue = a.language_code.toLowerCase();
+                bValue = b.language_code.toLowerCase();
+                break;
+            case 'translation':
+                aValue = a.translation.toLowerCase();
+                bValue = b.translation.toLowerCase();
+                break;
+            case 'created_at':
+                aValue = new Date(a.created_at);
+                bValue = new Date(b.created_at);
+                break;
+            case 'updated_at':
+                aValue = new Date(a.updated_at || a.created_at);
+                bValue = new Date(b.updated_at || b.created_at);
+                break;
+            default:
+                aValue = a.key.toLowerCase();
+                bValue = b.key.toLowerCase();
+        }
+
+        if (aValue < bValue) {
+            return order === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+            return order === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+
+    return sortedTranslations;
+};
+
+// ============================================================================
+// TERMS AND CONDITIONS STATISTICS
+// ============================================================================
+
+export const calculateTermsStats = (terms: TermsAndConditions[]) => {
+    const active = terms.filter(term => term.is_active);
+    const inactive = terms.filter(term => !term.is_active);
+    const versions = [...new Set(terms.map(term => term.version))];
+    const currentVersion = versions.sort().reverse()[0] || '';
+
+    // Recently updated (within last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const recentlyUpdated = terms.filter(term => {
+        const updatedDate = new Date(term.updated_at || term.created_at);
+        return updatedDate >= sevenDaysAgo;
+    });
+
+    return {
+        total: terms.length,
+        active: active.length,
+        inactive: inactive.length,
+        versions: versions.length,
+        currentVersion,
+        recentlyUpdated: recentlyUpdated.length,
+        byVersion: versions.reduce((acc, version) => {
+            acc[version] = terms.filter(term => term.version === version).length;
+            return acc;
+        }, {} as Record<string, number>),
+    };
+};
+
+// ============================================================================
+// TRANSLATION STATISTICS
+// ============================================================================
+
+export const calculateTranslationsStats = (translations: Translation[]) => {
+    const active = translations.filter(trans => trans.is_active);
+    const inactive = translations.filter(trans => !trans.is_active);
+    const languages = [...new Set(translations.map(trans => trans.language_code))];
+
+    // Calculate completeness (percentage of active translations)
+    const completeness = translations.length > 0 ?
+        Math.round((active.length / translations.length) * 100) : 0;
+
+    // Recently updated (within last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const recentlyUpdated = translations.filter(trans => {
+        const updatedDate = new Date(trans.updated_at || trans.created_at);
+        return updatedDate >= sevenDaysAgo;
+    });
+
+    // Translations by language
+    const byLanguage = languages.reduce((acc, lang) => {
+        const langTranslations = translations.filter(trans => trans.language_code === lang);
+        const activeLangTranslations = langTranslations.filter(trans => trans.is_active);
+        acc[lang] = {
+            total: langTranslations.length,
+            active: activeLangTranslations.length,
+            completeness: langTranslations.length > 0 ?
+                Math.round((activeLangTranslations.length / langTranslations.length) * 100) : 0,
+        };
+        return acc;
+    }, {} as Record<string, { total: number; active: number; completeness: number }>);
+
+    return {
+        total: translations.length,
+        active: active.length,
+        inactive: inactive.length,
+        languages: languages.length,
+        completeness,
+        recentlyUpdated: recentlyUpdated.length,
+        byLanguage,
+        missingKeys: [], // Would need to compare with a master key list
+    };
+};
+
+// ============================================================================
+// PROMOTION VALIDATION
+// ============================================================================
+
+export const validatePromotionData = (data: {
+    name: string;
+    discount_percentage: number;
+    start_date: string;
+    end_date: string;
+    description?: string;
+}): { isValid: boolean; errors: Record<string, string> } => {
+    const errors: Record<string, string> = {};
+
+    // Name validation
+    if (!data.name || data.name.trim().length === 0) {
+        errors.name = 'Promotion name is required';
+    } else if (data.name.trim().length < 3) {
+        errors.name = 'Promotion name must be at least 3 characters long';
+    } else if (data.name.trim().length > 100) {
+        errors.name = 'Promotion name must be no more than 100 characters long';
+    }
+
+    // Discount percentage validation
+    if (typeof data.discount_percentage !== 'number') {
+        errors.discount_percentage = 'Discount percentage must be a number';
+    } else if (data.discount_percentage <= 0) {
+        errors.discount_percentage = 'Discount percentage must be greater than 0';
+    } else if (data.discount_percentage > 100) {
+        errors.discount_percentage = 'Discount percentage cannot exceed 100%';
+    }
+
+    // Start date validation
+    if (!data.start_date) {
+        errors.start_date = 'Start date is required';
+    } else {
+        const startDate = new Date(data.start_date);
+        if (isNaN(startDate.getTime())) {
+            errors.start_date = 'Please enter a valid start date';
+        }
+    }
+
+    // End date validation
+    if (!data.end_date) {
+        errors.end_date = 'End date is required';
+    } else {
+        const endDate = new Date(data.end_date);
+        if (isNaN(endDate.getTime())) {
+            errors.end_date = 'Please enter a valid end date';
+        } else if (data.start_date) {
+            const startDate = new Date(data.start_date);
+            if (!isNaN(startDate.getTime()) && endDate <= startDate) {
+                errors.end_date = 'End date must be after start date';
+            }
+        }
+    }
+
+    // Description validation (optional)
+    if (data.description && data.description.trim().length > 500) {
+        errors.description = 'Description must be no more than 500 characters long';
+    }
+
+    return {
+        isValid: Object.keys(errors).length === 0,
+        errors
+    };
+};
+
+// ============================================================================
+// PROMOTION SEARCH AND FILTERING
+// ============================================================================
+
+export const searchPromotions = (promotions: Promotion[], query: string): Promotion[] => {
+    if (!query || query.trim().length === 0) {
+        return promotions;
+    }
+
+    const searchQuery = query.toLowerCase();
+    return promotions.filter(promotion =>
+        promotion.name.toLowerCase().includes(searchQuery) ||
+        (promotion.description && promotion.description.toLowerCase().includes(searchQuery)) ||
+        promotion.discount_percentage.toString().includes(searchQuery)
+    );
+};
+
+export const filterPromotionsByStatus = (promotions: Promotion[], isActive: boolean): Promotion[] => {
+    return promotions.filter(promotion => promotion.is_active === isActive);
+};
+
+export const filterPromotionsByPeriod = (promotions: Promotion[], period: 'current' | 'upcoming' | 'expired'): Promotion[] => {
+    const now = new Date();
+
+    return promotions.filter(promotion => {
+        const startDate = new Date(promotion.start_date);
+        const endDate = new Date(promotion.end_date);
+
+        switch (period) {
+            case 'current':
+                return startDate <= now && endDate >= now && promotion.is_active;
+            case 'upcoming':
+                return startDate > now;
+            case 'expired':
+                return endDate < now;
+            default:
+                return true;
+        }
+    });
+};
+
+// ============================================================================
+// PROMOTION SORTING
+// ============================================================================
+
+export const sortPromotions = (
+    promotions: Promotion[],
+    sortBy: 'name' | 'discount_percentage' | 'start_date' | 'end_date' | 'created_at',
+    order: 'asc' | 'desc'
+): Promotion[] => {
+    const sortedPromotions = [...promotions];
+
+    sortedPromotions.sort((a, b) => {
+        let aValue: string | number | Date;
+        let bValue: string | number | Date;
+
+        switch (sortBy) {
+            case 'name':
+                aValue = a.name.toLowerCase();
+                bValue = b.name.toLowerCase();
+                break;
+            case 'discount_percentage':
+                aValue = a.discount_percentage;
+                bValue = b.discount_percentage;
+                break;
+            case 'start_date':
+                aValue = new Date(a.start_date);
+                bValue = new Date(b.start_date);
+                break;
+            case 'end_date':
+                aValue = new Date(a.end_date);
+                bValue = new Date(b.end_date);
+                break;
+            case 'created_at':
+                aValue = new Date(a.created_at);
+                bValue = new Date(b.created_at);
+                break;
+            default:
+                aValue = a.name.toLowerCase();
+                bValue = b.name.toLowerCase();
+        }
+
+        if (aValue < bValue) {
+            return order === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+            return order === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+
+    return sortedPromotions;
+};
+
+// ============================================================================
+// PROMOTION STATISTICS
+// ============================================================================
+
+export const calculatePromotionsStats = (promotions: Promotion[]) => {
+    const now = new Date();
+    const active = promotions.filter(promo => promo.is_active);
+
+    // Calculate status categories
+    const current = promotions.filter(promo => {
+        const start = new Date(promo.start_date);
+        const end = new Date(promo.end_date);
+        return start <= now && end >= now && promo.is_active;
+    });
+
+    const upcoming = promotions.filter(promo => {
+        const start = new Date(promo.start_date);
+        return start > now;
+    });
+
+    const expired = promotions.filter(promo => {
+        const end = new Date(promo.end_date);
+        return end < now;
+    });
+
+    // Calculate average discount
+    const activePromotions = promotions.filter(promo => promo.is_active);
+    const averageDiscount = activePromotions.length > 0
+        ? Math.round(activePromotions.reduce((sum, promo) => sum + promo.discount_percentage, 0) / activePromotions.length)
+        : 0;
+
+    return {
+        total: promotions.length,
+        active: current.length,
+        expired: expired.length,
+        upcoming: upcoming.length,
+        averageDiscount,
+        totalActive: active.length,
+        totalInactive: promotions.length - active.length,
+        firstTimeOnly: promotions.filter(promo => promo.is_first_time_booking_only).length,
+    };
+};
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+export const getUniqueTermsVersions = (terms: TermsAndConditions[]): string[] => {
+    return [...new Set(terms.map(term => term.version))].sort();
+};
+
+export const getUniqueLanguageCodes = (translations: Translation[]): string[] => {
+    return [...new Set(translations.map(trans => trans.language_code))].sort();
+};
+
+export const getTermsByVersion = (terms: TermsAndConditions[], version: string): TermsAndConditions[] => {
+    return terms.filter(term => term.version === version);
+};
+
+export const getTranslationsByLanguage = (translations: Translation[], languageCode: string): Translation[] => {
+    return translations.filter(trans => trans.language_code === languageCode);
+};
+
+export const getActiveTerms = (terms: TermsAndConditions[]): TermsAndConditions[] => {
+    return terms.filter(term => term.is_active);
+};
+
+export const getActiveTranslations = (translations: Translation[]): Translation[] => {
+    return translations.filter(trans => trans.is_active);
+};
+
+export const getLatestTerms = (terms: TermsAndConditions[]): TermsAndConditions | null => {
+    if (terms.length === 0) return null;
+
+    const activeTerms = getActiveTerms(terms);
+    if (activeTerms.length === 0) return null;
+
+    return sortTerms(activeTerms, 'effective_date', 'desc')[0];
+};
+
+export const getTranslationByKey = (translations: Translation[], key: string, languageCode: string): Translation | null => {
+    return translations.find(trans => trans.key === key && trans.language_code === languageCode) || null;
+};
+
+export const validateTermsUniqueness = (terms: TermsAndConditions[], newTitle: string, newVersion: string, excludeId?: string): boolean => {
+    return !terms.some(term =>
+        term.id !== excludeId &&
+        term.title.toLowerCase() === newTitle.toLowerCase() &&
+        term.version === newVersion
+    );
+};
+
+export const validateTranslationUniqueness = (
+    translations: Translation[],
+    newKey: string,
+    newLanguageCode: string,
+    excludeId?: string
+): boolean => {
+    return !translations.some(trans =>
+        trans.id !== excludeId &&
+        trans.key === newKey &&
+        trans.language_code === newLanguageCode
+    );
+};
+
+// ============================================================================
+// FORMATTING FUNCTIONS
+// ============================================================================
+
+export const formatTermsForExport = (terms: TermsAndConditions[]) => {
+    return terms.map(term => ({
+        Title: term.title,
+        Content: term.content,
+        Version: term.version,
+        'Effective Date': new Date(term.effective_date).toLocaleDateString(),
+        Status: term.is_active ? 'Active' : 'Inactive',
+        'Created At': new Date(term.created_at).toLocaleDateString(),
+        'Updated At': term.updated_at ? new Date(term.updated_at).toLocaleDateString() : 'N/A',
+    }));
+};
+
+export const formatTranslationsForExport = (translations: Translation[]) => {
+    return translations.map(trans => ({
+        Key: trans.key,
+        'Language Code': trans.language_code,
+        Translation: trans.translation,
+        Context: trans.context || '',
+        Status: trans.is_active ? 'Active' : 'Inactive',
+        'Created At': new Date(trans.created_at).toLocaleDateString(),
+        'Updated At': trans.updated_at ? new Date(trans.updated_at).toLocaleDateString() : 'N/A',
+    }));
 };
 
 // Helper utilities

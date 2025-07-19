@@ -55,7 +55,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
         if (isActive && (faqs.length === 0 || categoriesWithCounts.length === 0)) {
             refreshAll();
         }
-    }, [isActive, faqs.length, categoriesWithCounts.length, refreshAll]);
+    }, [isActive, faqs.length, categoriesWithCounts.length]); // Removed refreshAll function dependency
 
     // Filter categories based on search query
     const filteredCategories = useMemo(() => {
@@ -202,7 +202,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
                     ]}
                     onPress={() => setActiveTab('categories')}
                 >
-                    <Folder size={16} color={activeTab === 'categories' ? colors.white : colors.textSecondary} />
+                    <Folder size={16} color={activeTab === 'categories' ? colors.primary : colors.textSecondary} />
                     <Text style={[
                         styles.tabToggleText,
                         activeTab === 'categories' && styles.tabToggleTextActive
@@ -217,7 +217,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
                     ]}
                     onPress={() => setActiveTab('faqs')}
                 >
-                    <MessageSquare size={16} color={activeTab === 'faqs' ? colors.white : colors.textSecondary} />
+                    <MessageSquare size={16} color={activeTab === 'faqs' ? colors.primary : colors.textSecondary} />
                     <Text style={[
                         styles.tabToggleText,
                         activeTab === 'faqs' && styles.tabToggleTextActive
@@ -417,15 +417,16 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     tabToggleActive: {
-        backgroundColor: colors.primary,
+        backgroundColor: colors.primary + '15',
     },
     tabToggleText: {
         fontSize: 14,
-        fontWeight: '600',
+        fontWeight: '500',
         color: colors.textSecondary,
     },
     tabToggleTextActive: {
-        color: colors.white,
+        color: colors.primary,
+        fontWeight: '600',
     },
     itemSeparator: {
         height: 12,

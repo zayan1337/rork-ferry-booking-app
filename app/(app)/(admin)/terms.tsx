@@ -11,9 +11,9 @@ import {
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useContentStore } from "@/store/admin/contentStore";
+import { useContentManagement } from "@/hooks/useContentManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { AdminManagement } from "@/types";
+import { TermsAndConditions } from "@/types/content";
 import {
     ArrowLeft,
     Plus,
@@ -41,17 +41,18 @@ import StatCard from "@/components/admin/StatCard";
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
-type TermsAndConditions = AdminManagement.TermsAndConditions;
-
 export default function TermsScreen() {
     const { canViewContent, canManageContent } = useAdminPermissions();
 
     const {
         terms,
         loading,
+        termsStats,
         fetchTerms,
         deleteTerms,
-    } = useContentStore();
+        error,
+        clearError,
+    } = useContentManagement();
 
     // State
     const [searchQuery, setSearchQuery] = useState("");
@@ -129,25 +130,16 @@ export default function TermsScreen() {
         return sorted;
     }, [terms, searchQuery, filterActive, filterVersion, sortBy, sortOrder]);
 
-    // Calculate stats
+    // Use stats from the hook
     const stats = React.useMemo(() => {
-        const activeTerms = terms.filter(t => t.is_active);
-        const versions = [...new Set(terms.map(t => t.version))];
-        const recentTerms = terms.filter(t => {
-            const created = new Date(t.created_at);
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            return created > sevenDaysAgo;
-        });
-
         return {
-            total: terms.length,
-            active: activeTerms.length,
-            inactive: terms.length - activeTerms.length,
-            versions: versions.length,
-            recent: recentTerms.length,
+            total: termsStats.total,
+            active: termsStats.active,
+            inactive: termsStats.inactive,
+            versions: termsStats.versions.length,
+            recent: termsStats.recentTerms,
         };
-    }, [terms]);
+    }, [termsStats]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -308,7 +300,7 @@ export default function TermsScreen() {
         );
     }
 
-    const versions = [...new Set(terms.map(t => t.version))];
+    const versions = termsStats.versions;
 
     return (
         <View style={styles.container}>

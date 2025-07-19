@@ -42,7 +42,7 @@ export default function ZonesTab({ searchQuery = "" }: ZonesTabProps) {
         if (canViewZones() && zones.length === 0) {
             fetchAll();
         }
-    }, [canViewZones, zones.length, fetchAll]);
+    }, [zones.length]); // Removed function dependencies to prevent infinite loop
 
     const filteredZones = useMemo(() => {
         if (!searchQuery) return zones;

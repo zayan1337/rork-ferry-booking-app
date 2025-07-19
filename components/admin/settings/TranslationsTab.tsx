@@ -1,20 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Modal } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useContentData } from '@/hooks';
-import { useContentActions } from '@/hooks';
-import { Translation, TranslationFormData } from '@/types/content';
-import { getResponsiveLayout, validateRequired, getTranslationCompleteness } from '@/utils/contentUtils';
-import { useWindowDimensions } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    FlatList,
+    Alert,
+    RefreshControl,
+} from 'react-native';
+import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import StatCard from '../StatCard';
-import Button from '../Button';
-import SearchBar from '../SearchBar';
-import EmptyState from '../EmptyState';
-import LoadingSpinner from '../LoadingSpinner';
+import { useTranslationStore } from '@/store/admin/translationStore';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { Translation } from '@/types/content';
+import {
+    Languages,
+    Plus,
+    Eye,
+    AlertTriangle,
+    Globe,
+} from 'lucide-react-native';
+
+// Components
+import TranslationItem from '@/components/admin/TranslationItem';
+import Button from '@/components/admin/Button';
+import LoadingSpinner from '@/components/admin/LoadingSpinner';
 
 interface TranslationsTabProps {
     isActive: boolean;
+    searchQuery?: string;
 }
 
 const SUPPORTED_LANGUAGES = [
@@ -24,462 +38,295 @@ const SUPPORTED_LANGUAGES = [
     { code: 'hi', name: 'Hindi', flag: '🇮🇳' },
 ];
 
-const TranslationsTab: React.FC<TranslationsTabProps> = ({ isActive }) => {
-    const dimensions = useWindowDimensions();
-    const layout = getResponsiveLayout(dimensions.width);
-    const { translations, translationStats, searchTranslations, getTranslationsByLanguage, loading } = useContentData();
-    const { createTranslation, updateTranslation, deleteTranslation, exportTranslations, importTranslations } = useContentActions();
+const TranslationsTab: React.FC<TranslationsTabProps> = ({ isActive, searchQuery = "" }) => {
+    const { canManageTranslations, canViewTranslations } = useAdminPermissions();
+    const {
+        translations,
+        loading,
+        error,
+        fetchTranslations,
+        deleteTranslation,
+        setLanguageFilter,
+        clearFilters,
+    } = useTranslationStore();
 
-    const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [showTranslationForm, setShowTranslationForm] = useState(false);
-    const [showBulkImport, setShowBulkImport] = useState(false);
-    const [editingTranslation, setEditingTranslation] = useState<Translation | null>(null);
-    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [selectedLanguage, setSelectedLanguage] = useState('en');
+    const [hasInitialized, setHasInitialized] = useState(false);
 
-    // Form states
-    const [translationForm, setTranslationForm] = useState<TranslationFormData>({
-        key: '',
-        languageCode: 'en',
-        translation: '',
-        context: '',
-    });
+    // Memoize permission check results
+    const hasViewPermission = useMemo(() => canViewTranslations(), [canViewTranslations]);
+    const hasManagePermission = useMemo(() => canManageTranslations(), [canManageTranslations]);
 
-    const [bulkImportText, setBulkImportText] = useState('');
-
-    // Filter data based on search and language
-    const filteredTranslations = getTranslationsByLanguage(selectedLanguage, searchQuery);
-
-    // Reset form when modal closes
+    // Initialize data when tab becomes active - only once
     useEffect(() => {
-        if (!showTranslationForm) {
-            setTranslationForm({
-                key: '',
-                languageCode: selectedLanguage,
-                translation: '',
-                context: '',
+        if (isActive && hasViewPermission && !hasInitialized) {
+            fetchTranslations().finally(() => {
+                setHasInitialized(true);
             });
-            setEditingTranslation(null);
         }
-    }, [showTranslationForm, selectedLanguage]);
+    }, [isActive, hasViewPermission, hasInitialized]); // Removed fetchTranslations to prevent infinite loops
 
-    // Load editing data
+    // Apply language filter when language changes
     useEffect(() => {
-        if (editingTranslation) {
-            setTranslationForm({
-                key: editingTranslation.key,
-                languageCode: editingTranslation.languageCode,
-                translation: editingTranslation.translation,
-                context: editingTranslation.context || '',
-            });
-            setShowTranslationForm(true);
-        }
-    }, [editingTranslation]);
+        setLanguageFilter(selectedLanguage);
+    }, [selectedLanguage]); // Removed setLanguageFilter function dependency
 
-    const handleCreateTranslation = async () => {
-        const validation = validateRequired(translationForm, ['key', 'languageCode', 'translation']);
-        if (!validation.isValid) {
-            Alert.alert('Error', validation.message);
-            return;
-        }
-
-        // Check if translation key already exists for this language
-        const existingTranslation = translations.find(
-            t => t.key === translationForm.key && t.languageCode === translationForm.languageCode
+    // Filter translations based on search query and selected language
+    const filteredTranslations = useMemo(() => {
+        let filtered = translations.filter(translation =>
+            translation.language_code === selectedLanguage
         );
-        if (existingTranslation) {
-            Alert.alert('Error', 'Translation key already exists for this language');
-            return;
+
+        if (searchQuery && searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(translation =>
+                translation.key.toLowerCase().includes(query) ||
+                translation.translation.toLowerCase().includes(query) ||
+                (translation.context && translation.context.toLowerCase().includes(query))
+            );
         }
 
-        const success = await createTranslation(translationForm);
-        if (success) {
-            setShowTranslationForm(false);
+        return filtered;
+    }, [translations, selectedLanguage, searchQuery]);
+
+    // Preview items (first 4)
+    const previewItems = useMemo(() => {
+        return filteredTranslations.slice(0, 4);
+    }, [filteredTranslations]);
+
+    // Get language statistics
+    const languageStats = useMemo(() => {
+        return SUPPORTED_LANGUAGES.map(lang => {
+            const count = translations.filter(t => t.language_code === lang.code).length;
+            return {
+                ...lang,
+                count,
+                isSelected: lang.code === selectedLanguage
+            };
+        });
+    }, [translations, selectedLanguage]);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await fetchTranslations();
+        } catch (error) {
+            console.error("Failed to refresh translations:", error);
+        } finally {
+            setIsRefreshing(false);
         }
     };
 
-    const handleUpdateTranslation = async () => {
-        if (!editingTranslation) return;
+    const handleAddTranslation = () => {
+        if (!hasManagePermission) {
+            Alert.alert("Access Denied", "You don't have permission to create translations.");
+            return;
+        }
+        router.push("../translation/new" as any);
+    };
 
-        const validation = validateRequired(translationForm, ['key', 'languageCode', 'translation']);
-        if (!validation.isValid) {
-            Alert.alert('Error', validation.message);
+    const handleViewAllTranslations = () => {
+        router.push("../translations" as any);
+    };
+
+    const handleTranslationPress = (translationId: string) => {
+        if (!hasViewPermission) return;
+        router.push(`../translation/${translationId}` as any);
+    };
+
+    const handleEdit = (translationId: string) => {
+        if (!hasManagePermission) return;
+        router.push(`../translation/edit/${translationId}` as any);
+    };
+
+    const handleDelete = async (translationId: string) => {
+        if (!hasManagePermission) {
+            Alert.alert("Access Denied", "You don't have permission to delete translations.");
             return;
         }
 
-        const success = await updateTranslation(editingTranslation.id, translationForm);
-        if (success) {
-            setShowTranslationForm(false);
-        }
-    };
+        const translation = translations.find(t => t.id === translationId);
+        if (!translation) return;
 
-    const handleDeleteTranslation = async (translation: Translation) => {
         Alert.alert(
-            'Delete Translation',
+            "Delete Translation",
             `Are you sure you want to delete the translation for "${translation.key}"? This action cannot be undone.`,
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: "Cancel", style: "cancel" },
                 {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => deleteTranslation(translation.id)
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await deleteTranslation(translationId);
+                            Alert.alert("Success", "Translation deleted successfully.");
+                        } catch (error) {
+                            Alert.alert("Error", "Failed to delete translation.");
+                        }
+                    }
                 }
             ]
         );
     };
 
-    const handleExportTranslations = async () => {
-        const success = await exportTranslations(selectedLanguage);
-        if (success) {
-            Alert.alert('Success', 'Translations exported successfully');
-        }
-    };
-
-    const handleBulkImport = async () => {
-        if (!bulkImportText.trim()) {
-            Alert.alert('Error', 'Please enter translations to import');
-            return;
-        }
-
-        try {
-            const lines = bulkImportText.trim().split('\n');
-            const translations: TranslationFormData[] = [];
-
-            for (const line of lines) {
-                const [key, translation, context] = line.split('\t');
-                if (key && translation) {
-                    translations.push({
-                        key: key.trim(),
-                        languageCode: selectedLanguage,
-                        translation: translation.trim(),
-                        context: context?.trim() || '',
-                    });
-                }
-            }
-
-            if (translations.length === 0) {
-                Alert.alert('Error', 'No valid translations found. Use tab-separated format: key\ttranslation\tcontext');
-                return;
-            }
-
-            const success = await importTranslations(translations);
-            if (success) {
-                setBulkImportText('');
-                setShowBulkImport(false);
-                Alert.alert('Success', `${translations.length} translations imported successfully`);
-            }
-        } catch (error) {
-            Alert.alert('Error', 'Failed to parse translations. Please check the format.');
-        }
-    };
-
-    const getLanguageName = (code: string) => {
-        const language = SUPPORTED_LANGUAGES.find(lang => lang.code === code);
-        return language ? `${language.flag} ${language.name}` : code;
-    };
-
-    const getCompletionPercentage = (languageCode: string) => {
-        return getTranslationCompleteness(translations, languageCode);
-    };
-
-    const renderTranslationForm = () => (
-        <Modal
-            visible={showTranslationForm}
-            animationType="slide"
-            presentationStyle="pageSheet"
-            onRequestClose={() => setShowTranslationForm(false)}
-        >
-            <View style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
-                    <TouchableOpacity onPress={() => setShowTranslationForm(false)}>
-                        <Ionicons name="close" size={24} color={colors.text} />
-                    </TouchableOpacity>
-                    <Text style={styles.modalTitle}>
-                        {editingTranslation ? 'Edit Translation' : 'New Translation'}
-                    </Text>
-                    <TouchableOpacity
-                        onPress={editingTranslation ? handleUpdateTranslation : handleCreateTranslation}
-                        style={styles.saveButton}
-                    >
-                        <Text style={styles.saveButtonText}>Save</Text>
-                    </TouchableOpacity>
+    // Permission check
+    if (!hasViewPermission) {
+        return (
+            <View style={styles.noPermissionContainer}>
+                <View style={styles.noPermissionIcon}>
+                    <AlertTriangle size={48} color={colors.warning} />
                 </View>
+                <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                <Text style={styles.noPermissionText}>
+                    You don't have permission to view translations.
+                </Text>
+            </View>
+        );
+    }
 
-                <ScrollView style={styles.formContainer}>
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Translation Key *</Text>
-                        <TextInput
-                            style={styles.textInput}
-                            value={translationForm.key}
-                            onChangeText={(text) => setTranslationForm(prev => ({ ...prev, key: text }))}
-                            placeholder="e.g., common.save, navigation.home"
-                            placeholderTextColor={colors.textSecondary}
-                            editable={!editingTranslation}
-                        />
-                    </View>
+    // Loading state - simplified
+    if (loading.translations && translations.length === 0) {
+        return (
+            <View style={styles.loadingContainer}>
+                <LoadingSpinner />
+                <Text style={styles.loadingText}>Loading translations...</Text>
+            </View>
+        );
+    }
 
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Language *</Text>
-                        <TouchableOpacity
-                            style={styles.pickerButton}
-                            onPress={() => {
-                                Alert.alert(
-                                    'Select Language',
-                                    'Choose the language for this translation',
-                                    [
-                                        ...SUPPORTED_LANGUAGES.map(lang => ({
-                                            text: `${lang.flag} ${lang.name}`,
-                                            onPress: () => setTranslationForm(prev => ({ ...prev, languageCode: lang.code }))
-                                        })),
-                                        { text: 'Cancel', style: 'cancel' }
-                                    ]
-                                );
-                            }}
-                        >
-                            <Text style={styles.pickerText}>
-                                {getLanguageName(translationForm.languageCode)}
+    const renderHeader = () => (
+        <View style={styles.sectionContent}>
+            <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderContent}>
+                    <View style={styles.sectionTitleContainer}>
+                        <View style={styles.sectionIcon}>
+                            <Languages size={20} color={colors.primary} />
+                        </View>
+                        <View>
+                            <Text style={styles.sectionTitle}>Translations Management</Text>
+                            <Text style={styles.sectionSubtitle}>
+                                {filteredTranslations.length} translations for {SUPPORTED_LANGUAGES.find(l => l.code === selectedLanguage)?.name}
                             </Text>
-                            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+                        </View>
+                    </View>
+                </View>
+                {hasManagePermission && (
+                    <View style={styles.sectionHeaderButton}>
+                        <Button
+                            title="Add Translation"
+                            onPress={handleAddTranslation}
+                            size="small"
+                            variant="outline"
+                            icon={<Plus size={16} color={colors.primary} />}
+                        />
+                    </View>
+                )}
+            </View>
+
+            {/* Language Selector */}
+            <View style={styles.languageSelector}>
+                <Text style={styles.languageSelectorTitle}>Select Language</Text>
+                <View style={styles.languageButtons}>
+                    {languageStats.map((lang) => (
+                        <TouchableOpacity
+                            key={lang.code}
+                            style={[
+                                styles.languageButton,
+                                lang.isSelected && styles.languageButtonActive
+                            ]}
+                            onPress={() => setSelectedLanguage(lang.code)}
+                        >
+                            <Text style={styles.languageFlag}>{lang.flag}</Text>
+                            <Text style={[
+                                styles.languageName,
+                                lang.isSelected && styles.languageNameActive
+                            ]}>
+                                {lang.name}
+                            </Text>
+                            <View style={[
+                                styles.languageBadge,
+                                lang.isSelected && styles.languageBadgeActive
+                            ]}>
+                                <Text style={[
+                                    styles.languageBadgeText,
+                                    lang.isSelected && styles.languageBadgeTextActive
+                                ]}>
+                                    {lang.count}
+                                </Text>
+                            </View>
                         </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Translation *</Text>
-                        <TextInput
-                            style={[styles.textInput, styles.textArea]}
-                            value={translationForm.translation}
-                            onChangeText={(text) => setTranslationForm(prev => ({ ...prev, translation: text }))}
-                            placeholder="Enter the translation text"
-                            placeholderTextColor={colors.textSecondary}
-                            multiline
-                            numberOfLines={3}
-                        />
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Context (Optional)</Text>
-                        <TextInput
-                            style={styles.textInput}
-                            value={translationForm.context}
-                            onChangeText={(text) => setTranslationForm(prev => ({ ...prev, context: text }))}
-                            placeholder="e.g., Button text, Page title"
-                            placeholderTextColor={colors.textSecondary}
-                        />
-                    </View>
-                </ScrollView>
-            </View>
-        </Modal>
-    );
-
-    const renderBulkImportModal = () => (
-        <Modal
-            visible={showBulkImport}
-            animationType="slide"
-            presentationStyle="pageSheet"
-            onRequestClose={() => setShowBulkImport(false)}
-        >
-            <View style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
-                    <TouchableOpacity onPress={() => setShowBulkImport(false)}>
-                        <Ionicons name="close" size={24} color={colors.text} />
-                    </TouchableOpacity>
-                    <Text style={styles.modalTitle}>Bulk Import</Text>
-                    <TouchableOpacity
-                        onPress={handleBulkImport}
-                        style={styles.saveButton}
-                    >
-                        <Text style={styles.saveButtonText}>Import</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <ScrollView style={styles.formContainer}>
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Import Format</Text>
-                        <Text style={styles.helpText}>
-                            Use tab-separated format: key{'\t'}translation{'\t'}context
-                        </Text>
-                        <Text style={styles.helpText}>
-                            Example:{'\n'}
-                            common.save{'\t'}Save{'\t'}Button text{'\n'}
-                            common.cancel{'\t'}Cancel{'\t'}Button text
-                        </Text>
-                    </View>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.fieldLabel}>Translations *</Text>
-                        <TextInput
-                            style={[styles.textInput, styles.bulkTextArea]}
-                            value={bulkImportText}
-                            onChangeText={setBulkImportText}
-                            placeholder="Paste your translations here..."
-                            placeholderTextColor={colors.textSecondary}
-                            multiline
-                            numberOfLines={10}
-                        />
-                    </View>
-                </ScrollView>
-            </View>
-        </Modal>
-    );
-
-    const renderTranslationItem = (translation: Translation) => (
-        <View key={translation.id} style={styles.translationItem}>
-            <View style={styles.translationHeader}>
-                <View style={styles.translationInfo}>
-                    <Text style={styles.translationKey}>{translation.key}</Text>
-                    {translation.context && (
-                        <Text style={styles.translationContext}>{translation.context}</Text>
-                    )}
-                </View>
-                <View style={styles.translationActions}>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => setEditingTranslation(translation)}
-                    >
-                        <Ionicons name="pencil" size={16} color={colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => handleDeleteTranslation(translation)}
-                    >
-                        <Ionicons name="trash" size={16} color={colors.error} />
-                    </TouchableOpacity>
+                    ))}
                 </View>
             </View>
-            <Text style={styles.translationText}>{translation.translation}</Text>
         </View>
     );
 
-    const renderLanguageCard = (language: typeof SUPPORTED_LANGUAGES[0]) => {
-        const completionPercentage = getCompletionPercentage(language.code);
-        const translationCount = translations.filter(t => t.languageCode === language.code).length;
+    const renderTranslationItem = ({ item, index }: { item: Translation; index: number }) => (
+        <TranslationItem
+            key={`translation-${item.id}-${index}`}
+            translation={item}
+            onPress={handleTranslationPress}
+            onEdit={hasManagePermission ? handleEdit : undefined}
+            onDelete={hasManagePermission ? handleDelete : undefined}
+            showActions={hasManagePermission}
+        />
+    );
+
+    const renderEmptyState = () => (
+        <View style={styles.emptyState}>
+            <View style={styles.emptyStateIcon}>
+                <Globe size={48} color={colors.textSecondary} />
+            </View>
+            <Text style={styles.emptyStateTitle}>No Translations Found</Text>
+            <Text style={styles.emptyStateText}>
+                {searchQuery
+                    ? 'Try adjusting your search terms'
+                    : `No translations available for ${SUPPORTED_LANGUAGES.find(l => l.code === selectedLanguage)?.name}`
+                }
+            </Text>
+        </View>
+    );
+
+    const renderFooter = () => {
+        if (filteredTranslations.length <= 4) return null;
 
         return (
-            <TouchableOpacity
-                key={language.code}
-                style={[styles.languageCard, selectedLanguage === language.code && styles.selectedLanguageCard]}
-                onPress={() => setSelectedLanguage(language.code)}
-            >
-                <Text style={styles.languageFlag}>{language.flag}</Text>
-                <Text style={styles.languageName}>{language.name}</Text>
-                <Text style={styles.languageCount}>{translationCount} translations</Text>
-                <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: `${completionPercentage}%` }]} />
-                </View>
-                <Text style={styles.completionText}>{completionPercentage}% complete</Text>
-            </TouchableOpacity>
+            <View style={styles.footerContainer}>
+                <Text style={styles.previewText}>
+                    Showing {previewItems.length} of {filteredTranslations.length} translations
+                </Text>
+                <TouchableOpacity
+                    style={styles.viewAllButton}
+                    onPress={handleViewAllTranslations}
+                >
+                    <Text style={styles.viewAllText}>View All Translations</Text>
+                    <Eye size={16} color={colors.primary} />
+                </TouchableOpacity>
+            </View>
         );
     };
 
-    if (!isActive) return null;
-
     return (
         <View style={styles.container}>
-            {/* Statistics */}
-            <View style={[styles.statsContainer, layout.statsGrid]}>
-                <StatCard
-                    title="Languages"
-                    value={SUPPORTED_LANGUAGES.length}
-                    icon="language"
-                    color={colors.primary}
-                />
-                <StatCard
-                    title="Total Keys"
-                    value={translationStats.totalKeys}
-                    icon="key"
-                    color={colors.success}
-                />
-                <StatCard
-                    title="Translations"
-                    value={translationStats.totalTranslations}
-                    icon="text"
-                    color={colors.info}
-                />
-                <StatCard
-                    title="Completion"
-                    value={`${translationStats.avgCompleteness}%`}
-                    icon="checkmark-circle"
-                    color={colors.warning}
-                />
-            </View>
-
-            {/* Language Selection */}
-            <View style={styles.languageSelector}>
-                <Text style={styles.sectionTitle}>Select Language</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.languageCards}>
-                        {SUPPORTED_LANGUAGES.map(renderLanguageCard)}
-                    </View>
-                </ScrollView>
-            </View>
-
-            {/* Search and Actions */}
-            <View style={styles.searchContainer}>
-                <SearchBar
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Search translations..."
-                />
-                <TouchableOpacity
-                    style={styles.viewToggle}
-                    onPress={() => setViewMode(viewMode === 'grid' ? 'table' : 'grid')}
-                >
-                    <Ionicons
-                        name={viewMode === 'grid' ? 'list' : 'grid'}
-                        size={20}
-                        color={colors.textSecondary}
+            <FlatList
+                data={previewItems}
+                renderItem={renderTranslationItem}
+                keyExtractor={(item, index) => `translation-${item.id}-${index}`}
+                ListHeaderComponent={renderHeader}
+                ListEmptyComponent={renderEmptyState}
+                ListFooterComponent={renderFooter}
+                contentContainerStyle={previewItems.length === 0 ? styles.emptyContentContainer : styles.contentContainer}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefreshing}
+                        onRefresh={handleRefresh}
+                        colors={[colors.primary]}
+                        tintColor={colors.primary}
                     />
-                </TouchableOpacity>
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.actionButtons}>
-                <Button
-                    title="Add Translation"
-                    onPress={() => setShowTranslationForm(true)}
-                    icon="add"
-                    style={styles.actionButton}
-                />
-                <Button
-                    title="Bulk Import"
-                    onPress={() => setShowBulkImport(true)}
-                    icon="cloud-upload"
-                    style={styles.actionButton}
-                />
-                <Button
-                    title="Export"
-                    onPress={handleExportTranslations}
-                    icon="download"
-                    style={styles.actionButton}
-                />
-            </View>
-
-            {/* Content */}
-            <ScrollView style={styles.content}>
-                {loading ? (
-                    <LoadingSpinner />
-                ) : (
-                    <>
-                        {filteredTranslations.length === 0 ? (
-                            <EmptyState
-                                icon="language"
-                                title="No translations found"
-                                subtitle={searchQuery ? "Try adjusting your search" : "Add your first translation"}
-                                actionText="Add Translation"
-                                onAction={() => setShowTranslationForm(true)}
-                            />
-                        ) : (
-                            <View style={styles.grid}>
-                                {filteredTranslations.map(renderTranslationItem)}
-                            </View>
-                        )}
-                    </>
-                )}
-            </ScrollView>
-
-            {/* Modals */}
-            {renderTranslationForm()}
-            {renderBulkImportModal()}
+                }
+                showsVerticalScrollIndicator={false}
+            />
         </View>
     );
 };
@@ -487,211 +334,199 @@ const TranslationsTab: React.FC<TranslationsTabProps> = ({ isActive }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
     },
-    statsContainer: {
-        padding: 16,
+    noPermissionContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 32,
+    },
+    noPermissionIcon: {
+        marginBottom: 16,
+    },
+    noPermissionTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: colors.text,
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    noPermissionText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
         gap: 16,
     },
-    languageSelector: {
-        paddingHorizontal: 16,
+    loadingText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+    },
+    sectionContent: {
+        marginBottom: 20,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 16,
+    },
+    sectionHeaderContent: {
+        flex: 1,
+    },
+    sectionTitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    sectionIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.primary + '15',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '600',
         color: colors.text,
+        marginBottom: 4,
+    },
+    sectionSubtitle: {
+        fontSize: 14,
+        color: colors.textSecondary,
+    },
+    sectionHeaderButton: {
+        marginLeft: 16,
+    },
+    languageSelector: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    languageSelectorTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.text,
         marginBottom: 12,
     },
-    languageCards: {
+    languageButtons: {
         flexDirection: 'row',
-        gap: 12,
+        flexWrap: 'wrap',
+        gap: 8,
     },
-    languageCard: {
-        backgroundColor: colors.surface,
-        padding: 16,
+    languageButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
         borderRadius: 8,
+        backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
         borderColor: colors.border,
-        alignItems: 'center',
+        gap: 8,
         minWidth: 120,
     },
-    selectedLanguageCard: {
+    languageButtonActive: {
+        backgroundColor: colors.primary + '15',
         borderColor: colors.primary,
-        backgroundColor: colors.primary + '10',
     },
     languageFlag: {
-        fontSize: 32,
-        marginBottom: 8,
+        fontSize: 18,
     },
     languageName: {
         fontSize: 14,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 4,
-    },
-    languageCount: {
-        fontSize: 12,
+        fontWeight: '500',
         color: colors.textSecondary,
-        marginBottom: 8,
+        flex: 1,
     },
-    progressBar: {
-        width: '100%',
-        height: 4,
+    languageNameActive: {
+        color: colors.primary,
+        fontWeight: '600',
+    },
+    languageBadge: {
         backgroundColor: colors.border,
-        borderRadius: 2,
-        marginBottom: 4,
-    },
-    progressFill: {
-        height: '100%',
-        backgroundColor: colors.primary,
-        borderRadius: 2,
-    },
-    completionText: {
-        fontSize: 10,
-        color: colors.textSecondary,
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        paddingHorizontal: 16,
-        gap: 12,
+        borderRadius: 10,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        minWidth: 20,
         alignItems: 'center',
-        marginBottom: 16,
     },
-    viewToggle: {
-        padding: 8,
-        backgroundColor: colors.surface,
-        borderRadius: 6,
+    languageBadgeActive: {
+        backgroundColor: colors.primary + '30',
     },
-    actionButtons: {
-        flexDirection: 'row',
-        paddingHorizontal: 16,
-        gap: 8,
-        marginBottom: 16,
-    },
-    actionButton: {
-        flex: 1,
-        paddingHorizontal: 12,
-    },
-    content: {
-        flex: 1,
-    },
-    grid: {
-        padding: 16,
-        gap: 12,
-    },
-    translationItem: {
-        backgroundColor: colors.surface,
-        padding: 16,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    translationHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    translationInfo: {
-        flex: 1,
-    },
-    translationKey: {
-        fontSize: 14,
+    languageBadgeText: {
+        fontSize: 11,
         fontWeight: '600',
-        color: colors.text,
-        marginBottom: 4,
-    },
-    translationContext: {
-        fontSize: 12,
         color: colors.textSecondary,
     },
-    translationActions: {
-        flexDirection: 'row',
-        gap: 8,
+    languageBadgeTextActive: {
+        color: colors.primary,
     },
-    translationText: {
-        fontSize: 16,
-        color: colors.text,
-        lineHeight: 22,
-    },
-    modalContainer: {
-        flex: 1,
-        backgroundColor: colors.background,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+    contentContainer: {
         padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
     },
-    modalTitle: {
+    emptyContentContainer: {
+        flexGrow: 1,
+        padding: 16,
+    },
+    emptyState: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 48,
+    },
+    emptyStateIcon: {
+        marginBottom: 16,
+    },
+    emptyStateTitle: {
         fontSize: 18,
         fontWeight: '600',
         color: colors.text,
-    },
-    saveButton: {
-        backgroundColor: colors.primary,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 6,
-    },
-    saveButtonText: {
-        color: colors.background,
-        fontWeight: '600',
-    },
-    formContainer: {
-        flex: 1,
-    },
-    formSection: {
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
-    fieldLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: colors.text,
         marginBottom: 8,
+        textAlign: 'center',
     },
-    textInput: {
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
-        color: colors.text,
+    emptyStateText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 20,
     },
-    textArea: {
-        minHeight: 80,
-        textAlignVertical: 'top',
-    },
-    bulkTextArea: {
-        minHeight: 200,
-        textAlignVertical: 'top',
-    },
-    pickerButton: {
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 8,
-        padding: 12,
+    footerContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: colors.card,
+        borderRadius: 8,
+        marginHorizontal: 16,
+        marginTop: 12,
     },
-    pickerText: {
-        fontSize: 16,
-        color: colors.text,
-    },
-    helpText: {
-        fontSize: 14,
+    previewText: {
+        fontSize: 12,
         color: colors.textSecondary,
-        marginBottom: 8,
-        fontFamily: 'monospace',
+    },
+    viewAllButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    viewAllText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: colors.primary,
     },
 });
 

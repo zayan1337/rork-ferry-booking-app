@@ -793,6 +793,174 @@ create table public.check_ins (
   constraint check_ins_checked_in_by_fkey foreign KEY (checked_in_by) references auth.users (id)
 ) TABLESPACE pg_default;
 
+
+create materialized view public.content_dashboard_stats as
+select
+  (
+    select
+      count(*) as count
+    from
+      terms_and_conditions
+  ) as total_terms,
+  (
+    select
+      count(*) as count
+    from
+      terms_and_conditions
+    where
+      terms_and_conditions.is_active = true
+  ) as active_terms,
+  (
+    select
+      count(distinct terms_and_conditions.version) as count
+    from
+      terms_and_conditions
+  ) as terms_versions,
+  (
+    select
+      count(*) as count
+    from
+      terms_and_conditions
+    where
+      terms_and_conditions.created_at >= (CURRENT_DATE - '30 days'::interval)
+  ) as recent_terms,
+  (
+    select
+      count(*) as count
+    from
+      promotions
+  ) as total_promotions,
+  (
+    select
+      count(*) as count
+    from
+      promotions
+    where
+      promotions.is_active = true
+  ) as active_promotions,
+  (
+    select
+      count(*) as count
+    from
+      promotions
+    where
+      promotions.start_date <= CURRENT_DATE
+      and promotions.end_date >= CURRENT_DATE
+      and promotions.is_active = true
+  ) as current_promotions,
+  (
+    select
+      count(*) as count
+    from
+      promotions
+    where
+      promotions.start_date > CURRENT_DATE
+      and promotions.is_active = true
+  ) as upcoming_promotions,
+  (
+    select
+      count(*) as count
+    from
+      promotions
+    where
+      promotions.end_date < CURRENT_DATE
+  ) as expired_promotions,
+  (
+    select
+      avg(promotions.discount_percentage) as avg
+    from
+      promotions
+    where
+      promotions.is_active = true
+  ) as avg_discount_percentage,
+  (
+    select
+      count(*) as count
+    from
+      translations
+  ) as total_translations,
+  (
+    select
+      count(*) as count
+    from
+      translations
+    where
+      translations.is_active = true
+  ) as active_translations,
+  (
+    select
+      count(distinct translations.language_code) as count
+    from
+      translations
+  ) as supported_languages,
+  (
+    select
+      count(distinct translations.key) as count
+    from
+      translations
+  ) as unique_translation_keys,
+  (
+    select
+      count(*) as count
+    from
+      translations
+    where
+      translations.created_at >= (CURRENT_DATE - '7 days'::interval)
+  ) as recent_translations,
+  CURRENT_TIMESTAMP as last_updated;
+
+  create view public.content_management_summary as
+select
+  'terms'::text as content_type,
+  count(*) as total_count,
+  count(*) filter (
+    where
+      terms_and_conditions.is_active = true
+  ) as active_count,
+  count(*) filter (
+    where
+      terms_and_conditions.is_active = false
+  ) as inactive_count,
+  count(distinct terms_and_conditions.version) as version_count
+from
+  terms_and_conditions
+union all
+select
+  'promotions'::text as content_type,
+  count(*) as total_count,
+  count(*) filter (
+    where
+      promotions.is_active = true
+  ) as active_count,
+  count(*) filter (
+    where
+      promotions.is_active = false
+  ) as inactive_count,
+  count(*) filter (
+    where
+      promotions.start_date <= CURRENT_DATE
+      and promotions.end_date >= CURRENT_DATE
+      and promotions.is_active = true
+  ) as version_count
+from
+  promotions
+union all
+select
+  'translations'::text as content_type,
+  count(*) as total_count,
+  count(*) filter (
+    where
+      translations.is_active = true
+  ) as active_count,
+  count(*) filter (
+    where
+      translations.is_active = false
+  ) as inactive_count,
+  count(distinct translations.language_code) as version_count
+from
+  translations;
+
+
 create table public.faq_categories (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
@@ -1406,8 +1574,82 @@ create table public.promotions (
   is_first_time_booking_only boolean not null default false,
   is_active boolean not null default true,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
   constraint promotions_pkey primary key (id)
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_promotions_active on public.promotions using btree (is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_promotions_dates on public.promotions using btree (start_date, end_date) TABLESPACE pg_default;
+
+create index IF not exists idx_promotions_discount on public.promotions using btree (discount_percentage) TABLESPACE pg_default;
+
+create trigger content_activity_trigger_promotions
+after INSERT
+or DELETE
+or
+update on promotions for EACH row
+execute FUNCTION log_content_activity ();
+
+create trigger content_change_notify_promotions
+after INSERT
+or DELETE
+or
+update on promotions for EACH row
+execute FUNCTION notify_content_change ();
+
+create trigger promotions_updated_at_trigger BEFORE
+update on promotions for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create trigger validate_promotion_dates_trigger BEFORE INSERT
+or
+update on promotions for EACH row
+execute FUNCTION validate_promotion_dates ();
+
+create view public.promotions_with_status as
+select
+  id,
+  name,
+  description,
+  discount_percentage,
+  start_date,
+  end_date,
+  is_first_time_booking_only,
+  is_active,
+  created_at,
+  updated_at,
+  case
+    when start_date <= CURRENT_DATE
+    and end_date >= CURRENT_DATE
+    and is_active = true then 'current'::text
+    when start_date > CURRENT_DATE
+    and is_active = true then 'upcoming'::text
+    when end_date < CURRENT_DATE then 'expired'::text
+    when is_active = false then 'inactive'::text
+    else 'unknown'::text
+  end as status,
+  case
+    when end_date < CURRENT_DATE then true
+    else false
+  end as is_expired,
+  case
+    when start_date > CURRENT_DATE then true
+    else false
+  end as is_upcoming,
+  case
+    when start_date <= CURRENT_DATE
+    and end_date >= CURRENT_DATE
+    and is_active = true then true
+    else false
+  end as is_current
+from
+  promotions p
+order by
+  start_date desc,
+  created_at desc;
+
+
 
 create view public.recent_activity_view as
 select
@@ -1761,8 +2003,65 @@ create table public.terms_and_conditions (
   version character varying(10) not null,
   effective_date timestamp with time zone not null,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  is_active boolean not null default true,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
   constraint terms_and_conditions_pkey primary key (id)
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_terms_active on public.terms_and_conditions using btree (is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_terms_effective_date on public.terms_and_conditions using btree (effective_date) TABLESPACE pg_default;
+
+create index IF not exists idx_terms_version on public.terms_and_conditions using btree (version) TABLESPACE pg_default;
+
+create trigger content_activity_trigger_terms
+after INSERT
+or DELETE
+or
+update on terms_and_conditions for EACH row
+execute FUNCTION log_content_activity ();
+
+create trigger content_change_notify_terms
+after INSERT
+or DELETE
+or
+update on terms_and_conditions for EACH row
+execute FUNCTION notify_content_change ();
+
+create trigger terms_updated_at_trigger BEFORE
+update on terms_and_conditions for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create trigger validate_terms_version_trigger BEFORE INSERT
+or
+update on terms_and_conditions for EACH row
+execute FUNCTION validate_terms_version ();
+
+create view public.terms_with_stats as
+select
+  id,
+  title,
+  content,
+  version,
+  effective_date,
+  created_at,
+  is_active,
+  updated_at,
+  case
+    when effective_date <= CURRENT_DATE
+    and is_active = true then 'current'::text
+    when effective_date > CURRENT_DATE
+    and is_active = true then 'upcoming'::text
+    when is_active = false then 'inactive'::text
+    else 'expired'::text
+  end as status,
+  length(content) as content_length,
+  array_length(string_to_array(content, ' '::text), 1) as word_count
+from
+  terms_and_conditions t
+order by
+  effective_date desc,
+  created_at desc;
 
 create view public.ticket_validation_view as
 select
@@ -1865,12 +2164,63 @@ create table public.translations (
   translation text not null,
   context character varying(100) null,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  is_active boolean not null default true,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
   constraint translations_pkey primary key (id),
   constraint unique_translation unique (key, language_code)
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_translations_key_lang on public.translations using btree (key, language_code) TABLESPACE pg_default;
 
+create index IF not exists idx_translations_active on public.translations using btree (is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_translations_context on public.translations using btree (context) TABLESPACE pg_default;
+
+create index IF not exists idx_translations_created_at on public.translations using btree (created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_translations_updated_at on public.translations using btree (updated_at) TABLESPACE pg_default;
+
+create trigger content_activity_trigger_translations
+after INSERT
+or DELETE
+or
+update on translations for EACH row
+execute FUNCTION log_content_activity ();
+
+create trigger content_change_notify_translations
+after INSERT
+or DELETE
+or
+update on translations for EACH row
+execute FUNCTION notify_content_change ();
+
+create trigger translations_updated_at_trigger BEFORE
+update on translations for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create view public.translations_with_stats as
+select
+  id,
+  key,
+  language_code,
+  translation,
+  context,
+  created_at,
+  is_active,
+  updated_at,
+  length(translation) as character_count,
+  array_length(string_to_array(translation, ' '::text), 1) as word_count,
+  case
+    when context is not null then context
+    else 'general'::character varying
+  end as display_context
+from
+  translations t
+order by
+  language_code,
+  key;
+
+  
 create view public.trip_availability as
 select
   r.id as route_id,
