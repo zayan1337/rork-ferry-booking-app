@@ -7,7 +7,7 @@ import {
     TouchableOpacity,
     Alert,
     Dimensions,
-    Share,
+    RefreshControl,
 } from "react-native";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
@@ -16,25 +16,25 @@ import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { TermsAndConditions } from "@/types/content";
 import {
     ArrowLeft,
-    Edit3,
+    Edit,
     Trash2,
     FileText,
     Calendar,
     Clock,
-    CheckCircle,
-    XCircle,
+    Activity,
+    Hash,
+    Settings,
+    Info,
     Eye,
-    Share2,
-    AlertTriangle,
+    Type,
+    AlertCircle,
 } from "lucide-react-native";
 
 // Components
 import Button from "@/components/admin/Button";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
-import EmptyState from "@/components/admin/EmptyState";
 
 const { width: screenWidth } = Dimensions.get('window');
-const isTablet = screenWidth >= 768;
 
 export default function TermDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -42,6 +42,7 @@ export default function TermDetailScreen() {
 
     const {
         currentTerms,
+        terms,
         loading,
         fetchTermsById,
         deleteTerms,
@@ -52,15 +53,35 @@ export default function TermDetailScreen() {
 
     const [hasInitialized, setHasInitialized] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Use currentTerms from the store
+    const term = currentTerms;
+
+    const loadTermData = async () => {
+        if (!id) return;
+        try {
+            await fetchTermsById(id);
+        } catch (error) {
+            console.error('Error loading term:', error);
+            Alert.alert("Error", "Failed to load terms and conditions details");
+        }
+    };
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        await loadTermData();
+        setIsRefreshing(false);
+    };
 
     // Fetch term data on component mount
     useEffect(() => {
         if (canViewContent() && id && !hasInitialized) {
-            fetchTermsById(id).finally(() => {
+            loadTermData().finally(() => {
                 setHasInitialized(true);
             });
         }
-    }, [id, hasInitialized]); // Removed function dependencies
+    }, [id, hasInitialized]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -68,22 +89,17 @@ export default function TermDetailScreen() {
             resetCurrentTerms();
             clearError();
         };
-    }, []); // Empty dependency array for cleanup only
-
-    // Use currentTerms from the store
-    const term = currentTerms;
+    }, []);
 
     const handleEdit = () => {
-        if (!term) return;
-
-        if (canManageContent()) {
-            router.push(`./edit/${term.id}` as any);
-        } else {
+        if (!term || !canManageContent()) {
             Alert.alert("Access Denied", "You don't have permission to edit terms and conditions.");
+            return;
         }
+        router.push(`./edit/${term.id}` as any);
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!term || !canManageContent()) {
             Alert.alert("Access Denied", "You don't have permission to delete terms and conditions.");
             return;
@@ -101,16 +117,8 @@ export default function TermDetailScreen() {
                         setIsDeleting(true);
                         try {
                             await deleteTerms(term.id);
-                            Alert.alert(
-                                "Success",
-                                "Terms and conditions deleted successfully",
-                                [
-                                    {
-                                        text: "OK",
-                                        onPress: () => router.back()
-                                    }
-                                ]
-                            );
+                            Alert.alert("Success", "Terms and conditions deleted successfully");
+                            router.back();
                         } catch (error) {
                             Alert.alert("Error", "Failed to delete terms and conditions");
                         } finally {
@@ -122,20 +130,37 @@ export default function TermDetailScreen() {
         );
     };
 
-    const handleShare = async () => {
-        if (!term) return;
-
-        const content = `${term.title}\nVersion: ${term.version}\nEffective Date: ${new Date(term.effective_date).toLocaleDateString()}\n\n${term.content}`;
-
-        try {
-            await Share.share({
-                message: content,
-                title: term.title,
-            });
-        } catch (error) {
-            console.error('Error sharing terms:', error);
-        }
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
     };
+
+    const getVersionColor = (version: string) => {
+        // Different colors for different version patterns
+        if (version.startsWith('1.')) return colors.primary;
+        if (version.startsWith('2.')) return colors.info;
+        if (version.startsWith('3.')) return colors.warning;
+        return colors.textSecondary;
+    };
+
+    const getVersionLabel = (version: string) => {
+        return `Version ${version}`;
+    };
+
+    const getContentStats = () => {
+        if (!term) return { words: 0, characters: 0, readingTime: 0 };
+
+        const words = term.content.trim().split(/\s+/).length;
+        const characters = term.content.length;
+        const readingTime = Math.ceil(words / 200); // Average reading speed
+
+        return { words, characters, readingTime };
+    };
+
+    const contentStats = getContentStats();
 
     // Permission check
     if (!canViewContent()) {
@@ -143,27 +168,50 @@ export default function TermDetailScreen() {
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: "Terms & Conditions",
-                        headerShown: true,
+                        title: "Access Denied",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
                     }}
                 />
-                <EmptyState
-                    icon={<AlertTriangle size={48} color={colors.warning} />}
-                    title="Access Denied"
-                    message="You don't have permission to view terms and conditions."
-                />
+                <View style={styles.noPermissionContainer}>
+                    <View style={styles.noAccessIcon}>
+                        <AlertCircle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                    <Text style={styles.noPermissionText}>
+                        You don't have permission to view terms and conditions.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
+                </View>
             </View>
         );
     }
 
     // Loading state
-    if ((loading.singleTerms || loading.terms) && !hasInitialized) {
+    if (loading.singleTerms && !term) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: "Terms & Conditions",
-                        headerShown: true,
+                        title: "Loading...",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
                     }}
                 />
                 <View style={styles.loadingContainer}>
@@ -175,107 +223,71 @@ export default function TermDetailScreen() {
     }
 
     // Not found state
-    if (hasInitialized && !term && !loading.singleTerms) {
+    if (!term && hasInitialized) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
                         title: "Terms Not Found",
-                        headerShown: true,
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
                     }}
                 />
-                <EmptyState
-                    icon={<FileText size={48} color={colors.textSecondary} />}
-                    title="Terms & Conditions Not Found"
-                    message="The terms and conditions you're looking for don't exist or have been removed."
-                    action={
-                        <Button
-                            title="Go Back"
-                            variant="primary"
-                            onPress={() => router.back()}
-                            icon={<ArrowLeft size={16} color={colors.white} />}
-                        />
-                    }
-                />
-            </View>
-        );
-    }
-
-    // Error state
-    if (error && hasInitialized) {
-        return (
-            <View style={styles.container}>
-                <Stack.Screen
-                    options={{
-                        title: "Error",
-                        headerShown: true,
-                    }}
-                />
-                <EmptyState
-                    icon={<AlertTriangle size={48} color={colors.error} />}
-                    title="Error Loading Terms"
-                    message={error}
-                    action={
-                        <Button
-                            title="Try Again"
-                            variant="primary"
-                            onPress={() => {
-                                clearError();
-                                setHasInitialized(false);
-                            }}
-                            icon={<Eye size={16} color={colors.white} />}
-                        />
-                    }
-                />
-            </View>
-        );
-    }
-
-    if (!term) {
-        return (
-            <View style={styles.container}>
-                <Stack.Screen
-                    options={{
-                        title: "Terms & Conditions",
-                        headerShown: true,
-                    }}
-                />
-                <View style={styles.loadingContainer}>
-                    <LoadingSpinner />
+                <View style={styles.errorContainer}>
+                    <View style={styles.errorIcon}>
+                        <AlertCircle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.errorTitle}>Terms Not Found</Text>
+                    <Text style={styles.errorText}>
+                        The terms and conditions you're looking for don't exist or have been removed.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
                 </View>
             </View>
         );
     }
+
+    if (!term) return null;
 
     return (
         <View style={styles.container}>
             <Stack.Screen
                 options={{
                     title: term.title,
-                    headerShown: true,
+                    headerLeft: () => (
+                        <TouchableOpacity
+                            style={styles.backButton}
+                            onPress={() => router.back()}
+                        >
+                            <ArrowLeft size={24} color={colors.primary} />
+                        </TouchableOpacity>
+                    ),
                     headerRight: () => (
                         <View style={styles.headerActions}>
-                            <TouchableOpacity
-                                style={styles.headerAction}
-                                onPress={handleShare}
-                            >
-                                <Share2 size={20} color={colors.textSecondary} />
-                            </TouchableOpacity>
                             {canManageContent() && (
                                 <>
                                     <TouchableOpacity
-                                        style={styles.headerAction}
                                         onPress={handleEdit}
-                                        disabled={isDeleting}
+                                        style={styles.headerActionButton}
                                     >
-                                        <Edit3 size={20} color={isDeleting ? colors.textSecondary : colors.primary} />
+                                        <Edit size={20} color={colors.primary} />
                                     </TouchableOpacity>
                                     <TouchableOpacity
-                                        style={styles.headerAction}
                                         onPress={handleDelete}
+                                        style={[styles.headerActionButton, styles.deleteActionButton]}
                                         disabled={isDeleting}
                                     >
-                                        <Trash2 size={20} color={isDeleting ? colors.textSecondary : colors.error} />
+                                        <Trash2 size={20} color={colors.error} />
                                     </TouchableOpacity>
                                 </>
                             )}
@@ -286,121 +298,229 @@ export default function TermDetailScreen() {
 
             <ScrollView
                 style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={styles.contentContainer}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefreshing}
+                        onRefresh={handleRefresh}
+                        colors={[colors.primary]}
+                        tintColor={colors.primary}
+                    />
+                }
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header Card */}
-                <View style={styles.headerCard}>
-                    <View style={styles.headerIcon}>
-                        <FileText size={32} color={colors.primary} />
+                {/* Terms Header */}
+                <View style={styles.header}>
+                    <View style={styles.headerLeft}>
+                        <View style={[styles.termsIcon, { backgroundColor: getVersionColor(term.version) + '15' }]}>
+                            <FileText size={24} color={getVersionColor(term.version)} />
+                        </View>
+                        <View style={styles.headerContent}>
+                            <Text style={styles.termsName}>{term.title}</Text>
+                            <View style={styles.termsVersion}>
+                                <Hash size={16} color={getVersionColor(term.version)} />
+                                <Text style={[styles.versionText, { color: getVersionColor(term.version) }]}>
+                                    {getVersionLabel(term.version)}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
-                    <View style={styles.headerInfo}>
-                        <Text style={styles.title}>{term.title}</Text>
-                        <Text style={styles.version}>Version {term.version}</Text>
-                        <View style={styles.statusContainer}>
-                            {term.is_active ? (
-                                <View style={styles.statusActive}>
-                                    <CheckCircle size={16} color={colors.success} />
-                                    <Text style={styles.statusActiveText}>Active</Text>
+                    <View style={[
+                        styles.statusBadge,
+                        term.is_active ? styles.statusActive : styles.statusInactive
+                    ]}>
+                        <View style={[
+                            styles.statusDot,
+                            { backgroundColor: term.is_active ? colors.success : colors.textSecondary }
+                        ]} />
+                        <Text style={[
+                            styles.statusText,
+                            term.is_active ? styles.statusTextActive : styles.statusTextInactive
+                        ]}>
+                            {term.is_active ? 'Active' : 'Inactive'}
+                        </Text>
+                    </View>
+                </View>
+
+                {/* Quick Stats */}
+                <View style={styles.quickStats}>
+                    <View style={styles.statsGrid}>
+                        <View style={styles.statsRow}>
+                            <View style={styles.statCard}>
+                                <View style={styles.statCardIcon}>
+                                    <Type size={20} color={colors.primary} />
                                 </View>
-                            ) : (
-                                <View style={styles.statusInactive}>
-                                    <XCircle size={16} color={colors.error} />
-                                    <Text style={styles.statusInactiveText}>Inactive</Text>
+                                <View style={styles.statCardContent}>
+                                    <Text style={styles.statCardValue}>{contentStats.words}</Text>
+                                    <Text style={styles.statCardLabel}>Words</Text>
                                 </View>
-                            )}
+                            </View>
+
+                            <View style={styles.statCard}>
+                                <View style={[styles.statCardIcon, { backgroundColor: colors.successLight }]}>
+                                    <Activity size={20} color={colors.success} />
+                                </View>
+                                <View style={styles.statCardContent}>
+                                    <Text style={styles.statCardValue}>{contentStats.characters}</Text>
+                                    <Text style={styles.statCardLabel}>Characters</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        <View style={styles.statsRow}>
+                            <View style={styles.statCard}>
+                                <View style={[styles.statCardIcon, { backgroundColor: colors.infoLight }]}>
+                                    <Clock size={20} color={colors.info} />
+                                </View>
+                                <View style={styles.statCardContent}>
+                                    <Text style={styles.statCardValue}>{contentStats.readingTime}</Text>
+                                    <Text style={styles.statCardLabel}>Min Read</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.statCard}>
+                                <View style={[styles.statCardIcon, { backgroundColor: colors.warningLight }]}>
+                                    <Eye size={20} color={colors.warning} />
+                                </View>
+                                <View style={styles.statCardContent}>
+                                    <Text style={styles.statCardValue}>{term.is_active ? 'Live' : 'Draft'}</Text>
+                                    <Text style={styles.statCardLabel}>Status</Text>
+                                </View>
+                            </View>
                         </View>
                     </View>
                 </View>
 
-                {/* Metadata Card */}
-                <View style={styles.metadataCard}>
-                    <Text style={styles.cardTitle}>Details</Text>
+                {/* Terms Information */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Terms Information</Text>
 
-                    <View style={styles.metadataItem}>
-                        <View style={styles.metadataIcon}>
-                            <Calendar size={16} color={colors.primary} />
+                    <View style={styles.infoGrid}>
+                        <View style={styles.infoRow}>
+                            <View style={styles.infoItem}>
+                                <View style={styles.infoIcon}>
+                                    <FileText size={20} color={colors.primary} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Document Title</Text>
+                                    <Text style={styles.infoValue}>{term.title}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.infoItem}>
+                                <View style={[styles.infoIcon, { backgroundColor: getVersionColor(term.version) + '15' }]}>
+                                    <Hash size={20} color={getVersionColor(term.version)} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Version</Text>
+                                    <Text style={[styles.infoValue, { color: getVersionColor(term.version) }]}>
+                                        {term.version}
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
-                        <View style={styles.metadataContent}>
-                            <Text style={styles.metadataLabel}>Effective Date</Text>
-                            <Text style={styles.metadataValue}>
-                                {new Date(term.effective_date).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                })}
-                            </Text>
+
+                        <View style={styles.infoRow}>
+                            <View style={styles.infoItem}>
+                                <View style={[
+                                    styles.infoIcon,
+                                    { backgroundColor: term.is_active ? colors.successLight : colors.backgroundTertiary }
+                                ]}>
+                                    <Settings size={20} color={term.is_active ? colors.success : colors.textSecondary} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Status</Text>
+                                    <Text style={[
+                                        styles.infoValue,
+                                        { color: term.is_active ? colors.success : colors.textSecondary }
+                                    ]}>
+                                        {term.is_active ? 'Active' : 'Inactive'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.infoItem}>
+                                <View style={styles.infoIcon}>
+                                    <Calendar size={20} color={colors.textSecondary} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Effective Date</Text>
+                                    <Text style={styles.infoValue}>
+                                        {formatDate(term.effective_date)}
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
                     </View>
+                </View>
 
-                    <View style={styles.metadataItem}>
-                        <View style={styles.metadataIcon}>
-                            <Clock size={16} color={colors.primary} />
-                        </View>
-                        <View style={styles.metadataContent}>
-                            <Text style={styles.metadataLabel}>Created</Text>
-                            <Text style={styles.metadataValue}>
-                                {new Date(term.created_at).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                })}
+                {/* Content Overview */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Content Overview</Text>
+
+                    <View style={styles.contentSummary}>
+                        <View style={styles.summaryCard}>
+                            <View style={styles.summaryIcon}>
+                                <Info size={20} color={colors.info} />
+                            </View>
+                            <Text style={styles.contentDescription}>
+                                This document contains {contentStats.words} words across {contentStats.characters} characters.
+                                Estimated reading time is approximately {contentStats.readingTime} minute{contentStats.readingTime !== 1 ? 's' : ''}.
                             </Text>
                         </View>
-                    </View>
 
-                    <View style={styles.metadataItem}>
-                        <View style={styles.metadataIcon}>
-                            <Clock size={16} color={colors.primary} />
-                        </View>
-                        <View style={styles.metadataContent}>
-                            <Text style={styles.metadataLabel}>Last Updated</Text>
-                            <Text style={styles.metadataValue}>
-                                {new Date(term.updated_at).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                })}
+                        <View style={styles.contentPreview}>
+                            <Text style={styles.contentPreviewTitle}>Content Preview</Text>
+                            <Text style={styles.contentPreviewText} numberOfLines={4}>
+                                {term.content}
                             </Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Content Card */}
-                <View style={styles.contentCard}>
-                    <Text style={styles.cardTitle}>Content</Text>
-                    <Text style={styles.content}>{term.content}</Text>
+                {/* System Information */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>System Information</Text>
+
+                    <View style={styles.systemInfo}>
+                        <View style={styles.systemRow}>
+                            <Text style={styles.systemLabel}>Document ID</Text>
+                            <Text style={styles.systemValue} selectable>{term.id}</Text>
+                        </View>
+
+                        <View style={styles.systemRow}>
+                            <Text style={styles.systemLabel}>Created Date</Text>
+                            <Text style={styles.systemValue}>
+                                {formatDate(term.created_at)}
+                            </Text>
+                        </View>
+
+                        <View style={styles.systemRow}>
+                            <Text style={styles.systemLabel}>Last Updated</Text>
+                            <Text style={styles.systemValue}>
+                                {formatDate(term.updated_at)}
+                            </Text>
+                        </View>
+                    </View>
                 </View>
 
-                {/* Actions */}
+                {/* Action Buttons */}
                 {canManageContent() && (
-                    <View style={styles.actionsCard}>
-                        <Text style={styles.cardTitle}>Actions</Text>
-                        <View style={styles.actionsContainer}>
-                            <Button
-                                title="Share"
-                                variant="outline"
-                                onPress={handleShare}
-                                icon={<Share2 size={16} color={colors.primary} />}
-                                disabled={isDeleting}
-                            />
-                            <Button
-                                title="Edit"
-                                variant="primary"
-                                onPress={handleEdit}
-                                icon={<Edit3 size={16} color={colors.white} />}
-                                disabled={isDeleting}
-                            />
-                            <Button
-                                title="Delete"
-                                variant="ghost"
-                                onPress={handleDelete}
-                                loading={isDeleting}
-                                disabled={isDeleting}
-                                icon={<Trash2 size={16} color={colors.error} />}
-                                style={styles.deleteButton}
-                            />
-                        </View>
+                    <View style={styles.actionsContainer}>
+                        <Button
+                            title="Edit Terms"
+                            onPress={handleEdit}
+                            variant="primary"
+                            icon={<Edit size={20} color={colors.white} />}
+                        />
+                        <Button
+                            title="Delete Terms"
+                            onPress={handleDelete}
+                            variant="outline"
+                            loading={isDeleting}
+                            style={styles.deleteButton}
+                            icon={<Trash2 size={20} color={colors.error} />}
+                        />
                     </View>
                 )}
             </ScrollView>
@@ -413,174 +533,363 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
+    scrollView: {
+        flex: 1,
+    },
+    contentContainer: {
+        flexGrow: 1,
+        padding: 20,
+        paddingBottom: 40,
+    },
+    noPermissionContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        gap: 20,
+    },
+    noAccessIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.warningLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    noPermissionText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
     loadingContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         gap: 16,
     },
     loadingText: {
         fontSize: 16,
         color: colors.textSecondary,
+        fontWeight: "500",
     },
-    scrollView: {
+    errorContainer: {
         flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        gap: 20,
     },
-    scrollContent: {
-        padding: 16,
-        gap: 16,
+    errorIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.warningLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    errorTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    errorText: {
+        fontSize: 15,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 300,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
+    backButton: {
+        padding: 8,
+        marginLeft: -8,
     },
     headerActions: {
-        flexDirection: 'row',
+        flexDirection: "row",
         gap: 8,
     },
-    headerAction: {
+    headerActionButton: {
         padding: 8,
-    },
-    headerCard: {
+        borderRadius: 20,
         backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 20,
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 16,
         shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 2,
         elevation: 2,
     },
-    headerIcon: {
+    deleteActionButton: {
+        backgroundColor: colors.errorLight,
+    },
+    header: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: colors.card,
+        padding: 24,
+        borderRadius: 16,
+        marginBottom: 24,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    headerLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+        flex: 1,
+    },
+    termsIcon: {
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: colors.primary + '15',
-        justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 16,
     },
-    headerInfo: {
+    headerContent: {
         flex: 1,
-        gap: 8,
     },
-    title: {
-        fontSize: 20,
-        fontWeight: '700',
+    termsName: {
+        fontSize: 24,
+        fontWeight: "700",
         color: colors.text,
-        lineHeight: 26,
+        marginBottom: 6,
+        lineHeight: 30,
     },
-    version: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        fontWeight: '500',
+    termsVersion: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
     },
-    statusContainer: {
-        marginTop: 4,
+    versionText: {
+        fontSize: 15,
+        fontWeight: "600",
+        letterSpacing: 0.1,
+    },
+    statusBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
+        gap: 6,
     },
     statusActive: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: colors.success + '15',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-        alignSelf: 'flex-start',
-    },
-    statusActiveText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: colors.success,
+        backgroundColor: colors.successLight,
     },
     statusInactive: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: colors.error + '15',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-        alignSelf: 'flex-start',
+        backgroundColor: colors.backgroundTertiary,
     },
-    statusInactiveText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: colors.error,
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
-    metadataCard: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 20,
-        gap: 16,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+    statusText: {
+        fontSize: 13,
+        fontWeight: "600",
+        letterSpacing: 0.2,
     },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: colors.text,
+    statusTextActive: {
+        color: colors.success,
     },
-    metadataItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    statusTextInactive: {
+        color: colors.textSecondary,
+    },
+    quickStats: {
+        marginBottom: 24,
+    },
+    statsGrid: {
         gap: 12,
     },
-    metadataIcon: {
+    statsRow: {
+        flexDirection: "row",
+        gap: 12,
+    },
+    statCard: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.card,
+        padding: 16,
+        borderRadius: 12,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+        gap: 12,
+    },
+    statCardIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: colors.primaryLight,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    statCardContent: {
+        flex: 1,
+    },
+    statCardValue: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+        lineHeight: 22,
+        marginBottom: 2,
+    },
+    statCardLabel: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    section: {
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 20,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 20,
+        lineHeight: 24,
+    },
+    infoGrid: {
+        gap: 20,
+    },
+    infoRow: {
+        flexDirection: "row",
+        gap: 16,
+    },
+    infoItem: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+    infoIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.primaryLight,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    infoContent: {
+        flex: 1,
+    },
+    infoLabel: {
+        fontSize: 12,
+        color: colors.textTertiary,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        fontWeight: "600",
+        marginBottom: 4,
+    },
+    infoValue: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.text,
+        lineHeight: 20,
+    },
+    contentSummary: {
+        gap: 20,
+    },
+    summaryCard: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        backgroundColor: colors.infoLight,
+        padding: 16,
+        borderRadius: 12,
+        gap: 12,
+    },
+    summaryIcon: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: colors.primary + '15',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: colors.info + '20',
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 2,
     },
-    metadataContent: {
+    contentDescription: {
         flex: 1,
-        gap: 2,
+        fontSize: 14,
+        color: colors.info,
+        lineHeight: 20,
+        fontWeight: "500",
     },
-    metadataLabel: {
+    contentPreview: {
+        backgroundColor: colors.backgroundTertiary,
+        padding: 16,
+        borderRadius: 12,
+    },
+    contentPreviewTitle: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 8,
+    },
+    contentPreviewText: {
         fontSize: 14,
         color: colors.textSecondary,
-        fontWeight: '500',
+        lineHeight: 20,
     },
-    metadataValue: {
-        fontSize: 16,
-        color: colors.text,
-        fontWeight: '600',
-    },
-    contentCard: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 20,
+    systemInfo: {
         gap: 16,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
     },
-    content: {
-        fontSize: 16,
+    systemRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+    },
+    systemLabel: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "600",
+        flex: 1,
+    },
+    systemValue: {
+        fontSize: 14,
         color: colors.text,
-        lineHeight: 24,
-    },
-    actionsCard: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 20,
-        gap: 16,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        fontWeight: "500",
+        flex: 2,
+        textAlign: "right",
+        lineHeight: 18,
     },
     actionsContainer: {
-        flexDirection: 'row',
-        gap: 12,
+        gap: 16,
+        marginTop: 8,
     },
     deleteButton: {
-        borderColor: colors.error + '30',
+        borderColor: colors.error,
     },
 }); 

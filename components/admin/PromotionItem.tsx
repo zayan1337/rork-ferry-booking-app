@@ -1,31 +1,35 @@
-import React from 'react';
+import React from "react";
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-} from 'react-native';
-import { colors } from '@/constants/adminColors';
-import { Promotion } from '@/types/content';
+    Dimensions,
+} from "react-native";
+import { colors } from "@/constants/adminColors";
+import { Promotion } from "@/types/content";
 import {
     Percent,
     Calendar,
-    Users,
-    MoreHorizontal,
-    Edit3,
-    Copy,
+    Tag,
+    Edit,
     Trash2,
     Clock,
     CheckCircle,
     XCircle,
-} from 'lucide-react-native';
+    Copy,
+    Users,
+} from "lucide-react-native";
+
+const { width: screenWidth } = Dimensions.get('window');
+const isTablet = screenWidth >= 768;
 
 interface PromotionItemProps {
     promotion: Promotion;
-    onPress: (promotionId: string) => void;
-    onEdit?: (promotionId: string) => void;
-    onDelete?: (promotionId: string) => void;
-    onDuplicate?: (promotionId: string) => void;
+    onPress: (id: string) => void;
+    onEdit?: (id: string) => void;
+    onDelete?: (id: string) => void;
+    onDuplicate?: (id: string) => void;
     showActions?: boolean;
 }
 
@@ -35,18 +39,45 @@ const PromotionItem: React.FC<PromotionItemProps> = ({
     onEdit,
     onDelete,
     onDuplicate,
-    showActions = false,
+    showActions = true,
 }) => {
+    const handlePress = () => {
+        onPress(promotion.id);
+    };
+
+    const handleEdit = () => {
+        onEdit?.(promotion.id);
+    };
+
+    const handleDelete = () => {
+        onDelete?.(promotion.id);
+    };
+
+    const handleDuplicate = () => {
+        onDuplicate?.(promotion.id);
+    };
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString();
+    };
+
     const isActive = promotion.is_active;
     const isExpired = new Date(promotion.end_date) < new Date();
     const isUpcoming = new Date(promotion.start_date) > new Date();
     const isCurrent = !isExpired && !isUpcoming && isActive;
 
+    const getStatusColor = () => {
+        if (isExpired) return colors.error;
+        if (isUpcoming) return colors.warning;
+        if (isCurrent) return colors.success;
+        return colors.textSecondary;
+    };
+
     const getStatusIcon = () => {
-        if (isExpired) return <XCircle size={16} color={colors.error} />;
-        if (isUpcoming) return <Clock size={16} color={colors.warning} />;
-        if (isCurrent) return <CheckCircle size={16} color={colors.success} />;
-        return <XCircle size={16} color={colors.textSecondary} />;
+        if (isExpired) return XCircle;
+        if (isUpcoming) return Clock;
+        if (isCurrent) return CheckCircle;
+        return XCircle;
     };
 
     const getStatusText = () => {
@@ -56,112 +87,123 @@ const PromotionItem: React.FC<PromotionItemProps> = ({
         return 'Inactive';
     };
 
-    const getStatusColor = () => {
-        if (isExpired) return colors.error;
-        if (isUpcoming) return colors.warning;
-        if (isCurrent) return colors.success;
-        return colors.textSecondary;
-    };
+    const StatusIcon = getStatusIcon();
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-        });
-    };
-
-    const handleQuickAction = (action: 'edit' | 'delete' | 'duplicate', event: any) => {
-        event.stopPropagation();
-        switch (action) {
-            case 'edit':
-                onEdit?.(promotion.id);
-                break;
-            case 'delete':
-                onDelete?.(promotion.id);
-                break;
-            case 'duplicate':
-                onDuplicate?.(promotion.id);
-                break;
-        }
+    const truncateDescription = (description: string, maxLength: number = 120) => {
+        if (description.length <= maxLength) return description;
+        return description.substring(0, maxLength) + '...';
     };
 
     return (
         <TouchableOpacity
-            style={[
-                styles.container,
-                !isActive && styles.inactiveContainer,
-            ]}
-            onPress={() => onPress(promotion.id)}
+            style={styles.container}
+            onPress={handlePress}
             activeOpacity={0.7}
         >
-            <View style={styles.header}>
-                <View style={styles.headerLeft}>
+            <View style={styles.content}>
+                {/* Header */}
+                <View style={styles.header}>
                     <View style={styles.iconContainer}>
-                        <Percent size={20} color={colors.primary} />
+                        <Percent
+                            size={20}
+                            color={isActive ? colors.primary : colors.textSecondary}
+                        />
                     </View>
-                    <View style={styles.headerText}>
-                        <Text style={styles.name} numberOfLines={1}>
+
+                    <View style={styles.headerInfo}>
+                        <Text style={styles.title} numberOfLines={2}>
                             {promotion.name}
                         </Text>
-                        <View style={styles.metadataRow}>
-                            <View style={styles.discountBadge}>
-                                <Text style={styles.discountText}>
-                                    {promotion.discount_percentage}% OFF
-                                </Text>
+
+                        <View style={styles.metaRow}>
+                            <View style={styles.discountContainer}>
+                                <Tag size={12} color={colors.success} />
+                                <Text style={styles.discount}>{promotion.discount_percentage}% OFF</Text>
                             </View>
+
                             <View style={styles.statusContainer}>
-                                {getStatusIcon()}
-                                <Text style={[styles.statusText, { color: getStatusColor() }]}>
+                                <StatusIcon
+                                    size={12}
+                                    color={getStatusColor()}
+                                />
+                                <Text style={[styles.status, { color: getStatusColor() }]}>
                                     {getStatusText()}
                                 </Text>
                             </View>
                         </View>
                     </View>
+
+                    {showActions && (
+                        <View style={styles.actionsContainer}>
+                            {onDuplicate && (
+                                <TouchableOpacity
+                                    style={styles.actionButton}
+                                    onPress={handleDuplicate}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    <Copy size={16} color={colors.textSecondary} />
+                                </TouchableOpacity>
+                            )}
+
+                            {onEdit && (
+                                <TouchableOpacity
+                                    style={styles.actionButton}
+                                    onPress={handleEdit}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    <Edit size={16} color={colors.primary} />
+                                </TouchableOpacity>
+                            )}
+
+                            {onDelete && (
+                                <TouchableOpacity
+                                    style={styles.actionButton}
+                                    onPress={handleDelete}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    <Trash2 size={16} color={colors.error} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    )}
                 </View>
-                {showActions && (
-                    <View style={styles.actionsContainer}>
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={(e) => handleQuickAction('edit', e)}
-                        >
-                            <Edit3 size={16} color={colors.primary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={(e) => handleQuickAction('duplicate', e)}
-                        >
-                            <Copy size={16} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={(e) => handleQuickAction('delete', e)}
-                        >
-                            <Trash2 size={16} color={colors.error} />
-                        </TouchableOpacity>
+
+                {/* Description Preview */}
+                {promotion.description && (
+                    <View style={styles.contentPreview}>
+                        <Text style={styles.contentText} numberOfLines={3}>
+                            {truncateDescription(promotion.description)}
+                        </Text>
                     </View>
                 )}
-            </View>
 
-            {promotion.description && (
-                <Text style={styles.description} numberOfLines={2}>
-                    {promotion.description}
-                </Text>
-            )}
+                {/* Footer */}
+                <View style={styles.footer}>
+                    <View style={styles.footerLeft}>
+                        <View style={styles.dateContainer}>
+                            <Calendar size={12} color={colors.textSecondary} />
+                            <Text style={styles.date}>
+                                {formatDate(promotion.start_date)} - {formatDate(promotion.end_date)}
+                            </Text>
+                        </View>
 
-            <View style={styles.footer}>
-                <View style={styles.dateContainer}>
-                    <Calendar size={14} color={colors.textSecondary} />
-                    <Text style={styles.dateText}>
-                        {formatDate(promotion.start_date)} - {formatDate(promotion.end_date)}
-                    </Text>
-                </View>
-                {promotion.is_first_time_booking_only && (
-                    <View style={styles.specialBadge}>
-                        <Users size={12} color={colors.secondary} />
-                        <Text style={styles.specialText}>First-time only</Text>
+                        {promotion.is_first_time_booking_only && (
+                            <View style={styles.specialContainer}>
+                                <Users size={12} color={colors.secondary} />
+                                <Text style={styles.special}>First-time booking only</Text>
+                            </View>
+                        )}
                     </View>
-                )}
+
+                    <View style={styles.footerRight}>
+                        <View style={styles.timestampContainer}>
+                            <Clock size={12} color={colors.textSecondary} />
+                            <Text style={styles.timestamp}>
+                                {formatDate(promotion.updated_at || promotion.created_at)}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
             </View>
         </TouchableOpacity>
     );
@@ -171,70 +213,67 @@ const styles = StyleSheet.create({
     container: {
         backgroundColor: colors.card,
         borderRadius: 12,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: colors.border,
+        marginBottom: 12,
+        marginHorizontal: isTablet ? 0 : 16,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
+        overflow: 'hidden',
     },
-    inactiveContainer: {
-        opacity: 0.7,
-        backgroundColor: colors.backgroundSecondary,
+    content: {
+        padding: 16,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        justifyContent: 'space-between',
         marginBottom: 12,
-    },
-    headerLeft: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
     },
     iconContainer: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.primary + '15',
+        backgroundColor: colors.primary + '10',
         alignItems: 'center',
         justifyContent: 'center',
+        marginRight: 12,
     },
-    headerText: {
+    headerInfo: {
         flex: 1,
+        gap: 6,
     },
-    name: {
+    title: {
         fontSize: 16,
         fontWeight: '600',
         color: colors.text,
-        marginBottom: 4,
+        lineHeight: 22,
     },
-    metadataRow: {
+    metaRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 16,
     },
-    discountBadge: {
+    discountContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
         backgroundColor: colors.success + '15',
         borderRadius: 12,
         paddingHorizontal: 8,
         paddingVertical: 2,
     },
-    discountText: {
-        fontSize: 11,
-        fontWeight: '600',
+    discount: {
+        fontSize: 12,
         color: colors.success,
+        fontWeight: '600',
     },
     statusContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
     },
-    statusText: {
+    status: {
         fontSize: 12,
         fontWeight: '500',
     },
@@ -244,45 +283,64 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     actionButton: {
-        padding: 6,
-        borderRadius: 6,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         backgroundColor: colors.backgroundSecondary,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    description: {
+    contentPreview: {
+        marginBottom: 12,
+        paddingHorizontal: 4,
+    },
+    contentText: {
         fontSize: 14,
         color: colors.textSecondary,
         lineHeight: 20,
-        marginBottom: 12,
     },
     footer: {
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+    },
+    footerLeft: {
+        flex: 1,
+        gap: 6,
+    },
+    footerRight: {
+        alignItems: 'flex-end',
     },
     dateContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        flex: 1,
+        gap: 4,
     },
-    dateText: {
+    date: {
         fontSize: 12,
         color: colors.textSecondary,
-        fontWeight: '500',
     },
-    specialBadge: {
+    specialContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: colors.secondary + '15',
-        borderRadius: 10,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
     },
-    specialText: {
-        fontSize: 10,
-        fontWeight: '500',
+    special: {
+        fontSize: 11,
         color: colors.secondary,
+        fontWeight: '500',
+    },
+    timestampContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    timestamp: {
+        fontSize: 11,
+        color: colors.textSecondary,
     },
 });
 

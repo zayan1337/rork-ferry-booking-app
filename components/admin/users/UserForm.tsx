@@ -1,45 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
-    TouchableOpacity,
     Alert,
-    KeyboardAvoidingView,
+    TouchableOpacity,
     Platform,
-    Switch,
-    ActivityIndicator,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { UserFormData, User } from '@/types/userManagement';
 import { useUserForm } from '@/hooks/useUserForm';
-import { UserFormData } from '@/types/userManagement';
-import Input from '@/components/Input';
-import Button from '@/components/admin/Button';
-import Dropdown from '@/components/Dropdown';
 import {
-    User,
+    User as UserIcon,
     Mail,
     Phone,
-    MapPin,
     Calendar,
     Shield,
-    AlertCircle,
+    Activity,
     Save,
     X,
-    Eye,
-    EyeOff,
-    Crown,
-    UserCheck,
-    Contact,
-    Home,
+    RotateCcw,
+    CheckCircle,
+    AlertCircle,
+    Info,
     Settings,
-    Key
+    Users,
 } from 'lucide-react-native';
+
+// Components
+import Button from '@/components/admin/Button';
+import Input from '@/components/Input';
+import Switch from '@/components/admin/Switch';
+import Dropdown from '@/components/admin/Dropdown';
+import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { DateSelector } from '@/components/DateSelector';
 
 interface UserFormProps {
     userId?: string;
-    onSave?: (user: UserFormData) => void;
+    onSave?: (userData: UserFormData) => void;
     onCancel?: () => void;
     isModal?: boolean;
 }
@@ -52,143 +51,116 @@ export default function UserForm({
 }: UserFormProps) {
     const {
         formData,
-        errors,
-        isLoading,
-        isSubmitting,
-        roles = [],
         setFieldValue,
-        setFieldError,
+        loading,
+        submitting,
+        errors,
         clearFieldError,
         handleSubmit,
-        resetForm,
-    } = useUserForm(userId);
+        handleReset,
+        canSubmit,
+        hasChanges,
+    } = useUserForm({
+        userId,
+        onSave,
+    });
 
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [showPasswordFields, setShowPasswordFields] = useState(!userId);
 
-    const isEditMode = !!userId;
-
-    // Ensure formData is available before rendering
-    if (!formData) {
-        return null;
-    }
-
-    const handleSave = async () => {
-        try {
-            const savedUser = await handleSubmit();
-            if (savedUser) {
-                // Convert UserProfile to UserFormData for the callback
-                const userFormData: UserFormData = {
-                    name: savedUser.name,
-                    email: savedUser.email,
-                    mobile_number: savedUser.mobile_number,
-                    role: savedUser.role,
-                    status: savedUser.status,
-                    profile_picture: savedUser.profile_picture,
-                    date_of_birth: savedUser.date_of_birth,
-                    gender: savedUser.gender,
-                    address: savedUser.address,
-                    emergency_contact: savedUser.emergency_contact,
-                    preferences: savedUser.preferences,
-                    password: '',
-                    confirm_password: '',
-                    send_welcome_email: false,
-                    send_credentials_sms: false
-                };
-
-                onSave?.(userFormData);
-                if (!isEditMode) {
-                    Alert.alert('Success', 'User created successfully!');
-                } else {
-                    Alert.alert('Success', 'User updated successfully!');
-                }
-            }
-        } catch (error) {
-            Alert.alert('Error', error instanceof Error ? error.message : 'Failed to save user');
-        }
+    const getFieldError = (fieldName: string) => {
+        return errors[fieldName] || '';
     };
 
-    const handleCancel = () => {
-        if (isEditMode) {
-            resetForm();
-        }
-        onCancel?.();
-    };
-
-    const roleOptions = (roles || []).map(role => ({
-        label: role.label || role.name,
-        value: role.value || role.id,
-    }));
-
-    const statusOptions = [
-        { label: 'Active', value: 'active' },
-        { label: 'Inactive', value: 'inactive' },
-        { label: 'Suspended', value: 'suspended' },
+    const roleOptions = [
+        { label: 'User', value: 'user' },
+        { label: 'Agent', value: 'agent' },
+        { label: 'Admin', value: 'admin' },
     ];
 
-    const getFieldError = (field: string) => {
-        return errors && errors[field] ? errors[field] : undefined;
-    };
-
-    const hasChanges = () => {
-        if (!formData || typeof formData !== 'object') return false;
-        return Object.values(formData).some(value =>
-            value !== null && value !== undefined && value !== ''
+    if (loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <LoadingSpinner />
+                <Text style={styles.loadingText}>
+                    {userId ? 'Loading user data...' : 'Preparing form...'}
+                </Text>
+            </View>
         );
-    };
+    }
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.contentContainer}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerContent}>
-                        <Text style={styles.title}>
-                            {isEditMode ? 'Edit User' : 'New User'}
-                        </Text>
-                        <Text style={styles.subtitle}>
-                            {isEditMode ? 'Update user information' : 'Create a new user account'}
-                        </Text>
-                    </View>
-                    {isModal && (
-                        <TouchableOpacity
-                            style={styles.closeButton}
-                            onPress={handleCancel}
-                        >
-                            <X size={24} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                    )}
+        <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <View style={styles.headerIcon}>
+                    <UserIcon size={24} color={colors.primary} />
                 </View>
+                <View style={styles.headerContent}>
+                    <Text style={styles.title}>
+                        {userId ? 'Edit User' : 'Create New User'}
+                    </Text>
+                    <Text style={styles.subtitle}>
+                        {userId 
+                            ? 'Update user information and settings' 
+                            : 'Add a new user to the system'
+                        }
+                    </Text>
+                </View>
+            </View>
 
-                {/* Form Fields */}
-                <View style={styles.formContainer}>
-                    {/* Basic Information */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Basic Information</Text>
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                {/* General Error */}
+                {errors.general && (
+                    <View style={styles.errorContainer}>
+                        <View style={styles.errorIcon}>
+                            <AlertCircle size={20} color={colors.error} />
+                        </View>
+                        <Text style={styles.errorText}>{errors.general}</Text>
+                    </View>
+                )}
 
+                {/* Personal Information */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.sectionHeaderIcon}>
+                            <Info size={20} color={colors.primary} />
+                        </View>
+                        <Text style={styles.sectionTitle}>Personal Information</Text>
+                    </View>
+
+                    <View style={styles.formRow}>
                         <View style={styles.field}>
                             <Input
-                                label="Full Name"
-                                value={formData.name || ''}
+                                label="First Name"
+                                value={formData.first_name || ''}
                                 onChangeText={(text) => {
-                                    setFieldValue('name', text);
-                                    clearFieldError('name');
+                                    setFieldValue('first_name', text);
+                                    clearFieldError('first_name');
                                 }}
-                                placeholder="Enter full name"
-                                error={getFieldError('name')}
-                                leftIcon={<User size={20} color={colors.textSecondary} />}
+                                placeholder="Enter first name"
+                                error={getFieldError('first_name')}
+                                leftIcon={<UserIcon size={20} color={colors.textSecondary} />}
                                 required
                             />
                         </View>
 
+                        <View style={styles.field}>
+                            <Input
+                                label="Last Name"
+                                value={formData.last_name || ''}
+                                onChangeText={(text) => {
+                                    setFieldValue('last_name', text);
+                                    clearFieldError('last_name');
+                                }}
+                                placeholder="Enter last name"
+                                error={getFieldError('last_name')}
+                                leftIcon={<UserIcon size={20} color={colors.textSecondary} />}
+                                required
+                            />
+                        </View>
+                    </View>
+
+                    <View style={styles.formRow}>
                         <View style={styles.field}>
                             <Input
                                 label="Email Address"
@@ -221,280 +193,163 @@ export default function UserForm({
                                 required
                             />
                         </View>
-
-                        <View style={styles.field}>
-                            <Input
-                                label="Date of Birth"
-                                value={formData.date_of_birth || ''}
-                                onChangeText={(text) => {
-                                    setFieldValue('date_of_birth', text);
-                                    clearFieldError('date_of_birth');
-                                }}
-                                placeholder="YYYY-MM-DD"
-                                error={getFieldError('date_of_birth')}
-                                leftIcon={<Calendar size={20} color={colors.textSecondary} />}
-                            />
-                        </View>
                     </View>
 
-                    {/* Account Settings */}
-                    <View style={styles.section}>
+                    <View style={styles.field}>
+                        <DateSelector
+                            label="Date of Birth"
+                            value={formData.date_of_birth || null}
+                            onChange={(date) => {
+                                setFieldValue('date_of_birth', date);
+                                clearFieldError('date_of_birth');
+                            }}
+                            isDateOfBirth={true}
+                            maxDate={new Date().toISOString().split('T')[0]}
+                            error={getFieldError('date_of_birth')}
+                        />
+                    </View>
+                </View>
+
+                {/* Account Settings */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.sectionHeaderIcon}>
+                            <Settings size={20} color={colors.primary} />
+                        </View>
                         <Text style={styles.sectionTitle}>Account Settings</Text>
+                    </View>
+
+                    <View style={styles.field}>
+                        <Dropdown
+                            label="Role"
+                            value={formData.role || ''}
+                            onValueChange={(value) => {
+                                setFieldValue('role', value);
+                                clearFieldError('role');
+                            }}
+                            options={roleOptions}
+                            placeholder="Select user role"
+                            error={getFieldError('role')}
+                            required
+                        />
+                    </View>
+
+                    <View style={styles.switchContainer}>
+                        <Switch
+                            label="Active Status"
+                            value={formData.is_active ?? true}
+                            onValueChange={(value) => setFieldValue('is_active', value)}
+                            description={
+                                formData.is_active
+                                    ? 'User account is active and can access the system'
+                                    : 'User account is inactive and cannot access the system'
+                            }
+                            icon={<Activity size={16} color={formData.is_active ? colors.success : colors.textSecondary} />}
+                        />
+                    </View>
+
+                    <View style={styles.switchContainer}>
+                        <Switch
+                            label="Super Admin"
+                            value={formData.is_super_admin ?? false}
+                            onValueChange={(value) => setFieldValue('is_super_admin', value)}
+                            description={
+                                formData.is_super_admin
+                                    ? 'User has super admin privileges'
+                                    : 'User has standard role privileges'
+                            }
+                            icon={<Shield size={16} color={formData.is_super_admin ? colors.warning : colors.textSecondary} />}
+                        />
+                    </View>
+                </View>
+
+                {/* Password Section (for new users or password reset) */}
+                {showPasswordFields && (
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <View style={styles.sectionHeaderIcon}>
+                                <Shield size={20} color={colors.primary} />
+                            </View>
+                            <Text style={styles.sectionTitle}>Password</Text>
+                        </View>
 
                         <View style={styles.field}>
-                            <Dropdown
-                                label="Role"
-                                value={formData.role || ''}
-                                onChange={(value) => {
-                                    setFieldValue('role', value);
-                                    clearFieldError('role');
+                            <Input
+                                label="Password"
+                                value={formData.password || ''}
+                                onChangeText={(text) => {
+                                    setFieldValue('password', text);
+                                    clearFieldError('password');
                                 }}
-                                items={roleOptions}
-                                placeholder="Select user role"
-                                error={getFieldError('role')}
+                                placeholder="Enter password"
+                                secureTextEntry
+                                error={getFieldError('password')}
                                 required
                             />
                         </View>
 
                         <View style={styles.field}>
-                            <Dropdown
-                                label="Status"
-                                value={formData.status || 'active'}
-                                onChange={(value) => {
-                                    setFieldValue('status', value);
-                                    clearFieldError('status');
+                            <Input
+                                label="Confirm Password"
+                                value={formData.confirmPassword || ''}
+                                onChangeText={(text) => {
+                                    setFieldValue('confirmPassword', text);
+                                    clearFieldError('confirmPassword');
                                 }}
-                                items={statusOptions}
-                                placeholder="Select status"
-                                error={getFieldError('status')}
+                                placeholder="Confirm password"
+                                secureTextEntry
+                                error={getFieldError('confirmPassword')}
                                 required
                             />
                         </View>
-
-                        {!isEditMode && (
-                            <>
-                                <View style={styles.field}>
-                                    <Input
-                                        label="Password"
-                                        value={formData.password || ''}
-                                        onChangeText={(text) => {
-                                            setFieldValue('password', text);
-                                            clearFieldError('password');
-                                        }}
-                                        placeholder="Enter password"
-                                        secureTextEntry={true}
-                                        error={getFieldError('password')}
-                                        leftIcon={<Key size={20} color={colors.textSecondary} />}
-                                        required
-                                    />
-                                </View>
-
-                                <View style={styles.field}>
-                                    <Input
-                                        label="Confirm Password"
-                                        value={formData.confirm_password || ''}
-                                        onChangeText={(text) => {
-                                            setFieldValue('confirm_password', text);
-                                            clearFieldError('confirm_password');
-                                        }}
-                                        placeholder="Confirm password"
-                                        secureTextEntry={true}
-                                        error={getFieldError('confirm_password')}
-                                        leftIcon={<Key size={20} color={colors.textSecondary} />}
-                                        required
-                                    />
-                                </View>
-                            </>
-                        )}
                     </View>
+                )}
 
-                    {/* Address Information */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Address Information</Text>
-
-                        <View style={styles.field}>
-                            <Input
-                                label="Address Line 1"
-                                value={formData.address?.street || ''}
-                                onChangeText={(text) => {
-                                    setFieldValue('address.street', text);
-                                    clearFieldError('address.street');
-                                }}
-                                placeholder="Enter address"
-                                error={getFieldError('address.street')}
-                                leftIcon={<Home size={20} color={colors.textSecondary} />}
-                            />
-                        </View>
-
-                        <View style={styles.row}>
-                            <View style={[styles.field, styles.halfWidth]}>
-                                <Input
-                                    label="Island"
-                                    value={formData.address?.island || ''}
-                                    onChangeText={(text) => {
-                                        setFieldValue('address.island', text);
-                                        clearFieldError('address.island');
-                                    }}
-                                    placeholder="Enter island"
-                                    error={getFieldError('address.island')}
-                                    leftIcon={<MapPin size={20} color={colors.textSecondary} />}
-                                />
-                            </View>
-
-                            <View style={[styles.field, styles.halfWidth]}>
-                                <Input
-                                    label="Atoll"
-                                    value={formData.address?.atoll || ''}
-                                    onChangeText={(text) => {
-                                        setFieldValue('address.atoll', text);
-                                        clearFieldError('address.atoll');
-                                    }}
-                                    placeholder="Enter atoll"
-                                    error={getFieldError('address.atoll')}
-                                    leftIcon={<MapPin size={20} color={colors.textSecondary} />}
-                                />
-                            </View>
-                        </View>
+                {/* Info Section */}
+                <View style={styles.infoContainer}>
+                    <View style={styles.infoIcon}>
+                        <Info size={18} color={colors.info} />
                     </View>
-
-                    {/* Emergency Contact */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Emergency Contact</Text>
-
-                        <View style={styles.field}>
-                            <Input
-                                label="Contact Name"
-                                value={formData.emergency_contact?.name || ''}
-                                onChangeText={(text) => {
-                                    setFieldValue('emergency_contact.name', text);
-                                    clearFieldError('emergency_contact.name');
-                                }}
-                                placeholder="Enter emergency contact name"
-                                error={getFieldError('emergency_contact.name')}
-                                leftIcon={<Contact size={20} color={colors.textSecondary} />}
-                            />
-                        </View>
-
-                        <View style={styles.field}>
-                            <Input
-                                label="Contact Phone"
-                                value={formData.emergency_contact?.phone || ''}
-                                onChangeText={(text) => {
-                                    setFieldValue('emergency_contact.phone', text);
-                                    clearFieldError('emergency_contact.phone');
-                                }}
-                                placeholder="Enter emergency contact phone"
-                                keyboardType="phone-pad"
-                                error={getFieldError('emergency_contact.phone')}
-                                leftIcon={<Phone size={20} color={colors.textSecondary} />}
-                            />
-                        </View>
-
-                        <View style={styles.field}>
-                            <Input
-                                label="Relationship"
-                                value={formData.emergency_contact?.relationship || ''}
-                                onChangeText={(text) => {
-                                    setFieldValue('emergency_contact.relationship', text);
-                                    clearFieldError('emergency_contact.relationship');
-                                }}
-                                placeholder="Enter relationship"
-                                error={getFieldError('emergency_contact.relationship')}
-                                leftIcon={<Contact size={20} color={colors.textSecondary} />}
-                            />
-                        </View>
+                    <View style={styles.infoContent}>
+                        <Text style={styles.infoTitle}>User Management</Text>
+                        <Text style={styles.infoText}>
+                            Ensure all user information is accurate. Active users will be able to access the system based on their assigned role.
+                        </Text>
                     </View>
+                </View>
 
-                    {/* Preferences */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Preferences</Text>
+                {/* Action Buttons */}
+                <View style={styles.buttonContainer}>
+                    {hasChanges && (
+                        <Button
+                            title="Reset Changes"
+                            variant="outline"
+                            onPress={handleReset}
+                            icon={<RotateCcw size={16} color={colors.textSecondary} />}
+                        />
+                    )}
 
-                        <View style={styles.toggleRow}>
-                            <View style={styles.toggleContent}>
-                                <Text style={styles.toggleLabel}>Email Notifications</Text>
-                                <Text style={styles.toggleDescription}>
-                                    Receive email notifications for bookings and updates
-                                </Text>
-                            </View>
-                            <Switch
-                                value={formData.preferences?.email_notifications || false}
-                                onValueChange={(value) => {
-                                    setFieldValue('preferences.email_notifications', value);
-                                }}
-                                trackColor={{ false: colors.border, true: colors.primary + '40' }}
-                                thumbColor={formData.preferences?.email_notifications ? colors.primary : colors.textSecondary}
-                            />
-                        </View>
+                    <Button
+                        title={userId ? 'Update User' : 'Create User'}
+                        variant="primary"
+                        onPress={handleSubmit}
+                        loading={submitting}
+                        disabled={!canSubmit || submitting}
+                        icon={<Save size={16} color={colors.white} />}
+                    />
 
-                        <View style={styles.toggleRow}>
-                            <View style={styles.toggleContent}>
-                                <Text style={styles.toggleLabel}>SMS Notifications</Text>
-                                <Text style={styles.toggleDescription}>
-                                    Receive SMS notifications for important updates
-                                </Text>
-                            </View>
-                            <Switch
-                                value={formData.preferences?.sms_notifications || false}
-                                onValueChange={(value) => {
-                                    setFieldValue('preferences.sms_notifications', value);
-                                }}
-                                trackColor={{ false: colors.border, true: colors.primary + '40' }}
-                                thumbColor={formData.preferences?.sms_notifications ? colors.primary : colors.textSecondary}
-                            />
-                        </View>
-
-                        <View style={styles.field}>
-                            <Input
-                                label="Preferred Language"
-                                value={formData.preferences?.language || ''}
-                                onChangeText={(text) => {
-                                    setFieldValue('preferences.language', text);
-                                    clearFieldError('preferences.language');
-                                }}
-                                placeholder="Enter preferred language (e.g., English, Dhivehi)"
-                                error={getFieldError('preferences.language')}
-                                leftIcon={<Settings size={20} color={colors.textSecondary} />}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Error Summary */}
-                    {Object.keys(errors).length > 0 && (
-                        <View style={styles.errorContainer}>
-                            <View style={styles.errorHeader}>
-                                <AlertCircle size={16} color={colors.danger} />
-                                <Text style={styles.errorTitle}>Please fix the following errors:</Text>
-                            </View>
-                            {Object.entries(errors).map(([field, error]) => (
-                                <Text key={field} style={styles.errorText}>
-                                    • {error}
-                                </Text>
-                            ))}
-                        </View>
+                    {onCancel && (
+                        <Button
+                            title="Cancel"
+                            variant="ghost"
+                            onPress={onCancel}
+                            disabled={submitting}
+                            icon={<X size={16} color={colors.textSecondary} />}
+                        />
                     )}
                 </View>
             </ScrollView>
-
-            {/* Action Buttons */}
-            <View style={styles.actionContainer}>
-                <Button
-                    title="Cancel"
-                    variant="ghost"
-                    onPress={handleCancel}
-                    disabled={isSubmitting}
-                    style={styles.cancelButton}
-                />
-                <Button
-                    title={isEditMode ? 'Update User' : 'Create User'}
-                    variant="primary"
-                    onPress={handleSave}
-                    loading={isSubmitting}
-                    disabled={!hasChanges()}
-                    icon={<Save size={18} color="#FFFFFF" />}
-                    style={styles.saveButton}
-                />
-            </View>
-        </KeyboardAvoidingView>
+        </View>
     );
 }
 

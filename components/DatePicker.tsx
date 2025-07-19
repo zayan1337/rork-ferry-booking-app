@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Modal, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
   Platform,
   ScrollView
 } from 'react-native';
@@ -26,24 +26,24 @@ const DatePicker: React.FC<DatePickerProps> = ({
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [tempDate, setTempDate] = useState<string | null>(value);
-  
+
   // Generate dates for the next 3 months
   const generateDates = () => {
     const dates = [];
     const today = new Date();
     const minDateTime = minDate ? new Date(minDate).getTime() : today.getTime();
-    
+
     // Generate dates for the next 90 days
     for (let i = 0; i < 90; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      
+
       // Skip dates before minDate
       if (date.getTime() < minDateTime) continue;
-      
+
       // Stop if we've reached maxDate
       if (maxDate && date > new Date(maxDate)) break;
-      
+
       dates.push({
         dateString: date.toISOString().split('T')[0],
         day: date.getDate(),
@@ -52,24 +52,24 @@ const DatePicker: React.FC<DatePickerProps> = ({
         dayName: date.toLocaleString('default', { weekday: 'short' }),
       });
     }
-    
+
     return dates;
   };
-  
+
   const dates = generateDates();
-  
+
   const handleConfirm = () => {
     if (tempDate) {
       onChange(tempDate);
     }
     setModalVisible(false);
   };
-  
+
   const handleCancel = () => {
     setTempDate(value);
     setModalVisible(false);
   };
-  
+
   const formatDisplayDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -79,7 +79,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
       year: 'numeric'
     });
   };
-  
+
   return (
     <View style={styles.container}>
       {label && (
@@ -87,7 +87,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
           {label} {required && <Text style={styles.required}>*</Text>}
         </Text>
       )}
-      
+
       <TouchableOpacity
         style={[
           styles.pickerContainer,
@@ -97,9 +97,9 @@ const DatePicker: React.FC<DatePickerProps> = ({
         onPress={() => !disabled && setModalVisible(true)}
         disabled={disabled}
       >
-        <Text 
+        <Text
           style={[
-            styles.pickerText, 
+            styles.pickerText,
             !value && styles.placeholderText
           ]}
         >
@@ -107,9 +107,9 @@ const DatePicker: React.FC<DatePickerProps> = ({
         </Text>
         <Calendar size={20} color={Colors.textSecondary} />
       </TouchableOpacity>
-      
+
       {error && <Text style={styles.errorText}>{error}</Text>}
-      
+
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -121,7 +121,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Date</Text>
             </View>
-            
+
             <ScrollView style={styles.dateList}>
               {dates.map((date) => (
                 <TouchableOpacity
@@ -134,7 +134,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                 >
                   <View style={styles.dateLeft}>
                     <Text style={styles.dayName}>{date.dayName}</Text>
-                    <Text 
+                    <Text
                       style={[
                         styles.dateText,
                         tempDate === date.dateString && styles.selectedDateText
@@ -143,24 +143,24 @@ const DatePicker: React.FC<DatePickerProps> = ({
                       {date.day} {date.month} {date.year}
                     </Text>
                   </View>
-                  
+
                   {tempDate === date.dateString && (
                     <View style={styles.selectedIndicator} />
                   )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            
+
             <View style={styles.modalFooter}>
-              <Button 
-                title="Cancel" 
-                onPress={handleCancel} 
+              <Button
+                title="Cancel"
+                onPress={handleCancel}
                 variant="outline"
                 style={styles.footerButton}
               />
-              <Button 
-                title="Confirm" 
-                onPress={handleConfirm} 
+              <Button
+                title="Confirm"
+                onPress={handleConfirm}
                 disabled={!tempDate}
                 style={styles.footerButton}
               />

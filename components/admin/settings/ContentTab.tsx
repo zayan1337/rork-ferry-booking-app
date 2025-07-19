@@ -43,6 +43,7 @@ const ContentTab: React.FC<ContentTabProps> = ({ isActive, searchQuery = "" }) =
         refreshAll,
         deleteTerms,
         deletePromotion,
+        duplicatePromotion,
         error,
         clearError,
     } = useContentManagement();
@@ -175,6 +176,23 @@ const ContentTab: React.FC<ContentTabProps> = ({ isActive, searchQuery = "" }) =
         );
     }, [activeTab, hasManagePermission, deleteTerms, deletePromotion]);
 
+    const handleDuplicate = useCallback(async (itemId: string) => {
+        if (!hasManagePermission) {
+            Alert.alert("Access Denied", `You don't have permission to duplicate ${activeTab}.`);
+            return;
+        }
+
+        try {
+            if (activeTab === 'promotions') {
+                await duplicatePromotion(itemId);
+                Alert.alert("Success", "Promotion duplicated successfully.");
+            }
+        } catch (error) {
+            console.error("Error duplicating item:", error);
+            Alert.alert("Error", `Failed to duplicate ${activeTab}.`);
+        }
+    }, [activeTab, hasManagePermission, duplicatePromotion]);
+
     // Permission check
     if (!hasViewPermission) {
         return (
@@ -298,6 +316,7 @@ const ContentTab: React.FC<ContentTabProps> = ({ isActive, searchQuery = "" }) =
                     onPress={handleItemPress}
                     onEdit={hasManagePermission ? handleEdit : undefined}
                     onDelete={hasManagePermission ? handleDelete : undefined}
+                    onDuplicate={hasManagePermission ? handleDuplicate : undefined}
                     showActions={hasManagePermission}
                 />
             );

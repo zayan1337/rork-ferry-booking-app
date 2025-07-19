@@ -24,19 +24,15 @@ import {
     SortDesc,
     Activity,
     TrendingUp,
-    Grid3x3,
-    List,
-    MoreHorizontal,
-    Clock,
     CheckCircle,
-    XCircle,
+    Hash,
 } from "lucide-react-native";
 
 // Components
 import Button from "@/components/admin/Button";
 import SearchBar from "@/components/admin/SearchBar";
+import TermsItem from "@/components/admin/TermsItem";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
-import StatCard from "@/components/admin/StatCard";
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -45,7 +41,7 @@ export default function TermsScreen() {
     const { canViewContent, canManageContent } = useAdminPermissions();
 
     const {
-        terms,
+        terms: allTerms,
         loading,
         termsStats,
         fetchTerms,
@@ -62,17 +58,49 @@ export default function TermsScreen() {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
-    const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        await fetchTerms();
+        setIsRefreshing(false);
+    };
+
+    const loadTermsData = async () => {
+        if (!allTerms || allTerms.length === 0) {
+            await fetchTerms();
+        }
+    };
 
     useEffect(() => {
         if (canViewContent()) {
-            fetchTerms();
+            loadTermsData();
         }
     }, []);
 
+    const handleTermPress = (termId: string) => {
+        router.push(`./terms/${termId}` as any);
+    };
+
+    const handleAddTerm = () => {
+        if (canManageContent()) {
+            router.push("./terms/new" as any);
+        } else {
+            Alert.alert("Access Denied", "You don't have permission to create terms and conditions.");
+        }
+    };
+
+    const toggleSort = (field: typeof sortBy) => {
+        if (sortBy === field) {
+            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+        } else {
+            setSortBy(field);
+            setSortOrder("asc");
+        }
+    };
+
     // Filter and sort terms
     const filteredAndSortedTerms = React.useMemo(() => {
-        let filtered = terms;
+        let filtered = allTerms || [];
 
         // Apply search filter
         if (searchQuery) {
@@ -128,7 +156,7 @@ export default function TermsScreen() {
         });
 
         return sorted;
-    }, [terms, searchQuery, filterActive, filterVersion, sortBy, sortOrder]);
+    }, [allTerms, searchQuery, filterActive, filterVersion, sortBy, sortOrder]);
 
     // Use stats from the hook
     const stats = React.useMemo(() => {
@@ -137,62 +165,8 @@ export default function TermsScreen() {
             active: termsStats.active,
             inactive: termsStats.inactive,
             versions: termsStats.versions.length,
-            recent: termsStats.recentTerms,
         };
     }, [termsStats]);
-
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        try {
-            await fetchTerms();
-        } catch (error) {
-            console.error('Refresh error:', error);
-        } finally {
-            setIsRefreshing(false);
-        }
-    };
-
-    const handleTermPress = (termId: string) => {
-        router.push(`./terms/${termId}` as any);
-    };
-
-    const handleAddTerm = () => {
-        if (canManageContent()) {
-            router.push("./terms/new" as any);
-        } else {
-            Alert.alert("Access Denied", "You don't have permission to create terms and conditions.");
-        }
-    };
-
-    const handleDeleteTerm = async (termId: string) => {
-        if (!canManageContent()) {
-            Alert.alert("Access Denied", "You don't have permission to delete terms and conditions.");
-            return;
-        }
-
-        const term = terms.find(t => t.id === termId);
-        if (!term) return;
-
-        Alert.alert(
-            "Delete Terms",
-            `Are you sure you want to delete "${term.title}"?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await deleteTerms(termId);
-                            Alert.alert("Success", "Terms and conditions deleted successfully");
-                        } catch (error) {
-                            Alert.alert("Error", "Failed to delete terms and conditions");
-                        }
-                    },
-                },
-            ]
-        );
-    };
 
     const clearFilters = () => {
         setSearchQuery("");
@@ -202,105 +176,209 @@ export default function TermsScreen() {
         setSortOrder('asc');
     };
 
-    const renderTermItem = ({ item }: { item: TermsAndConditions }) => (
-        <TouchableOpacity
-            style={styles.termItem}
-            onPress={() => handleTermPress(item.id)}
-            activeOpacity={0.7}
-        >
-            <View style={styles.termContent}>
-                <View style={styles.termHeader}>
-                    <View style={styles.termIcon}>
-                        <FileText size={20} color={colors.primary} />
-                    </View>
-                    <View style={styles.termInfo}>
-                        <Text style={styles.termTitle}>{item.title}</Text>
-                        <Text style={styles.termVersion}>Version {item.version}</Text>
-                        <Text style={styles.termMeta}>
-                            Effective: {new Date(item.effective_date).toLocaleDateString()}
-                        </Text>
-                    </View>
-                    <View style={styles.termStatus}>
-                        {item.is_active ? (
-                            <View style={styles.statusActive}>
-                                <CheckCircle size={12} color={colors.success} />
-                                <Text style={styles.statusActiveText}>Active</Text>
-                            </View>
-                        ) : (
-                            <View style={styles.statusInactive}>
-                                <XCircle size={12} color={colors.error} />
-                                <Text style={styles.statusInactiveText}>Inactive</Text>
-                            </View>
-                        )}
-                    </View>
-                </View>
+    const renderTermItem = ({ item, index }: { item: TermsAndConditions; index: number }) => (
+        <TermsItem
+            key={item.id}
+            terms={item}
+            onPress={handleTermPress}
+        />
+    );
 
-                <Text style={styles.termDescription} numberOfLines={3}>
-                    {item.content}
-                </Text>
-
-                <View style={styles.termFooter}>
-                    <View style={styles.termDate}>
-                        <Clock size={12} color={colors.textSecondary} />
-                        <Text style={styles.termDateText}>
-                            Updated {new Date(item.updated_at).toLocaleDateString()}
-                        </Text>
+    const renderListHeader = () => (
+        <View style={styles.listHeader}>
+            {/* Quick Stats Summary */}
+            <View style={styles.quickStats}>
+                <View style={styles.quickStatsRow}>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
+                            <FileText size={16} color={colors.primary} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{stats.total}</Text>
+                        <Text style={styles.quickStatLabel}>Total</Text>
                     </View>
-                    {canManageContent() && (
-                        <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => handleDeleteTerm(item.id)}
-                        >
-                            <Text style={styles.deleteButtonText}>Delete</Text>
-                        </TouchableOpacity>
-                    )}
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
+                            <Activity size={16} color={colors.success} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{stats.active}</Text>
+                        <Text style={styles.quickStatLabel}>Active</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
+                            <Hash size={16} color={colors.info} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{stats.versions}</Text>
+                        <Text style={styles.quickStatLabel}>Versions</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.backgroundTertiary }]}>
+                            <FileText size={16} color={colors.textSecondary} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{stats.inactive}</Text>
+                        <Text style={styles.quickStatLabel}>Inactive</Text>
+                    </View>
                 </View>
             </View>
-        </TouchableOpacity>
+
+            {/* Search Section */}
+            <View style={styles.searchSection}>
+                <SearchBar
+                    placeholder="Search terms by title, version, or content..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    style={styles.searchBar}
+                />
+            </View>
+
+            {/* Controls Row */}
+            <View style={styles.controlsRow}>
+                <View style={styles.controlsLeft}>
+                    <TouchableOpacity
+                        style={[styles.controlButton, showFilters && styles.controlButtonActive]}
+                        onPress={() => setShowFilters(!showFilters)}
+                    >
+                        <Filter size={16} color={showFilters ? colors.primary : colors.textSecondary} />
+                        <Text style={[styles.controlButtonText, showFilters && styles.controlButtonTextActive]}>
+                            Filters
+                        </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.sortControl}>
+                        <Text style={styles.sortLabel}>Sort:</Text>
+                        <TouchableOpacity
+                            style={[styles.sortButton, sortBy === "title" && styles.sortButtonActive]}
+                            onPress={() => toggleSort("title")}
+                        >
+                            <Text style={[styles.sortButtonText, sortBy === "title" && styles.sortButtonTextActive]}>
+                                Title
+                            </Text>
+                            {sortBy === "title" && (
+                                sortOrder === "asc" ?
+                                    <SortAsc size={12} color={colors.primary} /> :
+                                    <SortDesc size={12} color={colors.primary} />
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.sortButton, sortBy === "version" && styles.sortButtonActive]}
+                            onPress={() => toggleSort("version")}
+                        >
+                            <Text style={[styles.sortButtonText, sortBy === "version" && styles.sortButtonTextActive]}>
+                                Version
+                            </Text>
+                            {sortBy === "version" && (
+                                sortOrder === "asc" ?
+                                    <SortAsc size={12} color={colors.primary} /> :
+                                    <SortDesc size={12} color={colors.primary} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                <View style={styles.controlsRight}>
+                    <Text style={styles.resultsCount}>
+                        {filteredAndSortedTerms.length} term{filteredAndSortedTerms.length !== 1 ? 's' : ''}
+                    </Text>
+                </View>
+            </View>
+
+            {/* Filter Options (Collapsible) */}
+            {showFilters && (
+                <View style={styles.filtersSection}>
+                    <Text style={styles.filterSectionTitle}>Filter by Status</Text>
+                    <View style={styles.filterRow}>
+                        <TouchableOpacity
+                            style={[styles.filterChip, filterActive === null && styles.filterChipActive]}
+                            onPress={() => setFilterActive(null)}
+                        >
+                            <Text style={[styles.filterChipText, filterActive === null && styles.filterChipTextActive]}>
+                                All Terms
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.filterChip, filterActive === true && styles.filterChipActive]}
+                            onPress={() => setFilterActive(true)}
+                        >
+                            <Text style={[styles.filterChipText, filterActive === true && styles.filterChipTextActive]}>
+                                Active Only
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.filterChip, filterActive === false && styles.filterChipActive]}
+                            onPress={() => setFilterActive(false)}
+                        >
+                            <Text style={[styles.filterChipText, filterActive === false && styles.filterChipTextActive]}>
+                                Inactive Only
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
+
+            {/* Section Divider */}
+            {filteredAndSortedTerms.length > 0 && (
+                <View style={styles.sectionDivider}>
+                    <Text style={styles.listTitle}>Terms & Conditions</Text>
+                </View>
+            )}
+        </View>
     );
 
     const renderEmptyState = () => (
         <View style={styles.emptyState}>
-            <FileText size={64} color={colors.textSecondary} />
-            <Text style={styles.emptyStateTitle}>No Terms Found</Text>
+            <View style={styles.emptyStateIcon}>
+                <FileText size={64} color={colors.textTertiary} />
+            </View>
+            <Text style={styles.emptyStateTitle}>No terms found</Text>
             <Text style={styles.emptyStateText}>
-                {searchQuery || filterActive !== null || filterVersion
-                    ? "Try adjusting your search criteria"
-                    : "No terms and conditions available"}
+                {searchQuery || filterActive !== null
+                    ? "Try adjusting your search or filter criteria"
+                    : "No terms and conditions have been created yet"}
             </Text>
-            {canManageContent() && !searchQuery && filterActive === null && !filterVersion && (
+            {canManageContent() && !searchQuery && filterActive === null && (
                 <Button
-                    title="Add First Term"
+                    title="Create First Terms"
                     onPress={handleAddTerm}
+                    variant="primary"
+                    icon={<Plus size={20} color={colors.white} />}
                     style={styles.emptyStateButton}
-                    icon={<Plus size={16} color={colors.card} />}
                 />
             )}
         </View>
     );
 
-    // Permission check
     if (!canViewContent()) {
         return (
-            <View style={styles.noPermissionContainer}>
-                <Text style={styles.noPermissionText}>
-                    You don't have permission to view terms and conditions.
-                </Text>
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Access Denied",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
+                    }}
+                />
+                <View style={styles.noPermissionContainer}>
+                    <View style={styles.noAccessIcon}>
+                        <FileText size={48} color={colors.textSecondary} />
+                    </View>
+                    <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                    <Text style={styles.noPermissionText}>
+                        You don't have permission to view terms and conditions.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
+                </View>
             </View>
         );
     }
-
-    // Loading state
-    if (loading.terms && terms.length === 0) {
-        return (
-            <View style={styles.loadingContainer}>
-                <LoadingSpinner />
-                <Text style={styles.loadingText}>Loading terms and conditions...</Text>
-            </View>
-        );
-    }
-
-    const versions = termsStats.versions;
 
     return (
         <View style={styles.container}>
@@ -312,166 +390,48 @@ export default function TermsScreen() {
                             onPress={() => router.back()}
                             style={styles.backButton}
                         >
-                            <ArrowLeft size={24} color={colors.text} />
+                            <ArrowLeft size={24} color={colors.primary} />
                         </TouchableOpacity>
-                    ),
-                    headerRight: () => (
-                        canManageContent() ? (
-                            <Button
-                                title="Add Term"
-                                onPress={handleAddTerm}
-                                size="small"
-                                icon={<Plus size={16} color={colors.card} />}
-                            />
-                        ) : null
                     ),
                 }}
             />
 
-            {/* Stats */}
-            <View style={styles.statsContainer}>
-                <StatCard
-                    title="Total Terms"
-                    value={stats.total.toString()}
-                    icon={<FileText size={20} color={colors.primary} />}
-                />
-                <StatCard
-                    title="Active"
-                    value={stats.active.toString()}
-                    icon={<CheckCircle size={20} color={colors.success} />}
-                />
-                <StatCard
-                    title="Versions"
-                    value={stats.versions.toString()}
-                    icon={<TrendingUp size={20} color={colors.info} />}
-                />
-            </View>
-
-            {/* Search and Filters */}
-            <View style={styles.controlsContainer}>
-                <SearchBar
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Search terms and conditions..."
-                    style={styles.searchBar}
-                />
-                <View style={styles.controlsRow}>
-                    <TouchableOpacity
-                        style={[styles.filterButton, showFilters && styles.filterButtonActive]}
-                        onPress={() => setShowFilters(!showFilters)}
-                    >
-                        <Filter size={16} color={showFilters ? colors.primary : colors.textSecondary} />
-                        <Text style={[styles.filterButtonText, showFilters && styles.filterButtonTextActive]}>
-                            Filters
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.sortButton}
-                        onPress={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    >
-                        {sortOrder === 'asc' ? (
-                            <SortAsc size={16} color={colors.textSecondary} />
-                        ) : (
-                            <SortDesc size={16} color={colors.textSecondary} />
-                        )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.viewButton, viewMode === 'grid' && styles.viewButtonActive]}
-                        onPress={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
-                    >
-                        {viewMode === 'list' ? (
-                            <Grid3x3 size={16} color={colors.textSecondary} />
-                        ) : (
-                            <List size={16} color={colors.textSecondary} />
-                        )}
-                    </TouchableOpacity>
+            {loading.terms ? (
+                <View style={styles.loadingContainer}>
+                    <LoadingSpinner />
+                    <Text style={styles.loadingText}>Loading terms and conditions...</Text>
                 </View>
-            </View>
-
-            {/* Filters Panel */}
-            {showFilters && (
-                <View style={styles.filtersPanel}>
-                    <View style={styles.filterRow}>
-                        <Text style={styles.filterLabel}>Status:</Text>
-                        <View style={styles.filterOptions}>
-                            <TouchableOpacity
-                                style={[styles.filterOption, filterActive === null && styles.filterOptionActive]}
-                                onPress={() => setFilterActive(null)}
-                            >
-                                <Text style={[styles.filterOptionText, filterActive === null && styles.filterOptionTextActive]}>
-                                    All
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.filterOption, filterActive === true && styles.filterOptionActive]}
-                                onPress={() => setFilterActive(true)}
-                            >
-                                <Text style={[styles.filterOptionText, filterActive === true && styles.filterOptionTextActive]}>
-                                    Active
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.filterOption, filterActive === false && styles.filterOptionActive]}
-                                onPress={() => setFilterActive(false)}
-                            >
-                                <Text style={[styles.filterOptionText, filterActive === false && styles.filterOptionTextActive]}>
-                                    Inactive
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    <View style={styles.filterRow}>
-                        <Text style={styles.filterLabel}>Version:</Text>
-                        <View style={styles.filterOptions}>
-                            <TouchableOpacity
-                                style={[styles.filterOption, filterVersion === null && styles.filterOptionActive]}
-                                onPress={() => setFilterVersion(null)}
-                            >
-                                <Text style={[styles.filterOptionText, filterVersion === null && styles.filterOptionTextActive]}>
-                                    All
-                                </Text>
-                            </TouchableOpacity>
-                            {versions.map(version => (
-                                <TouchableOpacity
-                                    key={version}
-                                    style={[styles.filterOption, filterVersion === version && styles.filterOptionActive]}
-                                    onPress={() => setFilterVersion(version)}
-                                >
-                                    <Text style={[styles.filterOptionText, filterVersion === version && styles.filterOptionTextActive]}>
-                                        {version}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-
-                    <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFilters}>
-                        <Text style={styles.clearFiltersText}>Clear Filters</Text>
-                    </TouchableOpacity>
-                </View>
+            ) : (
+                <FlatList
+                    data={filteredAndSortedTerms}
+                    renderItem={renderTermItem}
+                    ListHeaderComponent={renderListHeader}
+                    ListEmptyComponent={renderEmptyState}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.listContainer}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={handleRefresh}
+                            colors={[colors.primary]}
+                            tintColor={colors.primary}
+                        />
+                    }
+                    showsVerticalScrollIndicator={false}
+                    ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+                />
             )}
 
-            {/* Terms List */}
-            <FlatList
-                data={filteredAndSortedTerms}
-                renderItem={renderTermItem}
-                keyExtractor={(item) => item.id}
-                style={styles.termsList}
-                contentContainerStyle={styles.termsListContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isRefreshing}
-                        onRefresh={handleRefresh}
-                        colors={[colors.primary]}
-                        tintColor={colors.primary}
-                    />
-                }
-                ListEmptyComponent={renderEmptyState}
-            />
+            {/* Floating Add Button */}
+            {canManageContent() && filteredAndSortedTerms.length > 0 && (
+                <TouchableOpacity
+                    style={styles.floatingButton}
+                    onPress={handleAddTerm}
+                    activeOpacity={0.8}
+                >
+                    <Plus size={24} color={colors.white} />
+                </TouchableOpacity>
+            )}
         </View>
     );
 }
@@ -481,263 +441,287 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
-    backButton: {
-        padding: 8,
-        marginLeft: -8,
-    },
-    statsContainer: {
-        flexDirection: 'row',
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        gap: 12,
-    },
-    controlsContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-    },
-    searchBar: {
-        marginBottom: 12,
-    },
-    controlsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    filterButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: colors.card,
-        borderRadius: 8,
-        gap: 8,
-    },
-    filterButtonActive: {
-        backgroundColor: colors.primary + '20',
-    },
-    filterButtonText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        fontWeight: '500',
-    },
-    filterButtonTextActive: {
-        color: colors.primary,
-    },
-    sortButton: {
-        padding: 8,
-        backgroundColor: colors.card,
-        borderRadius: 8,
-    },
-    viewButton: {
-        padding: 8,
-        backgroundColor: colors.card,
-        borderRadius: 8,
-    },
-    viewButtonActive: {
-        backgroundColor: colors.primary + '20',
-    },
-    filtersPanel: {
-        backgroundColor: colors.card,
-        marginHorizontal: 16,
-        marginBottom: 16,
-        borderRadius: 12,
-        padding: 16,
-    },
-    filterRow: {
-        marginBottom: 16,
-    },
-    filterLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 8,
-    },
-    filterOptions: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    filterOption: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        backgroundColor: colors.backgroundSecondary,
-        borderRadius: 6,
-    },
-    filterOptionActive: {
-        backgroundColor: colors.primary,
-    },
-    filterOptionText: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        fontWeight: '500',
-    },
-    filterOptionTextActive: {
-        color: colors.card,
-    },
-    clearFiltersButton: {
-        alignSelf: 'flex-start',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: colors.error + '20',
-        borderRadius: 8,
-    },
-    clearFiltersText: {
-        fontSize: 14,
-        color: colors.error,
-        fontWeight: '500',
-    },
-    termsList: {
-        flex: 1,
-    },
-    termsListContent: {
-        paddingHorizontal: 16,
-        paddingBottom: 16,
-    },
-    termItem: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        marginBottom: 12,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    termContent: {
-        padding: 16,
-    },
-    termHeader: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 12,
-    },
-    termIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: colors.primary + '10',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    termInfo: {
-        flex: 1,
-        gap: 4,
-    },
-    termTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
-    },
-    termVersion: {
-        fontSize: 14,
-        color: colors.primary,
-        fontWeight: '500',
-    },
-    termMeta: {
-        fontSize: 12,
-        color: colors.textSecondary,
-    },
-    termStatus: {
-        marginLeft: 8,
-    },
-    statusActive: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.success + '10',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-        gap: 4,
-    },
-    statusActiveText: {
-        fontSize: 12,
-        color: colors.success,
-        fontWeight: '500',
-    },
-    statusInactive: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.error + '10',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-        gap: 4,
-    },
-    statusInactiveText: {
-        fontSize: 12,
-        color: colors.error,
-        fontWeight: '500',
-    },
-    termDescription: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        lineHeight: 20,
-        marginBottom: 12,
-    },
-    termFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    termDate: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    termDateText: {
-        fontSize: 12,
-        color: colors.textSecondary,
-    },
-    deleteButton: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        backgroundColor: colors.error + '20',
-        borderRadius: 6,
-    },
-    deleteButtonText: {
-        fontSize: 12,
-        color: colors.error,
-        fontWeight: '500',
-    },
-    emptyState: {
-        alignItems: 'center',
-        paddingVertical: 64,
-        gap: 16,
-    },
-    emptyStateTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: colors.text,
-    },
-    emptyStateText: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        textAlign: 'center',
-        maxWidth: 280,
-    },
-    emptyStateButton: {
-        marginTop: 16,
-    },
     noPermissionContainer: {
         flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 32,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        gap: 20,
+    },
+    noAccessIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.backgroundTertiary,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
     },
     noPermissionText: {
         fontSize: 16,
         color: colors.textSecondary,
-        textAlign: 'center',
+        textAlign: "center",
+        maxWidth: 280,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
+    backButton: {
+        padding: 8,
+        marginLeft: -8,
     },
     loadingContainer: {
         flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         gap: 16,
+        padding: 20,
     },
     loadingText: {
         fontSize: 16,
         color: colors.textSecondary,
+        fontWeight: "500",
+    },
+    listContainer: {
+        flexGrow: 1,
+        paddingBottom: 100, // Space for floating button
+    },
+    listHeader: {
+        paddingTop: 20,
+        paddingBottom: 16,
+        paddingHorizontal: 20,
+
+    },
+    quickStats: {
+        marginBottom: 20,
+    },
+    quickStatsRow: {
+        flexDirection: "row",
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 20,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    quickStatItem: {
+        flex: 1,
+        alignItems: "center",
+        gap: 8,
+    },
+    quickStatIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    quickStatValue: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        lineHeight: 24,
+    },
+    quickStatLabel: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    searchSection: {
+        marginBottom: 20,
+    },
+    searchBar: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    controlsRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+        gap: 16,
+    },
+    controlsLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 16,
+        flex: 1,
+    },
+    controlsRight: {
+        alignItems: "flex-end",
+    },
+    controlButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    controlButtonActive: {
+        backgroundColor: colors.primaryLight,
+        borderColor: colors.primary,
+    },
+    controlButtonText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "600",
+    },
+    controlButtonTextActive: {
+        color: colors.primary,
+    },
+    sortControl: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    sortLabel: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "600",
+    },
+    sortButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    sortButtonActive: {
+        backgroundColor: colors.primaryLight,
+        borderColor: colors.primary,
+    },
+    sortButtonText: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        fontWeight: "600",
+    },
+    sortButtonTextActive: {
+        color: colors.primary,
+    },
+    resultsCount: {
+        fontSize: 14,
+        color: colors.textTertiary,
+        fontWeight: "500",
+    },
+    filtersSection: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    filterSectionTitle: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 12,
+    },
+    filterRow: {
+        flexDirection: "row",
+        gap: 8,
+        flexWrap: "wrap",
+    },
+    filterChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: colors.backgroundTertiary,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    filterChipActive: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    filterChipText: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: colors.textSecondary,
+    },
+    filterChipTextActive: {
+        color: colors.white,
+    },
+    sectionDivider: {
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+        marginBottom: 8,
+    },
+    listTitle: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+    },
+    itemSeparator: {
+        height: 8,
+    },
+    emptyState: {
+        alignItems: "center",
+        paddingVertical: 80,
+        paddingHorizontal: 20,
+        gap: 20,
+    },
+    emptyStateIcon: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: colors.backgroundTertiary,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    emptyStateTitle: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+    },
+    emptyStateText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 320,
+        lineHeight: 24,
+    },
+    emptyStateButton: {
+        marginTop: 16,
+        minWidth: 200,
+    },
+    floatingButton: {
+        position: "absolute",
+        bottom: 30,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: colors.primary,
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
     },
 }); 

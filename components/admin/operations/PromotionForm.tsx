@@ -1,33 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    Alert,
-    TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Platform } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import { Promotion, PromotionFormData } from '@/types/content';
-import { validatePromotionData } from '@/utils/contentUtils';
+import { Promotion, PromotionFormData } from '@/types/operations';
+import { validatePromotionData } from '@/utils/operationsService';
 import {
     Percent,
     Calendar,
+    Settings,
     Users,
-    Check,
+    Activity,
+    DollarSign,
+    Save,
     X,
+    RotateCcw,
+    CheckCircle,
+    AlertCircle,
     Info,
+    Star,
 } from 'lucide-react-native';
 
 // Components
-import TextInput from '@/components/admin/TextInput';
 import Button from '@/components/admin/Button';
+import TextInput from '@/components/admin/TextInput';
 import Switch from '@/components/admin/Switch';
+import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import DatePicker from '@/components/DatePicker';
 
 interface PromotionFormProps {
     promotion?: Promotion;
-    onSubmit: (data: PromotionFormData) => Promise<void>;
-    onCancel: () => void;
+    onSubmit: (formData: PromotionFormData) => Promise<void>;
+    onCancel?: () => void;
     isLoading?: boolean;
 }
 
@@ -78,261 +80,288 @@ const PromotionForm: React.FC<PromotionFormProps> = ({
         return validation.isValid;
     };
 
-    const handleSubmit = async () => {
-        if (!validateForm()) {
-            Alert.alert('Validation Error', 'Please fix the errors before submitting.');
-            return;
-        }
-
-        setIsSubmitting(true);
-        try {
-            await onSubmit(formData);
-        } catch (error) {
-            console.error('Error submitting promotion:', error);
-            Alert.alert('Error', 'Failed to save promotion. Please try again.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const updateField = <K extends keyof PromotionFormData>(
-        field: K,
-        value: PromotionFormData[K]
-    ) => {
+    const updateField = (field: keyof PromotionFormData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
-        // Clear error for this field when user starts typing
+        // Clear field error when user starts editing
         if (errors[field]) {
             setErrors(prev => ({ ...prev, [field]: '' }));
         }
     };
 
-    const getStatusColor = () => {
-        if (!formData.is_active) return colors.textSecondary;
+    const handleSubmit = async () => {
+        if (!validateForm()) {
+            return;
+        }
 
-        const now = new Date();
-        const start = new Date(formData.start_date);
-        const end = new Date(formData.end_date);
+        setIsSubmitting(true);
+        setErrors({});
 
-        if (start > now) return colors.warning; // Upcoming
-        if (end < now) return colors.error; // Expired
-        return colors.success; // Current
+        try {
+            const submitData = {
+                ...formData,
+                name: formData.name.trim(),
+                description: formData.description.trim(),
+                start_date: formData.start_date + 'T00:00:00Z',
+                end_date: formData.end_date + 'T23:59:59Z',
+            };
+
+            await onSubmit(submitData);
+
+            Alert.alert(
+                'Success',
+                promotion ? 'Promotion updated successfully' : 'Promotion created successfully'
+            );
+        } catch (error: any) {
+            console.error('Error submitting promotion:', error);
+            const errorMessage = error?.message || 'Failed to save promotion';
+            setErrors({ general: errorMessage });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    const getStatusText = () => {
-        if (!formData.is_active) return 'Inactive';
-
-        const now = new Date();
-        const start = new Date(formData.start_date);
-        const end = new Date(formData.end_date);
-
-        if (start > now) return 'Upcoming';
-        if (end < now) return 'Expired';
-        return 'Active';
+    const handleReset = () => {
+        if (promotion) {
+            setFormData({
+                name: promotion.name,
+                description: promotion.description || '',
+                discount_percentage: promotion.discount_percentage,
+                start_date: promotion.start_date.split('T')[0],
+                end_date: promotion.end_date.split('T')[0],
+                is_first_time_booking_only: promotion.is_first_time_booking_only,
+                is_active: promotion.is_active,
+            });
+        } else {
+            setFormData({
+                name: '',
+                description: '',
+                discount_percentage: 0,
+                start_date: new Date().toISOString().split('T')[0],
+                end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                is_first_time_booking_only: false,
+                is_active: true,
+            });
+        }
+        setErrors({});
     };
+
+    if (isLoading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <LoadingSpinner />
+                <Text style={styles.loadingText}>
+                    {promotion ? 'Loading promotion...' : 'Preparing form...'}
+                </Text>
+            </View>
+        );
+    }
 
     return (
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-            <View style={styles.content}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerIcon}>
-                        <Percent size={24} color={colors.primary} />
-                    </View>
-                    <View style={styles.headerText}>
-                        <Text style={styles.title}>
-                            {promotion ? 'Edit Promotion' : 'Create New Promotion'}
-                        </Text>
-                        <Text style={styles.subtitle}>
-                            {promotion ? 'Update promotion details' : 'Set up a new promotional offer'}
-                        </Text>
-                    </View>
+        <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <View style={styles.headerIcon}>
+                    <Percent size={24} color={colors.primary} />
                 </View>
-
-                {/* Status Indicator */}
-                <View style={styles.statusContainer}>
-                    <View style={[styles.statusIndicator, { backgroundColor: getStatusColor() + '15' }]}>
-                        <View style={[styles.statusDot, { backgroundColor: getStatusColor() }]} />
-                        <Text style={[styles.statusText, { color: getStatusColor() }]}>
-                            {getStatusText()}
-                        </Text>
-                    </View>
+                <View style={styles.headerContent}>
+                    <Text style={styles.title}>
+                        {promotion ? 'Edit Promotion' : 'Create New Promotion'}
+                    </Text>
+                    <Text style={styles.subtitle}>
+                        {promotion
+                            ? 'Update promotion details and settings'
+                            : 'Create a new promotional offer for customers'
+                        }
+                    </Text>
                 </View>
+            </View>
 
-                {/* Form Fields */}
-                <View style={styles.form}>
-                    {/* Promotion Name */}
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                {/* General Error */}
+                {errors.general && (
+                    <View style={styles.errorContainer}>
+                        <View style={styles.errorIcon}>
+                            <AlertCircle size={20} color={colors.error} />
+                        </View>
+                        <Text style={styles.errorText}>{errors.general}</Text>
+                    </View>
+                )}
+
+                {/* Basic Information */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.sectionHeaderIcon}>
+                            <Info size={20} color={colors.primary} />
+                        </View>
+                        <Text style={styles.sectionTitle}>Basic Information</Text>
+                    </View>
+
                     <View style={styles.field}>
-                        <Text style={styles.label}>Promotion Name *</Text>
                         <TextInput
+                            label="Promotion Name"
                             value={formData.name}
                             onChangeText={(value) => updateField('name', value)}
                             placeholder="Enter promotion name"
                             error={errors.name}
                             maxLength={100}
-                            autoCapitalize="words"
+                            required
                         />
-                        <Text style={styles.fieldHelp}>
-                            Choose a clear and attractive name for your promotion
-                        </Text>
                     </View>
 
-                    {/* Description */}
                     <View style={styles.field}>
-                        <Text style={styles.label}>Description</Text>
                         <TextInput
+                            label="Description"
                             value={formData.description}
                             onChangeText={(value) => updateField('description', value)}
-                            placeholder="Enter promotion description"
+                            placeholder="Describe this promotion (optional)"
                             error={errors.description}
                             multiline
                             numberOfLines={3}
                             maxLength={500}
-                            style={styles.textArea}
                         />
-                        <Text style={styles.fieldHelp}>
-                            Optional description to explain the promotion details
-                        </Text>
                     </View>
 
-                    {/* Discount Percentage */}
                     <View style={styles.field}>
-                        <Text style={styles.label}>Discount Percentage *</Text>
                         <TextInput
+                            label="Discount Percentage"
                             value={formData.discount_percentage.toString()}
-                            onChangeText={(value) => {
-                                const numValue = parseFloat(value) || 0;
-                                updateField('discount_percentage', Math.min(100, Math.max(0, numValue)));
-                            }}
-                            placeholder="Enter discount percentage"
+                            onChangeText={(value) => updateField('discount_percentage', parseFloat(value) || 0)}
+                            placeholder="Enter discount percentage (1-100)"
                             error={errors.discount_percentage}
                             keyboardType="numeric"
-                            maxLength={5}
+                            required
                         />
-                        <Text style={styles.fieldHelp}>
-                            Discount percentage (0-100%)
-                        </Text>
+                    </View>
+                </View>
+
+                {/* Schedule */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.sectionHeaderIcon}>
+                            <Calendar size={20} color={colors.primary} />
+                        </View>
+                        <Text style={styles.sectionTitle}>Schedule</Text>
                     </View>
 
-                    {/* Date Range */}
                     <View style={styles.dateRow}>
                         <View style={[styles.field, styles.dateField]}>
-                            <Text style={styles.label}>Start Date *</Text>
-                            <TextInput
+                            <DatePicker
+                                label="Start Date"
                                 value={formData.start_date}
-                                onChangeText={(value) => updateField('start_date', value)}
-                                placeholder="YYYY-MM-DD"
+                                onChange={(date) => updateField('start_date', date)}
+                                minDate={new Date().toISOString().split('T')[0]}
+                                placeholder="Select promotion start date"
                                 error={errors.start_date}
-                                keyboardType="default"
+                                required
                             />
                         </View>
 
                         <View style={[styles.field, styles.dateField]}>
-                            <Text style={styles.label}>End Date *</Text>
-                            <TextInput
+                            <DatePicker
+                                label="End Date"
                                 value={formData.end_date}
-                                onChangeText={(value) => updateField('end_date', value)}
-                                placeholder="YYYY-MM-DD"
+                                onChange={(date) => updateField('end_date', date)}
+                                minDate={formData.start_date || new Date().toISOString().split('T')[0]}
+                                placeholder="Select promotion end date"
                                 error={errors.end_date}
-                                keyboardType="default"
+                                required
                             />
                         </View>
                     </View>
+                </View>
 
-                    {/* First Time Booking Only */}
-                    <View style={styles.field}>
-                        <View style={styles.switchRow}>
-                            <View style={styles.switchLabel}>
-                                <Users size={20} color={colors.textSecondary} />
-                                <View style={styles.switchText}>
-                                    <Text style={styles.label}>First-time Bookings Only</Text>
-                                    <Text style={styles.fieldHelp}>
-                                        Restrict this promotion to first-time customers only
-                                    </Text>
-                                </View>
-                            </View>
-                            <Switch
-                                value={formData.is_first_time_booking_only}
-                                onValueChange={(value) => updateField('is_first_time_booking_only', value)}
-                            />
+                {/* Settings */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.sectionHeaderIcon}>
+                            <Settings size={20} color={colors.primary} />
                         </View>
+                        <Text style={styles.sectionTitle}>Settings</Text>
                     </View>
 
-                    {/* Active Status */}
-                    <View style={styles.field}>
-                        <View style={styles.switchRow}>
-                            <View style={styles.switchLabel}>
-                                <View style={styles.switchText}>
-                                    <Text style={styles.label}>Active Status</Text>
-                                    <Text style={styles.fieldHelp}>
-                                        Enable or disable this promotion
-                                    </Text>
-                                </View>
-                            </View>
-                            <Switch
-                                value={formData.is_active}
-                                onValueChange={(value) => updateField('is_active', value)}
-                            />
-                        </View>
+                    <View style={styles.switchContainer}>
+                        <Switch
+                            label="First Time Booking Only"
+                            value={formData.is_first_time_booking_only}
+                            onValueChange={(value) => updateField('is_first_time_booking_only', value)}
+                            description={
+                                formData.is_first_time_booking_only
+                                    ? 'This promotion is only available for first-time customers'
+                                    : 'This promotion is available for all customers'
+                            }
+                            icon={<Star size={16} color={formData.is_first_time_booking_only ? colors.warning : colors.textSecondary} />}
+                        />
                     </View>
 
-                    {/* Preview */}
-                    <View style={styles.previewContainer}>
-                        <Text style={styles.previewTitle}>Preview</Text>
-                        <View style={styles.previewCard}>
-                            <View style={styles.previewHeader}>
-                                <View style={styles.previewIcon}>
-                                    <Percent size={20} color={colors.primary} />
-                                </View>
-                                <View style={styles.previewText}>
-                                    <Text style={styles.previewName}>
-                                        {formData.name || 'Promotion Name'}
-                                    </Text>
-                                    <Text style={styles.previewDiscount}>
-                                        {formData.discount_percentage}% OFF
-                                    </Text>
-                                </View>
+                    <View style={styles.switchContainer}>
+                        <Switch
+                            label="Active Status"
+                            value={formData.is_active}
+                            onValueChange={(value) => updateField('is_active', value)}
+                            description={
+                                formData.is_active
+                                    ? 'This promotion is currently active and available'
+                                    : 'This promotion is inactive and not available'
+                            }
+                            icon={<Activity size={16} color={formData.is_active ? colors.success : colors.textSecondary} />}
+                        />
+                    </View>
+
+                    {formData.is_active && (
+                        <View style={styles.statusContainer}>
+                            <View style={styles.statusIcon}>
+                                <CheckCircle size={16} color={colors.success} />
                             </View>
-                            {formData.description && (
-                                <Text style={styles.previewDescription}>
-                                    {formData.description}
-                                </Text>
-                            )}
-                            <View style={styles.previewFooter}>
-                                <Calendar size={14} color={colors.textSecondary} />
-                                <Text style={styles.previewDates}>
-                                    {formData.start_date} - {formData.end_date}
-                                </Text>
-                                {formData.is_first_time_booking_only && (
-                                    <View style={styles.previewBadge}>
-                                        <Users size={12} color={colors.secondary} />
-                                        <Text style={styles.previewBadgeText}>First-time only</Text>
-                                    </View>
-                                )}
-                            </View>
+                            <Text style={styles.statusText}>
+                                This promotion will be immediately available to customers when saved
+                            </Text>
                         </View>
+                    )}
+                </View>
+
+                {/* Info Section */}
+                <View style={styles.infoContainer}>
+                    <View style={styles.infoIcon}>
+                        <Info size={18} color={colors.info} />
+                    </View>
+                    <View style={styles.infoContent}>
+                        <Text style={styles.infoTitle}>Promotion Guidelines</Text>
+                        <Text style={styles.infoText}>
+                            Ensure all promotion details are accurate. Once active, this promotion will be available to customers within the specified date range.
+                        </Text>
                     </View>
                 </View>
 
                 {/* Action Buttons */}
-                <View style={styles.actions}>
+                <View style={styles.buttonContainer}>
                     <Button
-                        title="Cancel"
-                        variant="ghost"
-                        onPress={onCancel}
-                        disabled={isSubmitting || isLoading}
-                        icon={<X size={16} color={colors.textSecondary} />}
+                        title="Reset Changes"
+                        variant="outline"
+                        onPress={handleReset}
+                        icon={<RotateCcw size={16} color={colors.textSecondary} />}
                     />
+
                     <Button
                         title={promotion ? 'Update Promotion' : 'Create Promotion'}
                         variant="primary"
                         onPress={handleSubmit}
-                        disabled={isSubmitting || isLoading}
-                        loading={isSubmitting || isLoading}
-                        icon={<Check size={16} color={colors.white} />}
+                        loading={isSubmitting}
+                        disabled={isSubmitting}
+                        icon={<Save size={16} color={colors.white} />}
                     />
+
+                    {onCancel && (
+                        <Button
+                            title="Cancel"
+                            variant="ghost"
+                            onPress={onCancel}
+                            disabled={isSubmitting}
+                            icon={<X size={16} color={colors.textSecondary} />}
+                        />
+                    )}
                 </View>
-            </View>
-        </ScrollView>
+            </ScrollView>
+        </View>
     );
 };
 
@@ -340,9 +369,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.background,
-    },
-    content: {
-        padding: 20,
     },
     header: {
         flexDirection: 'row',
@@ -358,7 +384,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    headerText: {
+    headerContent: {
         flex: 1,
     },
     title: {
@@ -371,42 +397,39 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: colors.textSecondary,
     },
-    statusContainer: {
-        marginBottom: 24,
+    scrollView: {
+        flex: 1,
+        padding: 20,
     },
-    statusIndicator: {
+    section: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 20,
-        gap: 8,
-        alignSelf: 'flex-start',
+        marginBottom: 16,
+        gap: 12,
     },
-    statusDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+    sectionHeaderIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.primary + '15',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    statusText: {
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    form: {
-        gap: 20,
-    },
-    field: {
-        gap: 8,
-    },
-    label: {
-        fontSize: 14,
+    sectionTitle: {
+        fontSize: 16,
         fontWeight: '600',
         color: colors.text,
     },
-    fieldHelp: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        lineHeight: 16,
+    field: {
+        marginBottom: 12,
     },
     textArea: {
         minHeight: 80,
@@ -419,100 +442,106 @@ const styles = StyleSheet.create({
     dateField: {
         flex: 1,
     },
-    switchRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 16,
-    },
-    switchLabel: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        flex: 1,
-    },
-    switchText: {
-        flex: 1,
-        gap: 4,
-    },
-    previewContainer: {
-        marginTop: 12,
-        gap: 12,
-    },
-    previewTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
-    },
-    previewCard: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    previewHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        marginBottom: 8,
-    },
-    previewIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: colors.primary + '15',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    previewText: {
-        flex: 1,
-    },
-    previewName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
-    },
-    previewDiscount: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.success,
-    },
-    previewDescription: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        lineHeight: 20,
+    switchContainer: {
         marginBottom: 12,
     },
-    previewFooter: {
+    statusContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        marginTop: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        backgroundColor: colors.success + '15',
     },
-    previewDates: {
+    statusIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: colors.success,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    statusText: {
         fontSize: 12,
-        color: colors.textSecondary,
-        flex: 1,
+        fontWeight: '600',
+        color: colors.success,
     },
-    previewBadge: {
+    errorContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        backgroundColor: colors.secondary + '15',
+        backgroundColor: colors.error + '15',
         borderRadius: 10,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: colors.error + '20',
     },
-    previewBadgeText: {
-        fontSize: 10,
-        fontWeight: '500',
-        color: colors.secondary,
+    errorIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: colors.error,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    actions: {
+    errorText: {
+        fontSize: 12,
+        color: colors.error,
+        flex: 1,
+    },
+    infoContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.info + '15',
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginTop: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: colors.info + '20',
+    },
+    infoIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: colors.info,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    infoContent: {
+        flex: 1,
+        marginLeft: 12,
+    },
+    infoTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.text,
+    },
+    infoText: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        lineHeight: 18,
+    },
+    buttonContainer: {
         flexDirection: 'row',
         gap: 12,
         marginTop: 32,
         paddingBottom: 20,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.background,
+    },
+    loadingText: {
+        marginTop: 10,
+        fontSize: 14,
+        color: colors.textSecondary,
     },
 });
 

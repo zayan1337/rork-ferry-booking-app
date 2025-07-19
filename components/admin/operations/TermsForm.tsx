@@ -20,10 +20,12 @@ import {
     MessageSquare,
     Calendar,
     Hash,
-    ToggleLeft,
+    Activity,
     Info,
     Settings,
     RotateCcw,
+    CheckCircle,
+    Eye,
 } from "lucide-react-native";
 
 // Components
@@ -31,12 +33,21 @@ import Button from "@/components/admin/Button";
 import TextInput from "@/components/admin/TextInput";
 import Switch from "@/components/admin/Switch";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
+import DatePicker from "@/components/DatePicker";
 
 interface TermsFormProps {
     terms?: TermsAndConditions;
     onSuccess: () => void;
     onError: (error: string) => void;
     onCancel?: () => void;
+}
+
+interface ValidationErrors {
+    title?: string;
+    content?: string;
+    version?: string;
+    effective_date?: string;
+    general?: string;
 }
 
 const TermsForm: React.FC<TermsFormProps> = ({
@@ -68,7 +79,7 @@ const TermsForm: React.FC<TermsFormProps> = ({
         is_active: terms?.is_active ?? true,
     });
 
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
     const [submitting, setSubmitting] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -76,14 +87,45 @@ const TermsForm: React.FC<TermsFormProps> = ({
 
     // Track form changes
     useEffect(() => {
-        const hasFormChanges = JSON.stringify(formData) !== JSON.stringify(initialData);
-        setHasChanges(hasFormChanges);
-    }, [formData, initialData]);
+        if (isEditing) {
+            const hasFormChanges = JSON.stringify(formData) !== JSON.stringify(initialData);
+            setHasChanges(hasFormChanges);
+        } else {
+            const hasFormChanges =
+                formData.title.trim() !== '' ||
+                formData.content.trim() !== '' ||
+                formData.version.trim() !== '' ||
+                formData.effective_date !== new Date().toISOString().split('T')[0] ||
+                formData.is_active !== true;
+            setHasChanges(hasFormChanges);
+        }
+    }, [formData, initialData, isEditing]);
 
-    const validateForm = () => {
+    const handleFieldChange = (field: keyof TermsFormData, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        // Clear field error when user starts typing
+        if (validationErrors[field]) {
+            setValidationErrors(prev => ({ ...prev, [field]: '' }));
+        }
+    };
+
+    const handleReset = () => {
+        setFormData(initialData);
+        setValidationErrors({});
+        setHasChanges(false);
+    };
+
+    const validateForm = (): boolean => {
+        const errors: ValidationErrors = {};
+
+        // Use content management validation
         const validation = validateTermsData(formData);
-        setErrors(validation.errors);
-        return validation.isValid;
+        if (!validation.isValid) {
+            Object.assign(errors, validation.errors);
+        }
+
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
     };
 
     const handleSubmit = async () => {
@@ -92,7 +134,7 @@ const TermsForm: React.FC<TermsFormProps> = ({
         }
 
         setSubmitting(true);
-        setErrors({});
+        setValidationErrors({});
 
         try {
             const cleanData = {
@@ -100,60 +142,81 @@ const TermsForm: React.FC<TermsFormProps> = ({
                 title: formData.title.trim(),
                 content: formData.content.trim(),
                 version: formData.version.trim(),
+                effective_date: formData.effective_date + 'T00:00:00Z',
             };
 
-            if (isEditing) {
-                await updateTerms(terms!.id, cleanData);
+            if (isEditing && terms) {
+                await updateTerms(terms.id, cleanData);
+                Alert.alert(
+                    "Success",
+                    "Terms and conditions updated successfully",
+                    [
+                        {
+                            text: "OK",
+                            onPress: () => {
+                                onSuccess();
+                            }
+                        }
+                    ]
+                );
             } else {
                 await createTerms(cleanData);
-            }
+                Alert.alert(
+                    "Success",
+                    "Terms and conditions created successfully",
+                    [
+                        {
+                            text: "OK",
+                            onPress: () => {
+                                onSuccess();
+                            }
+                        }
+                    ]
+                );
 
-            onSuccess();
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} terms and conditions`;
+                // Reset form if creating new terms
+                setFormData({
+                    title: "",
+                    content: "",
+                    version: "",
+                    effective_date: new Date().toISOString().split('T')[0],
+                    is_active: true,
+                });
+                setHasChanges(false);
+            }
+        } catch (error: any) {
+            console.error("Error saving terms:", error);
+            const errorMessage = error?.message ||
+                (isEditing
+                    ? "Failed to update terms and conditions. Please check your connection and try again."
+                    : "Failed to create terms and conditions. Please check your connection and try again.");
+            setValidationErrors({ general: errorMessage });
             onError(errorMessage);
-
-            // Set field-specific errors if they exist in the error message
-            if (errorMessage.toLowerCase().includes('title')) {
-                setErrors({ title: errorMessage });
-            } else if (errorMessage.toLowerCase().includes('content')) {
-                setErrors({ content: errorMessage });
-            } else if (errorMessage.toLowerCase().includes('version')) {
-                setErrors({ version: errorMessage });
-            } else if (errorMessage.toLowerCase().includes('date')) {
-                setErrors({ effective_date: errorMessage });
-            } else {
-                setErrors({ general: errorMessage });
-            }
         } finally {
             setSubmitting(false);
         }
     };
 
-    const handleFieldChange = (field: keyof TermsFormData, value: any) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-
-        // Clear error when field is being edited
-        if (errors[field]) {
-            setErrors(prev => ({ ...prev, [field]: "" }));
-        }
-    };
-
-    const handleReset = () => {
-        setFormData(initialData);
-        setErrors({});
-        setHasChanges(false);
-    };
-
     const getWordCount = (text: string) => {
-        return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+        return text.trim() ? text.trim().split(/\s+/).length : 0;
     };
 
     const getCharacterCount = (text: string) => {
         return text.length;
     };
 
-    if (loading.terms) {
+    const getReadingTime = (text: string) => {
+        const words = getWordCount(text);
+        return Math.ceil(words / 200); // Average reading speed
+    };
+
+    const contentStats = {
+        words: getWordCount(formData.content),
+        characters: getCharacterCount(formData.content),
+        readingTime: getReadingTime(formData.content),
+    };
+
+    if (loading.singleTerms || loading.terms) {
         return (
             <View style={styles.loadingContainer}>
                 <LoadingSpinner />
@@ -165,183 +228,208 @@ const TermsForm: React.FC<TermsFormProps> = ({
     }
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-            >
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerIcon}>
-                        <FileText size={24} color={colors.primary} />
-                    </View>
-                    <View style={styles.headerText}>
-                        <Text style={styles.headerTitle}>
-                            {isEditing ? 'Edit Terms & Conditions' : 'New Terms & Conditions'}
-                        </Text>
-                        <Text style={styles.headerSubtitle}>
-                            {isEditing ? 'Update the terms and conditions' : 'Create new terms and conditions'}
-                        </Text>
-                    </View>
+        <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <View style={styles.headerIcon}>
+                    <FileText size={24} color={colors.primary} />
                 </View>
+                <View style={styles.headerContent}>
+                    <Text style={styles.title}>
+                        {isEditing ? 'Edit Terms & Conditions' : 'Create New Terms & Conditions'}
+                    </Text>
+                    <Text style={styles.subtitle}>
+                        {isEditing
+                            ? 'Update the terms and conditions information'
+                            : 'Create comprehensive terms and conditions for your platform'
+                        }
+                    </Text>
+                </View>
+            </View>
 
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 {/* General Error */}
-                {errors.general && (
+                {validationErrors.general && (
                     <View style={styles.errorContainer}>
-                        <AlertCircle size={16} color={colors.error} />
-                        <Text style={styles.errorText}>{errors.general}</Text>
+                        <View style={styles.errorIcon}>
+                            <AlertCircle size={20} color={colors.error} />
+                        </View>
+                        <Text style={styles.errorText}>{validationErrors.general}</Text>
                     </View>
                 )}
 
-                {/* Form Fields */}
-                <View style={styles.formContainer}>
-                    {/* Title */}
-                    <View style={styles.fieldContainer}>
-                        <Text style={styles.fieldLabel}>
-                            Title <Text style={styles.required}>*</Text>
-                        </Text>
+                {/* Basic Information Section */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.sectionHeaderIcon}>
+                            <Info size={20} color={colors.primary} />
+                        </View>
+                        <Text style={styles.sectionTitle}>Basic Information</Text>
+                    </View>
+
+                    <View style={styles.formGroup}>
                         <TextInput
+                            label="Title"
                             value={formData.title}
                             onChangeText={(value) => handleFieldChange('title', value)}
                             placeholder="Enter terms and conditions title"
-                            error={errors.title}
-                            multiline={false}
+                            error={validationErrors.title}
                             maxLength={200}
-                            icon={<Type size={16} color={colors.textSecondary} />}
+                            required
                         />
                         <View style={styles.fieldFooter}>
                             <Text style={styles.fieldHelper}>
                                 A clear and descriptive title for the terms and conditions
                             </Text>
-                            <Text style={styles.characterCount}>
+                            <Text style={[
+                                styles.characterCount,
+                                formData.title.length > 180 && styles.characterCountWarning
+                            ]}>
                                 {formData.title.length}/200
                             </Text>
                         </View>
                     </View>
 
-                    {/* Version */}
-                    <View style={styles.fieldContainer}>
-                        <Text style={styles.fieldLabel}>
-                            Version <Text style={styles.required}>*</Text>
-                        </Text>
+                    <View style={styles.formGroup}>
                         <TextInput
+                            label="Version"
                             value={formData.version}
                             onChangeText={(value) => handleFieldChange('version', value)}
                             placeholder="e.g., 1.0, 2.1, etc."
-                            error={errors.version}
-                            multiline={false}
+                            error={validationErrors.version}
                             maxLength={20}
-                            icon={<Hash size={16} color={colors.textSecondary} />}
+                            required
                         />
                         <Text style={styles.fieldHelper}>
                             Version number to track changes over time
                         </Text>
                     </View>
 
-                    {/* Effective Date */}
-                    <View style={styles.fieldContainer}>
-                        <Text style={styles.fieldLabel}>
-                            Effective Date <Text style={styles.required}>*</Text>
-                        </Text>
-                        <TextInput
+                    <View style={styles.formGroup}>
+                        <DatePicker
+                            label="Effective Date"
                             value={formData.effective_date}
-                            onChangeText={(value) => handleFieldChange('effective_date', value)}
-                            placeholder="YYYY-MM-DD"
-                            error={errors.effective_date}
-                            multiline={false}
-                            icon={<Calendar size={16} color={colors.textSecondary} />}
+                            onChange={(date) => handleFieldChange('effective_date', date)}
+                            minDate={new Date().toISOString().split('T')[0]}
+                            placeholder="Select when these terms become effective"
+                            error={validationErrors.effective_date}
+                            required
                         />
                         <Text style={styles.fieldHelper}>
-                            Date when these terms become effective
+                            Date when these terms become effective (must be today or later)
                         </Text>
                     </View>
+                </View>
 
-                    {/* Content */}
-                    <View style={styles.fieldContainer}>
-                        <Text style={styles.fieldLabel}>
-                            Content <Text style={styles.required}>*</Text>
-                        </Text>
+                {/* Content Section */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.sectionHeaderIcon}>
+                            <MessageSquare size={20} color={colors.primary} />
+                        </View>
+                        <Text style={styles.sectionTitle}>Terms Content</Text>
+                    </View>
+
+                    <View style={styles.formGroup}>
                         <TextInput
+                            label="Content"
                             value={formData.content}
                             onChangeText={(value) => handleFieldChange('content', value)}
                             placeholder="Enter the full terms and conditions content..."
-                            error={errors.content}
+                            error={validationErrors.content}
                             multiline={true}
                             numberOfLines={10}
                             maxLength={50000}
                             style={styles.contentInput}
-                            icon={<MessageSquare size={16} color={colors.textSecondary} />}
+                            required
                         />
-                        <View style={styles.fieldFooter}>
+                        <View style={styles.contentFooter}>
                             <Text style={styles.fieldHelper}>
-                                Complete terms and conditions content
+                                Complete terms and conditions content that users will see
                             </Text>
                             <View style={styles.contentStats}>
-                                <Text style={styles.characterCount}>
-                                    {getCharacterCount(formData.content)}/50,000 chars
-                                </Text>
-                                <Text style={styles.wordCount}>
-                                    {getWordCount(formData.content)} words
-                                </Text>
+                                <View style={styles.statRow}>
+                                    <Type size={12} color={colors.textSecondary} />
+                                    <Text style={styles.statText}>
+                                        {contentStats.words} words
+                                    </Text>
+                                </View>
+                                <View style={styles.statRow}>
+                                    <Hash size={12} color={colors.textSecondary} />
+                                    <Text style={[
+                                        styles.statText,
+                                        formData.content.length > 45000 && styles.statTextWarning
+                                    ]}>
+                                        {contentStats.characters}/50,000 chars
+                                    </Text>
+                                </View>
+                                <View style={styles.statRow}>
+                                    <Eye size={12} color={colors.textSecondary} />
+                                    <Text style={styles.statText}>
+                                        ~{contentStats.readingTime} min read
+                                    </Text>
+                                </View>
                             </View>
                         </View>
                     </View>
+                </View>
 
-                    {/* Status */}
-                    <View style={styles.fieldContainer}>
-                        <View style={styles.switchContainer}>
-                            <View style={styles.switchLabel}>
-                                <ToggleLeft size={16} color={colors.textSecondary} />
-                                <Text style={styles.fieldLabel}>Active Status</Text>
-                            </View>
-                            <Switch
-                                value={formData.is_active}
-                                onValueChange={(value) => handleFieldChange('is_active', value)}
-                            />
+                {/* Settings Section */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.sectionHeaderIcon}>
+                            <Settings size={20} color={colors.primary} />
                         </View>
-                        <Text style={styles.fieldHelper}>
-                            {formData.is_active
-                                ? 'These terms are currently active and visible'
-                                : 'These terms are inactive and not visible to users'
+                        <Text style={styles.sectionTitle}>Settings</Text>
+                    </View>
+
+                    <View style={styles.switchContainer}>
+                        <Switch
+                            label="Active Status"
+                            value={formData.is_active}
+                            onValueChange={(value) => handleFieldChange('is_active', value)}
+                            description={
+                                formData.is_active
+                                    ? 'These terms are currently active and visible to users'
+                                    : 'These terms are inactive and not visible to users'
                             }
+                            icon={<Activity size={16} color={formData.is_active ? colors.success : colors.textSecondary} />}
+                        />
+                    </View>
+
+                    {formData.is_active && (
+                        <View style={styles.statusContainer}>
+                            <View style={styles.statusIcon}>
+                                <CheckCircle size={16} color={colors.success} />
+                            </View>
+                            <Text style={styles.statusText}>
+                                These terms will be immediately visible to all users when saved
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Info Section */}
+                <View style={styles.infoContainer}>
+                    <View style={styles.infoIcon}>
+                        <Info size={18} color={colors.info} />
+                    </View>
+                    <View style={styles.infoContent}>
+                        <Text style={styles.infoTitle}>Important Note</Text>
+                        <Text style={styles.infoText}>
+                            Make sure to review all terms carefully before publishing. Once active,
+                            these terms will be visible to all users and legally binding.
                         </Text>
                     </View>
                 </View>
 
-                {/* Info Box */}
-                <View style={styles.infoContainer}>
-                    <Info size={16} color={colors.info} />
-                    <Text style={styles.infoText}>
-                        Make sure to review all terms carefully before publishing. Once active,
-                        these terms will be visible to all users.
-                    </Text>
-                </View>
-            </ScrollView>
-
-            {/* Actions */}
-            <View style={styles.actionsContainer}>
-                <View style={styles.actionsRow}>
-                    {onCancel && (
-                        <Button
-                            title="Cancel"
-                            variant="ghost"
-                            onPress={onCancel}
-                            style={styles.actionButton}
-                            icon={<X size={16} color={colors.textSecondary} />}
-                        />
-                    )}
-
+                {/* Action Buttons */}
+                <View style={styles.buttonContainer}>
                     {hasChanges && (
                         <Button
-                            title="Reset"
+                            title="Reset Changes"
                             variant="outline"
                             onPress={handleReset}
-                            style={styles.actionButton}
                             icon={<RotateCcw size={16} color={colors.textSecondary} />}
                         />
                     )}
@@ -352,12 +440,21 @@ const TermsForm: React.FC<TermsFormProps> = ({
                         onPress={handleSubmit}
                         loading={submitting}
                         disabled={submitting || !hasChanges}
-                        style={[styles.actionButton, styles.primaryAction]}
                         icon={<Save size={16} color={colors.white} />}
                     />
+
+                    {onCancel && (
+                        <Button
+                            title="Cancel"
+                            variant="ghost"
+                            onPress={onCancel}
+                            disabled={submitting}
+                            icon={<X size={16} color={colors.textSecondary} />}
+                        />
+                    )}
                 </View>
-            </View>
-        </KeyboardAvoidingView>
+            </ScrollView>
+        </View>
     );
 };
 
@@ -365,6 +462,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
+        padding: 20,
     },
     loadingContainer: {
         flex: 1,
@@ -376,149 +474,220 @@ const styles = StyleSheet.create({
     loadingText: {
         fontSize: 16,
         color: colors.textSecondary,
+        fontWeight: "500",
+    },
+    header: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.card,
+        padding: 24,
+        borderRadius: 16,
+        marginBottom: 24,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    headerIcon: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: colors.primaryLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 16,
+    },
+    headerContent: {
+        flex: 1,
+    },
+    title: {
+        fontSize: 22,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 4,
+        lineHeight: 28,
+    },
+    subtitle: {
+        fontSize: 15,
+        color: colors.textSecondary,
+        lineHeight: 20,
+        fontWeight: "500",
     },
     scrollView: {
         flex: 1,
     },
-    scrollContent: {
-        padding: 16,
-        paddingBottom: 100,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 24,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
-    headerIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: colors.primary + '15',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 16,
-    },
-    headerText: {
-        flex: 1,
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 4,
-    },
-    headerSubtitle: {
-        fontSize: 14,
-        color: colors.textSecondary,
-    },
     errorContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.error + '10',
-        borderColor: colors.error + '30',
-        borderWidth: 1,
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 16,
-        gap: 8,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        backgroundColor: colors.errorLight,
+        padding: 20,
+        borderRadius: 16,
+        marginBottom: 20,
+        borderLeftWidth: 4,
+        borderLeftColor: colors.error,
+    },
+    errorIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.error + '20',
+        alignItems: "center",
+        justifyContent: "center",
     },
     errorText: {
-        flex: 1,
         fontSize: 14,
         color: colors.error,
+        flex: 1,
+        fontWeight: "600",
+        lineHeight: 18,
     },
-    formContainer: {
-        gap: 20,
+    section: {
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 20,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
     },
-    fieldContainer: {
-        gap: 8,
+    sectionHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 20,
+        gap: 12,
     },
-    fieldLabel: {
-        fontSize: 16,
-        fontWeight: '600',
+    sectionHeaderIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.primaryLight,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "700",
         color: colors.text,
+        lineHeight: 24,
     },
-    required: {
-        color: colors.error,
+    formGroup: {
+        marginBottom: 20,
+    },
+    fieldFooter: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginTop: 8,
     },
     fieldHelper: {
         fontSize: 12,
         color: colors.textSecondary,
         lineHeight: 16,
-    },
-    fieldFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flex: 1,
     },
     characterCount: {
         fontSize: 11,
         color: colors.textSecondary,
         fontWeight: '500',
+        marginLeft: 8,
+    },
+    characterCountWarning: {
+        color: colors.warning,
     },
     contentInput: {
         minHeight: 200,
         textAlignVertical: 'top',
     },
-    contentStats: {
-        alignItems: 'flex-end',
-        gap: 2,
+    contentFooter: {
+        gap: 8,
+        marginTop: 8,
     },
-    wordCount: {
+    contentStats: {
+        flexDirection: "row",
+        gap: 16,
+        marginTop: 4,
+    },
+    statRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+    },
+    statText: {
         fontSize: 11,
         color: colors.textSecondary,
         fontWeight: '500',
     },
-    switchContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+    statTextWarning: {
+        color: colors.warning,
     },
-    switchLabel: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+    switchContainer: {
+        marginBottom: 8,
+    },
+    statusContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        backgroundColor: colors.successLight,
+        padding: 16,
+        borderRadius: 12,
+        borderLeftWidth: 3,
+        borderLeftColor: colors.success,
+    },
+    statusIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: colors.success + '20',
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    statusText: {
+        fontSize: 13,
+        color: colors.success,
+        fontWeight: "600",
+        flex: 1,
     },
     infoContainer: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        backgroundColor: colors.info + '10',
-        borderColor: colors.info + '30',
-        borderWidth: 1,
-        borderRadius: 8,
-        padding: 12,
-        marginTop: 20,
-        gap: 8,
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 12,
+        backgroundColor: colors.infoLight,
+        padding: 20,
+        borderRadius: 16,
+        marginBottom: 20,
+        borderLeftWidth: 4,
+        borderLeftColor: colors.info,
+    },
+    infoIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.info + '20',
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 2,
+    },
+    infoContent: {
+        flex: 1,
+        gap: 4,
+    },
+    infoTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.info,
     },
     infoText: {
-        flex: 1,
         fontSize: 13,
         color: colors.info,
         lineHeight: 18,
     },
-    actionsContainer: {
-        backgroundColor: colors.card,
-        padding: 16,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 4,
-    },
-    actionsRow: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    actionButton: {
-        flex: 1,
-    },
-    primaryAction: {
-        flex: 2,
+    buttonContainer: {
+        gap: 16,
+        marginBottom: 20,
     },
 });
 
