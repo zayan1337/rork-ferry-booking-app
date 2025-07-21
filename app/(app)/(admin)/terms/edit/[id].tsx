@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, TouchableOpacity, Text, Alert } from "react-native";
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert } from "react-native";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useContentManagement } from "@/hooks/useContentManagement";
@@ -7,7 +7,7 @@ import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import {
     ArrowLeft,
     AlertCircle,
-    Edit,
+    FileText,
     RotateCcw,
 } from "lucide-react-native";
 
@@ -64,10 +64,6 @@ export default function EditTermsScreen() {
         setLocalError(error);
     };
 
-    const handleCancel = () => {
-        router.back();
-    };
-
     const handleRetry = () => {
         setLocalError(null);
         clearError();
@@ -77,16 +73,21 @@ export default function EditTermsScreen() {
     // Load terms data
     useEffect(() => {
         if (canManageContent() && id && !hasInitialized) {
+            // Check if we already have the data for this ID to avoid unnecessary API calls
+            if (currentTerms && currentTerms.id === id) {
+                setHasInitialized(true);
+                return;
+            }
+
             loadTermsData().finally(() => {
                 setHasInitialized(true);
             });
         }
-    }, [id, hasInitialized]);
+    }, [id, hasInitialized, currentTerms]);
 
-    // Cleanup on unmount
+    // Cleanup on unmount - only clear errors, keep data for navigation
     useEffect(() => {
         return () => {
-            resetCurrentTerms();
             clearError();
         };
     }, []);
@@ -152,12 +153,12 @@ export default function EditTermsScreen() {
     }
 
     // Error state
-    if (localError || error) {
+    if ((error || localError) && hasInitialized) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: "Error",
+                        title: 'Error',
                         headerLeft: () => (
                             <TouchableOpacity
                                 onPress={() => router.back()}
@@ -173,7 +174,7 @@ export default function EditTermsScreen() {
                         <AlertCircle size={48} color={colors.error} />
                     </View>
                     <Text style={styles.errorTitle}>Unable to Load Terms</Text>
-                    <Text style={styles.errorText}>{localError || error}</Text>
+                    <Text style={styles.errorText}>{error || localError}</Text>
                     <View style={styles.errorButtons}>
                         <Button
                             title="Try Again"
@@ -211,7 +212,7 @@ export default function EditTermsScreen() {
                 />
                 <View style={styles.errorContainer}>
                     <View style={styles.errorIcon}>
-                        <AlertCircle size={48} color={colors.warning} />
+                        <FileText size={48} color={colors.warning} />
                     </View>
                     <Text style={styles.errorTitle}>Terms Not Found</Text>
                     <Text style={styles.errorText}>
@@ -227,13 +228,11 @@ export default function EditTermsScreen() {
         );
     }
 
-    if (!currentTerms) return null;
-
     return (
         <View style={styles.container}>
             <Stack.Screen
                 options={{
-                    title: `Edit: ${currentTerms.title}`,
+                    title: `Edit: ${currentTerms?.title || 'Terms & Conditions'}`,
                     headerLeft: () => (
                         <TouchableOpacity
                             onPress={() => router.back()}
@@ -245,12 +244,17 @@ export default function EditTermsScreen() {
                 }}
             />
 
-            <TermsForm
-                terms={currentTerms}
-                onSuccess={handleSuccess}
-                onError={handleError}
-                onCancel={handleCancel}
-            />
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+            >
+                <TermsForm
+                    terms={currentTerms || undefined}
+                    onSuccess={handleSuccess}
+                    onError={handleError}
+                />
+            </ScrollView>
         </View>
     );
 }
@@ -259,6 +263,18 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 16,
+        padding: 20,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        fontWeight: "500",
     },
     noPermissionContainer: {
         flex: 1,
@@ -271,7 +287,7 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: colors.backgroundTertiary,
+        backgroundColor: colors.warningLight,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: 8,
@@ -290,18 +306,6 @@ const styles = StyleSheet.create({
         maxWidth: 280,
         lineHeight: 22,
         marginBottom: 20,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        gap: 16,
-        padding: 20,
-    },
-    loadingText: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        fontWeight: "500",
     },
     errorContainer: {
         flex: 1,
@@ -327,7 +331,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     errorText: {
-        fontSize: 16,
+        fontSize: 15,
         color: colors.textSecondary,
         textAlign: "center",
         maxWidth: 300,
@@ -337,11 +341,17 @@ const styles = StyleSheet.create({
     errorButtons: {
         flexDirection: "row",
         gap: 12,
-        width: "100%",
-        maxWidth: 300,
     },
     backButton: {
         padding: 8,
         marginLeft: -8,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    contentContainer: {
+        flexGrow: 1,
+        padding: 20,
+        paddingBottom: 40,
     },
 }); 

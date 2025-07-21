@@ -8,6 +8,7 @@ import {
     Alert,
     Dimensions,
     RefreshControl,
+    Share,
 } from "react-native";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
@@ -28,6 +29,13 @@ import {
     Eye,
     Type,
     AlertCircle,
+    CheckCircle,
+    XCircle,
+    Copy,
+    Share2,
+    RotateCcw,
+    FileEdit,
+    TrendingUp,
 } from "lucide-react-native";
 
 // Components
@@ -55,7 +63,7 @@ export default function TermDetailScreen() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Use currentTerms from the store
+    const isTablet = screenWidth >= 768;
     const term = currentTerms;
 
     const loadTermData = async () => {
@@ -77,11 +85,17 @@ export default function TermDetailScreen() {
     // Fetch term data on component mount
     useEffect(() => {
         if (canViewContent() && id && !hasInitialized) {
+            // Check if we already have the data for this ID to avoid unnecessary API calls
+            if (term && term.id === id) {
+                setHasInitialized(true);
+                return;
+            }
+
             loadTermData().finally(() => {
                 setHasInitialized(true);
             });
         }
-    }, [id, hasInitialized]);
+    }, [id, hasInitialized, term]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -130,37 +144,113 @@ export default function TermDetailScreen() {
         );
     };
 
+    const handleShare = async () => {
+        if (!term) return;
+
+        const content = `${term.title}\nVersion: ${term.version}\n\nEffective Date: ${formatDate(term.effective_date)}\n\n${term.content}`;
+
+        try {
+            await Share.share({
+                message: content,
+                title: term.title,
+            });
+        } catch (error) {
+            console.error('Error sharing terms:', error);
+        }
+    };
+
+    const handleRetry = () => {
+        clearError();
+        setHasInitialized(false);
+    };
+
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
+        if (!dateString) return 'N/A';
+        const options: Intl.DateTimeFormatOptions = {
             year: 'numeric',
             month: 'long',
-            day: 'numeric'
-        });
+            day: 'numeric',
+        };
+        return new Date(dateString).toLocaleDateString(undefined, options);
+    };
+
+    const formatDateTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(date);
+    };
+
+    const getTermsStatus = (terms: TermsAndConditions) => {
+        if (!terms || !terms.effective_date) {
+            return {
+                status: 'Unknown',
+                color: colors.textSecondary,
+                light: colors.backgroundTertiary,
+                icon: <XCircle size={20} color={colors.textSecondary} />
+            };
+        }
+
+        const now = new Date();
+        const effective = new Date(terms.effective_date);
+
+        if (!terms.is_active) {
+            return {
+                status: 'Inactive',
+                color: colors.textSecondary,
+                light: colors.backgroundTertiary,
+                icon: <XCircle size={20} color={colors.textSecondary} />
+            };
+        }
+
+        if (effective <= now) {
+            return {
+                status: 'Current',
+                color: colors.success,
+                light: colors.successLight,
+                icon: <CheckCircle size={20} color={colors.success} />
+            };
+        }
+
+        return {
+            status: 'Upcoming',
+            color: colors.warning,
+            light: colors.warningLight,
+            icon: <Clock size={20} color={colors.warning} />
+        };
     };
 
     const getVersionColor = (version: string) => {
-        // Different colors for different version patterns
-        if (version.startsWith('1.')) return colors.primary;
-        if (version.startsWith('2.')) return colors.info;
-        if (version.startsWith('3.')) return colors.warning;
-        return colors.textSecondary;
+        if (!version) return colors.primary;
+
+        const versionNum = parseFloat(version);
+        if (versionNum >= 3.0) return colors.error;
+        if (versionNum >= 2.0) return colors.warning;
+        if (versionNum >= 1.0) return colors.success;
+        return colors.primary;
     };
 
-    const getVersionLabel = (version: string) => {
-        return `Version ${version}`;
-    };
-
-    const getContentStats = () => {
-        if (!term) return { words: 0, characters: 0, readingTime: 0 };
-
-        const words = term.content.trim().split(/\s+/).length;
-        const characters = term.content.length;
+    const getContentStats = (content: string) => {
+        const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+        const characters = content.length;
         const readingTime = Math.ceil(words / 200); // Average reading speed
 
         return { words, characters, readingTime };
     };
 
-    const contentStats = getContentStats();
+    const currentTermsStatus = term ? getTermsStatus(term) : {
+        status: 'Unknown',
+        color: colors.textSecondary,
+        light: colors.backgroundTertiary,
+        icon: <XCircle size={20} color={colors.textSecondary} />
+    };
+    const versionColor = getVersionColor(term?.version || '');
+    const contentStats = getContentStats(term?.content || '');
 
     // Permission check
     if (!canViewContent()) {
@@ -181,7 +271,7 @@ export default function TermDetailScreen() {
                 />
                 <View style={styles.noPermissionContainer}>
                     <View style={styles.noAccessIcon}>
-                        <AlertCircle size={48} color={colors.warning} />
+                        <FileText size={48} color={colors.textSecondary} />
                     </View>
                     <Text style={styles.noPermissionTitle}>Access Denied</Text>
                     <Text style={styles.noPermissionText}>
@@ -198,12 +288,12 @@ export default function TermDetailScreen() {
     }
 
     // Loading state
-    if (loading.singleTerms && !term) {
+    if (loading.singleTerms || (!term && hasInitialized)) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: "Loading...",
+                        title: loading.singleTerms ? "Loading..." : "Not Found",
                         headerLeft: () => (
                             <TouchableOpacity
                                 onPress={() => router.back()}
@@ -215,20 +305,39 @@ export default function TermDetailScreen() {
                     }}
                 />
                 <View style={styles.loadingContainer}>
-                    <LoadingSpinner />
-                    <Text style={styles.loadingText}>Loading terms and conditions...</Text>
+                    {loading.singleTerms ? (
+                        <>
+                            <LoadingSpinner />
+                            <Text style={styles.loadingText}>Loading terms and conditions...</Text>
+                        </>
+                    ) : (
+                        <>
+                            <View style={styles.notFoundIcon}>
+                                <FileText size={64} color={colors.textTertiary} />
+                            </View>
+                            <Text style={styles.notFoundTitle}>Terms Not Found</Text>
+                            <Text style={styles.notFoundText}>
+                                The terms and conditions you're looking for don't exist or have been deleted.
+                            </Text>
+                            <Button
+                                title="Go Back"
+                                variant="primary"
+                                onPress={() => router.back()}
+                            />
+                        </>
+                    )}
                 </View>
             </View>
         );
     }
 
-    // Not found state
-    if (!term && hasInitialized) {
+    // Error state
+    if (error && hasInitialized) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: "Terms Not Found",
+                        title: 'Error',
                         headerLeft: () => (
                             <TouchableOpacity
                                 onPress={() => router.back()}
@@ -241,23 +350,50 @@ export default function TermDetailScreen() {
                 />
                 <View style={styles.errorContainer}>
                     <View style={styles.errorIcon}>
-                        <AlertCircle size={48} color={colors.warning} />
+                        <AlertCircle size={48} color={colors.error} />
                     </View>
-                    <Text style={styles.errorTitle}>Terms Not Found</Text>
-                    <Text style={styles.errorText}>
-                        The terms and conditions you're looking for don't exist or have been removed.
-                    </Text>
-                    <Button
-                        title="Go Back"
-                        variant="primary"
-                        onPress={() => router.back()}
-                    />
+                    <Text style={styles.errorTitle}>Unable to Load Terms</Text>
+                    <Text style={styles.errorText}>{error}</Text>
+                    <View style={styles.errorButtons}>
+                        <Button
+                            title="Try Again"
+                            variant="primary"
+                            onPress={handleRetry}
+                            icon={<RotateCcw size={20} color={colors.white} />}
+                        />
+                        <Button
+                            title="Go Back"
+                            variant="outline"
+                            onPress={() => router.back()}
+                        />
+                    </View>
                 </View>
             </View>
         );
     }
 
-    if (!term) return null;
+    if (!term) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: 'Terms & Conditions',
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
+                    }}
+                />
+                <View style={styles.loadingContainer}>
+                    <LoadingSpinner />
+                </View>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -275,21 +411,22 @@ export default function TermDetailScreen() {
                     headerRight: () => (
                         <View style={styles.headerActions}>
                             {canManageContent() && (
-                                <>
-                                    <TouchableOpacity
-                                        onPress={handleEdit}
-                                        style={styles.headerActionButton}
-                                    >
-                                        <Edit size={20} color={colors.primary} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        onPress={handleDelete}
-                                        style={[styles.headerActionButton, styles.deleteActionButton]}
-                                        disabled={isDeleting}
-                                    >
-                                        <Trash2 size={20} color={colors.error} />
-                                    </TouchableOpacity>
-                                </>
+                                <TouchableOpacity
+                                    onPress={handleEdit}
+                                    style={styles.headerActionButton}
+                                    disabled={isDeleting}
+                                >
+                                    <Edit size={20} color={colors.primary} />
+                                </TouchableOpacity>
+                            )}
+                            {canManageContent() && (
+                                <TouchableOpacity
+                                    onPress={handleDelete}
+                                    style={[styles.headerActionButton, styles.deleteActionButton]}
+                                    disabled={isDeleting}
+                                >
+                                    <Trash2 size={20} color={colors.error} />
+                                </TouchableOpacity>
                             )}
                         </View>
                     ),
@@ -312,33 +449,42 @@ export default function TermDetailScreen() {
                 {/* Terms Header */}
                 <View style={styles.header}>
                     <View style={styles.headerLeft}>
-                        <View style={[styles.termsIcon, { backgroundColor: getVersionColor(term.version) + '15' }]}>
-                            <FileText size={24} color={getVersionColor(term.version)} />
+                        <View style={[styles.termsIcon, { backgroundColor: versionColor + '15' }]}>
+                            <FileText size={24} color={versionColor} />
                         </View>
                         <View style={styles.headerContent}>
-                            <Text style={styles.termsName}>{term.title}</Text>
-                            <View style={styles.termsVersion}>
-                                <Hash size={16} color={getVersionColor(term.version)} />
-                                <Text style={[styles.versionText, { color: getVersionColor(term.version) }]}>
-                                    {getVersionLabel(term.version)}
+                            <Text style={styles.termsTitle}>{term.title}</Text>
+                            <View style={styles.termsMeta}>
+                                <Activity size={16} color={currentTermsStatus.color} />
+                                <Text style={[styles.statusText, { color: currentTermsStatus.color }]}>
+                                    {currentTermsStatus.status}
                                 </Text>
+                                <Text style={styles.versionText}>v{term.version}</Text>
                             </View>
                         </View>
                     </View>
-                    <View style={[
-                        styles.statusBadge,
-                        term.is_active ? styles.statusActive : styles.statusInactive
-                    ]}>
-                        <View style={[
-                            styles.statusDot,
-                            { backgroundColor: term.is_active ? colors.success : colors.textSecondary }
-                        ]} />
-                        <Text style={[
-                            styles.statusText,
-                            term.is_active ? styles.statusTextActive : styles.statusTextInactive
-                        ]}>
-                            {term.is_active ? 'Active' : 'Inactive'}
+                    <View style={[styles.statusBadge, { backgroundColor: currentTermsStatus.light }]}>
+                        <View style={[styles.statusDot, { backgroundColor: currentTermsStatus.color }]} />
+                        <Text style={[styles.statusBadgeText, { color: currentTermsStatus.color }]}>
+                            {currentTermsStatus.status}
                         </Text>
+                    </View>
+                </View>
+
+                {/* Version Highlight */}
+                <View style={styles.versionSection}>
+                    <View style={[styles.versionCard, { backgroundColor: versionColor + '15' }]}>
+                        <View style={styles.versionIcon}>
+                            <Hash size={24} color={versionColor} />
+                        </View>
+                        <View style={styles.versionContent}>
+                            <Text style={[styles.versionNumber, { color: versionColor }]}>
+                                v{term.version}
+                            </Text>
+                            <Text style={[styles.versionLabel, { color: versionColor }]}>
+                                VERSION
+                            </Text>
+                        </View>
                     </View>
                 </View>
 
@@ -347,22 +493,22 @@ export default function TermDetailScreen() {
                     <View style={styles.statsGrid}>
                         <View style={styles.statsRow}>
                             <View style={styles.statCard}>
-                                <View style={styles.statCardIcon}>
-                                    <Type size={20} color={colors.primary} />
+                                <View style={[styles.statCardIcon, { backgroundColor: versionColor + '15' }]}>
+                                    <Hash size={20} color={versionColor} />
                                 </View>
                                 <View style={styles.statCardContent}>
-                                    <Text style={styles.statCardValue}>{contentStats.words}</Text>
-                                    <Text style={styles.statCardLabel}>Words</Text>
+                                    <Text style={styles.statCardValue}>v{term.version}</Text>
+                                    <Text style={styles.statCardLabel}>Version</Text>
                                 </View>
                             </View>
 
                             <View style={styles.statCard}>
-                                <View style={[styles.statCardIcon, { backgroundColor: colors.successLight }]}>
-                                    <Activity size={20} color={colors.success} />
+                                <View style={[styles.statCardIcon, { backgroundColor: currentTermsStatus.light }]}>
+                                    {currentTermsStatus.icon}
                                 </View>
                                 <View style={styles.statCardContent}>
-                                    <Text style={styles.statCardValue}>{contentStats.characters}</Text>
-                                    <Text style={styles.statCardLabel}>Characters</Text>
+                                    <Text style={styles.statCardValue}>{currentTermsStatus.status}</Text>
+                                    <Text style={styles.statCardLabel}>Status</Text>
                                 </View>
                             </View>
                         </View>
@@ -370,11 +516,11 @@ export default function TermDetailScreen() {
                         <View style={styles.statsRow}>
                             <View style={styles.statCard}>
                                 <View style={[styles.statCardIcon, { backgroundColor: colors.infoLight }]}>
-                                    <Clock size={20} color={colors.info} />
+                                    <Type size={20} color={colors.info} />
                                 </View>
                                 <View style={styles.statCardContent}>
-                                    <Text style={styles.statCardValue}>{contentStats.readingTime}</Text>
-                                    <Text style={styles.statCardLabel}>Min Read</Text>
+                                    <Text style={styles.statCardValue}>{contentStats.words.toLocaleString()}</Text>
+                                    <Text style={styles.statCardLabel}>Words</Text>
                                 </View>
                             </View>
 
@@ -383,8 +529,8 @@ export default function TermDetailScreen() {
                                     <Eye size={20} color={colors.warning} />
                                 </View>
                                 <View style={styles.statCardContent}>
-                                    <Text style={styles.statCardValue}>{term.is_active ? 'Live' : 'Draft'}</Text>
-                                    <Text style={styles.statCardLabel}>Status</Text>
+                                    <Text style={styles.statCardValue}>~{contentStats.readingTime}</Text>
+                                    <Text style={styles.statCardLabel}>Min Read</Text>
                                 </View>
                             </View>
                         </View>
@@ -402,19 +548,19 @@ export default function TermDetailScreen() {
                                     <FileText size={20} color={colors.primary} />
                                 </View>
                                 <View style={styles.infoContent}>
-                                    <Text style={styles.infoLabel}>Document Title</Text>
+                                    <Text style={styles.infoLabel}>Title</Text>
                                     <Text style={styles.infoValue}>{term.title}</Text>
                                 </View>
                             </View>
 
                             <View style={styles.infoItem}>
-                                <View style={[styles.infoIcon, { backgroundColor: getVersionColor(term.version) + '15' }]}>
-                                    <Hash size={20} color={getVersionColor(term.version)} />
+                                <View style={[styles.infoIcon, { backgroundColor: versionColor + '15' }]}>
+                                    <Hash size={20} color={versionColor} />
                                 </View>
                                 <View style={styles.infoContent}>
                                     <Text style={styles.infoLabel}>Version</Text>
-                                    <Text style={[styles.infoValue, { color: getVersionColor(term.version) }]}>
-                                        {term.version}
+                                    <Text style={[styles.infoValue, { color: versionColor }]}>
+                                        v{term.version}
                                     </Text>
                                 </View>
                             </View>
@@ -422,30 +568,24 @@ export default function TermDetailScreen() {
 
                         <View style={styles.infoRow}>
                             <View style={styles.infoItem}>
-                                <View style={[
-                                    styles.infoIcon,
-                                    { backgroundColor: term.is_active ? colors.successLight : colors.backgroundTertiary }
-                                ]}>
-                                    <Settings size={20} color={term.is_active ? colors.success : colors.textSecondary} />
+                                <View style={[styles.infoIcon, { backgroundColor: currentTermsStatus.light }]}>
+                                    <Activity size={20} color={currentTermsStatus.color} />
                                 </View>
                                 <View style={styles.infoContent}>
                                     <Text style={styles.infoLabel}>Status</Text>
-                                    <Text style={[
-                                        styles.infoValue,
-                                        { color: term.is_active ? colors.success : colors.textSecondary }
-                                    ]}>
-                                        {term.is_active ? 'Active' : 'Inactive'}
+                                    <Text style={[styles.infoValue, { color: currentTermsStatus.color }]}>
+                                        {currentTermsStatus.status}
                                     </Text>
                                 </View>
                             </View>
 
                             <View style={styles.infoItem}>
-                                <View style={styles.infoIcon}>
-                                    <Calendar size={20} color={colors.textSecondary} />
+                                <View style={[styles.infoIcon, { backgroundColor: colors.successLight }]}>
+                                    <Calendar size={20} color={colors.success} />
                                 </View>
                                 <View style={styles.infoContent}>
                                     <Text style={styles.infoLabel}>Effective Date</Text>
-                                    <Text style={styles.infoValue}>
+                                    <Text style={[styles.infoValue, { color: colors.success }]}>
                                         {formatDate(term.effective_date)}
                                     </Text>
                                 </View>
@@ -454,25 +594,61 @@ export default function TermDetailScreen() {
                     </View>
                 </View>
 
-                {/* Content Overview */}
+                {/* Content Preview - FULL CONTENT */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Content Overview</Text>
-
-                    <View style={styles.contentSummary}>
-                        <View style={styles.summaryCard}>
-                            <View style={styles.summaryIcon}>
-                                <Info size={20} color={colors.info} />
+                    <Text style={styles.sectionTitle}>Terms Content</Text>
+                    <View style={styles.contentCard}>
+                        <View style={styles.contentHeader}>
+                            <View style={styles.contentIcon}>
+                                <FileEdit size={20} color={colors.info} />
                             </View>
-                            <Text style={styles.contentDescription}>
-                                This document contains {contentStats.words} words across {contentStats.characters} characters.
-                                Estimated reading time is approximately {contentStats.readingTime} minute{contentStats.readingTime !== 1 ? 's' : ''}.
-                            </Text>
+                            <View style={styles.contentStats}>
+                                <View style={styles.contentStat}>
+                                    <Type size={14} color={colors.textSecondary} />
+                                    <Text style={styles.contentStatText}>{contentStats.words} words</Text>
+                                </View>
+                                <View style={styles.contentStat}>
+                                    <Hash size={14} color={colors.textSecondary} />
+                                    <Text style={styles.contentStatText}>{contentStats.characters} chars</Text>
+                                </View>
+                                <View style={styles.contentStat}>
+                                    <Eye size={14} color={colors.textSecondary} />
+                                    <Text style={styles.contentStatText}>~{contentStats.readingTime} min</Text>
+                                </View>
+                            </View>
+                        </View>
+                        <View style={styles.contentDivider} />
+                        <Text style={styles.contentText} selectable>{term.content}</Text>
+                    </View>
+                </View>
+
+                {/* Effective Period */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Effective Period</Text>
+
+                    <View style={styles.validityCard}>
+                        <View style={styles.validityItem}>
+                            <View style={styles.validityIcon}>
+                                <Calendar size={20} color={colors.success} />
+                            </View>
+                            <View style={styles.validityContent}>
+                                <Text style={styles.validityLabel}>Effective Date</Text>
+                                <Text style={styles.validityValue}>
+                                    {formatDate(term.effective_date)}
+                                </Text>
+                            </View>
                         </View>
 
-                        <View style={styles.contentPreview}>
-                            <Text style={styles.contentPreviewTitle}>Content Preview</Text>
-                            <Text style={styles.contentPreviewText} numberOfLines={4}>
-                                {term.content}
+                        <View style={styles.statusInfo}>
+                            {currentTermsStatus.icon}
+                            <Text style={[styles.statusInfoText, { color: currentTermsStatus.color }]}>
+                                Status: {currentTermsStatus.status}
+                                {term.is_active && currentTermsStatus.status === 'Current'
+                                    ? ' - These terms are currently in effect'
+                                    : term.is_active && currentTermsStatus.status === 'Upcoming'
+                                        ? ' - These terms will become effective on the specified date'
+                                        : ' - These terms are not currently active'
+                                }
                             </Text>
                         </View>
                     </View>
@@ -484,45 +660,65 @@ export default function TermDetailScreen() {
 
                     <View style={styles.systemInfo}>
                         <View style={styles.systemRow}>
-                            <Text style={styles.systemLabel}>Document ID</Text>
+                            <Text style={styles.systemLabel}>Terms ID</Text>
                             <Text style={styles.systemValue} selectable>{term.id}</Text>
                         </View>
 
                         <View style={styles.systemRow}>
                             <Text style={styles.systemLabel}>Created Date</Text>
                             <Text style={styles.systemValue}>
-                                {formatDate(term.created_at)}
+                                {formatDateTime(term.created_at)}
                             </Text>
                         </View>
 
                         <View style={styles.systemRow}>
                             <Text style={styles.systemLabel}>Last Updated</Text>
                             <Text style={styles.systemValue}>
-                                {formatDate(term.updated_at)}
+                                {formatDateTime(term.updated_at)}
+                            </Text>
+                        </View>
+
+                        <View style={styles.systemRow}>
+                            <Text style={styles.systemLabel}>Active Status</Text>
+                            <Text style={[
+                                styles.systemValue,
+                                { color: term.is_active ? colors.success : colors.textSecondary }
+                            ]}>
+                                {term.is_active ? 'Active' : 'Inactive'}
                             </Text>
                         </View>
                     </View>
                 </View>
 
                 {/* Action Buttons */}
-                {canManageContent() && (
-                    <View style={styles.actionsContainer}>
+                <View style={styles.actionsContainer}>
+                    <Button
+                        title="Share"
+                        variant="outline"
+                        onPress={handleShare}
+                        icon={<Share2 size={20} color={colors.primary} />}
+                    />
+                    {canManageContent() && (
                         <Button
                             title="Edit Terms"
                             onPress={handleEdit}
                             variant="primary"
+                            disabled={isDeleting}
                             icon={<Edit size={20} color={colors.white} />}
                         />
+                    )}
+                    {canManageContent() && (
                         <Button
                             title="Delete Terms"
                             onPress={handleDelete}
                             variant="outline"
                             loading={isDeleting}
+                            disabled={isDeleting}
                             style={styles.deleteButton}
                             icon={<Trash2 size={20} color={colors.error} />}
                         />
-                    </View>
-                )}
+                    )}
+                </View>
             </ScrollView>
         </View>
     );
@@ -540,6 +736,18 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         padding: 20,
         paddingBottom: 40,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 16,
+        padding: 20,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        fontWeight: "500",
     },
     noPermissionContainer: {
         flex: 1,
@@ -572,16 +780,29 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         marginBottom: 20,
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: "center",
+    notFoundIcon: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: colors.backgroundTertiary,
         alignItems: "center",
-        gap: 16,
+        justifyContent: "center",
+        marginBottom: 8,
     },
-    loadingText: {
+    notFoundTitle: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    notFoundText: {
         fontSize: 16,
         color: colors.textSecondary,
-        fontWeight: "500",
+        textAlign: "center",
+        maxWidth: 320,
+        lineHeight: 24,
+        marginBottom: 20,
     },
     errorContainer: {
         flex: 1,
@@ -594,7 +815,7 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: colors.warningLight,
+        backgroundColor: colors.errorLight,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: 8,
@@ -613,6 +834,10 @@ const styles = StyleSheet.create({
         maxWidth: 300,
         lineHeight: 22,
         marginBottom: 20,
+    },
+    errorButtons: {
+        flexDirection: "row",
+        gap: 12,
     },
     backButton: {
         padding: 8,
@@ -665,22 +890,32 @@ const styles = StyleSheet.create({
     headerContent: {
         flex: 1,
     },
-    termsName: {
+    termsTitle: {
         fontSize: 24,
         fontWeight: "700",
         color: colors.text,
         marginBottom: 6,
         lineHeight: 30,
     },
-    termsVersion: {
+    termsMeta: {
         flexDirection: "row",
         alignItems: "center",
         gap: 6,
     },
-    versionText: {
+    statusText: {
         fontSize: 15,
         fontWeight: "600",
         letterSpacing: 0.1,
+    },
+    versionText: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: colors.textSecondary,
+        backgroundColor: colors.backgroundTertiary,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+        marginLeft: 4,
     },
     statusBadge: {
         flexDirection: "row",
@@ -690,27 +925,48 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         gap: 6,
     },
-    statusActive: {
-        backgroundColor: colors.successLight,
-    },
-    statusInactive: {
-        backgroundColor: colors.backgroundTertiary,
-    },
     statusDot: {
         width: 8,
         height: 8,
         borderRadius: 4,
     },
-    statusText: {
+    statusBadgeText: {
         fontSize: 13,
         fontWeight: "600",
         letterSpacing: 0.2,
     },
-    statusTextActive: {
-        color: colors.success,
+    versionSection: {
+        marginBottom: 24,
     },
-    statusTextInactive: {
-        color: colors.textSecondary,
+    versionCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 20,
+        borderRadius: 12,
+        gap: 16,
+    },
+    versionIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.card,
+    },
+    versionContent: {
+        alignItems: "center",
+        flex: 1,
+    },
+    versionNumber: {
+        fontSize: 32,
+        fontWeight: "800",
+        lineHeight: 36,
+    },
+    versionLabel: {
+        fontSize: 14,
+        fontWeight: "600",
+        marginTop: 4,
+        letterSpacing: 1,
     },
     quickStats: {
         marginBottom: 24,
@@ -764,32 +1020,31 @@ const styles = StyleSheet.create({
     section: {
         backgroundColor: colors.card,
         borderRadius: 16,
-        padding: 24,
-        marginBottom: 20,
-        shadowColor: colors.shadowMedium,
-        shadowOffset: { width: 0, height: 2 },
+        padding: 20,
+        marginBottom: 16,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 3,
+        shadowRadius: 4,
+        elevation: 2,
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: "700",
         color: colors.text,
-        marginBottom: 20,
-        lineHeight: 24,
+        marginBottom: 16,
     },
     infoGrid: {
-        gap: 20,
+        gap: 16,
     },
     infoRow: {
         flexDirection: "row",
         gap: 16,
     },
     infoItem: {
-        flex: 1,
         flexDirection: "row",
         alignItems: "center",
+        flex: 1,
         gap: 12,
     },
     infoIcon: {
@@ -817,48 +1072,95 @@ const styles = StyleSheet.create({
         color: colors.text,
         lineHeight: 20,
     },
-    contentSummary: {
-        gap: 20,
-    },
-    summaryCard: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        backgroundColor: colors.infoLight,
-        padding: 16,
+    contentCard: {
+        backgroundColor: colors.backgroundSecondary,
         borderRadius: 12,
-        gap: 12,
+        overflow: 'hidden',
     },
-    summaryIcon: {
+    contentHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: 16,
+        backgroundColor: colors.infoLight,
+    },
+    contentIcon: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: colors.info + '20',
+        backgroundColor: colors.card,
         alignItems: "center",
         justifyContent: "center",
-        marginTop: 2,
     },
-    contentDescription: {
-        flex: 1,
-        fontSize: 14,
-        color: colors.info,
-        lineHeight: 20,
+    contentStats: {
+        flexDirection: "row",
+        gap: 16,
+    },
+    contentStat: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+    },
+    contentStatText: {
+        fontSize: 12,
+        color: colors.textSecondary,
         fontWeight: "500",
     },
-    contentPreview: {
-        backgroundColor: colors.backgroundTertiary,
+    contentDivider: {
+        height: 1,
+        backgroundColor: colors.borderLight,
+    },
+    contentText: {
+        fontSize: 16,
+        color: colors.text,
+        lineHeight: 24,
+        padding: 20,
+    },
+    validityCard: {
+        gap: 16,
+    },
+    validityItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
         padding: 16,
+        backgroundColor: colors.backgroundSecondary,
         borderRadius: 12,
     },
-    contentPreviewTitle: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: colors.text,
-        marginBottom: 8,
+    validityIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.card,
+        alignItems: "center",
+        justifyContent: "center",
     },
-    contentPreviewText: {
-        fontSize: 14,
+    validityContent: {
+        flex: 1,
+    },
+    validityLabel: {
+        fontSize: 13,
         color: colors.textSecondary,
-        lineHeight: 20,
+        fontWeight: "500",
+        marginBottom: 2,
+    },
+    validityValue: {
+        fontSize: 14,
+        color: colors.text,
+        fontWeight: "600",
+    },
+    statusInfo: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        padding: 12,
+        backgroundColor: colors.backgroundSecondary,
+        borderRadius: 8,
+    },
+    statusInfoText: {
+        fontSize: 14,
+        fontWeight: "500",
+        flex: 1,
     },
     systemInfo: {
         gap: 16,

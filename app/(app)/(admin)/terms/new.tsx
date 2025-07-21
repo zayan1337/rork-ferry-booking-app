@@ -1,11 +1,9 @@
 import React from "react";
-import { View, StyleSheet, TouchableOpacity, Text } from "react-native";
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Text } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { ArrowLeft, AlertCircle, FileText } from "lucide-react-native";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-
-// Components
+import { ArrowLeft, FileText } from "lucide-react-native";
 import TermsForm from "@/components/admin/operations/TermsForm";
 import Button from "@/components/admin/Button";
 
@@ -13,15 +11,20 @@ export default function NewTermScreen() {
     const { canManageContent } = useAdminPermissions();
 
     const handleSuccess = () => {
-        router.back();
+        Alert.alert(
+            'Success',
+            'Terms and conditions created successfully!',
+            [
+                {
+                    text: 'OK',
+                    onPress: () => router.replace('./terms' as any)
+                }
+            ]
+        );
     };
 
     const handleError = (error: string) => {
-        console.error("Error creating terms:", error);
-    };
-
-    const handleCancel = () => {
-        router.back();
+        Alert.alert('Error', error);
     };
 
     if (!canManageContent()) {
@@ -42,11 +45,11 @@ export default function NewTermScreen() {
                 />
                 <View style={styles.noPermissionContainer}>
                     <View style={styles.noAccessIcon}>
-                        <AlertCircle size={48} color={colors.warning} />
+                        <FileText size={48} color={colors.textSecondary} />
                     </View>
                     <Text style={styles.noPermissionTitle}>Access Denied</Text>
                     <Text style={styles.noPermissionText}>
-                        You don't have permission to create new terms and conditions.
+                        You don't have permission to create terms and conditions.
                     </Text>
                     <Button
                         title="Go Back"
@@ -74,11 +77,16 @@ export default function NewTermScreen() {
                 }}
             />
 
-            <TermsForm
-                onSuccess={handleSuccess}
-                onError={handleError}
-                onCancel={handleCancel}
-            />
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+            >
+                <TermsForm
+                    onSuccess={handleSuccess}
+                    onError={handleError}
+                />
+            </ScrollView>
         </View>
     );
 }
@@ -99,7 +107,7 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: colors.backgroundTertiary,
+        backgroundColor: colors.warningLight,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: 8,
@@ -122,5 +130,13 @@ const styles = StyleSheet.create({
     backButton: {
         padding: 8,
         marginLeft: -8,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    contentContainer: {
+        flexGrow: 1,
+        padding: 20,
+        paddingBottom: 40,
     },
 }); 

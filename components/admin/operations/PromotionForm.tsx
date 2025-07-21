@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { colors } from "@/constants/adminColors";
 import { Promotion } from "@/types/content";
 import { useContentManagement } from "@/hooks/useContentManagement";
@@ -147,12 +147,6 @@ const PromotionForm: React.FC<PromotionFormProps> = ({
 
         try {
             await onSubmit(formData);
-
-            Alert.alert(
-                "Success",
-                promotion ? "Promotion updated successfully" : "Promotion created successfully",
-                [{ text: "OK" }]
-            );
 
             // Reset form if creating new promotion
             if (!promotion) {

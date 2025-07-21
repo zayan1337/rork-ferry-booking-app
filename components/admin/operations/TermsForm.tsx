@@ -4,7 +4,6 @@ import {
     Text,
     StyleSheet,
     ScrollView,
-    Alert,
     KeyboardAvoidingView,
     Platform,
 } from "react-native";
@@ -104,8 +103,8 @@ const TermsForm: React.FC<TermsFormProps> = ({
     const handleFieldChange = (field: keyof TermsFormData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         // Clear field error when user starts typing
-        if (validationErrors[field]) {
-            setValidationErrors(prev => ({ ...prev, [field]: '' }));
+        if (field in validationErrors && validationErrors[field as keyof ValidationErrors]) {
+            setValidationErrors(prev => ({ ...prev, [field as keyof ValidationErrors]: '' }));
         }
     };
 
@@ -142,37 +141,17 @@ const TermsForm: React.FC<TermsFormProps> = ({
                 title: formData.title.trim(),
                 content: formData.content.trim(),
                 version: formData.version.trim(),
-                effective_date: formData.effective_date + 'T00:00:00Z',
+                effective_date: formData.effective_date.includes('T')
+                    ? formData.effective_date
+                    : formData.effective_date + 'T00:00:00Z',
             };
 
             if (isEditing && terms) {
                 await updateTerms(terms.id, cleanData);
-                Alert.alert(
-                    "Success",
-                    "Terms and conditions updated successfully",
-                    [
-                        {
-                            text: "OK",
-                            onPress: () => {
-                                onSuccess();
-                            }
-                        }
-                    ]
-                );
+                onSuccess();
             } else {
                 await createTerms(cleanData);
-                Alert.alert(
-                    "Success",
-                    "Terms and conditions created successfully",
-                    [
-                        {
-                            text: "OK",
-                            onPress: () => {
-                                onSuccess();
-                            }
-                        }
-                    ]
-                );
+                onSuccess();
 
                 // Reset form if creating new terms
                 setFormData({
@@ -393,7 +372,6 @@ const TermsForm: React.FC<TermsFormProps> = ({
                                     ? 'These terms are currently active and visible to users'
                                     : 'These terms are inactive and not visible to users'
                             }
-                            icon={<Activity size={16} color={formData.is_active ? colors.success : colors.textSecondary} />}
                         />
                     </View>
 
@@ -462,7 +440,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
-        padding: 20,
     },
     loadingContainer: {
         flex: 1,
