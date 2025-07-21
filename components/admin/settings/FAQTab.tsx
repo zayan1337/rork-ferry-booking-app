@@ -12,7 +12,7 @@ import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useFAQManagement } from '@/hooks/useFAQManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
-import { FAQ, FAQCategory } from '@/types/content';
+import { FAQ, FAQCategory } from '@/types/admin/management';
 import {
     HelpCircle,
     Plus,

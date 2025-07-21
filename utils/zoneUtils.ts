@@ -1,4 +1,12 @@
-import { Zone, ZoneFormData, ValidationError } from '@/types/content';
+import { AdminManagement } from '@/types';
+
+type Zone = AdminManagement.Zone;
+type ZoneFormData = AdminManagement.ZoneFormData;
+
+interface ValidationError {
+    field: string;
+    message: string;
+}
 
 // Zone validation
 export const validateZoneForm = (data: ZoneFormData): ValidationError[] => {

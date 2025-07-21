@@ -22,8 +22,8 @@ interface BookingFormData {
     departureTime: string;
     passengers: string;
     totalAmount: string;
-    status: "confirmed" | "pending" | "cancelled" | "completed";
-    paymentStatus: "paid" | "pending" | "refunded" | "failed";
+    status: "confirmed" | "cancelled" | "completed" | "reserved" | "pending_payment" | "checked_in";
+    paymentStatus: "completed" | "pending" | "refunded" | "failed";
 }
 
 export default function NewBookingScreen() {
@@ -36,7 +36,7 @@ export default function NewBookingScreen() {
         departureTime: "",
         passengers: "1",
         totalAmount: "",
-        status: "pending",
+        status: "pending_payment",
         paymentStatus: "pending",
     });
 
@@ -59,14 +59,18 @@ export default function NewBookingScreen() {
     }));
 
     const statusOptions = [
-        { label: "Pending", value: "pending" },
+        { label: "Pending Payment", value: "pending_payment" },
+        { label: "Reserved", value: "reserved" },
         { label: "Confirmed", value: "confirmed" },
+        { label: "Checked In", value: "checked_in" },
+        { label: "Completed", value: "completed" },
         { label: "Cancelled", value: "cancelled" },
     ];
 
     const paymentStatusOptions = [
         { label: "Pending", value: "pending" },
-        { label: "Paid", value: "paid" },
+        { label: "Completed", value: "completed" },
+        { label: "Refunded", value: "refunded" },
         { label: "Failed", value: "failed" },
     ];
 
@@ -112,6 +116,7 @@ export default function NewBookingScreen() {
             }
 
             const newBooking = {
+                booking_number: `BK${Date.now()}`,
                 routeId: formData.routeId,
                 routeName: selectedRoute.name,
                 customerId: formData.customerId,

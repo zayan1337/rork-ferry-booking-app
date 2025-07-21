@@ -247,7 +247,12 @@ export default function PromotionDetailScreen() {
         return colors.primary;
     };
 
-    const currentPromotionStatus = getPromotionStatus(promotion);
+    const currentPromotionStatus = promotion ? getPromotionStatus(promotion) : {
+        status: 'Unknown',
+        color: colors.textSecondary,
+        light: colors.backgroundTertiary,
+        icon: <XCircle size={20} color={colors.textSecondary} />
+    };
     const discountColor = getDiscountColor();
 
     useEffect(() => {
@@ -1108,7 +1113,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 20,
         marginBottom: 16,
-        shadowColor: colors.shadowLight,
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 4,

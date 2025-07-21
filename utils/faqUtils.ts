@@ -1,5 +1,5 @@
 import type { DBFaq, DBFaqCategory } from '@/types/database';
-import { FAQ, FAQCategory, FAQStats, FAQFilters } from '@/types/content';
+import { FAQ, FAQCategory, FAQStats, FAQFilters } from '@/types/admin/management';
 
 /**
  * Organize FAQs by category for easier rendering

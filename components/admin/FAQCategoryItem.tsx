@@ -7,7 +7,7 @@ import {
     Dimensions,
 } from "react-native";
 import { colors } from "@/constants/adminColors";
-import { FAQCategory } from "@/types/content";
+import { FAQCategory } from "@/types/admin/management";
 import {
     Folder,
     Calendar,

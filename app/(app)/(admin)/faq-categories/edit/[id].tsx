@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Text } from "rea
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { ArrowLeft, AlertCircle, RotateCcw } from "lucide-react-native";
-import { FAQCategory } from "@/types/content";
+import { FAQCategory } from "@/types/admin/management";
 import { useFAQManagement } from "@/hooks/useFAQManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 

@@ -6,7 +6,7 @@ import { ArrowLeft, AlertCircle, RotateCcw } from "lucide-react-native";
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from "@/types";
 // UPDATED: Replace old content store with new zone store
-import { useZoneStore } from "@/store/admin/zoneStore";
+import { useZoneStore } from "@/store";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 
 // Components
@@ -49,7 +49,7 @@ export default function EditZoneScreen() {
             if (!zoneData) {
                 // Zone not found in store, fetch it
                 const fetchedZone = await fetchById(id);
-                zoneData = fetchedZone;
+                zoneData = fetchedZone || undefined;
 
                 // If still not found, refresh all zones
                 if (!fetchedZone) {

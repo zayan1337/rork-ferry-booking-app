@@ -117,7 +117,7 @@ export default function Button({
       height: sizeStyles.height,
       paddingHorizontal: sizeStyles.paddingHorizontal,
       borderRadius: sizeStyles.borderRadius,
-      width: fullWidth ? "100%" : undefined,
+      width: fullWidth ? ("100%" as const) : undefined,
       minWidth: icon && !title ? sizeStyles.height : undefined,
     },
     variant === "ghost" && styles.ghostButton,

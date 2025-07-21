@@ -1,5 +1,5 @@
 import { DatabaseIsland } from '@/types/database';
-import { Zone } from '@/types/content';
+import { Zone } from '@/types/admin/management';
 
 /**
  * Search islands by name or zone

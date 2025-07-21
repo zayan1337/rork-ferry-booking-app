@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { colors } from "@/constants/adminColors";
-import { Zone } from "@/types/content";
+import { Zone } from "@/types/admin/management";
 import { MapPin, Activity, Clock, MoreVertical, Globe, Palette } from "lucide-react-native";
 
 interface ZoneItemProps {

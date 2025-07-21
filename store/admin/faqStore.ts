@@ -9,7 +9,7 @@ import {
     FAQFilters,
     FAQWithDetails,
     FAQCategoryWithStats
-} from '@/types/content';
+} from '@/types/admin/management';
 import {
     DatabaseFAQ,
     DatabaseFAQCategory,

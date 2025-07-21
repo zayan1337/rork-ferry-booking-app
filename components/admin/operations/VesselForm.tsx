@@ -107,11 +107,6 @@ export default function VesselForm({
             const success = await handleSubmit();
             if (success) {
                 onSave?.(formData);
-                if (!isEditMode) {
-                    Alert.alert('Success', 'Vessel created successfully!');
-                } else {
-                    Alert.alert('Success', 'Vessel updated successfully!');
-                }
             }
         } catch (error) {
             Alert.alert('Error', error instanceof Error ? error.message : 'Failed to save vessel');

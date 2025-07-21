@@ -7,8 +7,18 @@ import {
 } from "react-native";
 import { colors } from "@/constants/adminColors";
 import { Bell, Shield, Activity } from "lucide-react-native";
-import { DashboardWelcomeProps } from "@/types/admin/dashboard";
 import { getInitials } from "@/utils/dashboardUtils";
+
+interface DashboardWelcomeProps {
+    adminName: string;
+    adminRole: string;
+    unreadNotifications: number;
+    todayBookings: number;
+    activeTripsCount: number;
+    alertsCount: number;
+    onPress?: () => void;
+    isTablet?: boolean;
+}
 
 export default function WelcomeCard({
     adminName,

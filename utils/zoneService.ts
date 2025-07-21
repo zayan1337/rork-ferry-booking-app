@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Zone, ZoneFormData, ZoneActivityLog } from '@/types/content';
+import { Zone, ZoneFormData, ZoneActivityLog } from '@/types/admin/management';
 
 // Fetch all zones with statistics
 export const fetchZones = async (): Promise<Zone[]> => {

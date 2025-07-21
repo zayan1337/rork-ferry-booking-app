@@ -10,7 +10,7 @@ import Button from "@/components/admin/Button";
 
 export interface ActionBarAction {
     title: string;
-    variant?: "primary" | "secondary" | "danger" | "warning" | "success" | "ghost" | "outline";
+    variant?: "primary" | "secondary" | "danger" | "ghost" | "outline";
     onPress: () => void;
     icon?: React.ReactNode;
     disabled?: boolean;

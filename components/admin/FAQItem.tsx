@@ -7,7 +7,7 @@ import {
     Dimensions,
 } from "react-native";
 import { colors } from "@/constants/adminColors";
-import { FAQ } from "@/types/content";
+import { FAQ } from "@/types/admin/management";
 import {
     HelpCircle,
     Calendar,

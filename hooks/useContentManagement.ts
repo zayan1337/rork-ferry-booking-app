@@ -1,18 +1,14 @@
 import { useMemo } from 'react';
 import { useContentStore } from '@/store/admin/contentStore';
-import { useTranslationStore } from '@/store/admin/translationStore';
 import {
     TermsAndConditions,
     Promotion,
     TermsFormData,
     PromotionFormData,
-    TranslationFormData,
-    Translation,
 } from '@/types/content';
 import {
     validateTermsData,
     validatePromotionData,
-    validateTranslationData,
 } from '@/utils/contentUtils';
 
 // Stats interfaces
@@ -36,7 +32,6 @@ export interface PromotionsStats {
 
 export const useContentManagement = () => {
     const store = useContentStore();
-    const translationStore = useTranslationStore();
 
     // Calculate terms statistics
     const termsStats = useMemo<TermsStats>(() => {
@@ -138,14 +133,6 @@ export const useContentManagement = () => {
             return store.createPromotion(duplicateData);
         },
 
-        // Translation operations
-        translations: translationStore.translations,
-        fetchTranslations: translationStore.fetchTranslations,
-        fetchTranslationById: translationStore.fetchTranslationById,
-        createTranslation: translationStore.createTranslation,
-        updateTranslation: translationStore.updateTranslation,
-        deleteTranslation: translationStore.deleteTranslation,
-
         // Utility functions
         refreshAll: store.refreshAll,
         setSearchQuery: store.setSearchQuery,
@@ -158,6 +145,5 @@ export const useContentManagement = () => {
         // Validation functions
         validateTermsData,
         validatePromotionData,
-        validateTranslationData,
     };
 };

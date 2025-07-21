@@ -83,28 +83,13 @@ const initialState: ContentManagementStoreState = {
   filters: {
     terms: {},
     promotions: {},
-    islands: {},
-    zones: {},
-    faq: {},
   },
   stats: {
-    totalIslands: 0,
-    activeIslands: 0,
-    totalZones: 0,
-    activeZones: 0,
-    totalFAQs: 0,
-    activeFAQs: 0,
-    totalTranslations: 0,
-    completedTranslations: 0,
     totalPromotions: 0,
     activePromotions: 0,
-    totalAnnouncements: 0,
-    activeAnnouncements: 0,
     totalTerms: 0,
     activeTerms: 0,
     currentTermsVersion: '',
-    totalLanguages: 0,
-    translationCompleteness: 0,
   },
 };
 

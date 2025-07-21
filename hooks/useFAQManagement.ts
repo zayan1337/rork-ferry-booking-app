@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useFAQManagementStore } from '@/store/admin/faqStore';
-import { FAQ, FAQCategory, FAQFormData, FAQCategoryFormData, FAQFilters } from '@/types/content';
+import { FAQ, FAQCategory, FAQFormData, FAQCategoryFormData, FAQFilters } from '@/types/admin/management';
 import {
     sortFaqs,
     sortFaqCategories,

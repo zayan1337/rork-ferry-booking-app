@@ -176,6 +176,7 @@ export interface OperationsRoute extends DatabaseRoute {
     average_occupancy_30d?: number;
     cancellation_rate_30d?: number;
     status: 'active' | 'inactive';
+    description?: string;
     // Computed fields for display
     name?: string;
     origin?: string;

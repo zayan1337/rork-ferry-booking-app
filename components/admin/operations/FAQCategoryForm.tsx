@@ -9,7 +9,7 @@ import {
     Platform,
 } from "react-native";
 import { colors } from "@/constants/adminColors";
-import { FAQCategory, FAQCategoryFormData } from "@/types/content";
+import { FAQCategory, FAQCategoryFormData } from "@/types/admin/management";
 import { useFAQManagement } from "@/hooks/useFAQManagement";
 import {
     Folder,
@@ -81,7 +81,7 @@ const FAQCategoryForm: React.FC<FAQCategoryFormProps> = ({
     useEffect(() => {
         if (!isEditing && formData.order_index === 0) {
             const suggestedOrder = getSuggestedCategoryOrder();
-            setFormData(prev => ({ ...prev, order_index: suggestedOrder }));
+            setFormData((prev: FAQCategoryFormData) => ({ ...prev, order_index: suggestedOrder }));
         }
     }, [isEditing, getSuggestedCategoryOrder, formData.order_index]);
 
@@ -154,11 +154,11 @@ const FAQCategoryForm: React.FC<FAQCategoryFormProps> = ({
     };
 
     const handleFieldChange = (field: keyof FAQCategoryFormData, value: any) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData((prev: FAQCategoryFormData) => ({ ...prev, [field]: value }));
 
         // Clear error when field is being edited
-        if (errors[field]) {
-            setErrors(prev => ({ ...prev, [field]: "" }));
+        if (errors[field as string]) {
+            setErrors((prev: Record<string, string>) => ({ ...prev, [field as string]: "" }));
         }
     };
 

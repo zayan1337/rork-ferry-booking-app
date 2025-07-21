@@ -12,7 +12,7 @@ import {
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 // UPDATED: Replace old content store with new zone store
-import { useZoneStore } from "@/store/admin/zoneStore";
+import { useZoneStore } from "@/store";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from "@/types";

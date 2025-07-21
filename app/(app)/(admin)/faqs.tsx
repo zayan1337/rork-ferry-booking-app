@@ -14,7 +14,7 @@ import { colors } from "@/constants/adminColors";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { useFAQManagement } from "@/hooks/useFAQManagement";
 import { useFAQManagementStore } from "@/store/admin/faqStore";
-import { FAQ, FAQCategory } from "@/types/content";
+import { FAQ, FAQCategory } from "@/types/admin/management";
 import {
     ArrowLeft,
     Plus,

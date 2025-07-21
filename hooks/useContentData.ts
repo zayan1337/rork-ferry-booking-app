@@ -1,264 +1,222 @@
 import { useMemo } from 'react';
 import { useContentStore } from '@/store/admin/contentStore';
-import { ContentTab } from '@/types/content';
-import { searchFAQs, formatFAQsByCategory } from '@/utils/contentUtils';
+import { TermsAndConditions, Promotion } from '@/types/content';
 
 export const useContentData = () => {
     const {
-        islands,
-        zones,
-        faqs,
-        faqCategories,
         terms,
-        translations,
         promotions,
-        announcements,
+        currentTerms,
+        currentPromotion,
         loading,
-        searchQueries,
+        error,
+        searchQuery,
         filters,
         stats,
         setSearchQuery,
-        setFilter,
-        refreshData,
+        setFilters,
+        refreshAll,
     } = useContentStore();
 
-    // Filter and search logic for islands
-    const filteredIslands = useMemo(() => {
-        let filtered = islands;
+    // Filter and search logic for terms
+    const filteredTerms = useMemo(() => {
+        let filtered = terms;
 
         // Search filter
-        if (searchQueries.islands) {
-            const query = searchQueries.islands.toLowerCase();
-            filtered = filtered.filter(
-                (island) =>
-                    island.name.toLowerCase().includes(query) ||
-                    island.zone.toLowerCase().includes(query)
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter((term) =>
+                term.title.toLowerCase().includes(query) ||
+                term.content.toLowerCase().includes(query) ||
+                term.version.toLowerCase().includes(query)
             );
         }
 
-        // Zone filter
-        if (filters.islands.zone) {
-            filtered = filtered.filter((island) => island.zone === filters.islands.zone);
+        // Version filter
+        if (filters.terms.version) {
+            filtered = filtered.filter((term) => term.version === filters.terms.version);
         }
 
         // Active status filter
-        if (filters.islands.is_active !== undefined) {
-            filtered = filtered.filter((island) => island.is_active === filters.islands.is_active);
+        if (filters.terms.is_active !== undefined) {
+            filtered = filtered.filter((term) => term.is_active === filters.terms.is_active);
         }
 
-        return filtered;
-    }, [islands, searchQueries.islands, filters.islands]);
+        // Date range filter
+        if (filters.terms.effective_date_from || filters.terms.effective_date_to) {
+            filtered = filtered.filter((term) => {
+                const effectiveDate = new Date(term.effective_date);
+                const fromDate = filters.terms.effective_date_from ? new Date(filters.terms.effective_date_from) : null;
+                const toDate = filters.terms.effective_date_to ? new Date(filters.terms.effective_date_to) : null;
 
-    // Filter and search logic for zones
-    const filteredZones = useMemo(() => {
-        let filtered = zones;
+                if (fromDate && effectiveDate < fromDate) return false;
+                if (toDate && effectiveDate > toDate) return false;
+                return true;
+            });
+        }
+
+        return filtered.sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime());
+    }, [terms, searchQuery, filters.terms]);
+
+    // Filter and search logic for promotions
+    const filteredPromotions = useMemo(() => {
+        let filtered = promotions;
 
         // Search filter
-        if (searchQueries.zones) {
-            const query = searchQueries.zones.toLowerCase();
-            filtered = filtered.filter(
-                (zone) =>
-                    zone.name.toLowerCase().includes(query) ||
-                    (zone.description && zone.description.toLowerCase().includes(query))
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter((promotion) =>
+                promotion.name.toLowerCase().includes(query) ||
+                (promotion.description && promotion.description.toLowerCase().includes(query))
             );
         }
 
         // Active status filter
-        if (filters.zones.is_active !== undefined) {
-            filtered = filtered.filter((zone) => zone.is_active === filters.zones.is_active);
+        if (filters.promotions.is_active !== undefined) {
+            filtered = filtered.filter((promotion) => promotion.is_active === filters.promotions.is_active);
         }
 
-        return filtered;
-    }, [zones, searchQueries.zones, filters.zones]);
-
-    // Filter and search logic for FAQs
-    const filteredFAQs = useMemo(() => {
-        let filtered = faqs;
-
-        // Search filter
-        if (searchQueries.faq) {
-            const query = searchQueries.faq.toLowerCase();
-            filtered = filtered.filter(
-                (faq) =>
-                    faq.question.toLowerCase().includes(query) ||
-                    faq.answer.toLowerCase().includes(query)
+        // First time booking filter
+        if (filters.promotions.is_first_time_booking_only !== undefined) {
+            filtered = filtered.filter((promotion) =>
+                promotion.is_first_time_booking_only === filters.promotions.is_first_time_booking_only
             );
         }
 
-        // Category filter
-        if (filters.faq.category_id) {
-            filtered = filtered.filter((faq) => faq.category_id === filters.faq.category_id);
-        }
-
-        // Active status filter
-        if (filters.faq.is_active !== undefined) {
-            filtered = filtered.filter((faq) => faq.is_active === filters.faq.is_active);
-        }
-
-        return filtered;
-    }, [faqs, searchQueries.faq, filters.faq]);
-
-    // Filter and search logic for translations
-    const filteredTranslations = useMemo(() => {
-        let filtered = translations;
-
-        // Search filter
-        if (searchQueries.translations) {
-            const query = searchQueries.translations.toLowerCase();
-            filtered = filtered.filter(
-                (translation) =>
-                    translation.key.toLowerCase().includes(query) ||
-                    translation.translation.toLowerCase().includes(query) ||
-                    (translation.context && translation.context.toLowerCase().includes(query))
+        // Discount range filter
+        if (filters.promotions.discount_range) {
+            const { min, max } = filters.promotions.discount_range;
+            filtered = filtered.filter((promotion) =>
+                promotion.discount_percentage >= min && promotion.discount_percentage <= max
             );
         }
 
-        // Language filter
-        if (filters.translations.language_code) {
-            filtered = filtered.filter((translation) => translation.language_code === filters.translations.language_code);
+        // Date range filter
+        if (filters.promotions.date_range) {
+            const { start, end } = filters.promotions.date_range;
+            filtered = filtered.filter((promotion) => {
+                const promotionStart = new Date(promotion.start_date);
+                const promotionEnd = new Date(promotion.end_date);
+                const filterStart = new Date(start);
+                const filterEnd = new Date(end);
+
+                return promotionStart <= filterEnd && promotionEnd >= filterStart;
+            });
         }
 
-        // Active status filter
-        if (filters.translations.is_active !== undefined) {
-            filtered = filtered.filter((translation) => translation.is_active === filters.translations.is_active);
-        }
+        return filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }, [promotions, searchQuery, filters.promotions]);
 
-        return filtered;
-    }, [translations, searchQueries.translations, filters.translations]);
+    // Get terms statistics
+    const termsStats = useMemo(() => {
+        const active = terms.filter(t => t.is_active);
+        const versions = [...new Set(terms.map(t => t.version))];
 
-    // Get grouped FAQs by category
-    const groupedFAQs = useMemo(() => {
-        const grouped = faqCategories.reduce((acc, category) => {
-            acc[category.id] = {
-                category,
-                faqs: filteredFAQs.filter((faq) => faq.category_id === category.id),
-            };
-            return acc;
-        }, {} as Record<string, { category: any; faqs: any[] }>);
+        return {
+            total: terms.length,
+            active: active.length,
+            inactive: terms.length - active.length,
+            versions: versions.length,
+            currentVersion: active.length > 0 ? active[0].version : '',
+        };
+    }, [terms]);
 
-        return grouped;
-    }, [faqCategories, filteredFAQs]);
-
-    // Get supported languages for translations
-    const supportedLanguages = useMemo(() => {
-        const languages = [...new Set(translations.map((t) => t.language_code))];
-        return languages.map((code) => ({
-            code,
-            name: getLanguageName(code),
-        }));
-    }, [translations]);
-
-    // Get translation completeness by language
-    const translationCompleteness = useMemo(() => {
-        const uniqueKeys = [...new Set(translations.map((t) => t.key))];
-        const completeness = supportedLanguages.map((lang) => {
-            const langTranslations = translations.filter((t) => t.language_code === lang.code);
-            const percentage = (langTranslations.length / uniqueKeys.length) * 100;
-            return {
-                language: lang.name,
-                code: lang.code,
-                completed: langTranslations.length,
-                total: uniqueKeys.length,
-                percentage: Math.round(percentage),
-            };
+    // Get promotions statistics
+    const promotionsStats = useMemo(() => {
+        const now = new Date();
+        const active = promotions.filter(p => p.is_active);
+        const current = promotions.filter(p => {
+            const start = new Date(p.start_date);
+            const end = new Date(p.end_date);
+            return start <= now && end >= now && p.is_active;
         });
-        return completeness;
-    }, [translations, supportedLanguages]);
+        const upcoming = promotions.filter(p => {
+            const start = new Date(p.start_date);
+            return start > now && p.is_active;
+        });
+        const expired = promotions.filter(p => {
+            const end = new Date(p.end_date);
+            return end < now;
+        });
+
+        const averageDiscount = active.length > 0
+            ? Math.round(active.reduce((sum, p) => sum + p.discount_percentage, 0) / active.length)
+            : 0;
+
+        return {
+            total: promotions.length,
+            active: active.length,
+            inactive: promotions.length - active.length,
+            current: current.length,
+            upcoming: upcoming.length,
+            expired: expired.length,
+            averageDiscount,
+        };
+    }, [promotions]);
 
     return {
         // Data
-        islands,
-        zones,
-        faqs,
-        faqCategories,
         terms,
-        translations,
         promotions,
-        announcements,
+        currentTerms,
+        currentPromotion,
 
         // Filtered data
-        filteredIslands,
-        filteredZones,
-        filteredFAQs,
-        filteredTranslations,
-        groupedFAQs,
-
-        // Language data
-        supportedLanguages,
-        translationCompleteness,
+        filteredTerms,
+        filteredPromotions,
 
         // State
         loading,
-        searchQueries,
+        error,
+        searchQuery,
         filters,
         stats,
 
-        // Individual stats
-        faqStats: {
-            total: faqs.length,
-            categories: faqCategories.length,
-            published: faqs.filter(f => f.is_active).length,
-        },
-        translationStats: {
-            total: translations.length,
-            languages: supportedLanguages.length,
-            completeness: translationCompleteness,
-        },
-        contentStats: {
-            promotions: promotions.length,
-            announcements: announcements.length,
-            activePromotions: promotions.filter(p => p.is_active).length,
-            activeAnnouncements: announcements.filter(a => a.is_active).length,
-        },
+        // Statistics
+        termsStats,
+        promotionsStats,
 
         // Actions
         setSearchQuery,
-        setFilter,
-        refreshData,
+        setFilters,
+        refreshAll,
 
         // Search functions
-        searchFAQs: (query: string) => searchFAQs(faqs, query),
-        filterFAQsByCategory: (categoryId: string, query: string = '') => {
-            const categoryFAQs = faqs.filter(faq => faq.category_id === categoryId);
-            return query ? searchFAQs(categoryFAQs, query) : categoryFAQs;
-        },
-        searchTranslations: (query: string) => {
-            return translations.filter(t =>
-                t.key.toLowerCase().includes(query.toLowerCase()) ||
-                t.translation.toLowerCase().includes(query.toLowerCase())
+        searchTerms: (query: string) => {
+            return terms.filter(term =>
+                term.title.toLowerCase().includes(query.toLowerCase()) ||
+                term.content.toLowerCase().includes(query.toLowerCase()) ||
+                term.version.toLowerCase().includes(query.toLowerCase())
             );
-        },
-        getTranslationsByLanguage: (language: string, query: string = '') => {
-            const langTranslations = translations.filter(t => t.language_code === language);
-            return query ? langTranslations.filter(t =>
-                t.key.toLowerCase().includes(query.toLowerCase()) ||
-                t.translation.toLowerCase().includes(query.toLowerCase())
-            ) : langTranslations;
         },
         searchPromotions: (query: string) => {
-            return promotions.filter(p =>
-                p.name.toLowerCase().includes(query.toLowerCase()) ||
-                p.description?.toLowerCase().includes(query.toLowerCase())
+            return promotions.filter(promotion =>
+                promotion.name.toLowerCase().includes(query.toLowerCase()) ||
+                promotion.description?.toLowerCase().includes(query.toLowerCase())
             );
         },
-        searchAnnouncements: (query: string) => {
-            return announcements.filter(a =>
-                a.title.toLowerCase().includes(query.toLowerCase()) ||
-                a.content.toLowerCase().includes(query.toLowerCase())
-            );
+        getTermsByVersion: (version: string) => {
+            return terms.filter(term => term.version === version);
+        },
+        getActiveTerms: () => {
+            return terms.filter(term => term.is_active);
+        },
+        getCurrentPromotions: () => {
+            const now = new Date();
+            return promotions.filter(promotion => {
+                const start = new Date(promotion.start_date);
+                const end = new Date(promotion.end_date);
+                return start <= now && end >= now && promotion.is_active;
+            });
+        },
+        getUpcomingPromotions: () => {
+            const now = new Date();
+            return promotions.filter(promotion => {
+                const start = new Date(promotion.start_date);
+                return start > now && promotion.is_active;
+            });
         },
     };
-};
-
-// Helper function to get language name from code
-const getLanguageName = (code: string): string => {
-    const languages: Record<string, string> = {
-        'en': 'English',
-        'dv': 'Dhivehi',
-        'ar': 'Arabic',
-        'hi': 'Hindi',
-    };
-    return languages[code] || code.toUpperCase();
 };
 
 export default useContentData; 

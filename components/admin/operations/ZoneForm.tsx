@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { colors } from "@/constants/adminColors";
-import { Zone } from "@/types/content";
+import { AdminManagement } from "@/types";
 import { useZoneManagement } from "@/hooks/useZoneManagement";
+
+type Zone = AdminManagement.Zone;
+type ZoneFormData = AdminManagement.ZoneFormData;
 import {
     Globe,
     MapPin,
@@ -25,16 +28,8 @@ import Dropdown from "@/components/admin/Dropdown";
 
 interface ZoneFormProps {
     initialData?: Zone;
-    onSuccess?: (zone: Zone) => void;
+    onSuccess?: () => void;
     onError?: (error: string) => void;
-}
-
-interface FormData {
-    name: string;
-    code: string;
-    description: string;
-    is_active: boolean;
-    order_index: number;
 }
 
 interface ValidationErrors {
@@ -55,7 +50,7 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
         validateZoneOrder
     } = useZoneManagement();
 
-    const [formData, setFormData] = useState<FormData>({
+    const [formData, setFormData] = useState<ZoneFormData>({
         name: initialData?.name || '',
         code: initialData?.code || '',
         description: initialData?.description || '',
@@ -83,7 +78,7 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
             const hasFormChanges =
                 formData.name.trim() !== '' ||
                 formData.code.trim() !== '' ||
-                formData.description.trim() !== '' ||
+                (formData.description && formData.description.trim() !== '') ||
                 formData.is_active !== true ||
                 formData.order_index !== getSuggestedZoneOrder();
             setHasChanges(hasFormChanges);
@@ -149,7 +144,7 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
         }
 
         // Description validation (optional)
-        if (formData.description.trim().length > 500) {
+        if (formData.description && formData.description.trim().length > 500) {
             errors.description = 'Description must be less than 500 characters';
         }
 
@@ -179,7 +174,7 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
                 await updateZone(initialData.id, {
                     name: formData.name.trim(),
                     code: formData.code.trim().toUpperCase(),
-                    description: formData.description.trim(),
+                    description: formData.description ? formData.description.trim() : '',
                     is_active: formData.is_active,
                     order_index: formData.order_index,
                 });
@@ -189,7 +184,7 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
                 await createZone({
                     name: formData.name.trim(),
                     code: formData.code.trim().toUpperCase(),
-                    description: formData.description.trim(),
+                    description: formData.description ? formData.description.trim() : '',
                     is_active: formData.is_active,
                     order_index: formData.order_index,
                 });
@@ -197,21 +192,6 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
             }
 
             if (success) {
-                Alert.alert(
-                    "Success",
-                    initialData ? "Zone updated successfully" : "Zone created successfully",
-                    [
-                        {
-                            text: "OK",
-                            onPress: () => {
-                                if (onSuccess) {
-                                    onSuccess(formData as any);
-                                }
-                            }
-                        }
-                    ]
-                );
-
                 // Reset form if creating new zone
                 if (!initialData) {
                     setFormData({
@@ -222,6 +202,11 @@ export default function ZoneForm({ initialData, onSuccess, onError }: ZoneFormPr
                         order_index: getSuggestedZoneOrder(),
                     });
                     setHasChanges(false);
+                }
+
+                // Let parent handle success notification
+                if (onSuccess) {
+                    onSuccess();
                 }
             }
         } catch (error) {

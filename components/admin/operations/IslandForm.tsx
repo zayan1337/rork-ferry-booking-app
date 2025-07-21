@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { colors } from "@/constants/adminColors";
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from "@/types";
@@ -30,7 +30,7 @@ type Zone = AdminManagement.Zone;
 
 interface IslandFormProps {
     initialData?: Island; // Use new Island type
-    onSuccess?: (island: Island) => void;
+    onSuccess?: () => void;
     onError?: (error: string) => void;
 }
 
@@ -135,30 +135,13 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
                 is_active: formData.is_active,
             };
 
-            let result: Island;
-
             if (initialData) {
                 // UPDATED: Use new update method
-                result = await updateIslandData(initialData.id, submitData);
+                await updateIslandData(initialData.id, submitData);
             } else {
                 // UPDATED: Use new create method
-                result = await addIsland(submitData);
+                await addIsland(submitData);
             }
-
-            Alert.alert(
-                "Success",
-                initialData ? "Island updated successfully" : "Island created successfully",
-                [
-                    {
-                        text: "OK",
-                        onPress: () => {
-                            if (onSuccess) {
-                                onSuccess(result);
-                            }
-                        }
-                    }
-                ]
-            );
 
             // Reset form if creating new island
             if (!initialData) {
@@ -169,6 +152,11 @@ export default function IslandForm({ initialData, onSuccess, onError }: IslandFo
                     is_active: true,
                 });
                 setHasChanges(false);
+            }
+
+            // Let parent handle success notification
+            if (onSuccess) {
+                onSuccess();
             }
         } catch (error) {
             console.error('Error saving island:', error);

@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useContentStore } from '@/store/admin/contentStore';
-import { Zone, ZoneFormData } from '@/types/content';
+import { AdminManagement } from '@/types';
 import {
     getAvailableZoneOrderPositions,
     validateZoneOrderIndex,
@@ -11,6 +10,10 @@ import {
     sortZones,
     calculateZoneStats
 } from '@/utils/zoneUtils';
+import { useZoneStore } from '@/store';
+
+type Zone = AdminManagement.Zone;
+type ZoneFormData = AdminManagement.ZoneFormData;
 
 interface UseZoneManagementReturn {
     // Data
@@ -53,14 +56,14 @@ export const useZoneManagement = (
     sortOrder: 'asc' | 'desc' = 'asc'
 ): UseZoneManagementReturn => {
     const {
-        zones,
+        data: zones,
         loading,
-        fetchZones,
-        addZone,
-        updateZone: updateZoneStore,
-        deleteZone: deleteZoneStore,
-        getZone: getZoneFromStore
-    } = useContentStore();
+        fetchAll: fetchZones,
+        create: addZone,
+        update: updateZoneStore,
+        delete: deleteZoneStore,
+        getZoneById: getZoneFromStore
+    } = useZoneStore();
 
     // Computed data
     const filteredZones = useMemo(() => {

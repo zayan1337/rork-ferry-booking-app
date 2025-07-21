@@ -1,24 +1,17 @@
 import { Dimensions } from 'react-native';
 import {
-    Island,
-    Zone,
-    FAQ,
-    FAQCategory,
-    Translation,
-    Promotion,
-    Announcement,
-    ContentStats,
-    IslandFormData,
-    ZoneFormData,
-    FAQFormData,
-    TranslationFormData,
     TermsAndConditions,
+    Promotion,
     PromotionFormData,
+    TermsFormData,
 } from '@/types/content';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-// Responsive utilities
+// ============================================================================
+// RESPONSIVE UTILITIES
+// ============================================================================
+
 export const getResponsiveDimensions = () => {
     const isTablet = screenWidth >= 768;
     const isSmallScreen = screenWidth < 480;
@@ -82,244 +75,15 @@ export const getResponsiveLayout = (width: number) => {
     };
 };
 
-// Validation utilities
+// ============================================================================
+// VALIDATION UTILITIES
+// ============================================================================
+
 export const validateRequired = (value: string | undefined | null, fieldName: string): string | null => {
     if (!value || value.trim() === '') {
         return `${fieldName} is required`;
     }
     return null;
-};
-
-// Zone utilities
-export const getZoneColor = (zone: string): string => {
-    switch (zone.toLowerCase()) {
-        case 'male':
-            return '#4A90E2';
-        case 'north':
-            return '#007AFF';
-        case 'south':
-            return '#FF9500';
-        case 'central':
-            return '#34C759';
-        default:
-            return '#8E8E93';
-    }
-};
-
-export const getZoneLabel = (zone: string): string => {
-    switch (zone.toLowerCase()) {
-        case 'male':
-            return 'Male Zone';
-        case 'north':
-            return 'North Zone';
-        case 'south':
-            return 'South Zone';
-        case 'central':
-            return 'Central Zone';
-        default:
-            return zone;
-    }
-};
-
-export const getZoneIcon = (zone: string): string => {
-    switch (zone.toLowerCase()) {
-        case 'male':
-            return '🏙️';
-        case 'north':
-            return '🏔️';
-        case 'south':
-            return '🏖️';
-        case 'central':
-            return '🏝️';
-        default:
-            return '📍';
-    }
-};
-
-// Island utilities
-export const formatIslandName = (name: string): string => {
-    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-};
-
-export const getIslandsByZone = (islands: Island[]) => {
-    const zones = islands.reduce((acc, island) => {
-        if (!acc[island.zone]) {
-            acc[island.zone] = [];
-        }
-        acc[island.zone].push(island);
-        return acc;
-    }, {} as Record<string, Island[]>);
-
-    return zones;
-};
-
-export const sortIslands = (islands: Island[], sortBy: 'name' | 'zone' | 'created_at', sortOrder: 'asc' | 'desc') => {
-    return [...islands].sort((a, b) => {
-        let aValue: any = a[sortBy];
-        let bValue: any = b[sortBy];
-
-        if (sortBy === 'created_at') {
-            aValue = new Date(aValue).getTime();
-            bValue = new Date(bValue).getTime();
-        } else if (typeof aValue === 'string') {
-            aValue = aValue.toLowerCase();
-            bValue = bValue.toLowerCase();
-        }
-
-        if (sortOrder === 'asc') {
-            return aValue > bValue ? 1 : -1;
-        } else {
-            return aValue < bValue ? 1 : -1;
-        }
-    });
-};
-
-// FAQ utilities
-export const formatFAQsByCategory = (faqs: FAQ[], categories: FAQCategory[]) => {
-    const categorizedFAQs = categories.map(category => ({
-        category,
-        faqs: faqs.filter(faq => faq.category_id === category.id),
-    }));
-
-    return categorizedFAQs;
-};
-
-export const searchFAQs = (faqs: FAQ[], query: string) => {
-    if (!query.trim()) return faqs;
-
-    const lowerQuery = query.toLowerCase();
-    return faqs.filter(faq =>
-        faq.question.toLowerCase().includes(lowerQuery) ||
-        faq.answer.toLowerCase().includes(lowerQuery)
-    );
-};
-
-export const getNextFAQOrderIndex = (faqs: FAQ[], categoryId: string) => {
-    const categoryFAQs = faqs.filter(faq => faq.category_id === categoryId);
-    const maxIndex = Math.max(...categoryFAQs.map(faq => faq.order_index), 0);
-    return maxIndex + 1;
-};
-
-// Translation utilities
-export const getLanguageFlag = (languageCode: string): string => {
-    const flags: Record<string, string> = {
-        'en': '🇬🇧',
-        'dv': '🇲🇻',
-        'ar': '🇸🇦',
-        'hi': '🇮🇳',
-    };
-    return flags[languageCode] || '🌐';
-};
-
-export const getLanguageName = (languageCode: string): string => {
-    const languages: Record<string, string> = {
-        'en': 'English',
-        'dv': 'Dhivehi',
-        'ar': 'Arabic',
-        'hi': 'Hindi',
-    };
-    return languages[languageCode] || languageCode.toUpperCase();
-};
-
-export const getTranslationCompleteness = (translations: Translation[]) => {
-    const uniqueKeys = [...new Set(translations.map(t => t.key))];
-    const languages = [...new Set(translations.map(t => t.language_code))];
-
-    const completeness = languages.map(lang => {
-        const langTranslations = translations.filter(t => t.language_code === lang);
-        const percentage = (langTranslations.length / uniqueKeys.length) * 100;
-
-        return {
-            language: getLanguageName(lang),
-            code: lang,
-            flag: getLanguageFlag(lang),
-            completed: langTranslations.length,
-            total: uniqueKeys.length,
-            percentage: Math.round(percentage),
-        };
-    });
-
-    return completeness;
-};
-
-export const getMissingTranslations = (translations: Translation[], targetLanguage: string) => {
-    const allKeys = [...new Set(translations.map(t => t.key))];
-    const targetLanguageKeys = new Set(
-        translations
-            .filter(t => t.language_code === targetLanguage)
-            .map(t => t.key)
-    );
-
-    return allKeys.filter(key => !targetLanguageKeys.has(key));
-};
-
-// Validation utilities
-export const validateIslandForm = (data: IslandFormData): string[] => {
-    const errors: string[] = [];
-
-    if (!data.name || data.name.trim().length < 2) {
-        errors.push('Island name must be at least 2 characters long');
-    }
-
-    if (!data.zone) {
-        errors.push('Zone is required');
-    }
-
-    if (!['male', 'north', 'south', 'central'].includes(data.zone)) {
-        errors.push('Invalid zone selected');
-    }
-
-    return errors;
-};
-
-export const validateZoneForm = (data: ZoneFormData): string[] => {
-    const errors: string[] = [];
-
-    if (!data.name || data.name.trim().length < 2) {
-        errors.push('Zone name must be at least 2 characters long');
-    }
-
-    if (data.color && !isValidHexColor(data.color)) {
-        errors.push('Invalid color format');
-    }
-
-    return errors;
-};
-
-export const validateFAQForm = (data: FAQFormData): string[] => {
-    const errors: string[] = [];
-
-    if (!data.question || data.question.trim().length < 10) {
-        errors.push('Question must be at least 10 characters long');
-    }
-
-    if (!data.answer || data.answer.trim().length < 10) {
-        errors.push('Answer must be at least 10 characters long');
-    }
-
-    if (!data.category_id) {
-        errors.push('Category is required');
-    }
-
-    return errors;
-};
-
-export const validateTranslationForm = (data: TranslationFormData): string[] => {
-    const errors: string[] = [];
-
-    if (!data.key || data.key.trim().length < 2) {
-        errors.push('Translation key must be at least 2 characters long');
-    }
-
-    if (!data.language_code) {
-        errors.push('Language is required');
-    }
-
-    if (!data.translation || data.translation.trim().length < 1) {
-        errors.push('Translation text is required');
-    }
-
-    return errors;
 };
 
 // ============================================================================
@@ -374,305 +138,6 @@ export const validateTermsData = (data: {
     return {
         isValid: Object.keys(errors).length === 0,
         errors
-    };
-};
-
-// ============================================================================
-// TRANSLATION VALIDATION
-// ============================================================================
-
-export const validateTranslationData = (data: {
-    key: string;
-    language_code: string;
-    translation: string;
-}): { isValid: boolean; errors: Record<string, string> } => {
-    const errors: Record<string, string> = {};
-
-    // Key validation
-    if (!data.key || data.key.trim().length === 0) {
-        errors.key = 'Key is required';
-    } else if (data.key.trim().length < 2) {
-        errors.key = 'Key must be at least 2 characters long';
-    } else if (data.key.trim().length > 255) {
-        errors.key = 'Key must be no more than 255 characters long';
-    } else if (!/^[a-zA-Z0-9._-]+$/.test(data.key.trim())) {
-        errors.key = 'Key can only contain letters, numbers, dots, underscores, and hyphens';
-    }
-
-    // Language code validation
-    if (!data.language_code || data.language_code.trim().length === 0) {
-        errors.language_code = 'Language code is required';
-    } else if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(data.language_code)) {
-        errors.language_code = 'Language code must be in format "en" or "en-US"';
-    }
-
-    // Translation validation
-    if (!data.translation || data.translation.trim().length === 0) {
-        errors.translation = 'Translation is required';
-    } else if (data.translation.trim().length < 1) {
-        errors.translation = 'Translation cannot be empty';
-    } else if (data.translation.trim().length > 5000) {
-        errors.translation = 'Translation must be no more than 5,000 characters long';
-    }
-
-    return {
-        isValid: Object.keys(errors).length === 0,
-        errors
-    };
-};
-
-// ============================================================================
-// TERMS AND CONDITIONS SEARCH AND FILTERING
-// ============================================================================
-
-export const searchTerms = (terms: TermsAndConditions[], query: string): TermsAndConditions[] => {
-    if (!query || query.trim().length === 0) {
-        return terms;
-    }
-
-    const searchQuery = query.toLowerCase();
-    return terms.filter(term =>
-        term.title.toLowerCase().includes(searchQuery) ||
-        term.content.toLowerCase().includes(searchQuery) ||
-        term.version.toLowerCase().includes(searchQuery)
-    );
-};
-
-export const filterTermsByStatus = (terms: TermsAndConditions[], isActive: boolean): TermsAndConditions[] => {
-    return terms.filter(term => term.is_active === isActive);
-};
-
-export const filterTermsByVersion = (terms: TermsAndConditions[], version: string): TermsAndConditions[] => {
-    return terms.filter(term => term.version === version);
-};
-
-export const filterTermsByDateRange = (
-    terms: TermsAndConditions[],
-    startDate: string,
-    endDate: string
-): TermsAndConditions[] => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    return terms.filter(term => {
-        const effectiveDate = new Date(term.effective_date);
-        return effectiveDate >= start && effectiveDate <= end;
-    });
-};
-
-// ============================================================================
-// TRANSLATION SEARCH AND FILTERING
-// ============================================================================
-
-export const searchTranslations = (translations: Translation[], query: string): Translation[] => {
-    if (!query || query.trim().length === 0) {
-        return translations;
-    }
-
-    const searchQuery = query.toLowerCase();
-    return translations.filter(translation =>
-        translation.key.toLowerCase().includes(searchQuery) ||
-        translation.translation.toLowerCase().includes(searchQuery) ||
-        translation.language_code.toLowerCase().includes(searchQuery) ||
-        (translation.context && translation.context.toLowerCase().includes(searchQuery))
-    );
-};
-
-export const filterTranslationsByStatus = (translations: Translation[], isActive: boolean): Translation[] => {
-    return translations.filter(translation => translation.is_active === isActive);
-};
-
-export const filterTranslationsByLanguage = (translations: Translation[], languageCode: string): Translation[] => {
-    return translations.filter(translation => translation.language_code === languageCode);
-};
-
-export const filterTranslationsByContext = (translations: Translation[], context: string): Translation[] => {
-    return translations.filter(translation =>
-        translation.context && translation.context.toLowerCase().includes(context.toLowerCase())
-    );
-};
-
-// ============================================================================
-// TERMS AND CONDITIONS SORTING
-// ============================================================================
-
-export const sortTerms = (
-    terms: TermsAndConditions[],
-    sortBy: 'title' | 'version' | 'effective_date' | 'created_at' | 'updated_at',
-    order: 'asc' | 'desc'
-): TermsAndConditions[] => {
-    const sortedTerms = [...terms];
-
-    sortedTerms.sort((a, b) => {
-        let aValue: string | number | Date;
-        let bValue: string | number | Date;
-
-        switch (sortBy) {
-            case 'title':
-                aValue = a.title.toLowerCase();
-                bValue = b.title.toLowerCase();
-                break;
-            case 'version':
-                aValue = a.version.toLowerCase();
-                bValue = b.version.toLowerCase();
-                break;
-            case 'effective_date':
-                aValue = new Date(a.effective_date);
-                bValue = new Date(b.effective_date);
-                break;
-            case 'created_at':
-                aValue = new Date(a.created_at);
-                bValue = new Date(b.created_at);
-                break;
-            case 'updated_at':
-                aValue = new Date(a.updated_at || a.created_at);
-                bValue = new Date(b.updated_at || b.created_at);
-                break;
-            default:
-                aValue = a.title.toLowerCase();
-                bValue = b.title.toLowerCase();
-        }
-
-        if (aValue < bValue) {
-            return order === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-            return order === 'asc' ? 1 : -1;
-        }
-        return 0;
-    });
-
-    return sortedTerms;
-};
-
-// ============================================================================
-// TRANSLATION SORTING
-// ============================================================================
-
-export const sortTranslations = (
-    translations: Translation[],
-    sortBy: 'key' | 'language_code' | 'translation' | 'created_at' | 'updated_at',
-    order: 'asc' | 'desc'
-): Translation[] => {
-    const sortedTranslations = [...translations];
-
-    sortedTranslations.sort((a, b) => {
-        let aValue: string | number | Date;
-        let bValue: string | number | Date;
-
-        switch (sortBy) {
-            case 'key':
-                aValue = a.key.toLowerCase();
-                bValue = b.key.toLowerCase();
-                break;
-            case 'language_code':
-                aValue = a.language_code.toLowerCase();
-                bValue = b.language_code.toLowerCase();
-                break;
-            case 'translation':
-                aValue = a.translation.toLowerCase();
-                bValue = b.translation.toLowerCase();
-                break;
-            case 'created_at':
-                aValue = new Date(a.created_at);
-                bValue = new Date(b.created_at);
-                break;
-            case 'updated_at':
-                aValue = new Date(a.updated_at || a.created_at);
-                bValue = new Date(b.updated_at || b.created_at);
-                break;
-            default:
-                aValue = a.key.toLowerCase();
-                bValue = b.key.toLowerCase();
-        }
-
-        if (aValue < bValue) {
-            return order === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-            return order === 'asc' ? 1 : -1;
-        }
-        return 0;
-    });
-
-    return sortedTranslations;
-};
-
-// ============================================================================
-// TERMS AND CONDITIONS STATISTICS
-// ============================================================================
-
-export const calculateTermsStats = (terms: TermsAndConditions[]) => {
-    const active = terms.filter(term => term.is_active);
-    const inactive = terms.filter(term => !term.is_active);
-    const versions = [...new Set(terms.map(term => term.version))];
-    const currentVersion = versions.sort().reverse()[0] || '';
-
-    // Recently updated (within last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentlyUpdated = terms.filter(term => {
-        const updatedDate = new Date(term.updated_at || term.created_at);
-        return updatedDate >= sevenDaysAgo;
-    });
-
-    return {
-        total: terms.length,
-        active: active.length,
-        inactive: inactive.length,
-        versions: versions.length,
-        currentVersion,
-        recentlyUpdated: recentlyUpdated.length,
-        byVersion: versions.reduce((acc, version) => {
-            acc[version] = terms.filter(term => term.version === version).length;
-            return acc;
-        }, {} as Record<string, number>),
-    };
-};
-
-// ============================================================================
-// TRANSLATION STATISTICS
-// ============================================================================
-
-export const calculateTranslationsStats = (translations: Translation[]) => {
-    const active = translations.filter(trans => trans.is_active);
-    const inactive = translations.filter(trans => !trans.is_active);
-    const languages = [...new Set(translations.map(trans => trans.language_code))];
-
-    // Calculate completeness (percentage of active translations)
-    const completeness = translations.length > 0 ?
-        Math.round((active.length / translations.length) * 100) : 0;
-
-    // Recently updated (within last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentlyUpdated = translations.filter(trans => {
-        const updatedDate = new Date(trans.updated_at || trans.created_at);
-        return updatedDate >= sevenDaysAgo;
-    });
-
-    // Translations by language
-    const byLanguage = languages.reduce((acc, lang) => {
-        const langTranslations = translations.filter(trans => trans.language_code === lang);
-        const activeLangTranslations = langTranslations.filter(trans => trans.is_active);
-        acc[lang] = {
-            total: langTranslations.length,
-            active: activeLangTranslations.length,
-            completeness: langTranslations.length > 0 ?
-                Math.round((activeLangTranslations.length / langTranslations.length) * 100) : 0,
-        };
-        return acc;
-    }, {} as Record<string, { total: number; active: number; completeness: number }>);
-
-    return {
-        total: translations.length,
-        active: active.length,
-        inactive: inactive.length,
-        languages: languages.length,
-        completeness,
-        recentlyUpdated: recentlyUpdated.length,
-        byLanguage,
-        missingKeys: [], // Would need to compare with a master key list
     };
 };
 
@@ -744,6 +209,45 @@ export const validatePromotionData = (data: {
 };
 
 // ============================================================================
+// TERMS AND CONDITIONS SEARCH AND FILTERING
+// ============================================================================
+
+export const searchTerms = (terms: TermsAndConditions[], query: string): TermsAndConditions[] => {
+    if (!query || query.trim().length === 0) {
+        return terms;
+    }
+
+    const searchQuery = query.toLowerCase();
+    return terms.filter(term =>
+        term.title.toLowerCase().includes(searchQuery) ||
+        term.content.toLowerCase().includes(searchQuery) ||
+        term.version.toLowerCase().includes(searchQuery)
+    );
+};
+
+export const filterTermsByStatus = (terms: TermsAndConditions[], isActive: boolean): TermsAndConditions[] => {
+    return terms.filter(term => term.is_active === isActive);
+};
+
+export const filterTermsByVersion = (terms: TermsAndConditions[], version: string): TermsAndConditions[] => {
+    return terms.filter(term => term.version === version);
+};
+
+export const filterTermsByDateRange = (
+    terms: TermsAndConditions[],
+    startDate: string,
+    endDate: string
+): TermsAndConditions[] => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    return terms.filter(term => {
+        const effectiveDate = new Date(term.effective_date);
+        return effectiveDate >= start && effectiveDate <= end;
+    });
+};
+
+// ============================================================================
 // PROMOTION SEARCH AND FILTERING
 // ============================================================================
 
@@ -782,6 +286,59 @@ export const filterPromotionsByPeriod = (promotions: Promotion[], period: 'curre
                 return true;
         }
     });
+};
+
+// ============================================================================
+// TERMS AND CONDITIONS SORTING
+// ============================================================================
+
+export const sortTerms = (
+    terms: TermsAndConditions[],
+    sortBy: 'title' | 'version' | 'effective_date' | 'created_at' | 'updated_at',
+    order: 'asc' | 'desc'
+): TermsAndConditions[] => {
+    const sortedTerms = [...terms];
+
+    sortedTerms.sort((a, b) => {
+        let aValue: string | number | Date;
+        let bValue: string | number | Date;
+
+        switch (sortBy) {
+            case 'title':
+                aValue = a.title.toLowerCase();
+                bValue = b.title.toLowerCase();
+                break;
+            case 'version':
+                aValue = a.version.toLowerCase();
+                bValue = b.version.toLowerCase();
+                break;
+            case 'effective_date':
+                aValue = new Date(a.effective_date);
+                bValue = new Date(b.effective_date);
+                break;
+            case 'created_at':
+                aValue = new Date(a.created_at);
+                bValue = new Date(b.created_at);
+                break;
+            case 'updated_at':
+                aValue = new Date(a.updated_at || a.created_at);
+                bValue = new Date(b.updated_at || b.created_at);
+                break;
+            default:
+                aValue = a.title.toLowerCase();
+                bValue = b.title.toLowerCase();
+        }
+
+        if (aValue < bValue) {
+            return order === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+            return order === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+
+    return sortedTerms;
 };
 
 // ============================================================================
@@ -838,6 +395,38 @@ export const sortPromotions = (
 };
 
 // ============================================================================
+// TERMS AND CONDITIONS STATISTICS
+// ============================================================================
+
+export const calculateTermsStats = (terms: TermsAndConditions[]) => {
+    const active = terms.filter(term => term.is_active);
+    const inactive = terms.filter(term => !term.is_active);
+    const versions = [...new Set(terms.map(term => term.version))];
+    const currentVersion = versions.sort().reverse()[0] || '';
+
+    // Recently updated (within last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const recentlyUpdated = terms.filter(term => {
+        const updatedDate = new Date(term.updated_at || term.created_at);
+        return updatedDate >= sevenDaysAgo;
+    });
+
+    return {
+        total: terms.length,
+        active: active.length,
+        inactive: inactive.length,
+        versions: versions.length,
+        currentVersion,
+        recentlyUpdated: recentlyUpdated.length,
+        byVersion: versions.reduce((acc, version) => {
+            acc[version] = terms.filter(term => term.version === version).length;
+            return acc;
+        }, {} as Record<string, number>),
+    };
+};
+
+// ============================================================================
 // PROMOTION STATISTICS
 // ============================================================================
 
@@ -888,24 +477,33 @@ export const getUniqueTermsVersions = (terms: TermsAndConditions[]): string[] =>
     return [...new Set(terms.map(term => term.version))].sort();
 };
 
-export const getUniqueLanguageCodes = (translations: Translation[]): string[] => {
-    return [...new Set(translations.map(trans => trans.language_code))].sort();
-};
-
 export const getTermsByVersion = (terms: TermsAndConditions[], version: string): TermsAndConditions[] => {
     return terms.filter(term => term.version === version);
-};
-
-export const getTranslationsByLanguage = (translations: Translation[], languageCode: string): Translation[] => {
-    return translations.filter(trans => trans.language_code === languageCode);
 };
 
 export const getActiveTerms = (terms: TermsAndConditions[]): TermsAndConditions[] => {
     return terms.filter(term => term.is_active);
 };
 
-export const getActiveTranslations = (translations: Translation[]): Translation[] => {
-    return translations.filter(trans => trans.is_active);
+export const getActivePromotions = (promotions: Promotion[]): Promotion[] => {
+    return promotions.filter(promotion => promotion.is_active);
+};
+
+export const getCurrentPromotions = (promotions: Promotion[]): Promotion[] => {
+    const now = new Date();
+    return promotions.filter(promotion => {
+        const start = new Date(promotion.start_date);
+        const end = new Date(promotion.end_date);
+        return start <= now && end >= now && promotion.is_active;
+    });
+};
+
+export const getUpcomingPromotions = (promotions: Promotion[]): Promotion[] => {
+    const now = new Date();
+    return promotions.filter(promotion => {
+        const start = new Date(promotion.start_date);
+        return start > now && promotion.is_active;
+    });
 };
 
 export const getLatestTerms = (terms: TermsAndConditions[]): TermsAndConditions | null => {
@@ -917,10 +515,6 @@ export const getLatestTerms = (terms: TermsAndConditions[]): TermsAndConditions 
     return sortTerms(activeTerms, 'effective_date', 'desc')[0];
 };
 
-export const getTranslationByKey = (translations: Translation[], key: string, languageCode: string): Translation | null => {
-    return translations.find(trans => trans.key === key && trans.language_code === languageCode) || null;
-};
-
 export const validateTermsUniqueness = (terms: TermsAndConditions[], newTitle: string, newVersion: string, excludeId?: string): boolean => {
     return !terms.some(term =>
         term.id !== excludeId &&
@@ -929,16 +523,10 @@ export const validateTermsUniqueness = (terms: TermsAndConditions[], newTitle: s
     );
 };
 
-export const validateTranslationUniqueness = (
-    translations: Translation[],
-    newKey: string,
-    newLanguageCode: string,
-    excludeId?: string
-): boolean => {
-    return !translations.some(trans =>
-        trans.id !== excludeId &&
-        trans.key === newKey &&
-        trans.language_code === newLanguageCode
+export const validatePromotionUniqueness = (promotions: Promotion[], newName: string, excludeId?: string): boolean => {
+    return !promotions.some(promotion =>
+        promotion.id !== excludeId &&
+        promotion.name.toLowerCase() === newName.toLowerCase()
     );
 };
 
@@ -958,22 +546,23 @@ export const formatTermsForExport = (terms: TermsAndConditions[]) => {
     }));
 };
 
-export const formatTranslationsForExport = (translations: Translation[]) => {
-    return translations.map(trans => ({
-        Key: trans.key,
-        'Language Code': trans.language_code,
-        Translation: trans.translation,
-        Context: trans.context || '',
-        Status: trans.is_active ? 'Active' : 'Inactive',
-        'Created At': new Date(trans.created_at).toLocaleDateString(),
-        'Updated At': trans.updated_at ? new Date(trans.updated_at).toLocaleDateString() : 'N/A',
+export const formatPromotionsForExport = (promotions: Promotion[]) => {
+    return promotions.map(promotion => ({
+        Name: promotion.name,
+        Description: promotion.description || '',
+        'Discount (%)': promotion.discount_percentage,
+        'Start Date': new Date(promotion.start_date).toLocaleDateString(),
+        'End Date': new Date(promotion.end_date).toLocaleDateString(),
+        'First Time Only': promotion.is_first_time_booking_only ? 'Yes' : 'No',
+        Status: promotion.is_active ? 'Active' : 'Inactive',
+        'Created At': new Date(promotion.created_at).toLocaleDateString(),
+        'Updated At': promotion.updated_at ? new Date(promotion.updated_at).toLocaleDateString() : 'N/A',
     }));
 };
 
-// Helper utilities
-export const isValidHexColor = (color: string): boolean => {
-    return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
-};
+// ============================================================================
+// GENERAL HELPER UTILITIES
+// ============================================================================
 
 export const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -1019,60 +608,10 @@ export const getTimeAgo = (dateString: string): string => {
     }
 };
 
-// Statistics utilities
-export const calculateContentStats = (
-    islands: Island[],
-    zones: Zone[],
-    faqs: FAQ[],
-    translations: Translation[],
-    promotions: Promotion[],
-    announcements: Announcement[]
-): ContentStats => {
-    return {
-        totalIslands: islands.length,
-        activeIslands: islands.filter(i => i.is_active).length,
-        totalZones: zones.length,
-        activeZones: zones.filter(z => z.is_active).length,
-        totalFAQs: faqs.length,
-        activeFAQs: faqs.filter(f => f.is_active).length,
-        totalTranslations: translations.length,
-        completedTranslations: translations.filter(t => t.is_active).length,
-        totalPromotions: promotions.length,
-        activePromotions: promotions.filter(p => p.is_active).length,
-        totalAnnouncements: announcements.length,
-        activeAnnouncements: announcements.filter(a => a.is_active).length,
-    };
-};
+// ============================================================================
+// EXPORT UTILITIES
+// ============================================================================
 
-// Search and filter utilities
-export const filterContent = <T extends { is_active: boolean }>(
-    items: T[],
-    searchQuery: string,
-    isActiveFilter: boolean | undefined,
-    searchFields: (keyof T)[]
-): T[] => {
-    let filtered = items;
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        filtered = filtered.filter(item =>
-            searchFields.some(field => {
-                const value = item[field];
-                return typeof value === 'string' && value.toLowerCase().includes(query);
-            })
-        );
-    }
-
-    // Apply active status filter
-    if (isActiveFilter !== undefined) {
-        filtered = filtered.filter(item => item.is_active === isActiveFilter);
-    }
-
-    return filtered;
-};
-
-// Export utilities
 export const exportToCSV = (data: any[], filename: string): string => {
     if (!data.length) return '';
 
@@ -1092,41 +631,4 @@ export const exportToCSV = (data: any[], filename: string): string => {
 
 export const exportToJSON = (data: any[], filename: string): string => {
     return JSON.stringify(data, null, 2);
-};
-
-// Permissions utilities
-export const getContentPermissions = (userRole: string) => {
-    const permissions = {
-        canViewContent: false,
-        canManageIslands: false,
-        canManageZones: false,
-        canManageFAQs: false,
-        canManageTranslations: false,
-        canManagePromotions: false,
-        canManageAnnouncements: false,
-    };
-
-    if (userRole === 'admin') {
-        return {
-            canViewContent: true,
-            canManageIslands: true,
-            canManageZones: true,
-            canManageFAQs: true,
-            canManageTranslations: true,
-            canManagePromotions: true,
-            canManageAnnouncements: true,
-        };
-    } else if (userRole === 'captain') {
-        return {
-            canViewContent: true,
-            canManageIslands: false,
-            canManageZones: false,
-            canManageFAQs: false,
-            canManageTranslations: false,
-            canManagePromotions: false,
-            canManageAnnouncements: false,
-        };
-    }
-
-    return permissions;
 }; 

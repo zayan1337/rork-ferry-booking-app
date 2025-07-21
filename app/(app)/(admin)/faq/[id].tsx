@@ -13,7 +13,7 @@ import { Stack, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { useFAQManagement } from "@/hooks/useFAQManagement";
-import { FAQ } from "@/types/content";
+import { FAQ } from "@/types/admin/management";
 import {
     ArrowLeft,
     Edit,

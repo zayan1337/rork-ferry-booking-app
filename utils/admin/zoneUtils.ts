@@ -93,10 +93,6 @@ export const filterZones = (zones: Zone[], filters: ZoneFilters): Zone[] => {
         filtered = filterZonesByStatus(filtered, filters.is_active);
     }
 
-    if (filters.search) {
-        filtered = searchZones(filtered, filters.search);
-    }
-
     return filtered;
 };
 
@@ -106,7 +102,7 @@ export const filterZones = (zones: Zone[], filters: ZoneFilters): Zone[] => {
 
 export const sortZones = (
     zones: Zone[],
-    sortBy: 'name' | 'code' | 'order_index' | 'created_at',
+    sortBy: string,
     order: 'asc' | 'desc'
 ): Zone[] => {
     return [...zones].sort((a, b) => {
