@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
-    StyleSheet,
     FlatList,
     TouchableOpacity,
     Alert,
+    StyleSheet,
     RefreshControl,
+    Dimensions,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -20,26 +21,22 @@ import {
     Filter,
     SortAsc,
     SortDesc,
-    Calendar,
-    Users,
     CheckCircle,
     XCircle,
     Clock,
-    Eye,
-    Edit3,
-    Trash2,
-    Copy,
-    MoreVertical,
+    Activity,
+    TrendingUp,
     ArrowLeft,
 } from 'lucide-react-native';
 
 // Components
 import PromotionItem from '@/components/admin/PromotionItem';
-import Button from '@/components/admin/Button';
 import SearchBar from '@/components/admin/SearchBar';
+import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
-import EmptyState from '@/components/admin/EmptyState';
-import StatCard from '@/components/admin/StatCard';
+
+const { width: screenWidth } = Dimensions.get('window');
+const isTablet = screenWidth >= 768;
 
 type SortField = 'name' | 'discount_percentage' | 'start_date' | 'end_date' | 'created_at';
 type SortOrder = 'asc' | 'desc';
@@ -159,69 +156,15 @@ export default function PromotionsScreen() {
     };
 
     const handlePromotionPress = (promotionId: string) => {
-        if (canViewContent()) {
-            router.push(`./promotion/${promotionId}` as any);
-        }
+        router.push(`./promotion/${promotionId}` as any);
     };
 
     const handleAddPromotion = () => {
-        if (canManageContent()) {
-            router.push('./promotion/new' as any);
-        } else {
-            Alert.alert('Access Denied', "You don't have permission to create promotions.");
-        }
-    };
-
-    const handleEditPromotion = (promotionId: string) => {
-        if (canManageContent()) {
-            router.push(`./promotion/edit/${promotionId}` as any);
-        } else {
-            Alert.alert('Access Denied', "You don't have permission to edit promotions.");
-        }
-    };
-
-    const handleDeletePromotion = (promotionId: string) => {
         if (!canManageContent()) {
-            Alert.alert('Access Denied', "You don't have permission to delete promotions.");
+            Alert.alert('Access Denied', 'You don\'t have permission to create promotions.');
             return;
         }
-
-        const promotion = promotions.find(p => p.id === promotionId);
-        if (!promotion) return;
-
-        Alert.alert(
-            'Delete Promotion',
-            `Are you sure you want to delete "${promotion.name}"? This action cannot be undone.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await deletePromotion(promotionId);
-                            Alert.alert('Success', 'Promotion deleted successfully.');
-                        } catch (error) {
-                            Alert.alert('Error', 'Failed to delete promotion.');
-                        }
-                    }
-                }
-            ]
-        );
-    };
-
-    const handleDuplicatePromotion = async (promotionId: string) => {
-        if (!canManageContent()) {
-            Alert.alert('Access Denied', "You don't have permission to duplicate promotions.");
-            return;
-        }
-
-        try {
-            await duplicatePromotion(promotionId);
-            Alert.alert('Success', 'Promotion duplicated successfully.');
-        } catch (error) {
-            Alert.alert('Error', 'Failed to duplicate promotion.');
-        }
+        router.push('./promotion/new' as any);
     };
 
     const toggleSort = (field: SortField) => {
@@ -233,193 +176,231 @@ export default function PromotionsScreen() {
         }
     };
 
-    const clearFilters = () => {
-        setSearchQuery("");
-        setStatusFilter('all');
-        setSortField('created_at');
-        setSortOrder('desc');
-    };
-
     const renderPromotionItem = ({ item, index }: { item: Promotion; index: number }) => (
         <PromotionItem
             key={`promotion-${item.id}-${index}`}
             promotion={item}
             onPress={handlePromotionPress}
-            onEdit={canManageContent() ? handleEditPromotion : undefined}
-            onDelete={canManageContent() ? handleDeletePromotion : undefined}
-            onDuplicate={canManageContent() ? handleDuplicatePromotion : undefined}
-            showActions={canManageContent()}
         />
     );
 
-    const renderHeader = () => (
-        <View>
-            {/* Stats */}
-            <View style={styles.statsContainer}>
-                <StatCard
-                    title="Total Promotions"
-                    value={promotionsStats.total.toString()}
-                    subtitle={`${promotionsStats.active} active`}
-                    icon={<Percent size={20} color={colors.primary} />}
-                    trend="neutral"
-                />
-                <StatCard
-                    title="Current Promotions"
-                    value={promotionsStats.active.toString()}
-                    subtitle={`${promotionsStats.averageDiscount}% avg discount`}
-                    icon={<CheckCircle size={20} color={colors.success} />}
-                    trend="up"
-                />
-                <StatCard
-                    title="Upcoming"
-                    value={promotionsStats.upcoming.toString()}
-                    subtitle="Starting soon"
-                    icon={<Clock size={20} color={colors.warning} />}
-                    trend="neutral"
-                />
-                <StatCard
-                    title="Expired"
-                    value={promotionsStats.expired.toString()}
-                    subtitle="Past promotions"
-                    icon={<XCircle size={20} color={colors.error} />}
-                    trend="down"
+    const renderListHeader = () => (
+        <View style={styles.listHeader}>
+            {/* Quick Stats Summary */}
+            <View style={styles.quickStats}>
+                <View style={styles.quickStatsRow}>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
+                            <Percent size={16} color={colors.primary} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{promotionsStats.total}</Text>
+                        <Text style={styles.quickStatLabel}>Total</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
+                            <CheckCircle size={16} color={colors.success} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{promotionsStats.active}</Text>
+                        <Text style={styles.quickStatLabel}>Current</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.warningLight }]}>
+                            <Clock size={16} color={colors.warning} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{promotionsStats.upcoming}</Text>
+                        <Text style={styles.quickStatLabel}>Upcoming</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.errorLight }]}>
+                            <XCircle size={16} color={colors.error} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{promotionsStats.expired}</Text>
+                        <Text style={styles.quickStatLabel}>Expired</Text>
+                    </View>
+                </View>
+            </View>
+
+            {/* Search Section */}
+            <View style={styles.searchSection}>
+                <SearchBar
+                    placeholder="Search promotions by name or description..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    style={styles.searchBar}
                 />
             </View>
 
-            {/* Search and Filters */}
-            <View style={styles.controlsContainer}>
-                <SearchBar
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Search promotions..."
-                    style={styles.searchBar}
-                />
-                <View style={styles.controlsRow}>
+            {/* Controls Row */}
+            <View style={styles.controlsRow}>
+                <View style={styles.controlsLeft}>
                     <TouchableOpacity
-                        style={[styles.filterButton, showFilters && styles.filterButtonActive]}
+                        style={[styles.controlButton, showFilters && styles.controlButtonActive]}
                         onPress={() => setShowFilters(!showFilters)}
                     >
                         <Filter size={16} color={showFilters ? colors.primary : colors.textSecondary} />
-                        <Text style={[styles.filterButtonText, showFilters && styles.filterButtonTextActive]}>
+                        <Text style={[styles.controlButtonText, showFilters && styles.controlButtonTextActive]}>
                             Filters
                         </Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={styles.sortButton}
-                        onPress={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    >
-                        {sortOrder === 'asc' ? (
-                            <SortAsc size={16} color={colors.textSecondary} />
-                        ) : (
-                            <SortDesc size={16} color={colors.textSecondary} />
-                        )}
-                    </TouchableOpacity>
+                    <View style={styles.sortControl}>
+                        <Text style={styles.sortLabel}>Sort:</Text>
+                        <TouchableOpacity
+                            style={[styles.sortButton, sortField === "name" && styles.sortButtonActive]}
+                            onPress={() => toggleSort("name")}
+                        >
+                            <Text style={[styles.sortButtonText, sortField === "name" && styles.sortButtonTextActive]}>
+                                Name
+                            </Text>
+                            {sortField === "name" && (
+                                sortOrder === "asc" ?
+                                    <SortAsc size={12} color={colors.primary} /> :
+                                    <SortDesc size={12} color={colors.primary} />
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.sortButton, sortField === "discount_percentage" && styles.sortButtonActive]}
+                            onPress={() => toggleSort("discount_percentage")}
+                        >
+                            <Text style={[styles.sortButtonText, sortField === "discount_percentage" && styles.sortButtonTextActive]}>
+                                Discount
+                            </Text>
+                            {sortField === "discount_percentage" && (
+                                sortOrder === "asc" ?
+                                    <SortAsc size={12} color={colors.primary} /> :
+                                    <SortDesc size={12} color={colors.primary} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                <View style={styles.controlsRight}>
+                    <Text style={styles.resultsCount}>
+                        {filteredAndSortedPromotions.length} promotion{filteredAndSortedPromotions.length !== 1 ? 's' : ''}
+                    </Text>
                 </View>
             </View>
 
-            {/* Filter Options */}
+            {/* Filter Options (Collapsible) */}
             {showFilters && (
-                <View style={styles.filtersPanel}>
+                <View style={styles.filtersSection}>
+                    <Text style={styles.filterSectionTitle}>Filter by Status</Text>
                     <View style={styles.filterRow}>
-                        <Text style={styles.filterLabel}>Status:</Text>
-                        <View style={styles.filterOptions}>
-                            {[
-                                { key: 'all', label: 'All' },
-                                { key: 'current', label: 'Current' },
-                                { key: 'upcoming', label: 'Upcoming' },
-                                { key: 'expired', label: 'Expired' },
-                                { key: 'active', label: 'Active' },
-                                { key: 'inactive', label: 'Inactive' },
-                            ].map(filter => (
-                                <TouchableOpacity
-                                    key={filter.key}
-                                    style={[
-                                        styles.filterOption,
-                                        statusFilter === filter.key && styles.filterOptionActive
-                                    ]}
-                                    onPress={() => setStatusFilter(filter.key as StatusFilter)}
-                                >
-                                    <Text style={[
-                                        styles.filterOptionText,
-                                        statusFilter === filter.key && styles.filterOptionTextActive
-                                    ]}>
-                                        {filter.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                        <TouchableOpacity
+                            style={[styles.filterChip, statusFilter === 'all' && styles.filterChipActive]}
+                            onPress={() => setStatusFilter('all')}
+                        >
+                            <Text style={[styles.filterChipText, statusFilter === 'all' && styles.filterChipTextActive]}>
+                                All Promotions
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.filterChip, statusFilter === 'current' && styles.filterChipActive]}
+                            onPress={() => setStatusFilter('current')}
+                        >
+                            <Text style={[styles.filterChipText, statusFilter === 'current' && styles.filterChipTextActive]}>
+                                Current
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.filterChip, statusFilter === 'upcoming' && styles.filterChipActive]}
+                            onPress={() => setStatusFilter('upcoming')}
+                        >
+                            <Text style={[styles.filterChipText, statusFilter === 'upcoming' && styles.filterChipTextActive]}>
+                                Upcoming
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.filterChip, statusFilter === 'expired' && styles.filterChipActive]}
+                            onPress={() => setStatusFilter('expired')}
+                        >
+                            <Text style={[styles.filterChipText, statusFilter === 'expired' && styles.filterChipTextActive]}>
+                                Expired
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.filterChip, statusFilter === 'active' && styles.filterChipActive]}
+                            onPress={() => setStatusFilter('active')}
+                        >
+                            <Text style={[styles.filterChipText, statusFilter === 'active' && styles.filterChipTextActive]}>
+                                Active
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.filterChip, statusFilter === 'inactive' && styles.filterChipActive]}
+                            onPress={() => setStatusFilter('inactive')}
+                        >
+                            <Text style={[styles.filterChipText, statusFilter === 'inactive' && styles.filterChipTextActive]}>
+                                Inactive
+                            </Text>
+                        </TouchableOpacity>
                     </View>
+                </View>
+            )}
 
-                    <View style={styles.filterRow}>
-                        <Text style={styles.filterLabel}>Sort By:</Text>
-                        <View style={styles.sortOptions}>
-                            {[
-                                { key: 'name', label: 'Name' },
-                                { key: 'discount_percentage', label: 'Discount' },
-                                { key: 'start_date', label: 'Start Date' },
-                                { key: 'end_date', label: 'End Date' },
-                                { key: 'created_at', label: 'Created' },
-                            ].map(sort => (
-                                <TouchableOpacity
-                                    key={sort.key}
-                                    style={[
-                                        styles.sortOption,
-                                        sortField === sort.key && styles.sortOptionActive
-                                    ]}
-                                    onPress={() => toggleSort(sort.key as SortField)}
-                                >
-                                    <Text style={[
-                                        styles.sortOptionText,
-                                        sortField === sort.key && styles.sortOptionTextActive
-                                    ]}>
-                                        {sort.label}
-                                    </Text>
-                                    {sortField === sort.key && (
-                                        sortOrder === 'asc' ?
-                                            <SortAsc size={16} color={colors.primary} /> :
-                                            <SortDesc size={16} color={colors.primary} />
-                                    )}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-
-                    <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFilters}>
-                        <Text style={styles.clearFiltersText}>Clear Filters</Text>
-                    </TouchableOpacity>
+            {/* Section Divider */}
+            {filteredAndSortedPromotions.length > 0 && (
+                <View style={styles.sectionDivider}>
+                    <Text style={styles.listTitle}>Promotions</Text>
                 </View>
             )}
         </View>
     );
 
     const renderEmptyState = () => (
-        <EmptyState
-            icon={<Percent size={48} color={colors.textSecondary} />}
-            title="No promotions found"
-            message={searchQuery || statusFilter !== 'all'
-                ? "Try adjusting your search or filter criteria"
-                : "Create your first promotion to get started"
-            }
-            action={canManageContent() && !searchQuery && statusFilter === 'all' ? (
+        <View style={styles.emptyState}>
+            <View style={styles.emptyStateIcon}>
+                <Percent size={64} color={colors.textTertiary} />
+            </View>
+            <Text style={styles.emptyStateTitle}>No promotions found</Text>
+            <Text style={styles.emptyStateText}>
+                {searchQuery || statusFilter !== 'all'
+                    ? "Try adjusting your search or filter criteria"
+                    : "No promotions have been created yet"}
+            </Text>
+            {canManageContent() && !searchQuery && statusFilter === 'all' && (
                 <Button
-                    title="Create Promotion"
+                    title="Create First Promotion"
                     onPress={handleAddPromotion}
-                    icon={<Plus size={16} color={colors.white} />}
+                    variant="primary"
+                    icon={<Plus size={20} color={colors.white} />}
+                    style={styles.emptyStateButton}
                 />
-            ) : undefined}
-        />
+            )}
+        </View>
     );
 
     // Permission check
     if (!canViewContent()) {
         return (
-            <View style={styles.noPermissionContainer}>
-                <EmptyState
-                    icon={<Percent size={48} color={colors.warning} />}
-                    title="Access Denied"
-                    message="You don't have permission to view promotions."
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Access Denied",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
+                    }}
                 />
+                <View style={styles.noPermissionContainer}>
+                    <View style={styles.noAccessIcon}>
+                        <Percent size={48} color={colors.textSecondary} />
+                    </View>
+                    <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                    <Text style={styles.noPermissionText}>
+                        You don't have permission to view promotions.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
+                </View>
             </View>
         );
     }
@@ -428,25 +409,14 @@ export default function PromotionsScreen() {
         <View style={styles.container}>
             <Stack.Screen
                 options={{
-                    title: 'Promotions',
-                    headerShown: true,
+                    title: "Promotions",
                     headerLeft: () => (
                         <TouchableOpacity
                             onPress={() => router.back()}
                             style={styles.backButton}
                         >
-                            <ArrowLeft size={24} color={colors.text} />
+                            <ArrowLeft size={24} color={colors.primary} />
                         </TouchableOpacity>
-                    ),
-                    headerRight: () => (
-                        canManageContent() ? (
-                            <Button
-                                title="Add Promotion"
-                                onPress={handleAddPromotion}
-                                size="small"
-                                icon={<Plus size={16} color={colors.card} />}
-                            />
-                        ) : null
                     ),
                 }}
             />
@@ -457,27 +427,35 @@ export default function PromotionsScreen() {
                     <Text style={styles.loadingText}>Loading promotions...</Text>
                 </View>
             ) : (
-                <>
-                    {renderHeader()}
-                    <FlatList
-                        data={filteredAndSortedPromotions}
-                        renderItem={renderPromotionItem}
-                        keyExtractor={(item) => item.id}
-                        style={styles.promotionsList}
-                        contentContainerStyle={styles.promotionsListContent}
-                        showsVerticalScrollIndicator={false}
-                        refreshControl={
-                            <RefreshControl
-                                refreshing={isRefreshing}
-                                onRefresh={handleRefresh}
-                                colors={[colors.primary]}
-                                tintColor={colors.primary}
-                            />
-                        }
-                        ListEmptyComponent={renderEmptyState}
-                        ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-                    />
-                </>
+                <FlatList
+                    data={filteredAndSortedPromotions}
+                    renderItem={renderPromotionItem}
+                    ListHeaderComponent={renderListHeader}
+                    ListEmptyComponent={renderEmptyState}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.listContainer}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={handleRefresh}
+                            colors={[colors.primary]}
+                            tintColor={colors.primary}
+                        />
+                    }
+                    showsVerticalScrollIndicator={false}
+                    ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+                />
+            )}
+
+            {/* Floating Add Button */}
+            {canManageContent() && filteredAndSortedPromotions.length > 0 && (
+                <TouchableOpacity
+                    style={styles.floatingButton}
+                    onPress={handleAddPromotion}
+                    activeOpacity={0.8}
+                >
+                    <Plus size={24} color={colors.white} />
+                </TouchableOpacity>
             )}
         </View>
     );
@@ -488,153 +466,286 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
+    noPermissionContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        gap: 20,
+    },
+    noAccessIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.backgroundTertiary,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    noPermissionText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
     backButton: {
         padding: 8,
         marginLeft: -8,
     },
-    statsContainer: {
-        flexDirection: 'row',
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        gap: 12,
-    },
-    controlsContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-    },
-    searchBar: {
-        marginBottom: 12,
-    },
-    controlsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    filterButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: colors.card,
-        borderRadius: 8,
-        gap: 8,
-    },
-    filterButtonActive: {
-        backgroundColor: colors.primary + '20',
-    },
-    filterButtonText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        fontWeight: '500',
-    },
-    filterButtonTextActive: {
-        color: colors.primary,
-    },
-    sortButton: {
-        padding: 8,
-        backgroundColor: colors.card,
-        borderRadius: 8,
-    },
-    filtersPanel: {
-        backgroundColor: colors.card,
-        marginHorizontal: 16,
-        marginBottom: 16,
-        borderRadius: 12,
-        padding: 16,
-    },
-    filterRow: {
-        marginBottom: 16,
-    },
-    filterLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 8,
-    },
-    filterOptions: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    filterOption: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        backgroundColor: colors.backgroundSecondary,
-        borderRadius: 6,
-    },
-    filterOptionActive: {
-        backgroundColor: colors.primary,
-    },
-    filterOptionText: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        fontWeight: '500',
-    },
-    filterOptionTextActive: {
-        color: colors.card,
-    },
-    clearFiltersButton: {
-        alignSelf: 'flex-start',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: colors.error + '20',
-        borderRadius: 8,
-    },
-    clearFiltersText: {
-        fontSize: 14,
-        color: colors.error,
-        fontWeight: '500',
-    },
-    sortOptions: {
-        gap: 8,
-    },
-    sortOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
-        backgroundColor: colors.backgroundSecondary,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    sortOptionActive: {
-        backgroundColor: colors.primary + '15',
-        borderColor: colors.primary,
-    },
-    sortOptionText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        fontWeight: '500',
-    },
-    sortOptionTextActive: {
-        color: colors.primary,
-    },
-    promotionsList: {
-        flex: 1,
-    },
-    promotionsListContent: {
-        paddingHorizontal: 16,
-        paddingBottom: 16,
-    },
-    itemSeparator: {
-        height: 12,
-    },
     loadingContainer: {
         flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         gap: 16,
+        padding: 20,
     },
     loadingText: {
         fontSize: 16,
         color: colors.textSecondary,
+        fontWeight: "500",
     },
-    noPermissionContainer: {
+    listContainer: {
+        flexGrow: 1,
+        paddingBottom: 100, // Space for floating button
+    },
+    listHeader: {
+        paddingTop: 20,
+        paddingBottom: 16,
+        paddingHorizontal: 16,
+    },
+    quickStats: {
+        marginBottom: 20,
+    },
+    quickStatsRow: {
+        flexDirection: "row",
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 20,
+        shadowColor: colors.shadowMedium,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    quickStatItem: {
         flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 32,
+        alignItems: "center",
+        gap: 8,
+    },
+    quickStatIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    quickStatValue: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        lineHeight: 24,
+    },
+    quickStatLabel: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    searchSection: {
+        marginBottom: 20,
+    },
+    searchBar: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    controlsRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+        gap: 16,
+    },
+    controlsLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 16,
+        flex: 1,
+    },
+    controlsRight: {
+        alignItems: "flex-end",
+    },
+    controlButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    controlButtonActive: {
+        backgroundColor: colors.primaryLight,
+        borderColor: colors.primary,
+    },
+    controlButtonText: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "600",
+    },
+    controlButtonTextActive: {
+        color: colors.primary,
+    },
+    sortControl: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    sortLabel: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "600",
+    },
+    sortButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    sortButtonActive: {
+        backgroundColor: colors.primaryLight,
+        borderColor: colors.primary,
+    },
+    sortButtonText: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        fontWeight: "600",
+    },
+    sortButtonTextActive: {
+        color: colors.primary,
+    },
+    resultsCount: {
+        fontSize: 14,
+        color: colors.textTertiary,
+        fontWeight: "500",
+    },
+    filtersSection: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    filterSectionTitle: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 12,
+    },
+    filterRow: {
+        flexDirection: "row",
+        gap: 8,
+        flexWrap: "wrap",
+    },
+    filterChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: colors.backgroundTertiary,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    filterChipActive: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    filterChipText: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: colors.textSecondary,
+    },
+    filterChipTextActive: {
+        color: colors.white,
+    },
+    sectionDivider: {
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+        marginBottom: 8,
+    },
+    listTitle: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+    },
+    itemSeparator: {
+        height: 8,
+    },
+    emptyState: {
+        alignItems: "center",
+        paddingVertical: 80,
+        paddingHorizontal: 20,
+        gap: 20,
+    },
+    emptyStateIcon: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: colors.backgroundTertiary,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    emptyStateTitle: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+    },
+    emptyStateText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 320,
+        lineHeight: 24,
+    },
+    emptyStateButton: {
+        marginTop: 16,
+        minWidth: 200,
+    },
+    floatingButton: {
+        position: "absolute",
+        bottom: 30,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: colors.primary,
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
     },
 }); 

@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     listHeader: {
         paddingTop: 20,
         paddingBottom: 16,
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
 
     },
     quickStats: {

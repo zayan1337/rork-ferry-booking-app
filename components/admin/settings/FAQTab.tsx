@@ -433,6 +433,7 @@ const styles = StyleSheet.create({
     },
     footerContainer: {
         paddingVertical: 24,
+        marginHorizontal: 16,
     },
     viewAllButton: {
         flexDirection: "row",

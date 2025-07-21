@@ -1,347 +1,252 @@
 import React from "react";
-import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    Dimensions,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Percent, Calendar, Tag, Clock, CheckCircle, XCircle, Users, Activity } from "lucide-react-native";
 import { colors } from "@/constants/adminColors";
 import { Promotion } from "@/types/content";
-import {
-    Percent,
-    Calendar,
-    Tag,
-    Edit,
-    Trash2,
-    Clock,
-    CheckCircle,
-    XCircle,
-    Copy,
-    Users,
-} from "lucide-react-native";
-
-const { width: screenWidth } = Dimensions.get('window');
-const isTablet = screenWidth >= 768;
 
 interface PromotionItemProps {
     promotion: Promotion;
     onPress: (id: string) => void;
-    onEdit?: (id: string) => void;
-    onDelete?: (id: string) => void;
-    onDuplicate?: (id: string) => void;
-    showActions?: boolean;
 }
 
-const PromotionItem: React.FC<PromotionItemProps> = ({
-    promotion,
-    onPress,
-    onEdit,
-    onDelete,
-    onDuplicate,
-    showActions = true,
-}) => {
-    const handlePress = () => {
-        onPress(promotion.id);
+export default function PromotionItem({ promotion, onPress }: PromotionItemProps) {
+    const getDiscountColor = () => {
+        if (promotion.discount_percentage >= 50) return colors.error;
+        if (promotion.discount_percentage >= 30) return colors.warning;
+        if (promotion.discount_percentage >= 15) return colors.success;
+        return colors.primary;
     };
 
-    const handleEdit = () => {
-        onEdit?.(promotion.id);
-    };
+    const getPromotionStatus = () => {
+        if (!promotion.is_active) {
+            return { status: 'Inactive', color: colors.textSecondary, bgColor: colors.backgroundTertiary };
+        }
 
-    const handleDelete = () => {
-        onDelete?.(promotion.id);
-    };
+        if (!promotion.start_date || !promotion.end_date) {
+            return { status: 'Unknown', color: colors.textSecondary, bgColor: colors.backgroundTertiary };
+        }
 
-    const handleDuplicate = () => {
-        onDuplicate?.(promotion.id);
+        const now = new Date();
+        const start = new Date(promotion.start_date);
+        const end = new Date(promotion.end_date);
+
+        // Check for invalid dates
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+            return { status: 'Invalid', color: colors.error, bgColor: colors.errorLight };
+        }
+
+        if (start > now) {
+            return { status: 'Upcoming', color: colors.warning, bgColor: colors.warningLight };
+        }
+        if (end < now) {
+            return { status: 'Expired', color: colors.error, bgColor: colors.errorLight };
+        }
+        return { status: 'Current', color: colors.success, bgColor: colors.successLight };
     };
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString();
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'Invalid Date';
+        return new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        }).format(date);
     };
 
-    const isActive = promotion.is_active;
-    const isExpired = new Date(promotion.end_date) < new Date();
-    const isUpcoming = new Date(promotion.start_date) > new Date();
-    const isCurrent = !isExpired && !isUpcoming && isActive;
-
-    const getStatusColor = () => {
-        if (isExpired) return colors.error;
-        if (isUpcoming) return colors.warning;
-        if (isCurrent) return colors.success;
-        return colors.textSecondary;
+    const formatDateRange = () => {
+        if (!promotion.start_date || !promotion.end_date) {
+            return 'Date not available';
+        }
+        const startDate = formatDate(promotion.start_date);
+        const endDate = formatDate(promotion.end_date);
+        return `${startDate} - ${endDate}`;
     };
 
-    const getStatusIcon = () => {
-        if (isExpired) return XCircle;
-        if (isUpcoming) return Clock;
-        if (isCurrent) return CheckCircle;
-        return XCircle;
-    };
-
-    const getStatusText = () => {
-        if (isExpired) return 'Expired';
-        if (isUpcoming) return 'Upcoming';
-        if (isCurrent) return 'Active';
-        return 'Inactive';
-    };
-
-    const StatusIcon = getStatusIcon();
-
-    const truncateDescription = (description: string, maxLength: number = 120) => {
-        if (description.length <= maxLength) return description;
-        return description.substring(0, maxLength) + '...';
-    };
+    const discountColor = getDiscountColor();
+    const { status, color, bgColor } = getPromotionStatus();
 
     return (
         <TouchableOpacity
             style={styles.container}
-            onPress={handlePress}
+            onPress={() => onPress(promotion.id)}
             activeOpacity={0.7}
         >
+            <View style={styles.iconContainer}>
+                <Percent size={20} color={discountColor} />
+            </View>
+
             <View style={styles.content}>
-                {/* Header */}
                 <View style={styles.header}>
-                    <View style={styles.iconContainer}>
-                        <Percent
-                            size={20}
-                            color={isActive ? colors.primary : colors.textSecondary}
-                        />
-                    </View>
-
-                    <View style={styles.headerInfo}>
-                        <Text style={styles.title} numberOfLines={2}>
-                            {promotion.name}
+                    <Text style={styles.name} numberOfLines={1}>
+                        {promotion.name}
+                    </Text>
+                    <View style={[styles.statusBadge, { backgroundColor: bgColor }]}>
+                        <View style={[styles.statusDot, { backgroundColor: color }]} />
+                        <Text style={[styles.statusText, { color }]}>
+                            {status}
                         </Text>
-
-                        <View style={styles.metaRow}>
-                            <View style={styles.discountContainer}>
-                                <Tag size={12} color={colors.success} />
-                                <Text style={styles.discount}>{promotion.discount_percentage}% OFF</Text>
-                            </View>
-
-                            <View style={styles.statusContainer}>
-                                <StatusIcon
-                                    size={12}
-                                    color={getStatusColor()}
-                                />
-                                <Text style={[styles.status, { color: getStatusColor() }]}>
-                                    {getStatusText()}
-                                </Text>
-                            </View>
-                        </View>
                     </View>
-
-                    {showActions && (
-                        <View style={styles.actionsContainer}>
-                            {onDuplicate && (
-                                <TouchableOpacity
-                                    style={styles.actionButton}
-                                    onPress={handleDuplicate}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Copy size={16} color={colors.textSecondary} />
-                                </TouchableOpacity>
-                            )}
-
-                            {onEdit && (
-                                <TouchableOpacity
-                                    style={styles.actionButton}
-                                    onPress={handleEdit}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Edit size={16} color={colors.primary} />
-                                </TouchableOpacity>
-                            )}
-
-                            {onDelete && (
-                                <TouchableOpacity
-                                    style={styles.actionButton}
-                                    onPress={handleDelete}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Trash2 size={16} color={colors.error} />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    )}
                 </View>
 
-                {/* Description Preview */}
-                {promotion.description && (
-                    <View style={styles.contentPreview}>
-                        <Text style={styles.contentText} numberOfLines={3}>
-                            {truncateDescription(promotion.description)}
-                        </Text>
-                    </View>
-                )}
-
-                {/* Footer */}
-                <View style={styles.footer}>
-                    <View style={styles.footerLeft}>
-                        <View style={styles.dateContainer}>
-                            <Calendar size={12} color={colors.textSecondary} />
-                            <Text style={styles.date}>
-                                {formatDate(promotion.start_date)} - {formatDate(promotion.end_date)}
+                <View style={styles.details}>
+                    <View style={styles.detailRow}>
+                        <View style={[styles.discountBadge, { backgroundColor: discountColor + '15' }]}>
+                            <Tag size={12} color={discountColor} />
+                            <Text style={[styles.discountText, { color: discountColor }]}>
+                                {promotion.discount_percentage}% OFF
                             </Text>
                         </View>
 
                         {promotion.is_first_time_booking_only && (
-                            <View style={styles.specialContainer}>
-                                <Users size={12} color={colors.secondary} />
-                                <Text style={styles.special}>First-time booking only</Text>
+                            <View style={styles.targetBadge}>
+                                <Users size={12} color={colors.info} />
+                                <Text style={styles.targetText}>
+                                    New Customers
+                                </Text>
                             </View>
                         )}
                     </View>
 
-                    <View style={styles.footerRight}>
-                        <View style={styles.timestampContainer}>
-                            <Clock size={12} color={colors.textSecondary} />
-                            <Text style={styles.timestamp}>
-                                {formatDate(promotion.updated_at || promotion.created_at)}
-                            </Text>
-                        </View>
+                    <View style={styles.metaRow}>
+                        <Calendar size={12} color={colors.textTertiary} />
+                        <Text style={styles.dateRange}>
+                            {formatDateRange()}
+                        </Text>
                     </View>
                 </View>
             </View>
+
+            <View style={styles.chevron}>
+                <View style={styles.chevronIcon} />
+            </View>
         </TouchableOpacity>
     );
-};
+}
 
 const styles = StyleSheet.create({
     container: {
+        flexDirection: "row",
+        alignItems: "center",
         backgroundColor: colors.card,
-        borderRadius: 12,
+        padding: 16,
+        borderRadius: 16,
         marginBottom: 12,
-        marginHorizontal: isTablet ? 0 : 16,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-        overflow: 'hidden',
-    },
-    content: {
-        padding: 16,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 12,
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        marginHorizontal: 16,
     },
     iconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: colors.primary + '10',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: colors.primaryLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 16,
+        borderWidth: 1,
+        borderColor: colors.primary + '20',
     },
-    headerInfo: {
+    content: {
         flex: 1,
-        gap: 6,
+        minHeight: 60,
+        justifyContent: "space-between",
     },
-    title: {
-        fontSize: 16,
-        fontWeight: '600',
+    header: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: 8,
+    },
+    name: {
+        fontSize: 17,
+        fontWeight: "700",
         color: colors.text,
+        flex: 1,
+        marginRight: 12,
         lineHeight: 22,
     },
-    metaRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-    },
-    discountContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: colors.success + '15',
+    statusBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 10,
+        paddingVertical: 5,
         borderRadius: 12,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-    },
-    discount: {
-        fontSize: 12,
-        color: colors.success,
-        fontWeight: '600',
-    },
-    statusContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
         gap: 4,
     },
-    status: {
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+    statusText: {
         fontSize: 12,
-        fontWeight: '500',
+        fontWeight: "600",
+        letterSpacing: 0.2,
     },
-    actionsContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    actionButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: colors.backgroundSecondary,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    contentPreview: {
-        marginBottom: 12,
-        paddingHorizontal: 4,
-    },
-    contentText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        lineHeight: 20,
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        paddingTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
-    },
-    footerLeft: {
-        flex: 1,
+    details: {
         gap: 6,
     },
-    footerRight: {
-        alignItems: 'flex-end',
+    detailRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
     },
-    dateContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    discountBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
         gap: 4,
     },
-    date: {
+    discountText: {
+        fontSize: 13,
+        fontWeight: "700",
+        letterSpacing: 0.1,
+    },
+    targetBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        backgroundColor: colors.infoLight,
+        gap: 4,
+    },
+    targetText: {
+        fontSize: 11,
+        fontWeight: "600",
+        color: colors.info,
+        letterSpacing: 0.1,
+    },
+    metaRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+    },
+    dateRange: {
         fontSize: 12,
-        color: colors.textSecondary,
+        color: colors.textTertiary,
+        fontWeight: "500",
     },
-    specialContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
+    chevron: {
+        alignItems: "center",
+        justifyContent: "center",
+        marginLeft: 8,
     },
-    special: {
-        fontSize: 11,
-        color: colors.secondary,
-        fontWeight: '500',
+    chevronIcon: {
+        width: 8,
+        height: 8,
+        borderRightWidth: 2,
+        borderTopWidth: 2,
+        borderColor: colors.textTertiary,
+        transform: [{ rotate: '45deg' }],
     },
-    timestampContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    timestamp: {
-        fontSize: 11,
-        color: colors.textSecondary,
-    },
-});
-
-export default PromotionItem; 
+}); 

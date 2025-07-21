@@ -314,10 +314,6 @@ const ContentTab: React.FC<ContentTabProps> = ({ isActive, searchQuery = "" }) =
                     key={`promotion-${promotion.id}-${index}`}
                     promotion={promotion}
                     onPress={handleItemPress}
-                    onEdit={hasManagePermission ? handleEdit : undefined}
-                    onDelete={hasManagePermission ? handleDelete : undefined}
-                    onDuplicate={hasManagePermission ? handleDuplicate : undefined}
-                    showActions={hasManagePermission}
                 />
             );
         }
@@ -537,6 +533,7 @@ const styles = StyleSheet.create({
     },
     footerContainer: {
         paddingVertical: 24,
+        marginHorizontal: 16,
     },
     previewText: {
         fontSize: 14,
