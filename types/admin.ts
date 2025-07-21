@@ -347,7 +347,6 @@ export const PERMISSION_RESOURCES = {
   ZONES: 'zones',
   FAQ: 'faq',
   CONTENT: 'content',
-  TRANSLATIONS: 'translations',
   USERS: 'users',
   AGENTS: 'agents',
   PASSENGERS: 'passengers',

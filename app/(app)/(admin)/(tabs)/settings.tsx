@@ -22,7 +22,6 @@ import {
     Globe,
     HelpCircle,
     FileEdit,
-    Languages,
 } from "lucide-react-native";
 import {
     useSettingsData,
@@ -45,7 +44,6 @@ import {
     ZonesTab,
     FAQTab,
     ContentTab,
-    TranslationsTab,
 } from "@/components/admin/settings";
 import {
     SystemSettingsModal,
@@ -178,12 +176,6 @@ export default function SettingsScreen() {
             category: "Content"
         },
         {
-            key: "translations",
-            label: "Translations",
-            icon: Languages,
-            category: "Localization"
-        },
-        {
             key: "alerts",
             label: "Alerts",
             icon: Bell,
@@ -305,21 +297,13 @@ export default function SettingsScreen() {
                     />
                 );
 
-            case "translations":
-                return (
-                    <TranslationsTab
-                        isActive={activeTab === "translations"}
-                        searchQuery={searchQuery}
-                    />
-                );
-
             default:
                 return null;
         }
     };
 
     // Tabs that use FlatList internally and should not be wrapped in ScrollView
-    const flatListTabs = ['islands', 'zones', 'faq', 'content', 'translations', 'alerts', 'activity', 'reports', 'system'];
+    const flatListTabs = ['islands', 'zones', 'faq', 'content'];
     const useScrollView = !flatListTabs.includes(activeTab);
 
     // Optimized scroll to active tab - only when tab changes and user isn't manually scrolling
@@ -409,7 +393,7 @@ export default function SettingsScreen() {
     ), [activeTab, tabsData]); // Only re-render when activeTab changes
 
     const SearchBarComponent = useMemo(() => {
-        const showSearch = ["permissions", "alerts", "activity", "islands", "zones", "faq", "content", "translations"].includes(activeTab);
+        const showSearch = ["permissions", "alerts", "activity", "islands", "zones", "faq", "content"].includes(activeTab);
 
         return showSearch ? (
             <View style={styles.searchContainer}>

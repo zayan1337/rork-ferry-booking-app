@@ -61,12 +61,6 @@ export const useAdminPermissions = () => {
             { id: '33', name: 'content:update', description: 'Update content', resource: PERMISSION_RESOURCES.CONTENT, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
             { id: '34', name: 'content:delete', description: 'Delete content', resource: PERMISSION_RESOURCES.CONTENT, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
 
-            { id: '35', name: 'translations:view', description: 'View translations', resource: PERMISSION_RESOURCES.TRANSLATIONS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
-            { id: '36', name: 'translations:create', description: 'Create translations', resource: PERMISSION_RESOURCES.TRANSLATIONS, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
-            { id: '37', name: 'translations:update', description: 'Update translations', resource: PERMISSION_RESOURCES.TRANSLATIONS, action: PERMISSION_ACTIONS.UPDATE, created_at: new Date().toISOString() },
-            { id: '38', name: 'translations:delete', description: 'Delete translations', resource: PERMISSION_RESOURCES.TRANSLATIONS, action: PERMISSION_ACTIONS.DELETE, created_at: new Date().toISOString() },
-            { id: '39', name: 'translations:export', description: 'Export translations', resource: PERMISSION_RESOURCES.TRANSLATIONS, action: PERMISSION_ACTIONS.EXPORT, created_at: new Date().toISOString() },
-
             // User management permissions
             { id: '40', name: 'users:view', description: 'View users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.VIEW, created_at: new Date().toISOString() },
             { id: '41', name: 'users:create', description: 'Create users', resource: PERMISSION_RESOURCES.USERS, action: PERMISSION_ACTIONS.CREATE, created_at: new Date().toISOString() },
@@ -209,15 +203,6 @@ export const useAdminPermissions = () => {
         hasPermission(PERMISSION_RESOURCES.CONTENT, PERMISSION_ACTIONS.UPDATE) ||
         hasPermission(PERMISSION_RESOURCES.CONTENT, PERMISSION_ACTIONS.DELETE);
 
-    const canViewTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.VIEW);
-    const canCreateTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.CREATE);
-    const canUpdateTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.UPDATE);
-    const canDeleteTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.DELETE);
-    const canExportTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.EXPORT);
-    const canManageTranslations = () => hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.CREATE) ||
-        hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.UPDATE) ||
-        hasPermission(PERMISSION_RESOURCES.TRANSLATIONS, PERMISSION_ACTIONS.DELETE);
-
     // User management permissions
     const canViewUsers = () => hasPermission(PERMISSION_RESOURCES.USERS, PERMISSION_ACTIONS.VIEW);
     const canCreateUsers = () => hasPermission(PERMISSION_RESOURCES.USERS, PERMISSION_ACTIONS.CREATE);
@@ -324,12 +309,6 @@ export const useAdminPermissions = () => {
         canUpdateContent,
         canDeleteContent,
         canManageContent,
-        canViewTranslations,
-        canCreateTranslations,
-        canUpdateTranslations,
-        canDeleteTranslations,
-        canExportTranslations,
-        canManageTranslations,
 
         // Users
         canViewUsers,
