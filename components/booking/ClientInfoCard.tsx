@@ -3,14 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { User, Mail, Phone } from 'lucide-react-native';
 import Card from '@/components/Card';
 import { getClientDisplayName } from '@/utils/clientUtils';
+import { Client } from '@/types/agent';
 import Colors from '@/constants/colors';
-
-interface Client {
-  id?: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-}
 
 interface ClientInfoCardProps {
   clientName?: string;

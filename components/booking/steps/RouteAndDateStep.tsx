@@ -12,20 +12,20 @@ interface RouteAndDateStepProps {
   // Trip type
   tripType: 'one_way' | 'round_trip' | null;
   onTripTypeChange: (tripType: 'one_way' | 'round_trip') => void;
-  
+
   // Routes
   availableRoutes: Route[];
   selectedRoute: Route | null;
   selectedReturnRoute: Route | null;
   onRouteChange: (route: Route) => void;
   onReturnRouteChange: (route: Route) => void;
-  
+
   // Dates
   departureDate: string | null;
   returnDate: string | null;
   onDepartureDateChange: (date: string) => void;
   onReturnDateChange: (date: string) => void;
-  
+
   // Validation errors
   errors: {
     tripType?: string;
@@ -34,7 +34,7 @@ interface RouteAndDateStepProps {
     departureDate?: string;
     returnDate?: string;
   };
-  
+
   // Error clearing functions
   clearError: (field: string) => void;
 }
@@ -145,7 +145,7 @@ const RouteAndDateStep: React.FC<RouteAndDateStepProps> = ({
         <View style={styles.fareContainer}>
           <Text style={styles.fareLabel}>Base Fare:</Text>
           <Text style={styles.fareValue}>
-            {formatCurrency(selectedRoute.baseFare || 0)} per seat
+            {formatCurrency(selectedRoute.base_fare || 0)} per seat
           </Text>
         </View>
       )}

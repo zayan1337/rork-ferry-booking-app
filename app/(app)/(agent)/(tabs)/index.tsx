@@ -89,16 +89,14 @@ const TrendIndicator = ({
 const QuickActionCard = ({
     title,
     icon,
-    onPress,
-    backgroundColor = Colors.primary
+    onPress
 }: {
     title: string;
     icon: React.ReactNode;
     onPress: () => void;
-    backgroundColor?: string;
 }) => (
     <TouchableOpacity
-        style={[styles.quickActionCard, { backgroundColor }]}
+        style={styles.quickActionCard}
         onPress={onPress}
     >
         {icon}
@@ -384,27 +382,23 @@ export default function AgentDashboardScreen() {
     const quickActions = [
         {
             title: "New Booking",
-            icon: <Plus size={20} color="white" />,
-            onPress: handleNewBooking,
-            backgroundColor: Colors.primary
+            icon: <Plus size={24} color={Colors.primary} />,
+            onPress: handleNewBooking
         },
         {
             title: "Add Client",
-            icon: <UserPlus size={20} color="white" />,
-            onPress: handleViewClients,
-            backgroundColor: '#5a67d8'  // Indigo - professional alternative
+            icon: <UserPlus size={24} color={Colors.primary} />,
+            onPress: handleViewClients
         },
         {
             title: "View Reports",
-            icon: <FileText size={20} color="white" />,
-            onPress: handleViewAllBookings,
-            backgroundColor: '#667eea'  // Lighter indigo for variety
+            icon: <FileText size={24} color={Colors.primary} />,
+            onPress: handleViewAllBookings
         },
         {
             title: "Settings",
-            icon: <Settings size={20} color="white" />,
-            onPress: handleViewProfile,
-            backgroundColor: '#718096'  // Neutral gray-blue
+            icon: <Settings size={24} color={Colors.primary} />,
+            onPress: handleViewProfile
         }
     ];
 
@@ -482,7 +476,6 @@ export default function AgentDashboardScreen() {
                         title={action.title}
                         icon={action.icon}
                         onPress={action.onPress}
-                        backgroundColor={action.backgroundColor}
                     />
                 ))}
             </View>
@@ -696,24 +689,20 @@ const styles = StyleSheet.create({
     },
     quickActionCard: {
         width: responsiveConfig.isTablet ? (screenWidth - 64) / 4 : (screenWidth - 56) / 2,
-        backgroundColor: Colors.primary,
-        padding: 16,
+        backgroundColor: Colors.card,
         borderRadius: 12,
+        padding: 16,
         alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 80,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: Colors.border,
     },
     quickActionText: {
-        color: 'white',
-        fontWeight: '600',
         marginTop: 8,
-        textAlign: 'center',
         fontSize: 14,
+        fontWeight: '500',
+        color: Colors.text,
+        textAlign: 'center',
     },
     creditOverviewCard: {
         marginBottom: 24,

@@ -93,6 +93,45 @@ export { useAgentStatsStore } from './agent/agentStatsStore';
 export { useAgentCreditStore } from './agent/agentCreditStore';
 
 // ========================================
+// ADMIN MANAGEMENT STORES - CONSISTENT PATTERNS
+// ========================================
+
+/**
+ * Admin FAQ management store
+ * Handles FAQ categories and FAQ items with full CRUD operations
+ * Features ordering, search, filtering, and statistics
+ */
+export { useFAQManagementStore } from './admin/faqStore';
+
+/**
+ * Admin Island management store
+ * Manages islands with zone associations and statistics
+ * Includes route counting and performance metrics
+ */
+export { useIslandStore } from './admin/islandStore';
+
+/**
+ * Admin Zone management store
+ * Handles zone management with ordering, activity logs
+ * Includes island and route statistics per zone
+ */
+export { useZoneStore } from './admin/zoneStore';
+
+/**
+ * Admin Operations store (legacy)
+ * Contains routes, vessels, and trips management
+ * @deprecated Use individual stores for better separation
+ */
+export { useOperationsStore } from './admin/operationsStore';
+
+/**
+ * Admin Content store (legacy)
+ * Mixed content management including zones and islands
+ * @deprecated Use dedicated island and zone stores instead
+ */
+export { useContentStore } from './admin/contentStore';
+
+// ========================================
 // LEGACY EXPORTS - MAINTAINED FOR BACKWARD COMPATIBILITY
 // ========================================
 

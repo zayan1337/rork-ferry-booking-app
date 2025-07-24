@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
     RefreshControl,
     ScrollView,
@@ -6,11 +6,14 @@ import {
     Text,
     View,
     TouchableOpacity,
-    Dimensions
+    Dimensions,
+    Alert,
+    Modal
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useAdminStore } from "@/store/admin/adminStore";
+import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import {
     Users,
     Plus,
@@ -23,7 +26,23 @@ import {
     Bell,
     Lock,
     Database,
-    Download
+    Download,
+    Filter,
+    ArrowUpDown,
+    Search,
+    Mail,
+    Phone,
+    Calendar,
+    Eye,
+    Edit,
+    Trash2,
+    AlertTriangle,
+    X,
+    Check,
+    Crown,
+    User,
+    UserX,
+    Activity
 } from "lucide-react-native";
 import Button from "@/components/admin/Button";
 import SectionHeader from "@/components/admin/SectionHeader";
@@ -31,17 +50,47 @@ import SearchBar from "@/components/admin/SearchBar";
 import UserItem from "@/components/admin/UserItem";
 import EmptyState from "@/components/admin/EmptyState";
 import StatCard from "@/components/admin/StatCard";
+import StatusBadge from "@/components/admin/StatusBadge";
+import { UserProfile } from "@/types/userManagement";
+
+// Users Components
+import UserStats from "@/components/admin/users/UserStats";
 
 const { width: screenWidth } = Dimensions.get('window');
 
-export default function ManagementScreen() {
-    const adminStore = useAdminStore();
-    const users = adminStore?.users || [];
-    const refreshData = adminStore?.refreshData || (() => Promise.resolve());
+type FilterRole = "all" | "admin" | "agent" | "customer" | "passenger";
+type FilterStatus = "all" | "active" | "inactive" | "suspended";
+type SortOrder = "name_asc" | "name_desc" | "date_desc" | "date_asc" | "role_asc" | "status_asc";
+
+export default function UsersScreen() {
+    const {
+        users,
+        passengers,
+        dashboardStats,
+        refreshData,
+        updateUserStatus,
+        updateUserRole,
+        deleteUser,
+        exportUsersReport
+    } = useAdminStore();
+
+    const {
+        canViewUsers,
+        canCreateUsers,
+        canUpdateUsers,
+        canDeleteUsers,
+        canManageRoles,
+        canExportReports
+    } = useAdminPermissions();
 
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeTab, setActiveTab] = useState<"users" | "reports" | "system">("users");
+    const [filterRole, setFilterRole] = useState<FilterRole>("all");
+    const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+    const [sortOrder, setSortOrder] = useState<SortOrder>("date_desc");
+    const [showFilterModal, setShowFilterModal] = useState(false);
+    const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+    const [activeTab, setActiveTab] = useState<"overview" | "users" | "agents" | "passengers">("overview");
 
     const isTablet = screenWidth >= 768;
     const isSmallScreen = screenWidth < 480;
@@ -57,431 +106,599 @@ export default function ManagementScreen() {
         }
     };
 
-    const filteredUsers = users?.filter((user) => {
-        if (!user) return false;
-        const name = user.name || "";
-        const email = user.email || "";
-        const role = user.role || "";
-        const id = user.id || "";
-        const query = searchQuery?.toLowerCase() || "";
+    // Enhanced filtering and sorting
+    const filteredAndSortedUsers = useMemo(() => {
+        let filtered = users.filter((user) => {
+            // Text search
+            const searchMatch = searchQuery === "" ||
+                (user?.name?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+                (user?.email?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+                (user?.mobile_number?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+                (user?.id || "").includes(searchQuery);
 
-        return name.toLowerCase().includes(query) ||
-            email.toLowerCase().includes(query) ||
-            role.toLowerCase().includes(query) ||
-            id.toLowerCase().includes(query);
-    }) || [];
+            // Role filter
+            const roleMatch = filterRole === "all" || user.role === filterRole;
 
-    // Calculate stats with null safety
-    const totalUsers = users?.length || 0;
-    const activeUsers = users?.filter(u => u?.status === "active")?.length || 0;
-    const adminUsers = users?.filter(u => u?.role === "admin")?.length || 0;
-    const customerUsers = users?.filter(u => u?.role === "customer")?.length || 0;
+            // Status filter
+            const statusMatch = filterStatus === "all" || user.status === filterStatus;
 
-    const reports = [
-        {
-            id: "revenue",
-            title: "Revenue Analytics",
-            description: "Monthly revenue and profit analysis with detailed breakdowns",
-            icon: <TrendingUp size={isTablet ? 24 : 20} color={colors.success} />,
-            period: "Last 30 days",
-        },
-        {
-            id: "bookings",
-            title: "Booking Reports",
-            description: "Booking trends and customer analytics dashboard",
-            icon: <BarChart size={isTablet ? 24 : 20} color={colors.primary} />,
-            period: "Last 7 days",
-        },
-        {
-            id: "vessels",
-            title: "Fleet Performance",
-            description: "Vessel utilization and maintenance reports",
-            icon: <FileText size={isTablet ? 24 : 20} color={colors.secondary} />,
-            period: "Real-time",
-        },
-    ];
+            return searchMatch && roleMatch && statusMatch;
+        });
 
-    const systemTools = [
-        {
-            id: "notifications",
-            title: "System Notifications",
-            description: "Manage global alerts and announcements across the platform",
-            icon: <Bell size={isTablet ? 24 : 20} color={colors.warning} />,
-            action: "Configure",
-        },
-        {
-            id: "database",
-            title: "Database Management",
-            description: "Backup, restore, and maintenance tools for system data",
-            icon: <Database size={isTablet ? 24 : 20} color={colors.danger} />,
-            action: "Manage",
-        },
-        {
-            id: "export",
-            title: "Data Export",
-            description: "Export system data and reports in various formats",
-            icon: <Download size={isTablet ? 24 : 20} color={colors.primary} />,
-            action: "Export",
-        },
-    ];
+        // Sorting
+        return filtered.sort((a, b) => {
+            switch (sortOrder) {
+                case "name_asc":
+                    return (a.name || "").localeCompare(b.name || "");
+                case "name_desc":
+                    return (b.name || "").localeCompare(a.name || "");
+                case "date_asc":
+                    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                case "date_desc":
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                case "role_asc":
+                    return (a.role || "").localeCompare(b.role || "");
+                case "status_asc":
+                    return (a.status || "").localeCompare(b.status || "");
+                default:
+                    return 0;
+            }
+        });
+    }, [users, searchQuery, filterRole, filterStatus, sortOrder]);
+
+    // Enhanced statistics
+    const stats = useMemo(() => {
+        const totalUsers = users.length;
+        const activeUsers = users.filter(u => u.status === "active").length;
+        const adminCount = users.filter(u => u.role === "admin").length;
+        const agentCount = users.filter(u => u.role === "agent").length;
+        const customerCount = users.filter(u => u.role === "customer").length;
+        const passengerCount = passengers?.length || 0;
+        const newUsersThisMonth = users.filter(u => {
+            const userDate = new Date(u.created_at);
+            const now = new Date();
+            return userDate.getMonth() === now.getMonth() && userDate.getFullYear() === now.getFullYear();
+        }).length;
+
+        return {
+            totalUsers,
+            activeUsers,
+            activeRate: totalUsers > 0 ? (activeUsers / totalUsers * 100).toFixed(1) : "0",
+            adminCount,
+            agentCount,
+            customerCount,
+            passengerCount,
+            newUsersThisMonth,
+            suspendedCount: users.filter(u => u.status === "suspended").length
+        };
+    }, [users, passengers]);
+
+    const handleUserPress = (user: UserProfile) => {
+        if (canViewUsers()) {
+            router.push(`../user/${user.id}` as any);
+        }
+    };
+
+    const handleNewUser = () => {
+        if (canCreateUsers()) {
+            router.push("../user/new" as any);
+        } else {
+            Alert.alert("Access Denied", "You don't have permission to create users.");
+        }
+    };
+
+    const handleExport = async () => {
+        if (canExportReports()) {
+            try {
+                await exportUsersReport(filteredAndSortedUsers);
+                Alert.alert("Success", "Users report exported successfully.");
+            } catch (error) {
+                Alert.alert("Error", "Failed to export users report.");
+            }
+        } else {
+            Alert.alert("Access Denied", "You don't have permission to export reports.");
+        }
+    };
+
+    const handleBulkStatusUpdate = async (status: string) => {
+        if (!canUpdateUsers()) {
+            Alert.alert("Access Denied", "You don't have permission to update users.");
+            return;
+        }
+
+        Alert.alert(
+            "Bulk Update",
+            `Update ${selectedUsers.length} user(s) status to ${status}?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Update",
+                    onPress: async () => {
+                        try {
+                            for (const userId of selectedUsers) {
+                                await updateUserStatus(userId, status);
+                            }
+                            setSelectedUsers([]);
+                            Alert.alert("Success", "Users updated successfully.");
+                        } catch (error) {
+                            Alert.alert("Error", "Failed to update users.");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const toggleUserSelection = (userId: string) => {
+        setSelectedUsers(prev =>
+            prev.includes(userId)
+                ? prev.filter(id => id !== userId)
+                : [...prev, userId]
+        );
+    };
+
+    // Add select all functionality
+    const handleSelectAll = () => {
+        if (selectedUsers.length === filteredAndSortedUsers.length) {
+            // Deselect all
+            setSelectedUsers([]);
+        } else {
+            // Select all visible users
+            setSelectedUsers(filteredAndSortedUsers.map(user => user.id));
+        }
+    };
+
+    const isAllSelected = filteredAndSortedUsers.length > 0 && selectedUsers.length === filteredAndSortedUsers.length;
+    const isPartiallySelected = selectedUsers.length > 0 && selectedUsers.length < filteredAndSortedUsers.length;
+
+    const getCount = (role: FilterRole, status?: FilterStatus) => {
+        let filtered = users;
+        if (role !== "all") {
+            if (role === "agent") {
+                filtered = users.filter(u => u.role === "agent");
+            } else if (role === "passenger") {
+                // Convert passengers to user-like objects for counting
+                return passengers?.length || 0;
+            } else {
+                filtered = users.filter(u => u.role === role);
+            }
+        }
+        if (status && status !== "all") {
+            filtered = filtered.filter(u => u.status === status);
+        }
+        return filtered.length;
+    };
+
+    const getRoleIcon = (role: string) => {
+        switch (role) {
+            case "admin":
+                return <Crown size={16} color={colors.danger} />;
+            case "agent":
+                return <UserCheck size={16} color={colors.primary} />;
+            case "customer":
+                return <User size={16} color={colors.secondary} />;
+            case "passenger":
+                return <Users size={16} color={colors.success} />;
+            default:
+                return <User size={16} color={colors.textSecondary} />;
+        }
+    };
 
     const getResponsivePadding = () => ({
         paddingHorizontal: isTablet ? 24 : isSmallScreen ? 12 : 16,
         paddingVertical: isTablet ? 20 : 16,
     });
 
-    const ReportItem = ({ report }: { report: any }) => (
-        <TouchableOpacity
-            style={[styles.itemCard, { padding: isTablet ? 20 : 16 }]}
-            onPress={() => router.push(`../reports/${report?.id || ""}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`View ${report?.title} report`}
-        >
-            <View style={styles.itemHeader}>
-                <View style={styles.itemTitleContainer}>
-                    {report?.icon}
-                    <View style={styles.itemInfo}>
-                        <Text style={[styles.itemTitle, { fontSize: isTablet ? 18 : 16 }]}>
-                            {report?.title || "Unknown Report"}
-                        </Text>
-                        <Text style={[styles.itemDescription, { fontSize: isTablet ? 15 : 14 }]}>
-                            {report?.description || "No description"}
-                        </Text>
-                        <Text style={[styles.itemPeriod, { fontSize: isTablet ? 13 : 12 }]}>
-                            {report?.period || ""}
-                        </Text>
-                    </View>
-                </View>
-                <View style={styles.arrowContainer}>
-                    <Text style={[styles.arrowText, { fontSize: isTablet ? 24 : 20 }]}>→</Text>
-                </View>
-            </View>
-        </TouchableOpacity>
-    );
+    // Helper function to get current filter/sort display text
+    const getCurrentFilterText = () => {
+        let filterText = [];
 
-    const SystemToolItem = ({ tool }: { tool: any }) => (
-        <TouchableOpacity
-            style={[styles.itemCard, { padding: isTablet ? 20 : 16 }]}
-            onPress={() => {/* Navigate to tool */ }}
-            accessibilityRole="button"
-            accessibilityLabel={`${tool?.action} ${tool?.title}`}
-        >
-            <View style={styles.itemHeader}>
-                <View style={styles.itemTitleContainer}>
-                    {tool?.icon}
-                    <View style={styles.itemInfo}>
-                        <Text style={[styles.itemTitle, { fontSize: isTablet ? 18 : 16 }]}>
-                            {tool?.title || "Unknown Tool"}
-                        </Text>
-                        <Text style={[styles.itemDescription, { fontSize: isTablet ? 15 : 14 }]}>
-                            {tool?.description || "No description"}
-                        </Text>
-                    </View>
-                </View>
-                <View style={styles.actionBadge}>
-                    <Text style={[styles.actionText, { fontSize: isTablet ? 13 : 12 }]}>
-                        {tool?.action || "Open"}
-                    </Text>
-                </View>
+        if (filterRole !== "all") {
+            filterText.push(`Role: ${filterRole.charAt(0).toUpperCase() + filterRole.slice(1)}`);
+        }
+
+        if (filterStatus !== "all") {
+            filterText.push(`Status: ${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}`);
+        }
+
+        const sortText = {
+            "date_desc": "Date (Newest first)",
+            "date_asc": "Date (Oldest first)",
+            "name_asc": "Name (A-Z)",
+            "name_desc": "Name (Z-A)",
+            "role_asc": "Role (A-Z)",
+            "status_asc": "Status (A-Z)"
+        };
+
+        return {
+            filters: filterText.length > 0 ? filterText.join(", ") : "All users",
+            sort: sortText[sortOrder]
+        };
+    };
+
+    // Helper to check if any filters are active
+    const hasActiveFilters = () => {
+        return filterRole !== "all" || filterStatus !== "all" || sortOrder !== "date_desc" || searchQuery !== "";
+    };
+
+    // Clear all filters function
+    const clearAllFilters = () => {
+        setFilterRole("all");
+        setFilterStatus("all");
+        setSortOrder("date_desc");
+        setSearchQuery("");
+        setSelectedUsers([]);
+    };
+
+    if (!canViewUsers()) {
+        return (
+            <View style={styles.noPermissionContainer}>
+                <AlertTriangle size={48} color={colors.warning} />
+                <Text style={styles.noPermissionText}>
+                    You don't have permission to view users.
+                </Text>
             </View>
-        </TouchableOpacity>
-    );
+        );
+    }
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={[styles.contentContainer, getResponsivePadding()]}
-            refreshControl={
-                <RefreshControl
-                    refreshing={refreshing}
-                    onRefresh={handleRefresh}
-                    colors={[colors.primary]}
-                    tintColor={colors.primary}
-                />
-            }
-            showsVerticalScrollIndicator={false}
-        >
-            <Stack.Screen
-                options={{
-                    title: "Management",
-                    headerRight: () => (
-                        <Button
-                            title={isSmallScreen ? "New" : "New User"}
-                            variant="primary"
-                            size={isTablet ? "medium" : "small"}
-                            icon={<Plus size={isTablet ? 18 : 16} color="#FFFFFF" />}
-                            onPress={() => router.push("../user/new")}
-                        />
-                    ),
-                }}
-            />
-
-            {/* Quick Stats */}
-            <View style={styles.statsContainer}>
-                <SectionHeader 
-                    title="User Overview" 
-                    subtitle="System statistics"
-                    size={isTablet ? "large" : "medium"}
-                />
-                <View style={styles.statsGrid}>
-                    <StatCard
-                        title="Total Users"
-                        value={totalUsers.toString()}
-                        subtitle="+8% this month"
-                        icon={<Users size={isTablet ? 20 : 18} color={colors.primary} />}
-                        size={isTablet ? "large" : "medium"}
+        <>
+            <ScrollView
+                style={styles.container}
+                contentContainerStyle={[styles.contentContainer, getResponsivePadding()]}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        colors={[colors.primary]}
+                        tintColor={colors.primary}
                     />
-                    <StatCard
-                        title="Active Users"
-                        value={activeUsers.toString()}
-                        subtitle="+5% this week"
-                        icon={<UserCheck size={isTablet ? 20 : 18} color={colors.success} />}
-                        color={colors.success}
-                        size={isTablet ? "large" : "medium"}
-                    />
-                    <StatCard
-                        title="Admins"
-                        value={adminUsers.toString()}
-                        subtitle="No change"
-                        icon={<Shield size={isTablet ? 20 : 18} color={colors.warning} />}
-                        color={colors.warning}
-                        size={isTablet ? "large" : "medium"}
-                    />
-                    <StatCard
-                        title="Customers"
-                        value={customerUsers.toString()}
-                        subtitle="+12% growth"
-                        icon={<Users size={isTablet ? 20 : 18} color={colors.secondary} />}
-                        color={colors.secondary}
-                        size={isTablet ? "large" : "medium"}
-                    />
-                </View>
-            </View>
-
-            {/* Tab Navigation */}
-            <View style={[styles.tabContainer, { padding: isTablet ? 6 : 4 }]}>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === "users" && styles.activeTab, {
-                        paddingVertical: isTablet ? 16 : 12,
-                        paddingHorizontal: isTablet ? 20 : 16,
-                    }]}
-                    onPress={() => setActiveTab("users")}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: activeTab === "users" }}
-                >
-                    <Users
-                        size={isTablet ? 22 : 20}
-                        color={activeTab === "users" ? colors.primary : colors.textSecondary}
-                    />
-                    <Text style={[
-                        styles.tabText,
-                        activeTab === "users" && styles.activeTabText,
-                        { fontSize: isTablet ? 16 : 14 }
-                    ]}>
-                        Users
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === "reports" && styles.activeTab, {
-                        paddingVertical: isTablet ? 16 : 12,
-                        paddingHorizontal: isTablet ? 20 : 16,
-                    }]}
-                    onPress={() => setActiveTab("reports")}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: activeTab === "reports" }}
-                >
-                    <BarChart
-                        size={isTablet ? 22 : 20}
-                        color={activeTab === "reports" ? colors.primary : colors.textSecondary}
-                    />
-                    <Text style={[
-                        styles.tabText,
-                        activeTab === "reports" && styles.activeTabText,
-                        { fontSize: isTablet ? 16 : 14 }
-                    ]}>
-                        Reports
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === "system" && styles.activeTab, {
-                        paddingVertical: isTablet ? 16 : 12,
-                        paddingHorizontal: isTablet ? 20 : 16,
-                    }]}
-                    onPress={() => setActiveTab("system")}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: activeTab === "system" }}
-                >
-                    <Settings
-                        size={isTablet ? 22 : 20}
-                        color={activeTab === "system" ? colors.primary : colors.textSecondary}
-                    />
-                    <Text style={[
-                        styles.tabText,
-                        activeTab === "system" && styles.activeTabText,
-                        { fontSize: isTablet ? 16 : 14 }
-                    ]}>
-                        System
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Search Bar (only for users) */}
-            {activeTab === "users" && (
-                <View style={styles.searchContainer}>
-                    <SearchBar
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholder="Search users by name, email, or role..."
-                    />
-                </View>
-            )}
-
-            {/* Content based on active tab */}
-            {activeTab === "users" ? (
-                <View style={styles.section}>
-                    <SectionHeader
-                        title="User Management"
-                        subtitle={`${filteredUsers?.length || 0} ${filteredUsers?.length === 1 ? 'user' : 'users'}`}
-                        size={isTablet ? "large" : "medium"}
-                        action={
-                            <Button
-                                title="Export"
-                                variant="ghost"
-                                size="small"
-                                onPress={() => {/* TODO: Export users */}}
-                            />
-                        }
-                    />
-
-                    {(!filteredUsers || filteredUsers.length === 0) ? (
-                        <EmptyState
-                            title="No users found"
-                            message={searchQuery 
-                                ? "No users match your search criteria. Try adjusting your search terms." 
-                                : "No users available yet. Add your first user to get started."
-                            }
-                            icon={<Users size={isTablet ? 56 : 48} color={colors.textSecondary} />}
-                            action={
-                                !searchQuery ? (
+                }
+                showsVerticalScrollIndicator={false}
+            >
+                <Stack.Screen
+                    options={{
+                        title: "User Management",
+                        headerRight: () => (
+                            <View style={styles.headerActions}>
+                                {canExportReports() && (
+                                    <TouchableOpacity
+                                        style={styles.headerButton}
+                                        onPress={handleExport}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Export"
+                                    >
+                                        <Download size={18} color={colors.primary} />
+                                    </TouchableOpacity>
+                                )}
+                                {canCreateUsers() && (
                                     <Button
-                                        title="Add First User"
+                                        title={isSmallScreen ? "New" : "New User"}
                                         variant="primary"
-                                        size={isTablet ? "large" : "medium"}
-                                        icon={<Plus size={isTablet ? 20 : 18} color="white" />}
-                                        onPress={() => router.push("../user/new")}
+                                        size={isTablet ? "medium" : "small"}
+                                        icon={<Plus size={isTablet ? 18 : 16} color="#FFFFFF" />}
+                                        onPress={handleNewUser}
                                     />
-                                ) : undefined
-                            }
-                        />
-                    ) : (
-                        <>
-                            {filteredUsers.slice(0, 10).map((user, index) => (
-                                <UserItem
-                                    key={user?.id || index}
-                                    user={user}
-                                    onPress={() => router.push(`../user/${user?.id || ""}`)}
-                                />
-                            ))}
+                                )}
+                            </View>
+                        ),
+                    }}
+                />
 
-                            {filteredUsers.length > 10 && (
-                                <View style={styles.loadMoreContainer}>
+                {/* Tab Navigation */}
+                <View style={styles.tabContainer}>
+                    {[
+                        { key: "overview", label: "Overview", icon: <BarChart size={16} color={activeTab === "overview" ? colors.primary : colors.primary} /> },
+                        { key: "users", label: "All Users", icon: <Users size={16} color={activeTab === "users" ? colors.primary : colors.primary} /> },
+                    ].map((tab) => (
+                        <TouchableOpacity
+                            key={tab.key}
+                            style={[
+                                styles.tab,
+                                activeTab === tab.key && styles.tabActive
+                            ]}
+                            onPress={() => setActiveTab(tab.key as any)}
+                        >
+                            {tab.icon}
+                            <Text style={[
+                                styles.tabText,
+                                activeTab === tab.key && styles.tabTextActive
+                            ]}>
+                                {tab.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                {activeTab === "overview" ? (
+                    <UserStats stats={stats} isTablet={isTablet} />
+                ) : (
+                    <>
+                        {/* Enhanced Search and Filter */}
+                        <View style={styles.searchContainer}>
+                            <View style={styles.searchWrapper}>
+                                <SearchBar
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                    placeholder="Search by name, email, phone, or ID..."
+                                />
+                            </View>
+                            <Button
+                                title=""
+                                variant="outline"
+                                size={isTablet ? "large" : "medium"}
+                                icon={<Filter size={isTablet ? 20 : 18} color={colors.primary} />}
+                                onPress={() => setShowFilterModal(true)}
+                            />
+                            <Button
+                                title=""
+                                variant="outline"
+                                size={isTablet ? "large" : "medium"}
+                                icon={<ArrowUpDown size={isTablet ? 20 : 18} color={colors.primary} />}
+                                onPress={() => {
+                                    const sortOptions: SortOrder[] = ["date_desc", "date_asc", "name_asc", "name_desc", "role_asc", "status_asc"];
+                                    const currentIndex = sortOptions.indexOf(sortOrder);
+                                    const nextIndex = (currentIndex + 1) % sortOptions.length;
+                                    setSortOrder(sortOptions[nextIndex]);
+                                }}
+                            />
+                        </View>
+
+                        {/* Filter Tabs */}
+                        <View style={styles.filterTabs}>
+                            {(["all", "admin", "agent", "customer", "passenger"] as FilterRole[]).map((role) => (
+                                <TouchableOpacity
+                                    key={role}
+                                    style={[
+                                        styles.filterTab,
+                                        filterRole === role && styles.filterTabActive
+                                    ]}
+                                    onPress={() => setFilterRole(role)}
+                                >
+                                    <Text style={[
+                                        styles.filterTabText,
+                                        filterRole === role && styles.filterTabTextActive
+                                    ]}>
+                                        {role.charAt(0).toUpperCase() + role.slice(1)}
+                                    </Text>
+                                    <Text style={[
+                                        styles.filterTabCount,
+                                        filterRole === role && styles.filterTabCountActive
+                                    ]}>
+                                        {getCount(role)}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        {/* Bulk Actions Bar */}
+                        {selectedUsers.length > 0 && (
+                            <View style={styles.bulkActionsBar}>
+                                <Text style={styles.bulkActionsText}>
+                                    {selectedUsers.length} user(s) selected
+                                </Text>
+                                <View style={styles.bulkActionsButtons}>
+                                    {canUpdateUsers() && (
+                                        <>
+                                            <Button
+                                                title="Activate"
+                                                variant="primary"
+                                                size="small"
+                                                onPress={() => handleBulkStatusUpdate("active")}
+                                            />
+                                            <Button
+                                                title="Suspend"
+                                                variant="danger"
+                                                size="small"
+                                                onPress={() => handleBulkStatusUpdate("suspended")}
+                                            />
+                                        </>
+                                    )}
                                     <Button
-                                        title="Load More Users"
-                                        variant="outline"
-                                        size={isTablet ? "large" : "medium"}
-                                        onPress={() => {/* TODO: Pagination */}}
-                                        fullWidth={isSmallScreen}
+                                        title="Clear"
+                                        variant="ghost"
+                                        size="small"
+                                        onPress={() => setSelectedUsers([])}
                                     />
                                 </View>
+                            </View>
+                        )}
+
+                        {/* Users List */}
+                        <View style={styles.section}>
+                            <View style={styles.usersHeader}>
+                                <SectionHeader
+                                    title={searchQuery ? "Search Results" : "Users"}
+                                    subtitle={`${filteredAndSortedUsers.length} ${filteredAndSortedUsers.length === 1 ? 'user' : 'users'} found`}
+                                    size={isTablet ? "large" : "medium"}
+                                />
+                            </View>
+
+                            {/* Compact Filter Status - Full width */}
+                            {(hasActiveFilters() || filteredAndSortedUsers.length > 0) && (
+                                <View style={styles.compactFilterStatus}>
+                                    <Text style={styles.compactFilterText}>
+                                        {getCurrentFilterText().filters}
+                                    </Text>
+                                    <View style={styles.filterStatusDivider}>
+                                        <Text style={styles.compactFilterText}>
+                                            {getCurrentFilterText().sort}
+                                        </Text>
+                                        {hasActiveFilters() && (
+                                            <TouchableOpacity
+                                                style={styles.clearFiltersButton}
+                                                onPress={clearAllFilters}
+                                                accessibilityRole="button"
+                                                accessibilityLabel="Clear all filters"
+                                            >
+                                                <X size={14} color={colors.textSecondary} />
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                </View>
                             )}
-                        </>
-                    )}
 
-                    <View style={styles.actionContainer}>
-                        <Button
-                            title="Add New User"
-                            variant="primary"
-                            size={isTablet ? "large" : "medium"}
-                            icon={<Plus size={isTablet ? 20 : 18} color="white" />}
-                            onPress={() => router.push("../user/new")}
-                            fullWidth={isSmallScreen}
-                        />
-                    </View>
-                </View>
-            ) : activeTab === "reports" ? (
-                <View style={styles.section}>
-                    <SectionHeader
-                        title="Analytics & Reports"
-                        subtitle="Comprehensive system insights"
-                        size={isTablet ? "large" : "medium"}
-                        action={
+                            {/* Select All Section - Simple checkbox and text */}
+                            {canUpdateUsers() && filteredAndSortedUsers.length > 0 && (
+                                <View>
+                                    <TouchableOpacity
+                                        style={styles.selectAllButton}
+                                        onPress={handleSelectAll}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={isAllSelected ? "Deselect all users" : "Select all users"}
+                                    >
+                                        <View style={[
+                                            styles.selectAllCheckboxLarge,
+                                            isAllSelected && styles.checkboxSelected,
+                                            isPartiallySelected && styles.checkboxPartial
+                                        ]}>
+                                            {isAllSelected && (
+                                                <Check size={14} color="white" />
+                                            )}
+                                            {isPartiallySelected && !isAllSelected && (
+                                                <View style={styles.partialCheckmark} />
+                                            )}
+                                        </View>
+                                        <Text style={styles.selectAllTextLarge}>
+                                            {isAllSelected ? "Deselect All" : "Select All"}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+
+                            {/* Content Area */}
+                            {filteredAndSortedUsers.length === 0 ? (
+                                <EmptyState
+                                    icon={<Users size={48} color={colors.textSecondary} />}
+                                    title="No users found"
+                                    message={searchQuery ? "Try adjusting your search criteria" : "No users match the current filters"}
+                                />
+                            ) : (
+                                <View style={styles.usersList}>
+                                    {filteredAndSortedUsers.map((user) => (
+                                        <View key={user.id} style={styles.userItemWrapper}>
+                                            {canUpdateUsers() && (
+                                                <TouchableOpacity
+                                                    style={styles.selectionCheckbox}
+                                                    onPress={() => toggleUserSelection(user.id)}
+                                                >
+                                                    <View style={[
+                                                        styles.checkbox,
+                                                        selectedUsers.includes(user.id) && styles.checkboxSelected
+                                                    ]}>
+                                                        {selectedUsers.includes(user.id) && (
+                                                            <Check size={14} color="white" />
+                                                        )}
+                                                    </View>
+                                                </TouchableOpacity>
+                                            )}
+                                            <View style={styles.userItemContent}>
+                                                <UserItem
+                                                    user={user}
+                                                    onPress={() => handleUserPress(user)}
+                                                />
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+                        </View>
+                    </>
+                )}
+            </ScrollView>
+
+            {/* Filter Modal */}
+            <Modal
+                visible={showFilterModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowFilterModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.filterModal}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Filter & Sort</Text>
+                            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                                <X size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.filterSection}>
+                            <Text style={styles.filterSectionTitle}>Status</Text>
+                            {[
+                                { key: "all", label: "All Status" },
+                                { key: "active", label: "Active" },
+                                { key: "inactive", label: "Inactive" },
+                                { key: "suspended", label: "Suspended" }
+                            ].map((option) => (
+                                <TouchableOpacity
+                                    key={option.key}
+                                    style={[
+                                        styles.filterOption,
+                                        filterStatus === option.key && styles.filterOptionSelected
+                                    ]}
+                                    onPress={() => setFilterStatus(option.key as FilterStatus)}
+                                >
+                                    <Text style={[
+                                        styles.filterOptionText,
+                                        filterStatus === option.key && styles.filterOptionTextSelected
+                                    ]}>
+                                        {option.label}
+                                    </Text>
+                                    {filterStatus === option.key && (
+                                        <Check size={16} color={colors.primary} />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View style={styles.filterSection}>
+                            <Text style={styles.filterSectionTitle}>Sort by</Text>
+                            {[
+                                { key: "date_desc", label: "Date (Newest)" },
+                                { key: "date_asc", label: "Date (Oldest)" },
+                                { key: "name_asc", label: "Name (A-Z)" },
+                                { key: "name_desc", label: "Name (Z-A)" },
+                                { key: "role_asc", label: "Role" },
+                                { key: "status_asc", label: "Status" }
+                            ].map((option) => (
+                                <TouchableOpacity
+                                    key={option.key}
+                                    style={[
+                                        styles.filterOption,
+                                        sortOrder === option.key && styles.filterOptionSelected
+                                    ]}
+                                    onPress={() => setSortOrder(option.key as SortOrder)}
+                                >
+                                    <Text style={[
+                                        styles.filterOptionText,
+                                        sortOrder === option.key && styles.filterOptionTextSelected
+                                    ]}>
+                                        {option.label}
+                                    </Text>
+                                    {sortOrder === option.key && (
+                                        <Check size={16} color={colors.primary} />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View style={styles.modalActions}>
                             <Button
-                                title="Schedule"
+                                title="Clear All"
                                 variant="ghost"
-                                size="small"
-                                onPress={() => {/* TODO: Schedule reports */}}
+                                onPress={clearAllFilters}
                             />
-                        }
-                    />
-
-                    <Text style={[styles.sectionDescription, { fontSize: isTablet ? 16 : 14 }]}>
-                        Generate and view comprehensive reports on system performance, revenue, and user analytics.
-                    </Text>
-
-                    {reports.map((report, index) => (
-                        <ReportItem key={report?.id || index} report={report} />
-                    ))}
-
-                    <View style={styles.actionContainer}>
-                        <Button
-                            title="Generate Custom Report"
-                            variant="secondary"
-                            size={isTablet ? "large" : "medium"}
-                            icon={<FileText size={isTablet ? 20 : 18} color="white" />}
-                            onPress={() => {/* Navigate to custom report */ }}
-                            fullWidth={isSmallScreen}
-                        />
-                    </View>
-                </View>
-            ) : (
-                <View style={styles.section}>
-                    <SectionHeader
-                        title="System Tools"
-                        subtitle="Administrative controls"
-                        size={isTablet ? "large" : "medium"}
-                        action={
                             <Button
-                                title="Backup"
-                                variant="ghost"
-                                size="small"
-                                onPress={() => {/* TODO: System backup */}}
+                                title="Apply"
+                                variant="primary"
+                                onPress={() => setShowFilterModal(false)}
                             />
-                        }
-                    />
-
-                    <Text style={[styles.sectionDescription, { fontSize: isTablet ? 16 : 14 }]}>
-                        Manage system-wide settings, notifications, and maintenance tools for optimal performance.
-                    </Text>
-
-                    {systemTools.map((tool, index) => (
-                        <SystemToolItem key={tool?.id || index} tool={tool} />
-                    ))}
-
-                    <View style={styles.actionContainer}>
-                        <Button
-                            title="Advanced Settings"
-                            variant="secondary"
-                            size={isTablet ? "large" : "medium"}
-                            icon={<Settings size={isTablet ? 20 : 18} color="white" />}
-                            onPress={() => {/* Navigate to advanced settings */ }}
-                            fullWidth={isSmallScreen}
-                        />
+                        </View>
                     </View>
                 </View>
-            )}
-        </ScrollView>
+            </Modal>
+        </>
     );
 }
 
@@ -491,126 +708,290 @@ const styles = StyleSheet.create({
         backgroundColor: colors.backgroundSecondary,
     },
     contentContainer: {
-        paddingBottom: 32,
+        flexGrow: 1,
     },
-    statsContainer: {
-        marginBottom: 24,
-    },
-    statsGrid: {
+    headerActions: {
         flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 12,
-        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 8,
+        marginRight: 12,
+    },
+    headerButton: {
+        padding: 8,
+        borderRadius: 10,
+        backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+        borderWidth: 1,
+        borderColor: colors.border + "60",
     },
     tabContainer: {
         flexDirection: "row",
         backgroundColor: colors.card,
-        borderRadius: 16,
-        marginBottom: 20,
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 24,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
         elevation: 2,
-        borderWidth: 1,
-        borderColor: colors.border + "20",
     },
     tab: {
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        borderRadius: 12,
-        gap: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderRadius: 8,
+        gap: 6,
     },
-    activeTab: {
+    tabActive: {
         backgroundColor: colors.primary + "15",
     },
     tabText: {
-        fontWeight: "600",
+        fontSize: 12,
+        fontWeight: "500",
         color: colors.textSecondary,
     },
-    activeTabText: {
+    tabTextActive: {
         color: colors.primary,
-        fontWeight: "700",
     },
     searchContainer: {
-        marginBottom: 20,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        marginBottom: 16,
     },
-    section: {
-        marginBottom: 28,
+    searchWrapper: {
+        flex: 1,
     },
-    sectionDescription: {
-        color: colors.textSecondary,
-        marginBottom: 20,
-        lineHeight: 1.5,
-        fontWeight: "500",
-    },
-    itemCard: {
+    filterTabs: {
+        flexDirection: "row",
         backgroundColor: colors.card,
-        borderRadius: 16,
-        marginBottom: 12,
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 16,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
         elevation: 2,
-        borderWidth: 1,
-        borderColor: colors.border + "20",
     },
-    itemHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-    },
-    itemTitleContainer: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        gap: 16,
+    filterTab: {
         flex: 1,
-        marginRight: 12,
-    },
-    itemInfo: {
-        flex: 1,
-    },
-    itemTitle: {
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 4,
-        lineHeight: 1.3,
-    },
-    itemDescription: {
-        color: colors.textSecondary,
-        marginBottom: 6,
-        lineHeight: 1.4,
-        fontWeight: "500",
-    },
-    itemPeriod: {
-        color: colors.primary,
-        fontWeight: "600",
-    },
-    arrowContainer: {
-        padding: 4,
-    },
-    arrowText: {
-        color: colors.textSecondary,
-        fontWeight: "300",
-    },
-    actionBadge: {
-        backgroundColor: colors.primary + "15",
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-    },
-    actionText: {
-        color: colors.primary,
-        fontWeight: "600",
-    },
-    loadMoreContainer: {
-        marginTop: 16,
+        paddingVertical: 8,
+        paddingHorizontal: 8,
+        borderRadius: 8,
         alignItems: "center",
     },
-    actionContainer: {
-        marginTop: 20,
+    filterTabActive: {
+        backgroundColor: colors.primary + "15",
+    },
+    filterTabText: {
+        fontSize: 14,
+        fontWeight: "500",
+        color: colors.textSecondary,
+        marginBottom: 2,
+    },
+    filterTabTextActive: {
+        color: colors.primary,
+    },
+    filterTabCount: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: colors.textSecondary,
+    },
+    filterTabCountActive: {
+        color: colors.primary,
+    },
+    bulkActionsBar: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: colors.primary + "10",
+        borderWidth: 1,
+        borderColor: colors.primary + "30",
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    bulkActionsText: {
+        fontSize: 14,
+        fontWeight: "500",
+        color: colors.primary,
+    },
+    bulkActionsButtons: {
+        flexDirection: "row",
+        gap: 8,
+    },
+    section: {
+        marginBottom: 24,
+    },
+    usersHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    compactFilterStatus: {
+        paddingHorizontal: 0,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border + "40",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    filterStatusDivider: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    compactFilterText: {
+        fontSize: 11,
+        color: colors.textSecondary,
+        fontWeight: "500",
+    },
+    clearFiltersButton: {
+        padding: 2,
+        borderRadius: 2,
+    },
+    selectAllButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 8,
+        gap: 12,
+    },
+    selectAllCheckboxLarge: {
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: colors.primary + "40",
+        backgroundColor: colors.card,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    selectAllTextLarge: {
+        fontSize: 14,
+        fontWeight: "500",
+        color: colors.primary,
+    },
+    usersList: {
+        gap: 12,
+        marginTop: 16,
+    },
+    userItemWrapper: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+    selectionCheckbox: {
+        padding: 4,
+    },
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: colors.primary + "40",
+        backgroundColor: colors.card,
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    checkboxSelected: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    checkboxPartial: {
+        backgroundColor: colors.primary + "40",
+        borderColor: colors.primary,
+    },
+    partialCheckmark: {
+        width: 8,
+        height: 2,
+        backgroundColor: colors.primary,
+        borderRadius: 1,
+    },
+    userItemContent: {
+        flex: 1,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "flex-end",
+    },
+    filterModal: {
+        backgroundColor: colors.card,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        padding: 24,
+        maxHeight: "80%",
+    },
+    modalHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 24,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+    },
+    filterSection: {
+        marginBottom: 24,
+    },
+    filterSectionTitle: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 12,
+    },
+    filterOption: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        marginBottom: 4,
+    },
+    filterOptionSelected: {
+        backgroundColor: colors.primary + "10",
+    },
+    filterOptionText: {
+        fontSize: 14,
+        color: colors.text,
+    },
+    filterOptionTextSelected: {
+        color: colors.primary,
+        fontWeight: "500",
+    },
+    modalActions: {
+        flexDirection: "row",
+        gap: 12,
+    },
+    noPermissionContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 64,
+        gap: 16,
+    },
+    noPermissionText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 250,
     },
 }); 

@@ -63,16 +63,16 @@ export default function AdminProfileModal() {
   const getInitials = (name: string) => {
     return name
       ? name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2)
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
       : "AD";
   };
 
   const adminProfile = user?.profile;
-  const adminName = adminProfile?.full_name || user?.email?.split("@")[0] || "Admin";
+  const adminName = adminProfile?.full_name || (user?.email ? user.email.split("@")[0] : "") || "Admin";
   const adminEmail = user?.email || "";
   const adminRole = adminProfile?.role || "admin";
 
@@ -82,21 +82,21 @@ export default function AdminProfileModal() {
       title: "Notifications",
       description: "Manage alerts and notifications",
       icon: <Bell size={20} color={colors.warning} />,
-      onPress: () => {/* Navigate to notifications */},
+      onPress: () => {/* Navigate to notifications */ },
     },
     {
       id: "security",
       title: "Security Settings",
       description: "Password and security",
       icon: <Lock size={20} color={colors.danger} />,
-      onPress: () => {/* Navigate to security */},
+      onPress: () => {/* Navigate to security */ },
     },
     {
       id: "system",
       title: "System Settings",
       description: "App configuration",
       icon: <Settings size={20} color={colors.textSecondary} />,
-      onPress: () => {/* Navigate to system settings */},
+      onPress: () => {/* Navigate to system settings */ },
     },
     {
       id: "reports",

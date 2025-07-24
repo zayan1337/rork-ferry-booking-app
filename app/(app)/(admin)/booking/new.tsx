@@ -22,8 +22,8 @@ interface BookingFormData {
     departureTime: string;
     passengers: string;
     totalAmount: string;
-    status: "confirmed" | "pending" | "cancelled" | "completed";
-    paymentStatus: "paid" | "pending" | "refunded" | "failed";
+    status: "confirmed" | "cancelled" | "completed" | "reserved" | "pending_payment" | "checked_in";
+    paymentStatus: "completed" | "pending" | "refunded" | "failed";
 }
 
 export default function NewBookingScreen() {
@@ -36,7 +36,7 @@ export default function NewBookingScreen() {
         departureTime: "",
         passengers: "1",
         totalAmount: "",
-        status: "pending",
+        status: "pending_payment",
         paymentStatus: "pending",
     });
 
@@ -59,14 +59,18 @@ export default function NewBookingScreen() {
     }));
 
     const statusOptions = [
-        { label: "Pending", value: "pending" },
+        { label: "Pending Payment", value: "pending_payment" },
+        { label: "Reserved", value: "reserved" },
         { label: "Confirmed", value: "confirmed" },
+        { label: "Checked In", value: "checked_in" },
+        { label: "Completed", value: "completed" },
         { label: "Cancelled", value: "cancelled" },
     ];
 
     const paymentStatusOptions = [
         { label: "Pending", value: "pending" },
-        { label: "Paid", value: "paid" },
+        { label: "Completed", value: "completed" },
+        { label: "Refunded", value: "refunded" },
         { label: "Failed", value: "failed" },
     ];
 
@@ -103,8 +107,8 @@ export default function NewBookingScreen() {
 
         setLoading(true);
         try {
-            const selectedRoute = routes.find(r => r.id === formData.routeId);
-            const selectedCustomer = customers.find(c => c.id === formData.customerId);
+            const selectedRoute = routes?.find(r => r.id === formData.routeId);
+            const selectedCustomer = customers?.find(c => c.id === formData.customerId);
 
             if (!selectedRoute || !selectedCustomer) {
                 Alert.alert("Error", "Invalid route or customer selected");
@@ -112,6 +116,7 @@ export default function NewBookingScreen() {
             }
 
             const newBooking = {
+                booking_number: `BK${Date.now()}`,
                 routeId: formData.routeId,
                 routeName: selectedRoute.name,
                 customerId: formData.customerId,
@@ -161,148 +166,158 @@ export default function NewBookingScreen() {
     };
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <View style={styles.container}>
             <Stack.Screen
                 options={{
                     title: "New Booking",
-                    headerLeft: () => (
-                        <Button
-                            title="Cancel"
-                            variant="outline"
-                            size="small"
-                            icon={<X size={16} color={colors.primary} />}
-                            onPress={handleCancel}
-                        />
-                    ),
-                    headerRight: () => (
-                        <Button
-                            title="Save"
-                            variant="primary"
-                            size="small"
-                            icon={<Save size={16} color="#FFFFFF" />}
-                            onPress={handleSave}
-                            loading={loading}
-                            disabled={loading}
-                        />
-                    ),
                 }}
             />
 
-            {/* Route Selection */}
-            <View style={styles.card}>
-                <Text style={styles.cardTitle}>Trip Information</Text>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Route Selection */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Trip Information</Text>
 
-                <Dropdown
-                    label="Route"
-                    items={routeOptions}
-                    value={formData.routeId}
-                    onChange={(value) => updateFormData("routeId", value)}
-                    placeholder="Select a route..."
-                    error={errors.routeId}
-                    searchable
-                    required
-                />
+                    <Dropdown
+                        label="Route"
+                        items={routeOptions}
+                        value={formData.routeId}
+                        onChange={(value) => updateFormData("routeId", value)}
+                        placeholder="Select a route..."
+                        error={errors.routeId}
+                        searchable
+                        required
+                    />
 
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Date *</Text>
-                    <View style={[styles.inputContainer, errors.date && styles.inputError]}>
-                        <Calendar size={20} color={colors.primary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            value={formData.date}
-                            onChangeText={(value) => updateFormData("date", value)}
-                            placeholder="YYYY-MM-DD"
-                            placeholderTextColor={colors.textSecondary}
-                        />
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Date *</Text>
+                        <View style={[styles.inputContainer, errors.date && styles.inputError]}>
+                            <Calendar size={20} color={colors.primary} style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={formData.date}
+                                onChangeText={(value) => updateFormData("date", value)}
+                                placeholder="YYYY-MM-DD"
+                                placeholderTextColor={colors.textSecondary}
+                            />
+                        </View>
+                        {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
                     </View>
-                    {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Departure Time *</Text>
+                        <View style={[styles.inputContainer, errors.departureTime && styles.inputError]}>
+                            <Clock size={20} color={colors.primary} style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={formData.departureTime}
+                                onChangeText={(value) => updateFormData("departureTime", value)}
+                                placeholder="HH:MM"
+                                placeholderTextColor={colors.textSecondary}
+                            />
+                        </View>
+                        {errors.departureTime && <Text style={styles.errorText}>{errors.departureTime}</Text>}
+                    </View>
                 </View>
 
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Departure Time *</Text>
-                    <View style={[styles.inputContainer, errors.departureTime && styles.inputError]}>
-                        <Clock size={20} color={colors.primary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            value={formData.departureTime}
-                            onChangeText={(value) => updateFormData("departureTime", value)}
-                            placeholder="HH:MM"
-                            placeholderTextColor={colors.textSecondary}
-                        />
+                {/* Customer Selection */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Customer Information</Text>
+
+                    <Dropdown
+                        label="Customer"
+                        items={customerOptions}
+                        value={formData.customerId}
+                        onChange={(value) => updateFormData("customerId", value)}
+                        placeholder="Select a customer..."
+                        error={errors.customerId}
+                        searchable
+                        required
+                    />
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Number of Passengers *</Text>
+                        <View style={[styles.inputContainer, errors.passengers && styles.inputError]}>
+                            <Users size={20} color={colors.primary} style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={formData.passengers}
+                                onChangeText={(value) => updateFormData("passengers", value)}
+                                placeholder="1"
+                                keyboardType="numeric"
+                                placeholderTextColor={colors.textSecondary}
+                            />
+                        </View>
+                        {errors.passengers && <Text style={styles.errorText}>{errors.passengers}</Text>}
                     </View>
-                    {errors.departureTime && <Text style={styles.errorText}>{errors.departureTime}</Text>}
+                </View>
+
+                {/* Payment Information */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Payment Information</Text>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Total Amount *</Text>
+                        <View style={[styles.inputContainer, errors.totalAmount && styles.inputError]}>
+                            <CreditCard size={20} color={colors.primary} style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={formData.totalAmount}
+                                onChangeText={(value) => updateFormData("totalAmount", value)}
+                                placeholder="0.00"
+                                keyboardType="decimal-pad"
+                                placeholderTextColor={colors.textSecondary}
+                            />
+                        </View>
+                        {errors.totalAmount && <Text style={styles.errorText}>{errors.totalAmount}</Text>}
+                    </View>
+
+                    <Dropdown
+                        label="Payment Status"
+                        items={paymentStatusOptions}
+                        value={formData.paymentStatus}
+                        onChange={(value) => updateFormData("paymentStatus", value)}
+                        placeholder="Select payment status..."
+                    />
+
+                    <Dropdown
+                        label="Booking Status"
+                        items={statusOptions}
+                        value={formData.status}
+                        onChange={(value) => updateFormData("status", value)}
+                        placeholder="Select booking status..."
+                    />
+                </View>
+            </ScrollView>
+
+            {/* Enhanced Bottom Action Bar */}
+            <View style={styles.actionBar}>
+                <View style={styles.actionBarContent}>
+                    <Button
+                        title="Cancel"
+                        variant="outline"
+                        size="large"
+                        icon={<X size={20} color={colors.primary} />}
+                        onPress={handleCancel}
+                        style={styles.cancelButton}
+                    />
+                    <Button
+                        title="Create Booking"
+                        variant="primary"
+                        size="large"
+                        icon={<Save size={20} color="#FFFFFF" />}
+                        onPress={handleSave}
+                        loading={loading}
+                        disabled={loading}
+                        style={styles.saveButton}
+                    />
                 </View>
             </View>
-
-            {/* Customer Selection */}
-            <View style={styles.card}>
-                <Text style={styles.cardTitle}>Customer Information</Text>
-
-                <Dropdown
-                    label="Customer"
-                    items={customerOptions}
-                    value={formData.customerId}
-                    onChange={(value) => updateFormData("customerId", value)}
-                    placeholder="Select a customer..."
-                    error={errors.customerId}
-                    searchable
-                    required
-                />
-
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Number of Passengers *</Text>
-                    <View style={[styles.inputContainer, errors.passengers && styles.inputError]}>
-                        <Users size={20} color={colors.primary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            value={formData.passengers}
-                            onChangeText={(value) => updateFormData("passengers", value)}
-                            placeholder="1"
-                            keyboardType="numeric"
-                            placeholderTextColor={colors.textSecondary}
-                        />
-                    </View>
-                    {errors.passengers && <Text style={styles.errorText}>{errors.passengers}</Text>}
-                </View>
-            </View>
-
-            {/* Payment Information */}
-            <View style={styles.card}>
-                <Text style={styles.cardTitle}>Payment Information</Text>
-
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Total Amount *</Text>
-                    <View style={[styles.inputContainer, errors.totalAmount && styles.inputError]}>
-                        <CreditCard size={20} color={colors.primary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            value={formData.totalAmount}
-                            onChangeText={(value) => updateFormData("totalAmount", value)}
-                            placeholder="0.00"
-                            keyboardType="decimal-pad"
-                            placeholderTextColor={colors.textSecondary}
-                        />
-                    </View>
-                    {errors.totalAmount && <Text style={styles.errorText}>{errors.totalAmount}</Text>}
-                </View>
-
-                <Dropdown
-                    label="Payment Status"
-                    items={paymentStatusOptions}
-                    value={formData.paymentStatus}
-                    onChange={(value) => updateFormData("paymentStatus", value)}
-                    placeholder="Select payment status..."
-                />
-
-                <Dropdown
-                    label="Booking Status"
-                    items={statusOptions}
-                    value={formData.status}
-                    onChange={(value) => updateFormData("status", value)}
-                    placeholder="Select booking status..."
-                />
-            </View>
-        </ScrollView>
+        </View>
     );
 }
 
@@ -311,9 +326,12 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
+    scrollView: {
+        flex: 1,
+    },
     contentContainer: {
         padding: 16,
-        paddingBottom: 32,
+        paddingBottom: 100, // Space for action bar
     },
     card: {
         backgroundColor: colors.card,
@@ -367,5 +385,37 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: colors.danger,
         marginTop: 4,
+    },
+    // Enhanced Action Bar Styles
+    actionBar: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: colors.card,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    actionBarContent: {
+        flexDirection: "row",
+        gap: 12,
+        alignItems: "center",
+    },
+    cancelButton: {
+        flex: 1,
+        height: 48,
+        borderRadius: 12,
+    },
+    saveButton: {
+        flex: 2,
+        height: 48,
+        borderRadius: 12,
     },
 }); 

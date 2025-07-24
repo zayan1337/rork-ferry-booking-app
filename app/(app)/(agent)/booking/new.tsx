@@ -468,11 +468,27 @@ export default function AgentNewBookingScreen() {
           <RouteAndDateStep
             tripType={currentBooking.tripType}
             onTripTypeChange={setTripType}
-            availableRoutes={availableRoutes || []}
+            availableRoutes={(availableRoutes || []).map(route => ({
+              ...route,
+              name: `${route.fromIsland?.name || 'Unknown'} to ${route.toIsland?.name || 'Unknown'}`,
+              origin: route.fromIsland?.name || 'Unknown',
+              destination: route.toIsland?.name || 'Unknown',
+              from_island_id: route.fromIsland?.id || '',
+              to_island_id: route.toIsland?.id || '',
+              from_island: route.fromIsland,
+              to_island: route.toIsland,
+              distance: '0 km',
+              duration: route.duration || '0h 0m',
+              base_fare: route.baseFare,
+              status: 'active' as const,
+              description: '',
+              created_at: '',
+              updated_at: ''
+            })) as any}
             selectedRoute={currentBooking.route}
             selectedReturnRoute={currentBooking.returnRoute}
-            onRouteChange={setRoute}
-            onReturnRouteChange={setReturnRoute}
+            onRouteChange={setRoute as any}
+            onReturnRouteChange={setReturnRoute as any}
             departureDate={currentBooking.departureDate}
             returnDate={currentBooking.returnDate}
             onDepartureDateChange={setDepartureDate}
@@ -485,8 +501,24 @@ export default function AgentNewBookingScreen() {
       case 2:
         return (
           <TripSelectionStep
-            trips={trips || []}
-            returnTrips={returnTrips || []}
+            trips={(trips || []).map(trip => ({
+              ...trip,
+              estimated_duration: '00:00',
+              status: 'scheduled' as const,
+              booked_seats: 0,
+              fare_multiplier: 1,
+              created_at: '',
+              updated_at: ''
+            })) as any}
+            returnTrips={(returnTrips || []).map(trip => ({
+              ...trip,
+              estimated_duration: '00:00',
+              status: 'scheduled' as const,
+              booked_seats: 0,
+              fare_multiplier: 1,
+              created_at: '',
+              updated_at: ''
+            })) as any}
             selectedTrip={currentBooking.trip}
             selectedReturnTrip={currentBooking.returnTrip}
             onTripChange={setTrip}

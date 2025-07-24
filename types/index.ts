@@ -1,3 +1,13 @@
+// ============================================================================
+// MANAGEMENT TYPES - Consistent types for admin management  
+// ============================================================================
+// Import admin management types to avoid conflicts with legacy types
+import * as AdminManagement from './admin/management';
+export { AdminManagement };
+
+// ============================================================================
+// LEGACY USER TYPES
+// ============================================================================
 export type User = {
   id: string;
   fullName: string;
@@ -10,7 +20,8 @@ export type User = {
 export interface Island {
   id: string;
   name: string;
-  zone: 'A' | 'B';
+  zone: 'A' | 'B';  // Legacy field - will be removed after migration
+  zone_id?: string;  // New field - references zones table
 }
 
 export interface Route {
@@ -79,10 +90,80 @@ export type Booking = {
   isAgentBooking?: boolean;
 };
 
-export * from './components';
-export * from './auth';
-export * from './pages';
+// Base exports without conflicts
 export * from './database';
 export * from './store';
-export * from './booking';
 export * from './customer';
+export * from './components';
+
+// Admin types with explicit re-exports to avoid conflicts  
+export type {
+  Trip as AdminTrip,
+  Vessel as AdminVessel,
+  Route as AdminRoute,
+  User as AdminUser,
+  Booking as AdminBooking,
+  DashboardStats,
+  ActivityLog,
+  WalletTransaction
+} from './admin';
+
+// Auth types with explicit re-exports to avoid conflicts
+export type {
+  UserProfile as AuthUserProfile,
+  UserRole as AuthUserRole
+} from './auth';
+
+// Agent types
+export * from './agent';
+
+// Booking types with explicit re-exports to avoid conflicts
+export type {
+  Trip as BookingTrip,
+  Vessel as BookingVessel
+} from './booking';
+
+// Settings types with explicit re-exports to avoid conflicts - only export what exists
+export type {
+  Permission as SettingsPermission,
+  SystemSettings as SettingsSystemSettings,
+  SettingsStats,
+  SettingsActions
+} from './settings';
+
+// Operations types with aliases for conflicting names - only export what exists
+export type {
+  Trip as OperationsTrip,
+  Vessel as OperationsVessel,
+  Route as OperationsRoute,
+  RouteFormData,
+  VesselFormData,
+  TripFormData,
+  RouteValidationErrors,
+  VesselValidationErrors,
+  TripValidationErrors,
+  RouteStats,
+  VesselStats,
+  TripStats
+} from './operations';
+
+// Export the Route status type as RouteStatus
+export type RouteStatus = "active" | "inactive" | "maintenance";
+
+// User management types with aliases for conflicting names - only export what exists
+export type {
+  UserProfile as UserManagementProfile,
+  UserRole as UserManagementRole,
+  Permission as UserManagementPermission,
+  UserFormData,
+  UserValidationErrors,
+  UserStats,
+  UserActivity as UserManagementActivity,
+  UserSession
+} from './userManagement';
+
+// New dashboard, bookings, and operations types
+export * from './admin/dashboard';
+
+// Content management types
+export * from './content';

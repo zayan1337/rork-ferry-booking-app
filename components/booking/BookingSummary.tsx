@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import { formatCurrency } from '@/utils/agentFormatters';
@@ -20,7 +20,7 @@ interface BookingSummaryData {
 interface BookingSummaryProps {
   summary: BookingSummaryData;
   title?: string;
-  style?: any;
+  style?: ViewStyle;
 }
 
 const BookingSummary: React.FC<BookingSummaryProps> = ({
@@ -29,7 +29,7 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
   style,
 }) => {
   return (
-    <Card variant="elevated" style={[styles.container, style]}>
+    <Card variant="elevated" style={StyleSheet.flatten([styles.container, style])}>
       <Text style={styles.title}>{title}</Text>
 
       <View style={styles.row}>

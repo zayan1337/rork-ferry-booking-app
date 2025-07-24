@@ -18,20 +18,20 @@ interface PaymentStepProps {
   selectedSeats: Seat[];
   selectedReturnSeats: Seat[];
   passengers: Passenger[];
-  
+
   // Fare calculation
   totalFare: number;
   discountedFare?: number;
   agent: any;
-  
+
   // Payment method
   paymentMethod: string | null;
   onPaymentMethodChange: (method: string) => void;
-  
+
   // Terms acceptance
   termsAccepted: boolean;
   onTermsToggle: () => void;
-  
+
   // Validation
   errors: {
     paymentMethod?: string;
@@ -63,21 +63,21 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   const summaryData = {
     clientName: client?.name || 'N/A',
     tripType: tripType === 'one_way' ? 'One Way' : 'Round Trip',
-    routeDisplay: route 
-      ? `${route.fromIsland?.name || 'Unknown'} → ${route.toIsland?.name || 'Unknown'}`
+    routeDisplay: route
+      ? `${route.from_island?.name || 'Unknown'} → ${route.to_island?.name || 'Unknown'}`
       : 'N/A',
-    returnRouteDisplay: returnRoute 
-      ? `${returnRoute.fromIsland?.name || 'Unknown'} → ${returnRoute.toIsland?.name || 'Unknown'}`
+    returnRouteDisplay: returnRoute
+      ? `${returnRoute.from_island?.name || 'Unknown'} → ${returnRoute.to_island?.name || 'Unknown'}`
       : null,
-    departureDate: departureDate 
+    departureDate: departureDate
       ? new Date(departureDate).toLocaleDateString()
       : 'N/A',
-    returnDate: returnDate 
+    returnDate: returnDate
       ? new Date(returnDate).toLocaleDateString()
       : null,
     passengerCount: String(passengers?.length || 0),
     seatNumbers: selectedSeats?.map(seat => seat.number).join(', ') || 'None',
-    returnSeatNumbers: selectedReturnSeats?.length > 0 
+    returnSeatNumbers: selectedReturnSeats?.length > 0
       ? selectedReturnSeats.map(seat => seat.number).join(', ')
       : null,
   };
@@ -181,7 +181,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
       {/* Payment Method Selection */}
       <Dropdown
         label="Payment Method"
-        items={AGENT_PAYMENT_OPTIONS}
+        items={[...AGENT_PAYMENT_OPTIONS]}
         value={paymentMethod || ''}
         onChange={handlePaymentMethodChange}
         placeholder="Select payment method"

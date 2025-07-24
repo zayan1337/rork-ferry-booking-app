@@ -5,8 +5,9 @@ import { colors } from "@/constants/adminColors";
 type StatusType =
   | "confirmed" | "pending" | "cancelled" | "completed"
   | "paid" | "refunded" | "failed"
-  | "active" | "inactive" | "suspended" | "maintenance"
-  | "scheduled" | "in-progress";
+  | "active" | "inactive" | "suspended" | "banned" | "maintenance"
+  | "scheduled" | "in-progress"
+  | "reserved" | "pending_payment" | "checked_in"; // Added booking-specific statuses
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -26,6 +27,7 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
             text: "#2E7D32",
           };
         case "pending":
+        case "pending_payment":
           return {
             bg: "#FFF3E0",
             text: "#F57C00",
@@ -48,28 +50,45 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
     switch (status) {
       case "confirmed":
       case "completed":
-      case "paid":
+      case "checked_in":
+        return {
+          bg: "#E8F5E8",
+          text: "#2E7D32",
+        };
+      case "pending":
+      case "pending_payment":
+      case "reserved":
+        return {
+          bg: "#FFF3E0",
+          text: "#F57C00",
+        };
+      case "cancelled":
+        return {
+          bg: "#FFEBEE",
+          text: "#C62828",
+        };
       case "active":
       case "scheduled":
         return {
-          bg: "#E3F9E5",
-          text: "#34C759",
+          bg: "#E3F2FD",
+          text: "#1976D2",
         };
-      case "pending":
-      case "in-progress":
-        return {
-          bg: "#FFF9E6",
-          text: "#FF9500",
-        };
-      case "cancelled":
-      case "refunded":
       case "inactive":
       case "suspended":
-      case "maintenance":
-      case "failed":
+      case "banned":
         return {
-          bg: "#FFE5E5",
-          text: "#FF3B30",
+          bg: "#F3E5F5",
+          text: "#7B1FA2",
+        };
+      case "maintenance":
+        return {
+          bg: "#FFF8E1",
+          text: "#F57F17",
+        };
+      case "in-progress":
+        return {
+          bg: "#E8F5E8",
+          text: "#388E3C",
         };
       default:
         return {
@@ -79,16 +98,38 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
     }
   };
 
-  const { bg, text } = getStatusColor();
-  const isSmall = size === "small";
-
   const formatStatusText = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1).replace("-", " ");
+    return status
+      .split(/[-_]/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   };
 
+  const statusStyle = getStatusColor();
+  const textSize = size === "small" ? 11 : 12;
+  const paddingVertical = size === "small" ? 4 : 6;
+  const paddingHorizontal = size === "small" ? 8 : 12;
+
   return (
-    <View style={[styles.badge, { backgroundColor: bg }, isSmall && styles.smallBadge]}>
-      <Text style={[styles.text, { color: text }, isSmall && styles.smallText]}>
+    <View
+      style={[
+        styles.badge,
+        {
+          backgroundColor: statusStyle.bg,
+          paddingVertical,
+          paddingHorizontal,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.badgeText,
+          {
+            color: statusStyle.text,
+            fontSize: textSize,
+          },
+        ]}
+      >
         {formatStatusText(status)}
       </Text>
     </View>
@@ -97,23 +138,11 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 16,
     alignSelf: "flex-start",
   },
-  smallBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  text: {
-    fontSize: 14,
+  badgeText: {
     fontWeight: "600",
-    lineHeight: 16,
-  },
-  smallText: {
-    fontSize: 12,
-    lineHeight: 14,
+    textAlign: "center",
   },
 });
