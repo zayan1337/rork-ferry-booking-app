@@ -55,6 +55,157 @@ export interface StatsBase {
 }
 
 // ============================================================================
+// PERMISSION TYPES
+// ============================================================================
+
+export type PermissionLevel = 'read' | 'write' | 'delete' | 'admin';
+export type PermissionResource = 'dashboard' | 'bookings' | 'routes' | 'trips' | 'vessels' | 'islands' | 'zones' | 'faq' | 'content' | 'users' | 'agents' | 'passengers' | 'wallets' | 'payments' | 'notifications' | 'bulk_messages' | 'reports' | 'settings' | 'permissions' | 'activity_logs';
+export type PermissionAction = 'view' | 'create' | 'update' | 'delete' | 'manage' | 'export' | 'cancel' | 'send';
+
+export interface Permission extends BaseEntity, ActivatableEntity {
+    name: string;
+    description: string;
+    resource: PermissionResource;
+    action: PermissionAction;
+    level: PermissionLevel;
+    category_id: string;
+    dependencies?: string[];
+    is_critical: boolean;
+    category_name?: string;
+}
+
+export interface PermissionCategory extends BaseEntity, NamedEntity, OrderableEntity, ActivatableEntity {
+    description?: string;
+    total_permissions?: number;
+    active_permissions?: number;
+    permissions?: Permission[];
+}
+
+export interface RoleTemplate extends BaseEntity, NamedEntity, ActivatableEntity {
+    description?: string;
+    is_system_role: boolean;
+    permission_count?: number;
+    permission_ids?: string[];
+}
+
+export interface UserPermission extends BaseEntity {
+    user_id: string;
+    permission_id: string;
+    granted_by: string;
+    granted_at: string;
+    expires_at?: string;
+    is_active: boolean;
+    notes?: string;
+}
+
+export interface AdminUser extends BaseEntity, NamedEntity, ActivatableEntity {
+    full_name: string;
+    email: string;
+    role: string;
+    is_super_admin: boolean;
+    last_login?: string;
+    direct_permissions?: string[];
+    active_permission_count?: number;
+}
+
+export interface PermissionFormData {
+    name: string;
+    description: string;
+    resource: PermissionResource;
+    action: PermissionAction;
+    level: PermissionLevel;
+    category_id: string;
+    dependencies?: string[];
+    is_critical: boolean;
+    is_active: boolean;
+}
+
+export interface PermissionCategoryFormData {
+    name: string;
+    description?: string;
+    order_index: number;
+    is_active: boolean;
+}
+
+export interface RoleTemplateFormData {
+    name: string;
+    description?: string;
+    is_system_role: boolean;
+    is_active: boolean;
+    permission_ids: string[];
+}
+
+export interface PermissionStats extends StatsBase {
+    totalCategories: number;
+    totalRoleTemplates: number;
+    totalAdminUsers: number;
+    usersWithPermissions: number;
+    recentPermissionChanges: number;
+}
+
+export interface PermissionFilters extends SearchFilters {
+    category_id?: string;
+    level?: PermissionLevel;
+    resource?: PermissionResource;
+}
+
+export interface PermissionWithDetails extends Permission {
+    category?: PermissionCategory;
+    dependent_permissions?: Permission[];
+}
+
+// ============================================================================
+// PERMISSION STORE INTERFACES (Following existing patterns)
+// ============================================================================
+
+export interface PermissionStoreState extends BaseStoreState<Permission>, FilterableStoreState<Permission, PermissionFilters>, StatsStoreState<PermissionStats> {
+    // Related data
+    categories: PermissionCategory[];
+    roleTemplates: RoleTemplate[];
+    adminUsers: AdminUser[];
+    userPermissions: UserPermission[];
+
+    // Computed data
+    filteredPermissions: Permission[];
+    sortedPermissions: Permission[];
+
+    // Sort configuration
+    sortBy: 'name' | 'level' | 'resource' | 'created_at';
+    sortOrder: 'asc' | 'desc';
+}
+
+export interface PermissionStoreActions extends BaseCrudActions<Permission, PermissionFormData>, SearchableActions<Permission> {
+    // Permission-specific actions
+    fetchCategories: () => Promise<void>;
+    fetchRoleTemplates: () => Promise<void>;
+    fetchAdminUsers: () => Promise<void>;
+    fetchUserPermissions: (userId: string) => Promise<void>;
+
+    // Permission management
+    grantPermission: (userId: string, permissionId: string, grantedBy: string) => Promise<void>;
+    revokePermission: (userId: string, permissionId: string) => Promise<void>;
+    updateUserPermissions: (userId: string, permissionIds: string[], grantedBy: string) => Promise<void>;
+
+    // Role template management
+    applyRoleTemplate: (userId: string, roleTemplateId: string, grantedBy: string) => Promise<void>;
+    createRoleTemplate: (roleTemplate: RoleTemplateFormData) => Promise<void>;
+
+    // Utility functions
+    getUserPermissions: (userId: string) => string[];
+    hasPermission: (userId: string, resource: string, action: string) => boolean;
+
+    // Sort actions
+    setSortBy: (sortBy: 'name' | 'level' | 'resource' | 'created_at') => void;
+    setSortOrder: (order: 'asc' | 'desc') => void;
+
+    // Filter actions
+    setFilters: (filters: Partial<PermissionFilters>) => void;
+
+    // Statistics calculation
+    calculateStats: () => void;
+}
+
+// ============================================================================
 // FAQ TYPES
 // ============================================================================
 

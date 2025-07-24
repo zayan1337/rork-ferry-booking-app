@@ -206,19 +206,7 @@ export default function SettingsScreen() {
     const renderTabContent = () => {
         switch (activeTab) {
             case "permissions":
-                return (
-                    <PermissionsTab
-                        permissionView={permissionView}
-                        setPermissionView={setPermissionView}
-                        adminUsers={adminUsers}
-                        roleTemplates={roleTemplates}
-                        permissionCategories={permissionCategories}
-                        availablePermissions={availablePermissions}
-                        filteredData={filteredData}
-                        stats={stats}
-                        onDeleteRole={handleDeleteRole}
-                    />
-                );
+                return <PermissionsTab />;
 
             case "alerts":
                 return (
