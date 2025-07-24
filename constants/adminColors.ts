@@ -14,6 +14,8 @@ export const colors = {
     errorLight: "#FFEBEA",
     info: "#007AFF",
     infoLight: "#E5F2FF",
+    purple: "#8B5CF6",
+    purpleLight: "#EDE9FE",
     text: "#1C1C1E",
     textSecondary: "#8E8E93",
     textTertiary: "#C7C7CC",
@@ -29,6 +31,7 @@ export const colors = {
     shadowStrong: "rgba(0, 0, 0, 0.15)",
     white: "#FFFFFF",
     black: "#000000",
+    gray: "#6B7280",
     overlay: "rgba(0, 0, 0, 0.5)",
 };
 

@@ -15,15 +15,15 @@ export function useSettingsData() {
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState<SettingsTab>("permissions");
-    const [permissionView, setPermissionView] = useState<PermissionView>("users");
+    const [permissionView, setPermissionView] = useState<PermissionView>("overview");
     const [selectedTimeframe, setSelectedTimeframe] = useState<"24h" | "7d" | "30d">("7d");
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
     const [selectedRole, setSelectedRole] = useState<any>(null);
     const [newRole, setNewRole] = useState<NewRole>({ name: "", description: "", permissions: [] });
     const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({});
 
-    // Mock admin users data
-    const adminUsers = useMemo(() => [
+    // Static admin users data - moved outside useMemo to prevent recreation
+    const adminUsers = [
         {
             id: "1",
             name: "John Admin",
@@ -74,10 +74,10 @@ export function useSettingsData() {
             created_at: "2023-10-12T09:45:00Z",
             permissions: ["system_view", "system_logs", "vessels_view", "trips_monitor", "bookings_view"]
         }
-    ], []);
+    ];
 
-    // Enhanced permission categories and permissions
-    const permissionCategories = useMemo(() => [
+    // Static permission categories and permissions - moved outside useMemo to prevent recreation
+    const permissionCategories = [
         {
             id: "user_management",
             name: "User Management",
@@ -158,10 +158,10 @@ export function useSettingsData() {
                 { id: "communication_reports", name: "Communication Reports", description: "View communication analytics", level: "read" as const }
             ]
         }
-    ], []);
+    ];
 
-    // Predefined role templates
-    const roleTemplates = useMemo(() => [
+    // Static role templates - moved outside useMemo to prevent recreation
+    const roleTemplates = [
         {
             id: "super_admin",
             name: "Super Administrator",
@@ -215,17 +215,16 @@ export function useSettingsData() {
             ],
             isSystemRole: true
         }
-    ], [permissionCategories]);
+    ];
 
-    // Flatten all permissions for easy access
-    const availablePermissions = useMemo(() =>
-        permissionCategories.flatMap(category =>
-            category.permissions.map(permission => ({
-                ...permission,
-                categoryId: category.id,
-                categoryName: category.name
-            }))
-        ), [permissionCategories]);
+    // Static flattened permissions - moved outside useMemo to prevent recreation
+    const availablePermissions = permissionCategories.flatMap(category =>
+        category.permissions.map(permission => ({
+            ...permission,
+            categoryId: category.id,
+            categoryName: category.name
+        }))
+    );
 
     return {
         // State

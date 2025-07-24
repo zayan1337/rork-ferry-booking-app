@@ -48,7 +48,7 @@ import {
 import {
     SystemSettingsModal,
 } from "@/components/admin/settings/modals";
-import { SettingsTab } from "@/types/settings";
+import { SettingsTab, PermissionView } from "@/types/settings";
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -121,7 +121,7 @@ export default function SettingsScreen() {
         activityLogs,
         selectedTimeframe,
         systemSettings
-    ), [adminUsers, permissionCategories, roleTemplates, alerts, activityLogs, selectedTimeframe, systemSettings]);
+    ), [alerts.length, activityLogs.length, selectedTimeframe, systemSettings]); // Use stable dependencies
 
     // Filter data based on search and active tab - memoized to prevent unnecessary filtering
     const filteredData = useMemo(() => filterSettingsData(
@@ -130,7 +130,7 @@ export default function SettingsScreen() {
         alerts,
         activityLogs,
         adminUsers
-    ), [activeTab, searchQuery, alerts, activityLogs, adminUsers]);
+    ), [activeTab, searchQuery, alerts.length, activityLogs.length]); // Use stable dependencies
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -143,8 +143,8 @@ export default function SettingsScreen() {
         }
     };
 
-    // Memoized tab data to prevent unnecessary re-renders
-    const tabsData = useMemo(() => [
+    // Static tab data to prevent unnecessary re-renders
+    const tabsData = [
         {
             key: "permissions",
             label: "Permissions",
@@ -199,7 +199,7 @@ export default function SettingsScreen() {
             icon: Settings,
             category: "Administration"
         },
-    ], []);
+    ];
 
 
 
@@ -210,13 +210,7 @@ export default function SettingsScreen() {
                     <PermissionsTab
                         permissionView={permissionView}
                         setPermissionView={setPermissionView}
-                        adminUsers={adminUsers}
-                        roleTemplates={roleTemplates}
-                        permissionCategories={permissionCategories}
-                        availablePermissions={availablePermissions}
-                        filteredData={filteredData}
-                        stats={stats}
-                        onDeleteRole={handleDeleteRole}
+                        searchQuery={searchQuery}
                     />
                 );
 
@@ -303,7 +297,7 @@ export default function SettingsScreen() {
     };
 
     // Tabs that use FlatList internally and should not be wrapped in ScrollView
-    const flatListTabs = ['islands', 'zones', 'faq', 'content'];
+    const flatListTabs = ['islands', 'zones', 'faq', 'content', 'permissions'];
     const useScrollView = !flatListTabs.includes(activeTab);
 
     // Optimized scroll to active tab - only when tab changes and user isn't manually scrolling
@@ -332,7 +326,7 @@ export default function SettingsScreen() {
         } else {
             setTimeout(scrollAction, 100);
         }
-    }, [activeTab, tabsData, currentScrollX, isUserScrolling, screenWidth]);
+    }, [activeTab, currentScrollX, isUserScrolling, screenWidth]); // Removed tabsData dependency
 
     // Only scroll when activeTab changes, not on every re-render
     useEffect(() => {
@@ -390,7 +384,7 @@ export default function SettingsScreen() {
                 })}
             </ScrollView>
         </View>
-    ), [activeTab, tabsData]); // Only re-render when activeTab changes
+    ), [activeTab]); // Only re-render when activeTab changes
 
     const SearchBarComponent = useMemo(() => {
         const showSearch = ["permissions", "alerts", "activity", "islands", "zones", "faq", "content"].includes(activeTab);
@@ -411,7 +405,7 @@ export default function SettingsScreen() {
             {TabNavigation}
             {SearchBarComponent}
         </View>
-    ), [TabNavigation, SearchBarComponent, screenWidth]);
+    ), [activeTab, searchQuery, screenWidth]); // Use primitive dependencies
 
     return (
         <>

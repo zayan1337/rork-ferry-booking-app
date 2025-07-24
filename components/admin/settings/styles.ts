@@ -785,6 +785,249 @@ export const styles = StyleSheet.create({
         maxWidth: 250,
     },
 
+    // Permissions Tab Specific Styles
+    permissionsContainer: {
+        flex: 1,
+        backgroundColor: colors.backgroundSecondary,
+    },
+    errorContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.danger + "15",
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+        gap: 8,
+    },
+    errorText: {
+        flex: 1,
+        fontSize: 14,
+        color: colors.danger,
+        fontWeight: "500",
+    },
+    navigationContainer: {
+        marginBottom: 20,
+    },
+    navigationTabs: {
+        flexDirection: "row",
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 4,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    navigationTab: {
+        flex: 1,
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        gap: 4,
+    },
+    navigationTabActive: {
+        backgroundColor: colors.primary + "15",
+    },
+    navigationTabText: {
+        fontSize: 12,
+        fontWeight: "500",
+        color: colors.textSecondary,
+    },
+    navigationTabTextActive: {
+        color: colors.primary,
+        fontWeight: "600",
+    },
+    overviewContainer: {
+        flex: 1,
+    },
+    categoriesGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 12,
+        marginBottom: 24,
+    },
+    categoryCard: {
+        flex: 1,
+        minWidth: "48%",
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        alignItems: "center",
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    categoryIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: colors.primary + "15",
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 12,
+    },
+    categoryCount: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        marginTop: 4,
+    },
+    activityContainer: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    activityText: {
+        fontSize: 14,
+        color: colors.text,
+        marginLeft: 8,
+    },
+
+    // Permission list styles
+    listContainer: {
+        gap: 12,
+    },
+    userCard: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    userHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    userInfo: {
+        flex: 1,
+        marginLeft: 12,
+    },
+    userActions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    userPermissions: {
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: colors.border + "30",
+    },
+    userPermissionsLabel: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 8,
+    },
+    userPermissionsList: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 6,
+    },
+    userPermissionTag: {
+        backgroundColor: colors.background,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: colors.border + "30",
+    },
+    userPermissionTagText: {
+        fontSize: 10,
+        fontWeight: "500",
+        color: colors.text,
+    },
+
+    // Permission card styles
+    permissionCard: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    permissionHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    permissionIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.primary + "15",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 12,
+    },
+    permissionInfo: {
+        flex: 1,
+    },
+    permissionName: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 2,
+    },
+    permissionDescription: {
+        fontSize: 12,
+        color: colors.textSecondary,
+    },
+    permissionBadge: {
+        alignItems: "flex-end",
+    },
+    permissionLevel: {
+        fontSize: 10,
+        fontWeight: "700",
+    },
+    permissionMeta: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginTop: 8,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: colors.border + "30",
+    },
+    permissionResource: {
+        fontSize: 11,
+        color: colors.textSecondary,
+    },
+    permissionCategory: {
+        fontSize: 11,
+        color: colors.textSecondary,
+    },
+
+    // Roles container styles
+    rolesContainer: {
+        gap: 16,
+    },
+    roleStats: {
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: colors.border + "30",
+    },
+    roleStatsText: {
+        fontSize: 12,
+        color: colors.textSecondary,
+    },
+
     // Modal styles (will be used in modal components)
     modalOverlay: {
         flex: 1,

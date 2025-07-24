@@ -1,6 +1,6 @@
 export type SettingsTab = "permissions" | "alerts" | "activity" | "system" | "reports" | "islands" | "zones" | "faq" | "content";
 
-export type PermissionView = "users" | "roles" | "permissions";
+export type PermissionView = 'overview' | 'users' | 'permissions' | 'roles' | 'templates' | 'audit' | 'bulk';
 
 export type PermissionLevel = "read" | "write" | "delete" | "admin";
 
