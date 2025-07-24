@@ -19,6 +19,8 @@ create index IF not exists idx_activity_logs_user_id on public.activity_logs usi
 
 create index IF not exists idx_activity_logs_created_at on public.activity_logs using btree (created_at) TABLESPACE pg_default;
 
+create index IF not exists idx_activity_logs_created_at_desc on public.activity_logs using btree (created_at desc) TABLESPACE pg_default;
+
 create index IF not exists idx_activity_logs_user_action_date on public.activity_logs using btree (user_id, action, created_at) TABLESPACE pg_default;
 
 create index IF not exists idx_activity_logs_entity on public.activity_logs using btree (entity_type, entity_id) TABLESPACE pg_default
@@ -52,7 +54,7 @@ from
   activity_logs al
   left join user_profiles up on al.user_id = up.id;
 
-  create view public.admin_bookings_view as
+create view public.admin_bookings_view as
 select
   b.id,
   b.booking_number,
@@ -104,8 +106,7 @@ from
   left join user_profiles agent on b.agent_id = agent.id
   left join payments p on b.id = p.booking_id;
 
-
-  create table public.admin_cache_stats (
+create table public.admin_cache_stats (
   cache_key character varying(100) not null,
   cache_value jsonb not null,
   cache_type character varying(50) null default 'general'::character varying,
@@ -180,7 +181,6 @@ select
 from
   bookings b;
 
-
 create table public.admin_notifications (
   id uuid not null default gen_random_uuid (),
   recipient_id uuid null,
@@ -210,7 +210,6 @@ where
 create index IF not exists idx_admin_notifications_priority on public.admin_notifications using btree (priority, created_at) TABLESPACE pg_default
 where
   (is_read = false);
-
 
 create view public.admin_operations_overview as
 select
@@ -322,6 +321,97 @@ select
       join vessels v on trip_stats.vessel_id = v.id
   ) as avg_occupancy_7d;
 
+  create view public.admin_users_permissions_view as
+select
+  up.id,
+  up.full_name,
+  up.email,
+  up.role,
+  up.is_super_admin,
+  up.is_active,
+  up.last_login,
+  up.created_at,
+  up.updated_at,
+  COALESCE(
+    json_agg(
+      distinct jsonb_build_object(
+        'id',
+        p.id,
+        'name',
+        p.name,
+        'description',
+        p.description,
+        'resource',
+        p.resource,
+        'action',
+        p.action,
+        'source',
+        'individual',
+        'granted_by',
+        granter.full_name,
+        'granted_at',
+        user_perms.granted_at,
+        'expires_at',
+        user_perms.expires_at,
+        'is_active',
+        user_perms.is_active
+      )
+    ) filter (
+      where
+        p.id is not null
+    ),
+    '[]'::json
+  ) as individual_permissions,
+  COALESCE(
+    json_agg(
+      distinct jsonb_build_object(
+        'id',
+        rp.id,
+        'name',
+        rp.name,
+        'description',
+        rp.description,
+        'resource',
+        rp.resource,
+        'action',
+        rp.action,
+        'source',
+        'role'
+      )
+    ) filter (
+      where
+        rp.id is not null
+    ),
+    '[]'::json
+  ) as role_permissions,
+  count(distinct user_perms.permission_id) as individual_permission_count,
+  count(distinct role_perms.permission_id) as role_permission_count,
+  count(
+    distinct COALESCE(
+      user_perms.permission_id,
+      role_perms.permission_id
+    )
+  ) as total_permission_count,
+  max(user_perms.granted_at) as last_permission_change
+from
+  user_profiles up
+  left join user_permissions user_perms on up.id = user_perms.user_id
+  left join permissions p on user_perms.permission_id = p.id
+  left join user_profiles granter on user_perms.granted_by = granter.id
+  left join role_permissions role_perms on up.role = role_perms.role
+  left join permissions rp on role_perms.permission_id = rp.id
+where
+  up.role = 'admin'::user_role
+group by
+  up.id,
+  up.full_name,
+  up.email,
+  up.role,
+  up.is_super_admin,
+  up.is_active,
+  up.last_login,
+  up.created_at,
+  up.updated_at;
 
 create table public.admin_report_queue (
   id uuid not null default gen_random_uuid (),
@@ -344,7 +434,6 @@ create table public.admin_report_queue (
 create index IF not exists idx_admin_report_queue_status on public.admin_report_queue using btree (status, priority, created_at) TABLESPACE pg_default;
 
 create index IF not exists idx_admin_report_queue_user on public.admin_report_queue using btree (requested_by, created_at) TABLESPACE pg_default;
-
 
 create table public.admin_settings (
   id uuid not null default gen_random_uuid (),
@@ -509,7 +598,6 @@ from
       bookings.agent_id
   ) agent_stats on up.id = agent_stats.agent_id;
 
-
 create table public.agent_clients (
   id uuid not null default gen_random_uuid (),
   agent_id uuid not null,
@@ -549,8 +637,6 @@ create unique INDEX IF not exists idx_agent_client_without_account on public.age
 where
   (client_id is null);
 
-
-
 create view public.agent_clients_with_details as
 select
   ac.id,
@@ -572,7 +658,6 @@ from
   agent_clients ac
   left join user_profiles up on ac.client_id = up.id;
 
-
 create table public.agent_credit_transactions (
   id uuid not null default gen_random_uuid (),
   agent_id uuid not null,
@@ -593,7 +678,6 @@ create index IF not exists idx_agent_credit_transactions_agent_id on public.agen
 create index IF not exists idx_agent_credit_transactions_booking_id on public.agent_credit_transactions using btree (booking_id) TABLESPACE pg_default
 where
   (booking_id is not null);
-
 
 create table public.agent_rates (
   id uuid not null default gen_random_uuid (),
@@ -734,6 +818,12 @@ create index IF not exists idx_bookings_round_trip_group on public.bookings usin
 where
   (round_trip_group_id is not null);
 
+create index IF not exists idx_bookings_trip_date_status on public.bookings using btree (trip_id, created_at, status) TABLESPACE pg_default;
+
+create index IF not exists idx_bookings_created_at on public.bookings using btree (created_at) TABLESPACE pg_default
+where
+  (created_at is not null);
+
 create trigger audit_bookings_trigger
 after INSERT
 or DELETE
@@ -792,7 +882,6 @@ create table public.check_ins (
   constraint check_ins_booking_id_fkey foreign KEY (booking_id) references bookings (id),
   constraint check_ins_checked_in_by_fkey foreign KEY (checked_in_by) references auth.users (id)
 ) TABLESPACE pg_default;
-
 
 create materialized view public.content_dashboard_stats as
 select
@@ -909,7 +998,7 @@ select
   ) as recent_translations,
   CURRENT_TIMESTAMP as last_updated;
 
-  create view public.content_management_summary as
+create view public.content_management_summary as
 select
   'terms'::text as content_type,
   count(*) as total_count,
@@ -1025,7 +1114,7 @@ order by
   fc.order_index,
   fc.name;
 
-  create table public.faqs (
+create table public.faqs (
   id uuid not null default gen_random_uuid (),
   category_id uuid not null,
   question text not null,
@@ -1126,7 +1215,6 @@ select
 from
   islands i
   left join zones z on i.zone_id = z.id;
-
 
 create table public.manifest_passengers (
   id uuid not null default gen_random_uuid (),
@@ -1542,6 +1630,90 @@ create index IF not exists idx_payments_status_created_at on public.payments usi
 
 create index IF not exists idx_payments_booking_status_date on public.payments using btree (booking_id, status, created_at) TABLESPACE pg_default;
 
+create table public.permission_audit_log (
+  id uuid not null default gen_random_uuid (),
+  action_type character varying(20) not null,
+  entity_type character varying(20) not null,
+  entity_id uuid not null,
+  permission_id uuid null,
+  target_user_id uuid null,
+  target_role public.user_role null,
+  old_values jsonb null,
+  new_values jsonb null,
+  performed_by uuid not null,
+  performed_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  ip_address inet null,
+  user_agent text null,
+  reason text null,
+  constraint permission_audit_log_pkey primary key (id),
+  constraint permission_audit_log_performed_by_fkey foreign KEY (performed_by) references user_profiles (id),
+  constraint permission_audit_log_permission_fkey foreign KEY (permission_id) references permissions (id),
+  constraint permission_audit_log_target_user_fkey foreign KEY (target_user_id) references user_profiles (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_audit_log_performed_by on public.permission_audit_log using btree (performed_by) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_audit_log_performed_at on public.permission_audit_log using btree (performed_at desc) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_audit_log_entity on public.permission_audit_log using btree (entity_type, entity_id) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_audit_log_target_user on public.permission_audit_log using btree (target_user_id) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_audit_log_action_type on public.permission_audit_log using btree (action_type, performed_at desc) TABLESPACE pg_default;
+
+create table public.permission_inheritance (
+  id uuid not null default gen_random_uuid (),
+  parent_permission_id uuid not null,
+  child_permission_id uuid not null,
+  inheritance_type character varying(20) not null default 'IMPLIES'::character varying,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint permission_inheritance_pkey primary key (id),
+  constraint permission_inheritance_unique unique (parent_permission_id, child_permission_id),
+  constraint permission_inheritance_child_fkey foreign KEY (child_permission_id) references permissions (id) on delete CASCADE,
+  constraint permission_inheritance_parent_fkey foreign KEY (parent_permission_id) references permissions (id) on delete CASCADE,
+  constraint permission_inheritance_not_self check ((parent_permission_id <> child_permission_id))
+) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_inheritance_parent on public.permission_inheritance using btree (parent_permission_id) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_inheritance_child on public.permission_inheritance using btree (child_permission_id) TABLESPACE pg_default;
+
+
+
+create table public.permission_template_permissions (
+  id uuid not null default gen_random_uuid (),
+  template_id uuid not null,
+  permission_id uuid not null,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint permission_template_permissions_pkey primary key (id),
+  constraint permission_template_permissions_unique unique (template_id, permission_id),
+  constraint permission_template_permissions_permission_fkey foreign KEY (permission_id) references permissions (id) on delete CASCADE,
+  constraint permission_template_permissions_template_fkey foreign KEY (template_id) references permission_templates (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_template_permissions_template on public.permission_template_permissions using btree (template_id) TABLESPACE pg_default;
+
+
+create table public.permission_templates (
+  id uuid not null default gen_random_uuid (),
+  name character varying(100) not null,
+  description text null,
+  color character varying(7) null default '#2563EB'::character varying,
+  is_system_template boolean not null default false,
+  is_active boolean not null default true,
+  created_by uuid null,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint permission_templates_pkey primary key (id),
+  constraint permission_templates_name_key unique (name),
+  constraint permission_templates_created_by_fkey foreign KEY (created_by) references user_profiles (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_templates_active on public.permission_templates using btree (is_active, name) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_templates_system on public.permission_templates using btree (is_system_template, is_active) TABLESPACE pg_default;
+
+
 create table public.permissions (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
@@ -1552,6 +1724,17 @@ create table public.permissions (
   constraint permissions_pkey primary key (id),
   constraint permissions_name_key unique (name)
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_permissions_resource_action on public.permissions using btree (resource, action) TABLESPACE pg_default;
+
+create index IF not exists idx_permissions_resource_action_combined_safe on public.permissions using btree (resource, action) TABLESPACE pg_default;
+
+create trigger audit_permissions_trigger
+after INSERT
+or DELETE
+or
+update on permissions for EACH row
+execute FUNCTION log_permission_audit_trail ();
 
 create table public.promotion_routes (
   id uuid not null default gen_random_uuid (),
@@ -1649,8 +1832,6 @@ order by
   start_date desc,
   created_at desc;
 
-
-
 create view public.recent_activity_view as
 select
   'booking_created'::text as activity_type,
@@ -1714,7 +1895,6 @@ order by
 limit
   50;
 
-
 create table public.reports (
   id uuid not null default gen_random_uuid (),
   report_type public.report_type not null,
@@ -1742,6 +1922,21 @@ create table public.role_permissions (
   constraint role_permissions_role_permission_id_key unique (role, permission_id),
   constraint role_permissions_permission_id_fkey foreign KEY (permission_id) references permissions (id) on delete CASCADE
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_role_permissions_role on public.role_permissions using btree (role) TABLESPACE pg_default;
+
+create index IF not exists idx_role_permissions_permission_id on public.role_permissions using btree (permission_id) TABLESPACE pg_default;
+
+create index IF not exists idx_role_permissions_role_permission on public.role_permissions using btree (role, permission_id) TABLESPACE pg_default;
+
+create index IF not exists idx_role_permissions_role_permission_safe on public.role_permissions using btree (role, permission_id) TABLESPACE pg_default;
+
+create trigger audit_role_permissions_trigger
+after INSERT
+or DELETE
+or
+update on role_permissions for EACH row
+execute FUNCTION log_permission_audit_trail ();
 
 create view public.round_trip_bookings as
 select
@@ -1922,6 +2117,8 @@ create index IF not exists idx_routes_name on public.routes using btree (name) T
 
 create index IF not exists idx_routes_from_to on public.routes using btree (from_island_id, to_island_id) TABLESPACE pg_default;
 
+create index IF not exists idx_routes_islands_active on public.routes using btree (from_island_id, to_island_id, is_active) TABLESPACE pg_default;
+
 create trigger audit_routes_trigger
 after INSERT
 or DELETE
@@ -1929,11 +2126,17 @@ or
 update on routes for EACH row
 execute FUNCTION enhanced_audit_trigger ();
 
+create trigger routes_stats_change_trigger
+after INSERT
+or DELETE
+or
+update on routes for EACH row
+execute FUNCTION notify_zone_stats_change ();
+
 create trigger trigger_set_route_name BEFORE INSERT
 or
 update on routes for EACH row
 execute FUNCTION set_route_name ();
-
 
 create table public.seat_reservations (
   id uuid not null default gen_random_uuid (),
@@ -1977,7 +2180,6 @@ create table public.seats (
   constraint seats_vessel_id_fkey foreign KEY (vessel_id) references vessels (id)
 ) TABLESPACE pg_default;
 
-
 create table public.system_health_metrics (
   id uuid not null default gen_random_uuid (),
   metric_name character varying(100) not null,
@@ -1994,7 +2196,6 @@ create table public.system_health_metrics (
 create index IF not exists idx_system_health_name_time on public.system_health_metrics using btree (metric_name, recorded_at) TABLESPACE pg_default;
 
 create index IF not exists idx_system_health_recorded_at on public.system_health_metrics using btree (recorded_at) TABLESPACE pg_default;
-
 
 create table public.terms_and_conditions (
   id uuid not null default gen_random_uuid (),
@@ -2095,6 +2296,7 @@ from
   join islands ti on r.to_island_id = ti.id
   join vessels v on t.vessel_id = v.id;
 
+
 create table public.tickets (
   id uuid not null default gen_random_uuid (),
   booking_id uuid not null,
@@ -2106,7 +2308,6 @@ create table public.tickets (
   constraint tickets_booking_id_key unique (booking_id),
   constraint tickets_booking_id_fkey foreign KEY (booking_id) references bookings (id)
 ) TABLESPACE pg_default;
-
 
 create view public.today_schedule_view as
 select
@@ -2220,7 +2421,6 @@ order by
   language_code,
   key;
 
-  
 create view public.trip_availability as
 select
   r.id as route_id,
@@ -2289,6 +2489,8 @@ create index IF not exists idx_trips_travel_date_route on public.trips using btr
 
 create index IF not exists idx_trips_vessel_date_status on public.trips using btree (vessel_id, travel_date, is_active) TABLESPACE pg_default;
 
+create index IF not exists idx_trips_route_date on public.trips using btree (route_id, travel_date) TABLESPACE pg_default;
+
 create trigger audit_trips_trigger
 after INSERT
 or DELETE
@@ -2329,11 +2531,28 @@ create table public.user_permissions (
   constraint user_permissions_user_id_fkey foreign KEY (user_id) references user_profiles (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
+create index IF not exists idx_user_permissions_user_active on public.user_permissions using btree (user_id, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_user_permissions_permission_active on public.user_permissions using btree (permission_id, is_active) TABLESPACE pg_default;
+
 create index IF not exists idx_user_permissions_user_id on public.user_permissions using btree (user_id) TABLESPACE pg_default;
 
 create index IF not exists idx_user_permissions_permission_id on public.user_permissions using btree (permission_id) TABLESPACE pg_default;
 
 create index IF not exists idx_user_permissions_granted_by on public.user_permissions using btree (granted_by) TABLESPACE pg_default;
+
+create index IF not exists idx_user_permissions_user_permission on public.user_permissions using btree (user_id, permission_id) TABLESPACE pg_default;
+
+create index IF not exists idx_user_permissions_active_expires_safe on public.user_permissions using btree (user_id, is_active, expires_at) TABLESPACE pg_default
+where
+  (is_active = true);
+
+create trigger audit_user_permissions_trigger
+after INSERT
+or DELETE
+or
+update on user_permissions for EACH row
+execute FUNCTION log_permission_audit_trail ();
 
 create trigger trigger_log_permission_activity
 after INSERT
@@ -2435,6 +2654,7 @@ create table public.user_profiles (
   text_direction character varying(3) null default 'ltr'::character varying,
   email character varying(255) null,
   is_super_admin boolean not null default false,
+  last_login timestamp with time zone null,
   constraint user_profiles_pkey primary key (id),
   constraint user_profiles_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE,
   constraint chk_agent_discount_range check (
@@ -2462,9 +2682,15 @@ create table public.user_profiles (
 
 create index IF not exists idx_user_profiles_role on public.user_profiles using btree (role) TABLESPACE pg_default;
 
+create index IF not exists idx_user_profiles_full_name on public.user_profiles using btree (full_name) TABLESPACE pg_default;
+
 create index IF not exists idx_user_profiles_role_agent on public.user_profiles using btree (id) TABLESPACE pg_default
 where
   (role = 'agent'::user_role);
+
+create index IF not exists idx_user_profiles_last_login on public.user_profiles using btree (last_login) TABLESPACE pg_default
+where
+  (last_login is not null);
 
 create index IF not exists idx_user_profiles_role_created_at on public.user_profiles using btree (role, created_at) TABLESPACE pg_default;
 
@@ -2479,10 +2705,6 @@ where
   (
     role = any (array['agent'::user_role, 'customer'::user_role])
   );
-
-create index IF not exists idx_user_profiles_super_admin on public.user_profiles using btree (is_super_admin) TABLESPACE pg_default
-where
-  (is_super_admin = true);
 
 create trigger audit_user_profiles_trigger
 after INSERT
@@ -2602,30 +2824,6 @@ or DELETE
 or
 update on vessels for EACH row
 execute FUNCTION enhanced_audit_trigger ();
-
-create table public.vessels (
-  id uuid not null default gen_random_uuid (),
-  name character varying(100) not null,
-  seating_capacity integer not null,
-  is_active boolean not null default true,
-  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
-  status character varying(20) null default 'active'::character varying,
-  constraint vessels_pkey primary key (id),
-  constraint vessels_name_key unique (name),
-  constraint chk_vessel_capacity_positive check ((seating_capacity > 0))
-) TABLESPACE pg_default;
-
-create index IF not exists idx_vessels_status on public.vessels using btree (status) TABLESPACE pg_default;
-
-create index IF not exists idx_vessels_active on public.vessels using btree (is_active) TABLESPACE pg_default;
-
-create trigger audit_vessels_trigger
-after INSERT
-or DELETE
-or
-update on vessels for EACH row
-execute FUNCTION enhanced_audit_trigger ();
-
 
 create table public.wallet_transactions (
   id uuid not null default gen_random_uuid (),
@@ -2805,7 +3003,7 @@ order by
   z.order_index,
   z.name;
 
-  create view public.zone_management_summary as
+create view public.zone_management_summary as
 select
   count(*) as total_zones,
   count(
@@ -2937,4 +3135,169 @@ from
 order by
   z.order_index,
   z.name;
+
+-- ============================================================================
+-- PERMISSION TEMPLATE VIEWS
+-- ============================================================================
+
+-- View for permission templates with permission details
+create view public.permission_template_details as
+select 
+    pt.id,
+    pt.name,
+    pt.description,
+    pt.color,
+    pt.is_system_template,
+    pt.is_active,
+    pt.created_by,
+    pt.created_at,
+    pt.updated_at,
+    up.full_name as created_by_name,
+    count(ptp.permission_id) as permission_count,
+    array_agg(p.name) as permission_names,
+    array_agg(p.resource) as permission_resources,
+    array_agg(p.action) as permission_actions
+from public.permission_templates pt
+left join public.user_profiles up on pt.created_by = up.id
+left join public.permission_template_permissions ptp on pt.id = ptp.template_id
+left join public.permissions p on ptp.permission_id = p.id
+group by pt.id, pt.name, pt.description, pt.color, pt.is_system_template, pt.is_active, pt.created_by, pt.created_at, pt.updated_at, up.full_name;
+
+-- ============================================================================
+-- BULK OPERATIONS VIEWS
+-- ============================================================================
+
+-- View for bulk operations tracking
+create table public.bulk_permission_operations (
+    id uuid not null default gen_random_uuid(),
+    operation_type character varying(20) not null,
+    user_ids uuid[] not null,
+    permission_ids uuid[] null,
+    template_id uuid null,
+    status character varying(20) not null default 'pending',
+    total_users integer not null,
+    completed_users integer not null default 0,
+    failed_users integer not null default 0,
+    expires_at timestamp with time zone null,
+    reason text null,
+    performed_by uuid not null,
+    performed_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+    completed_at timestamp with time zone null,
+    error_details jsonb null,
+    constraint bulk_permission_operations_pkey primary key (id),
+    constraint bulk_permission_operations_performed_by_fkey foreign key (performed_by) references user_profiles (id),
+    constraint bulk_permission_operations_template_fkey foreign key (template_id) references permission_templates (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_bulk_permission_operations_status on public.bulk_permission_operations using btree (status, performed_at desc) TABLESPACE pg_default;
+create index IF not exists idx_bulk_permission_operations_performed_by on public.bulk_permission_operations using btree (performed_by, performed_at desc) TABLESPACE pg_default;
+
+-- View for bulk operations with user details
+create view public.bulk_permission_operations_details as
+select 
+    bpo.id,
+    bpo.operation_type,
+    bpo.user_ids,
+    bpo.permission_ids,
+    bpo.template_id,
+    bpo.status,
+    bpo.total_users,
+    bpo.completed_users,
+    bpo.failed_users,
+    bpo.expires_at,
+    bpo.reason,
+    bpo.performed_by,
+    bpo.performed_at,
+    bpo.completed_at,
+    bpo.error_details,
+    up.full_name as performed_by_name,
+    up.email as performed_by_email,
+    pt.name as template_name,
+    pt.color as template_color,
+    case 
+        when bpo.status = 'completed' then 'success'
+        when bpo.status = 'failed' then 'danger'
+        when bpo.status = 'in_progress' then 'warning'
+        else 'secondary'
+    end as status_color,
+    case 
+        when bpo.status = 'completed' then 100
+        when bpo.status = 'failed' then 0
+        else round(((bpo.completed_users::numeric / bpo.total_users::numeric) * 100)::numeric, 0)
+    end as progress_percentage
+from public.bulk_permission_operations bpo
+left join public.user_profiles up on bpo.performed_by = up.id
+left join public.permission_templates pt on bpo.template_id = pt.id;
+
+-- ============================================================================
+-- ENHANCED AUDIT LOG VIEWS
+-- ============================================================================
+
+-- Enhanced view for permission audit logs with more details
+create view public.permission_audit_log_details as
+select 
+    pal.id,
+    pal.action_type,
+    pal.entity_type,
+    pal.entity_id,
+    pal.permission_id,
+    pal.target_user_id,
+    pal.target_role,
+    pal.old_values,
+    pal.new_values,
+    pal.performed_by,
+    pal.performed_at,
+    pal.ip_address,
+    pal.user_agent,
+    pal.reason,
+    -- Performed by user details
+    up.full_name as performed_by_name,
+    up.email as performed_by_email,
+    -- Target user details
+    tu.full_name as target_user_name,
+    tu.email as target_user_email,
+    -- Permission details
+    p.name as permission_name,
+    p.resource as permission_resource,
+    p.action as permission_action,
+    -- Formatted timestamps
+    to_char(pal.performed_at, 'YYYY-MM-DD HH24:MI:SS') as formatted_performed_at,
+    to_char(pal.performed_at, 'Mon DD, YYYY') as formatted_date,
+    to_char(pal.performed_at, 'HH24:MI') as formatted_time,
+    -- Time ago
+    case 
+        when pal.performed_at > now() - interval '1 hour' then 'Just now'
+        when pal.performed_at > now() - interval '24 hours' then 
+            case 
+                when extract(hour from (now() - pal.performed_at)) = 1 then '1 hour ago'
+                else extract(hour from (now() - pal.performed_at))::text || ' hours ago'
+            end
+        when pal.performed_at > now() - interval '7 days' then 
+            case 
+                when extract(day from (now() - pal.performed_at)) = 1 then '1 day ago'
+                else extract(day from (now() - pal.performed_at))::text || ' days ago'
+            end
+        else to_char(pal.performed_at, 'Mon DD, YYYY')
+    end as time_ago,
+    -- Action description
+    case 
+        when pal.action_type = 'GRANT' then 'Permission granted'
+        when pal.action_type = 'REVOKE' then 'Permission revoked'
+        when pal.action_type = 'CREATE' then 'Permission created'
+        when pal.action_type = 'UPDATE' then 'Permission updated'
+        when pal.action_type = 'DELETE' then 'Permission deleted'
+        else pal.action_type || ' ' || lower(pal.entity_type)
+    end as action_description,
+    -- Entity description
+    case 
+        when pal.entity_type = 'USER_PERMISSION' then 'User Permission'
+        when pal.entity_type = 'ROLE_PERMISSION' then 'Role Permission'
+        when pal.entity_type = 'PERMISSION' then 'Permission'
+        else pal.entity_type
+    end as entity_description
+from public.permission_audit_log pal
+left join public.user_profiles up on pal.performed_by = up.id
+left join public.user_profiles tu on pal.target_user_id = tu.id
+left join public.permissions p on pal.permission_id = p.id
+order by pal.performed_at desc;
 

@@ -314,11 +314,12 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
 
     updateRouteData: async (id, updates) => {
         try {
-            const success = await updateRoute(id, updates);
-            if (success) {
+            const result = await updateRoute(id, updates);
+            if (result) {
                 await get().fetchRoutes(); // Refresh the list
+                return true;
             }
-            return success;
+            return false;
         } catch (error) {
             console.error('Error updating route:', error);
             return false;
@@ -354,11 +355,12 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
 
     updateTripData: async (id, updates) => {
         try {
-            const success = await updateTrip(id, updates);
-            if (success) {
+            const result = await updateTrip(id, updates);
+            if (result) {
                 await get().fetchTrips(); // Refresh the list
+                return true;
             }
-            return success;
+            return false;
         } catch (error) {
             console.error('Error updating trip:', error);
             return false;
@@ -394,11 +396,12 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
 
     updateVesselData: async (id, updates) => {
         try {
-            const success = await updateVessel(id, updates);
-            if (success) {
+            const result = await updateVessel(id, updates);
+            if (result) {
                 await get().fetchVessels(); // Refresh the list
+                return true;
             }
-            return success;
+            return false;
         } catch (error) {
             console.error('Error updating vessel:', error);
             return false;
@@ -439,11 +442,12 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
 
     updateIslandData: async (id, updates) => {
         try {
-            const success = await updateIsland(id, updates);
-            if (success) {
+            const result = await updateIsland(id, updates);
+            if (result) {
                 await get().fetchIslands(); // Refresh the list
+                return true;
             }
-            return success;
+            return false;
         } catch (error) {
             console.error('Error updating island:', error);
             return false;
