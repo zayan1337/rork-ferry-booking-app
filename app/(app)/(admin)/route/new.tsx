@@ -4,11 +4,15 @@ import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { ArrowLeft, AlertCircle, Plus, Route as RouteIcon } from "lucide-react-native";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { RouteFormData } from "@/types/operations";
+// UPDATED: Use new route management hook and types
+import { useRouteManagement } from "@/hooks/useRouteManagement";
+import { AdminManagement } from "@/types";
 
 // Components
 import RouteForm from "@/components/admin/operations/RouteForm";
 import Button from "@/components/admin/Button";
+
+type RouteFormData = AdminManagement.RouteFormData;
 
 export default function NewRouteScreen() {
     const { canManageRoutes } = useAdminPermissions();
@@ -44,7 +48,7 @@ export default function NewRouteScreen() {
                     <Text style={styles.noPermissionTitle}>Access Denied</Text>
                     <Text style={styles.noPermissionText}>
                         You don't have permission to create new routes.
-                        </Text>
+                    </Text>
                     <Button
                         title="Go Back"
                         variant="primary"
@@ -81,7 +85,7 @@ export default function NewRouteScreen() {
                     onCancel={handleCancel}
                 />
             </ScrollView>
-            </View>
+        </View>
     );
 }
 

@@ -4,20 +4,25 @@ import { Stack, router, useLocalSearchParams } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { ArrowLeft, AlertCircle, Route as RouteIcon } from "lucide-react-native";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { RouteFormData } from "@/types/operations";
-import { useOperationsStore } from "@/store/admin/operationsStore";
+// UPDATED: Use new route management hook and types
+import { useRouteManagement } from "@/hooks/useRouteManagement";
+import { AdminManagement } from "@/types";
 
 // Components
 import RouteForm from "@/components/admin/operations/RouteForm";
 import Button from "@/components/admin/Button";
 
+type RouteFormData = AdminManagement.RouteFormData;
+
 export default function EditRouteScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const { canUpdateRoutes } = useAdminPermissions();
-    const { routes } = useOperationsStore();
+
+    // UPDATED: Use new route management hook
+    const { getById } = useRouteManagement();
 
     // Find the current route data
-    const currentRoute = routes?.find(r => r.id === id);
+    const currentRoute = getById(id || '');
 
     const handleSuccess = (routeData: RouteFormData) => {
         router.back();
@@ -99,7 +104,7 @@ export default function EditRouteScreen() {
         <View style={styles.container}>
             <Stack.Screen
                 options={{
-                    title: `Edit ${currentRoute.name || currentRoute.route_name}`,
+                    title: `Edit ${currentRoute.name}`,
                     headerLeft: () => (
                         <TouchableOpacity
                             onPress={() => router.back()}

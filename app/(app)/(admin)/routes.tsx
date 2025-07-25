@@ -1,182 +1,88 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
     StyleSheet,
-    ScrollView,
+    FlatList,
     TouchableOpacity,
     Alert,
     RefreshControl,
-    FlatList,
     Dimensions,
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useOperationsStore } from "@/store/admin/operationsStore";
+// UPDATED: Use new route management hook instead of operations store
+import { useRouteManagement } from "@/hooks/useRouteManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
+// UPDATED: Use AdminManagement types for consistency  
+import { AdminManagement } from "@/types";
+// UPDATED: Use new utility functions from admin folder
 import {
+    searchRoutes,
+    filterRoutesByStatus,
+    sortRoutes,
+    calculateRouteStats,
+    formatCurrency,
+    formatPercentage,
+} from "@/utils/admin/routeUtils";
+import {
+    ArrowLeft,
     Plus,
+    Navigation,
+    Search,
     Filter,
     SortAsc,
     SortDesc,
-    MapPin,
-    DollarSign,
     Activity,
     TrendingUp,
-    Users,
-    Eye,
-    Navigation,
-    BarChart3,
-    ArrowLeft,
-    Search,
+    DollarSign,
+    MapPin,
     AlertTriangle,
 } from "lucide-react-native";
 
 // Components
-import SectionHeader from "@/components/admin/SectionHeader";
 import Button from "@/components/admin/Button";
 import SearchBar from "@/components/admin/SearchBar";
 import RouteItem from "@/components/admin/RouteItem";
-import StatCard from "@/components/admin/StatCard";
-import EmptyState from "@/components/admin/EmptyState";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
-interface RouteListFilters {
-    status: "all" | "active" | "inactive" | "maintenance";
-    sortBy: "name" | "created_at" | "base_fare" | "total_trips_30d" | "total_revenue_30d";
-    sortDirection: "asc" | "desc";
-}
+type Route = AdminManagement.Route;
 
 export default function RoutesScreen() {
+    const { canViewRoutes, canManageRoutes } = useAdminPermissions();
+
+    // UPDATED: Use new route management hook instead of operations store
     const {
-        routes,
+        routes: allRoutes,
         loading,
-        removeRoute,
-        searchQueries,
+        error,
+        stats,
+        searchQuery,
         setSearchQuery,
-        fetchRoutes,
-    } = useOperationsStore();
+        sortBy,
+        setSortBy,
+        sortOrder,
+        setSortOrder,
+        loadAll: fetchRoutes,
+        refresh,
+    } = useRouteManagement();
 
-    const {
-        canViewRoutes,
-        canManageRoutes,
-        canUpdateRoutes,
-        canDeleteRoutes,
-    } = useAdminPermissions();
-
+    // Maintain existing local state for filters and UI
+    const [filterActive, setFilterActive] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [filters, setFilters] = useState<RouteListFilters>({
-        status: "all",
-        sortBy: "name",
-        sortDirection: "asc",
-    });
     const [showFilters, setShowFilters] = useState(false);
-
-    // Fetch routes on mount
-    React.useEffect(() => {
-        if (!routes || routes.length === 0) {
-            fetchRoutes();
-        }
-    }, []);
-
-    // Calculate route statistics
-    const routeStats = useMemo(() => {
-        if (!routes || !Array.isArray(routes)) return null;
-
-        const activeRoutes = routes.filter(r => r.status === "active" || r.is_active).length;
-        const totalRoutes = routes.length;
-        const inactiveRoutes = totalRoutes - activeRoutes;
-
-        const avgFare = routes.reduce((sum, r) => sum + (r.base_fare || 0), 0) / (totalRoutes || 1);
-
-        // Calculate total revenue estimate
-        const totalRevenue = routes.reduce((total, route) => {
-            return total + (route.total_revenue_30d || 0);
-        }, 0);
-
-        const totalTrips = routes.reduce((total, route) => {
-            return total + (route.total_trips_30d || 0);
-        }, 0);
-
-        return {
-            totalRoutes,
-            activeRoutes,
-            inactiveRoutes,
-            avgFare: Math.round(avgFare),
-            totalRevenue: Math.round(totalRevenue),
-            totalTrips,
-        };
-    }, [routes]);
-
-    // Filter and sort routes
-    const filteredAndSortedRoutes = useMemo(() => {
-        if (!routes || !Array.isArray(routes)) return [];
-
-        let filtered = routes.filter(route => {
-            const searchQuery = searchQueries.routes?.toLowerCase() || '';
-            const matchesSearch = !searchQuery ||
-                (route.name && route.name.toLowerCase().includes(searchQuery)) ||
-                (route.route_name && route.route_name.toLowerCase().includes(searchQuery)) ||
-                (route.from_island_name && route.from_island_name.toLowerCase().includes(searchQuery)) ||
-                (route.to_island_name && route.to_island_name.toLowerCase().includes(searchQuery));
-
-            const routeStatus = route.status || (route.is_active ? 'active' : 'inactive');
-            const matchesStatus = filters.status === "all" || routeStatus === filters.status;
-
-            return matchesSearch && matchesStatus;
-        });
-
-        // Sort routes
-        filtered.sort((a, b) => {
-            let aValue, bValue;
-
-            switch (filters.sortBy) {
-                case "name":
-                    aValue = a.name || a.route_name || "";
-                    bValue = b.name || b.route_name || "";
-                    break;
-                case "base_fare":
-                    aValue = a.base_fare || 0;
-                    bValue = b.base_fare || 0;
-                    break;
-                case "total_trips_30d":
-                    aValue = a.total_trips_30d || 0;
-                    bValue = b.total_trips_30d || 0;
-                    break;
-                case "total_revenue_30d":
-                    aValue = a.total_revenue_30d || 0;
-                    bValue = b.total_revenue_30d || 0;
-                    break;
-                case "created_at":
-                default:
-                    aValue = new Date(a.created_at || "").getTime();
-                    bValue = new Date(b.created_at || "").getTime();
-                    break;
-            }
-
-            if (filters.sortDirection === "desc") {
-                return aValue < bValue ? 1 : -1;
-            }
-            return aValue > bValue ? 1 : -1;
-        });
-
-        return filtered;
-    }, [routes, searchQueries.routes, filters]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await fetchRoutes();
+        await refresh();
         setIsRefreshing(false);
     };
 
     const handleRoutePress = (routeId: string) => {
-        if (canViewRoutes()) {
-            router.push(`./route/${routeId}` as any);
-        }
+        router.push(`./route/${routeId}` as any);
     };
 
     const handleAddRoute = () => {
@@ -187,71 +93,90 @@ export default function RoutesScreen() {
         }
     };
 
-    const handleSort = (field: RouteListFilters["sortBy"]) => {
-        setFilters(prev => ({
-            ...prev,
-            sortBy: field,
-            sortDirection: prev.sortBy === field && prev.sortDirection === "asc" ? "desc" : "asc",
-        }));
+    const toggleSort = (field: typeof sortBy) => {
+        if (sortBy === field) {
+            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+        } else {
+            setSortBy(field);
+            setSortOrder("asc");
+        }
     };
 
-    const formatCurrency = (amount: number) => {
-        return `MVR ${amount.toLocaleString()}`;
-    };
+    const filteredAndSortedRoutes = React.useMemo(() => {
+        let filtered = allRoutes || [];
 
-    const renderRouteItem = ({ item, index }: { item: any; index: number }) => (
+        // Search filter - using utility from searchQuery hook state
+        if (searchQuery) {
+            filtered = searchRoutes(filtered, searchQuery);
+        }
+
+        // Active status filter
+        filtered = filterRoutesByStatus(filtered, filterActive);
+
+        // Sort - using sort state from hook
+        filtered = sortRoutes(filtered, sortBy, sortOrder);
+
+        return filtered;
+    }, [allRoutes, searchQuery, filterActive, sortBy, sortOrder]);
+
+    // Fetch routes if not already loaded
+    useEffect(() => {
+        if (!allRoutes || allRoutes.length === 0) {
+            fetchRoutes();
+        }
+    }, []);
+
+    // UPDATED: Cast route to content Route type for component compatibility
+    const renderRouteItem = ({ item, index }: { item: Route; index: number }) => (
         <RouteItem
-            key={`route-${item.id}-${index}`}
-            route={item}
+            key={item.id}
+            route={item as any} // Safe cast since our Route type includes all required fields
             onPress={handleRoutePress}
-            showStats={true}
         />
     );
 
     const renderListHeader = () => (
         <View style={styles.listHeader}>
             {/* Quick Stats Summary */}
-            {routeStats && (
-                <View style={styles.quickStats}>
-                    <View style={styles.quickStatsRow}>
-                        <View style={styles.quickStatItem}>
-                            <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
-                                <Navigation size={16} color={colors.primary} />
-                            </View>
-                            <Text style={styles.quickStatValue}>{routeStats.totalRoutes}</Text>
-                            <Text style={styles.quickStatLabel}>Total</Text>
+            <View style={styles.quickStats}>
+                <View style={styles.quickStatsRow}>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
+                            <Navigation size={16} color={colors.primary} />
                         </View>
-                        <View style={styles.quickStatItem}>
-                            <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
-                                <Activity size={16} color={colors.success} />
-                            </View>
-                            <Text style={styles.quickStatValue}>{routeStats.activeRoutes}</Text>
-                            <Text style={styles.quickStatLabel}>Active</Text>
+                        <Text style={styles.quickStatValue}>{stats.total}</Text>
+                        <Text style={styles.quickStatLabel}>Total</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
+                            <Activity size={16} color={colors.success} />
                         </View>
-                        <View style={styles.quickStatItem}>
-                            <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
-                                <TrendingUp size={16} color={colors.info} />
-                            </View>
-                            <Text style={styles.quickStatValue}>{routeStats.totalTrips}</Text>
-                            <Text style={styles.quickStatLabel}>Trips</Text>
+                        <Text style={styles.quickStatValue}>{stats.active}</Text>
+                        <Text style={styles.quickStatLabel}>Active</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
+                            <TrendingUp size={16} color={colors.info} />
                         </View>
-                        <View style={styles.quickStatItem}>
-                            <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
-                                <DollarSign size={16} color={colors.success} />
-                            </View>
-                            <Text style={styles.quickStatValue}>{(routeStats.totalRevenue / 1000).toFixed(0)}K</Text>
-                            <Text style={styles.quickStatLabel}>Revenue</Text>
-                </View>
+                        <Text style={styles.quickStatValue}>{Math.round(stats.totalTrips30d / 1000)}K</Text>
+                        <Text style={styles.quickStatLabel}>Trips</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                        <View style={[styles.quickStatIcon, { backgroundColor: colors.backgroundTertiary }]}>
+                            <DollarSign size={16} color={colors.textSecondary} />
+                        </View>
+                        <Text style={styles.quickStatValue}>{Math.round(stats.totalRevenue30d / 1000)}K</Text>
+                        <Text style={styles.quickStatLabel}>Revenue</Text>
                     </View>
                 </View>
-            )}
+            </View>
 
             {/* Search Section */}
             <View style={styles.searchSection}>
                 <SearchBar
                     placeholder="Search routes by name or islands..."
-                    value={searchQueries.routes || ""}
-                    onChangeText={(text) => setSearchQuery("routes", text)}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
                     style={styles.searchBar}
                 />
             </View>
@@ -272,27 +197,40 @@ export default function RoutesScreen() {
                     <View style={styles.sortControl}>
                         <Text style={styles.sortLabel}>Sort:</Text>
                         <TouchableOpacity
-                            style={[styles.sortButton, filters.sortBy === "name" && styles.sortButtonActive]}
-                            onPress={() => handleSort("name")}
+                            style={[styles.sortButton, sortBy === "name" && styles.sortButtonActive]}
+                            onPress={() => toggleSort("name")}
                         >
-                            <Text style={[styles.sortButtonText, filters.sortBy === "name" && styles.sortButtonTextActive]}>
+                            <Text style={[styles.sortButtonText, sortBy === "name" && styles.sortButtonTextActive]}>
                                 Name
                             </Text>
-                            {filters.sortBy === "name" && (
-                                filters.sortDirection === "asc" ?
+                            {sortBy === "name" && (
+                                sortOrder === "asc" ?
                                     <SortAsc size={12} color={colors.primary} /> :
                                     <SortDesc size={12} color={colors.primary} />
                             )}
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.sortButton, filters.sortBy === "base_fare" && styles.sortButtonActive]}
-                            onPress={() => handleSort("base_fare")}
+                            style={[styles.sortButton, sortBy === "base_fare" && styles.sortButtonActive]}
+                            onPress={() => toggleSort("base_fare")}
                         >
-                            <Text style={[styles.sortButtonText, filters.sortBy === "base_fare" && styles.sortButtonTextActive]}>
+                            <Text style={[styles.sortButtonText, sortBy === "base_fare" && styles.sortButtonTextActive]}>
                                 Fare
                             </Text>
-                            {filters.sortBy === "base_fare" && (
-                                filters.sortDirection === "asc" ?
+                            {sortBy === "base_fare" && (
+                                sortOrder === "asc" ?
+                                    <SortAsc size={12} color={colors.primary} /> :
+                                    <SortDesc size={12} color={colors.primary} />
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.sortButton, sortBy === "total_revenue_30d" && styles.sortButtonActive]}
+                            onPress={() => toggleSort("total_revenue_30d")}
+                        >
+                            <Text style={[styles.sortButtonText, sortBy === "total_revenue_30d" && styles.sortButtonTextActive]}>
+                                Revenue
+                            </Text>
+                            {sortBy === "total_revenue_30d" && (
+                                sortOrder === "asc" ?
                                     <SortAsc size={12} color={colors.primary} /> :
                                     <SortDesc size={12} color={colors.primary} />
                             )}
@@ -313,32 +251,32 @@ export default function RoutesScreen() {
                     <Text style={styles.filterSectionTitle}>Filter by Status</Text>
                     <View style={styles.filterRow}>
                         <TouchableOpacity
-                            style={[styles.filterChip, filters.status === "all" && styles.filterChipActive]}
-                            onPress={() => setFilters(prev => ({ ...prev, status: "all" }))}
+                            style={[styles.filterChip, filterActive === null && styles.filterChipActive]}
+                            onPress={() => setFilterActive(null)}
                         >
-                            <Text style={[styles.filterChipText, filters.status === "all" && styles.filterChipTextActive]}>
+                            <Text style={[styles.filterChipText, filterActive === null && styles.filterChipTextActive]}>
                                 All Routes
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.filterChip, filters.status === "active" && styles.filterChipActive]}
-                            onPress={() => setFilters(prev => ({ ...prev, status: "active" }))}
+                            style={[styles.filterChip, filterActive === "active" && styles.filterChipActive]}
+                            onPress={() => setFilterActive("active")}
                         >
-                            <Text style={[styles.filterChipText, filters.status === "active" && styles.filterChipTextActive]}>
+                            <Text style={[styles.filterChipText, filterActive === "active" && styles.filterChipTextActive]}>
                                 Active Only
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.filterChip, filters.status === "inactive" && styles.filterChipActive]}
-                            onPress={() => setFilters(prev => ({ ...prev, status: "inactive" }))}
+                            style={[styles.filterChip, filterActive === "inactive" && styles.filterChipActive]}
+                            onPress={() => setFilterActive("inactive")}
                         >
-                            <Text style={[styles.filterChipText, filters.status === "inactive" && styles.filterChipTextActive]}>
+                            <Text style={[styles.filterChipText, filterActive === "inactive" && styles.filterChipTextActive]}>
                                 Inactive Only
                             </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
-                    )}
+            )}
 
             {/* Section Divider */}
             {filteredAndSortedRoutes.length > 0 && (
@@ -356,11 +294,11 @@ export default function RoutesScreen() {
             </View>
             <Text style={styles.emptyStateTitle}>No routes found</Text>
             <Text style={styles.emptyStateText}>
-                {searchQueries.routes || filters.status !== "all"
+                {searchQuery || filterActive !== null
                     ? "Try adjusting your search or filter criteria"
                     : "No routes have been created yet"}
             </Text>
-            {canManageRoutes() && !searchQueries.routes && filters.status === "all" && (
+            {canManageRoutes() && !searchQuery && filterActive === null && (
                 <Button
                     title="Create First Route"
                     onPress={handleAddRoute}
@@ -422,28 +360,30 @@ export default function RoutesScreen() {
                 }}
             />
 
+            {/* UPDATED: Use loading state from new route hook */}
             {loading.routes ? (
                 <View style={styles.loadingContainer}>
                     <LoadingSpinner />
                     <Text style={styles.loadingText}>Loading routes...</Text>
                 </View>
             ) : (
-            <FlatList
-                data={filteredAndSortedRoutes}
-                renderItem={renderRouteItem}
+                <FlatList
+                    data={filteredAndSortedRoutes}
+                    renderItem={renderRouteItem}
                     ListHeaderComponent={renderListHeader}
                     ListEmptyComponent={renderEmptyState}
-                keyExtractor={(item) => item.id}
+                    keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContainer}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isRefreshing}
-                        onRefresh={handleRefresh}
-                        colors={[colors.primary]}
-                        tintColor={colors.primary}
-                    />
-                }
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={handleRefresh}
+                            colors={[colors.primary]}
+                            tintColor={colors.primary}
+                        />
+                    }
                     showsVerticalScrollIndicator={false}
+                    ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
                 />
             )}
 
@@ -477,7 +417,7 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: colors.warningLight,
+        backgroundColor: colors.backgroundTertiary,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: 8,
@@ -500,6 +440,10 @@ const styles = StyleSheet.create({
     backButton: {
         padding: 8,
         marginLeft: -8,
+    },
+    headerActionButton: {
+        padding: 8,
+        marginRight: -8,
     },
     loadingContainer: {
         flex: 1,
@@ -696,6 +640,9 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: "700",
         color: colors.text,
+    },
+    itemSeparator: {
+        height: 8,
     },
     emptyState: {
         alignItems: "center",

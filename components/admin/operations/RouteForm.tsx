@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
 import { colors } from "@/constants/adminColors";
-import { RouteFormData } from "@/types/operations";
-import { useOperationsStore } from "@/store/admin/operationsStore";
+// UPDATED: Use new route management hook and types
+import { useRouteManagement } from "@/hooks/useRouteManagement";
+import { useIslandStore } from "@/store/admin/islandStore";
+import { AdminManagement } from "@/types";
 import {
     Route as RouteIcon,
     MapPin,
@@ -23,6 +25,8 @@ import Button from "@/components/admin/Button";
 import Dropdown from "@/components/admin/Dropdown";
 import Switch from "@/components/admin/Switch";
 
+type RouteFormData = AdminManagement.RouteFormData;
+
 interface RouteFormProps {
     routeId?: string;
     onSave?: (route: RouteFormData) => void;
@@ -37,6 +41,7 @@ interface FormData {
     distance: string;
     duration: string;
     description: string;
+    status: "active" | "inactive" | "maintenance";
     is_active: boolean;
 }
 
@@ -54,10 +59,12 @@ interface ValidationErrors {
 
 
 export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps) {
-    const { routes, islands, addRoute, updateRouteData, fetchIslands } = useOperationsStore();
+    // UPDATED: Use new route management hook and island store
+    const { routes, getById, create, update, loading: routeLoading } = useRouteManagement();
+    const { data: islands, fetchAll: fetchIslands } = useIslandStore();
 
     // Find current route data for editing
-    const currentRoute = routeId ? routes?.find(r => r.id === routeId) : null;
+    const currentRoute = routeId ? getById(routeId) : null;
 
     const [formData, setFormData] = useState<FormData>({
         name: currentRoute?.name || '',
@@ -67,6 +74,7 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
         distance: currentRoute?.distance || '',
         duration: currentRoute?.duration || '',
         description: currentRoute?.description || '',
+        status: currentRoute?.status || 'active',
         is_active: currentRoute?.is_active ?? true,
     });
 
@@ -92,6 +100,7 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
                 formData.distance !== (currentRoute.distance || '') ||
                 formData.duration !== (currentRoute.duration || '') ||
                 formData.description !== (currentRoute.description || '') ||
+                formData.status !== (currentRoute.status || 'active') ||
                 formData.is_active !== (currentRoute.is_active ?? true);
             setHasChanges(hasFormChanges);
         } else {
@@ -103,6 +112,7 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
                 formData.distance.trim() !== '' ||
                 formData.duration.trim() !== '' ||
                 formData.description.trim() !== '' ||
+                formData.status !== 'active' ||
                 formData.is_active !== true;
             setHasChanges(hasFormChanges);
         }
@@ -176,7 +186,7 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
 
             if (currentRoute) {
                 // Update existing route
-                success = await updateRouteData(currentRoute.id, {
+                await update(currentRoute.id, {
                     name: formData.name.trim(),
                     from_island_id: formData.from_island_id,
                     to_island_id: formData.to_island_id,
@@ -184,11 +194,13 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
                     distance: formData.distance.trim(),
                     duration: formData.duration.trim(),
                     description: formData.description.trim(),
+                    status: formData.status,
                     is_active: formData.is_active,
                 });
+                success = true;
             } else {
                 // Create new route
-                success = await addRoute({
+                await create({
                     name: formData.name.trim(),
                     from_island_id: formData.from_island_id,
                     to_island_id: formData.to_island_id,
@@ -196,8 +208,10 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
                     distance: formData.distance.trim(),
                     duration: formData.duration.trim(),
                     description: formData.description.trim(),
+                    status: formData.status,
                     is_active: formData.is_active,
                 });
+                success = true;
             }
 
             if (success) {
@@ -226,6 +240,7 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
                         distance: '',
                         duration: '',
                         description: '',
+                        status: 'active',
                         is_active: true,
                     });
                     setHasChanges(false);
@@ -257,6 +272,7 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
                 distance: currentRoute.distance || '',
                 duration: currentRoute.duration || '',
                 description: currentRoute.description || '',
+                status: currentRoute.status || 'active',
                 is_active: currentRoute.is_active ?? true,
             });
         } else {
@@ -268,6 +284,7 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
                 distance: '',
                 duration: '',
                 description: '',
+                status: 'active',
                 is_active: true,
             });
         }

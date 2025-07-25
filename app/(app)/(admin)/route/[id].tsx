@@ -11,8 +11,11 @@ import {
 } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useOperationsStore } from "@/store/admin/operationsStore";
+// UPDATED: Use new route management hook instead of operations store
+import { useRouteManagement } from "@/hooks/useRouteManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+// UPDATED: Use AdminManagement types for consistency
+import { AdminManagement } from "@/types";
 import {
   ArrowLeft,
   Edit,
@@ -42,12 +45,27 @@ import LoadingSpinner from "@/components/admin/LoadingSpinner";
 
 const { width: screenWidth } = Dimensions.get('window');
 
+type Route = AdminManagement.Route;
+
 export default function RouteDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { fetchRoute, updateRouteData, removeRoute, trips, fetchTrips } = useOperationsStore();
   const { canViewRoutes, canUpdateRoutes, canDeleteRoutes } = useAdminPermissions();
-  const [routeData, setRouteData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+
+  // UPDATED: Use new route management hook
+  const {
+    routes,
+    getById,
+    getRouteWithDetails,
+    remove,
+    loading,
+    error,
+    formatCurrency,
+    formatPercentage,
+    getPerformanceRating,
+    getPerformanceColor,
+  } = useRouteManagement();
+
+  const [routeData, setRouteData] = useState<Route | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -55,59 +73,52 @@ export default function RouteDetailsScreen() {
 
   useEffect(() => {
     loadRouteData();
-    // Also fetch trips to calculate statistics
-    fetchTrips();
   }, [id]);
 
   const loadRouteData = async () => {
     if (!id) return;
 
     try {
-      setLoading(true);
-      const route = await fetchRoute(id);
+      const route = getById(id);
+      if (route) {
       setRouteData(route);
+      } else {
+        // Try to get detailed route data
+        const detailedRoute = await getRouteWithDetails(id);
+        if (detailedRoute) {
+          setRouteData(detailedRoute as Route);
+        }
+      }
     } catch (error) {
       console.error("Error loading route:", error);
       Alert.alert('Error', 'Failed to load route details');
-    } finally {
-      setLoading(false);
     }
   };
 
   // Calculate additional statistics
   const routeStats = useMemo(() => {
-    if (!routeData || !trips) return null;
+    if (!routeData) return null;
 
-    const routeTrips = trips.filter(trip => trip.route_id === id);
-    const totalTrips = routeTrips.length;
-    const completedTrips = routeTrips.filter(trip => trip.status === 'arrived' || trip.status === 'completed').length;
-    const cancelledTrips = routeTrips.filter(trip => trip.status === 'cancelled').length;
-    const delayedTrips = routeTrips.filter(trip => trip.status === 'delayed').length;
-
-    const onTimePerformance = totalTrips > 0 ? ((completedTrips / totalTrips) * 100) : 0;
-    const cancellationRate = totalTrips > 0 ? ((cancelledTrips / totalTrips) * 100) : 0;
-
-    // Calculate total revenue estimate
-    const estimatedRevenue = routeTrips.reduce((total, trip) => {
-      return total + ((trip.booked_seats || trip.bookings || 0) * (routeData.base_fare || 0));
-    }, 0);
+    // Use the statistics directly from the route data
+    const totalTrips = routeData.total_trips_30d || 0;
+    const onTimePerformance = routeData.on_time_performance_30d || 0;
+    const cancellationRate = routeData.cancellation_rate_30d || 0;
+    const estimatedRevenue = routeData.total_revenue_30d || 0;
+    const averageOccupancy = routeData.average_occupancy_30d || 0;
 
     return {
       totalTrips,
-      completedTrips,
-      cancelledTrips,
-      delayedTrips,
       onTimePerformance: onTimePerformance.toFixed(1),
       cancellationRate: cancellationRate.toFixed(1),
       estimatedRevenue,
-      averageOccupancy: routeData.average_occupancy_30d || 0,
+      averageOccupancy,
+      performanceRating: getPerformanceRating(routeData),
     };
-  }, [routeData, trips, id]);
+  }, [routeData, getPerformanceRating]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await loadRouteData();
-    await fetchTrips();
     setIsRefreshing(false);
   };
 
@@ -127,7 +138,7 @@ export default function RouteDetailsScreen() {
 
     Alert.alert(
       "Delete Route",
-      `Are you sure you want to delete the route "${routeData?.name || routeData?.route_name}"? This action cannot be undone and will affect all associated trips and bookings.`,
+      `Are you sure you want to delete the route "${routeData?.name}"? This action cannot be undone and will affect all associated trips and bookings.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -137,17 +148,13 @@ export default function RouteDetailsScreen() {
             setIsDeleting(true);
             try {
               if (id) {
-                const success = await removeRoute(id);
-                if (success) {
+                await remove(id);
                   Alert.alert("Success", "Route deleted successfully.");
                   router.back();
-                } else {
-                  throw new Error("Failed to delete route");
-                }
               }
             } catch (error) {
               console.error("Error deleting route:", error);
-              Alert.alert("Error", "Failed to delete route. There may be active bookings on this route.");
+              Alert.alert("Error", error instanceof Error ? error.message : "Failed to delete route. There may be active bookings on this route.");
             } finally {
               setIsDeleting(false);
             }
@@ -183,10 +190,6 @@ export default function RouteDetailsScreen() {
     if (utilization >= 80) return colors.success;
     if (utilization >= 60) return colors.warning;
     return colors.danger;
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `MVR ${amount.toLocaleString()}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -235,7 +238,7 @@ export default function RouteDetailsScreen() {
     );
   }
 
-  if (loading) {
+  if (loading.routes || loading.singleRoute) {
     return (
       <View style={styles.container}>
         <Stack.Screen
@@ -297,7 +300,7 @@ export default function RouteDetailsScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: routeData.name || routeData.route_name || "Route Details",
+          title: routeData.name || "Route Details",
           headerLeft: () => (
             <TouchableOpacity
               style={styles.backButton}
@@ -350,11 +353,11 @@ export default function RouteDetailsScreen() {
               <RouteIcon size={24} color={colors.primary} />
             </View>
             <View style={styles.headerContent}>
-              <Text style={styles.routeName}>{routeData.name || routeData.route_name}</Text>
+              <Text style={styles.routeName}>{routeData.name}</Text>
               <View style={styles.routeDirection}>
                 <MapPin size={16} color={colors.textSecondary} />
                 <Text style={styles.routeDescription}>
-                  {routeData.origin || routeData.from_island_name} → {routeData.destination || routeData.to_island_name}
+                  {routeData.from_island_name || routeData.origin || 'Unknown'} → {routeData.to_island_name || routeData.destination || 'Unknown'}
                 </Text>
               </View>
             </View>
@@ -439,7 +442,7 @@ export default function RouteDetailsScreen() {
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Origin</Text>
-                  <Text style={styles.infoValue}>{routeData.origin || routeData.from_island_name}</Text>
+                  <Text style={styles.infoValue}>{routeData.from_island_name || routeData.origin || 'Unknown'}</Text>
                 </View>
               </View>
 
@@ -449,7 +452,7 @@ export default function RouteDetailsScreen() {
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Destination</Text>
-                  <Text style={styles.infoValue}>{routeData.destination || routeData.to_island_name}</Text>
+                  <Text style={styles.infoValue}>{routeData.to_island_name || routeData.destination || 'Unknown'}</Text>
                 </View>
               </View>
             </View>
@@ -520,13 +523,11 @@ export default function RouteDetailsScreen() {
                 </View>
                 <View style={styles.performanceContent}>
                   <Text style={styles.performanceTitle}>Trip Statistics</Text>
-                  <Text style={styles.performanceValue}>{routeStats.completedTrips}/{routeStats.totalTrips}</Text>
-                  <Text style={styles.performanceLabel}>Completed Trips</Text>
-                  {routeStats.cancelledTrips > 0 && (
+                  <Text style={styles.performanceValue}>{routeStats.totalTrips}</Text>
+                  <Text style={styles.performanceLabel}>Total Trips (30d)</Text>
                     <Text style={styles.performanceSubtext}>
-                      {routeStats.cancelledTrips} cancelled ({routeStats.cancellationRate}%)
+                    Cancellation rate: {routeStats.cancellationRate}%
                     </Text>
-                  )}
                 </View>
               </View>
 
@@ -538,11 +539,9 @@ export default function RouteDetailsScreen() {
                   <Text style={styles.performanceTitle}>Reliability</Text>
                   <Text style={styles.performanceValue}>{routeStats.onTimePerformance}%</Text>
                   <Text style={styles.performanceLabel}>On-Time Performance</Text>
-                  {routeStats.delayedTrips > 0 && (
                     <Text style={styles.performanceSubtext}>
-                      {routeStats.delayedTrips} delayed trips
+                    Rating: {routeStats.performanceRating}
                     </Text>
-                  )}
                 </View>
               </View>
             </View>
@@ -559,8 +558,8 @@ export default function RouteDetailsScreen() {
                 <Info size={20} color={colors.info} />
               </View>
               <Text style={styles.operationsDescription}>
-                This route has {routeStats?.totalTrips || 0} total trip{(routeStats?.totalTrips || 0) !== 1 ? 's' : ''} scheduled,
-                with {routeStats?.completedTrips || 0} completed and {routeStats?.onTimePerformance || 0}% on-time performance.
+                This route has {routeStats?.totalTrips || 0} trip{(routeStats?.totalTrips || 0) !== 1 ? 's' : ''} in the last 30 days,
+                with {formatPercentage(routeStats?.averageOccupancy || 0)} average occupancy and {routeStats?.onTimePerformance || 0}% on-time performance.
               </Text>
             </View>
 

@@ -12,7 +12,9 @@ import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useAdminStore } from "@/store/admin/adminStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { useOperationsData } from "@/hooks/useOperationsData";
+// UPDATED: Use new route management hook instead of operations data hook
+import { useRouteManagement } from "@/hooks/useRouteManagement";
+import { useOperationsStore } from "@/store/admin/operationsStore";
 import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
 import {
   Plus,
@@ -44,18 +46,27 @@ export default function OperationsScreen() {
     canManageVessels,
   } = useAdminPermissions();
 
+  // UPDATED: Use new route management hook for routes
   const {
-    stats,
-    activeSection,
-    setActiveSection,
-    filteredRoutes,
-    filteredTrips,
-    filteredVessels,
+    routes: filteredRoutes,
+    stats: routeStats,
+    searchQuery: routeSearchQuery,
+    setSearchQuery: setRouteSearchQuery,
+    loading: routeLoading,
+  } = useRouteManagement();
+
+  // Keep operations store for trips, vessels, and other data
+  const {
+    trips: filteredTrips,
+    vessels: filteredVessels,
     todaySchedule,
     searchQueries,
     setSearchQuery,
     loading,
-  } = useOperationsData();
+    stats,
+  } = useOperationsStore();
+
+  const [activeSection, setActiveSection] = useState<"routes" | "trips" | "vessels" | "schedule">("routes");
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -135,7 +146,7 @@ export default function OperationsScreen() {
           <View style={styles.sectionHeaderContent}>
             <SectionHeader
               title="Routes Management"
-              subtitle={`${stats.activeRoutes} active routes`}
+              subtitle={`${routeStats.active} active routes`}
             />
           </View>
           {canManageRoutes() && (
@@ -153,8 +164,8 @@ export default function OperationsScreen() {
 
         <SearchBar
           placeholder="Search routes..."
-          value={searchQueries.routes || ""}
-          onChangeText={(text) => setSearchQuery("routes", text)}
+          value={routeSearchQuery || ""}
+          onChangeText={setRouteSearchQuery}
         />
 
         <View style={styles.itemsList}>
@@ -166,9 +177,9 @@ export default function OperationsScreen() {
                 onPress={() => handleRoutePress(route.id)}
               >
                 <View style={styles.routeInfo}>
-                  <Text style={styles.routeName}>{route.name || route.route_name || 'Unknown Route'}</Text>
+                  <Text style={styles.routeName}>{route.name || 'Unknown Route'}</Text>
                   <Text style={styles.routeDetails}>
-                    {route.origin || route.from_island_name || 'Unknown'} → {route.destination || route.to_island_name || 'Unknown'}
+                    {route.from_island_name || route.origin || 'Unknown'} → {route.to_island_name || route.destination || 'Unknown'}
                   </Text>
                   <Text style={styles.routeFare}>MVR {route.base_fare || 0}</Text>
                 </View>
@@ -189,7 +200,7 @@ export default function OperationsScreen() {
               <RouteIcon size={48} color={colors.textSecondary} />
               <Text style={styles.emptyStateTitle}>No routes found</Text>
               <Text style={styles.emptyStateText}>
-                {searchQueries.routes ? 'Try adjusting your search terms' : 'No routes available'}
+                {routeSearchQuery ? 'Try adjusting your search terms' : 'No routes available'}
               </Text>
             </View>
           )}
@@ -493,7 +504,11 @@ export default function OperationsScreen() {
       />
 
       {/* Operations Stats */}
-      <OperationsStats stats={stats} isTablet={isTablet} />
+      <OperationsStats stats={{
+        ...stats,
+        activeRoutes: routeStats.active,
+        totalRoutes: routeStats.total,
+      }} isTablet={isTablet} />
 
       {/* Section Selector */}
       <SectionSelector

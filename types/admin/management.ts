@@ -496,6 +496,129 @@ export interface ZoneActivityLog {
 }
 
 // ============================================================================
+// ROUTE MANAGEMENT TYPES
+// ============================================================================
+
+export interface Route extends BaseEntity, ActivatableEntity, NamedEntity {
+    from_island_id: string;
+    to_island_id: string;
+    base_fare: number;
+    distance?: string;
+    duration?: string;
+    description?: string;
+    status: "active" | "inactive" | "maintenance";
+
+    // Island information (from joins)
+    from_island_name?: string;
+    to_island_name?: string;
+    origin?: string; // Legacy compatibility
+    destination?: string; // Legacy compatibility
+
+    // Statistics from routes_stats_view
+    total_trips_30d: number;
+    total_bookings_30d: number;
+    total_revenue_30d: number;
+    average_occupancy_30d: number;
+    cancellation_rate_30d: number;
+    popularity_score: number;
+
+    // Additional analytics
+    trips_today?: number;
+    trips_7d?: number;
+    bookings_today?: number;
+    bookings_7d?: number;
+    revenue_today?: number;
+    revenue_7d?: number;
+    on_time_performance_30d?: number;
+    avg_delay_minutes_30d?: number;
+}
+
+export interface RouteFormData {
+    name: string;
+    from_island_id: string;
+    to_island_id: string;
+    base_fare: number;
+    distance?: string;
+    duration?: string;
+    description?: string;
+    status: "active" | "inactive" | "maintenance";
+    is_active: boolean;
+}
+
+export interface RouteWithDetails extends Route {
+    // Enhanced route details
+    trips_summary?: {
+        total_30d: number;
+        today: number;
+        next_7d: number;
+        completed_30d: number;
+        cancelled_30d: number;
+    };
+    performance_summary?: {
+        on_time_rate: number;
+        avg_delay_minutes: number;
+        customer_rating: number;
+        reliability_score: number;
+    };
+    financial_summary?: {
+        total_revenue_30d: number;
+        avg_revenue_per_trip: number;
+        avg_occupancy: number;
+        profit_margin: number;
+    };
+    vessels_used?: {
+        vessel_id: string;
+        vessel_name: string;
+        trips_count: number;
+    }[];
+}
+
+export interface RouteStats extends StatsBase {
+    totalTrips30d: number;
+    totalBookings30d: number;
+    totalRevenue30d: number;
+    avgOccupancy: number;
+    avgFare: number;
+    onTimePerformance: number;
+    cancellationRate: number;
+    popularityScore: number;
+
+    // Top performers
+    topRouteByRevenue?: { route: string; revenue: number };
+    topRouteByTrips?: { route: string; trips: number };
+    topRouteByOccupancy?: { route: string; occupancy: number };
+
+    // Trends
+    revenueGrowth30d?: number;
+    tripsGrowth30d?: number;
+    bookingsGrowth30d?: number;
+}
+
+export interface RouteFilters {
+    status?: "active" | "inactive" | "maintenance";
+    is_active?: boolean;
+    from_island_id?: string;
+    to_island_id?: string;
+    zone_id?: string; // Filter by zone
+    min_fare?: number;
+    max_fare?: number;
+    has_trips?: boolean;
+    performance_rating?: 'excellent' | 'good' | 'fair' | 'poor';
+    created_after?: string;
+    created_before?: string;
+}
+
+export interface RouteActivityLog {
+    id: string;
+    route_id: string;
+    action: string;
+    old_values?: Record<string, any>;
+    new_values?: Record<string, any>;
+    user_id?: string;
+    created_at: string;
+}
+
+// ============================================================================
 // STORE STATE PATTERNS
 // ============================================================================
 
