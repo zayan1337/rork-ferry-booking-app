@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { useRouteManagement } from "@/hooks/useRouteManagement";
 import { useOperationsStore } from "@/store/admin/operationsStore";
 import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
+import { AdminManagement } from "@/types";
 import {
   Plus,
   Eye,
@@ -36,6 +37,8 @@ import Button from "@/components/admin/Button";
 import SearchBar from "@/components/admin/SearchBar";
 import TripItem from "@/components/admin/TripItem";
 
+type Route = AdminManagement.Route;
+
 export default function OperationsScreen() {
   const {
     canViewRoutes,
@@ -48,11 +51,12 @@ export default function OperationsScreen() {
 
   // UPDATED: Use new route management hook for routes
   const {
-    routes: filteredRoutes,
+    routes: allRoutes,
     stats: routeStats,
     searchQuery: routeSearchQuery,
     setSearchQuery: setRouteSearchQuery,
     loading: routeLoading,
+    loadAll: loadRoutes,
   } = useRouteManagement();
 
   // Keep operations store for trips, vessels, and other data
@@ -66,6 +70,47 @@ export default function OperationsScreen() {
     stats,
   } = useOperationsStore();
 
+  // Load routes on component mount
+  useEffect(() => {
+    if (!allRoutes || allRoutes.length === 0) {
+      loadRoutes();
+    }
+  }, [allRoutes, loadRoutes]);
+
+  // Limit routes to 4 for display (like islands/zones pattern)
+  const displayRoutes = useMemo(() => {
+    if (!allRoutes) return [];
+    
+    // Apply search filter if there's a search query
+    let filtered = allRoutes;
+    if (routeSearchQuery) {
+      filtered = allRoutes.filter(route =>
+        route.name?.toLowerCase().includes(routeSearchQuery.toLowerCase()) ||
+        route.from_island_name?.toLowerCase().includes(routeSearchQuery.toLowerCase()) ||
+        route.to_island_name?.toLowerCase().includes(routeSearchQuery.toLowerCase())
+      );
+    }
+    
+    // Return only first 4 routes for display
+    return filtered.slice(0, 4);
+  }, [allRoutes, routeSearchQuery]);
+
+  // Limit trips to 4 for display
+  const displayTrips = useMemo(() => {
+    if (!filteredTrips) return [];
+    return filteredTrips
+      .filter((trip, index, self) => index === self.findIndex(t => t.id === trip.id))
+      .slice(0, 4);
+  }, [filteredTrips]);
+
+  // Limit vessels to 4 for display
+  const displayVessels = useMemo(() => {
+    if (!filteredVessels) return [];
+    return filteredVessels
+      .filter((vessel, index, self) => index === self.findIndex(v => v.id === vessel.id))
+      .slice(0, 4);
+  }, [filteredVessels]);
+
   const [activeSection, setActiveSection] = useState<"routes" | "trips" | "vessels" | "schedule">("routes");
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -74,9 +119,17 @@ export default function OperationsScreen() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Refresh logic would go here
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsRefreshing(false);
+    try {
+      // Refresh routes and other data
+      await Promise.all([
+        loadRoutes(),
+        // Add other refresh calls here if needed
+      ]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleRoutePress = (routeId: string) => {
@@ -121,8 +174,6 @@ export default function OperationsScreen() {
     }
   };
 
-
-
   const renderRoutes = () => {
     if (!canViewRoutes()) {
       return (
@@ -134,11 +185,6 @@ export default function OperationsScreen() {
         </View>
       );
     }
-
-    // Filter out duplicate routes by ID to prevent key conflicts
-    const uniqueRoutes = filteredRoutes.filter((route, index, self) =>
-      index === self.findIndex(r => r.id === route.id)
-    );
 
     return (
       <View style={styles.sectionContent}>
@@ -169,8 +215,8 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {uniqueRoutes.length > 0 ? (
-            uniqueRoutes.map((route, index) => (
+          {displayRoutes.length > 0 ? (
+            displayRoutes.map((route: Route, index: number) => (
               <TouchableOpacity
                 key={`route-${route.id}-${index}`}
                 style={styles.routeItem}
@@ -229,11 +275,6 @@ export default function OperationsScreen() {
       );
     }
 
-    // Filter out duplicate trips by ID to prevent key conflicts
-    const uniqueTrips = filteredTrips.filter((trip, index, self) =>
-      index === self.findIndex(t => t.id === trip.id)
-    );
-
     return (
       <View style={styles.sectionContent}>
         <View style={styles.sectionHeader}>
@@ -263,8 +304,8 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {uniqueTrips.length > 0 ? (
-            uniqueTrips.map((trip, index) => (
+          {displayTrips.length > 0 ? (
+            displayTrips.map((trip: any, index: number) => (
               <TripItem
                 key={`trip-${trip.id}-${index}`}
                 trip={{
@@ -318,11 +359,6 @@ export default function OperationsScreen() {
       );
     }
 
-    // Filter out duplicate vessels by ID to prevent key conflicts
-    const uniqueVessels = filteredVessels.filter((vessel, index, self) =>
-      index === self.findIndex(v => v.id === vessel.id)
-    );
-
     return (
       <View style={styles.sectionContent}>
         <View style={styles.sectionHeader}>
@@ -352,8 +388,8 @@ export default function OperationsScreen() {
         />
 
         <View style={styles.itemsList}>
-          {uniqueVessels.length > 0 ? (
-            uniqueVessels.map((vessel, index) => (
+          {displayVessels.length > 0 ? (
+            displayVessels.map((vessel: any, index: number) => (
               <TouchableOpacity
                 key={`vessel-${vessel.id}-${index}`}
                 style={styles.vesselItem}
@@ -402,8 +438,6 @@ export default function OperationsScreen() {
     );
   };
 
-
-
   const renderSchedule = () => {
     if (!canViewTrips()) {
       return (
@@ -416,10 +450,8 @@ export default function OperationsScreen() {
       );
     }
 
-    // Filter out duplicate trips by ID to prevent key conflicts
-    const uniqueSchedule = todaySchedule.filter((trip, index, self) =>
-      index === self.findIndex(t => t.id === trip.id)
-    );
+    // Limit schedule to 4 items for display
+    const displaySchedule = todaySchedule.slice(0, 4);
 
     return (
       <View style={styles.sectionContent}>
@@ -428,9 +460,9 @@ export default function OperationsScreen() {
           subtitle="Today's trip schedule"
         />
 
-        {uniqueSchedule.length > 0 ? (
+        {displaySchedule.length > 0 ? (
           <View style={styles.scheduleGrid}>
-            {uniqueSchedule.map((trip: any, index: number) => (
+            {displaySchedule.map((trip: any, index: number) => (
               <TouchableOpacity
                 key={`schedule-${trip.id}-${index}`}
                 style={styles.scheduleItem}
