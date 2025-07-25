@@ -4,7 +4,10 @@ import { Platform, StyleSheet, TouchableOpacity, View, Alert, Dimensions } from 
 import { colors } from "@/constants/adminColors";
 import { useAuthStore } from "@/store/authStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import { usePermissionStore } from "@/store/admin/permissionStore";
 import { router } from "expo-router";
+import NoPermissionsWelcome from "@/components/admin/NoPermissionsWelcome";
+import { useDashboardData } from "@/hooks/useDashboardData";
 import {
   Home,
   CreditCard,
@@ -18,8 +21,6 @@ import {
   MessageSquare,
   Activity
 } from "lucide-react-native";
-import NoPermissionsWelcome from "@/components/admin/NoPermissionsWelcome";
-import { useDashboardData } from "@/hooks";
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -40,10 +41,14 @@ export default function TabLayout() {
     hasAnyPermissions,
     isSuperAdmin
   } = useAdminPermissions();
+
+  // Check if permission data is still loading
+  const { loading } = usePermissionStore();
   const {
     adminName,
     adminRole,
   } = useDashboardData();
+
   const handleProfilePress = () => {
     router.push("../modal");
   };
@@ -90,8 +95,11 @@ export default function TabLayout() {
     </View>
   );
 
-  // If admin has no permissions, show welcome message
-  if (!hasAnyPermissions()) {
+
+
+  // If admin has no permissions and data is loaded, show welcome message
+  // Wait for authentication and permission data to load before showing welcome screen
+  if (user?.profile?.id && !loading.fetchAll && !hasAnyPermissions()) {
     return (
       <View style={styles.noPermissionsContainer}>
         <NoPermissionsWelcome
@@ -102,55 +110,6 @@ export default function TabLayout() {
       </View>
     );
   }
-
-  // Define tabs with permission requirements
-  const tabs = [
-    {
-      name: "index",
-      title: "Dashboard",
-      icon: Home,
-      visible: canViewDashboard(),
-    },
-    {
-      name: "bookings",
-      title: "Bookings",
-      icon: CreditCard,
-      visible: canViewBookings(),
-    },
-    {
-      name: "operations",
-      title: isSmallScreen ? "Ops" : "Operations",
-      icon: Ship,
-      visible: canAccessOperationsTab(),
-    },
-    {
-      name: "users",
-      title: "Users",
-      icon: Users,
-      visible: canAccessUsersTab(),
-    },
-    {
-      name: "finance",
-      title: "Finance",
-      icon: DollarSign,
-      visible: canAccessFinanceTab(),
-    },
-    {
-      name: "communications",
-      title: isSmallScreen ? "Comms" : "Communications",
-      icon: MessageSquare,
-      visible: canAccessCommunicationsTab(),
-    },
-    {
-      name: "settings",
-      title: "Settings",
-      icon: Settings,
-      visible: canAccessSettingsTab(),
-    },
-  ];
-
-  // Filter visible tabs
-  const visibleTabs = tabs.filter(tab => tab.visible);
 
   return (
     <Tabs
@@ -166,20 +125,103 @@ export default function TabLayout() {
         tabBarHideOnKeyboard: true,
       }}
     >
-      {visibleTabs.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: tab.title,
-            tabBarIcon: ({ color, focused }) => (
-              <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-                <tab.icon size={iconSize} color={color} />
-              </View>
-            ),
-          }}
-        />
-      ))}
+      {/* Dashboard Tab */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Dashboard",
+          href: canViewDashboard() ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <Home size={iconSize} color={color} />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Bookings Tab */}
+      <Tabs.Screen
+        name="bookings"
+        options={{
+          title: "Bookings",
+          href: canViewBookings() ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <CreditCard size={iconSize} color={color} />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Operations Tab */}
+      <Tabs.Screen
+        name="operations"
+        options={{
+          title: isSmallScreen ? "Ops" : "Operations",
+          href: canAccessOperationsTab() ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <Ship size={iconSize} color={color} />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Users Tab */}
+      <Tabs.Screen
+        name="users"
+        options={{
+          title: "Users",
+          href: canAccessUsersTab() ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <Users size={iconSize} color={color} />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Finance Tab */}
+      <Tabs.Screen
+        name="finance"
+        options={{
+          title: "Finance",
+          href: canAccessFinanceTab() ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <DollarSign size={iconSize} color={color} />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Communications Tab */}
+      <Tabs.Screen
+        name="communications"
+        options={{
+          title: isSmallScreen ? "Comms" : "Communications",
+          href: canAccessCommunicationsTab() ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <MessageSquare size={iconSize} color={color} />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Settings Tab */}
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          href: canAccessSettingsTab() ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+              <Settings size={iconSize} color={color} />
+            </View>
+          ),
+        }}
+      />
     </Tabs>
   );
 }

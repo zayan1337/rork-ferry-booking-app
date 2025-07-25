@@ -222,8 +222,10 @@ export const useAdminPermissions = () => {
         if (isSuperAdmin) return true;
 
         // Check if user has any direct permissions
-        const userPerms = getUserPermissions();
-        if (userPerms.length > 0) return true;
+        if (user?.profile?.id) {
+            const userPerms = getUserPermissions(user.profile.id);
+            if (userPerms.length > 0) return true;
+        }
 
         // Check if any tab access functions return true
         return canViewDashboard() ||

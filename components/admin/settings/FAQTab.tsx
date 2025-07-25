@@ -35,7 +35,7 @@ interface FAQTabProps {
 type TabType = 'categories' | 'faqs';
 
 const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
-    const { canManageSettings } = useAdminPermissions();
+    const { canViewFAQ, canCreateFAQ } = useAdminPermissions();
     const {
         faqs,
         categories,
@@ -99,7 +99,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
     };
 
     const handleAddFAQ = () => {
-        if (canManageSettings()) {
+        if (canCreateFAQ()) {
             router.push("../faq/new" as any);
         } else {
             Alert.alert("Access Denied", "You don't have permission to create FAQs.");
@@ -107,7 +107,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
     };
 
     const handleAddCategory = () => {
-        if (canManageSettings()) {
+        if (canCreateFAQ()) {
             router.push("../faq-categories/new" as any);
         } else {
             Alert.alert("Access Denied", "You don't have permission to create FAQ categories.");
@@ -127,7 +127,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
     };
 
     // Permission check
-    if (!canManageSettings()) {
+    if (!canViewFAQ()) {
         return (
             <View style={styles.noPermissionContainer}>
                 <View style={styles.noPermissionIcon}>
@@ -170,7 +170,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
                         </View>
                     </View>
                 </View>
-                {canManageSettings() && (
+                {canCreateFAQ() && (
                     <View style={styles.sectionHeaderButton}>
                         {activeTab === 'categories' ? (
                             <Button
@@ -269,7 +269,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = "" }) => {
                     : `Start by creating ${activeTab === 'categories' ? 'FAQ categories' : 'FAQs'}`
                 }
             </Text>
-            {canManageSettings() && !searchQuery && (
+            {canCreateFAQ() && !searchQuery && (
                 <View style={styles.emptyStateActions}>
                     {activeTab === 'categories' ? (
                         <Button

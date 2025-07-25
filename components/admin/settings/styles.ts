@@ -453,7 +453,7 @@ export const styles = StyleSheet.create({
     },
 
     // Original statistics styles continue here
-    statsContainer: {
+    originalStatsContainer: {
         flexDirection: "row",
         flexWrap: "wrap",
         gap: 12,
@@ -549,11 +549,11 @@ export const styles = StyleSheet.create({
         alignItems: "flex-start",
         marginBottom: 16,
     },
-    userAvatarContainer: {
+    enhancedUserAvatarContainer: {
         position: "relative",
         marginRight: 20,
     },
-    userAvatar: {
+    enhancedUserAvatar: {
         width: 56,
         height: 56,
         borderRadius: 28,
@@ -568,7 +568,7 @@ export const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 4,
     },
-    userAvatarText: {
+    enhancedUserAvatarText: {
         fontSize: 18,
         fontWeight: "800",
         color: "white",
@@ -591,14 +591,14 @@ export const styles = StyleSheet.create({
         justifyContent: "space-between",
         marginBottom: 4,
     },
-    userName: {
+    enhancedUserName: {
         fontSize: 18,
         fontWeight: "700",
         color: colors.text,
         marginBottom: 4,
         letterSpacing: -0.5,
     },
-    userEmail: {
+    enhancedUserEmail: {
         fontSize: 14,
         color: colors.textSecondary,
         marginBottom: 8,
@@ -689,7 +689,7 @@ export const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    morePermissionsText: {
+    enhancedMorePermissionsText: {
         fontSize: 11,
         fontWeight: "500",
         color: colors.textSecondary,
@@ -716,7 +716,7 @@ export const styles = StyleSheet.create({
     },
 
     // Role card styles
-    rolesList: {
+    enhancedRolesList: {
         gap: 16,
     },
     roleCard: {
@@ -736,47 +736,47 @@ export const styles = StyleSheet.create({
         alignItems: "center",
         marginBottom: 16,
     },
-    roleIconContainer: {
+    enhancedRoleIconContainer: {
         marginRight: 16,
     },
-    roleIcon: {
+    enhancedRoleIcon: {
         width: 48,
         height: 48,
         borderRadius: 24,
         alignItems: "center",
         justifyContent: "center",
     },
-    roleInfo: {
+    enhancedRoleInfo: {
         flex: 1,
     },
-    roleName: {
+    enhancedRoleName: {
         fontSize: 18,
         fontWeight: "700",
         color: colors.text,
         marginBottom: 4,
     },
-    roleDescription: {
+    enhancedRoleDescription: {
         fontSize: 14,
         color: colors.textSecondary,
         lineHeight: 20,
     },
-    roleActions: {
+    enhancedRoleActions: {
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
     },
-    systemRoleBadge: {
+    enhancedSystemRoleBadge: {
         backgroundColor: colors.warning + "20",
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
     },
-    systemRoleText: {
+    enhancedSystemRoleText: {
         fontSize: 10,
         fontWeight: "600",
         color: colors.warning,
     },
-    roleActionButton: {
+    enhancedRoleActionButton: {
         padding: 8,
         borderRadius: 8,
         backgroundColor: colors.background,
@@ -869,7 +869,7 @@ export const styles = StyleSheet.create({
         alignItems: "center",
         marginBottom: 20,
     },
-    categoryIconContainer: {
+    detailCategoryIconContainer: {
         width: 48,
         height: 48,
         borderRadius: 24,
@@ -878,29 +878,29 @@ export const styles = StyleSheet.create({
         justifyContent: "center",
         marginRight: 16,
     },
-    categoryInfo: {
+    detailCategoryInfo: {
         flex: 1,
     },
-    categoryName: {
+    detailCategoryName: {
         fontSize: 18,
         fontWeight: "700",
         color: colors.text,
         marginBottom: 4,
     },
-    categoryDescription: {
+    detailCategoryDescription: {
         fontSize: 14,
         color: colors.textSecondary,
         lineHeight: 20,
     },
-    categoryStats: {
+    detailCategoryStats: {
         alignItems: "flex-end",
     },
-    categoryStatsText: {
+    detailCategoryStatsText: {
         fontSize: 12,
         fontWeight: "600",
         color: colors.primary,
     },
-    categoryPermissions: {
+    detailCategoryPermissions: {
         gap: 12,
     },
 
@@ -918,7 +918,7 @@ export const styles = StyleSheet.create({
         marginBottom: 8,
         gap: 12,
     },
-    permissionLevelBadge: {
+    detailPermissionLevelBadge: {
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: 8,
@@ -929,7 +929,7 @@ export const styles = StyleSheet.create({
         borderColor: colors.border + "30",
         gap: 4,
     },
-    permissionLevelText: {
+    detailPermissionLevelText: {
         fontSize: 10,
         fontWeight: "700",
     },
