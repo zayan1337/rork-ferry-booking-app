@@ -71,7 +71,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await signOut();
-              router.replace('/(auth)');
+              // Navigation will be handled by the app layout
             } catch (error) {
               console.error('Logout error:', error);
             }

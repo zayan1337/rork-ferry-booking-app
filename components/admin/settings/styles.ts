@@ -102,6 +102,364 @@ export const styles = StyleSheet.create({
         marginBottom: 24,
     },
 
+    // Modern User Card Styles
+    modernUserCard: {
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: colors.border + "30",
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+        overflow: 'hidden',
+    },
+
+    userCardHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 20,
+        paddingBottom: 16,
+    },
+
+    userAvatarContainer: {
+        position: 'relative',
+        marginRight: 16,
+    },
+
+    userAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+
+    userAvatarText: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.white,
+    },
+
+    superAdminBadge: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: colors.warning,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: colors.card,
+    },
+
+    userMainInfo: {
+        flex: 1,
+    },
+
+    userName: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 4,
+    },
+
+    userEmail: {
+        fontSize: 14,
+        color: colors.textSecondary,
+    },
+
+    userStatusContainer: {
+        alignItems: 'flex-end',
+    },
+
+    userCardContent: {
+        paddingHorizontal: 20,
+        paddingBottom: 16,
+    },
+
+    userMetadata: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 16,
+        marginBottom: 8,
+    },
+
+    roleContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.primary + "15",
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
+        gap: 6,
+    },
+
+    roleText: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: colors.primary,
+        textTransform: 'capitalize',
+    },
+
+    permissionCount: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.warning + "15",
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
+        gap: 6,
+    },
+
+    permissionCountText: {
+        fontSize: 12,
+        fontWeight: "500",
+        color: colors.warning,
+    },
+
+    superAdminNote: {
+        backgroundColor: colors.warning + "08",
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: colors.warning + "20",
+        marginTop: 8,
+    },
+
+    superAdminNoteText: {
+        fontSize: 12,
+        fontStyle: 'italic',
+        color: colors.warning,
+        textAlign: 'center',
+    },
+
+    actionIndicator: {
+        position: 'absolute',
+        top: 20,
+        right: 20,
+        padding: 8,
+    },
+
+    // Modern Role Card Styles
+    modernRoleCard: {
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: colors.border + "30",
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+
+    roleCardHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 20,
+        paddingBottom: 16,
+    },
+
+    roleIconContainer: {
+        marginRight: 16,
+    },
+
+    roleIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+
+    roleInfo: {
+        flex: 1,
+    },
+
+    roleName: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 4,
+    },
+
+    roleDescription: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        lineHeight: 20,
+    },
+
+    roleActions: {
+        flexDirection: "row",
+        gap: 8,
+    },
+
+    roleActionButton: {
+        padding: 8,
+        borderRadius: 8,
+        backgroundColor: colors.backgroundSecondary,
+    },
+
+    roleCardContent: {
+        paddingHorizontal: 20,
+        paddingBottom: 20,
+    },
+
+    roleMetadata: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+
+    permissionCountBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.primary + "15",
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
+        gap: 6,
+    },
+
+    permissionCountBadgeText: {
+        fontSize: 12,
+        fontWeight: "500",
+        color: colors.primary,
+    },
+
+    systemRoleBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.info + "15",
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 10,
+        gap: 4,
+    },
+
+    systemRoleText: {
+        fontSize: 10,
+        fontWeight: "600",
+        color: colors.info,
+        textTransform: 'uppercase',
+    },
+
+    // Modern Category Card Styles
+    modernCategoryCard: {
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: colors.border + "30",
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+
+    categoryCardHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 20,
+        paddingBottom: 16,
+    },
+
+    categoryIconContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: colors.primary + "15",
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 16,
+    },
+
+    categoryInfo: {
+        flex: 1,
+    },
+
+    categoryName: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 4,
+    },
+
+    categoryDescription: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        lineHeight: 20,
+    },
+
+    categoryStats: {
+        alignItems: 'flex-end',
+    },
+
+    categoryStatsText: {
+        fontSize: 12,
+        fontWeight: "500",
+        color: colors.textSecondary,
+    },
+
+    categoryPermissions: {
+        paddingHorizontal: 20,
+        paddingBottom: 20,
+        gap: 8,
+    },
+
+    permissionPreview: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.backgroundSecondary,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        gap: 8,
+    },
+
+    permissionLevelBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        backgroundColor: colors.background,
+    },
+
+    permissionLevelText: {
+        fontSize: 10,
+        fontWeight: "700",
+        textTransform: 'uppercase',
+    },
+
+    permissionPreviewName: {
+        fontSize: 13,
+        color: colors.text,
+        flex: 1,
+    },
+
+    morePermissionsText: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        fontStyle: 'italic',
+        textAlign: 'center',
+        marginTop: 4,
+    },
+
+    // Original statistics styles continue here
+    statsContainer: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 12,
+        marginBottom: 24,
+    },
+
     // Header styles
     headerActions: {
         flexDirection: "row",
@@ -155,6 +513,11 @@ export const styles = StyleSheet.create({
 
     // User card styles
     usersList: {
+        gap: 12,
+    },
+
+    // Role list styles
+    rolesList: {
         gap: 12,
     },
     enhancedUserCard: {

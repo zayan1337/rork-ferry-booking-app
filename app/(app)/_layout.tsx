@@ -5,15 +5,25 @@ import Colors from '@/constants/colors';
 import AuthLoadingScreen from '@/components/AuthLoadingScreen';
 
 export default function AppLayout() {
-  const { isAuthenticated, isLoading, user, isRehydrated } = useAuthStore();
+  const { isAuthenticated, isLoading, user, isRehydrated, preventRedirect } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
     // If user is not authenticated and we're not loading, redirect to auth
-    if (!isAuthenticated && !isLoading && isRehydrated) {
-      router.replace('/(auth)' as any);
+    // But only if preventRedirect is false
+    if (!isAuthenticated && !isLoading && isRehydrated && !preventRedirect) {
+      // Use setTimeout to ensure the navigation stack is ready
+      setTimeout(() => {
+        try {
+          router.replace('/(auth)' as any);
+        } catch (error) {
+          console.log('Navigation error during logout:', error);
+          // Fallback: try to navigate to auth screen
+          router.push('/(auth)' as any);
+        }
+      }, 100);
     }
-  }, [isAuthenticated, isLoading, router, isRehydrated]);
+  }, [isAuthenticated, isLoading, router, isRehydrated, preventRedirect]);
 
   // Show loading while waiting for auth data to load
   if (!isRehydrated || !isAuthenticated || isLoading || !user?.profile) {

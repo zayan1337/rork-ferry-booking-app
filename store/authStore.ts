@@ -220,13 +220,19 @@ export const useAuthStore = create<AuthState>()(
           const { error } = await supabase.auth.signOut();
           // if (error) throw error;
 
+          // Set preventRedirect to true to avoid immediate navigation
           set({
             isAuthenticated: false,
             user: null,
             isLoading: false,
             error: null,
-            preventRedirect: false
+            preventRedirect: true
           });
+
+          // Allow a small delay before allowing redirects again
+          setTimeout(() => {
+            set({ preventRedirect: false });
+          }, 500);
         } catch (error) {
           console.error('Signout error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Sign out failed';

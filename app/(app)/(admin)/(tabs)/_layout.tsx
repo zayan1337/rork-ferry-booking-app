@@ -18,6 +18,8 @@ import {
   MessageSquare,
   Activity
 } from "lucide-react-native";
+import NoPermissionsWelcome from "@/components/admin/NoPermissionsWelcome";
+import { useDashboardData } from "@/hooks";
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -34,9 +36,14 @@ export default function TabLayout() {
     canAccessUsersTab,
     canAccessFinanceTab,
     canAccessCommunicationsTab,
-    canAccessSettingsTab
+    canAccessSettingsTab,
+    hasAnyPermissions,
+    isSuperAdmin
   } = useAdminPermissions();
-
+  const {
+    adminName,
+    adminRole,
+  } = useDashboardData();
   const handleProfilePress = () => {
     router.push("../modal");
   };
@@ -82,6 +89,19 @@ export default function TabLayout() {
       </TouchableOpacity>
     </View>
   );
+
+  // If admin has no permissions, show welcome message
+  if (!hasAnyPermissions()) {
+    return (
+      <View style={styles.noPermissionsContainer}>
+        <NoPermissionsWelcome
+          adminName={adminName}
+          adminRole={adminRole}
+          isSuperAdmin={isSuperAdmin}
+        />
+      </View>
+    );
+  }
 
   // Define tabs with permission requirements
   const tabs = [
@@ -147,18 +167,18 @@ export default function TabLayout() {
       }}
     >
       {visibleTabs.map((tab) => (
-      <Tabs.Screen
+        <Tabs.Screen
           key={tab.name}
           name={tab.name}
-        options={{
+          options={{
             title: tab.title,
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+            tabBarIcon: ({ color, focused }) => (
+              <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
                 <tab.icon size={iconSize} color={color} />
-            </View>
-          ),
-        }}
-      />
+              </View>
+            ),
+          }}
+        />
       ))}
     </Tabs>
   );
@@ -221,5 +241,11 @@ const styles = StyleSheet.create({
     elevation: 1,
     borderWidth: 1,
     borderColor: colors.border + "60",
+  },
+  noPermissionsContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.backgroundSecondary,
   },
 });

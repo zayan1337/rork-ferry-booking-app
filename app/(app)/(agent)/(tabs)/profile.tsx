@@ -73,7 +73,7 @@ export default function AgentProfileScreen() {
         try {
             reset(); // Clear agent store
             await signOut();
-            router.replace("/(auth)");
+            // Navigation will be handled by the app layout
         } catch (error) {
             console.error("Sign out error:", error);
         }

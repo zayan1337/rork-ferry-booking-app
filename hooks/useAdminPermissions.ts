@@ -216,6 +216,54 @@ export const useAdminPermissions = () => {
     const canAccessCommunicationsTab = () => canViewNotifications() || canViewBulkMessages();
     const canAccessSettingsTab = () => canViewSettings() || canViewReports() || canViewPermissions() || canViewActivityLogs();
 
+    // Check if admin has any permissions at all
+    const hasAnyPermissions = (): boolean => {
+        // Super admins always have access
+        if (isSuperAdmin) return true;
+
+        // Check if user has any direct permissions
+        const userPerms = getUserPermissions();
+        if (userPerms.length > 0) return true;
+
+        // Check if any tab access functions return true
+        return canViewDashboard() ||
+            canViewBookings() ||
+            canAccessOperationsTab() ||
+            canAccessUsersTab() ||
+            canAccessFinanceTab() ||
+            canAccessCommunicationsTab() ||
+            canAccessSettingsTab();
+    };
+
+    // Get list of accessible tabs for the current user
+    const getAccessibleTabs = () => {
+        const tabs = [];
+
+        if (canViewDashboard()) {
+            tabs.push({ name: 'dashboard', title: 'Dashboard', permission: 'dashboard:view' });
+        }
+        if (canViewBookings()) {
+            tabs.push({ name: 'bookings', title: 'Bookings', permission: 'bookings:view' });
+        }
+        if (canAccessOperationsTab()) {
+            tabs.push({ name: 'operations', title: 'Operations', permission: 'operations access' });
+        }
+        if (canAccessUsersTab()) {
+            tabs.push({ name: 'users', title: 'Users', permission: 'users access' });
+        }
+        if (canAccessFinanceTab()) {
+            tabs.push({ name: 'finance', title: 'Finance', permission: 'finance access' });
+        }
+        if (canAccessCommunicationsTab()) {
+            tabs.push({ name: 'communications', title: 'Communications', permission: 'communications access' });
+        }
+        if (canAccessSettingsTab()) {
+            tabs.push({ name: 'settings', title: 'Settings', permission: 'settings access' });
+        }
+
+        return tabs;
+    };
+
     return {
         // User state
         currentAdminUser,
@@ -223,6 +271,8 @@ export const useAdminPermissions = () => {
         getAdminPermissions,
         hasPermissionCheck,
         canAccessTab,
+        hasAnyPermissions,
+        getAccessibleTabs,
 
         // Dashboard
         canViewDashboard,

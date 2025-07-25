@@ -206,7 +206,10 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
                 .eq('user_id', userId)
                 .eq('is_active', true);
 
-            if (error) throw error;
+            if (error) {
+                throw error;
+            }
+
             set({ userPermissions: data || [] });
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to fetch user permissions' });
@@ -215,11 +218,54 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
 
     grantPermission: async (userId: string, permissionId: string, grantedBy: string) => {
         try {
-            const { error } = await supabase
+            // First check if permission already exists
+            const { data: existing } = await supabase
                 .from('user_permissions')
-                .upsert({ user_id: userId, permission_id: permissionId, granted_by: grantedBy, is_active: true });
+                .select('id')
+                .eq('user_id', userId)
+                .eq('permission_id', permissionId)
+                .single();
 
-            if (error) throw error;
+            let data, error;
+
+            if (existing) {
+                // Update existing permission
+                const updateResult = await supabase
+                    .from('user_permissions')
+                    .update({
+                        is_active: true,
+                        granted_by: grantedBy,
+                        granted_at: new Date().toISOString()
+                    })
+                    .eq('user_id', userId)
+                    .eq('permission_id', permissionId)
+                    .select();
+
+                data = updateResult.data;
+                error = updateResult.error;
+            } else {
+                // Insert new permission
+                const insertResult = await supabase
+                    .from('user_permissions')
+                    .insert({
+                        user_id: userId,
+                        permission_id: permissionId,
+                        granted_by: grantedBy,
+                        is_active: true
+                    })
+                    .select();
+
+                data = insertResult.data;
+                error = insertResult.error;
+            }
+
+            if (error) {
+                throw error;
+            }
+
+            // Wait a bit for database consistency
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             await Promise.all([get().fetchUserPermissions(userId), get().fetchAdminUsers()]);
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to grant permission' });

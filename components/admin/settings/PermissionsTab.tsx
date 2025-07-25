@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, TouchableOpacity, Alert, ScrollView, RefreshControl } from "react-native";
 import { router } from "expo-router";
-import { Users, Shield, Key, Plus, Edit, Eye, Clock, Calendar, Trash2, AlertTriangle, Settings } from "lucide-react-native";
+import { Users, Shield, Key, Plus, Edit, Eye, Clock, Calendar, Trash2, AlertTriangle, Settings, Crown, ChevronRight } from "lucide-react-native";
 import { colors } from "@/constants/adminColors";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { usePermissionStore } from "@/store/admin/permissionStore";
@@ -186,28 +186,37 @@ export default function PermissionsTab() {
                     {adminUsers.map((user: AdminUser) => (
                         <TouchableOpacity
                             key={user.id}
-                            style={styles.enhancedUserCard}
+                            style={styles.modernUserCard}
                             onPress={() => {
-                                // Navigate to user permissions page
                                 router.push(`../user/${user.id}/permissions` as any);
                             }}
+                            activeOpacity={0.7}
                         >
-                            <View style={styles.userAvatarContainer}>
-                                <View style={[styles.userAvatar, { backgroundColor: colors.primary }]}>
-                                    <Text style={styles.userAvatarText}>
-                                        {getUserInitials(user.full_name)}
+                            {/* Card Header */}
+                            <View style={styles.userCardHeader}>
+                                <View style={styles.userAvatarContainer}>
+                                    <View style={[styles.userAvatar, { backgroundColor: colors.primary }]}>
+                                        <Text style={styles.userAvatarText}>
+                                            {getUserInitials(user.full_name)}
+                                        </Text>
+                                    </View>
+                                    {user.is_super_admin && (
+                                        <View style={styles.superAdminBadge}>
+                                            <Crown size={10} color={colors.warning} />
+                                        </View>
+                                    )}
+                                </View>
+
+                                <View style={styles.userMainInfo}>
+                                    <Text style={styles.userName} numberOfLines={1}>
+                                        {user.full_name}
+                                    </Text>
+                                    <Text style={styles.userEmail} numberOfLines={1}>
+                                        {user.email}
                                     </Text>
                                 </View>
-                            </View>
 
-                            <View style={styles.enhancedUserInfo}>
-                                <Text style={styles.userName}>{user.full_name}</Text>
-                                <Text style={styles.userEmail}>{user.email}</Text>
-                                <View style={styles.userRoleContainer}>
-                                    <View style={styles.roleTag}>
-                                        <Shield size={12} color={colors.primary} />
-                                        <Text style={styles.roleTagText}>{user.role}</Text>
-                                    </View>
+                                <View style={styles.userStatusContainer}>
                                     <StatusBadge
                                         status={user.is_active ? 'active' : 'inactive'}
                                         size="small"
@@ -215,25 +224,34 @@ export default function PermissionsTab() {
                                 </View>
                             </View>
 
-                            <View style={{ alignItems: 'center' }}>
-                                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.primary }}>
-                                    {user.direct_permissions?.length || 0}
-                                </Text>
-                                <Text style={{ fontSize: 12, color: colors.textSecondary }}>Permissions</Text>
+                            {/* Card Content */}
+                            <View style={styles.userCardContent}>
+                                <View style={styles.userMetadata}>
+                                    <View style={styles.roleContainer}>
+                                        <Shield size={12} color={colors.primary} />
+                                        <Text style={styles.roleText}>{user.role}</Text>
+                                    </View>
+
+                                    <View style={styles.permissionCount}>
+                                        <Key size={12} color={colors.warning} />
+                                        <Text style={styles.permissionCountText}>
+                                            {user.direct_permissions?.length || 0} permissions
+                                        </Text>
+                                    </View>
+                                </View>
+
                                 {user.is_super_admin && (
-                                    <View style={{
-                                        backgroundColor: colors.warning,
-                                        paddingHorizontal: 6,
-                                        paddingVertical: 2,
-                                        borderRadius: 8,
-                                        marginTop: 4,
-                                        flexDirection: 'row',
-                                        alignItems: 'center'
-                                    }}>
-                                        <Key size={10} color={colors.white} />
-                                        <Text style={{ fontSize: 10, color: colors.white, marginLeft: 2 }}>Super</Text>
+                                    <View style={styles.superAdminNote}>
+                                        <Text style={styles.superAdminNoteText}>
+                                            Has full system access
+                                        </Text>
                                     </View>
                                 )}
+                            </View>
+
+                            {/* Action Indicator */}
+                            <View style={styles.actionIndicator}>
+                                <ChevronRight size={16} color={colors.textSecondary} />
                             </View>
                         </TouchableOpacity>
                     ))}
@@ -283,8 +301,8 @@ export default function PermissionsTab() {
             ) : (
                 <View style={styles.rolesList}>
                     {roleTemplates.map((template: RoleTemplate) => (
-                        <View key={template.id} style={styles.roleCard}>
-                            <View style={styles.roleHeader}>
+                        <View key={template.id} style={styles.modernRoleCard}>
+                            <View style={styles.roleCardHeader}>
                                 <View style={styles.roleIconContainer}>
                                     <View style={[styles.roleIcon, { backgroundColor: getTemplateColor(template.name) + "20" }]}>
                                         <Shield size={20} color={getTemplateColor(template.name)} />
@@ -293,25 +311,6 @@ export default function PermissionsTab() {
                                 <View style={styles.roleInfo}>
                                     <Text style={styles.roleName}>{template.name}</Text>
                                     <Text style={styles.roleDescription}>{template.description}</Text>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                                        <Text style={{ fontSize: 12, color: colors.textSecondary }}>
-                                            {template.permission_ids?.length || 0} permissions
-                                        </Text>
-                                        {template.is_system_role && (
-                                            <View style={{
-                                                backgroundColor: colors.info + "20",
-                                                paddingHorizontal: 6,
-                                                paddingVertical: 2,
-                                                borderRadius: 8,
-                                                marginLeft: 8,
-                                                flexDirection: 'row',
-                                                alignItems: 'center'
-                                            }}>
-                                                <Settings size={10} color={colors.info} />
-                                                <Text style={{ fontSize: 10, color: colors.info, marginLeft: 2 }}>System</Text>
-                                            </View>
-                                        )}
-                                    </View>
                                 </View>
                                 <View style={styles.roleActions}>
                                     <TouchableOpacity style={styles.roleActionButton}>
@@ -324,6 +323,24 @@ export default function PermissionsTab() {
                                         >
                                             <Trash2 size={16} color={colors.danger} />
                                         </TouchableOpacity>
+                                    )}
+                                </View>
+                            </View>
+
+                            <View style={styles.roleCardContent}>
+                                <View style={styles.roleMetadata}>
+                                    <View style={styles.permissionCountBadge}>
+                                        <Key size={12} color={colors.primary} />
+                                        <Text style={styles.permissionCountBadgeText}>
+                                            {template.permission_ids?.length || 0} permissions
+                                        </Text>
+                                    </View>
+
+                                    {template.is_system_role && (
+                                        <View style={styles.systemRoleBadge}>
+                                            <Settings size={10} color={colors.info} />
+                                            <Text style={styles.systemRoleText}>System</Text>
+                                        </View>
                                     )}
                                 </View>
                             </View>
@@ -388,8 +405,8 @@ export default function PermissionsTab() {
                 ) : (
                     <View style={styles.permissionCategoriesList}>
                         {permissionsByCategory.map((category: any) => (
-                            <View key={category.id} style={styles.permissionCategoryCard}>
-                                <View style={styles.permissionCategoryHeader}>
+                            <View key={category.id} style={styles.modernCategoryCard}>
+                                <View style={styles.categoryCardHeader}>
                                     <View style={styles.categoryIconContainer}>
                                         <Settings size={20} color={colors.primary} />
                                     </View>
@@ -405,34 +422,21 @@ export default function PermissionsTab() {
                                 </View>
 
                                 <View style={styles.categoryPermissions}>
-                                    {category.permissions.map((permission: Permission) => (
-                                        <View key={permission.id} style={styles.permissionDetailItem}>
-                                            <View style={styles.permissionDetailHeader}>
-                                                <View style={styles.permissionLevelBadge}>
-                                                    <Text style={[styles.permissionLevelText, { color: getPermissionLevelColor(permission.level) }]}>
-                                                        {permission.level.toUpperCase()}
-                                                    </Text>
-                                                </View>
-                                                <Text style={styles.permissionDetailName}>{permission.name}</Text>
-                                                {permission.is_critical && (
-                                                    <View style={{
-                                                        backgroundColor: colors.dangerLight,
-                                                        paddingHorizontal: 6,
-                                                        paddingVertical: 2,
-                                                        borderRadius: 8,
-                                                        flexDirection: 'row',
-                                                        alignItems: 'center'
-                                                    }}>
-                                                        <AlertTriangle size={10} color={colors.danger} />
-                                                        <Text style={{ fontSize: 10, color: colors.danger, marginLeft: 2 }}>Critical</Text>
-                                                    </View>
-                                                )}
+                                    {category.permissions.slice(0, 3).map((permission: Permission) => (
+                                        <View key={permission.id} style={styles.permissionPreview}>
+                                            <View style={styles.permissionLevelBadge}>
+                                                <Text style={[styles.permissionLevelText, { color: getPermissionLevelColor(permission.level) }]}>
+                                                    {permission.level.toUpperCase()}
+                                                </Text>
                                             </View>
-                                            <Text style={styles.permissionDetailDescription}>
-                                                {permission.description}
-                                            </Text>
+                                            <Text style={styles.permissionPreviewName}>{permission.name}</Text>
                                         </View>
                                     ))}
+                                    {category.permissions.length > 3 && (
+                                        <Text style={styles.morePermissionsText}>
+                                            +{category.permissions.length - 3} more permissions
+                                        </Text>
+                                    )}
                                 </View>
                             </View>
                         ))}

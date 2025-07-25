@@ -50,7 +50,7 @@ export default function AdminProfileModal() {
           onPress: async () => {
             try {
               await signOut();
-              router.dismissAll();
+              // Navigation will be handled by the app layout
             } catch (error) {
               console.error("Logout error:", error);
             }
