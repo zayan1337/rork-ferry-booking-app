@@ -1,3 +1,21 @@
+create view public.active_routes_view as
+select
+  id,
+  name,
+  from_island_id,
+  to_island_id,
+  base_fare,
+  status,
+  is_active,
+  from_island_name,
+  to_island_name,
+  route_display_name
+from
+  routes_simple_view
+where
+  is_active = true
+  and status::text = 'active'::text;
+
 create table public.activity_logs (
   id uuid not null default gen_random_uuid (),
   user_id uuid null,
@@ -32,7 +50,6 @@ create index IF not exists idx_activity_logs_action_date on public.activity_logs
 create index IF not exists idx_activity_logs_session on public.activity_logs using btree (session_id) TABLESPACE pg_default
 where
   (session_id is not null);
-
 
 create view public.activity_logs_with_users as
 select
@@ -108,6 +125,7 @@ from
   left join user_profiles agent on b.agent_id = agent.id
   left join payments p on b.id = p.booking_id;
 
+
 create table public.admin_cache_stats (
   cache_key character varying(100) not null,
   cache_value jsonb not null,
@@ -121,7 +139,6 @@ create table public.admin_cache_stats (
 create index IF not exists idx_admin_cache_expires on public.admin_cache_stats using btree (expires_at) TABLESPACE pg_default;
 
 create index IF not exists idx_admin_cache_type on public.admin_cache_stats using btree (cache_type) TABLESPACE pg_default;
-
 
 create materialized view public.admin_dashboard_stats as
 select
@@ -213,7 +230,6 @@ where
 create index IF not exists idx_admin_notifications_priority on public.admin_notifications using btree (priority, created_at) TABLESPACE pg_default
 where
   (is_read = false);
-
 
 
 create view public.admin_operations_overview as
@@ -326,7 +342,6 @@ select
       join vessels v on trip_stats.vessel_id = v.id
   ) as avg_occupancy_7d;
 
-
 create table public.admin_report_queue (
   id uuid not null default gen_random_uuid (),
   report_type character varying(100) not null,
@@ -349,6 +364,7 @@ create index IF not exists idx_admin_report_queue_status on public.admin_report_
 
 create index IF not exists idx_admin_report_queue_user on public.admin_report_queue using btree (requested_by, created_at) TABLESPACE pg_default;
 
+
 create table public.admin_settings (
   id uuid not null default gen_random_uuid (),
   setting_key character varying(100) not null,
@@ -370,6 +386,7 @@ create table public.admin_settings (
 create index IF not exists idx_admin_settings_category on public.admin_settings using btree (category) TABLESPACE pg_default;
 
 create index IF not exists idx_admin_settings_key on public.admin_settings using btree (setting_key) TABLESPACE pg_default;
+
 
 create view public.admin_user_analytics as
 select
@@ -435,7 +452,52 @@ from
 group by
   up.role;
 
-
+create view public.admin_users_only as
+select
+  up.id,
+  up.full_name,
+  up.email,
+  up.role,
+  up.is_super_admin,
+  up.is_active,
+  up.created_at,
+  COALESCE(
+    array_agg(distinct uper.permission_id) filter (
+      where
+        uper.permission_id is not null
+        and uper.is_active = true
+        and (
+          uper.expires_at is null
+          or uper.expires_at > CURRENT_TIMESTAMP
+        )
+    ),
+    array[]::uuid[]
+  ) as direct_permissions,
+  count(distinct p.id) filter (
+    where
+      uper.is_active = true
+      and (
+        uper.expires_at is null
+        or uper.expires_at > CURRENT_TIMESTAMP
+      )
+  ) as active_permission_count
+from
+  user_profiles up
+  left join user_permissions uper on up.id = uper.user_id
+  left join permissions p on uper.permission_id = p.id
+where
+  up.is_super_admin = true
+  or up.role = 'admin'::user_role
+group by
+  up.id,
+  up.full_name,
+  up.email,
+  up.role,
+  up.is_super_admin,
+  up.is_active,
+  up.created_at
+order by
+  up.full_name;
 
 create view public.admin_users_view as
 select
@@ -514,7 +576,6 @@ from
       bookings.agent_id
   ) agent_stats on up.id = agent_stats.agent_id;
 
-
 create table public.agent_clients (
   id uuid not null default gen_random_uuid (),
   agent_id uuid not null,
@@ -554,7 +615,6 @@ create unique INDEX IF not exists idx_agent_client_without_account on public.age
 where
   (client_id is null);
 
-
 create view public.agent_clients_with_details as
 select
   ac.id,
@@ -575,7 +635,6 @@ select
 from
   agent_clients ac
   left join user_profiles up on ac.client_id = up.id;
-
 
 create table public.agent_credit_transactions (
   id uuid not null default gen_random_uuid (),
@@ -598,7 +657,6 @@ create index IF not exists idx_agent_credit_transactions_booking_id on public.ag
 where
   (booking_id is not null);
 
-
 create table public.agent_rates (
   id uuid not null default gen_random_uuid (),
   route_id uuid not null,
@@ -609,7 +667,6 @@ create table public.agent_rates (
   constraint agent_rates_pkey primary key (id),
   constraint agent_rates_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
-
 
 create view public.agent_statistics as
 with
@@ -666,7 +723,6 @@ from
   left join booking_stats bs on up.id = bs.agent_id
 where
   up.role = 'agent'::user_role;
-
 
 create table public.bookings (
   id uuid not null default gen_random_uuid (),
@@ -773,8 +829,6 @@ or
 update OF status on bookings for EACH row
 execute FUNCTION update_trip_available_seats ();
 
-
-
 create table public.cancellations (
   id uuid not null default gen_random_uuid (),
   booking_id uuid not null,
@@ -795,7 +849,6 @@ create table public.cancellations (
   constraint cancellations_booking_id_fkey foreign KEY (booking_id) references bookings (id)
 ) TABLESPACE pg_default;
 
-
 create table public.check_ins (
   id uuid not null default gen_random_uuid (),
   booking_id uuid not null,
@@ -807,7 +860,6 @@ create table public.check_ins (
   constraint check_ins_booking_id_fkey foreign KEY (booking_id) references bookings (id),
   constraint check_ins_checked_in_by_fkey foreign KEY (checked_in_by) references auth.users (id)
 ) TABLESPACE pg_default;
-
 
 create materialized view public.content_dashboard_stats as
 select
@@ -975,7 +1027,6 @@ select
 from
   translations;
 
-
 create table public.faq_categories (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
@@ -1010,7 +1061,6 @@ create trigger trigger_reorder_faq_categories_update BEFORE
 update OF order_index on faq_categories for EACH row when (old.order_index is distinct from new.order_index)
 execute FUNCTION reorder_faq_categories_on_insert ();
 
-
 create view public.faq_categories_with_stats as
 select
   fc.id,
@@ -1040,7 +1090,6 @@ from
 order by
   fc.order_index,
   fc.name;
-
 
 create table public.faqs (
   id uuid not null default gen_random_uuid (),
@@ -1083,7 +1132,6 @@ category_id on faqs for EACH row when (
 )
 execute FUNCTION reorder_faqs_on_insert ();
 
-
 create view public.faqs_with_category as
 select
   f.id,
@@ -1121,6 +1169,8 @@ create index IF not exists idx_islands_zone_id on public.islands using btree (zo
 create index IF not exists idx_islands_zone_id_active on public.islands using btree (zone_id, is_active) TABLESPACE pg_default
 where
   (zone_id is not null);
+
+create index IF not exists idx_islands_zone_active_name on public.islands using btree (zone_id, is_active, name) TABLESPACE pg_default;
 
 create trigger zones_stats_change_trigger
 after INSERT
@@ -1535,7 +1585,6 @@ after INSERT
 or DELETE on passengers for EACH row
 execute FUNCTION update_trip_available_seats ();
 
-
 create table public.payments (
   id uuid not null default gen_random_uuid (),
   booking_id uuid not null,
@@ -1560,6 +1609,147 @@ create index IF not exists idx_payments_status_created_at on public.payments usi
 
 create index IF not exists idx_payments_booking_status_date on public.payments using btree (booking_id, status, created_at) TABLESPACE pg_default;
 
+create table public.permission_audit_logs (
+  id uuid not null default gen_random_uuid (),
+  user_id uuid not null,
+  action character varying(50) not null,
+  entity_type character varying(50) not null,
+  entity_id uuid not null,
+  old_values jsonb null,
+  new_values jsonb null,
+  performed_by uuid not null,
+  ip_address character varying(45) null,
+  user_agent text null,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint permission_audit_logs_pkey primary key (id),
+  constraint permission_audit_logs_performed_by_fkey foreign KEY (performed_by) references user_profiles (id),
+  constraint permission_audit_logs_user_id_fkey foreign KEY (user_id) references user_profiles (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_audit_user on public.permission_audit_logs using btree (user_id, created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_audit_entity on public.permission_audit_logs using btree (entity_type, entity_id) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_audit_performed_by on public.permission_audit_logs using btree (performed_by, created_at) TABLESPACE pg_default;
+
+create table public.permission_categories (
+  id uuid not null default gen_random_uuid (),
+  name character varying(100) not null,
+  description text null,
+  order_index integer not null default 0,
+  is_active boolean not null default true,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint permission_categories_pkey primary key (id),
+  constraint permission_categories_name_key unique (name)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_categories_active on public.permission_categories using btree (is_active, order_index) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_categories_order on public.permission_categories using btree (order_index) TABLESPACE pg_default;
+
+create trigger update_permission_categories_updated_at BEFORE
+update on permission_categories for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create view public.permission_categories_with_stats as
+select
+  pc.id,
+  pc.name,
+  pc.description,
+  pc.order_index,
+  pc.is_active,
+  pc.created_at,
+  pc.updated_at,
+  count(p.id) as total_permissions,
+  count(p.id) filter (
+    where
+      p.is_active = true
+  ) as active_permissions
+from
+  permission_categories pc
+  left join permissions p on pc.id = p.category_id
+group by
+  pc.id,
+  pc.name,
+  pc.description,
+  pc.order_index,
+  pc.is_active,
+  pc.created_at,
+  pc.updated_at
+order by
+  pc.order_index,
+  pc.name;
+
+create table public.permissions (
+  id uuid not null default gen_random_uuid (),
+  name character varying(200) not null,
+  description text not null,
+  resource character varying(50) not null,
+  action character varying(50) not null,
+  level character varying(20) not null,
+  category_id uuid not null,
+  dependencies uuid[] null default '{}'::uuid[],
+  is_critical boolean not null default false,
+  is_active boolean not null default true,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint permissions_pkey primary key (id),
+  constraint permissions_name_key unique (name),
+  constraint unique_permission_resource_action unique (resource, action, level),
+  constraint permissions_category_id_fkey foreign KEY (category_id) references permission_categories (id) on delete CASCADE,
+  constraint permissions_level_check check (
+    (
+      (level)::text = any (
+        (
+          array[
+            'read'::character varying,
+            'write'::character varying,
+            'delete'::character varying,
+            'admin'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_permissions_category on public.permissions using btree (category_id, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_permissions_resource_action on public.permissions using btree (resource, action) TABLESPACE pg_default;
+
+create index IF not exists idx_permissions_level on public.permissions using btree (level) TABLESPACE pg_default;
+
+create index IF not exists idx_permissions_active on public.permissions using btree (is_active) TABLESPACE pg_default;
+
+create trigger update_permissions_updated_at BEFORE
+update on permissions for EACH row
+execute FUNCTION update_updated_at_column ();
+
+
+create view public.permissions_with_category as
+select
+  p.id,
+  p.name,
+  p.description,
+  p.resource,
+  p.action,
+  p.level,
+  p.dependencies,
+  p.is_critical,
+  p.is_active,
+  p.created_at,
+  p.updated_at,
+  pc.id as category_id,
+  pc.name as category_name
+from
+  permissions p
+  join permission_categories pc on p.category_id = pc.id
+where
+  p.is_active = true
+order by
+  pc.order_index,
+  p.name;
 
 create table public.promotion_routes (
   id uuid not null default gen_random_uuid (),
@@ -1720,6 +1910,7 @@ order by
 limit
   50;
 
+
 create table public.reports (
   id uuid not null default gen_random_uuid (),
   report_type public.report_type not null,
@@ -1737,6 +1928,71 @@ create table public.reports (
   constraint reports_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
 
+create table public.role_template_permissions (
+  id uuid not null default gen_random_uuid (),
+  role_template_id uuid not null,
+  permission_id uuid not null,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint role_template_permissions_pkey primary key (id),
+  constraint unique_role_template_permission unique (role_template_id, permission_id),
+  constraint role_template_permissions_permission_id_fkey foreign KEY (permission_id) references permissions (id) on delete CASCADE,
+  constraint role_template_permissions_role_template_id_fkey foreign KEY (role_template_id) references role_templates (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_role_template_permissions_template on public.role_template_permissions using btree (role_template_id) TABLESPACE pg_default;
+
+create index IF not exists idx_role_template_permissions_permission on public.role_template_permissions using btree (permission_id) TABLESPACE pg_default;
+
+create table public.role_templates (
+  id uuid not null default gen_random_uuid (),
+  name character varying(100) not null,
+  description text null,
+  is_system_role boolean not null default false,
+  is_active boolean not null default true,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint role_templates_pkey primary key (id),
+  constraint role_templates_name_key unique (name)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_role_templates_active on public.role_templates using btree (is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_role_templates_system on public.role_templates using btree (is_system_role, is_active) TABLESPACE pg_default;
+
+create trigger update_role_templates_updated_at BEFORE
+update on role_templates for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create view public.role_templates_with_stats as
+select
+  rt.id,
+  rt.name,
+  rt.description,
+  rt.is_system_role,
+  rt.is_active,
+  rt.created_at,
+  rt.updated_at,
+  count(rtp.permission_id) as permission_count,
+  array_agg(rtp.permission_id) filter (
+    where
+      rtp.permission_id is not null
+  ) as permission_ids
+from
+  role_templates rt
+  left join role_template_permissions rtp on rt.id = rtp.role_template_id
+where
+  rt.is_active = true
+group by
+  rt.id,
+  rt.name,
+  rt.description,
+  rt.is_system_role,
+  rt.is_active,
+  rt.created_at,
+  rt.updated_at
+order by
+  rt.is_system_role desc,
+  rt.name;
 
 create view public.round_trip_bookings as
 select
@@ -1802,6 +2058,146 @@ where
 group by
   round_trip_group_id,
   user_id;
+
+create table public.route_activity_logs (
+  id uuid not null default gen_random_uuid (),
+  route_id uuid not null,
+  action character varying(50) not null,
+  old_values jsonb null,
+  new_values jsonb null,
+  user_id uuid null,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint route_activity_logs_pkey primary key (id),
+  constraint route_activity_logs_route_id_fkey foreign KEY (route_id) references routes (id) on delete CASCADE,
+  constraint route_activity_logs_user_id_fkey foreign KEY (user_id) references user_profiles (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_route_activity_logs_route_id on public.route_activity_logs using btree (route_id) TABLESPACE pg_default;
+
+create index IF not exists idx_route_activity_logs_created_at on public.route_activity_logs using btree (created_at) TABLESPACE pg_default;
+
+create view public.route_detailed_stats_view as
+select
+  r.id,
+  r.from_island_id,
+  r.to_island_id,
+  r.base_fare,
+  r.is_active,
+  r.created_at,
+  r.updated_at,
+  r.name,
+  r.distance,
+  r.duration,
+  r.description,
+  r.status,
+  r.from_island_name,
+  r.to_island_name,
+  r.route_name,
+  r.total_trips_30d,
+  r.total_bookings_30d,
+  r.average_occupancy_30d,
+  r.total_revenue_30d,
+  r.cancellation_rate_30d,
+  r.popularity_score,
+  json_build_object(
+    'total_30d',
+    COALESCE(trip_details.total_trips_30d, 0::bigint),
+    'today',
+    COALESCE(trip_details.trips_today, 0::bigint),
+    'next_7d',
+    COALESCE(trip_details.trips_next_7d, 0::bigint),
+    'completed_30d',
+    COALESCE(trip_details.completed_trips_30d, 0::bigint),
+    'cancelled_30d',
+    COALESCE(trip_details.cancelled_trips_30d, 0::bigint)
+  ) as trips_summary,
+  json_build_object(
+    'on_time_rate',
+    95.0,
+    'avg_delay_minutes',
+    5.0,
+    'customer_rating',
+    4.5,
+    'reliability_score',
+    85.0
+  ) as performance_summary,
+  json_build_object(
+    'total_revenue_30d',
+    COALESCE(financial.total_revenue_30d, 0::numeric),
+    'avg_revenue_per_trip',
+    COALESCE(financial.avg_revenue_per_trip, 0::numeric),
+    'avg_occupancy',
+    COALESCE(financial.avg_occupancy, 0::numeric),
+    'profit_margin',
+    75.0
+  ) as financial_summary
+from
+  routes_stats_view r
+  left join (
+    select
+      t.route_id,
+      count(
+        case
+          when t.travel_date >= (CURRENT_DATE - '30 days'::interval) then t.id
+          else null::uuid
+        end
+      ) as total_trips_30d,
+      count(
+        case
+          when t.travel_date = CURRENT_DATE then t.id
+          else null::uuid
+        end
+      ) as trips_today,
+      count(
+        case
+          when t.travel_date >= CURRENT_DATE
+          and t.travel_date <= (CURRENT_DATE + '7 days'::interval) then t.id
+          else null::uuid
+        end
+      ) as trips_next_7d,
+      count(
+        case
+          when t.travel_date >= (CURRENT_DATE - '30 days'::interval)
+          and t.status::text = 'completed'::text then t.id
+          else null::uuid
+        end
+      ) as completed_trips_30d,
+      count(
+        case
+          when t.travel_date >= (CURRENT_DATE - '30 days'::interval)
+          and t.status::text = 'cancelled'::text then t.id
+          else null::uuid
+        end
+      ) as cancelled_trips_30d
+    from
+      trips t
+    group by
+      t.route_id
+  ) trip_details on r.id = trip_details.route_id
+  left join (
+    select
+      t.route_id,
+      sum(
+        case
+          when b.status = 'confirmed'::booking_status then b.total_fare
+          else 0::numeric
+        end
+      ) as total_revenue_30d,
+      avg(
+        case
+          when b.status = 'confirmed'::booking_status then b.total_fare
+          else null::numeric
+        end
+      ) as avg_revenue_per_trip,
+      50.0 as avg_occupancy
+    from
+      trips t
+      left join bookings b on t.id = b.trip_id
+    where
+      t.travel_date >= (CURRENT_DATE - '30 days'::interval)
+    group by
+      t.route_id
+  ) financial on r.id = financial.route_id;
 
 create view public.route_performance_view as
 select
@@ -1889,6 +2285,7 @@ create table public.route_price_history (
   constraint route_price_history_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
 
+
 create table public.routes (
   id uuid not null default gen_random_uuid (),
   from_island_id uuid not null,
@@ -1901,6 +2298,7 @@ create table public.routes (
   distance character varying(50) null,
   duration character varying(50) null,
   description text null,
+  updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
   constraint routes_pkey primary key (id),
   constraint unique_route_islands unique (from_island_id, to_island_id),
   constraint routes_from_island_id_fkey foreign KEY (from_island_id) references islands (id),
@@ -1919,12 +2317,31 @@ create index IF not exists idx_routes_from_to on public.routes using btree (from
 
 create index IF not exists idx_routes_islands_active on public.routes using btree (from_island_id, to_island_id, is_active) TABLESPACE pg_default;
 
+create index IF not exists idx_routes_updated_at on public.routes using btree (updated_at) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_name_active on public.routes using btree (name, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_status_active on public.routes using btree (status, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_active_only on public.routes using btree (id, name, base_fare) TABLESPACE pg_default
+where
+  (is_active = true);
+
+create index IF not exists idx_routes_created_at on public.routes using btree (created_at desc) TABLESPACE pg_default;
+
 create trigger audit_routes_trigger
 after INSERT
 or DELETE
 or
 update on routes for EACH row
 execute FUNCTION enhanced_audit_trigger ();
+
+create trigger route_activity_trigger
+after INSERT
+or DELETE
+or
+update on routes for EACH row
+execute FUNCTION log_route_activity ();
 
 create trigger routes_stats_change_trigger
 after INSERT
@@ -1933,10 +2350,117 @@ or
 update on routes for EACH row
 execute FUNCTION notify_zone_stats_change ();
 
+create trigger routes_updated_at_trigger BEFORE
+update on routes for EACH row
+execute FUNCTION update_routes_updated_at ();
+
 create trigger trigger_set_route_name BEFORE INSERT
 or
 update on routes for EACH row
 execute FUNCTION set_route_name ();
+
+create view public.routes_simple_view as
+select
+  r.id,
+  r.name,
+  r.from_island_id,
+  r.to_island_id,
+  r.base_fare,
+  r.status,
+  r.is_active,
+  oi.name as from_island_name,
+  di.name as to_island_name,
+  COALESCE(
+    r.name,
+    concat(oi.name, ' → ', di.name)::character varying
+  ) as route_display_name
+from
+  routes r
+  left join islands oi on r.from_island_id = oi.id
+  left join islands di on r.to_island_id = di.id;
+
+create view public.routes_stats_view as
+select
+  r.id,
+  r.from_island_id,
+  r.to_island_id,
+  r.base_fare,
+  r.is_active,
+  r.created_at,
+  r.updated_at,
+  r.name,
+  r.distance,
+  r.duration,
+  r.description,
+  r.status,
+  oi.name as from_island_name,
+  di.name as to_island_name,
+  COALESCE(
+    r.name,
+    concat(oi.name, ' to ', di.name)::character varying
+  ) as route_name,
+  COALESCE(route_stats.total_trips_30d, 0::bigint) as total_trips_30d,
+  COALESCE(route_stats.total_bookings_30d, 0::bigint) as total_bookings_30d,
+  COALESCE(route_stats.average_occupancy_30d, 0::numeric) as average_occupancy_30d,
+  COALESCE(route_stats.total_revenue_30d, 0::numeric) as total_revenue_30d,
+  COALESCE(route_stats.cancellation_rate_30d, 0::numeric) as cancellation_rate_30d,
+  COALESCE(route_stats.popularity_score, 0::numeric) as popularity_score
+from
+  routes r
+  left join islands oi on r.from_island_id = oi.id
+  left join islands di on r.to_island_id = di.id
+  left join (
+    select
+      t.route_id,
+      count(distinct t.id) as total_trips_30d,
+      count(b.id) as total_bookings_30d,
+      round(
+        case
+          when count(distinct t.id) > 0
+          and avg(v.seating_capacity) > 0::numeric then count(b.id)::numeric * 100.0 / (
+            count(distinct t.id)::numeric * avg(v.seating_capacity)
+          )
+          else 0::numeric
+        end,
+        2
+      ) as average_occupancy_30d,
+      sum(
+        case
+          when b.status = 'confirmed'::booking_status then b.total_fare
+          else 0::numeric
+        end
+      ) as total_revenue_30d,
+      round(
+        case
+          when count(b.id) > 0 then count(
+            case
+              when b.status = 'cancelled'::booking_status then 1
+              else null::integer
+            end
+          )::numeric / count(b.id)::numeric * 100::numeric
+          else 0::numeric
+        end,
+        2
+      ) as cancellation_rate_30d,
+      round(
+        count(b.id)::numeric * 0.7 + sum(
+          case
+            when b.status = 'confirmed'::booking_status then b.total_fare
+            else 0::numeric
+          end
+        ) / 100::numeric * 0.3,
+        2
+      ) as popularity_score
+    from
+      trips t
+      left join bookings b on t.id = b.trip_id
+      left join vessels v on t.vessel_id = v.id
+    where
+      t.travel_date >= (CURRENT_DATE - '30 days'::interval)
+    group by
+      t.route_id
+  ) route_stats on r.id = route_stats.route_id;
+
 
 create table public.seat_reservations (
   id uuid not null default gen_random_uuid (),
@@ -1966,6 +2490,7 @@ or DELETE
 or
 update on seat_reservations for EACH row
 execute FUNCTION update_trip_available_seats ();
+
 
 create table public.seats (
   id uuid not null default gen_random_uuid (),
@@ -2220,7 +2745,6 @@ order by
   language_code,
   key;
 
-
 create view public.trip_availability as
 select
   r.id as route_id,
@@ -2255,7 +2779,6 @@ group by
 order by
   r.id,
   t.travel_date;
-
 
 create table public.trips (
   id uuid not null default gen_random_uuid (),
@@ -2316,6 +2839,83 @@ from
   join vessels v on t.vessel_id = v.id
 where
   t.is_active = true;
+
+create table public.user_permissions (
+  id uuid not null default gen_random_uuid (),
+  user_id uuid not null,
+  permission_id uuid not null,
+  granted_by uuid not null,
+  granted_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  expires_at timestamp with time zone null,
+  is_active boolean not null default true,
+  notes text null,
+  constraint user_permissions_pkey primary key (id),
+  constraint unique_user_permission unique (user_id, permission_id),
+  constraint user_permissions_granted_by_fkey foreign KEY (granted_by) references user_profiles (id),
+  constraint user_permissions_permission_id_fkey foreign KEY (permission_id) references permissions (id) on delete CASCADE,
+  constraint user_permissions_user_id_fkey foreign KEY (user_id) references user_profiles (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_user_permissions_user on public.user_permissions using btree (user_id, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_user_permissions_permission on public.user_permissions using btree (permission_id) TABLESPACE pg_default;
+
+create index IF not exists idx_user_permissions_expires on public.user_permissions using btree (expires_at) TABLESPACE pg_default
+where
+  (expires_at is not null);
+
+create index IF not exists idx_user_permissions_active on public.user_permissions using btree (is_active, expires_at) TABLESPACE pg_default;
+
+create trigger permission_changes_audit_trigger
+after INSERT
+or DELETE
+or
+update on user_permissions for EACH row
+execute FUNCTION log_permission_changes ();
+
+create view public.user_permissions_summary as
+select
+  up.id,
+  up.full_name,
+  up.email,
+  up.role,
+  up.is_super_admin,
+  up.is_active,
+  up.created_at,
+  array_agg(distinct uper.permission_id) filter (
+    where
+      uper.permission_id is not null
+      and uper.is_active = true
+      and (
+        uper.expires_at is null
+        or uper.expires_at > CURRENT_TIMESTAMP
+      )
+  ) as direct_permissions,
+  count(distinct p.id) filter (
+    where
+      uper.is_active = true
+      and (
+        uper.expires_at is null
+        or uper.expires_at > CURRENT_TIMESTAMP
+      )
+  ) as active_permission_count
+from
+  user_profiles up
+  left join user_permissions uper on up.id = uper.user_id
+  left join permissions p on uper.permission_id = p.id
+where
+  up.is_super_admin = true
+  or up.role = 'admin'::user_role
+group by
+  up.id,
+  up.full_name,
+  up.email,
+  up.role,
+  up.is_super_admin,
+  up.is_active,
+  up.created_at
+order by
+  up.full_name;
 
 create table public.user_profiles (
   id uuid not null,
@@ -2389,6 +2989,8 @@ where
   );
 
 create index IF not exists idx_user_profiles_super_admin on public.user_profiles using btree (is_super_admin, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_user_profiles_role_active_created on public.user_profiles using btree (role, is_active, created_at) TABLESPACE pg_default;
 
 create trigger audit_user_profiles_trigger
 after INSERT
@@ -2502,12 +3104,28 @@ create index IF not exists idx_vessels_status on public.vessels using btree (sta
 
 create index IF not exists idx_vessels_active on public.vessels using btree (is_active) TABLESPACE pg_default;
 
+create index IF not exists idx_vessels_active_only on public.vessels using btree (id, name, seating_capacity) TABLESPACE pg_default
+where
+  (is_active = true);
+
 create trigger audit_vessels_trigger
 after INSERT
 or DELETE
 or
 update on vessels for EACH row
 execute FUNCTION enhanced_audit_trigger ();
+
+create table public.view_performance_metrics (
+  id uuid not null default gen_random_uuid (),
+  view_name character varying(100) not null,
+  query_duration_ms integer null,
+  rows_returned integer null,
+  query_timestamp timestamp with time zone null default CURRENT_TIMESTAMP,
+  query_plan_hash character varying(100) null,
+  constraint view_performance_metrics_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_view_performance_view_time on public.view_performance_metrics using btree (view_name, query_timestamp) TABLESPACE pg_default;
 
 create table public.wallet_transactions (
   id uuid not null default gen_random_uuid (),
@@ -2711,7 +3329,6 @@ select
 from
   zones_stats_view;
 
-
 create table public.zones (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
@@ -2820,4 +3437,5 @@ from
 order by
   z.order_index,
   z.name;
+
 
