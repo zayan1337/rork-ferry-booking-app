@@ -357,6 +357,22 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
                 throw new Error(Object.values(validation.errors)[0]);
             }
 
+            // Check for existing route with same island combination
+            const { data: existingRoute, error: checkError } = await supabase
+                .from('routes')
+                .select('id, name')
+                .eq('from_island_id', data.from_island_id)
+                .eq('to_island_id', data.to_island_id)
+                .single();
+
+            if (checkError && checkError.code !== 'PGRST116') {
+                throw checkError;
+            }
+
+            if (existingRoute) {
+                throw new Error(`A route already exists between these islands. Route ID: ${existingRoute.id}`);
+            }
+
             const { data: newRoute, error } = await supabase
                 .from('routes')
                 .insert([{

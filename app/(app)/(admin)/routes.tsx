@@ -410,7 +410,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        padding: 20,
         gap: 20,
     },
     noAccessIcon: {
@@ -459,7 +458,7 @@ const styles = StyleSheet.create({
     },
     listContainer: {
         flexGrow: 1,
-        paddingHorizontal: 20,
+        paddingHorizontal: 12,
         paddingBottom: 100, // Space for floating button
     },
     listHeader: {

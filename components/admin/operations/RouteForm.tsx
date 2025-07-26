@@ -21,6 +21,7 @@ import {
 
 // Components
 import TextInput from "@/components/admin/TextInput";
+import UnitInput from "@/components/admin/UnitInput";
 import Button from "@/components/admin/Button";
 import Dropdown from "@/components/admin/Dropdown";
 import Switch from "@/components/admin/Switch";
@@ -54,6 +55,7 @@ interface ValidationErrors {
     duration?: string;
     description?: string;
     general?: string;
+    route?: string;
 }
 
 
@@ -143,6 +145,19 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
         // Check for same origin and destination
         if (formData.from_island_id && formData.to_island_id && formData.from_island_id === formData.to_island_id) {
             errors.to_island_id = 'Origin and destination islands must be different';
+        }
+
+        // Check for existing route between the same islands
+        if (formData.from_island_id && formData.to_island_id && !currentRoute) {
+            const existingRoute = routes.find(route =>
+                route.from_island_id === formData.from_island_id &&
+                route.to_island_id === formData.to_island_id
+            );
+            if (existingRoute) {
+                const fromIsland = islands?.find(i => i.id === formData.from_island_id)?.name || 'Unknown';
+                const toIsland = islands?.find(i => i.id === formData.to_island_id)?.name || 'Unknown';
+                errors.route = `A route already exists between ${fromIsland} and ${toIsland}. Please edit the existing route instead.`;
+            }
         }
 
         // Base fare validation
@@ -253,9 +268,25 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
             }
         } catch (error) {
             console.error('Error saving route:', error);
-            const errorMessage = currentRoute
-                ? "Failed to update route. Please check your connection and try again."
-                : "Failed to create route. Please check your connection and try again.";
+
+            // Handle specific database constraint errors
+            let errorMessage = "Failed to save route. Please check your connection and try again.";
+
+            if (error instanceof Error) {
+                // Check for duplicate route constraint error
+                if (error.message.includes('unique_route_islands') || error.message.includes('duplicate key value')) {
+                    const fromIsland = islands?.find(i => i.id === formData.from_island_id)?.name || 'Unknown';
+                    const toIsland = islands?.find(i => i.id === formData.to_island_id)?.name || 'Unknown';
+                    errorMessage = `A route already exists between ${fromIsland} and ${toIsland}. Please edit the existing route instead.`;
+                } else if (error.message.includes('different_islands')) {
+                    errorMessage = 'Origin and destination islands must be different.';
+                } else if (error.message.includes('chk_route_fare_positive')) {
+                    errorMessage = 'Base fare must be a positive number.';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+
             setValidationErrors({ general: errorMessage });
         } finally {
             setLoading(false);
@@ -450,22 +481,34 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
 
                     <View style={styles.formRow}>
                         <View style={styles.formHalf}>
-                            <TextInput
+                            <UnitInput
                                 label="Distance"
                                 value={formData.distance}
                                 onChangeText={(text) => setFormData(prev => ({ ...prev, distance: text }))}
-                                placeholder="e.g., 25 km"
+                                placeholder="Enter distance"
                                 error={validationErrors.distance}
+                                units={[
+                                    { label: "Kilometers", value: "km", suffix: "km" },
+                                    { label: "Miles", value: "mi", suffix: "mi" },
+                                ]}
+                                defaultUnit="km"
+                                keyboardType="numeric"
                             />
                         </View>
 
                         <View style={styles.formHalf}>
-                            <TextInput
+                            <UnitInput
                                 label="Duration"
                                 value={formData.duration}
                                 onChangeText={(text) => setFormData(prev => ({ ...prev, duration: text }))}
-                                placeholder="e.g., 30 min"
+                                placeholder="Enter duration"
                                 error={validationErrors.duration}
+                                units={[
+                                    { label: "Minutes", value: "min", suffix: "min" },
+                                    { label: "Hours", value: "hr", suffix: "hr" },
+                                ]}
+                                defaultUnit="min"
+                                keyboardType="numeric"
                             />
                         </View>
                     </View>
@@ -494,12 +537,14 @@ export default function RouteForm({ routeId, onSave, onCancel }: RouteFormProps)
                 </View>
 
                 {/* Error Display */}
-                {validationErrors.general && (
+                {(validationErrors.general || validationErrors.route) && (
                     <View style={styles.errorContainer}>
                         <View style={styles.errorIcon}>
                             <AlertCircle size={16} color={colors.error} />
                         </View>
-                        <Text style={styles.errorText}>{validationErrors.general}</Text>
+                        <Text style={styles.errorText}>
+                            {validationErrors.route || validationErrors.general}
+                        </Text>
                     </View>
                 )}
 

@@ -835,13 +835,13 @@ const styles = StyleSheet.create({
         paddingBottom: 100,
     },
     listHeader: {
-        padding: 16,
+        padding: 12,
         gap: 16,
     },
     quickStats: {
         backgroundColor: colors.card,
         borderRadius: 12,
-        padding: 16,
+        padding: 12,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,

@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     },
     listContainer: {
         flexGrow: 1,
-        paddingHorizontal: 20,
+        paddingHorizontal: 12,
         paddingBottom: 100, // Space for floating button
     },
     listHeader: {
