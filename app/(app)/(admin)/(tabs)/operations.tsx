@@ -128,7 +128,7 @@ export default function OperationsScreen() {
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
-      setIsRefreshing(false);
+    setIsRefreshing(false);
     }
   };
 

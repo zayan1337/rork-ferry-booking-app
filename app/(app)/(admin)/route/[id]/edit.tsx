@@ -140,7 +140,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        padding: 20,
         gap: 20,
     },
     noAccessIcon: {
@@ -176,7 +175,7 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flexGrow: 1,
-        padding: 20,
+        padding: 12,
         paddingBottom: 40,
     },
 }); 

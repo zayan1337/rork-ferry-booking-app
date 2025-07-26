@@ -82,7 +82,7 @@ export default function RoutesScreen() {
     };
 
     const handleRoutePress = (routeId: string) => {
-        router.push(`./route/${routeId}` as any);
+            router.push(`./route/${routeId}` as any);
     };
 
     const handleAddRoute = () => {
@@ -138,35 +138,35 @@ export default function RoutesScreen() {
     const renderListHeader = () => (
         <View style={styles.listHeader}>
             {/* Quick Stats Summary */}
-            <View style={styles.quickStats}>
-                <View style={styles.quickStatsRow}>
-                    <View style={styles.quickStatItem}>
-                        <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
-                            <Navigation size={16} color={colors.primary} />
-                        </View>
+                <View style={styles.quickStats}>
+                    <View style={styles.quickStatsRow}>
+                        <View style={styles.quickStatItem}>
+                            <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
+                                <Navigation size={16} color={colors.primary} />
+                            </View>
                         <Text style={styles.quickStatValue}>{stats.total}</Text>
-                        <Text style={styles.quickStatLabel}>Total</Text>
-                    </View>
-                    <View style={styles.quickStatItem}>
-                        <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
-                            <Activity size={16} color={colors.success} />
+                            <Text style={styles.quickStatLabel}>Total</Text>
                         </View>
+                        <View style={styles.quickStatItem}>
+                            <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
+                                <Activity size={16} color={colors.success} />
+                            </View>
                         <Text style={styles.quickStatValue}>{stats.active}</Text>
-                        <Text style={styles.quickStatLabel}>Active</Text>
-                    </View>
-                    <View style={styles.quickStatItem}>
-                        <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
-                            <TrendingUp size={16} color={colors.info} />
+                            <Text style={styles.quickStatLabel}>Active</Text>
                         </View>
+                        <View style={styles.quickStatItem}>
+                            <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
+                                <TrendingUp size={16} color={colors.info} />
+                            </View>
                         <Text style={styles.quickStatValue}>{Math.round(stats.totalTrips30d / 1000)}K</Text>
-                        <Text style={styles.quickStatLabel}>Trips</Text>
-                    </View>
-                    <View style={styles.quickStatItem}>
+                            <Text style={styles.quickStatLabel}>Trips</Text>
+                        </View>
+                        <View style={styles.quickStatItem}>
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.backgroundTertiary }]}>
                             <DollarSign size={16} color={colors.textSecondary} />
-                        </View>
+                            </View>
                         <Text style={styles.quickStatValue}>{Math.round(stats.totalRevenue30d / 1000)}K</Text>
-                        <Text style={styles.quickStatLabel}>Revenue</Text>
+                            <Text style={styles.quickStatLabel}>Revenue</Text>
                     </View>
                 </View>
             </View>
@@ -276,7 +276,7 @@ export default function RoutesScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
-            )}
+                    )}
 
             {/* Section Divider */}
             {filteredAndSortedRoutes.length > 0 && (
@@ -367,21 +367,21 @@ export default function RoutesScreen() {
                     <Text style={styles.loadingText}>Loading routes...</Text>
                 </View>
             ) : (
-                <FlatList
-                    data={filteredAndSortedRoutes}
-                    renderItem={renderRouteItem}
+            <FlatList
+                data={filteredAndSortedRoutes}
+                renderItem={renderRouteItem}
                     ListHeaderComponent={renderListHeader}
                     ListEmptyComponent={renderEmptyState}
-                    keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContainer}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isRefreshing}
-                            onRefresh={handleRefresh}
-                            colors={[colors.primary]}
-                            tintColor={colors.primary}
-                        />
-                    }
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefreshing}
+                        onRefresh={handleRefresh}
+                        colors={[colors.primary]}
+                        tintColor={colors.primary}
+                    />
+                }
                     showsVerticalScrollIndicator={false}
                     ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
                 />

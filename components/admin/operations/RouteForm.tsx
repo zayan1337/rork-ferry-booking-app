@@ -558,7 +558,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: colors.card,
-        padding: 24,
+        padding: 20,
         borderRadius: 16,
         marginBottom: 24,
         shadowColor: colors.shadowMedium,
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
     section: {
         backgroundColor: colors.card,
         borderRadius: 16,
-        padding: 24,
+        padding: 20,
         marginBottom: 20,
         shadowColor: colors.shadowMedium,
         shadowOffset: { width: 0, height: 2 },

@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
-    padding: 20,
+    padding: 12,
     paddingBottom: 40,
   },
   noPermissionContainer: {
