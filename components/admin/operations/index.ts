@@ -2,6 +2,12 @@
 export { default as OperationsStats } from './OperationsStats';
 export { default as SectionSelector } from './SectionSelector';
 
+// Operations Tab Components
+export { default as RoutesTab } from './RoutesTab';
+export { default as TripsTab } from './TripsTab';
+export { default as VesselsTab } from './VesselsTab';
+export { default as ScheduleTab } from './ScheduleTab';
+
 // FAQ Components
 export { default as FAQForm } from './FAQForm';
 export { default as FAQCategoryForm } from './FAQCategoryForm';
