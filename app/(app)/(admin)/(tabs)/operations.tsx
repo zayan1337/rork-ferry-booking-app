@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
@@ -25,6 +26,7 @@ import {
   MapPin,
   Route as RouteIcon,
   Ship,
+  Activity,
 } from "lucide-react-native";
 
 // Operations Components
@@ -80,7 +82,7 @@ export default function OperationsScreen() {
   // Limit routes to 4 for display (like islands/zones pattern)
   const displayRoutes = useMemo(() => {
     if (!allRoutes) return [];
-    
+
     // Apply search filter if there's a search query
     let filtered = allRoutes;
     if (routeSearchQuery) {
@@ -90,10 +92,10 @@ export default function OperationsScreen() {
         route.to_island_name?.toLowerCase().includes(routeSearchQuery.toLowerCase())
       );
     }
-    
+
     // Return only first 4 routes for display
     return filtered.slice(0, 4);
-  }, [allRoutes, routeSearchQuery]);
+  }, [allRoutes, routeLoading.routes, routeSearchQuery]);
 
   // Limit trips to 4 for display
   const displayTrips = useMemo(() => {
@@ -101,7 +103,7 @@ export default function OperationsScreen() {
     return filteredTrips
       .filter((trip, index, self) => index === self.findIndex(t => t.id === trip.id))
       .slice(0, 4);
-  }, [filteredTrips]);
+  }, [filteredTrips, loading.trips]);
 
   // Limit vessels to 4 for display
   const displayVessels = useMemo(() => {
@@ -109,10 +111,9 @@ export default function OperationsScreen() {
     return filteredVessels
       .filter((vessel, index, self) => index === self.findIndex(v => v.id === vessel.id))
       .slice(0, 4);
-  }, [filteredVessels]);
+  }, [filteredVessels, loading.vessels]);
 
   const [activeSection, setActiveSection] = useState<"routes" | "trips" | "vessels" | "schedule">("routes");
-
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { isTablet, isSmallScreen } = getResponsiveDimensions();
@@ -128,7 +129,7 @@ export default function OperationsScreen() {
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
-    setIsRefreshing(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -174,6 +175,13 @@ export default function OperationsScreen() {
     }
   };
 
+  const renderLoadingState = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={styles.loadingText}>Loading...</Text>
+    </View>
+  );
+
   const renderRoutes = () => {
     if (!canViewRoutes()) {
       return (
@@ -184,6 +192,11 @@ export default function OperationsScreen() {
           </Text>
         </View>
       );
+    }
+
+    // Show loading only if we have no data and are loading
+    if (routeLoading.routes && (!allRoutes || allRoutes.length === 0)) {
+      return renderLoadingState();
     }
 
     return (
@@ -275,6 +288,11 @@ export default function OperationsScreen() {
       );
     }
 
+    // Only show loading if we don't have any trips data yet
+    if (loading.trips && (!filteredTrips || filteredTrips.length === 0)) {
+      return renderLoadingState();
+    }
+
     return (
       <View style={styles.sectionContent}>
         <View style={styles.sectionHeader}>
@@ -357,6 +375,11 @@ export default function OperationsScreen() {
           </Text>
         </View>
       );
+    }
+
+    // Only show loading if we don't have any vessels data yet
+    if (loading.vessels && (!filteredVessels || filteredVessels.length === 0)) {
+      return renderLoadingState();
     }
 
     return (
@@ -448,6 +471,11 @@ export default function OperationsScreen() {
           </Text>
         </View>
       );
+    }
+
+    // Only show loading if we don't have any schedule data yet
+    if (loading.schedule && (!todaySchedule || todaySchedule.length === 0)) {
+      return renderLoadingState();
     }
 
     // Limit schedule to 4 items for display
@@ -564,6 +592,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
+    paddingTop: 16,
   },
   sectionContent: {
     flex: 1,
@@ -807,11 +836,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
-  emptyStateIcon: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    backgroundColor: colors.textSecondary + "10",
-    borderRadius: 24,
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: colors.textSecondary,
   },
 }); 
