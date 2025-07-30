@@ -20,12 +20,16 @@ ADD COLUMN IF NOT EXISTS license_expiry_date DATE,
 ADD COLUMN IF NOT EXISTS max_speed INTEGER,
 ADD COLUMN IF NOT EXISTS fuel_capacity INTEGER,
 ADD COLUMN IF NOT EXISTS description TEXT,
-ADD COLUMN IF NOT EXISTS notes TEXT;
+ADD COLUMN IF NOT EXISTS notes TEXT,
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
 
 -- Create indexes for new columns
 CREATE INDEX IF NOT EXISTS idx_vessels_type ON public.vessels USING btree (vessel_type);
 CREATE INDEX IF NOT EXISTS idx_vessels_registration ON public.vessels USING btree (registration_number);
 CREATE INDEX IF NOT EXISTS idx_vessels_captain ON public.vessels USING btree (captain_name);
+CREATE INDEX IF NOT EXISTS idx_vessels_maintenance ON public.vessels USING btree (last_maintenance_date, next_maintenance_date);
+CREATE INDEX IF NOT EXISTS idx_vessels_insurance ON public.vessels USING btree (insurance_expiry_date);
+CREATE INDEX IF NOT EXISTS idx_vessels_license ON public.vessels USING btree (license_expiry_date);
 
 -- Enhanced vessel seat layouts table with simplified structure
 CREATE TABLE IF NOT EXISTS public.vessel_seat_layouts (
@@ -65,6 +69,8 @@ CREATE INDEX IF NOT EXISTS idx_seats_layout_id ON public.seats USING btree (layo
 CREATE INDEX IF NOT EXISTS idx_seats_position ON public.seats USING btree (position_x, position_y);
 CREATE INDEX IF NOT EXISTS idx_seats_type ON public.seats USING btree (seat_type);
 CREATE INDEX IF NOT EXISTS idx_seats_class ON public.seats USING btree (seat_class);
+CREATE INDEX IF NOT EXISTS idx_seats_disabled ON public.seats USING btree (is_disabled);
+CREATE INDEX IF NOT EXISTS idx_seats_premium ON public.seats USING btree (is_premium);
 
 -- Function to generate default seat layout based on vessel capacity
 CREATE OR REPLACE FUNCTION generate_default_seat_layout(
@@ -86,7 +92,7 @@ BEGIN
         vessel_capacity := capacity;
     END IF;
 
-    -- Calculate optimal rows and columns
+    -- Calculate optimal rows and columns based on capacity
     IF vessel_capacity <= 20 THEN
         rows_count := 4;
         cols_count := CEIL(vessel_capacity::DECIMAL / 4);
@@ -96,9 +102,13 @@ BEGIN
     ELSIF vessel_capacity <= 100 THEN
         rows_count := 8;
         cols_count := CEIL(vessel_capacity::DECIMAL / 8);
-    ELSE
+    ELSIF vessel_capacity <= 200 THEN
         rows_count := 10;
         cols_count := CEIL(vessel_capacity::DECIMAL / 10);
+    ELSE
+        -- For larger vessels, allow more flexibility
+        rows_count := 15;
+        cols_count := CEIL(vessel_capacity::DECIMAL / 15);
     END IF;
 
     -- Calculate aisle position (middle column)

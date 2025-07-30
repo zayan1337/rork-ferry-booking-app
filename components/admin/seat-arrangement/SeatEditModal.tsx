@@ -8,6 +8,7 @@ import {
     ScrollView,
     Alert,
     TextInput as RNTextInput,
+    Dimensions,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminManagement } from '@/types';
@@ -24,6 +25,8 @@ import {
     Plus,
     Minus,
 } from 'lucide-react-native';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 type Seat = AdminManagement.Seat;
 
@@ -190,219 +193,233 @@ export default function SeatEditModal({
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                        {/* Basic Information */}
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Basic Information</Text>
+                    {/* Content Area */}
+                    <View style={styles.contentArea}>
+                        <ScrollView
+                            style={styles.scrollView}
+                            contentContainerStyle={styles.scrollContent}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            {/* Basic Information */}
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Basic Information</Text>
 
-                            {isNewSeat ? (
-                                <View style={styles.infoGrid}>
-                                    <View style={styles.infoItem}>
-                                        <Text style={styles.infoLabel}>Seat Number</Text>
-                                        <CustomTextInput
-                                            style={styles.textInput}
-                                            value={editedSeat.seat_number}
-                                            onChangeText={(text: string) => updateSeat({ seat_number: text })}
-                                            placeholder="e.g., A1, B2"
+                                {isNewSeat ? (
+                                    <View style={styles.infoGrid}>
+                                        <View style={styles.infoItem}>
+                                            <Text style={styles.infoLabel}>Seat Number</Text>
+                                            <CustomTextInput
+                                                style={styles.textInput}
+                                                value={editedSeat.seat_number}
+                                                onChangeText={(text: string) => updateSeat({ seat_number: text })}
+                                                placeholder="e.g., A1, B2"
+                                            />
+                                        </View>
+                                        <View style={styles.infoItem}>
+                                            <Text style={styles.infoLabel}>Row</Text>
+                                            <CustomTextInput
+                                                style={styles.textInput}
+                                                value={editedSeat.row_number.toString()}
+                                                onChangeText={(text: string) => updateSeat({ row_number: parseInt(text) || 1 })}
+                                                placeholder="Row number"
+                                                keyboardType="numeric"
+                                            />
+                                        </View>
+                                        <View style={styles.infoItem}>
+                                            <Text style={styles.infoLabel}>Column</Text>
+                                            <CustomTextInput
+                                                style={styles.textInput}
+                                                value={(editedSeat.position_x || 1).toString()}
+                                                onChangeText={(text: string) => updateSeat({ position_x: parseInt(text) || 1 })}
+                                                placeholder="Column number"
+                                                keyboardType="numeric"
+                                            />
+                                        </View>
+                                    </View>
+                                ) : (
+                                    <View style={styles.infoGrid}>
+                                        <View style={styles.infoItem}>
+                                            <Text style={styles.infoLabel}>Seat Number</Text>
+                                            <Text style={styles.infoValue}>{editedSeat.seat_number}</Text>
+                                        </View>
+                                        <View style={styles.infoItem}>
+                                            <Text style={styles.infoLabel}>Row</Text>
+                                            <Text style={styles.infoValue}>{editedSeat.row_number}</Text>
+                                        </View>
+                                        <View style={styles.infoItem}>
+                                            <Text style={styles.infoLabel}>Column</Text>
+                                            <Text style={styles.infoValue}>{editedSeat.position_x}</Text>
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* Seat Type */}
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Seat Type</Text>
+                                <View style={styles.typeGrid}>
+                                    {[
+                                        { type: 'standard', label: 'Standard', icon: User },
+                                        { type: 'premium', label: 'Premium', icon: Crown },
+                                        { type: 'crew', label: 'Crew', icon: Anchor },
+                                        { type: 'disabled', label: 'Disabled', icon: UserCheck },
+                                    ].map(({ type, label, icon: Icon }) => {
+                                        const isSelected = editedSeat.seat_type === type || (!editedSeat.seat_type && type === 'standard');
+                                        return (
+                                            <TouchableOpacity
+                                                key={type}
+                                                style={[
+                                                    styles.typeOption,
+                                                    isSelected && styles.typeOptionSelected,
+                                                    !isSelected && styles.typeOptionUnselected,
+                                                ]}
+                                                onPress={() => updateSeat({ seat_type: type as any })}
+                                            >
+                                                <Icon
+                                                    size={20}
+                                                    color={getSeatTypeColor(type)}
+                                                />
+                                                <Text style={[
+                                                    styles.typeOptionText,
+                                                    isSelected && styles.typeOptionTextSelected,
+                                                    !isSelected && styles.typeOptionTextUnselected,
+                                                ]}>
+                                                    {label}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+
+                            {/* Seat Class */}
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Seat Class</Text>
+                                <View style={styles.typeGrid}>
+                                    {[
+                                        { class: 'economy', label: 'Economy' },
+                                        { class: 'business', label: 'Business' },
+                                        { class: 'first', label: 'First Class' },
+                                    ].map(({ class: seatClass, label }) => {
+                                        const isSelected = editedSeat.seat_class === seatClass || (!editedSeat.seat_class && seatClass === 'economy');
+                                        return (
+                                            <TouchableOpacity
+                                                key={seatClass}
+                                                style={[
+                                                    styles.typeOption,
+                                                    isSelected && styles.typeOptionSelected,
+                                                    !isSelected && styles.typeOptionUnselected,
+                                                ]}
+                                                onPress={() => updateSeat({ seat_class: seatClass as any })}
+                                            >
+                                                <Text style={[
+                                                    styles.typeOptionText,
+                                                    isSelected && styles.typeOptionTextSelected,
+                                                    !isSelected && styles.typeOptionTextUnselected,
+                                                ]}>
+                                                    {label}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+
+                            {/* Seat Features */}
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Seat Features</Text>
+
+                                <View style={styles.featureGrid}>
+                                    <View style={styles.featureItem}>
+                                        <Switch
+                                            label="Window Seat"
+                                            value={editedSeat.is_window}
+                                            onValueChange={(value) => updateSeat({ is_window: value })}
+                                            description="Seat is located next to a window"
                                         />
                                     </View>
-                                    <View style={styles.infoItem}>
-                                        <Text style={styles.infoLabel}>Row</Text>
-                                        <CustomTextInput
-                                            style={styles.textInput}
-                                            value={editedSeat.row_number.toString()}
-                                            onChangeText={(text: string) => updateSeat({ row_number: parseInt(text) || 1 })}
-                                            placeholder="Row number"
-                                            keyboardType="numeric"
+
+                                    <View style={styles.featureItem}>
+                                        <Switch
+                                            label="Aisle Seat"
+                                            value={editedSeat.is_aisle}
+                                            onValueChange={(value) => updateSeat({ is_aisle: value })}
+                                            description="Seat is located next to an aisle"
                                         />
                                     </View>
-                                    <View style={styles.infoItem}>
-                                        <Text style={styles.infoLabel}>Column</Text>
-                                        <CustomTextInput
-                                            style={styles.textInput}
-                                            value={(editedSeat.position_x || 1).toString()}
-                                            onChangeText={(text: string) => updateSeat({ position_x: parseInt(text) || 1 })}
-                                            placeholder="Column number"
-                                            keyboardType="numeric"
+
+                                    <View style={styles.featureItem}>
+                                        <Switch
+                                            label="Premium Seat"
+                                            value={editedSeat.is_premium}
+                                            onValueChange={(value) => updateSeat({ is_premium: value })}
+                                            description="Seat has premium features and pricing"
+                                        />
+                                    </View>
+
+                                    <View style={styles.featureItem}>
+                                        <Switch
+                                            label="Disabled Seat"
+                                            value={editedSeat.is_disabled}
+                                            onValueChange={(value) => updateSeat({ is_disabled: value })}
+                                            description="Seat is disabled and not available for booking"
                                         />
                                     </View>
                                 </View>
-                            ) : (
-                                <View style={styles.infoGrid}>
-                                    <View style={styles.infoItem}>
-                                        <Text style={styles.infoLabel}>Seat Number</Text>
-                                        <Text style={styles.infoValue}>{editedSeat.seat_number}</Text>
-                                    </View>
-                                    <View style={styles.infoItem}>
-                                        <Text style={styles.infoLabel}>Row</Text>
-                                        <Text style={styles.infoValue}>{editedSeat.row_number}</Text>
-                                    </View>
-                                    <View style={styles.infoItem}>
-                                        <Text style={styles.infoLabel}>Column</Text>
-                                        <Text style={styles.infoValue}>{editedSeat.position_x}</Text>
-                                    </View>
-                                </View>
-                            )}
-                        </View>
+                            </View>
 
-                        {/* Seat Type */}
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Seat Type</Text>
-                            <View style={styles.typeGrid}>
-                                {[
-                                    { type: 'standard', label: 'Standard', icon: User },
-                                    { type: 'premium', label: 'Premium', icon: Crown },
-                                    { type: 'crew', label: 'Crew', icon: Anchor },
-                                    { type: 'disabled', label: 'Disabled', icon: UserCheck },
-                                ].map(({ type, label, icon: Icon }) => (
+                            {/* Price Multiplier */}
+                            <View style={styles.priceSection}>
+                                <View style={styles.priceHeader}>
+                                    <Text style={styles.priceLabel}>Price Multiplier</Text>
+                                    <Text style={styles.priceValue}>{editedSeat.price_multiplier}x</Text>
+                                </View>
+                                <Text style={styles.sectionDescription}>
+                                    Adjust the price multiplier for this seat (1.0 = standard price)
+                                </Text>
+
+                                <View style={styles.priceControls}>
                                     <TouchableOpacity
-                                        key={type}
-                                        style={[
-                                            styles.typeOption,
-                                            editedSeat.seat_type === type && styles.typeOptionSelected,
-                                            !editedSeat.seat_type && type === 'standard' && styles.typeOptionSelected, // Default to standard if no type selected
-                                            editedSeat.seat_type !== type && styles.typeOptionUnselected,
-                                        ]}
-                                        onPress={() => updateSeat({ seat_type: type as any })}
+                                        style={[styles.priceButton, editedSeat.price_multiplier <= 0.5 && styles.priceButtonDisabled]}
+                                        onPress={() => {
+                                            const newMultiplier = Math.max(0.5, editedSeat.price_multiplier - 0.1);
+                                            updateSeat({ price_multiplier: parseFloat(newMultiplier.toFixed(1)) });
+                                        }}
+                                        disabled={editedSeat.price_multiplier <= 0.5}
                                     >
-                                        <Icon
-                                            size={20}
-                                            color={editedSeat.seat_type === type ? colors.white : getSeatTypeColor(type)}
-                                        />
-                                        <Text style={[
-                                            styles.typeOptionText,
-                                            editedSeat.seat_type === type && styles.typeOptionTextSelected,
-                                            editedSeat.seat_type !== type && styles.typeOptionTextUnselected,
-                                        ]}>
-                                            {label}
-                                        </Text>
+                                        <Minus size={16} color={colors.white} />
                                     </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
 
-                        {/* Seat Class */}
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Seat Class</Text>
-                            <View style={styles.typeGrid}>
-                                {[
-                                    { class: 'economy', label: 'Economy' },
-                                    { class: 'business', label: 'Business' },
-                                    { class: 'first', label: 'First Class' },
-                                ].map(({ class: seatClass, label }) => (
+                                    <Text style={styles.priceButtonText}>{editedSeat.price_multiplier}</Text>
+
                                     <TouchableOpacity
-                                        key={seatClass}
-                                        style={[
-                                            styles.typeOption,
-                                            editedSeat.seat_class === seatClass && styles.typeOptionSelected,
-                                            editedSeat.seat_class !== seatClass && styles.typeOptionUnselected,
-                                        ]}
-                                        onPress={() => updateSeat({ seat_class: seatClass as any })}
+                                        style={[styles.priceButton, editedSeat.price_multiplier >= 3.0 && styles.priceButtonDisabled]}
+                                        onPress={() => {
+                                            const newMultiplier = Math.min(3.0, editedSeat.price_multiplier + 0.1);
+                                            updateSeat({ price_multiplier: parseFloat(newMultiplier.toFixed(1)) });
+                                        }}
+                                        disabled={editedSeat.price_multiplier >= 3.0}
                                     >
-                                        <Text style={[
-                                            styles.typeOptionText,
-                                            editedSeat.seat_class === seatClass && styles.typeOptionTextSelected,
-                                            editedSeat.seat_class !== seatClass && styles.typeOptionTextUnselected,
-                                        ]}>
-                                            {label}
-                                        </Text>
+                                        <Plus size={16} color={colors.white} />
                                     </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-
-                        {/* Seat Features */}
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Seat Features</Text>
-
-                            <View style={styles.featureGrid}>
-                                <View style={styles.featureItem}>
-                                    <Switch
-                                        label="Window Seat"
-                                        value={editedSeat.is_window}
-                                        onValueChange={(value) => updateSeat({ is_window: value })}
-                                        description="Seat is located next to a window"
-                                    />
-                                </View>
-
-                                <View style={styles.featureItem}>
-                                    <Switch
-                                        label="Aisle Seat"
-                                        value={editedSeat.is_aisle}
-                                        onValueChange={(value) => updateSeat({ is_aisle: value })}
-                                        description="Seat is located next to an aisle"
-                                    />
-                                </View>
-
-                                <View style={styles.featureItem}>
-                                    <Switch
-                                        label="Premium Seat"
-                                        value={editedSeat.is_premium}
-                                        onValueChange={(value) => updateSeat({ is_premium: value })}
-                                        description="Seat has premium features and pricing"
-                                    />
-                                </View>
-
-                                <View style={styles.featureItem}>
-                                    <Switch
-                                        label="Disabled Seat"
-                                        value={editedSeat.is_disabled}
-                                        onValueChange={(value) => updateSeat({ is_disabled: value })}
-                                        description="Seat is disabled and not available for booking"
-                                    />
                                 </View>
                             </View>
-                        </View>
-
-                        {/* Price Multiplier */}
-                        <View style={styles.priceSection}>
-                            <View style={styles.priceHeader}>
-                                <Text style={styles.priceLabel}>Price Multiplier</Text>
-                                <Text style={styles.priceValue}>{editedSeat.price_multiplier}x</Text>
-                            </View>
-                            <Text style={styles.sectionDescription}>
-                                Adjust the price multiplier for this seat (1.0 = standard price)
-                            </Text>
-
-                            <View style={styles.priceControls}>
-                                <TouchableOpacity
-                                    style={[styles.priceButton, editedSeat.price_multiplier <= 0.5 && styles.priceButtonDisabled]}
-                                    onPress={() => {
-                                        const newMultiplier = Math.max(0.5, editedSeat.price_multiplier - 0.1);
-                                        updateSeat({ price_multiplier: parseFloat(newMultiplier.toFixed(1)) });
-                                    }}
-                                    disabled={editedSeat.price_multiplier <= 0.5}
-                                >
-                                    <Minus size={16} color={colors.white} />
-                                </TouchableOpacity>
-
-                                <Text style={styles.priceButtonText}>{editedSeat.price_multiplier}</Text>
-
-                                <TouchableOpacity
-                                    style={[styles.priceButton, editedSeat.price_multiplier >= 3.0 && styles.priceButtonDisabled]}
-                                    onPress={() => {
-                                        const newMultiplier = Math.min(3.0, editedSeat.price_multiplier + 0.1);
-                                        updateSeat({ price_multiplier: parseFloat(newMultiplier.toFixed(1)) });
-                                    }}
-                                    disabled={editedSeat.price_multiplier >= 3.0}
-                                >
-                                    <Plus size={16} color={colors.white} />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </ScrollView>
+                        </ScrollView>
+                    </View>
 
                     {/* Footer Actions */}
                     <View style={styles.footer}>
-                        {!isNewSeat && onDelete && (
-                            <Button
-                                title="Delete"
-                                onPress={handleDelete}
-                                icon={<Trash2 size={16} color={colors.white} />}
-                                variant="danger"
-                                size="medium"
-                            />
-                        )}
+                        <View style={styles.footerLeft}>
+                            {!isNewSeat && onDelete && (
+                                <Button
+                                    title="Delete"
+                                    onPress={handleDelete}
+                                    icon={<Trash2 size={16} color={colors.white} />}
+                                    variant="danger"
+                                    size="medium"
+                                />
+                            )}
+                        </View>
 
                         <View style={styles.footerRight}>
                             <Button
@@ -446,16 +463,19 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     modal: {
-        backgroundColor: colors.background,
+        backgroundColor: colors.card,
         borderRadius: 16,
         width: '100%',
-        maxWidth: 500,
-        height: '80%',
+        maxWidth: Math.min(screenWidth - 40, 500),
+        height: Math.min(screenHeight * 0.85, 600),
+        minHeight: 500,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 12,
         elevation: 8,
+        flexDirection: 'column',
+        overflow: 'hidden', // Prevent content from overflowing
     },
     header: {
         flexDirection: 'row',
@@ -464,11 +484,16 @@ const styles = StyleSheet.create({
         padding: 20,
         borderBottomWidth: 1,
         borderBottomColor: colors.border,
+        backgroundColor: colors.card,
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        minHeight: 80,
     },
     headerLeft: {
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
+        marginRight: 12,
     },
     seatTypeIcon: {
         width: 40,
@@ -483,13 +508,14 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 18,
-        fontWeight: '600',
+        fontWeight: '700',
         color: colors.text,
-        marginBottom: 2,
+        marginBottom: 4,
     },
     subtitle: {
         fontSize: 14,
         color: colors.textSecondary,
+        lineHeight: 18,
     },
     closeButton: {
         width: 32,
@@ -499,28 +525,45 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    content: {
+    contentArea: {
         flex: 1,
+        backgroundColor: colors.background,
+        minHeight: 300,
+        overflow: 'hidden', // Prevent content from overflowing
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
         padding: 20,
+        paddingBottom: 20,
+        flexGrow: 1,
     },
     section: {
         marginBottom: 24,
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: 'hidden', // Prevent content from overflowing
     },
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
         color: colors.text,
-        marginBottom: 16,
+        marginBottom: 12,
     },
     sectionDescription: {
         fontSize: 14,
         color: colors.textSecondary,
         marginBottom: 12,
+        lineHeight: 20,
     },
     infoGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 16,
+        gap: 12,
     },
     infoItem: {
         flex: 1,
@@ -530,14 +573,14 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
         color: colors.textSecondary,
-        marginBottom: 8,
+        marginBottom: 6,
     },
     infoValue: {
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '500',
         color: colors.text,
         paddingVertical: 12,
-        paddingHorizontal: 16,
+        paddingHorizontal: 12,
         backgroundColor: colors.backgroundSecondary,
         borderRadius: 8,
         borderWidth: 1,
@@ -548,7 +591,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         borderColor: colors.border,
-        paddingHorizontal: 16,
+        paddingHorizontal: 12,
         paddingVertical: 12,
     },
     textInputField: {
@@ -562,17 +605,23 @@ const styles = StyleSheet.create({
     typeGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
+        gap: 8,
+        alignItems: 'flex-start', // Prevent stretching
+        justifyContent: 'space-between', // Distribute buttons evenly
     },
     typeOption: {
-        flex: 1,
+        flex: 0, // Don't flex, use fixed width
+        width: '48%', // Fixed width to prevent overlapping
         minWidth: 100,
         paddingVertical: 12,
-        paddingHorizontal: 16,
+        paddingHorizontal: 12,
         borderRadius: 8,
-        borderWidth: 2,
+        borderWidth: 1,
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 6,
+        backgroundColor: colors.backgroundSecondary,
+        borderColor: colors.border,
     },
     typeOptionSelected: {
         borderColor: colors.primary,
@@ -585,6 +634,7 @@ const styles = StyleSheet.create({
     typeOptionText: {
         fontSize: 14,
         fontWeight: '500',
+        textAlign: 'center', // Center text
     },
     typeOptionTextSelected: {
         color: colors.primary,
@@ -593,25 +643,26 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
     },
     featureGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
+        flexDirection: 'column',
         gap: 16,
     },
     featureItem: {
-        flex: 1,
-        minWidth: 120,
+        width: '100%',
     },
     priceSection: {
         backgroundColor: colors.backgroundSecondary,
         borderRadius: 12,
         padding: 16,
         marginBottom: 16,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: 'hidden', // Prevent content from overflowing
     },
     priceHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 16,
+        marginBottom: 12,
     },
     priceLabel: {
         fontSize: 16,
@@ -628,6 +679,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 16,
+        marginTop: 12,
     },
     priceButton: {
         width: 40,
@@ -636,14 +688,23 @@ const styles = StyleSheet.create({
         backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
     },
     priceButtonDisabled: {
         backgroundColor: colors.border,
+        shadowOpacity: 0,
+        elevation: 0,
     },
     priceButtonText: {
         fontSize: 18,
         fontWeight: '700',
-        color: colors.white,
+        color: colors.text,
+        minWidth: 40,
+        textAlign: 'center',
     },
     footer: {
         flexDirection: 'row',
@@ -654,13 +715,20 @@ const styles = StyleSheet.create({
         borderTopColor: colors.border,
         backgroundColor: colors.card,
         gap: 12,
+        minHeight: 80,
+        borderBottomLeftRadius: 16,
+        borderBottomRightRadius: 16,
+        overflow: 'hidden', // Prevent content from overflowing
     },
     footerLeft: {
         flexDirection: 'row',
         gap: 12,
+        flex: 1, // Take available space
     },
     footerRight: {
         flexDirection: 'row',
         gap: 12,
+        flex: 1, // Take available space
+        justifyContent: 'flex-end', // Align to the right
     },
 }); 

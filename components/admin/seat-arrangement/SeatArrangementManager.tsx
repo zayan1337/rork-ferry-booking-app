@@ -604,7 +604,7 @@ export default function SeatArrangementManager({
             {/* Controls Section */}
             <View style={styles.controlsSection}>
                 {/* Row and Column Controls */}
-                <View style={styles.controlRow}>
+                {/* <View style={styles.controlRow}>
                     <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>Rows:</Text>
                         <View style={styles.numberInput}>
@@ -674,7 +674,7 @@ export default function SeatArrangementManager({
                             </TouchableOpacity>
                         </View>
                     </View>
-                </View>
+                </View> */}
 
                 {/* Action Buttons */}
                 <View style={styles.actionButtons}>
@@ -974,6 +974,7 @@ const styles = StyleSheet.create({
     actionButtons: {
         flexDirection: 'row',
         flexWrap: 'wrap',
+        justifyContent: 'space-between',
         gap: 12,
         marginBottom: 16,
     },

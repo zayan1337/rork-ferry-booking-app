@@ -80,12 +80,24 @@ export default function SeatLayoutConfig({
     const isOverCapacity = totalSeats > maxCapacity;
     const isUnderCapacity = totalSeats < maxCapacity;
 
+    // Calculate maximum rows and columns based on capacity
+    const maxRows = Math.min(50, Math.ceil(maxCapacity / 2)); // Allow up to 50 rows
+    const maxColumns = Math.min(20, Math.ceil(maxCapacity / 5)); // Allow up to 20 columns
+
     return (
         <ScrollView style={styles.container}>
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                     <Settings size={20} color={colors.primary} />
                     <Text style={styles.sectionTitle}>Layout Configuration</Text>
+                </View>
+
+                {/* Capacity Info */}
+                <View style={styles.capacityInfo}>
+                    <Text style={styles.capacityLabel}>Vessel Capacity: {maxCapacity} seats</Text>
+                    <Text style={styles.capacitySubtext}>
+                        Configure rows and columns to match your vessel's seating capacity
+                    </Text>
                 </View>
 
                 {/* Rows and Columns */}
@@ -103,7 +115,7 @@ export default function SeatLayoutConfig({
                         <Text style={styles.numberValue}>{config.rows}</Text>
                         <TouchableOpacity
                             style={styles.numberButton}
-                            onPress={() => updateConfig({ rows: Math.min(20, config.rows + 1) })}
+                            onPress={() => updateConfig({ rows: Math.min(maxRows, config.rows + 1) })}
                         >
                             <Plus size={16} color={colors.primary} />
                         </TouchableOpacity>
@@ -120,7 +132,7 @@ export default function SeatLayoutConfig({
                         <Text style={styles.numberValue}>{config.columns}</Text>
                         <TouchableOpacity
                             style={styles.numberButton}
-                            onPress={() => updateConfig({ columns: Math.min(10, config.columns + 1) })}
+                            onPress={() => updateConfig({ columns: Math.min(maxColumns, config.columns + 1) })}
                         >
                             <Plus size={16} color={colors.primary} />
                         </TouchableOpacity>
@@ -143,6 +155,14 @@ export default function SeatLayoutConfig({
                                 <AlertCircle size={16} color={colors.warning} />
                                 <Text style={styles.infoText}>
                                     Under vessel capacity ({maxCapacity})
+                                </Text>
+                            </View>
+                        )}
+                        {!isOverCapacity && !isUnderCapacity && (
+                            <View style={styles.successContainer}>
+                                <AlertCircle size={16} color={colors.success} />
+                                <Text style={styles.successText}>
+                                    Matches vessel capacity perfectly
                                 </Text>
                             </View>
                         )}
@@ -181,35 +201,37 @@ export default function SeatLayoutConfig({
                     {/* Add Aisle Between Columns */}
                     <View style={styles.addAisleSection}>
                         <Text style={styles.addAisleLabel}>Add Aisle Between Columns:</Text>
-                        <View style={styles.aisleSelector}>
-                            {Array.from({ length: config.columns - 1 }, (_, i) => i + 1).map(col => {
-                                const nextCol = col + 1;
-                                const isAisle = config.aisles.includes(nextCol);
-                                return (
-                                    <TouchableOpacity
-                                        key={col}
-                                        style={[
-                                            styles.aisleButton,
-                                            isAisle && styles.aisleButtonActive
-                                        ]}
-                                        onPress={() => {
-                                            if (isAisle) {
-                                                removeAisle(nextCol);
-                                            } else {
-                                                addAisleBetweenColumns(col);
-                                            }
-                                        }}
-                                    >
-                                        <Text style={[
-                                            styles.aisleButtonText,
-                                            isAisle && styles.aisleButtonTextActive
-                                        ]}>
-                                            {col} → {nextCol}
-                                        </Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <View style={styles.aisleSelector}>
+                                {Array.from({ length: config.columns - 1 }, (_, i) => i + 1).map(col => {
+                                    const nextCol = col + 1;
+                                    const isAisle = config.aisles.includes(nextCol);
+                                    return (
+                                        <TouchableOpacity
+                                            key={col}
+                                            style={[
+                                                styles.aisleButton,
+                                                isAisle && styles.aisleButtonActive
+                                            ]}
+                                            onPress={() => {
+                                                if (isAisle) {
+                                                    removeAisle(nextCol);
+                                                } else {
+                                                    addAisleBetweenColumns(col);
+                                                }
+                                            }}
+                                        >
+                                            <Text style={[
+                                                styles.aisleButtonText,
+                                                isAisle && styles.aisleButtonTextActive
+                                            ]}>
+                                                {col} → {nextCol}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </ScrollView>
                     </View>
 
                     <TouchableOpacity
@@ -228,28 +250,30 @@ export default function SeatLayoutConfig({
                         Select rows to designate as premium seats
                     </Text>
 
-                    <View style={styles.rowSelector}>
-                        {Array.from({ length: config.rows }, (_, i) => i + 1).map(row => {
-                            const isPremium = config.premium_rows.includes(row);
-                            return (
-                                <TouchableOpacity
-                                    key={row}
-                                    style={[
-                                        styles.rowButton,
-                                        isPremium && styles.premiumRowButton
-                                    ]}
-                                    onPress={() => togglePremiumRow(row)}
-                                >
-                                    <Text style={[
-                                        styles.rowButtonText,
-                                        isPremium && styles.premiumRowButtonText
-                                    ]}>
-                                        Row {row}
-                                    </Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <View style={styles.rowSelector}>
+                            {Array.from({ length: config.rows }, (_, i) => i + 1).map(row => {
+                                const isPremium = config.premium_rows.includes(row);
+                                return (
+                                    <TouchableOpacity
+                                        key={row}
+                                        style={[
+                                            styles.rowButton,
+                                            isPremium && styles.premiumRowButton
+                                        ]}
+                                        onPress={() => togglePremiumRow(row)}
+                                    >
+                                        <Text style={[
+                                            styles.rowButtonText,
+                                            isPremium && styles.premiumRowButtonText
+                                        ]}>
+                                            Row {row}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    </ScrollView>
                 </View>
 
                 {/* Layout Preview */}
@@ -257,9 +281,9 @@ export default function SeatLayoutConfig({
                     <Text style={styles.configLabel}>Layout Preview</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         <View style={styles.preview}>
-                            {Array.from({ length: config.rows }, (_, rowIndex) => (
+                            {Array.from({ length: Math.min(config.rows, 20) }, (_, rowIndex) => (
                                 <View key={rowIndex} style={styles.previewRow}>
-                                    {Array.from({ length: config.columns }, (_, colIndex) => {
+                                    {Array.from({ length: Math.min(config.columns, 15) }, (_, colIndex) => {
                                         const colNumber = colIndex + 1;
                                         const rowNumber = rowIndex + 1;
                                         const isAisle = config.aisles.includes(colNumber);
@@ -278,6 +302,11 @@ export default function SeatLayoutConfig({
                                     })}
                                 </View>
                             ))}
+                            {(config.rows > 20 || config.columns > 15) && (
+                                <Text style={styles.previewNote}>
+                                    Showing first 20 rows × 15 columns (full layout: {config.rows} × {config.columns})
+                                </Text>
+                            )}
                         </View>
                     </ScrollView>
                 </View>
@@ -306,6 +335,22 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: colors.text,
         marginLeft: 8,
+    },
+    capacityInfo: {
+        backgroundColor: colors.backgroundSecondary,
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+    },
+    capacityLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.text,
+        marginBottom: 4,
+    },
+    capacitySubtext: {
+        fontSize: 14,
+        color: colors.textSecondary,
     },
     configGroup: {
         marginBottom: 24,
@@ -380,6 +425,17 @@ const styles = StyleSheet.create({
         color: colors.warning,
         fontWeight: '500',
     },
+    successContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 8,
+    },
+    successText: {
+        fontSize: 12,
+        color: colors.success,
+        fontWeight: '500',
+    },
     currentAisles: {
         marginBottom: 16,
     },
@@ -437,6 +493,8 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         gap: 8,
         marginBottom: 12,
+        paddingRight: 16,
+        overflow: 'hidden', // Prevent content from overflowing
     },
     aisleButton: {
         paddingHorizontal: 12,
@@ -445,6 +503,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 2,
         borderColor: colors.border,
+        minWidth: 60, // Ensure minimum width
     },
     aisleButtonActive: {
         backgroundColor: colors.primary,
@@ -478,6 +537,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 8,
+        paddingRight: 16,
+        overflow: 'hidden', // Prevent content from overflowing
     },
     rowButton: {
         paddingHorizontal: 12,
@@ -486,6 +547,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
         borderColor: colors.border,
+        minWidth: 60, // Ensure minimum width
     },
     premiumRowButton: {
         backgroundColor: colors.primary,
@@ -523,5 +585,12 @@ const styles = StyleSheet.create({
     },
     previewPremium: {
         backgroundColor: colors.primary,
+    },
+    previewNote: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        marginTop: 8,
+        fontStyle: 'italic',
     },
 }); 
