@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useOperationsStore } from "@/store/admin/operationsStore";
+import { useVesselManagement } from "@/hooks/useVesselManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import {
     Plus,
@@ -33,38 +33,53 @@ export default function VesselsTab({ isActive, searchQuery = "" }: VesselsTabPro
     const { canViewVessels, canManageVessels } = useAdminPermissions();
     const {
         vessels: filteredVessels,
-        searchQueries,
-        setSearchQuery,
+        searchQuery: vesselSearchQuery,
+        setSearchQuery: setVesselSearchQuery,
         loading,
         stats,
-    } = useOperationsStore();
+        loadAll: loadVessels,
+    } = useVesselManagement();
+
+    // Ensure safe data
+    const safeVessels = filteredVessels || [];
+    const safeStats = stats || {
+        total: 0,
+        active: 0,
+        inactive: 0,
+        maintenance: 0,
+        totalTrips30d: 0,
+        totalBookings30d: 0,
+        totalRevenue30d: 0,
+        avgUtilization: 0,
+        avgCapacity: 0,
+        totalCapacity: 0,
+    };
 
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Initialize vessels data when tab becomes active
     useEffect(() => {
-        if (isActive && canViewVessels() && (!filteredVessels || filteredVessels.length === 0)) {
-            // Load vessels data - this would typically be handled by the store
-            // For now, we'll rely on the store's existing data
+        if (isActive && canViewVessels() && (!safeVessels || safeVessels.length === 0)) {
+            loadVessels();
         }
-    }, [isActive, filteredVessels?.length]);
+    }, [isActive, safeVessels?.length, loadVessels]);
 
     // Filter vessels based on search query
     const filteredVesselsData = useMemo(() => {
-        if (!filteredVessels) return [];
+        if (!safeVessels) return [];
 
-        let filtered = filteredVessels;
-        const query = searchQuery || searchQueries.vessels || "";
+        let filtered = safeVessels;
+        const query = searchQuery || vesselSearchQuery || "";
 
         if (query) {
-            filtered = filteredVessels.filter(vessel =>
+            filtered = safeVessels.filter(vessel =>
                 vessel.name?.toLowerCase().includes(query.toLowerCase()) ||
                 vessel.status?.toLowerCase().includes(query.toLowerCase())
             );
         }
 
         return filtered;
-    }, [filteredVessels, searchQuery, searchQueries.vessels]);
+    }, [safeVessels, searchQuery, vesselSearchQuery]);
 
     // Limit vessels to 4 for display
     const displayVessels = useMemo(() => {
@@ -76,9 +91,7 @@ export default function VesselsTab({ isActive, searchQuery = "" }: VesselsTabPro
     const handleRefresh = async () => {
         setIsRefreshing(true);
         try {
-            // Refresh vessels data - this would typically be handled by the store
-            // For now, we'll just simulate a delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await loadVessels();
         } catch (error) {
             console.error('Error refreshing vessels:', error);
         } finally {
@@ -128,7 +141,7 @@ export default function VesselsTab({ isActive, searchQuery = "" }: VesselsTabPro
                 <View style={styles.sectionHeaderContent}>
                     <SectionHeader
                         title="Vessels Management"
-                        subtitle={`${stats.activeVessels} active vessels`}
+                        subtitle={`${safeStats.active} active vessels`}
                     />
                 </View>
                 {canManageVessels() && (
@@ -147,8 +160,8 @@ export default function VesselsTab({ isActive, searchQuery = "" }: VesselsTabPro
             {/* Search Bar */}
             <SearchBar
                 placeholder="Search vessels..."
-                value={searchQuery || searchQueries.vessels || ""}
-                onChangeText={(text) => setSearchQuery("vessels", text)}
+                value={searchQuery || vesselSearchQuery || ""}
+                onChangeText={setVesselSearchQuery}
             />
 
             {/* Vessels List */}
@@ -186,7 +199,7 @@ export default function VesselsTab({ isActive, searchQuery = "" }: VesselsTabPro
                         <Ship size={48} color={colors.textSecondary} />
                         <Text style={styles.emptyStateTitle}>No vessels found</Text>
                         <Text style={styles.emptyStateText}>
-                            {searchQuery || searchQueries.vessels ? 'Try adjusting your search terms' : 'No vessels available'}
+                            {searchQuery ? 'Try adjusting your search terms' : 'No vessels available'}
                         </Text>
                     </View>
                 )}

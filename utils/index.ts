@@ -42,8 +42,8 @@ export {
 } from './settingsUtils';
 
 // Operations utilities
-export * from './routeUtils';
-export * from './vesselUtils';
+// export * from './routeUtils';
+// export * from './vesselUtils';
 export * from './tripUtils';
 export * from './islandUtils';
 

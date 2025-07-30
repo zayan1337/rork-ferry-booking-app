@@ -16,6 +16,8 @@ import {
 // Components
 import StatusBadge from "@/components/admin/StatusBadge";
 
+type StatusType = "active" | "inactive" | "maintenance";
+
 interface RouteItemProps {
     route: {
         id: string;
@@ -62,7 +64,7 @@ export default function RouteItem({ route, onPress, showStats = true }: RouteIte
 
     const routeName = route.name || route.route_name || 'Unknown Route';
     const routeDirection = `${route.origin || route.from_island_name || 'Unknown'} → ${route.destination || route.to_island_name || 'Unknown'}`;
-    const routeStatus = route.status || (route.is_active ? 'active' : 'inactive');
+    const routeStatus: StatusType = (route.status as StatusType) || (route.is_active ? 'active' : 'inactive');
 
     return (
         <TouchableOpacity
@@ -90,7 +92,7 @@ export default function RouteItem({ route, onPress, showStats = true }: RouteIte
 
                 <View style={styles.headerRight}>
                     <StatusBadge
-                        status={routeStatus}
+                        status={routeStatus as "active" | "inactive" | "maintenance"}
                         variant={getStatusVariant(routeStatus)}
                         size="small"
                     />

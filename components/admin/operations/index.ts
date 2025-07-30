@@ -23,10 +23,11 @@ export { default as RouteForm } from './RouteForm';
 export { default as RouteDetails } from './RouteDetails';
 export { default as RouteStats } from './RouteStats';
 
-// Vessel Components
+// // Vessel Components
 export { default as VesselForm } from './VesselForm';
 export { default as VesselDetails } from './VesselDetails';
-export { default as VesselStats } from './VesselStats';
+export { default as VesselItem } from './VesselItem';
+// export { default as VesselStats } from './VesselStats';
 
 // Trip Components
 export { default as TripForm } from './TripForm';

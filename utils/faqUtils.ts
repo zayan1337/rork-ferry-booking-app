@@ -85,8 +85,8 @@ export const sortFaqs = (
         bValue = new Date(b.created_at).getTime();
         break;
       case 'updated_at':
-        aValue = new Date(a.updated_at).getTime();
-        bValue = new Date(b.updated_at).getTime();
+        aValue = new Date(a.updated_at || a.created_at).getTime();
+        bValue = new Date(b.updated_at || b.created_at).getTime();
         break;
       default:
         aValue = a.question.toLowerCase();
@@ -163,7 +163,7 @@ export const calculateFaqStats = (faqs: FAQ[], categories: FAQCategory[]): FAQSt
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   stats.recentlyUpdated = faqs.filter(faq =>
-    new Date(faq.updated_at) > sevenDaysAgo
+    new Date(faq.updated_at || faq.created_at) > sevenDaysAgo
   ).length;
 
   return stats;

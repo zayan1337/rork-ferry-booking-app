@@ -1,133 +1,116 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { colors } from '@/constants/adminColors';
-import { VesselDetails, VesselForm } from '@/components/admin/operations';
-import { OperationsVessel } from '@/types/database';
-import { Vessel, VesselFormData } from '@/types/operations';
-import { useOperationsStore } from '@/store/admin/operationsStore';
-import { useAdminPermissions } from '@/hooks/useAdminPermissions';
-import RoleGuard from '@/components/RoleGuard';
+import React, { useState, useEffect } from "react";
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    Alert,
+    RefreshControl,
+    Dimensions,
+} from "react-native";
+import { Stack, router, useLocalSearchParams } from "expo-router";
+import { colors } from "@/constants/adminColors";
+import { useVesselManagement } from "@/hooks/useVesselManagement";
+import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import { AdminManagement } from "@/types";
+import {
+    formatCurrency,
+    formatPercentage,
+    getUtilizationRating,
+    getUtilizationColor,
+} from "@/utils/admin/vesselUtils";
+import {
+    ArrowLeft,
+    Edit,
+    Trash2,
+    Ship,
+    Users,
+    TrendingUp,
+    Activity,
+    DollarSign,
+    Calendar,
+    AlertTriangle,
+    Settings,
+    MoreVertical,
+} from "lucide-react-native";
 
-// Function to convert OperationsVessel to Vessel type expected by components
-const mapOperationsVesselToVessel = (operationsVessel: OperationsVessel): Vessel => {
-    return {
-        id: operationsVessel.id,
-        name: operationsVessel.name,
-        registration_number: `REG-${operationsVessel.id.slice(-6).toUpperCase()}`, // Generate a registration number
-        capacity: operationsVessel.seating_capacity,
-        seating_capacity: operationsVessel.seating_capacity,
-        crew_capacity: Math.ceil(operationsVessel.seating_capacity / 20), // Estimate crew capacity
-        status: operationsVessel.status,
-        vessel_type: "ferry" as const, // Default type
-        created_at: operationsVessel.created_at,
-        updated_at: operationsVessel.created_at, // Use created_at as fallback
-        // Optional stats from database
-        total_trips_30d: operationsVessel.total_trips_30d,
-        capacity_utilization_30d: operationsVessel.capacity_utilization_30d,
-        total_revenue_30d: operationsVessel.total_revenue_30d,
-    };
-};
+// Components
+import Button from "@/components/admin/Button";
+import StatusBadge from "@/components/admin/StatusBadge";
+import LoadingSpinner from "@/components/admin/LoadingSpinner";
 
-export default function VesselDetailsPage() {
+const { width: screenWidth } = Dimensions.get('window');
+const isTablet = screenWidth >= 768;
+
+type Vessel = AdminManagement.Vessel;
+
+export default function VesselDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const { fetchVessel, updateVesselData, removeVessel } = useOperationsStore();
     const { canViewVessels, canManageVessels } = useAdminPermissions();
 
+    const {
+        getById,
+        loading,
+        error,
+        remove,
+    } = useVesselManagement();
+
     const [vessel, setVessel] = useState<Vessel | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [editMode, setEditMode] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     useEffect(() => {
+        if (id) {
         loadVessel();
+        }
     }, [id]);
 
     const loadVessel = async () => {
         if (!id) return;
 
-        try {
-            setLoading(true);
-            const vesselData = await fetchVessel(id);
+        const vesselData = getById(id);
             if (vesselData) {
-                setVessel(mapOperationsVesselToVessel(vesselData));
-            }
-        } catch (error) {
-            Alert.alert(
-                'Error',
-                'Failed to load vessel details'
-            );
-            router.back();
-        } finally {
-            setLoading(false);
+            setVessel(vesselData);
         }
+    };
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        await loadVessel();
+        setIsRefreshing(false);
     };
 
     const handleEdit = () => {
-        setEditMode(true);
-    };
-
-    const handleSave = async (vesselData: VesselFormData) => {
-        if (!id) return;
-
-        try {
-            const success = await updateVesselData(id, {
-                name: vesselData.name,
-                seating_capacity: vesselData.seating_capacity,
-                is_active: vesselData.status === 'active',
-            });
-
-            if (success) {
-                await loadVessel(); // Refresh the vessel data
-                setEditMode(false);
-                Alert.alert('Success', 'Vessel updated successfully!');
+        if (canManageVessels()) {
+            router.push(`../vessel/${id}/edit` as any);
             } else {
-                throw new Error('Failed to update vessel');
-            }
-        } catch (error) {
-            Alert.alert(
-                'Error',
-                error instanceof Error ? error.message : 'Failed to update vessel'
-            );
+            Alert.alert("Access Denied", "You don't have permission to edit vessels.");
         }
     };
 
-    const handleCancelEdit = () => {
-        setEditMode(false);
-    };
-
-    const handleArchive = async () => {
-        if (!id || !vessel) return;
+    const handleDelete = () => {
+        if (!canManageVessels()) {
+            Alert.alert("Access Denied", "You don't have permission to delete vessels.");
+            return;
+        }
 
         Alert.alert(
-            'Archive Vessel',
-            `Are you sure you want to archive "${vessel.name}"? This will remove it from active service.`,
+            "Delete Vessel",
+            `Are you sure you want to delete "${vessel?.name}"? This action cannot be undone.`,
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: "Cancel", style: "cancel" },
                 {
-                    text: 'Archive',
-                    style: 'destructive',
+                    text: "Delete",
+                    style: "destructive",
                     onPress: async () => {
                         try {
-                            const success = await removeVessel(id);
-                            if (success) {
-                                Alert.alert(
-                                    'Success',
-                                    'Vessel archived successfully!',
-                                    [
-                                        {
-                                            text: 'OK',
-                                            onPress: () => router.back(),
-                                        },
-                                    ]
-                                );
-                            } else {
-                                throw new Error('Failed to archive vessel');
+                            if (id) {
+                                await remove(id);
+                                Alert.alert("Success", "Vessel deleted successfully!");
+                                router.back();
                             }
                         } catch (error) {
-                            Alert.alert(
-                                'Error',
-                                error instanceof Error ? error.message : 'Failed to archive vessel'
-                            );
+                            Alert.alert("Error", "Failed to delete vessel");
                         }
                     },
                 },
@@ -135,76 +118,268 @@ export default function VesselDetailsPage() {
         );
     };
 
-    const handleViewTrips = () => {
-        if (!id) return;
-        // Navigate to trips filtered by this vessel
-        router.push(`../trips?vesselId=${id}` as any);
+    const getStatusVariant = (status: string) => {
+        switch (status) {
+            case "active":
+                return "confirmed" as const;
+            case "maintenance":
+                return "pending" as const;
+            case "inactive":
+                return "cancelled" as const;
+            default:
+                return "pending" as const;
+        }
     };
 
-    const handleViewMaintenance = () => {
-        if (!id) return;
-        // Navigate to maintenance records for this vessel
-        router.push(`../maintenance?vesselId=${id}` as any);
-    };
+    const renderStats = () => {
+        if (!vessel) return null;
 
-    if (loading) {
+        const stats = [
+            {
+                title: "Total Trips (30d)",
+                value: vessel.total_trips_30d?.toString() || "0",
+                icon: <Activity size={20} color={colors.primary} />,
+                color: colors.primary,
+            },
+            {
+                title: "Total Bookings (30d)",
+                value: vessel.total_bookings_30d?.toString() || "0",
+                icon: <Users size={20} color={colors.success} />,
+                color: colors.success,
+            },
+            {
+                title: "Capacity Utilization",
+                value: formatPercentage(vessel.capacity_utilization_30d || 0),
+                icon: <TrendingUp size={20} color={getUtilizationColor(getUtilizationRating(vessel))} />,
+                color: getUtilizationColor(getUtilizationRating(vessel)),
+            },
+            {
+                title: "Total Revenue (30d)",
+                value: formatCurrency(vessel.total_revenue_30d || 0),
+                icon: <DollarSign size={20} color={colors.success} />,
+                color: colors.success,
+            },
+        ];
+
         return (
-            <View style={styles.loadingContainer}>
+            <View style={styles.statsSection}>
+                <Text style={styles.sectionTitle}>Performance Statistics</Text>
+                <View style={styles.statsGrid}>
+                    {stats.map((stat, index) => (
+                        <View key={index} style={styles.statCard}>
+                            <View style={styles.statIcon}>
+                                {stat.icon}
+                            </View>
+                            <Text style={styles.statValue}>{stat.value}</Text>
+                            <Text style={styles.statLabel}>{stat.title}</Text>
+                        </View>
+                    ))}
+                </View>
+            </View>
+        );
+    };
+
+    const renderVesselInfo = () => {
+        if (!vessel) return null;
+
+        return (
+            <View style={styles.infoSection}>
+                <Text style={styles.sectionTitle}>Vessel Information</Text>
+                <View style={styles.infoCard}>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Name:</Text>
+                        <Text style={styles.infoValue}>{vessel.name}</Text>
+                    </View>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Status:</Text>
+                        <StatusBadge status={getStatusVariant(vessel.status)} />
+                    </View>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Seating Capacity:</Text>
+                        <Text style={styles.infoValue}>{vessel.seating_capacity} passengers</Text>
+                    </View>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Created:</Text>
+                        <Text style={styles.infoValue}>
+                            {new Date(vessel.created_at).toLocaleDateString()}
+                        </Text>
+                    </View>
+                    {vessel.updated_at && vessel.updated_at !== vessel.created_at && (
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Last Updated:</Text>
+                            <Text style={styles.infoValue}>
+                                {new Date(vessel.updated_at).toLocaleDateString()}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            </View>
+        );
+    };
+
+    if (!canViewVessels()) {
+        return (
+            <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: 'Vessel Details',
-                        headerShown: true,
+                        title: "Access Denied",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
                     }}
                 />
-                <ActivityIndicator size="large" color={colors.primary} />
+                <View style={styles.noPermissionContainer}>
+                    <View style={styles.noAccessIcon}>
+                        <AlertTriangle size={48} color={colors.warning} />
+                    </View>
+                    <Text style={styles.noPermissionTitle}>Access Denied</Text>
+                    <Text style={styles.noPermissionText}>
+                        You don't have permission to view vessel details.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                    />
+                </View>
+            </View>
+        );
+    }
+
+    if (loading.singleVessel) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen
+                    options={{
+                        title: "Vessel Details",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
+                    }}
+                />
+                <View style={styles.loadingContainer}>
+                    <LoadingSpinner />
+                    <Text style={styles.loadingText}>Loading vessel details...</Text>
+                </View>
             </View>
         );
     }
 
     if (!vessel) {
         return (
-            <View style={styles.errorContainer}>
+            <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: 'Vessel Not Found',
-                        headerShown: true,
+                        title: "Vessel Not Found",
+                        headerLeft: () => (
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft size={24} color={colors.primary} />
+                            </TouchableOpacity>
+                        ),
                     }}
                 />
+                <View style={styles.emptyState}>
+                    <View style={styles.emptyStateIcon}>
+                        <Ship size={64} color={colors.textTertiary} />
+                    </View>
+                    <Text style={styles.emptyStateTitle}>Vessel Not Found</Text>
+                    <Text style={styles.emptyStateText}>
+                        The vessel you're looking for doesn't exist or has been removed.
+                    </Text>
+                    <Button
+                        title="Go Back"
+                        variant="primary"
+                        onPress={() => router.back()}
+                        style={styles.emptyStateButton}
+                    />
+                </View>
             </View>
         );
     }
 
     return (
-        <RoleGuard
-            allowedRoles={['admin', 'captain']}
-        >
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: editMode ? 'Edit Vessel' : vessel.name,
-                        headerShown: true,
-                        presentation: 'card',
-                    }}
-                />
+                    title: vessel.name,
+                    headerLeft: () => (
+                        <TouchableOpacity
+                            onPress={() => router.back()}
+                            style={styles.backButton}
+                        >
+                            <ArrowLeft size={24} color={colors.primary} />
+                        </TouchableOpacity>
+                    ),
+                    headerRight: () => (
+                        <View style={styles.headerActions}>
+                            {canManageVessels() && (
+                                <>
+                                    <TouchableOpacity
+                                        style={styles.headerActionButton}
+                                        onPress={handleEdit}
+                                    >
+                                        <Edit size={20} color={colors.primary} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.headerActionButton}
+                                        onPress={handleDelete}
+                                    >
+                                        <Trash2 size={20} color={colors.danger} />
+                                    </TouchableOpacity>
+                                </>
+                            )}
+                        </View>
+                    ),
+                }}
+            />
 
-                {editMode ? (
-                    <VesselForm
-                        vesselId={id}
-                        onSave={handleSave}
-                        onCancel={handleCancelEdit}
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefreshing}
+                        onRefresh={handleRefresh}
+                        colors={[colors.primary]}
+                        tintColor={colors.primary}
                     />
-                ) : (
-                    <VesselDetails
-                        vessel={vessel}
-                        onEdit={canManageVessels() ? handleEdit : undefined}
-                        onArchive={canManageVessels() ? handleArchive : undefined}
-                        onViewTrips={handleViewTrips}
-                        onViewMaintenance={handleViewMaintenance}
-                        showActions={canManageVessels()}
-                    />
-                )}
+                }
+            >
+                {/* Vessel Header */}
+                <View style={styles.header}>
+                    <View style={styles.headerContent}>
+                        <View style={styles.vesselTitle}>
+                            <Ship size={32} color={colors.primary} />
+                            <Text style={styles.vesselName}>{vessel.name}</Text>
+                        </View>
+                        <StatusBadge status={getStatusVariant(vessel.status)} />
+                    </View>
+                    <Text style={styles.vesselCapacity}>
+                        {vessel.seating_capacity} passengers
+                    </Text>
+                </View>
+
+                {/* Statistics */}
+                {renderStats()}
+
+                {/* Vessel Information */}
+                {renderVesselInfo()}
+            </ScrollView>
             </View>
-        </RoleGuard>
     );
 }
 
@@ -213,16 +388,210 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
     },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        padding: 16,
+    },
+    backButton: {
+        padding: 8,
+        marginLeft: -8,
+    },
+    headerActions: {
+        flexDirection: "row",
+        gap: 8,
+    },
+    headerActionButton: {
+        padding: 8,
+        marginRight: -8,
+    },
     loadingContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: colors.backgroundSecondary,
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 16,
+        padding: 20,
     },
-    errorContainer: {
+    loadingText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        fontWeight: "500",
+    },
+    noPermissionContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: colors.backgroundSecondary,
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 20,
+        padding: 32,
+    },
+    noAccessIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.backgroundTertiary,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    noPermissionTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    noPermissionText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 280,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
+    emptyState: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 32,
+        gap: 20,
+    },
+    emptyStateIcon: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: colors.backgroundTertiary,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
+    },
+    emptyStateTitle: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+    },
+    emptyStateText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        maxWidth: 320,
+        lineHeight: 24,
+    },
+    emptyStateButton: {
+        marginTop: 16,
+        minWidth: 200,
+    },
+    header: {
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 20,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    headerContent: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    vesselTitle: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        flex: 1,
+    },
+    vesselName: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: colors.text,
+    },
+    vesselCapacity: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        fontWeight: "500",
+    },
+    statsSection: {
+        marginBottom: 20,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 12,
+    },
+    statsGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 12,
+    },
+    statCard: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        flex: 1,
+        minWidth: 150,
+        alignItems: "center",
+        gap: 8,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    statIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.backgroundTertiary,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    statValue: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+        textAlign: "center",
+    },
+    statLabel: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        textAlign: "center",
+        fontWeight: "500",
+    },
+    infoSection: {
+        marginBottom: 20,
+    },
+    infoCard: {
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    infoRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+    },
+    infoLabel: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "500",
+    },
+    infoValue: {
+        fontSize: 14,
+        color: colors.text,
+        fontWeight: "600",
     },
 }); 

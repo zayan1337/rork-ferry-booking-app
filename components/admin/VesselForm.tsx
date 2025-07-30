@@ -12,7 +12,7 @@ import Button from '@/components/admin/Button';
 import Dropdown from '@/components/admin/Dropdown';
 import TextInput from '@/components/admin/TextInput';
 import Switch from '@/components/admin/Switch';
-import SeatArrangementManager from '../seat-arrangement/SeatArrangementManager';
+import SeatArrangementManager from './seat-arrangement/SeatArrangementManager';
 import { useVesselStore } from '@/store/admin/vesselStore';
 import {
     Ship,

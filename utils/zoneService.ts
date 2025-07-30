@@ -263,7 +263,7 @@ export const exportZonesToCSV = async (): Promise<string> => {
             (zone.total_routes || 0).toString(),
             (zone.active_routes || 0).toString(),
             new Date(zone.created_at).toLocaleDateString(),
-            new Date(zone.updated_at).toLocaleDateString(),
+            new Date(zone.updated_at || zone.created_at).toLocaleDateString(),
         ]);
 
         return [headers, ...rows]

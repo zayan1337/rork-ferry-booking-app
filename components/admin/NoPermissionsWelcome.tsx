@@ -209,8 +209,8 @@ export default function NoPermissionsWelcome({
                                     <Shield size={16} color={suggestion.color} />
                                 </View>
                                 <View>
-                                <Text style={styles.permissionTitle}>{suggestion.label}</Text>
-                                <Text style={styles.permissionDescription}>{suggestion.description}</Text>
+                                    <Text style={styles.permissionTitle}>{suggestion.label}</Text>
+                                    <Text style={styles.permissionDescription}>{suggestion.description}</Text>
                                 </View>
                             </View>
                         ))}
@@ -223,7 +223,7 @@ export default function NoPermissionsWelcome({
                         title="Request Permissions"
                         onPress={handleRequestPermissions}
                         style={styles.primaryButton}
-                        icon={<Shield size={16} color="white" />}
+                        icon={React.createElement(Shield, { size: 16, color: "white" })}
                     />
 
                     <View style={styles.secondaryButtons}>
@@ -232,14 +232,14 @@ export default function NoPermissionsWelcome({
                             onPress={handleContactSupport}
                             variant='outline'
                             style={styles.secondaryButton}
-                            icon={<MessageSquare size={16} color={colors.primary} />}
+                            icon={React.createElement(MessageSquare, { size: 16, color: colors.primary })}
                         />
                         <Button
                             title="View Profile"
                             onPress={handleViewProfile}
                             style={styles.secondaryButton}
                             variant='outline'
-                            icon={<User size={16} color={colors.primary} />}
+                            icon={React.createElement(User, { size: 16, color: colors.primary })}
                         />
                     </View>
                 </View>
@@ -422,10 +422,10 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     permissionCard: {
-        flex:1,
-        flexDirection:'row',
-        alignItems:'center',
-        gap:12,
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
         backgroundColor: colors.card,
         borderRadius: 12,
         padding: 16,

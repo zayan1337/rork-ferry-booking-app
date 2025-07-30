@@ -9,7 +9,7 @@ import {
     Dimensions,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import { Vessel } from '@/types/operations';
+import { Vessel } from '@/types/admin/management';
 import { formatCurrency } from '@/utils/currencyUtils';
 import Button from '@/components/admin/Button';
 import StatCard from '@/components/admin/StatCard';
@@ -33,6 +33,29 @@ import {
     Clock,
     Target,
     Ruler,
+    MapPin,
+    Phone,
+    Mail,
+    FileText,
+    Shield,
+    Award,
+    Zap,
+    Thermometer,
+    Droplets,
+    Navigation,
+    Compass,
+    LifeBuoy,
+    Radio,
+    Satellite,
+    Wifi,
+    Battery,
+    Signal,
+    Eye,
+    EyeOff,
+    Grid3X3,
+    Layout,
+    UserCheck,
+    Crown,
 } from 'lucide-react-native';
 
 interface VesselDetailsProps {
@@ -41,6 +64,7 @@ interface VesselDetailsProps {
     onArchive?: () => void;
     onViewTrips?: () => void;
     onViewMaintenance?: () => void;
+    onViewSeatLayout?: () => void;
     showActions?: boolean;
 }
 
@@ -52,6 +76,7 @@ export default function VesselDetails({
     onArchive,
     onViewTrips,
     onViewMaintenance,
+    onViewSeatLayout,
     showActions = true,
 }: VesselDetailsProps) {
     const isTablet = screenWidth >= 768;
@@ -92,11 +117,11 @@ export default function VesselDetails({
         return colors.danger;
     };
 
-    const vesselAge = vessel.year_built ? new Date().getFullYear() - vessel.year_built : 0;
-    const vesselTypeLabel = vessel.vessel_type.charAt(0).toUpperCase() + vessel.vessel_type.slice(1);
+    const vesselAge = 0; // year_built not available in this Vessel type
+    const vesselTypeLabel = vessel.vessel_type?.charAt(0).toUpperCase() + vessel.vessel_type?.slice(1) || 'Passenger';
 
-    const maintenanceStatus = vessel.next_maintenance ? (() => {
-        const nextMaintenance = new Date(vessel.next_maintenance);
+    const maintenanceStatus = vessel.next_maintenance_date ? (() => {
+        const nextMaintenance = new Date(vessel.next_maintenance_date);
         const now = new Date();
         const daysUntil = Math.ceil((nextMaintenance.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -235,17 +260,7 @@ export default function VesselDetails({
                         </View>
                         <View style={styles.infoContent}>
                             <Text style={styles.infoLabel}>Registration</Text>
-                            <Text style={styles.infoValue}>{vessel.registration_number}</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.infoItem}>
-                        <View style={styles.infoIcon}>
-                            <Users size={16} color={colors.primary} />
-                        </View>
-                        <View style={styles.infoContent}>
-                            <Text style={styles.infoLabel}>Total Capacity</Text>
-                            <Text style={styles.infoValue}>{vessel.capacity} persons</Text>
+                            <Text style={styles.infoValue}>{vessel.registration_number || 'N/A'}</Text>
                         </View>
                     </View>
 
@@ -259,36 +274,38 @@ export default function VesselDetails({
                         </View>
                     </View>
 
-                    <View style={styles.infoItem}>
-                        <View style={styles.infoIcon}>
-                            <Users size={16} color={colors.primary} />
-                        </View>
-                        <View style={styles.infoContent}>
-                            <Text style={styles.infoLabel}>Crew Capacity</Text>
-                            <Text style={styles.infoValue}>{vessel.crew_capacity} crew</Text>
-                        </View>
-                    </View>
-
-                    {vessel.year_built && (
+                    {vessel.captain_name && (
                         <View style={styles.infoItem}>
                             <View style={styles.infoIcon}>
-                                <Calendar size={16} color={colors.primary} />
+                                <UserCheck size={16} color={colors.primary} />
                             </View>
                             <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Year Built</Text>
-                                <Text style={styles.infoValue}>{vessel.year_built} ({vesselAge} years old)</Text>
+                                <Text style={styles.infoLabel}>Captain</Text>
+                                <Text style={styles.infoValue}>{vessel.captain_name}</Text>
                             </View>
                         </View>
                     )}
 
-                    {vessel.manufacturer && (
+                    {vessel.contact_number && (
                         <View style={styles.infoItem}>
                             <View style={styles.infoIcon}>
-                                <Wrench size={16} color={colors.primary} />
+                                <Phone size={16} color={colors.primary} />
                             </View>
                             <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Manufacturer</Text>
-                                <Text style={styles.infoValue}>{vessel.manufacturer}</Text>
+                                <Text style={styles.infoLabel}>Contact</Text>
+                                <Text style={styles.infoValue}>{vessel.contact_number}</Text>
+                            </View>
+                        </View>
+                    )}
+
+                    {vessel.description && (
+                        <View style={styles.infoItem}>
+                            <View style={styles.infoIcon}>
+                                <FileText size={16} color={colors.primary} />
+                            </View>
+                            <View style={styles.infoContent}>
+                                <Text style={styles.infoLabel}>Description</Text>
+                                <Text style={styles.infoValue}>{vessel.description}</Text>
                             </View>
                         </View>
                     )}
@@ -296,66 +313,30 @@ export default function VesselDetails({
             </View>
 
             {/* Technical Specifications */}
-            {vessel.specifications && (
+            {(vessel.max_speed || vessel.fuel_capacity) && (
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Technical Specifications</Text>
                     <View style={styles.infoGrid}>
-                        {vessel.specifications.length && (
-                            <View style={styles.infoItem}>
-                                <View style={styles.infoIcon}>
-                                    <Ruler size={16} color={colors.primary} />
-                                </View>
-                                <View style={styles.infoContent}>
-                                    <Text style={styles.infoLabel}>Length</Text>
-                                    <Text style={styles.infoValue}>{vessel.specifications.length} meters</Text>
-                                </View>
-                            </View>
-                        )}
-
-                        {vessel.specifications.width && (
-                            <View style={styles.infoItem}>
-                                <View style={styles.infoIcon}>
-                                    <Ruler size={16} color={colors.primary} />
-                                </View>
-                                <View style={styles.infoContent}>
-                                    <Text style={styles.infoLabel}>Width</Text>
-                                    <Text style={styles.infoValue}>{vessel.specifications.width} meters</Text>
-                                </View>
-                            </View>
-                        )}
-
-                        {vessel.specifications.max_speed && (
+                        {vessel.max_speed && (
                             <View style={styles.infoItem}>
                                 <View style={styles.infoIcon}>
                                     <Gauge size={16} color={colors.primary} />
                                 </View>
                                 <View style={styles.infoContent}>
                                     <Text style={styles.infoLabel}>Max Speed</Text>
-                                    <Text style={styles.infoValue}>{vessel.specifications.max_speed} knots</Text>
+                                    <Text style={styles.infoValue}>{vessel.max_speed} knots</Text>
                                 </View>
                             </View>
                         )}
 
-                        {vessel.specifications.fuel_capacity && (
+                        {vessel.fuel_capacity && (
                             <View style={styles.infoItem}>
                                 <View style={styles.infoIcon}>
                                     <Fuel size={16} color={colors.primary} />
                                 </View>
                                 <View style={styles.infoContent}>
                                     <Text style={styles.infoLabel}>Fuel Capacity</Text>
-                                    <Text style={styles.infoValue}>{vessel.specifications.fuel_capacity} liters</Text>
-                                </View>
-                            </View>
-                        )}
-
-                        {vessel.specifications.engine_type && (
-                            <View style={styles.infoItem}>
-                                <View style={styles.infoIcon}>
-                                    <Settings size={16} color={colors.primary} />
-                                </View>
-                                <View style={styles.infoContent}>
-                                    <Text style={styles.infoLabel}>Engine Type</Text>
-                                    <Text style={styles.infoValue}>{vessel.specifications.engine_type}</Text>
+                                    <Text style={styles.infoValue}>{vessel.fuel_capacity} liters</Text>
                                 </View>
                             </View>
                         )}
@@ -364,11 +345,11 @@ export default function VesselDetails({
             )}
 
             {/* Maintenance Information */}
-            {(vessel.last_maintenance || vessel.next_maintenance) && (
+            {(vessel.last_maintenance_date || vessel.next_maintenance_date || vessel.maintenance_cost_30d) && (
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Maintenance</Text>
                     <View style={styles.infoGrid}>
-                        {vessel.last_maintenance && (
+                        {vessel.last_maintenance_date && (
                             <View style={styles.infoItem}>
                                 <View style={styles.infoIcon}>
                                     <Wrench size={16} color={colors.primary} />
@@ -376,13 +357,13 @@ export default function VesselDetails({
                                 <View style={styles.infoContent}>
                                     <Text style={styles.infoLabel}>Last Maintenance</Text>
                                     <Text style={styles.infoValue}>
-                                        {new Date(vessel.last_maintenance).toLocaleDateString()}
+                                        {new Date(vessel.last_maintenance_date).toLocaleDateString()}
                                     </Text>
                                 </View>
                             </View>
                         )}
 
-                        {vessel.next_maintenance && (
+                        {vessel.next_maintenance_date && (
                             <View style={styles.infoItem}>
                                 <View style={styles.infoIcon}>
                                     <Settings size={16} color={colors.warning} />
@@ -390,7 +371,7 @@ export default function VesselDetails({
                                 <View style={styles.infoContent}>
                                     <Text style={styles.infoLabel}>Next Maintenance</Text>
                                     <Text style={styles.infoValue}>
-                                        {new Date(vessel.next_maintenance).toLocaleDateString()}
+                                        {new Date(vessel.next_maintenance_date).toLocaleDateString()}
                                     </Text>
                                 </View>
                             </View>
@@ -411,31 +392,122 @@ export default function VesselDetails({
                 </View>
             )}
 
-            {/* Location Information */}
-            {vessel.current_location && (
+            {/* Compliance & Documentation */}
+            {(vessel.insurance_expiry_date || vessel.license_expiry_date) && (
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Current Location</Text>
-                    <View style={styles.locationContainer}>
-                        <Text style={styles.locationText}>
-                            Lat: {vessel.current_location.latitude.toFixed(6)},
-                            Lng: {vessel.current_location.longitude.toFixed(6)}
-                        </Text>
-                        <Text style={styles.locationTime}>
-                            Last updated: {new Date(vessel.current_location.last_updated).toLocaleString()}
-                        </Text>
+                    <Text style={styles.sectionTitle}>Compliance & Documentation</Text>
+                    <View style={styles.infoGrid}>
+                        {vessel.insurance_expiry_date && (
+                            <View style={styles.infoItem}>
+                                <View style={styles.infoIcon}>
+                                    <Shield size={16} color={colors.primary} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Insurance Expiry</Text>
+                                    <Text style={styles.infoValue}>
+                                        {new Date(vessel.insurance_expiry_date).toLocaleDateString()}
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
+
+                        {vessel.license_expiry_date && (
+                            <View style={styles.infoItem}>
+                                <View style={styles.infoIcon}>
+                                    <Award size={16} color={colors.primary} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>License Expiry</Text>
+                                    <Text style={styles.infoValue}>
+                                        {new Date(vessel.license_expiry_date).toLocaleDateString()}
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
                     </View>
                 </View>
             )}
 
+            {/* Seat Layout Information */}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Seat Layout</Text>
+                <View style={styles.infoGrid}>
+                    <View style={styles.infoItem}>
+                        <View style={styles.infoIcon}>
+                            <Layout size={16} color={colors.primary} />
+                        </View>
+                        <View style={styles.infoContent}>
+                            <Text style={styles.infoLabel}>Layout Name</Text>
+                            <Text style={styles.infoValue}>Standard Layout</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.infoItem}>
+                        <View style={styles.infoIcon}>
+                            <Grid3X3 size={16} color={colors.primary} />
+                        </View>
+                        <View style={styles.infoContent}>
+                            <Text style={styles.infoLabel}>Total Seats</Text>
+                            <Text style={styles.infoValue}>{vessel.seating_capacity}</Text>
+                        </View>
+                    </View>
+                </View>
+            </View>
+
+            {/* Performance Metrics */}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Performance Metrics</Text>
+                <View style={styles.metricsGrid}>
+                    <View style={styles.metricItem}>
+                        <Text style={styles.metricLabel}>Capacity Utilization</Text>
+                        <Text style={[styles.metricValue, { color: getUtilizationColor(vessel.capacity_utilization_30d || 0) }]}>
+                            {vessel.capacity_utilization_30d?.toFixed(1) || 0}%
+                        </Text>
+                    </View>
+
+                    <View style={styles.metricItem}>
+                        <Text style={styles.metricLabel}>Avg Passengers/Trip</Text>
+                        <Text style={styles.metricValue}>
+                            {vessel.avg_passengers_per_trip?.toFixed(1) || 0}
+                        </Text>
+                    </View>
+
+                    <View style={styles.metricItem}>
+                        <Text style={styles.metricLabel}>Revenue per Trip</Text>
+                        <Text style={styles.metricValue}>
+                            {vessel.total_trips_30d && vessel.total_revenue_30d
+                                ? formatCurrency(vessel.total_revenue_30d / vessel.total_trips_30d)
+                                : formatCurrency(0)
+                            }
+                        </Text>
+                    </View>
+
+                    <View style={styles.metricItem}>
+                        <Text style={styles.metricLabel}>Days in Service (30d)</Text>
+                        <Text style={styles.metricValue}>
+                            {vessel.days_in_service_30d || 0}
+                        </Text>
+                    </View>
+                </View>
+            </View>
+
             {/* Action Buttons */}
             {showActions && (
                 <View style={styles.actionContainer}>
+                    {onViewSeatLayout && (
+                        <Button
+                            title="Seat Layout"
+                            variant="outline"
+                            onPress={onViewSeatLayout}
+                            icon={React.createElement(Grid3X3, { size: 18, color: colors.primary })}
+                        />
+                    )}
                     {onViewTrips && (
                         <Button
                             title="View Trips"
                             variant="outline"
                             onPress={onViewTrips}
-                            icon={<Activity size={18} color={colors.primary} />}
+                            icon={React.createElement(Activity, { size: 18, color: colors.primary })}
                         />
                     )}
                     {onViewMaintenance && (
@@ -443,7 +515,7 @@ export default function VesselDetails({
                             title="Maintenance Log"
                             variant="outline"
                             onPress={onViewMaintenance}
-                            icon={<Wrench size={18} color={colors.primary} />}
+                            icon={React.createElement(Wrench, { size: 18, color: colors.primary })}
                         />
                     )}
                     {onEdit && (
@@ -451,7 +523,7 @@ export default function VesselDetails({
                             title="Edit Vessel"
                             variant="primary"
                             onPress={onEdit}
-                            icon={<Edit size={18} color="#FFFFFF" />}
+                            icon={React.createElement(Edit, { size: 18, color: "#FFFFFF" })}
                         />
                     )}
                 </View>
@@ -467,11 +539,11 @@ export default function VesselDetails({
                 </View>
             )}
 
-            {vessel.status === 'decommissioned' && (
+            {vessel.status === 'inactive' && (
                 <View style={styles.warningContainer}>
                     <AlertTriangle size={16} color={colors.danger} />
                     <Text style={styles.warningText}>
-                        This vessel has been decommissioned and is no longer in service.
+                        This vessel is inactive and unavailable for service.
                     </Text>
                 </View>
             )}
@@ -578,20 +650,30 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         color: colors.text,
     },
-    locationContainer: {
+    metricsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 16,
+    },
+    metricItem: {
+        flex: 1,
+        minWidth: '45%',
         backgroundColor: colors.card,
         borderRadius: 8,
         padding: 12,
+        alignItems: 'center',
     },
-    locationText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: colors.text,
-        marginBottom: 4,
-    },
-    locationTime: {
+    metricLabel: {
         fontSize: 12,
         color: colors.textSecondary,
+        textAlign: 'center',
+        marginBottom: 4,
+    },
+    metricValue: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.text,
+        textAlign: 'center',
     },
     actionContainer: {
         flexDirection: 'row',
