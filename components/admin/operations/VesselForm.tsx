@@ -12,8 +12,10 @@ import Button from '@/components/admin/Button';
 import Dropdown from '@/components/admin/Dropdown';
 import TextInput from '@/components/admin/TextInput';
 import Switch from '@/components/admin/Switch';
+import DatePicker from '@/components/admin/DatePicker';
 import SeatArrangementManager from '../seat-arrangement/SeatArrangementManager';
 import { useVesselStore } from '@/store/admin/vesselStore';
+import { calculateOptimalRowColumnRatio, generateDefaultSeatLayoutConfig } from '@/utils/admin/vesselUtils';
 import {
     Ship,
     Users,
@@ -36,13 +38,20 @@ import {
     MapPin,
     Activity,
     AlertCircle,
+    Zap,
+    Layout,
+    Smartphone,
 } from 'lucide-react-native';
 
 type VesselFormData = AdminManagement.VesselFormData;
 type Vessel = AdminManagement.Vessel;
+type VesselWithDetails = AdminManagement.VesselWithDetails;
 
 interface VesselFormProps {
-    initialData?: Vessel;
+    initialData?: VesselWithDetails & {
+        seatLayout?: AdminManagement.SeatLayout | null;
+        seats?: AdminManagement.Seat[];
+    };
     onSave: (data: VesselFormData) => Promise<void>;
     onCancel?: () => void;
     loading?: boolean;
@@ -65,7 +74,7 @@ export default function VesselForm({
     onCancel,
     loading = false,
 }: VesselFormProps) {
-    const { generateFerryLayout, getLayoutStatistics } = useVesselStore();
+    const { generateFerryLayout, getLayoutStatistics, fetchSeatLayout, fetchSeats, generateAutomaticSeatLayout } = useVesselStore();
     const [formData, setFormData] = useState<VesselFormData>({
         name: initialData?.name || '',
         seating_capacity: initialData?.seating_capacity || 0,
@@ -88,8 +97,12 @@ export default function VesselForm({
 
     const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
     const [showSeatLayout, setShowSeatLayout] = useState(false);
+    const [existingSeatLayout, setExistingSeatLayout] = useState<any>(null);
+    const [existingSeats, setExistingSeats] = useState<any[]>([]);
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    const [autoGenerateLayout, setAutoGenerateLayout] = useState(true);
+    const [layoutPreview, setLayoutPreview] = useState<{ rows: number; columns: number; aisles: number[] } | null>(null);
 
     const vesselTypes = [
         { label: 'Passenger', value: 'passenger' },
@@ -104,6 +117,83 @@ export default function VesselForm({
         { label: 'Maintenance', value: 'maintenance' },
         { label: 'Inactive', value: 'inactive' },
     ];
+
+    // Check for existing seat layout when editing
+    useEffect(() => {
+        const checkExistingSeatLayout = async () => {
+            if (initialData?.id) {
+                let hasExistingSeats = false;
+                let hasExistingLayout = false;
+
+                // First, check if seats data is already available in initialData
+                if (initialData.seats && initialData.seats.length > 0) {
+                    setExistingSeats(initialData.seats);
+                    hasExistingSeats = true;
+                } else {
+                    // Fallback: fetch seats separately if not available in initialData
+                    try {
+                        const seats = await fetchSeats(initialData.id);
+                        if (seats && seats.length > 0) {
+                            setExistingSeats(seats);
+                            hasExistingSeats = true;
+                        }
+                    } catch (error) {
+                        // No existing seats
+                    }
+                }
+
+                // Check if seat layout data is already available in initialData
+                if (initialData.seatLayout) {
+                    setExistingSeatLayout(initialData.seatLayout);
+                    hasExistingLayout = true;
+                } else {
+                    // Fallback: fetch layout separately if not available in initialData
+                    try {
+                        const layout = await fetchSeatLayout(initialData.id);
+                        if (layout) {
+                            setExistingSeatLayout(layout);
+                            hasExistingLayout = true;
+                        }
+                    } catch (error) {
+                        // No existing layout
+                    }
+                }
+
+                // If we have existing seats OR layout, show custom layout and turn off auto-generate
+                if (hasExistingSeats || hasExistingLayout) {
+                    setShowSeatLayout(true);
+                    setAutoGenerateLayout(false);
+                } else {
+                    // No existing data, keep auto-generate on for new vessels
+                    setShowSeatLayout(false);
+                    setAutoGenerateLayout(true);
+                }
+            }
+        };
+
+        checkExistingSeatLayout();
+    }, [initialData?.id, initialData?.seatLayout, initialData?.seats]);
+
+    // Handle custom seat layout toggle
+    const handleCustomSeatLayoutToggle = (value: boolean) => {
+        setShowSeatLayout(value);
+        if (value) {
+            // When enabling custom layout, turn off auto-generate
+            setAutoGenerateLayout(false);
+        } else {
+            // When disabling custom layout, turn on auto-generate
+            setAutoGenerateLayout(true);
+        }
+    };
+
+    // Handle auto-generate layout toggle
+    const handleAutoGenerateLayoutToggle = (value: boolean) => {
+        setAutoGenerateLayout(value);
+        if (value) {
+            // When enabling auto-generate, turn off custom layout
+            setShowSeatLayout(false);
+        }
+    };
 
     // Track form changes
     useEffect(() => {
@@ -149,6 +239,19 @@ export default function VesselForm({
             setHasChanges(hasFormChanges);
         }
     }, [formData, initialData]);
+
+    // Generate layout preview when capacity changes
+    useEffect(() => {
+        if (formData.seating_capacity > 0) {
+            const { rows, columns } = calculateOptimalRowColumnRatio(formData.seating_capacity);
+            const aislePosition = Math.ceil(columns / 2);
+            const aisles = columns > 4 ? [aislePosition] : [];
+
+            setLayoutPreview({ rows, columns, aisles });
+        } else {
+            setLayoutPreview(null);
+        }
+    }, [formData.seating_capacity]);
 
     const validateForm = (): boolean => {
         const errors: ValidationErrors = {};
@@ -199,27 +302,37 @@ export default function VesselForm({
         }
 
         try {
-            await onSave({
-                name: formData.name,
+            // Prepare form data for submission
+            const submitData: VesselFormData = {
+                name: formData.name.trim(),
                 seating_capacity: formData.seating_capacity,
                 status: formData.status,
                 is_active: formData.is_active,
                 vessel_type: formData.vessel_type,
-                registration_number: formData.registration_number,
-                captain_name: formData.captain_name,
-                contact_number: formData.contact_number,
-                maintenance_schedule: formData.maintenance_schedule,
-                last_maintenance_date: formData.last_maintenance_date,
-                next_maintenance_date: formData.next_maintenance_date,
-                insurance_expiry_date: formData.insurance_expiry_date,
-                license_expiry_date: formData.license_expiry_date,
-                max_speed: formData.max_speed,
-                fuel_capacity: formData.fuel_capacity,
-                description: formData.description,
-                notes: formData.notes,
-            });
+                registration_number: formData.registration_number?.trim() || undefined,
+                captain_name: formData.captain_name?.trim() || undefined,
+                contact_number: formData.contact_number?.trim() || undefined,
+                maintenance_schedule: formData.maintenance_schedule?.trim() || undefined,
+                last_maintenance_date: formData.last_maintenance_date?.trim() || undefined,
+                next_maintenance_date: formData.next_maintenance_date?.trim() || undefined,
+                insurance_expiry_date: formData.insurance_expiry_date?.trim() || undefined,
+                license_expiry_date: formData.license_expiry_date?.trim() || undefined,
+                max_speed: formData.max_speed || undefined,
+                fuel_capacity: formData.fuel_capacity || undefined,
+                description: formData.description?.trim() || undefined,
+                notes: formData.notes?.trim() || undefined,
+            };
+
+            // Handle seat layout generation if auto-generate is enabled
+            if (autoGenerateLayout && formData.seating_capacity > 0) {
+                console.log('Auto-generating seat layout for capacity:', formData.seating_capacity);
+                // Auto-generate will be handled by the store during vessel creation/update
+            }
+
+            await onSave(submitData);
         } catch (error) {
-            Alert.alert('Error', 'Failed to save vessel');
+            console.error('Error saving vessel:', error);
+            // Error handling is done by the parent component
         }
     };
 
@@ -291,6 +404,34 @@ export default function VesselForm({
                 return colors.error;
             default:
                 return colors.textSecondary;
+        }
+    };
+
+    const getLayoutDescription = () => {
+        if (!layoutPreview) return '';
+
+        const { rows, columns, aisles } = layoutPreview;
+        const totalSeats = rows * columns;
+        const aisleText = aisles.length > 0 ? ` with ${aisles.length} aisle${aisles.length > 1 ? 's' : ''}` : ' without aisles';
+
+        return `${rows} rows × ${columns} columns = ${totalSeats} seats${aisleText}`;
+    };
+
+    const getLayoutEfficiency = () => {
+        if (!layoutPreview || formData.seating_capacity <= 0) return '';
+
+        const { rows, columns } = layoutPreview;
+        const totalSeats = rows * columns;
+        const efficiency = ((formData.seating_capacity / totalSeats) * 100).toFixed(1);
+
+        if (efficiency === '100.0') {
+            return 'Perfect fit!';
+        } else if (parseFloat(efficiency) >= 95) {
+            return `Excellent efficiency (${efficiency}%)`;
+        } else if (parseFloat(efficiency) >= 85) {
+            return `Good efficiency (${efficiency}%)`;
+        } else {
+            return `Efficiency: ${efficiency}%`;
         }
     };
 
@@ -486,20 +627,20 @@ export default function VesselForm({
 
                     <View style={styles.formRow}>
                         <View style={styles.formHalf}>
-                            <TextInput
+                            <DatePicker
                                 label="Last Maintenance Date"
-                                value={formData.last_maintenance_date}
-                                onChangeText={(text) => setFormData(prev => ({ ...prev, last_maintenance_date: text }))}
-                                placeholder="YYYY-MM-DD"
+                                value={formData.last_maintenance_date || ''}
+                                onChange={(date) => setFormData(prev => ({ ...prev, last_maintenance_date: date }))}
+                                placeholder="Select date"
                             />
                         </View>
 
                         <View style={styles.formHalf}>
-                            <TextInput
+                            <DatePicker
                                 label="Next Maintenance Date"
-                                value={formData.next_maintenance_date}
-                                onChangeText={(text) => setFormData(prev => ({ ...prev, next_maintenance_date: text }))}
-                                placeholder="YYYY-MM-DD"
+                                value={formData.next_maintenance_date || ''}
+                                onChange={(date) => setFormData(prev => ({ ...prev, next_maintenance_date: date }))}
+                                placeholder="Select date"
                             />
                         </View>
                     </View>
@@ -516,20 +657,20 @@ export default function VesselForm({
 
                     <View style={styles.formRow}>
                         <View style={styles.formHalf}>
-                            <TextInput
+                            <DatePicker
                                 label="Insurance Expiry Date"
-                                value={formData.insurance_expiry_date}
-                                onChangeText={(text) => setFormData(prev => ({ ...prev, insurance_expiry_date: text }))}
-                                placeholder="YYYY-MM-DD"
+                                value={formData.insurance_expiry_date || ''}
+                                onChange={(date) => setFormData(prev => ({ ...prev, insurance_expiry_date: date }))}
+                                placeholder="Select date"
                             />
                         </View>
 
                         <View style={styles.formHalf}>
-                            <TextInput
+                            <DatePicker
                                 label="License Expiry Date"
-                                value={formData.license_expiry_date}
-                                onChangeText={(text) => setFormData(prev => ({ ...prev, license_expiry_date: text }))}
-                                placeholder="YYYY-MM-DD"
+                                value={formData.license_expiry_date || ''}
+                                onChange={(date) => setFormData(prev => ({ ...prev, license_expiry_date: date }))}
+                                placeholder="Select date"
                             />
                         </View>
                     </View>
@@ -601,15 +742,88 @@ export default function VesselForm({
                         <View style={styles.sectionHeaderIcon}>
                             <Grid3X3 size={20} color={colors.primary} />
                         </View>
-                        <Text style={styles.sectionTitle}>Seat Layout</Text>
+                        <Text style={styles.sectionTitle}>Seat Layout Configuration</Text>
+                    </View>
+
+                    {/* Layout Preview */}
+                    {layoutPreview && formData.seating_capacity > 0 && (
+                        <View style={styles.layoutPreviewContainer}>
+                            <View style={styles.layoutPreviewHeader}>
+                                <View style={styles.layoutPreviewIcon}>
+                                    <Layout size={16} color={colors.primary} />
+                                </View>
+                                <Text style={styles.layoutPreviewTitle}>Auto-Generated Layout</Text>
+                            </View>
+
+                            <View style={styles.layoutPreviewContent}>
+                                <Text style={styles.layoutPreviewText}>
+                                    {getLayoutDescription()}
+                                </Text>
+                                <Text style={styles.layoutEfficiencyText}>
+                                    {getLayoutEfficiency()}
+                                </Text>
+                            </View>
+
+                            {/* Visual Layout Preview */}
+                            <View style={styles.visualPreviewContainer}>
+                                <Text style={styles.visualPreviewTitle}>Layout Preview:</Text>
+                                <View style={styles.visualPreview}>
+                                    {Array.from({ length: Math.min(layoutPreview.rows, 6) }, (_, rowIndex) => (
+                                        <View key={rowIndex} style={styles.previewRow}>
+                                            {Array.from({ length: layoutPreview.columns }, (_, colIndex) => {
+                                                const seatNumber = rowIndex * layoutPreview.columns + colIndex + 1;
+                                                const isWindow = colIndex === 0 || colIndex === layoutPreview.columns - 1;
+                                                const isAisle = layoutPreview.aisles.includes(colIndex + 1);
+                                                const isDisabled = seatNumber > formData.seating_capacity;
+
+                                                return (
+                                                    <View key={colIndex} style={styles.previewSeatContainer}>
+                                                        {isAisle && colIndex > 0 && (
+                                                            <View style={styles.previewAisle} />
+                                                        )}
+                                                        <View style={[
+                                                            styles.previewSeat,
+                                                            isWindow && styles.previewWindowSeat,
+                                                            isDisabled && styles.previewDisabledSeat,
+                                                            seatNumber <= formData.seating_capacity && styles.previewActiveSeat
+                                                        ]}>
+                                                            <Text style={[
+                                                                styles.previewSeatText,
+                                                                isDisabled && styles.previewDisabledSeatText
+                                                            ]}>
+                                                                {seatNumber <= formData.seating_capacity ? seatNumber : ''}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
+                                    ))}
+                                    {layoutPreview.rows > 6 && (
+                                        <Text style={styles.previewMoreText}>
+                                            ... and {layoutPreview.rows - 6} more rows
+                                        </Text>
+                                    )}
+                                </View>
+                            </View>
+                        </View>
+                    )}
+
+                    <View style={styles.formGroup}>
+                        <Switch
+                            label="Auto-Generate Seat Layout"
+                            value={autoGenerateLayout}
+                            onValueChange={handleAutoGenerateLayoutToggle}
+                            description="Automatically generate optimal seat layout based on capacity"
+                        />
                     </View>
 
                     <View style={styles.formGroup}>
                         <Switch
-                            label="Configure Seat Layout"
+                            label="Customize Seat Layout"
                             value={showSeatLayout}
-                            onValueChange={setShowSeatLayout}
-                            description="Enable to customize the vessel's seat arrangement"
+                            onValueChange={handleCustomSeatLayoutToggle}
+                            description="Enable to manually configure seat arrangement and premium sections"
                         />
                     </View>
 
@@ -619,6 +833,8 @@ export default function VesselForm({
                                 vesselId={initialData?.id || 'new'}
                                 seatingCapacity={formData.seating_capacity}
                                 vesselType={formData.vessel_type}
+                                initialLayout={existingSeatLayout}
+                                initialSeats={existingSeats}
                                 onSave={async (layout, seats) => {
                                     try {
                                         if (initialData?.id) {
@@ -630,7 +846,6 @@ export default function VesselForm({
                                                 layout.layout_data
                                             );
                                         }
-                                        console.log('Seat layout saved:', layout, seats);
                                     } catch (error) {
                                         Alert.alert('Error', 'Failed to save seat layout');
                                     }
@@ -645,6 +860,22 @@ export default function VesselForm({
                         <View style={styles.layoutInfo}>
                             <Text style={styles.layoutInfoText}>
                                 💡 Tip: Use Edit mode to add/remove seats, Arrange mode for bulk actions
+                            </Text>
+                        </View>
+                    )}
+
+                    {/* Layout Configuration Tips */}
+                    {formData.seating_capacity > 0 && !showSeatLayout && (
+                        <View style={styles.layoutTipsContainer}>
+                            <View style={styles.layoutTipsHeader}>
+                                <Smartphone size={16} color={colors.info} />
+                                <Text style={styles.layoutTipsTitle}>Layout Tips</Text>
+                            </View>
+                            <Text style={styles.layoutTipsText}>
+                                • Window seats are automatically positioned at the ends of each row{'\n'}
+                                • Aisles are placed between seat columns for easy access{'\n'}
+                                • Premium sections can be configured in the custom layout mode{'\n'}
+                                • The system optimizes for the best row-to-column ratio
                             </Text>
                         </View>
                     )}
@@ -839,5 +1070,127 @@ const styles = StyleSheet.create({
     buttonContainer: {
         gap: 16,
         marginBottom: 20,
+    },
+    layoutPreviewContainer: {
+        backgroundColor: colors.backgroundSecondary,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    layoutPreviewHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 8,
+    },
+    layoutPreviewIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: colors.primaryLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    layoutPreviewTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.text,
+    },
+    layoutPreviewContent: {
+        marginBottom: 16,
+    },
+    layoutPreviewText: {
+        fontSize: 14,
+        color: colors.text,
+        marginBottom: 4,
+    },
+    layoutEfficiencyText: {
+        fontSize: 13,
+        color: colors.success,
+        fontWeight: '500',
+    },
+    visualPreviewContainer: {
+        marginTop: 12,
+    },
+    visualPreviewTitle: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        marginBottom: 8,
+    },
+    visualPreview: {
+        alignItems: 'center',
+    },
+    previewRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    previewSeatContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    previewSeat: {
+        width: 20,
+        height: 20,
+        borderRadius: 4,
+        backgroundColor: colors.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginHorizontal: 1,
+    },
+    previewActiveSeat: {
+        backgroundColor: colors.primary,
+    },
+    previewWindowSeat: {
+        backgroundColor: colors.info,
+    },
+    previewDisabledSeat: {
+        backgroundColor: colors.errorLight,
+    },
+    previewSeatText: {
+        fontSize: 8,
+        color: colors.white,
+        fontWeight: '600',
+    },
+    previewDisabledSeatText: {
+        color: colors.error,
+    },
+    previewAisle: {
+        width: 8,
+        height: 16,
+        backgroundColor: colors.warningLight,
+        marginHorizontal: 2,
+        borderRadius: 2,
+    },
+    previewMoreText: {
+        fontSize: 11,
+        color: colors.textSecondary,
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    layoutTipsContainer: {
+        backgroundColor: colors.infoLight,
+        borderRadius: 8,
+        padding: 12,
+        marginTop: 12,
+    },
+    layoutTipsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+        gap: 6,
+    },
+    layoutTipsTitle: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.info,
+    },
+    layoutTipsText: {
+        fontSize: 12,
+        color: colors.info,
+        lineHeight: 16,
     },
 }); 

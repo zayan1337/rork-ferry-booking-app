@@ -121,6 +121,7 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
         },
       ]}
     >
+      {/* Always wrap status in <Text> to prevent RN error */}
       <Text
         style={[
           styles.badgeText,
@@ -130,7 +131,7 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
           },
         ]}
       >
-        {formatStatusText(status)}
+        {typeof status === 'string' ? formatStatusText(status) : String(status)}
       </Text>
     </View>
   );

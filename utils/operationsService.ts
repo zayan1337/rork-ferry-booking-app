@@ -211,6 +211,7 @@ export const fetchTrips = async (): Promise<OperationsTrip[]> => {
             route_id: trip.route_id,
             travel_date: trip.travel_date,
             departure_time: trip.departure_time,
+            arrival_time: trip.arrival_time || null,
             vessel_id: trip.vessel_id,
             available_seats: trip.available_seats,
             is_active: trip.is_active,
@@ -251,6 +252,7 @@ export const fetchTrip = async (id: string): Promise<OperationsTrip | null> => {
             route_id: data.route_id,
             travel_date: data.travel_date,
             departure_time: data.departure_time,
+            arrival_time: data.arrival_time || null,
             vessel_id: data.vessel_id,
             available_seats: data.available_seats,
             is_active: data.is_active,
@@ -533,7 +535,7 @@ export const fetchIslands = async (): Promise<DatabaseIsland[]> => {
             .order('name', { ascending: true });
 
         if (error) throw error;
-        
+
         // Transform the data to include zone information directly
         return (data || []).map(island => ({
             ...island,
@@ -563,7 +565,7 @@ export const fetchIsland = async (id: string): Promise<DatabaseIsland | null> =>
             .single();
 
         if (error) throw error;
-        
+
         // Transform the data to include zone information directly
         return data ? {
             ...data,
@@ -672,6 +674,7 @@ export const fetchTodaySchedule = async (): Promise<OperationsTrip[]> => {
             route_id: trip.route_id,
             travel_date: trip.travel_date,
             departure_time: trip.departure_time,
+            arrival_time: trip.arrival_time || null,
             vessel_id: trip.vessel_id,
             available_seats: trip.available_seats,
             is_active: trip.is_active,

@@ -13,13 +13,15 @@ type SeatLayoutStats = AdminManagement.SeatLayoutStats;
 // ============================================================================
 
 export const searchVessels = (vessels: Vessel[], query: string): Vessel[] => {
-    if (!query.trim()) return vessels;
+    if (!query.trim() || !vessels || !Array.isArray(vessels)) return vessels || [];
 
     const searchTerm = query.toLowerCase();
     return vessels.filter(vessel =>
-        vessel.name.toLowerCase().includes(searchTerm) ||
-        vessel.status.toLowerCase().includes(searchTerm) ||
-        vessel.seating_capacity.toString().includes(searchTerm)
+        vessel && (
+            (vessel.name && vessel.name.toLowerCase().includes(searchTerm)) ||
+            (vessel.status && vessel.status.toLowerCase().includes(searchTerm)) ||
+            (vessel.seating_capacity && vessel.seating_capacity.toString().includes(searchTerm))
+        )
     );
 };
 
@@ -33,38 +35,41 @@ export const filterVesselsByStatus = (vessels: Vessel[], status: string | null):
 };
 
 export const filterVessels = (vessels: Vessel[], filters: VesselFilters): Vessel[] => {
-    let filtered = vessels;
+    if (!vessels || !Array.isArray(vessels)) return [];
+
+    let filtered = vessels.filter(vessel => vessel); // Remove any null/undefined vessels
 
     // Status filter
     if (filters.status && filters.status !== 'all') {
-        filtered = filtered.filter(vessel => vessel.status === filters.status);
+        filtered = filtered.filter(vessel => vessel && vessel.status === filters.status);
     }
 
     // Active status filter
     if (filters.is_active !== undefined && filters.is_active !== null) {
-        filtered = filtered.filter(vessel => vessel.is_active === filters.is_active);
+        filtered = filtered.filter(vessel => vessel && vessel.is_active === filters.is_active);
     }
 
     // Capacity range filter
     if (filters.capacity_range) {
         filtered = filtered.filter(vessel =>
-            vessel.seating_capacity >= filters.capacity_range!.min &&
+            vessel && vessel.seating_capacity >= filters.capacity_range!.min &&
             vessel.seating_capacity <= filters.capacity_range!.max
         );
     }
 
     // Min/Max capacity filters
     if (filters.min_capacity) {
-        filtered = filtered.filter(vessel => vessel.seating_capacity >= filters.min_capacity!);
+        filtered = filtered.filter(vessel => vessel && vessel.seating_capacity >= filters.min_capacity!);
     }
 
     if (filters.max_capacity) {
-        filtered = filtered.filter(vessel => vessel.seating_capacity <= filters.max_capacity!);
+        filtered = filtered.filter(vessel => vessel && vessel.seating_capacity <= filters.max_capacity!);
     }
 
     // Utilization rating filter
     if (filters.utilization_rating) {
         filtered = filtered.filter(vessel => {
+            if (!vessel) return false;
             const utilization = vessel.capacity_utilization_30d || 0;
             switch (filters.utilization_rating) {
                 case 'excellent': return utilization >= 80;
@@ -84,7 +89,11 @@ export const filterVessels = (vessels: Vessel[], filters: VesselFilters): Vessel
 // ============================================================================
 
 export const sortVessels = (vessels: Vessel[], sortBy: string, order: 'asc' | 'desc'): Vessel[] => {
-    return [...vessels].sort((a, b) => {
+    if (!vessels || !Array.isArray(vessels)) return [];
+
+    return [...vessels].filter(vessel => vessel).sort((a, b) => {
+        if (!a || !b) return 0;
+
         let aValue: any = a[sortBy as keyof Vessel];
         let bValue: any = b[sortBy as keyof Vessel];
 
@@ -109,24 +118,40 @@ export const sortVessels = (vessels: Vessel[], sortBy: string, order: 'asc' | 'd
 // ============================================================================
 
 export const calculateVesselStats = (vessels: Vessel[]) => {
-    const total = vessels.length;
-    const active = vessels.filter(v => v.is_active).length;
-    const inactive = vessels.filter(v => !v.is_active).length;
-    const maintenance = vessels.filter(v => v.status === 'maintenance').length;
+    if (!vessels || !Array.isArray(vessels)) {
+        return {
+            total: 0,
+            active: 0,
+            inactive: 0,
+            maintenance: 0,
+            totalTrips30d: 0,
+            totalBookings30d: 0,
+            totalRevenue30d: 0,
+            avgUtilization: 0,
+            avgCapacity: 0,
+            totalCapacity: 0,
+        };
+    }
 
-    const totalTrips30d = vessels.reduce((sum, v) => sum + (v.total_trips_30d || 0), 0);
-    const totalBookings30d = vessels.reduce((sum, v) => sum + (v.total_bookings_30d || 0), 0);
-    const totalRevenue30d = vessels.reduce((sum, v) => sum + (v.total_revenue_30d || 0), 0);
+    const validVessels = vessels.filter(v => v);
+    const total = validVessels.length;
+    const active = validVessels.filter(v => v && v.is_active).length;
+    const inactive = validVessels.filter(v => v && !v.is_active).length;
+    const maintenance = validVessels.filter(v => v && v.status === 'maintenance').length;
 
-    const avgUtilization = vessels.length > 0
-        ? vessels.reduce((sum, v) => sum + (v.capacity_utilization_30d || 0), 0) / vessels.length
+    const totalTrips30d = validVessels.reduce((sum, v) => sum + (v?.total_trips_30d || 0), 0);
+    const totalBookings30d = validVessels.reduce((sum, v) => sum + (v?.total_bookings_30d || 0), 0);
+    const totalRevenue30d = validVessels.reduce((sum, v) => sum + (v?.total_revenue_30d || 0), 0);
+
+    const avgUtilization = validVessels.length > 0
+        ? validVessels.reduce((sum, v) => sum + (v?.capacity_utilization_30d || 0), 0) / validVessels.length
         : 0;
 
-    const avgCapacity = vessels.length > 0
-        ? vessels.reduce((sum, v) => sum + v.seating_capacity, 0) / vessels.length
+    const avgCapacity = validVessels.length > 0
+        ? validVessels.reduce((sum, v) => sum + (v?.seating_capacity || 0), 0) / validVessels.length
         : 0;
 
-    const totalCapacity = vessels.reduce((sum, v) => sum + v.seating_capacity, 0);
+    const totalCapacity = validVessels.reduce((sum, v) => sum + (v?.seating_capacity || 0), 0);
 
     return {
         total,
@@ -147,10 +172,12 @@ export const calculateVesselStats = (vessels: Vessel[]) => {
 // ============================================================================
 
 export const formatCurrency = (amount: number): string => {
+    if (!amount || isNaN(amount)) return 'MVR 0';
     return `MVR ${amount.toLocaleString()}`;
 };
 
 export const formatPercentage = (value: number): string => {
+    if (!value || isNaN(value)) return '0.0%';
     return `${value.toFixed(1)}%`;
 };
 
@@ -167,6 +194,7 @@ export const formatUtilization = (utilization: number): string => {
 // ============================================================================
 
 export const getUtilizationRating = (vessel: Vessel): 'excellent' | 'good' | 'fair' | 'poor' => {
+    if (!vessel) return 'poor';
     const utilization = vessel.capacity_utilization_30d || 0;
 
     if (utilization >= 80) return 'excellent';
@@ -573,7 +601,7 @@ export const generateSeatsForFloor = (
     for (let row = 1; row <= floorLayout.rows; row++) {
         for (let col = 1; col <= floorLayout.columns; col++) {
             seatCount++;
-            const seatNumber = `${String.fromCharCode(64 + row)}${col}`;
+            const seatNumber = `${String.fromCharCode(64 + col)}${row}`;
             const floorPrefix = floorLayout.floor_number > 1 ? `${floorLayout.floor_number}` : '';
             const fullSeatNumber = floorPrefix ? `${floorPrefix}${seatNumber}` : seatNumber;
 
@@ -655,6 +683,84 @@ export const calculateOptimalLayout = (capacity: number, vesselType: string) => 
         has_premium_section: true,
         has_crew_section: true,
         has_disabled_access: true,
+    };
+};
+
+// NEW: Calculate optimal row-to-column ratio for single floor layout
+export const calculateOptimalRowColumnRatio = (capacity: number): { rows: number; columns: number } => {
+    if (capacity <= 0) {
+        return { rows: 1, columns: 1 };
+    }
+
+    // Find factors of capacity to get optimal ratios
+    const factors: number[] = [];
+    for (let i = 1; i <= Math.sqrt(capacity); i++) {
+        if (capacity % i === 0) {
+            factors.push(i);
+            if (i !== capacity / i) {
+                factors.push(capacity / i);
+            }
+        }
+    }
+    factors.sort((a, b) => a - b);
+
+    // Find the most balanced ratio (closest to square)
+    let bestRatio = { rows: 1, columns: capacity };
+    let bestBalance = Math.abs(1 - capacity);
+
+    for (let i = 0; i < factors.length; i++) {
+        const factor = factors[i];
+        const otherFactor = capacity / factor;
+
+        // Prefer ratios where rows >= columns (more rows than columns)
+        const rows = Math.max(factor, otherFactor);
+        const columns = Math.min(factor, otherFactor);
+
+        // Calculate balance (closer to 1 is better)
+        const balance = Math.abs(rows / columns - 1);
+
+        if (balance < bestBalance) {
+            bestBalance = balance;
+            bestRatio = { rows, columns };
+        }
+    }
+
+    // For capacities that don't have good factors, create a layout with extra row
+    if (bestBalance > 0.5) {
+        const sqrt = Math.sqrt(capacity);
+        const rows = Math.ceil(sqrt);
+        const columns = Math.ceil(capacity / rows);
+        return { rows, columns };
+    }
+
+    return bestRatio;
+};
+
+// NEW: Generate default seat layout configuration
+export const generateDefaultSeatLayoutConfig = (capacity: number, vesselType: string) => {
+    const { rows, columns } = calculateOptimalRowColumnRatio(capacity);
+
+    // Calculate aisle positions (typically in the middle)
+    const aislePosition = Math.ceil(columns / 2);
+    const aisles = columns > 4 ? [aislePosition] : [];
+
+    // Determine premium rows based on vessel type
+    let premiumRows: number[] = [];
+    if (vesselType === 'luxury') {
+        premiumRows = [1, 2, 3]; // First 3 rows for luxury
+    } else if (vesselType === 'mixed') {
+        premiumRows = [1, 2]; // First 2 rows for mixed
+    } else {
+        premiumRows = [1]; // First row for standard/economy
+    }
+
+    return {
+        rows,
+        columns,
+        aisles,
+        premium_rows: premiumRows,
+        disabled_seats: [],
+        crew_seats: [],
     };
 };
 

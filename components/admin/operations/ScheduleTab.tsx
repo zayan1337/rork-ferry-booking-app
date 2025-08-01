@@ -62,7 +62,7 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
 
     const handleTripPress = (tripId: string) => {
         if (canViewTrips()) {
-            router.push(`../trips/${tripId}` as any);
+            router.push(`../trip/${tripId}` as any);
         }
     };
 

@@ -188,13 +188,13 @@ export default function TripsListingPage() {
 
     const handleTripPress = (tripId: string) => {
         if (canViewTrips()) {
-            router.push(`/trips/${tripId}` as any);
+            router.push(`/trip/${tripId}` as any);
         }
     };
 
     const handleAddTrip = () => {
         if (canManageTrips()) {
-            router.push("/trips/new" as any);
+            router.push("/trip/new" as any);
         } else {
             Alert.alert("Access Denied", "You don't have permission to create trips.");
         }

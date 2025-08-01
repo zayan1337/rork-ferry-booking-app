@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     View,
     Text,
@@ -15,12 +15,6 @@ import { useVesselManagement } from "@/hooks/useVesselManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import { AdminManagement } from "@/types";
 import {
-    formatCurrency,
-    formatPercentage,
-    getUtilizationRating,
-    getUtilizationColor,
-} from "@/utils/admin/vesselUtils";
-import {
     ArrowLeft,
     Edit,
     Trash2,
@@ -33,12 +27,46 @@ import {
     AlertTriangle,
     Settings,
     MoreVertical,
+    Anchor,
+    Gauge,
+    Wrench,
+    Fuel,
+    BarChart3,
+    Clock,
+    Target,
+    Ruler,
+    MapPin,
+    Phone,
+    Mail,
+    FileText,
+    Shield,
+    Award,
+    Zap,
+    Thermometer,
+    Droplets,
+    Navigation,
+    Compass,
+    LifeBuoy,
+    Radio,
+    Satellite,
+    Wifi,
+    Battery,
+    Signal,
+    Eye,
+    EyeOff,
+    Grid3X3,
+    Layout,
+    UserCheck,
+    Crown,
+    Info,
+    Plane,
+    Star,
 } from "lucide-react-native";
 
 // Components
 import Button from "@/components/admin/Button";
-import StatusBadge from "@/components/admin/StatusBadge";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
+import VesselDetails from "@/components/admin/operations/VesselDetails";
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -50,27 +78,52 @@ export default function VesselDetailScreen() {
     const { canViewVessels, canManageVessels } = useAdminPermissions();
 
     const {
-        getById,
+        fetchById,
         loading,
         error,
         remove,
+        getVesselWithDetails,
+        formatCurrency,
+        formatPercentage,
+        getUtilizationRating,
+        getUtilizationColor,
     } = useVesselManagement();
 
     const [vessel, setVessel] = useState<Vessel | null>(null);
+    const [vesselWithDetails, setVesselWithDetails] = useState<AdminManagement.VesselWithDetails | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         if (id) {
-        loadVessel();
+            loadVessel();
         }
     }, [id]);
 
     const loadVessel = async () => {
         if (!id) return;
 
-        const vesselData = getById(id);
+        try {
+            // Load basic vessel data
+            const vesselData = await fetchById(id);
             if (vesselData) {
-            setVessel(vesselData);
+                setVessel(vesselData);
+            } else {
+                console.error('No vessel data returned for ID:', id);
+            }
+
+            // Load detailed vessel data
+            const detailedVessel = await getVesselWithDetails(id);
+            if (detailedVessel) {
+                setVesselWithDetails(detailedVessel);
+            } else {
+                console.error('No detailed vessel data returned for ID:', id);
+            }
+        } catch (error) {
+            console.error('Error loading vessel:', error);
+            // Set error state so the error UI shows
+            setVessel(null);
+            setVesselWithDetails(null);
         }
     };
 
@@ -83,7 +136,7 @@ export default function VesselDetailScreen() {
     const handleEdit = () => {
         if (canManageVessels()) {
             router.push(`../vessel/${id}/edit` as any);
-            } else {
+        } else {
             Alert.alert("Access Denied", "You don't have permission to edit vessels.");
         }
     };
@@ -104,6 +157,7 @@ export default function VesselDetailScreen() {
                     style: "destructive",
                     onPress: async () => {
                         try {
+                            setIsDeleting(true);
                             if (id) {
                                 await remove(id);
                                 Alert.alert("Success", "Vessel deleted successfully!");
@@ -111,12 +165,75 @@ export default function VesselDetailScreen() {
                             }
                         } catch (error) {
                             Alert.alert("Error", "Failed to delete vessel");
+                        } finally {
+                            setIsDeleting(false);
                         }
                     },
                 },
             ]
         );
     };
+
+    const handleViewTrips = () => {
+        router.push(`../trip?vessel_id=${id}` as any);
+    };
+
+    const handleViewMaintenance = () => {
+        // Navigate to maintenance log or create maintenance modal
+        Alert.alert("Maintenance", "Maintenance log feature coming soon!");
+    };
+
+    const handleViewSeatLayout = () => {
+        router.push(`../vessel/${id}/seat-layout` as any);
+    };
+
+    const handleArchive = () => {
+        if (!canManageVessels()) {
+            Alert.alert("Access Denied", "You don't have permission to archive vessels.");
+            return;
+        }
+
+        Alert.alert(
+            "Archive Vessel",
+            `Are you sure you want to archive "${vessel?.name}"? This will remove it from active service.`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Archive",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            if (id && vessel) {
+                                await remove(id);
+                                Alert.alert("Success", "Vessel archived successfully!");
+                                router.back();
+                            }
+                        } catch (error) {
+                            Alert.alert("Error", "Failed to archive vessel");
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    // Calculate vessel statistics
+    const vesselStats = useMemo(() => {
+        if (!vessel) return null;
+
+        return {
+            totalTrips: vessel.total_trips_30d || 0,
+            totalBookings: vessel.total_bookings_30d || 0,
+            totalRevenue: vessel.total_revenue_30d || 0,
+            capacityUtilization: vessel.capacity_utilization_30d || 0,
+            avgPassengersPerTrip: vessel.avg_passengers_per_trip || 0,
+            daysInService: vessel.days_in_service_30d || 0,
+            performanceRating: getUtilizationRating(vessel),
+            estimatedRevenue: vessel.total_revenue_30d || 0,
+            onTimePerformance: 95, // Placeholder - would come from actual data
+            cancellationRate: 2, // Placeholder - would come from actual data
+        };
+    }, [vessel, getUtilizationRating]);
 
     const getStatusVariant = (status: string) => {
         switch (status) {
@@ -131,92 +248,33 @@ export default function VesselDetailScreen() {
         }
     };
 
-    const renderStats = () => {
-        if (!vessel) return null;
-
-        const stats = [
-            {
-                title: "Total Trips (30d)",
-                value: vessel.total_trips_30d?.toString() || "0",
-                icon: <Activity size={20} color={colors.primary} />,
-                color: colors.primary,
-            },
-            {
-                title: "Total Bookings (30d)",
-                value: vessel.total_bookings_30d?.toString() || "0",
-                icon: <Users size={20} color={colors.success} />,
-                color: colors.success,
-            },
-            {
-                title: "Capacity Utilization",
-                value: formatPercentage(vessel.capacity_utilization_30d || 0),
-                icon: <TrendingUp size={20} color={getUtilizationColor(getUtilizationRating(vessel))} />,
-                color: getUtilizationColor(getUtilizationRating(vessel)),
-            },
-            {
-                title: "Total Revenue (30d)",
-                value: formatCurrency(vessel.total_revenue_30d || 0),
-                icon: <DollarSign size={20} color={colors.success} />,
-                color: colors.success,
-            },
-        ];
-
-        return (
-            <View style={styles.statsSection}>
-                <Text style={styles.sectionTitle}>Performance Statistics</Text>
-                <View style={styles.statsGrid}>
-                    {stats.map((stat, index) => (
-                        <View key={index} style={styles.statCard}>
-                            <View style={styles.statIcon}>
-                                {stat.icon}
-                            </View>
-                            <Text style={styles.statValue}>{stat.value}</Text>
-                            <Text style={styles.statLabel}>{stat.title}</Text>
-                        </View>
-                    ))}
-                </View>
-            </View>
-        );
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'active':
+                return colors.success;
+            case 'inactive':
+                return colors.warning;
+            case 'maintenance':
+                return colors.warning;
+            case 'decommissioned':
+                return colors.danger;
+            default:
+                return colors.textSecondary;
+        }
     };
 
-    const renderVesselInfo = () => {
-        if (!vessel) return null;
-
-        return (
-            <View style={styles.infoSection}>
-                <Text style={styles.sectionTitle}>Vessel Information</Text>
-                <View style={styles.infoCard}>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Name:</Text>
-                        <Text style={styles.infoValue}>{vessel.name}</Text>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Status:</Text>
-                        <StatusBadge status={getStatusVariant(vessel.status)} />
-                    </View>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Seating Capacity:</Text>
-                        <Text style={styles.infoValue}>{vessel.seating_capacity} passengers</Text>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Created:</Text>
-                        <Text style={styles.infoValue}>
-                            {new Date(vessel.created_at).toLocaleDateString()}
-                        </Text>
-                    </View>
-                    {vessel.updated_at && vessel.updated_at !== vessel.created_at && (
-                        <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Last Updated:</Text>
-                            <Text style={styles.infoValue}>
-                                {new Date(vessel.updated_at).toLocaleDateString()}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-            </View>
-        );
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(date);
     };
 
+    // Permission check
     if (!canViewVessels()) {
         return (
             <View style={styles.container}>
@@ -251,12 +309,13 @@ export default function VesselDetailScreen() {
         );
     }
 
-    if (loading.singleVessel) {
+    // Loading state
+    if (loading.singleVessel || !vessel) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: "Vessel Details",
+                        title: "Loading...",
                         headerLeft: () => (
                             <TouchableOpacity
                                 onPress={() => router.back()}
@@ -275,12 +334,13 @@ export default function VesselDetailScreen() {
         );
     }
 
-    if (!vessel) {
+    // Error state
+    if (error) {
         return (
             <View style={styles.container}>
                 <Stack.Screen
                     options={{
-                        title: "Vessel Not Found",
+                        title: "Error",
                         headerLeft: () => (
                             <TouchableOpacity
                                 onPress={() => router.back()}
@@ -291,19 +351,14 @@ export default function VesselDetailScreen() {
                         ),
                     }}
                 />
-                <View style={styles.emptyState}>
-                    <View style={styles.emptyStateIcon}>
-                        <Ship size={64} color={colors.textTertiary} />
-                    </View>
-                    <Text style={styles.emptyStateTitle}>Vessel Not Found</Text>
-                    <Text style={styles.emptyStateText}>
-                        The vessel you're looking for doesn't exist or has been removed.
-                    </Text>
+                <View style={styles.errorContainer}>
+                    <AlertTriangle size={48} color={colors.danger} />
+                    <Text style={styles.errorTitle}>Error Loading Vessel</Text>
+                    <Text style={styles.errorText}>{error}</Text>
                     <Button
-                        title="Go Back"
+                        title="Try Again"
                         variant="primary"
-                        onPress={() => router.back()}
-                        style={styles.emptyStateButton}
+                        onPress={loadVessel}
                     />
                 </View>
             </View>
@@ -311,9 +366,9 @@ export default function VesselDetailScreen() {
     }
 
     return (
-            <View style={styles.container}>
-                <Stack.Screen
-                    options={{
+        <View style={styles.container}>
+            <Stack.Screen
+                options={{
                     title: vessel.name,
                     headerLeft: () => (
                         <TouchableOpacity
@@ -328,16 +383,17 @@ export default function VesselDetailScreen() {
                             {canManageVessels() && (
                                 <>
                                     <TouchableOpacity
-                                        style={styles.headerActionButton}
                                         onPress={handleEdit}
+                                        style={styles.headerActionButton}
                                     >
                                         <Edit size={20} color={colors.primary} />
                                     </TouchableOpacity>
                                     <TouchableOpacity
-                                        style={styles.headerActionButton}
                                         onPress={handleDelete}
+                                        style={[styles.headerActionButton, styles.deleteActionButton]}
+                                        disabled={isDeleting}
                                     >
-                                        <Trash2 size={20} color={colors.danger} />
+                                        <Trash2 size={20} color={colors.error} />
                                     </TouchableOpacity>
                                 </>
                             )}
@@ -346,40 +402,16 @@ export default function VesselDetailScreen() {
                 }}
             />
 
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isRefreshing}
-                        onRefresh={handleRefresh}
-                        colors={[colors.primary]}
-                        tintColor={colors.primary}
-                    />
-                }
-            >
-                {/* Vessel Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerContent}>
-                        <View style={styles.vesselTitle}>
-                            <Ship size={32} color={colors.primary} />
-                            <Text style={styles.vesselName}>{vessel.name}</Text>
-                        </View>
-                        <StatusBadge status={getStatusVariant(vessel.status)} />
-                    </View>
-                    <Text style={styles.vesselCapacity}>
-                        {vessel.seating_capacity} passengers
-                    </Text>
-                </View>
-
-                {/* Statistics */}
-                {renderStats()}
-
-                {/* Vessel Information */}
-                {renderVesselInfo()}
-            </ScrollView>
-            </View>
+            <VesselDetails
+                vessel={vesselWithDetails || vessel}
+                onEdit={canManageVessels() ? handleEdit : undefined}
+                onArchive={canManageVessels() ? handleArchive : undefined}
+                onViewTrips={handleViewTrips}
+                onViewMaintenance={handleViewMaintenance}
+                onViewSeatLayout={handleViewSeatLayout}
+                showActions={canManageVessels()}
+            />
+        </View>
     );
 }
 
@@ -391,7 +423,7 @@ const styles = StyleSheet.create({
     scrollView: {
         flex: 1,
     },
-    scrollContent: {
+    contentContainer: {
         padding: 16,
     },
     backButton: {
@@ -404,7 +436,16 @@ const styles = StyleSheet.create({
     },
     headerActionButton: {
         padding: 8,
-        marginRight: -8,
+        borderRadius: 20,
+        backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
+    },
+    deleteActionButton: {
+        backgroundColor: colors.error + '10',
     },
     loadingContainer: {
         flex: 1,
@@ -449,40 +490,32 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         marginBottom: 20,
     },
-    emptyState: {
+    errorContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        padding: 32,
         gap: 20,
+        padding: 32,
     },
-    emptyStateIcon: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: colors.backgroundTertiary,
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: 8,
-    },
-    emptyStateTitle: {
-        fontSize: 24,
+    errorTitle: {
+        fontSize: 20,
         fontWeight: "700",
         color: colors.text,
         textAlign: "center",
+        marginBottom: 8,
     },
-    emptyStateText: {
+    errorText: {
         fontSize: 16,
         color: colors.textSecondary,
         textAlign: "center",
-        maxWidth: 320,
-        lineHeight: 24,
-    },
-    emptyStateButton: {
-        marginTop: 16,
-        minWidth: 200,
+        maxWidth: 280,
+        lineHeight: 22,
+        marginBottom: 20,
     },
     header: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         backgroundColor: colors.card,
         borderRadius: 16,
         padding: 20,
@@ -493,105 +526,285 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 2,
     },
-    headerContent: {
+    headerLeft: {
         flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 12,
+        flex: 1,
     },
-    vesselTitle: {
-        flexDirection: "row",
+    vesselIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: colors.primaryLight,
         alignItems: "center",
-        gap: 12,
+        justifyContent: "center",
+        marginRight: 16,
+    },
+    headerContent: {
         flex: 1,
     },
     vesselName: {
         fontSize: 24,
         fontWeight: "700",
         color: colors.text,
+        marginBottom: 4,
     },
-    vesselCapacity: {
-        fontSize: 16,
+    vesselInfo: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+    },
+    vesselDescription: {
+        fontSize: 14,
         color: colors.textSecondary,
         fontWeight: "500",
     },
-    statsSection: {
-        marginBottom: 20,
+    statusBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
+        gap: 6,
     },
-    sectionTitle: {
-        fontSize: 18,
+    statusActive: {
+        backgroundColor: colors.successLight,
+    },
+    statusInactive: {
+        backgroundColor: colors.backgroundTertiary,
+    },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    statusText: {
+        fontSize: 13,
         fontWeight: "600",
-        color: colors.text,
-        marginBottom: 12,
+        letterSpacing: 0.2,
+    },
+    statusTextActive: {
+        color: colors.success,
+    },
+    statusTextInactive: {
+        color: colors.textSecondary,
+    },
+    quickStats: {
+        marginBottom: 24,
     },
     statsGrid: {
+        gap: 12,
+    },
+    statsRow: {
         flexDirection: "row",
-        flexWrap: "wrap",
         gap: 12,
     },
     statCard: {
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 16,
         flex: 1,
-        minWidth: 150,
+        flexDirection: "row",
         alignItems: "center",
-        gap: 8,
+        backgroundColor: colors.card,
+        padding: 16,
+        borderRadius: 12,
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.08,
         shadowRadius: 4,
         elevation: 2,
+        gap: 12,
     },
-    statIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: colors.backgroundTertiary,
+    statCardIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: colors.primaryLight,
         alignItems: "center",
         justifyContent: "center",
     },
-    statValue: {
+    statCardContent: {
+        flex: 1,
+    },
+    statCardValue: {
         fontSize: 18,
         fontWeight: "700",
         color: colors.text,
-        textAlign: "center",
+        lineHeight: 22,
+        marginBottom: 2,
     },
-    statLabel: {
+    statCardLabel: {
         fontSize: 12,
         color: colors.textSecondary,
-        textAlign: "center",
-        fontWeight: "500",
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
-    infoSection: {
-        marginBottom: 20,
-    },
-    infoCard: {
+    section: {
         backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 16,
-        shadowColor: colors.shadow,
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 20,
+        shadowColor: colors.shadowMedium,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 20,
+        lineHeight: 24,
+    },
+    infoGrid: {
+        gap: 20,
     },
     infoRow: {
         flexDirection: "row",
-        justifyContent: "space-between",
+        gap: 16,
+    },
+    infoItem: {
+        flex: 1,
+        flexDirection: "row",
         alignItems: "center",
-        paddingVertical: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        gap: 12,
+    },
+    infoIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.primaryLight,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    infoContent: {
+        flex: 1,
     },
     infoLabel: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        fontWeight: "500",
+        fontSize: 12,
+        color: colors.textTertiary,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        fontWeight: "600",
+        marginBottom: 4,
     },
     infoValue: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.text,
+        lineHeight: 20,
+    },
+    performanceGrid: {
+        flexDirection: "row",
+        gap: 12,
+    },
+    performanceCard: {
+        flex: 1,
+        backgroundColor: colors.backgroundSecondary,
+        padding: 16,
+        borderRadius: 12,
+        gap: 12,
+    },
+    performanceIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.successLight,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    performanceContent: {
+        gap: 2,
+    },
+    performanceTitle: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 4,
+    },
+    performanceValue: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        lineHeight: 24,
+    },
+    performanceLabel: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    performanceSubtext: {
+        fontSize: 11,
+        color: colors.textSecondary,
+        marginTop: 4,
+        lineHeight: 14,
+    },
+    operationsSummary: {
+        gap: 20,
+    },
+    summaryCard: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        backgroundColor: colors.infoLight,
+        padding: 16,
+        borderRadius: 12,
+        gap: 12,
+    },
+    summaryIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.info + '20',
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 2,
+    },
+    operationsDescription: {
+        flex: 1,
+        fontSize: 14,
+        color: colors.info,
+        lineHeight: 20,
+        fontWeight: "500",
+    },
+    operationButtons: {
+        flexDirection: "row",
+        gap: 12,
+    },
+    operationButton: {
+        flex: 1,
+    },
+    systemInfo: {
+        gap: 16,
+    },
+    systemRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+    },
+    systemLabel: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        fontWeight: "600",
+        flex: 1,
+    },
+    systemValue: {
         fontSize: 14,
         color: colors.text,
-        fontWeight: "600",
+        fontWeight: "500",
+        flex: 2,
+        textAlign: "right",
+        lineHeight: 18,
+    },
+    actionsContainer: {
+        gap: 16,
+        marginTop: 8,
+    },
+    deleteButton: {
+        borderColor: colors.error,
     },
 }); 

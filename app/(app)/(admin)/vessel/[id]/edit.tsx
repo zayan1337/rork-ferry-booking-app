@@ -4,8 +4,8 @@ import { Stack, router, useLocalSearchParams } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { ArrowLeft, AlertCircle, Edit, Ship } from "lucide-react-native";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-// UPDATED: Use new vessel management hook and types
-import { useVesselManagement } from "@/hooks/useVesselManagement";
+// UPDATED: Use vessel store directly for fetchVesselDetails
+import { useVesselStore } from "@/store/admin/vesselStore";
 import { AdminManagement } from "@/types";
 
 // Components
@@ -15,22 +15,23 @@ import LoadingSpinner from "@/components/admin/LoadingSpinner";
 
 type VesselFormData = AdminManagement.VesselFormData;
 type Vessel = AdminManagement.Vessel;
+type VesselWithDetails = AdminManagement.VesselWithDetails;
 
 export default function EditVesselScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const { canManageVessels } = useAdminPermissions();
 
-    // UPDATED: Use new vessel management hook
+    // UPDATED: Use vessel store directly to access fetchVesselDetails
     const {
-        vessels,
-        getById,
+        fetchVesselDetails,
         update,
         loading,
         error,
-    } = useVesselManagement();
+    } = useVesselStore();
 
-    const [vesselData, setVesselData] = useState<Vessel | null>(null);
+    const [vesselData, setVesselData] = useState<VesselWithDetails | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     const isTablet = false; // You can implement tablet detection logic here
 
@@ -43,7 +44,10 @@ export default function EditVesselScreen() {
 
         try {
             setIsLoading(true);
-            const vessel = getById(id);
+            setSaveError(null);
+
+            // Use fetchVesselDetails to get complete vessel details including seat layout
+            const vessel = await fetchVesselDetails(id);
             if (vessel) {
                 setVesselData(vessel);
             } else {
@@ -52,7 +56,7 @@ export default function EditVesselScreen() {
             }
         } catch (error) {
             console.error("Error loading vessel:", error);
-            Alert.alert('Error', 'Failed to load vessel details');
+            Alert.alert('Error', 'Failed to load vessel details. Please try again.');
             router.back();
         } finally {
             setIsLoading(false);
@@ -63,20 +67,71 @@ export default function EditVesselScreen() {
         if (!id) return;
 
         try {
+            setSaveError(null);
             await update(id, formData);
-            Alert.alert("Success", "Vessel updated successfully!", [
-                {
-                    text: "OK",
-                    onPress: () => router.back(),
-                },
-            ]);
+
+            // Show success message with options
+            Alert.alert(
+                "Success",
+                "Vessel updated successfully! Seat layout has been updated accordingly.",
+                [
+                    {
+                        text: "View Vessel",
+                        onPress: () => router.push(`/vessel/${id}`),
+                    },
+                    {
+                        text: "Edit More",
+                        onPress: () => {
+                            // Reload the data to show updated information
+                            loadVesselData();
+                        },
+                    },
+                    {
+                        text: "Back to List",
+                        onPress: () => router.back(),
+                    },
+                ]
+            );
         } catch (error) {
-            throw error; // Let the form handle the error display
+            console.error("Error updating vessel:", error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to update vessel';
+            setSaveError(errorMessage);
+
+            // Show error alert
+            Alert.alert(
+                "Update Failed",
+                `Failed to update vessel: ${errorMessage}`,
+                [
+                    {
+                        text: "Try Again",
+                        onPress: () => setSaveError(null),
+                    },
+                    {
+                        text: "Cancel",
+                        style: "cancel",
+                    },
+                ]
+            );
         }
     };
 
     const handleCancel = () => {
-        router.back();
+        // Check if there are unsaved changes
+        Alert.alert(
+            "Discard Changes?",
+            "Are you sure you want to discard your changes?",
+            [
+                {
+                    text: "Discard",
+                    style: "destructive",
+                    onPress: () => router.back(),
+                },
+                {
+                    text: "Keep Editing",
+                    style: "cancel",
+                },
+            ]
+        );
     };
 
     if (!canManageVessels()) {
@@ -132,6 +187,7 @@ export default function EditVesselScreen() {
                 <View style={styles.loadingContainer}>
                     <LoadingSpinner size="large" />
                     <Text style={styles.loadingText}>Loading vessel details...</Text>
+                    <Text style={styles.loadingSubtext}>Including seat layout configuration</Text>
                 </View>
             </View>
         );
@@ -192,6 +248,22 @@ export default function EditVesselScreen() {
                 contentContainerStyle={styles.contentContainer}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Error Display */}
+                {saveError && (
+                    <View style={styles.errorBanner}>
+                        <View style={styles.errorBannerIcon}>
+                            <AlertCircle size={20} color={colors.error} />
+                        </View>
+                        <Text style={styles.errorBannerText}>{saveError}</Text>
+                        <TouchableOpacity
+                            onPress={() => setSaveError(null)}
+                            style={styles.errorBannerClose}
+                        >
+                            <Text style={styles.errorBannerCloseText}>×</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
                 <VesselForm
                     initialData={vesselData}
                     onSave={handleSave}
@@ -249,6 +321,12 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         textAlign: "center",
     },
+    loadingSubtext: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: "center",
+        marginTop: 4,
+    },
     errorContainer: {
         flex: 1,
         justifyContent: "center",
@@ -290,5 +368,32 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         padding: 12,
         paddingBottom: 40,
+    },
+    errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.errorLight,
+        borderRadius: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: colors.errorLight,
+    },
+    errorBannerIcon: {
+        marginRight: 10,
+    },
+    errorBannerText: {
+        flex: 1,
+        fontSize: 14,
+        color: colors.error,
+        fontWeight: '500',
+    },
+    errorBannerClose: {
+        padding: 5,
+    },
+    errorBannerCloseText: {
+        fontSize: 20,
+        color: colors.textSecondary,
     },
 }); 

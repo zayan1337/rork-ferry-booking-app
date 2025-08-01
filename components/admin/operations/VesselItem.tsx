@@ -35,9 +35,16 @@ export default function VesselItem({
     onDelete,
     canManage = false
 }: VesselItemProps) {
+    // Safety check for vessel data
+    if (!vessel) {
+        return null;
+    }
+
     const getStatusVariant = (status: string) => {
         switch (status) {
             case "active":
+            case "in_service":
+            case "available":
                 return "confirmed" as const;
             case "maintenance":
                 return "pending" as const;
@@ -56,10 +63,12 @@ export default function VesselItem({
     };
 
     const formatCurrency = (amount: number) => {
+        if (!amount || isNaN(amount)) return 'MVR 0';
         return `MVR ${amount.toLocaleString()}`;
     };
 
     const formatPercentage = (value: number) => {
+        if (!value || isNaN(value)) return '0.0%';
         return `${value.toFixed(1)}%`;
     };
 
@@ -73,11 +82,13 @@ export default function VesselItem({
                 <View style={styles.vesselInfo}>
                     <View style={styles.nameRow}>
                         <Ship size={20} color={colors.primary} />
-                        <Text style={styles.vesselName}>{vessel.name}</Text>
-                        <StatusBadge status={getStatusVariant(vessel.status)} />
+                        <Text style={styles.vesselName}>
+                            {typeof vessel?.name === 'string' ? vessel.name : 'Unnamed Vessel'}
+                        </Text>
+                        <StatusBadge status={getStatusVariant(vessel?.status || 'active')} />
                     </View>
                     <Text style={styles.capacity}>
-                        {vessel.seating_capacity} passengers
+                        {typeof vessel?.seating_capacity === 'number' ? `${vessel.seating_capacity} passengers` : '0 passengers'}
                     </Text>
                 </View>
 
@@ -100,7 +111,7 @@ export default function VesselItem({
                         <Activity size={16} color={colors.textSecondary} />
                         <Text style={styles.statLabel}>Trips (30d)</Text>
                         <Text style={styles.statValue}>
-                            {vessel.total_trips_30d || 0}
+                            {typeof vessel?.total_trips_30d === 'number' ? vessel.total_trips_30d : 0}
                         </Text>
                     </View>
 
@@ -108,7 +119,7 @@ export default function VesselItem({
                         <Users size={16} color={colors.textSecondary} />
                         <Text style={styles.statLabel}>Bookings (30d)</Text>
                         <Text style={styles.statValue}>
-                            {vessel.total_bookings_30d || 0}
+                            {typeof vessel?.total_bookings_30d === 'number' ? vessel.total_bookings_30d : 0}
                         </Text>
                     </View>
 
@@ -117,21 +128,18 @@ export default function VesselItem({
                         <Text style={styles.statLabel}>Utilization</Text>
                         <Text style={[
                             styles.statValue,
-                            { color: getUtilizationColor(vessel.capacity_utilization_30d || 0) }
+                            { color: getUtilizationColor(vessel?.capacity_utilization_30d || 0) }
                         ]}>
-                            {formatPercentage(vessel.capacity_utilization_30d || 0)}
+                            {formatPercentage(vessel?.capacity_utilization_30d || 0)}
                         </Text>
                     </View>
                 </View>
-
-                {vessel.total_revenue_30d && vessel.total_revenue_30d > 0 && (
-                    <View style={styles.revenueRow}>
-                        <Text style={styles.revenueLabel}>Revenue (30d):</Text>
-                        <Text style={styles.revenueValue}>
-                            {formatCurrency(vessel.total_revenue_30d)}
-                        </Text>
-                    </View>
-                )}
+                <View style={styles.revenueRow}>
+                    <Text style={styles.revenueLabel}>Revenue (30d):</Text>
+                    <Text style={styles.revenueValue}>
+                        {formatCurrency(vessel?.total_revenue_30d || 0)}
+                    </Text>
+                </View>
             </View>
         </TouchableOpacity>
     );

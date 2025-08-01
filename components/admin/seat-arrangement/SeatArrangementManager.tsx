@@ -19,6 +19,7 @@ import {
     generateSeatsForFloor,
     calculateOptimalLayout,
     validateFerryLayout,
+    calculateOptimalRowColumnRatio,
 } from '@/utils/admin/vesselUtils';
 import {
     Grid3X3,
@@ -109,15 +110,43 @@ export default function SeatArrangementManager({
 
     // Generate default layout
     const generateDefaultLayout = useCallback(() => {
-        const optimalRows = Math.ceil(Math.sqrt(seatingCapacity));
-        const optimalColumns = Math.ceil(seatingCapacity / optimalRows);
+        if (seatingCapacity <= 0) {
+            const newConfig = {
+                rows: 1,
+                columns: 1,
+                aisles: [],
+                rowAisles: [],
+                premium_rows: [],
+                disabled_seats: [],
+                crew_seats: [],
+            };
+            setLayoutConfig(newConfig);
+            generateGrid(newConfig);
+            setIsInitialized(true);
+            return;
+        }
+
+        // Use the new optimal layout calculation
+        const { rows, columns } = calculateOptimalRowColumnRatio(seatingCapacity);
+        const aislePosition = Math.ceil(columns / 2);
+        const aisles = columns > 4 ? [aislePosition] : [];
+
+        // Determine premium rows based on vessel type
+        let premiumRows: number[] = [];
+        if (vesselType === 'luxury') {
+            premiumRows = [1, 2, 3]; // First 3 rows for luxury
+        } else if (vesselType === 'mixed') {
+            premiumRows = [1, 2]; // First 2 rows for mixed
+        } else {
+            premiumRows = [1]; // First row for standard/economy
+        }
 
         const newConfig = {
-            rows: Math.min(Math.max(optimalRows, 1), 20),
-            columns: Math.min(Math.max(optimalColumns, 1), 10),
-            aisles: [Math.ceil(optimalColumns / 2)],
-            rowAisles: [Math.ceil(optimalRows / 2)],
-            premium_rows: [1, 2],
+            rows: Math.min(Math.max(rows, 1), 50), // Limit to 50 rows
+            columns: Math.min(Math.max(columns, 1), 20), // Limit to 20 columns
+            aisles,
+            rowAisles: [], // Not supported in current layout data
+            premium_rows: premiumRows,
             disabled_seats: [],
             crew_seats: [],
         };
@@ -125,14 +154,32 @@ export default function SeatArrangementManager({
         setLayoutConfig(newConfig);
         generateGrid(newConfig);
         setIsInitialized(true);
-    }, [seatingCapacity, generateGrid]);
+    }, [seatingCapacity, vesselType, generateGrid, calculateOptimalRowColumnRatio]);
 
     // Initialize layout when capacity changes - only run once
     useEffect(() => {
         if (seatingCapacity > 0 && !isInitialized) {
-            generateDefaultLayout();
+            // If we have an existing layout, use it
+            if (initialLayout && initialLayout.layout_data) {
+                const layoutData = initialLayout.layout_data;
+                const existingConfig = {
+                    rows: layoutData.rows || 0,
+                    columns: layoutData.columns || 0,
+                    aisles: layoutData.aisles || [],
+                    rowAisles: [], // Not supported in current layout data
+                    premium_rows: layoutData.premium_rows || [],
+                    disabled_seats: layoutData.disabled_seats || [],
+                    crew_seats: layoutData.crew_seats || [],
+                };
+                setLayoutConfig(existingConfig);
+                generateGrid(existingConfig);
+                setIsInitialized(true);
+            } else {
+                // Generate default layout
+                generateDefaultLayout();
+            }
         }
-    }, [seatingCapacity, vesselType, isInitialized]);
+    }, [seatingCapacity, vesselType, isInitialized, initialLayout]);
 
     // Update grid when layout config changes - but only when rows/columns actually change
     useEffect(() => {
@@ -141,14 +188,38 @@ export default function SeatArrangementManager({
         }
     }, [layoutConfig.rows, layoutConfig.columns]);
 
+    // Regenerate grid when initialSeats changes (in case they're loaded asynchronously)
+    useEffect(() => {
+        if (isInitialized && layoutConfig.rows > 0 && layoutConfig.columns > 0 && initialSeats.length > 0) {
+            generateGrid(layoutConfig);
+        }
+    }, [initialSeats, isInitialized, layoutConfig]);
+
     // Generate seats for the current grid
     const generateSeatsForGrid = useCallback(() => {
+        // Count existing seats first
+        const existingSeatCount = seatGrid.reduce((count, row) =>
+            count + row.filter(cell => cell.seat).length, 0
+        );
+
+        // Calculate how many new seats we can add
+        const maxNewSeats = Math.max(0, seatingCapacity - existingSeatCount);
+        let seatsAdded = 0;
+
         const newGrid = seatGrid.map(row =>
             row.map(cell => {
                 if (cell.seat) return cell; // Keep existing seats
 
+                // Only generate new seat if we haven't exceeded capacity
+                if (seatsAdded >= maxNewSeats) {
+                    return {
+                        seat: null,
+                        position: cell.position
+                    };
+                }
+
                 // Generate new seat
-                const seatNumber = `${String.fromCharCode(64 + cell.position.row)}${cell.position.col}`;
+                const seatNumber = `${String.fromCharCode(64 + cell.position.col)}${cell.position.row}`;
                 const isPremium = layoutConfig.premium_rows.includes(cell.position.row);
                 const isWindow = cell.position.col === 1 || cell.position.col === layoutConfig.columns;
                 const isAisle = layoutConfig.aisles.includes(cell.position.col);
@@ -172,6 +243,7 @@ export default function SeatArrangementManager({
                     updated_at: new Date().toISOString(),
                 };
 
+                seatsAdded++;
                 return {
                     seat: newSeat,
                     position: cell.position
@@ -180,7 +252,7 @@ export default function SeatArrangementManager({
         );
 
         setSeatGrid(newGrid);
-    }, [seatGrid, layoutConfig, vesselId, initialLayout?.id]);
+    }, [seatGrid, layoutConfig, vesselId, initialLayout?.id, seatingCapacity]);
 
     // Get all seats from the grid
     const getAllSeats = useCallback((): Seat[] => {
@@ -223,7 +295,21 @@ export default function SeatArrangementManager({
 
     // Add seat at specific position
     const addSeatAtPosition = useCallback((row: number, col: number) => {
-        const seatNumber = `${String.fromCharCode(64 + row)}${col}`;
+        // Check if we can add more seats based on capacity
+        const currentSeatCount = seatGrid.reduce((count, gridRow) =>
+            count + gridRow.filter(cell => cell.seat).length, 0
+        );
+
+        if (currentSeatCount >= seatingCapacity) {
+            Alert.alert(
+                'Capacity Limit Reached',
+                `Cannot add more seats. Maximum capacity is ${seatingCapacity} seats.`,
+                [{ text: 'OK' }]
+            );
+            return;
+        }
+
+        const seatNumber = `${String.fromCharCode(64 + col)}${row}`;
         const isWindow = col === 1 || col === layoutConfig.columns;
         const isAisle = layoutConfig.aisles.includes(col);
         const isPremium = layoutConfig.premium_rows.includes(row);
@@ -252,7 +338,7 @@ export default function SeatArrangementManager({
             newGrid[row - 1][col - 1] = { seat: newSeat, position: { row, col } };
             return newGrid;
         });
-    }, [layoutConfig, vesselId, initialLayout?.id]);
+    }, [layoutConfig, vesselId, initialLayout?.id, seatGrid, seatingCapacity]);
 
     // Remove seat at specific position
     const removeSeatAtPosition = useCallback((row: number, col: number) => {

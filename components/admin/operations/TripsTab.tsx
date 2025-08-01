@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useOperationsStore } from "@/store/admin/operationsStore";
+import { useTripManagement } from "@/hooks/useTripManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 import {
     Plus,
@@ -33,40 +33,41 @@ interface TripsTabProps {
 export default function TripsTab({ isActive, searchQuery = "" }: TripsTabProps) {
     const { canViewTrips, canManageTrips } = useAdminPermissions();
     const {
-        trips: filteredTrips,
-        searchQueries,
-        setSearchQuery,
+        trips: allTrips,
+        filteredTrips,
+        searchQuery: tripSearchQuery,
+        setSearchQuery: setTripSearchQuery,
         loading,
         stats,
-    } = useOperationsStore();
+        loadAll: loadTrips,
+    } = useTripManagement();
 
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Initialize trips data when tab becomes active
     useEffect(() => {
-        if (isActive && canViewTrips() && (!filteredTrips || filteredTrips.length === 0)) {
-            // Load trips data - this would typically be handled by the store
-            // For now, we'll rely on the store's existing data
+        if (isActive && canViewTrips() && (!allTrips || allTrips.length === 0)) {
+            loadTrips();
         }
-    }, [isActive, filteredTrips?.length]);
+    }, [isActive, allTrips?.length, loadTrips]);
 
     // Filter trips based on search query
     const filteredTripsData = useMemo(() => {
         if (!filteredTrips) return [];
 
         let filtered = filteredTrips;
-        const query = searchQuery || searchQueries.trips || "";
+        const query = searchQuery || tripSearchQuery || "";
 
         if (query) {
             filtered = filteredTrips.filter(trip =>
-                trip.routeName?.toLowerCase().includes(query.toLowerCase()) ||
-                trip.vesselName?.toLowerCase().includes(query.toLowerCase()) ||
+                trip.route_name?.toLowerCase().includes(query.toLowerCase()) ||
+                trip.vessel_name?.toLowerCase().includes(query.toLowerCase()) ||
                 trip.travel_date?.toLowerCase().includes(query.toLowerCase())
             );
         }
 
         return filtered;
-    }, [filteredTrips, searchQuery, searchQueries.trips]);
+    }, [filteredTrips, searchQuery, tripSearchQuery]);
 
     // Limit trips to 4 for display
     const displayTrips = useMemo(() => {
@@ -78,9 +79,7 @@ export default function TripsTab({ isActive, searchQuery = "" }: TripsTabProps) 
     const handleRefresh = async () => {
         setIsRefreshing(true);
         try {
-            // Refresh trips data - this would typically be handled by the store
-            // For now, we'll just simulate a delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await loadTrips();
         } catch (error) {
             console.error('Error refreshing trips:', error);
         } finally {
@@ -90,13 +89,13 @@ export default function TripsTab({ isActive, searchQuery = "" }: TripsTabProps) 
 
     const handleTripPress = (tripId: string) => {
         if (canViewTrips()) {
-            router.push(`../trips/${tripId}` as any);
+            router.push(`../trip/${tripId}` as any);
         }
     };
 
     const handleAddTrip = () => {
         if (canManageTrips()) {
-            router.push("../trips/new" as any);
+            router.push("../trip/new" as any);
         } else {
             Alert.alert("Access Denied", "You don't have permission to create trips.");
         }
@@ -119,7 +118,7 @@ export default function TripsTab({ isActive, searchQuery = "" }: TripsTabProps) 
     }
 
     // Loading state
-    if (loading.trips && (!filteredTrips || filteredTrips.length === 0)) {
+    if (loading.data && (!allTrips || allTrips.length === 0)) {
         return <LoadingSpinner />;
     }
 
@@ -149,8 +148,8 @@ export default function TripsTab({ isActive, searchQuery = "" }: TripsTabProps) 
             {/* Search Bar */}
             <SearchBar
                 placeholder="Search trips..."
-                value={searchQuery || searchQueries.trips || ""}
-                onChangeText={(text) => setSearchQuery("trips", text)}
+                value={searchQuery || tripSearchQuery || ""}
+                onChangeText={(text) => setTripSearchQuery(text)}
             />
 
             {/* Trips List */}
@@ -165,13 +164,13 @@ export default function TripsTab({ isActive, searchQuery = "" }: TripsTabProps) 
                                 vesselId: trip.vessel_id,
                                 date: trip.travel_date,
                                 departureTime: trip.departure_time,
-                                routeName: trip.routeName || trip.route_name || 'Unknown Route',
-                                vesselName: trip.vesselName || trip.vessel_name || 'Unknown Vessel',
-                                status: trip.status === 'boarding' || trip.status === 'departed' ? 'in-progress' :
-                                    trip.status === 'arrived' || trip.status === 'completed' ? 'completed' :
-                                        trip.status === 'delayed' ? 'scheduled' :
-                                            trip.status as any,
-                                bookings: trip.bookings || 0,
+                                routeName: trip.route_name || 'Unknown Route',
+                                vesselName: trip.vessel_name || 'Unknown Vessel',
+                                status: trip.computed_status === 'boarding' || trip.computed_status === 'departed' ? 'in-progress' :
+                                    trip.computed_status === 'arrived' || trip.computed_status === 'completed' ? 'completed' :
+                                        trip.computed_status === 'delayed' ? 'scheduled' :
+                                            trip.computed_status as any,
+                                bookings: trip.confirmed_bookings || 0,
                             } as any}
                             onPress={() => handleTripPress(trip.id)}
                         />
@@ -181,7 +180,7 @@ export default function TripsTab({ isActive, searchQuery = "" }: TripsTabProps) 
                         <Calendar size={48} color={colors.textSecondary} />
                         <Text style={styles.emptyStateTitle}>No trips found</Text>
                         <Text style={styles.emptyStateText}>
-                            {searchQuery || searchQueries.trips ? 'Try adjusting your search terms' : 'No trips scheduled for today'}
+                            {searchQuery || tripSearchQuery ? 'Try adjusting your search terms' : 'No trips scheduled for today'}
                         </Text>
                     </View>
                 )}

@@ -49,6 +49,9 @@ export interface UseVesselManagementReturn extends BaseManagementHook<Vessel, Ve
     getUtilizationColor: (rating: string) => string;
     formatCurrency: (amount: number) => string;
     formatPercentage: (value: number) => string;
+
+    // Override getById to be async
+    fetchById: (id: string) => Promise<Vessel | null>;
 }
 
 // ============================================================================
@@ -106,7 +109,7 @@ export const useVesselManagement = (
 
     // Apply current search and filters
     const filteredVessels = useMemo(() => {
-        let filtered = vessels;
+        let filtered = vessels || [];
 
         // Apply search
         if (searchQuery.trim()) {
@@ -116,25 +119,29 @@ export const useVesselManagement = (
         // Apply filters
         filtered = filterItems(filtered, filters);
 
-        return filtered;
+        return filtered || [];
     }, [vessels, searchQuery, filters, searchItems, filterItems]);
 
     // Apply current sort
     const sortedVessels = useMemo(() => {
-        return sortItems(filteredVessels, sortBy, sortOrder);
+        return sortItems(filteredVessels || [], sortBy, sortOrder);
     }, [filteredVessels, sortBy, sortOrder, sortItems]);
 
     // Group vessels by status
     const vesselsByStatus = useMemo(() => {
         const grouped: Record<string, Vessel[]> = {};
 
-        vessels.forEach((vessel: Vessel) => {
-            const status = vessel.status || 'active';
-            if (!grouped[status]) {
-                grouped[status] = [];
-            }
-            grouped[status].push(vessel);
-        });
+        if (vessels && Array.isArray(vessels)) {
+            vessels.forEach((vessel: Vessel) => {
+                if (vessel) {
+                    const status = vessel.status || 'active';
+                    if (!grouped[status]) {
+                        grouped[status] = [];
+                    }
+                    grouped[status].push(vessel);
+                }
+            });
+        }
 
         return grouped;
     }, [vessels]);
@@ -243,6 +250,7 @@ export const useVesselManagement = (
 
         // Actions
         loadAll: fetchAll,
+        fetchById: fetchById,
         getById: (id: string) => getVesselById(id),
         create: async (data: VesselFormData) => {
             await create(data);

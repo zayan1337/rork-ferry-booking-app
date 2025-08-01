@@ -106,34 +106,50 @@ export default function VesselsScreen() {
         let filtered = allVessels || [];
 
         // Search filter - using utility from searchQuery hook state
-        if (searchQuery) {
+        if (searchQuery && typeof searchVessels === 'function') {
             filtered = searchVessels(filtered, searchQuery);
         }
 
         // Active status filter
-        filtered = filterVessels(filtered, { status: filterActive as "active" | "maintenance" | "inactive" | "all" | undefined });
+        if (typeof filterVessels === 'function') {
+            filtered = filterVessels(filtered, { status: filterActive as "active" | "maintenance" | "inactive" | "all" | undefined });
+        }
 
         // Sort - using sort state from hook
-        filtered = sortVessels(filtered, sortBy, sortOrder);
+        if (typeof sortVessels === 'function') {
+            filtered = sortVessels(filtered, sortBy, sortOrder);
+        }
 
-        return filtered;
+        // Ensure we always return an array
+        return Array.isArray(filtered) ? filtered : [];
     }, [allVessels, searchQuery, filterActive, sortBy, sortOrder]);
+
+    // Filter out any non-object items before passing to FlatList
+    const safeVessels = React.useMemo(() => {
+        return Array.isArray(filteredAndSortedVessels)
+            ? filteredAndSortedVessels.filter(item => item && typeof item === 'object')
+            : [];
+    }, [filteredAndSortedVessels]);
 
     // Fetch vessels if not already loaded
     useEffect(() => {
         if (!allVessels || allVessels.length === 0) {
             fetchVessels();
         }
-    }, []);
+    }, [allVessels, fetchVessels]);
 
     // UPDATED: Cast vessel to content Vessel type for component compatibility
-    const renderVesselItem = ({ item, index }: { item: Vessel; index: number }) => (
-        <VesselItem
-            key={item.id}
-            vessel={item as any} // Safe cast since our Vessel type includes all required fields
-            onPress={handleVesselPress}
-        />
-    );
+    const renderVesselItem = ({ item, index }: { item: Vessel; index: number }) => {
+        if (!item || typeof item !== 'object') {
+            return null;
+        }
+        return (
+            <VesselItem
+                vessel={item as any} // Safe cast since our Vessel type includes all required fields
+                onPress={handleVesselPress}
+            />
+        );
+    };
 
     const renderListHeader = () => (
         <View style={styles.listHeader}>
@@ -144,28 +160,28 @@ export default function VesselsScreen() {
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.primaryLight }]}>
                             <Ship size={16} color={colors.primary} />
                         </View>
-                        <Text style={styles.quickStatValue}>{stats.total}</Text>
+                        <Text style={styles.quickStatValue}>{stats && typeof stats.total === 'number' ? stats.total : 0}</Text>
                         <Text style={styles.quickStatLabel}>Total</Text>
                     </View>
                     <View style={styles.quickStatItem}>
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.successLight }]}>
                             <Activity size={16} color={colors.success} />
                         </View>
-                        <Text style={styles.quickStatValue}>{stats.active}</Text>
+                        <Text style={styles.quickStatValue}>{stats && typeof stats.active === 'number' ? stats.active : 0}</Text>
                         <Text style={styles.quickStatLabel}>Active</Text>
                     </View>
                     <View style={styles.quickStatItem}>
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.infoLight }]}>
                             <Users size={16} color={colors.info} />
                         </View>
-                        <Text style={styles.quickStatValue}>{Math.round(stats.totalTrips30d / 1000)}K</Text>
+                        <Text style={styles.quickStatValue}>{stats && stats.totalTrips30d && typeof stats.totalTrips30d === 'number' ? Math.round(stats.totalTrips30d / 1000) + 'K' : '0K'}</Text>
                         <Text style={styles.quickStatLabel}>Trips</Text>
                     </View>
                     <View style={styles.quickStatItem}>
                         <View style={[styles.quickStatIcon, { backgroundColor: colors.backgroundTertiary }]}>
                             <DollarSign size={16} color={colors.textSecondary} />
                         </View>
-                        <Text style={styles.quickStatValue}>{Math.round(stats.totalRevenue30d / 1000)}K</Text>
+                        <Text style={styles.quickStatValue}>{stats && stats.totalRevenue30d && typeof stats.totalRevenue30d === 'number' ? Math.round(stats.totalRevenue30d / 1000) + 'K' : '0K'}</Text>
                         <Text style={styles.quickStatLabel}>Revenue</Text>
                     </View>
                 </View>
@@ -227,7 +243,7 @@ export default function VesselsScreen() {
 
                 <View style={styles.controlsRight}>
                     <Text style={styles.resultsCount}>
-                        {`${filteredAndSortedVessels.length} vessel${filteredAndSortedVessels.length !== 1 ? 's' : ''}`}
+                        {`${Array.isArray(filteredAndSortedVessels) ? filteredAndSortedVessels.length : 0} vessel${Array.isArray(filteredAndSortedVessels) && filteredAndSortedVessels.length !== 1 ? 's' : ''}`}
                     </Text>
                 </View>
             </View>
@@ -274,7 +290,7 @@ export default function VesselsScreen() {
             )}
 
             {/* Section Divider */}
-            {filteredAndSortedVessels.length > 0 && (
+            {Array.isArray(filteredAndSortedVessels) && filteredAndSortedVessels.length > 0 && (
                 <View style={styles.sectionDivider}>
                     <Text style={styles.listTitle}>Vessels</Text>
                 </View>
@@ -298,7 +314,7 @@ export default function VesselsScreen() {
                     title="Create First Vessel"
                     onPress={handleAddVessel}
                     variant="primary"
-                    icon={React.createElement(Plus, { size: 20, color: colors.white })}
+                    icon={<Plus size={20} color={colors.white} />}
                     style={styles.emptyStateButton}
                 />
             )}
@@ -356,20 +372,20 @@ export default function VesselsScreen() {
             />
 
             {/* UPDATED: Use loading state from new vessel hook */}
-            {loading.vessels ? (
+            {loading?.fetchAll ? (
                 <View style={styles.loadingContainer}>
                     <LoadingSpinner />
                     <Text style={styles.loadingText}>Loading vessels...</Text>
                 </View>
             ) : (
                 <FlatList
-                    data={filteredAndSortedVessels}
+                    data={safeVessels}
                     renderItem={renderVesselItem}
                     ListHeaderComponent={renderListHeader}
                     ListEmptyComponent={renderEmptyState}
                     keyExtractor={(item, index) => {
                         // Ensure unique keys by combining id with index
-                        return item.id ? `${item.id}-${index}` : `vessel-${index}`;
+                        return item && item.id ? `${item.id}-${index}` : `vessel-${index}`;
                     }}
                     contentContainerStyle={styles.listContainer}
                     refreshControl={
@@ -386,7 +402,7 @@ export default function VesselsScreen() {
             )}
 
             {/* Floating Add Button */}
-            {canManageVessels() && filteredAndSortedVessels.length > 0 && (
+            {canManageVessels() && Array.isArray(filteredAndSortedVessels) && filteredAndSortedVessels.length > 0 && (
                 <TouchableOpacity
                     style={styles.floatingButton}
                     onPress={handleAddVessel}

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text } from "react-native";
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert } from "react-native";
 import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { ArrowLeft, AlertCircle, Plus, Ship } from "lucide-react-native";
@@ -16,9 +16,31 @@ type VesselFormData = AdminManagement.VesselFormData;
 
 export default function NewVesselScreen() {
     const { canManageVessels } = useAdminPermissions();
+    const { create, loading } = useVesselManagement();
 
     const handleSuccess = async (vesselData: VesselFormData): Promise<void> => {
-        router.back();
+        try {
+            // Create the vessel
+            await create(vesselData);
+
+            Alert.alert(
+                "Success",
+                "Vessel created successfully! Seat layout has been automatically generated.",
+                [
+                    {
+                        text: "Create Another",
+                        onPress: () => router.replace('/vessel/new'),
+                    },
+                    {
+                        text: "Back to List",
+                        onPress: () => router.back(),
+                    },
+                ]
+            );
+        } catch (error) {
+            console.error("Error creating vessel:", error);
+            Alert.alert("Error", "Failed to create vessel. Please try again.");
+        }
     };
 
     const handleCancel = () => {
@@ -83,6 +105,7 @@ export default function NewVesselScreen() {
                 <VesselForm
                     onSave={handleSuccess}
                     onCancel={handleCancel}
+                    loading={loading.create}
                 />
             </ScrollView>
         </View>

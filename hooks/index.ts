@@ -32,6 +32,9 @@ export { useSettingsModals } from './useSettingsModals';
 // Operations Management Hooks
 export { useRouteForm } from './useRouteForm';
 export { useTripForm } from './useTripForm';
+export { useTripManagement } from './useTripManagement';
+export { useRouteManagement } from './useRouteManagement';
+export { useVesselManagement } from './useVesselManagement';
 
 // User Management Hooks
 export { useUserForm } from './useUserForm';

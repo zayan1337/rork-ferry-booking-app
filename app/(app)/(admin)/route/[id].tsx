@@ -575,7 +575,7 @@ export default function RouteDetailsScreen() {
               <Button
                 title="Schedule New Trip"
                 variant="primary"
-                onPress={() => router.push(`../trips/new?route=${id}` as any)}
+                onPress={() => router.push(`../trip/new?route=${id}` as any)}
                 icon={<Plane size={16} color={colors.white} />}
                 style={styles.operationButton}
               />

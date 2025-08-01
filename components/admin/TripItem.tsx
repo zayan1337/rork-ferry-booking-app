@@ -15,14 +15,14 @@ interface TripItemProps {
   onSelectionToggle?: () => void;
 }
 
-export default function TripItem({ 
-  trip, 
-  viewMode = 'card', 
+export default function TripItem({
+  trip,
+  viewMode = 'card',
   isSelected = false,
   showSelection = false,
-  onPress, 
+  onPress,
   onLongPress,
-  onSelectionToggle 
+  onSelectionToggle
 }: TripItemProps) {
   const occupancyPercentage = Math.round((trip.bookings / trip.capacity) * 100);
 
@@ -35,8 +35,8 @@ export default function TripItem({
   // List view mode - compact horizontal layout
   if (viewMode === 'list') {
     return (
-      <TouchableOpacity 
-        style={[styles.listContainer, isSelected && styles.selectedContainer]} 
+      <TouchableOpacity
+        style={[styles.listContainer, isSelected && styles.selectedContainer]}
         onPress={onPress}
         onLongPress={onLongPress || onSelectionToggle}
         activeOpacity={0.7}
@@ -61,13 +61,13 @@ export default function TripItem({
           </View>
         </View>
         {showSelection && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.selectionButton}
             onPress={onSelectionToggle}
           >
-            <CheckCircle 
-              size={20} 
-              color={isSelected ? colors.primary : colors.textSecondary} 
+            <CheckCircle
+              size={20}
+              color={isSelected ? colors.primary : colors.textSecondary}
               fill={isSelected ? colors.primary : "transparent"}
             />
           </TouchableOpacity>
@@ -79,8 +79,8 @@ export default function TripItem({
   // Compact view mode - minimal info
   if (viewMode === 'compact') {
     return (
-      <TouchableOpacity 
-        style={[styles.compactContainer, isSelected && styles.selectedContainer]} 
+      <TouchableOpacity
+        style={[styles.compactContainer, isSelected && styles.selectedContainer]}
         onPress={onPress}
         onLongPress={onLongPress || onSelectionToggle}
         activeOpacity={0.7}
@@ -111,9 +111,9 @@ export default function TripItem({
 
   // Default card view mode
   return (
-    <TouchableOpacity 
-      style={[styles.container, isSelected && styles.selectedContainer]} 
-      onPress={onPress} 
+    <TouchableOpacity
+      style={[styles.container, isSelected && styles.selectedContainer]}
+      onPress={onPress}
       onLongPress={onLongPress || onSelectionToggle}
       activeOpacity={0.7}
     >
@@ -131,13 +131,13 @@ export default function TripItem({
         <View style={styles.headerRight}>
           <StatusBadge status={trip.status} size="small" />
           {showSelection && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.selectionButton}
               onPress={onSelectionToggle}
             >
-              <CheckCircle 
-                size={20} 
-                color={isSelected ? colors.primary : colors.textSecondary} 
+              <CheckCircle
+                size={20}
+                color={isSelected ? colors.primary : colors.textSecondary}
                 fill={isSelected ? colors.primary : "transparent"}
               />
             </TouchableOpacity>
@@ -157,7 +157,7 @@ export default function TripItem({
           <Calendar size={14} color={colors.textSecondary} />
           <Text style={styles.detailText}>{trip.date}</Text>
         </View>
-        
+
         <View style={styles.timeContainer}>
           <View style={styles.timeItem}>
             <Clock size={12} color={colors.textSecondary} />
@@ -190,7 +190,7 @@ export default function TripItem({
           <View
             style={[
               styles.occupancyFill,
-              { 
+              {
                 width: `${Math.min(occupancyPercentage, 100)}%`,
                 backgroundColor: getOccupancyColor()
               }

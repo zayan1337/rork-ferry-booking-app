@@ -721,6 +721,10 @@ export interface VesselWithDetails extends Vessel {
         route_name: string;
         trips_count: number;
     }[];
+
+    // Seat layout data
+    seatLayout?: SeatLayout | null;
+    seats?: Seat[];
 }
 
 export interface VesselStats extends StatsBase {
@@ -944,6 +948,9 @@ export interface VesselStoreActions extends BaseCrudActions<Vessel, VesselFormDa
     fetchSeats: (vesselId: string) => Promise<Seat[]>;
     updateSeats: (vesselId: string, seats: Seat[]) => Promise<void>;
 
+    // NEW: Automatic seat layout generation
+    generateAutomaticSeatLayout: (vesselId: string, capacity: number, vesselType: string) => Promise<SeatLayout>;
+
     // Ferry-specific seat layout functions
     generateFerryLayout: (vesselId: string, capacity: number, vesselType: string, layoutConfig?: any) => Promise<{ layout: SeatLayout; seats: Seat[] }>;
     validateFerryLayoutData: (layoutData: SeatLayoutData) => ValidationResult;
@@ -978,6 +985,272 @@ export interface VesselStoreActions extends BaseCrudActions<Vessel, VesselFormDa
 
     // Statistics calculation
     calculateComputedData: () => void;
+}
+
+// ============================================================================
+// TRIP MANAGEMENT TYPES
+// ============================================================================
+
+export interface Trip extends BaseEntity, ActivatableEntity {
+    route_id: string;
+    vessel_id: string;
+    travel_date: string;
+    departure_time: string;
+    arrival_time?: string;
+    estimated_duration: string;
+    status: "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed";
+    delay_reason?: string;
+    available_seats: number;
+    booked_seats: number;
+    fare_multiplier: number;
+    weather_conditions?: string;
+    captain_id?: string;
+    crew_ids?: string[];
+    notes?: string;
+
+    // Related data (from joins)
+    route?: Route;
+    vessel?: Vessel;
+    route_name?: string;
+    vessel_name?: string;
+    from_island_name?: string;
+    to_island_name?: string;
+    capacity?: number;
+    bookings?: number;
+    occupancy_rate?: number;
+    computed_status?: string;
+    base_fare?: number;
+    confirmed_bookings?: number;
+}
+
+export interface TripFormData {
+    route_id: string;
+    vessel_id: string;
+    travel_date: string;
+    departure_time: string;
+    arrival_time?: string;
+    status?: "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed";
+    delay_reason?: string;
+    fare_multiplier: number;
+    weather_conditions?: string;
+    captain_id?: string;
+    crew_ids?: string[];
+    notes?: string;
+    is_active: boolean;
+}
+
+export interface TripWithDetails extends Trip {
+    // Enhanced trip details
+    route_details?: {
+        route_name: string;
+        from_island_name: string;
+        to_island_name: string;
+        base_fare: number;
+        distance: string;
+        duration: string;
+    };
+    vessel_details?: {
+        vessel_name: string;
+        seating_capacity: number;
+        vessel_type: string;
+        status: string;
+    };
+    performance_summary?: {
+        occupancy_rate: number;
+        revenue: number;
+        on_time_performance: number;
+        customer_satisfaction: number;
+    };
+    booking_summary?: {
+        total_bookings: number;
+        confirmed_bookings: number;
+        cancelled_bookings: number;
+        revenue: number;
+    };
+    weather_impact?: {
+        impact: "none" | "low" | "medium" | "high";
+        recommendation: string;
+    };
+}
+
+export interface TripStats extends StatsBase {
+    scheduled: number;
+    inProgress: number;
+    completed: number;
+    cancelled: number;
+    delayed: number;
+    averageOccupancy: number;
+    totalRevenue: number;
+    todayTrips: number;
+    onTimePerformance: number;
+    avgFare: number;
+    totalBookings: number;
+    totalPassengers: number;
+
+    // Top performers
+    topTripByRevenue?: { trip: string; revenue: number };
+    topTripByOccupancy?: { trip: string; occupancy: number };
+    topRouteByTrips?: { route: string; trips: number };
+
+    // Trends
+    revenueGrowth30d?: number;
+    occupancyGrowth30d?: number;
+    bookingsGrowth30d?: number;
+}
+
+export interface TripFilters extends SearchFilters {
+    status?: "all" | "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed";
+    route_id?: string;
+    vessel_id?: string;
+    date_range?: {
+        from: string;
+        to: string;
+    };
+    departure_time_range?: {
+        from: string;
+        to: string;
+    };
+    occupancy_range?: {
+        min: number;
+        max: number;
+    };
+    fare_range?: {
+        min: number;
+        max: number;
+    };
+    has_bookings?: boolean;
+    performance_rating?: 'excellent' | 'good' | 'fair' | 'poor';
+    created_after?: string;
+    created_before?: string;
+}
+
+export interface TripActivityLog {
+    id: string;
+    trip_id: string;
+    action: string;
+    old_values?: Record<string, any>;
+    new_values?: Record<string, any>;
+    user_id?: string;
+    created_at: string;
+}
+
+// ============================================================================
+// TRIP STORE TYPES
+// ============================================================================
+
+export interface TripStoreState extends BaseStoreState<Trip>, FilterableStoreState<Trip, TripFilters>, StatsStoreState<TripStats> {
+    // Related data
+    routes: Route[];
+    vessels: Vessel[];
+
+    // Computed data
+    filteredTrips: Trip[];
+    sortedTrips: Trip[];
+    tripsByStatus: Record<string, Trip[]>;
+    tripsByRoute: Record<string, Trip[]>;
+    tripsByVessel: Record<string, Trip[]>;
+
+    // Sort configuration
+    sortBy: 'travel_date' | 'departure_time' | 'status' | 'available_seats' | 'booked_seats' | 'created_at' | 'fare_multiplier';
+    sortOrder: 'asc' | 'desc';
+}
+
+export interface TripStoreActions extends BaseCrudActions<Trip, TripFormData>, SearchableActions<Trip> {
+    // Trip-specific actions
+    fetchTripDetails: (id: string) => Promise<TripWithDetails | null>;
+    fetchTripsByStatus: (status: string) => Promise<Trip[]>;
+    fetchTripsByRoute: (routeId: string) => Promise<Trip[]>;
+    fetchTripsByVessel: (vesselId: string) => Promise<Trip[]>;
+    fetchTripsByDate: (date: string) => Promise<Trip[]>;
+
+    // Trip management
+    updateTripStatus: (tripId: string, status: Trip['status'], reason?: string) => Promise<void>;
+    cancelTrip: (tripId: string, reason: string) => Promise<void>;
+    delayTrip: (tripId: string, delayMinutes: number, reason: string) => Promise<void>;
+    rescheduleTrip: (tripId: string, newDate: string, newTime: string) => Promise<void>;
+
+    // Bulk operations
+    bulkUpdateStatus: (tripIds: string[], status: Trip['status']) => Promise<void>;
+    bulkCancel: (tripIds: string[], reason: string) => Promise<void>;
+    bulkReschedule: (tripIds: string[], newDate: string, newTime: string) => Promise<void>;
+
+    // Trip generation
+    generateTripsForRoute: (routeId: string, startDate: string, endDate: string, schedule: any) => Promise<Trip[]>;
+    generateTripsForDate: (date: string, routes?: string[]) => Promise<Trip[]>;
+
+    // Utility functions
+    getTripById: (id: string) => Trip | undefined;
+    getTripsByStatus: (status: string) => Trip[];
+    getTripsByRoute: (routeId: string) => Trip[];
+    getTripsByVessel: (vesselId: string) => Trip[];
+    validateTripData: (data: Partial<TripFormData>) => ValidationResult;
+    checkTripConflicts: (tripData: TripFormData, excludeId?: string) => { hasConflict: boolean; conflictingTrip?: Trip };
+
+    // Sort actions
+    setSortBy: (sortBy: 'travel_date' | 'departure_time' | 'status' | 'available_seats' | 'booked_seats' | 'created_at' | 'fare_multiplier') => void;
+    setSortOrder: (order: 'asc' | 'desc') => void;
+
+    // Filter actions
+    setFilters: (filters: Partial<TripFilters>) => void;
+
+    // Statistics calculation
+    calculateStats: () => void;
+
+    // Computed data calculation
+    calculateComputedData: () => void;
+}
+
+// ============================================================================
+// TRIP MANAGEMENT HOOK TYPES
+// ============================================================================
+
+export interface UseTripManagementReturn extends BaseManagementHook<Trip, TripFormData, TripStats> {
+    // Trip-specific data
+    trips: Trip[];
+    currentTrip: Trip | null;
+
+    // Computed data with current filters and sort
+    filteredTrips: Trip[];
+    sortedTrips: Trip[];
+    tripsByStatus: Record<string, Trip[]>;
+    tripsByRoute: Record<string, Trip[]>;
+    tripsByVessel: Record<string, Trip[]>;
+
+    // Related data for trip management
+    routes: Route[];
+    vessels: Vessel[];
+    loadRoutes: () => Promise<void>;
+    loadVessels: () => Promise<void>;
+
+    // Trip-specific actions
+    loadTripsByStatus: (status: string) => Promise<Trip[]>;
+    loadTripsByRoute: (routeId: string) => Promise<Trip[]>;
+    loadTripsByVessel: (vesselId: string) => Promise<Trip[]>;
+    loadTripsByDate: (date: string) => Promise<Trip[]>;
+
+    // Enhanced getters
+    getTripWithDetails: (id: string) => Promise<TripWithDetails | null>;
+
+    // Filter and sort state
+    sortBy: 'travel_date' | 'departure_time' | 'status' | 'available_seats' | 'booked_seats' | 'created_at' | 'fare_multiplier';
+    sortOrder: 'asc' | 'desc';
+    setSortBy: (sortBy: 'travel_date' | 'departure_time' | 'status' | 'available_seats' | 'booked_seats' | 'created_at' | 'fare_multiplier') => void;
+    setSortOrder: (order: 'asc' | 'desc') => void;
+
+    // Search and filter management
+    searchQuery: string;
+    filters: TripFilters;
+    setSearchQuery: (query: string) => void;
+    setFilters: (filters: Partial<TripFilters>) => void;
+    clearFilters: () => void;
+
+    // Performance helpers
+    getPerformanceRating: (trip: Trip) => 'excellent' | 'good' | 'fair' | 'poor';
+    getPerformanceColor: (rating: string) => string;
+    formatCurrency: (amount: number) => string;
+    formatPercentage: (value: number) => string;
+    getOccupancyLevel: (trip: Trip) => 'low' | 'medium' | 'high' | 'full';
+    getStatusColor: (status: string) => string;
 }
 
 // ============================================================================

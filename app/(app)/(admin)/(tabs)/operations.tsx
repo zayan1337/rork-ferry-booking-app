@@ -9,10 +9,8 @@ import { Stack } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useAdminStore } from "@/store/admin/adminStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-// UPDATED: Use new route management hook instead of operations data hook
-import { useRouteManagement } from "@/hooks/useRouteManagement";
-// UPDATED: Use new vessel management hook for vessels
-import { useVesselManagement } from "@/hooks/useVesselManagement";
+// UPDATED: Use hooks from the hooks index
+import { useRouteManagement, useVesselManagement, useTripManagement } from "@/hooks";
 import { useOperationsStore } from "@/store/admin/operationsStore";
 import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
 import { AdminManagement } from "@/types";
@@ -56,6 +54,16 @@ export default function OperationsScreen() {
     loadAll: loadVessels,
   } = useVesselManagement();
 
+  // UPDATED: Use new trip management hook for trips
+  const {
+    trips: allTrips,
+    stats: tripStats,
+    searchQuery: tripSearchQuery,
+    setSearchQuery: setTripSearchQuery,
+    loading: tripLoading,
+    loadAll: loadTrips,
+  } = useTripManagement();
+
   // Ensure vessels data is properly initialized
   const safeVessels = allVessels || [];
   const safeVesselStats = vesselStats || {
@@ -71,9 +79,8 @@ export default function OperationsScreen() {
     totalCapacity: 0,
   };
 
-  // Keep operations store for trips and other data
+  // Keep operations store for schedule and other data
   const {
-    trips: filteredTrips,
     todaySchedule,
     searchQueries,
     setSearchQuery,
@@ -81,7 +88,7 @@ export default function OperationsScreen() {
     stats,
   } = useOperationsStore();
 
-  // Load routes and vessels on component mount
+  // Load routes, vessels, and trips on component mount
   useEffect(() => {
     if (!allRoutes || allRoutes.length === 0) {
       loadRoutes();
@@ -89,9 +96,10 @@ export default function OperationsScreen() {
     if (!safeVessels || safeVessels.length === 0) {
       loadVessels();
     }
-  }, [allRoutes, loadRoutes, safeVessels, loadVessels]);
-
-
+    if (!allTrips || allTrips.length === 0) {
+      loadTrips();
+    }
+  }, [allRoutes, loadRoutes, safeVessels, loadVessels, allTrips, loadTrips]);
 
   const [activeSection, setActiveSection] = useState<"routes" | "trips" | "vessels" | "schedule">("routes");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -101,10 +109,11 @@ export default function OperationsScreen() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Refresh routes, vessels and other data
+      // Refresh routes, vessels, trips and other data
       await Promise.all([
         loadRoutes(),
         loadVessels(),
+        loadTrips(),
         // Add other refresh calls here if needed
       ]);
     } catch (error) {
@@ -119,7 +128,7 @@ export default function OperationsScreen() {
       case "routes":
         return <RoutesTab isActive={activeSection === "routes"} searchQuery={routeSearchQuery} />;
       case "trips":
-        return <TripsTab isActive={activeSection === "trips"} searchQuery={searchQueries.trips} />;
+        return <TripsTab isActive={activeSection === "trips"} searchQuery={tripSearchQuery} />;
       case "vessels":
         return <VesselsTab isActive={activeSection === "vessels"} searchQuery={vesselSearchQuery} />;
       case "schedule":
@@ -156,6 +165,7 @@ export default function OperationsScreen() {
         totalRoutes: routeStats.total,
         activeVessels: safeVesselStats.active,
         totalVessels: safeVesselStats.total,
+        todayTrips: tripStats.todayTrips,
       }} isTablet={isTablet} />
 
       {/* Section Selector */}
