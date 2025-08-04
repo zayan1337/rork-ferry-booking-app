@@ -103,6 +103,8 @@ export default function VesselForm({
     const [hasChanges, setHasChanges] = useState(false);
     const [autoGenerateLayout, setAutoGenerateLayout] = useState(true);
     const [layoutPreview, setLayoutPreview] = useState<{ rows: number; columns: number; aisles: number[] } | null>(null);
+    const [customLayoutModified, setCustomLayoutModified] = useState(false);
+    const [customLayoutData, setCustomLayoutData] = useState<{ layout: any, seats: any[] } | null>(null);
 
     const vesselTypes = [
         { label: 'Passenger', value: 'passenger' },
@@ -181,8 +183,10 @@ export default function VesselForm({
             // When enabling custom layout, turn off auto-generate
             setAutoGenerateLayout(false);
         } else {
-            // When disabling custom layout, turn on auto-generate
+            // When disabling custom layout, turn on auto-generate and reset custom state
             setAutoGenerateLayout(true);
+            setCustomLayoutModified(false);
+            setCustomLayoutData(null);
         }
     };
 
@@ -190,8 +194,10 @@ export default function VesselForm({
     const handleAutoGenerateLayoutToggle = (value: boolean) => {
         setAutoGenerateLayout(value);
         if (value) {
-            // When enabling auto-generate, turn off custom layout
+            // When enabling auto-generate, turn off custom layout and reset custom state
             setShowSeatLayout(false);
+            setCustomLayoutModified(false);
+            setCustomLayoutData(null);
         }
     };
 
@@ -216,7 +222,7 @@ export default function VesselForm({
                 formData.fuel_capacity !== (initialData.fuel_capacity || 0) ||
                 formData.description !== (initialData.description || '') ||
                 formData.notes !== (initialData.notes || '');
-            setHasChanges(hasFormChanges);
+            setHasChanges(hasFormChanges || customLayoutModified);
         } else {
             const hasFormChanges =
                 formData.name.trim() !== '' ||
@@ -236,9 +242,9 @@ export default function VesselForm({
                 formData.fuel_capacity !== 0 ||
                 (formData.description || '').trim() !== '' ||
                 (formData.notes || '').trim() !== '';
-            setHasChanges(hasFormChanges);
+            setHasChanges(hasFormChanges || customLayoutModified);
         }
-    }, [formData, initialData]);
+    }, [formData, initialData, customLayoutModified]);
 
     // Generate layout preview when capacity changes
     useEffect(() => {
@@ -323,13 +329,24 @@ export default function VesselForm({
                 notes: formData.notes?.trim() || undefined,
             };
 
+            // For new vessels with custom layout, we need to save the vessel first, then the layout
+            if (!initialData && customLayoutData) {
+                // Store custom layout data in submitData for the store to handle
+                (submitData as any).customSeatLayout = customLayoutData;
+            }
+
+            // Save the vessel (and handle custom layout if it's a new vessel)
+            await onSave(submitData);
+
             // Handle seat layout generation if auto-generate is enabled
             if (autoGenerateLayout && formData.seating_capacity > 0) {
                 console.log('Auto-generating seat layout for capacity:', formData.seating_capacity);
                 // Auto-generate will be handled by the store during vessel creation/update
             }
 
-            await onSave(submitData);
+            // Reset custom layout state after successful save
+            setCustomLayoutModified(false);
+            setCustomLayoutData(null);
         } catch (error) {
             console.error('Error saving vessel:', error);
             // Error handling is done by the parent component
@@ -379,6 +396,9 @@ export default function VesselForm({
             });
         }
         setValidationErrors({});
+        // Reset custom layout state
+        setCustomLayoutModified(false);
+        setCustomLayoutData(null);
     };
 
     const getStatusDescription = (status: string) => {
@@ -835,18 +855,77 @@ export default function VesselForm({
                                 vesselType={formData.vessel_type}
                                 initialLayout={existingSeatLayout}
                                 initialSeats={existingSeats}
+                                onChange={(layout, seats) => {
+                                    // Use a more robust debouncing mechanism
+                                    if ((global as any).vesselFormChangeTimeout) {
+                                        clearTimeout((global as any).vesselFormChangeTimeout);
+                                    }
+
+                                    (global as any).vesselFormChangeTimeout = setTimeout(() => {
+                                        // Prevent unnecessary updates by checking if data actually changed
+                                        const newData = { layout, seats };
+                                        const currentData = customLayoutData;
+
+                                        // Only update if data actually changed
+                                        const hasChanged = !currentData ||
+                                            JSON.stringify(currentData.layout.layout_data) !== JSON.stringify(layout.layout_data) ||
+                                            currentData.seats.length !== seats.length ||
+                                            JSON.stringify(currentData.seats.map(s => ({ id: s.id, seat_number: s.seat_number, row_number: s.row_number, position_x: s.position_x })).sort()) !==
+                                            JSON.stringify(seats.map(s => ({ id: s.id, seat_number: s.seat_number, row_number: s.row_number, position_x: s.position_x })).sort());
+
+                                        if (hasChanged) {
+                                            console.log('Custom layout changed:', { layout, seats: seats.length });
+                                            setCustomLayoutData(newData);
+                                            setCustomLayoutModified(true);
+                                        } else {
+                                            console.log('Skipping custom layout update - no meaningful changes');
+                                        }
+                                    }, 500); // 500ms debounce
+                                }}
                                 onSave={async (layout, seats) => {
                                     try {
+                                        // Store the custom layout data for later saving
+                                        setCustomLayoutData({ layout, seats });
+                                        setCustomLayoutModified(true);
+
                                         if (initialData?.id) {
-                                            // Update existing vessel's seat layout
-                                            await generateFerryLayout(
-                                                initialData.id,
-                                                formData.seating_capacity,
-                                                formData.vessel_type,
-                                                layout.layout_data
-                                            );
+                                            // For existing vessels, check if we have an existing layout to update
+                                            if (existingSeatLayout?.id) {
+                                                // Update existing layout
+                                                console.log('Updating existing seat layout:', existingSeatLayout.id);
+                                                const { updateSeatLayout } = useVesselStore.getState();
+                                                await updateSeatLayout(existingSeatLayout.id, {
+                                                    layout_name: layout.layout_name,
+                                                    layout_data: layout.layout_data
+                                                });
+                                                
+                                                // Delete existing seats and insert new ones
+                                                const { deleteSeatsByLayout, createCustomSeatLayout } = useVesselStore.getState();
+                                                await deleteSeatsByLayout(existingSeatLayout.id);
+                                                await createCustomSeatLayout(
+                                                    initialData.id,
+                                                    layout.layout_data,
+                                                    seats
+                                                );
+                                            } else {
+                                                // Create new layout for existing vessel
+                                                console.log('Creating new seat layout for existing vessel');
+                                                const { createCustomSeatLayout } = useVesselStore.getState();
+                                                await createCustomSeatLayout(
+                                                    initialData.id,
+                                                    layout.layout_data,
+                                                    seats
+                                                );
+                                            }
+                                            // Reset modification state after successful save
+                                            setCustomLayoutModified(false);
+                                            setCustomLayoutData(null);
+                                        } else {
+                                            // For new vessels, the layout will be saved after vessel creation
+                                            console.log('Custom layout prepared for new vessel');
                                         }
                                     } catch (error) {
+                                        console.error('Error saving seat layout:', error);
                                         Alert.alert('Error', 'Failed to save seat layout');
                                     }
                                 }}

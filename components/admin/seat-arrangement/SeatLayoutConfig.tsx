@@ -31,7 +31,21 @@ export default function SeatLayoutConfig({
     maxCapacity = 200,
 }: SeatLayoutConfigProps) {
     const updateConfig = (updates: Partial<SeatLayoutConfig>) => {
-        onConfigChange({ ...config, ...updates });
+        // Only update if there are actual changes
+        const hasChanges = Object.keys(updates).some(key => {
+            const currentValue = config[key as keyof SeatLayoutConfig];
+            const newValue = updates[key as keyof SeatLayoutConfig];
+
+            if (Array.isArray(currentValue) && Array.isArray(newValue)) {
+                return JSON.stringify(currentValue) !== JSON.stringify(newValue);
+            }
+            return currentValue !== newValue;
+        });
+
+        if (hasChanges) {
+            console.log('Config update:', updates);
+            onConfigChange({ ...config, ...updates });
+        }
     };
 
     const addAisle = () => {
@@ -73,6 +87,15 @@ export default function SeatLayoutConfig({
             premium_rows: isPremium
                 ? config.premium_rows.filter(r => r !== rowNumber)
                 : [...config.premium_rows, rowNumber].sort((a, b) => a - b)
+        });
+    };
+
+    const toggleRowAisle = (rowNumber: number) => {
+        const hasAisle = config.rowAisles.includes(rowNumber);
+        updateConfig({
+            rowAisles: hasAisle
+                ? config.rowAisles.filter(r => r !== rowNumber)
+                : [...config.rowAisles, rowNumber].sort((a, b) => a - b)
         });
     };
 
@@ -276,36 +299,99 @@ export default function SeatLayoutConfig({
                     </ScrollView>
                 </View>
 
+                {/* Row Aisles */}
+                <View style={styles.configGroup}>
+                    <Text style={styles.configLabel}>Row Aisles</Text>
+                    <Text style={styles.configDescription}>
+                        Select rows to add horizontal aisles between them
+                    </Text>
+
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <View style={styles.rowSelector}>
+                            {Array.from({ length: config.rows }, (_, i) => i + 1).map(row => {
+                                const hasAisle = config.rowAisles.includes(row);
+                                return (
+                                    <TouchableOpacity
+                                        key={row}
+                                        style={[
+                                            styles.rowButton,
+                                            hasAisle && styles.aisleRowButton
+                                        ]}
+                                        onPress={() => toggleRowAisle(row)}
+                                    >
+                                        <Text style={[
+                                            styles.rowButtonText,
+                                            hasAisle && styles.aisleRowButtonText
+                                        ]}>
+                                            Row {row}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    </ScrollView>
+                </View>
+
                 {/* Layout Preview */}
                 <View style={styles.configGroup}>
                     <Text style={styles.configLabel}>Layout Preview</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <Text style={styles.configDescription}>
+                        Visual representation of the seat layout configuration
+                    </Text>
+
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.previewContainer}
+                    >
                         <View style={styles.preview}>
-                            {Array.from({ length: Math.min(config.rows, 20) }, (_, rowIndex) => (
+                            {Array.from({ length: Math.min(config.rows, 12) }, (_, rowIndex) => (
                                 <View key={rowIndex} style={styles.previewRow}>
-                                    {Array.from({ length: Math.min(config.columns, 15) }, (_, colIndex) => {
+                                    {Array.from({ length: Math.min(config.columns, 10) }, (_, colIndex) => {
                                         const colNumber = colIndex + 1;
                                         const rowNumber = rowIndex + 1;
                                         const isAisle = config.aisles.includes(colNumber);
                                         const isPremium = config.premium_rows.includes(rowNumber);
+                                        const isRowAisle = config.rowAisles.includes(rowNumber);
 
                                         return (
-                                            <View
-                                                key={colIndex}
-                                                style={[
-                                                    styles.previewSeat,
-                                                    isAisle && styles.previewAisle,
-                                                    isPremium && styles.previewPremium
-                                                ]}
-                                            />
+                                            <React.Fragment key={colIndex}>
+                                                <View
+                                                    style={[
+                                                        styles.previewSeat,
+                                                        isPremium && styles.previewPremium,
+                                                        isRowAisle && styles.previewRowAisle
+                                                    ]}
+                                                />
+                                                {/* Render aisle gap after the seat if it's an aisle column */}
+                                                {isAisle && colIndex < Math.min(config.columns, 10) - 1 && (
+                                                    <View style={styles.previewAisleGap} />
+                                                )}
+                                            </React.Fragment>
                                         );
                                     })}
                                 </View>
                             ))}
-                            {(config.rows > 20 || config.columns > 15) && (
-                                <Text style={styles.previewNote}>
-                                    Showing first 20 rows × 15 columns (full layout: {config.rows} × {config.columns})
-                                </Text>
+                            {/* Render row aisle gaps */}
+                            {Array.from({ length: Math.min(config.rows, 12) }, (_, rowIndex) => {
+                                const rowNumber = rowIndex + 1;
+                                const isRowAisle = config.rowAisles.includes(rowNumber);
+
+                                return isRowAisle && rowIndex < Math.min(config.rows, 12) - 1 ? (
+                                    <View key={`row_aisle_${rowIndex}`} style={styles.previewRowAisleGap}>
+                                        <Text style={styles.previewAisleText}>Aisle</Text>
+                                    </View>
+                                ) : null;
+                            })}
+                            {(config.rows > 12 || config.columns > 10) && (
+                                <View style={styles.previewInfo}>
+                                    <Text style={styles.previewNote}>
+                                        Showing first 12 rows × 10 columns
+                                    </Text>
+                                    <Text style={styles.previewNote}>
+                                        Full layout: {config.rows} rows × {config.columns} columns
+                                    </Text>
+                                </View>
                             )}
                         </View>
                     </ScrollView>
@@ -561,6 +647,13 @@ const styles = StyleSheet.create({
     premiumRowButtonText: {
         color: colors.white,
     },
+    aisleRowButton: {
+        backgroundColor: colors.warning,
+        borderColor: colors.warning,
+    },
+    aisleRowButtonText: {
+        color: colors.white,
+    },
     preview: {
         backgroundColor: colors.backgroundSecondary,
         borderRadius: 8,
@@ -586,11 +679,42 @@ const styles = StyleSheet.create({
     previewPremium: {
         backgroundColor: colors.primary,
     },
+    previewRowAisle: {
+        backgroundColor: colors.warning,
+        width: 16,
+    },
     previewNote: {
         fontSize: 12,
         color: colors.textSecondary,
         textAlign: 'center',
         marginTop: 8,
         fontStyle: 'italic',
+    },
+    previewContainer: {
+        alignItems: 'center',
+    },
+    previewInfo: {
+        marginTop: 12,
+        alignItems: 'center',
+    },
+    previewAisleGap: {
+        width: 8,
+        height: 16,
+        backgroundColor: colors.warningLight,
+        marginHorizontal: 2,
+        borderRadius: 2,
+    },
+    previewRowAisleGap: {
+        height: 12,
+        backgroundColor: colors.warningLight,
+        marginVertical: 2,
+        borderRadius: 4,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    previewAisleText: {
+        fontSize: 8,
+        color: colors.warning,
+        fontWeight: '600',
     },
 }); 

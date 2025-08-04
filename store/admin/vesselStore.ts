@@ -362,20 +362,42 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
         set({ loading: { ...get().loading, create: true }, error: null });
 
         try {
+            // Extract custom layout data if provided
+            const customSeatLayout = (data as any).customSeatLayout;
+            const cleanData = { ...data };
+            delete (cleanData as any).customSeatLayout;
+
+            // Create vessel without triggering the layout creation
             const { data: vessel, error } = await supabase
                 .from('vessels')
-                .insert([data])
+                .insert([cleanData])
                 .select()
                 .single();
 
             if (error) throw error;
 
-            // Generate automatic seat layout if capacity is provided
+            // Handle seat layout generation after vessel creation
             if (vessel && data.seating_capacity && data.seating_capacity > 0) {
                 try {
-                    await get().generateAutomaticSeatLayout(vessel.id, data.seating_capacity, data.vessel_type || 'passenger');
+                    if (customSeatLayout) {
+                        // Use custom seat layout
+                        console.log('Creating custom seat layout for new vessel:', vessel.id, {
+                            layoutData: customSeatLayout.layout.layout_data,
+                            seatsCount: customSeatLayout.seats.length
+                        });
+
+                        await get().createCustomSeatLayout(
+                            vessel.id,
+                            customSeatLayout.layout.layout_data,
+                            customSeatLayout.seats
+                        );
+                        console.log('Custom seat layout created successfully');
+                    } else {
+                        // Generate automatic seat layout
+                        await get().generateAutomaticSeatLayout(vessel.id, data.seating_capacity, data.vessel_type || 'passenger');
+                    }
                 } catch (layoutError) {
-                    console.warn('Failed to generate automatic seat layout:', layoutError);
+                    console.warn('Failed to generate seat layout:', layoutError);
                     // Don't fail the vessel creation if seat layout generation fails
                 }
             }
@@ -409,12 +431,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
                 .insert([{
                     vessel_id: vesselId,
                     layout_name: `Auto Layout - ${vesselType.charAt(0).toUpperCase() + vesselType.slice(1)}`,
-                    rows: layoutConfig.rows,
-                    columns: layoutConfig.columns,
-                    aisles: layoutConfig.aisles,
-                    premium_rows: layoutConfig.premium_rows,
-                    disabled_seats: layoutConfig.disabled_seats,
-                    crew_seats: layoutConfig.crew_seats,
+                    layout_data: layoutConfig, // Now correctly inserting the entire layoutConfig object
                     is_active: true
                 }])
                 .select()
@@ -422,14 +439,68 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
 
             if (layoutError) throw layoutError;
 
-            // Generate seats for the layout
-            const { error: generateError } = await supabase
-                .rpc('generate_seats_for_layout', {
-                    layout_uuid: layout.id,
-                    max_seats: capacity
-                });
+            // Generate seats directly in the frontend/store logic
+            const seatsToInsert = [];
+            let seatCounter = 0;
 
-            if (generateError) throw generateError;
+            for (let row = 1; row <= layoutConfig.rows; row++) {
+                for (let col = 1; col <= layoutConfig.columns; col++) {
+                    seatCounter++;
+
+                    const seatNumber = `${String.fromCharCode(64 + col)}${row}`;
+                    const isPremium = layoutConfig.premium_rows?.includes(row) || false;
+                    const isWindow = col === 1 || col === layoutConfig.columns;
+                    const isAisle = layoutConfig.aisles?.includes(col) || false;
+                    const isRowAisle = layoutConfig.rowAisles?.includes(row) || false;
+                    const isDisabled = layoutConfig.disabled_seats?.includes(seatNumber) || false;
+                    const isCrew = layoutConfig.crew_seats?.includes(seatNumber) || false;
+
+                    let seatType = 'standard';
+                    let seatClass = 'economy';
+                    let priceMultiplier = 1.0;
+
+                    if (isCrew) {
+                        seatType = 'crew';
+                        priceMultiplier = 0.0;
+                    } else if (isDisabled) {
+                        seatType = 'disabled';
+                        priceMultiplier = 0.0;
+                    } else if (isPremium) {
+                        seatType = 'premium';
+                        seatClass = 'business';
+                        priceMultiplier = 1.5;
+                    }
+
+                    seatsToInsert.push({
+                        vessel_id: vesselId,
+                        layout_id: layout.id,
+                        seat_number: seatNumber,
+                        row_number: row,
+                        position_x: col,
+                        position_y: row,
+                        is_window: isWindow,
+                        is_aisle: isAisle,
+                        is_row_aisle: isRowAisle,
+                        seat_type: seatType,
+                        seat_class: seatClass,
+                        is_disabled: isDisabled,
+                        is_premium: isPremium,
+                        price_multiplier: priceMultiplier,
+                        seat_metadata: {
+                            generated_from: 'auto_layout'
+                        },
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    });
+                }
+            }
+
+            // Insert generated seats
+            const { error: seatsError } = await supabase
+                .from('seats')
+                .insert(seatsToInsert);
+
+            if (seatsError) throw seatsError;
 
             set({
                 loading: { ...get().loading, generateAutoLayout: false }
@@ -535,6 +606,13 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
         set({ loading: { ...get().loading, createLayout: true }, error: null });
 
         try {
+            console.log('Creating seat layout with data:', {
+                vesselId,
+                layoutName: data.layout_name,
+                seatsCount: data.seats?.length || 0,
+                isCustom: data.seats && data.seats.length > 0
+            });
+
             // First, deactivate any existing active layout
             await supabase
                 .from('vessel_seat_layouts')
@@ -548,12 +626,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
                 .insert([{
                     vessel_id: vesselId,
                     layout_name: data.layout_name,
-                    rows: data.layout_data.rows,
-                    columns: data.layout_data.columns,
-                    aisles: data.layout_data.aisles,
-                    premium_rows: data.layout_data.premium_rows,
-                    disabled_seats: data.layout_data.disabled_seats,
-                    crew_seats: data.layout_data.crew_seats,
+                    layout_data: data.layout_data,
                     is_active: true
                 }])
                 .select()
@@ -561,14 +634,96 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
 
             if (layoutError) throw layoutError;
 
-            // Generate seats for the layout
-            const { error: generateError } = await supabase
-                .rpc('generate_seats_for_layout', {
-                    layout_uuid: layout.id,
-                    max_seats: data.seats.length > 0 ? data.seats.length : null
-                });
+            // Handle seat creation - always use custom seats if provided
+            if (data.seats && data.seats.length > 0) {
+                console.log('Creating custom seats for layout:', layout.id);
 
-            if (generateError) throw generateError;
+                // Prepare seat data for insertion
+                const seatsToInsert = data.seats.map(seat => ({
+                    vessel_id: vesselId,
+                    layout_id: layout.id,
+                    seat_number: seat.seat_number,
+                    row_number: seat.row_number,
+                    position_x: seat.position_x,
+                    position_y: seat.position_y,
+                    is_window: seat.is_window,
+                    is_aisle: seat.is_aisle,
+                    seat_type: seat.seat_type,
+                    seat_class: seat.seat_class,
+                    is_disabled: seat.is_disabled,
+                    is_premium: seat.is_premium,
+                    price_multiplier: seat.price_multiplier
+                }));
+
+                // Insert custom seats
+                const { error: seatsError } = await supabase
+                    .from('seats')
+                    .insert(seatsToInsert);
+
+                if (seatsError) throw seatsError;
+                console.log('Custom seats created successfully:', seatsToInsert.length);
+            } else {
+                // For auto-generated layouts, create seats based on layout configuration
+                console.log('Creating auto-generated seats for layout:', layout.id);
+
+                const seatsToInsert = [];
+                let seatCounter = 0;
+
+                for (let row = 1; row <= data.layout_data.rows; row++) {
+                    for (let col = 1; col <= data.layout_data.columns; col++) {
+                        seatCounter++;
+
+                        const seatNumber = `${String.fromCharCode(64 + col)}${row}`;
+                        const isPremium = data.layout_data.premium_rows?.includes(row) || false;
+                        const isWindow = col === 1 || col === data.layout_data.columns;
+                        const isAisle = data.layout_data.aisles?.includes(col) || false;
+                        const isRowAisle = data.layout_data.rowAisles?.includes(row) || false;
+                        const isDisabled = data.layout_data.disabled_seats?.includes(seatNumber) || false;
+                        const isCrew = data.layout_data.crew_seats?.includes(seatNumber) || false;
+
+                        let seatType = 'standard';
+                        let seatClass = 'economy';
+                        let priceMultiplier = 1.0;
+
+                        if (isCrew) {
+                            seatType = 'crew';
+                            priceMultiplier = 0.0;
+                        } else if (isDisabled) {
+                            seatType = 'disabled';
+                            priceMultiplier = 0.0;
+                        } else if (isPremium) {
+                            seatType = 'premium';
+                            seatClass = 'business';
+                            priceMultiplier = 1.5;
+                        }
+
+                        seatsToInsert.push({
+                            vessel_id: vesselId,
+                            layout_id: layout.id,
+                            seat_number: seatNumber,
+                            row_number: row,
+                            position_x: col,
+                            position_y: row,
+                            is_window: isWindow,
+                            is_aisle: isAisle,
+                            seat_type: seatType,
+                            seat_class: seatClass,
+                            is_disabled: isDisabled,
+                            is_premium: isPremium,
+                            price_multiplier: priceMultiplier
+                        });
+                    }
+                }
+
+                if (seatsToInsert.length > 0) {
+                    const { error: seatsError } = await supabase
+                        .from('seats')
+                        .insert(seatsToInsert);
+
+                    if (seatsError) throw seatsError;
+                    console.log('Auto-generated seats created successfully:', seatsToInsert.length);
+                }
+            }
 
             set({
                 currentSeatLayout: layout,
@@ -577,6 +732,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
 
             return layout;
         } catch (error) {
+            console.error('Error creating seat layout:', error);
             set({
                 error: error instanceof Error ? error.message : 'Failed to create seat layout',
                 loading: { ...get().loading, createLayout: false }
@@ -592,12 +748,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
             const updateData: any = {};
             if (data.layout_name) updateData.layout_name = data.layout_name;
             if (data.layout_data) {
-                updateData.rows = data.layout_data.rows;
-                updateData.columns = data.layout_data.columns;
-                updateData.aisles = data.layout_data.aisles;
-                updateData.premium_rows = data.layout_data.premium_rows;
-                updateData.disabled_seats = data.layout_data.disabled_seats;
-                updateData.crew_seats = data.layout_data.crew_seats;
+                updateData.layout_data = data.layout_data;
             }
 
             const { data: layout, error: layoutError } = await supabase
@@ -609,16 +760,8 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
 
             if (layoutError) throw layoutError;
 
-            // Regenerate seats if layout data changed
-            if (data.layout_data) {
-                const { error: generateError } = await supabase
-                    .rpc('generate_seats_for_layout', {
-                        layout_uuid: layoutId,
-                        max_seats: data.seats?.length || null
-                    });
-
-                if (generateError) throw generateError;
-            }
+            // Note: Seat regeneration is handled by the frontend components
+            // No need to call database functions for seat generation
 
             set({
                 currentSeatLayout: layout,
@@ -646,12 +789,12 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
                 .eq('layout_id', layoutId);
 
             // Delete layout
-            const { error } = await supabase
+            const { error: layoutError } = await supabase
                 .from('vessel_seat_layouts')
                 .delete()
                 .eq('id', layoutId);
 
-            if (error) throw error;
+            if (layoutError) throw layoutError;
 
             set({
                 currentSeatLayout: null,
@@ -662,6 +805,22 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
                 error: error instanceof Error ? error.message : 'Failed to delete seat layout',
                 loading: { ...get().loading, deleteLayout: false }
             });
+            throw error;
+        }
+    },
+
+    // Delete seats for a specific layout
+    deleteSeatsByLayout: async (layoutId: string) => {
+        try {
+            const { error } = await supabase
+                .from('seats')
+                .delete()
+                .eq('layout_id', layoutId);
+
+            if (error) throw error;
+            console.log('Deleted seats for layout:', layoutId);
+        } catch (error) {
+            console.error('Error deleting seats for layout:', error);
             throw error;
         }
     },
@@ -726,6 +885,75 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
         }
     },
 
+    // Create custom seat layout with predefined seats
+    createCustomSeatLayout: async (vesselId: string, layoutData: any, seats: Seat[]) => {
+        set({ loading: { ...get().loading, createCustomLayout: true }, error: null });
+
+        try {
+            console.log('Creating custom seat layout:', { vesselId, layoutData, seatsCount: seats.length });
+
+            // First, deactivate any existing active layout
+            await supabase
+                .from('vessel_seat_layouts')
+                .update({ is_active: false })
+                .eq('vessel_id', vesselId)
+                .eq('is_active', true);
+
+            // Create new layout record
+            const { data: layout, error: layoutError } = await supabase
+                .from('vessel_seat_layouts')
+                .insert([{
+                    vessel_id: vesselId,
+                    layout_name: `Custom Layout - ${new Date().toLocaleDateString()}`,
+                    layout_data: layoutData, // Now correctly inserting the entire layoutData object
+                    is_active: true
+                }])
+                .select()
+                .single();
+
+            if (layoutError) throw layoutError;
+
+            // Insert custom seats directly
+            const seatsToInsert = seats.map(seat => ({
+                vessel_id: vesselId,
+                layout_id: layout.id,
+                seat_number: seat.seat_number,
+                row_number: seat.row_number,
+                position_x: seat.position_x,
+                position_y: seat.position_y,
+                is_window: seat.is_window,
+                is_aisle: seat.is_aisle,
+                seat_type: seat.seat_type,
+                seat_class: seat.seat_class,
+                is_disabled: seat.is_disabled,
+                is_premium: seat.is_premium,
+                price_multiplier: seat.price_multiplier
+            }));
+
+            const { error: seatsError } = await supabase
+                .from('seats')
+                .insert(seatsToInsert);
+
+            if (seatsError) throw seatsError;
+
+            set({
+                currentSeatLayout: layout,
+                seats,
+                currentSeats: seats,
+                loading: { ...get().loading, createCustomLayout: false }
+            });
+
+            console.log('Custom seat layout created successfully');
+            return { layout, seats };
+        } catch (error) {
+            set({
+                error: error instanceof Error ? error.message : 'Failed to create custom seat layout',
+                loading: { ...get().loading, createCustomLayout: false }
+            });
+            throw error;
+        }
+    },
+
     // ========================================================================
     // FERRY-SPECIFIC SEAT LAYOUT FUNCTIONS
     // ========================================================================
@@ -734,30 +962,60 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
         set({ loading: { ...get().loading, generateLayout: true }, error: null });
 
         try {
-            const optimalConfig = calculateOptimalLayout(capacity, vesselType);
-            const ferryLayout = generateFerrySeatLayout(capacity, vesselType, { ...optimalConfig, ...layoutConfig });
+            let layoutData: SeatLayoutFormData;
+            let allSeats: Seat[] = [];
 
-            // Generate seats for all floors
-            const allSeats: Seat[] = [];
-            ferryLayout.floors.forEach(floor => {
-                const floorSeats = generateSeatsForFloor(floor, vesselId);
-                allSeats.push(...floorSeats);
-            });
+            // Check if layoutConfig contains custom seat data
+            if (layoutConfig && layoutConfig.floors && layoutConfig.floors[0] && layoutConfig.floors[0].seat_count > 0) {
+                // This is a custom layout with predefined seat data
+                console.log('Processing custom ferry layout with predefined seats');
 
-            // Create layout record
-            const layoutData: SeatLayoutFormData = {
-                layout_name: `${vesselType.charAt(0).toUpperCase() + vesselType.slice(1)} Layout - ${new Date().toLocaleDateString()}`,
-                layout_data: {
-                    rows: ferryLayout.floors.reduce((sum, floor) => sum + floor.rows, 0),
-                    columns: Math.max(...ferryLayout.floors.map(f => f.columns)),
-                    aisles: ferryLayout.floors[0]?.aisles || [],
-                    premium_rows: ferryLayout.floors.flatMap(f => f.premium_rows),
-                    disabled_seats: ferryLayout.floors.flatMap(f => f.disabled_seats),
-                    crew_seats: ferryLayout.floors.flatMap(f => f.crew_seats),
-                    floors: ferryLayout.floors,
-                },
-                seats: allSeats,
-            };
+                // Extract seat data from the floors
+                if (layoutConfig.floors[0].customSeats && layoutConfig.floors[0].customSeats.length > 0) {
+                    allSeats = layoutConfig.floors[0].customSeats;
+                }
+
+                layoutData = {
+                    layout_name: `Custom ${vesselType.charAt(0).toUpperCase() + vesselType.slice(1)} Layout - ${new Date().toLocaleDateString()}`,
+                    layout_data: {
+                        rows: layoutConfig.rows || layoutConfig.floors[0].rows,
+                        columns: layoutConfig.columns || layoutConfig.floors[0].columns,
+                        aisles: layoutConfig.aisles || layoutConfig.floors[0].aisles || [],
+                        rowAisles: layoutConfig.rowAisles || layoutConfig.floors[0].rowAisles || [],
+                        premium_rows: layoutConfig.premium_rows || layoutConfig.floors[0].premium_rows || [],
+                        disabled_seats: layoutConfig.disabled_seats || layoutConfig.floors[0].disabled_seats || [],
+                        crew_seats: layoutConfig.crew_seats || layoutConfig.floors[0].crew_seats || [],
+                        floors: layoutConfig.floors,
+                    },
+                    seats: allSeats,
+                };
+            } else {
+                // Generate automatic layout
+                console.log('Generating automatic ferry layout');
+                const optimalConfig = calculateOptimalLayout(capacity, vesselType);
+                const ferryLayout = generateFerrySeatLayout(capacity, vesselType, { ...optimalConfig, ...layoutConfig });
+
+                // Generate seats for all floors
+                ferryLayout.floors.forEach(floor => {
+                    const floorSeats = generateSeatsForFloor(floor, vesselId);
+                    allSeats.push(...floorSeats);
+                });
+
+                layoutData = {
+                    layout_name: `${vesselType.charAt(0).toUpperCase() + vesselType.slice(1)} Layout - ${new Date().toLocaleDateString()}`,
+                    layout_data: {
+                        rows: ferryLayout.floors.reduce((sum, floor) => sum + floor.rows, 0),
+                        columns: Math.max(...ferryLayout.floors.map(f => f.columns)),
+                        aisles: ferryLayout.floors[0]?.aisles || [],
+                        rowAisles: ferryLayout.floors.flatMap(f => f.rowAisles || []),
+                        premium_rows: ferryLayout.floors.flatMap(f => f.premium_rows),
+                        disabled_seats: ferryLayout.floors.flatMap(f => f.disabled_seats),
+                        crew_seats: ferryLayout.floors.flatMap(f => f.crew_seats),
+                        floors: ferryLayout.floors,
+                    },
+                    seats: allSeats,
+                };
+            }
 
             // Save layout to database
             const layout = await get().createSeatLayout(vesselId, layoutData);

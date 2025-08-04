@@ -567,6 +567,7 @@ export const generateFloorLayout = (
         rows,
         columns,
         aisles,
+        rowAisles: [],
         premium_rows: premiumRows,
         disabled_seats: disabledSeats,
         crew_seats: crewSeats,
@@ -742,7 +743,7 @@ export const generateDefaultSeatLayoutConfig = (capacity: number, vesselType: st
 
     // Calculate aisle positions (typically in the middle)
     const aislePosition = Math.ceil(columns / 2);
-    const aisles = columns > 4 ? [aislePosition] : [];
+    const aisles: number[] = columns > 4 ? [aislePosition] : [];
 
     // Determine premium rows based on vessel type
     let premiumRows: number[] = [];
@@ -758,9 +759,10 @@ export const generateDefaultSeatLayoutConfig = (capacity: number, vesselType: st
         rows,
         columns,
         aisles,
+        rowAisles: [] as number[], // Add missing rowAisles property
         premium_rows: premiumRows,
-        disabled_seats: [],
-        crew_seats: [],
+        disabled_seats: [] as string[],
+        crew_seats: [] as string[],
     };
 };
 

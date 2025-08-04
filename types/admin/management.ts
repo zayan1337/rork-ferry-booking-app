@@ -780,6 +780,7 @@ export interface SeatLayoutData {
     rows: number;
     columns: number;
     aisles: number[];
+    rowAisles: number[];
     premium_rows: number[];
     disabled_seats: string[];
     crew_seats: string[];
@@ -793,6 +794,7 @@ export interface FloorLayout {
     rows: number;
     columns: number;
     aisles: number[];
+    rowAisles: number[];
     premium_rows: number[];
     disabled_seats: string[];
     crew_seats: string[];
@@ -824,11 +826,13 @@ export interface Seat extends Omit<BaseEntity, 'updated_at'> {
     position_y: number;
     is_window: boolean;
     is_aisle: boolean;
+    is_row_aisle?: boolean;
     seat_type: 'standard' | 'premium' | 'crew' | 'disabled';
     seat_class: 'economy' | 'business' | 'first';
     is_disabled: boolean;
     is_premium: boolean;
     price_multiplier: number;
+    seat_metadata?: Record<string, any>;
     updated_at?: string;
 }
 
@@ -943,8 +947,10 @@ export interface VesselStoreActions extends BaseCrudActions<Vessel, VesselFormDa
     // Seat layout operations
     fetchSeatLayout: (vesselId: string) => Promise<SeatLayout | null>;
     createSeatLayout: (vesselId: string, data: SeatLayoutFormData) => Promise<SeatLayout>;
+    createCustomSeatLayout: (vesselId: string, layoutData: any, seats: Seat[]) => Promise<{ layout: SeatLayout; seats: Seat[] }>;
     updateSeatLayout: (layoutId: string, data: Partial<SeatLayoutFormData>) => Promise<SeatLayout>;
     deleteSeatLayout: (layoutId: string) => Promise<void>;
+    deleteSeatsByLayout: (layoutId: string) => Promise<void>;
     fetchSeats: (vesselId: string) => Promise<Seat[]>;
     updateSeats: (vesselId: string, seats: Seat[]) => Promise<void>;
 

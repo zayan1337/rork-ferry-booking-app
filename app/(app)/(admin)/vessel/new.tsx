@@ -25,7 +25,7 @@ export default function NewVesselScreen() {
 
             Alert.alert(
                 "Success",
-                "Vessel created successfully! Seat layout has been automatically generated.",
+                "Vessel created successfully! Seat layout has been configured.",
                 [
                     {
                         text: "Create Another",

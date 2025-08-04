@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     View,
     Text,
@@ -50,6 +50,7 @@ interface SeatArrangementManagerProps {
     seatingCapacity?: number;
     vesselType?: string;
     onSave: (layout: SeatLayout, seats: Seat[]) => Promise<void>;
+    onChange?: (layout: SeatLayout, seats: Seat[]) => void;
     onCancel?: () => void;
     loading?: boolean;
 }
@@ -61,6 +62,7 @@ export default function SeatArrangementManager({
     seatingCapacity = 0,
     vesselType = 'passenger',
     onSave,
+    onChange,
     onCancel,
     loading = false,
 }: SeatArrangementManagerProps) {
@@ -85,8 +87,13 @@ export default function SeatArrangementManager({
     const [mode, setMode] = useState<'view' | 'edit' | 'arrange'>('view');
     const [isInitialized, setIsInitialized] = useState(false);
 
+    // Add ref to track last layout data to prevent unnecessary onChange calls
+    const lastLayoutDataRef = useRef<string>('');
+    const lastSeatsDataRef = useRef<string>('');
+
     // Generate grid from layout config
     const generateGrid = useCallback((config: typeof layoutConfig) => {
+        console.log('Generating grid with config:', config);
         const newGrid: SeatCell[][] = [];
 
         for (let row = 1; row <= config.rows; row++) {
@@ -105,6 +112,7 @@ export default function SeatArrangementManager({
             newGrid.push(newRow);
         }
 
+        console.log('Generated grid dimensions:', newGrid.length, 'x', newGrid[0]?.length || 0);
         setSeatGrid(newGrid);
     }, [initialSeats]);
 
@@ -166,106 +174,91 @@ export default function SeatArrangementManager({
                     rows: layoutData.rows || 0,
                     columns: layoutData.columns || 0,
                     aisles: layoutData.aisles || [],
-                    rowAisles: [], // Not supported in current layout data
+                    rowAisles: layoutData.rowAisles || [],
                     premium_rows: layoutData.premium_rows || [],
                     disabled_seats: layoutData.disabled_seats || [],
                     crew_seats: layoutData.crew_seats || [],
                 };
                 setLayoutConfig(existingConfig);
-                generateGrid(existingConfig);
                 setIsInitialized(true);
             } else {
                 // Generate default layout
                 generateDefaultLayout();
             }
         }
-    }, [seatingCapacity, vesselType, isInitialized, initialLayout]);
+    }, [seatingCapacity, vesselType, isInitialized, initialLayout, generateDefaultLayout]);
 
-    // Update grid when layout config changes - but only when rows/columns actually change
+
+
+    // Auto-populate seats when capacity changes - only run when needed
     useEffect(() => {
-        if (isInitialized && layoutConfig.rows > 0 && layoutConfig.columns > 0) {
-            generateGrid(layoutConfig);
+        if (seatingCapacity > 0 && seatGrid.length > 0) {
+            const currentSeatCount = seatGrid.reduce((count, row) =>
+                count + row.filter(cell => cell.seat).length, 0
+            );
+
+            if (currentSeatCount < seatingCapacity) {
+                console.log('Auto-populating seats:', {
+                    currentSeats: currentSeatCount,
+                    capacity: seatingCapacity,
+                    needed: seatingCapacity - currentSeatCount
+                });
+
+                // The memoized grid will handle seat generation automatically
+                // No need for manual generation since it's built into the memoized grid
+            }
         }
-    }, [layoutConfig.rows, layoutConfig.columns]);
+    }, [seatingCapacity, seatGrid.length]);
 
-    // Regenerate grid when initialSeats changes (in case they're loaded asynchronously)
-    useEffect(() => {
-        if (isInitialized && layoutConfig.rows > 0 && layoutConfig.columns > 0 && initialSeats.length > 0) {
-            generateGrid(layoutConfig);
-        }
-    }, [initialSeats, isInitialized, layoutConfig]);
 
-    // Generate seats for the current grid
-    const generateSeatsForGrid = useCallback(() => {
-        // Count existing seats first
-        const existingSeatCount = seatGrid.reduce((count, row) =>
-            count + row.filter(cell => cell.seat).length, 0
-        );
 
-        // Calculate how many new seats we can add
-        const maxNewSeats = Math.max(0, seatingCapacity - existingSeatCount);
-        let seatsAdded = 0;
-
-        const newGrid = seatGrid.map(row =>
-            row.map(cell => {
-                if (cell.seat) return cell; // Keep existing seats
-
-                // Only generate new seat if we haven't exceeded capacity
-                if (seatsAdded >= maxNewSeats) {
-                    return {
-                        seat: null,
-                        position: cell.position
-                    };
-                }
-
-                // Generate new seat
-                const seatNumber = `${String.fromCharCode(64 + cell.position.col)}${cell.position.row}`;
-                const isPremium = layoutConfig.premium_rows.includes(cell.position.row);
-                const isWindow = cell.position.col === 1 || cell.position.col === layoutConfig.columns;
-                const isAisle = layoutConfig.aisles.includes(cell.position.col);
-
-                const newSeat: Seat = {
-                    id: `seat_${cell.position.row}_${cell.position.col}_${Date.now()}`,
-                    vessel_id: vesselId,
-                    layout_id: initialLayout?.id || '',
-                    seat_number: seatNumber,
-                    row_number: cell.position.row,
-                    position_x: cell.position.col,
-                    position_y: cell.position.row,
-                    is_window: isWindow,
-                    is_aisle: isAisle,
-                    seat_type: isPremium ? 'premium' : 'standard',
-                    seat_class: isPremium ? 'business' : 'economy',
-                    is_disabled: false,
-                    is_premium: isPremium,
-                    price_multiplier: isPremium ? 1.5 : 1.0,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                };
-
-                seatsAdded++;
-                return {
-                    seat: newSeat,
-                    position: cell.position
-                };
-            })
-        );
-
-        setSeatGrid(newGrid);
-    }, [seatGrid, layoutConfig, vesselId, initialLayout?.id, seatingCapacity]);
-
-    // Get all seats from the grid
+    // Get all seats from the grid with proper data synchronization
     const getAllSeats = useCallback((): Seat[] => {
         const seats: Seat[] = [];
-        seatGrid.forEach(row => {
-            row.forEach(cell => {
+
+        for (let row = 0; row < seatGrid.length; row++) {
+            for (let col = 0; col < seatGrid[row].length; col++) {
+                const cell = seatGrid[row][col];
                 if (cell.seat) {
-                    seats.push(cell.seat);
+                    // Ensure seat data is properly synchronized with current config
+                    const rowNumber = row + 1;
+                    const colNumber = col + 1;
+
+                    const isPremium = layoutConfig.premium_rows.includes(rowNumber);
+                    const isWindow = colNumber === 1 || colNumber === layoutConfig.columns;
+                    const isAisle = layoutConfig.aisles.includes(colNumber);
+                    const isRowAisle = layoutConfig.rowAisles.includes(rowNumber);
+
+                    const synchronizedSeat: Seat = {
+                        ...cell.seat,
+                        row_number: rowNumber,
+                        position_x: colNumber,
+                        position_y: rowNumber,
+                        seat_number: `${String.fromCharCode(64 + colNumber)}${rowNumber}`,
+                        is_premium: isPremium,
+                        is_window: isWindow,
+                        is_aisle: isAisle,
+                        seat_type: isPremium ? 'premium' : 'standard',
+                        seat_class: isPremium ? 'business' : 'economy',
+                        price_multiplier: isPremium ? 1.5 : 1.0,
+                        updated_at: new Date().toISOString(),
+                    };
+
+                    seats.push(synchronizedSeat);
                 }
-            });
+            }
+        }
+
+        console.log('Synchronized seats data:', {
+            totalSeats: seats.length,
+            premiumSeats: seats.filter(s => s.is_premium).length,
+            windowSeats: seats.filter(s => s.is_window).length,
+            aisleSeats: seats.filter(s => s.is_aisle).length,
+            rowAisleSeats: seats.filter(s => layoutConfig.rowAisles.includes(s.row_number)).length
         });
+
         return seats;
-    }, [seatGrid]);
+    }, [seatGrid, layoutConfig]);
 
     // Handle seat cell press
     const handleSeatPress = useCallback((row: number, col: number) => {
@@ -292,6 +285,72 @@ export default function SeatArrangementManager({
             }
         }
     }, [mode, seatGrid]);
+
+    // Trigger onChange when layout is modified (debounced and optimized)
+    const triggerLayoutChange = useCallback(() => {
+        if (onChange) {
+            // Clear any existing timeout
+            if ((global as any).layoutChangeTimeout) {
+                clearTimeout((global as any).layoutChangeTimeout);
+            }
+
+            // Set a new timeout to debounce the call
+            (global as any).layoutChangeTimeout = setTimeout(() => {
+                try {
+                    const allSeats = getAllSeats();
+
+                    // Create the layout data
+                    const layoutData: SeatLayout = {
+                        id: initialLayout?.id || '',
+                        vessel_id: vesselId,
+                        layout_name: `${vesselType.charAt(0).toUpperCase() + vesselType.slice(1)} Layout - ${new Date().toLocaleDateString()}`,
+                        layout_data: {
+                            rows: layoutConfig.rows,
+                            columns: layoutConfig.columns,
+                            aisles: layoutConfig.aisles,
+                            rowAisles: layoutConfig.rowAisles,
+                            premium_rows: layoutConfig.premium_rows,
+                            disabled_seats: layoutConfig.disabled_seats,
+                            crew_seats: layoutConfig.crew_seats,
+                            floors: [{
+                                floor_number: 1,
+                                floor_name: 'Main Deck',
+                                rows: layoutConfig.rows,
+                                columns: layoutConfig.columns,
+                                aisles: layoutConfig.aisles,
+                                rowAisles: layoutConfig.rowAisles,
+                                premium_rows: layoutConfig.premium_rows,
+                                disabled_seats: layoutConfig.disabled_seats,
+                                crew_seats: layoutConfig.crew_seats,
+                                is_active: true,
+                                seat_count: allSeats.length,
+                            }],
+                        },
+                        is_active: true,
+                        created_at: initialLayout?.created_at || new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    };
+
+                    // Create hash of current data to compare with last data
+                    const currentLayoutHash = JSON.stringify(layoutData.layout_data);
+                    const currentSeatsHash = JSON.stringify(allSeats.map(s => ({ id: s.id, seat_number: s.seat_number, row_number: s.row_number, position_x: s.position_x })));
+
+                    // Only call onChange if data actually changed
+                    if (currentLayoutHash !== lastLayoutDataRef.current || currentSeatsHash !== lastSeatsDataRef.current) {
+                        lastLayoutDataRef.current = currentLayoutHash;
+                        lastSeatsDataRef.current = currentSeatsHash;
+
+                        console.log('Triggering layout change with', allSeats.length, 'seats');
+                        onChange(layoutData, allSeats);
+                    } else {
+                        console.log('Skipping onChange - no meaningful changes detected');
+                    }
+                } catch (error) {
+                    console.warn('Failed to trigger layout change:', error);
+                }
+            }, 1000); // Increased debounce to 1000ms for better performance
+        }
+    }, [onChange, layoutConfig, vesselId, vesselType, initialLayout]);
 
     // Add seat at specific position
     const addSeatAtPosition = useCallback((row: number, col: number) => {
@@ -503,11 +562,13 @@ export default function SeatArrangementManager({
         });
     }, [layoutConfig.columns, seatingCapacity]);
 
-    // Handle layout config changes
-    const handleLayoutConfigChange = useCallback((newConfig: typeof layoutConfig) => {
-        setLayoutConfig(newConfig);
-        // The grid will be updated by the useEffect that watches layoutConfig changes
-    }, []);
+    // Initialize component
+    useEffect(() => {
+        if (!isInitialized) {
+            console.log('Initializing SeatArrangementManager');
+            generateDefaultLayout();
+        }
+    }, [isInitialized, generateDefaultLayout]);
 
     // Handle save
     const handleSave = useCallback(async () => {
@@ -541,6 +602,7 @@ export default function SeatArrangementManager({
                 rows: layoutConfig.rows,
                 columns: layoutConfig.columns,
                 aisles: layoutConfig.aisles,
+                rowAisles: layoutConfig.rowAisles,
                 premium_rows: layoutConfig.premium_rows,
                 disabled_seats: layoutConfig.disabled_seats,
                 crew_seats: layoutConfig.crew_seats,
@@ -550,6 +612,7 @@ export default function SeatArrangementManager({
                     rows: layoutConfig.rows,
                     columns: layoutConfig.columns,
                     aisles: layoutConfig.aisles,
+                    rowAisles: layoutConfig.rowAisles,
                     premium_rows: layoutConfig.premium_rows,
                     disabled_seats: layoutConfig.disabled_seats,
                     crew_seats: layoutConfig.crew_seats,
@@ -607,6 +670,162 @@ export default function SeatArrangementManager({
     }, [getAllSeats, seatGrid, seatingCapacity]);
 
     const stats = getLayoutStats();
+
+    // Memoize layout data to prevent unnecessary re-renders
+    const layoutData = useMemo(() => {
+        if (seatGrid.length === 0) return null;
+
+        const allSeats = getAllSeats();
+        if (allSeats.length === 0) return null;
+
+        return {
+            id: initialLayout?.id || '',
+            vessel_id: vesselId,
+            layout_name: `Custom ${vesselType.charAt(0).toUpperCase() + vesselType.slice(1)} Layout - ${new Date().toLocaleDateString()}`,
+            layout_data: {
+                rows: layoutConfig.rows,
+                columns: layoutConfig.columns,
+                aisles: layoutConfig.aisles,
+                rowAisles: layoutConfig.rowAisles,
+                premium_rows: layoutConfig.premium_rows,
+                disabled_seats: layoutConfig.disabled_seats,
+                crew_seats: layoutConfig.crew_seats,
+                floors: [{
+                    floor_number: 1,
+                    floor_name: 'Main Deck',
+                    rows: layoutConfig.rows,
+                    columns: layoutConfig.columns,
+                    aisles: layoutConfig.aisles,
+                    rowAisles: layoutConfig.rowAisles,
+                    premium_rows: layoutConfig.premium_rows,
+                    disabled_seats: layoutConfig.disabled_seats,
+                    crew_seats: layoutConfig.crew_seats,
+                    is_active: true,
+                    seat_count: allSeats.length,
+                }],
+            },
+            is_active: true,
+            created_at: initialLayout?.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+    }, [seatGrid, layoutConfig, getAllSeats, vesselId, vesselType, initialLayout]);
+
+    // Debounced onChange notification
+    useEffect(() => {
+        if (onChange && layoutData) {
+            const allSeats = getAllSeats();
+            if (allSeats.length > 0) {
+                const timeoutId = setTimeout(() => {
+                    onChange(layoutData, allSeats);
+                }, 200);
+
+                return () => clearTimeout(timeoutId);
+            }
+        }
+    }, [layoutData, onChange, getAllSeats]);
+
+    // Handle layout config changes
+    const handleLayoutConfigChange = useCallback((newConfig: typeof layoutConfig) => {
+        console.log('Layout config changed:', newConfig);
+        setLayoutConfig(newConfig);
+        // The grid will be regenerated by the useEffect that watches layoutConfig changes
+        // Auto-population will be triggered automatically after grid regeneration
+    }, []);
+
+    // Memoize the seat grid to prevent unnecessary re-renders
+    const memoizedSeatGrid = useMemo(() => {
+        if (!isInitialized || layoutConfig.rows <= 0 || layoutConfig.columns <= 0) {
+            return [];
+        }
+
+        console.log('Generating memoized grid:', {
+            rows: layoutConfig.rows,
+            columns: layoutConfig.columns,
+            existingSeats: initialSeats.length
+        });
+
+        const newGrid: SeatCell[][] = [];
+        let seatCounter = 0;
+
+        for (let row = 1; row <= layoutConfig.rows; row++) {
+            const newRow: SeatCell[] = [];
+            for (let col = 1; col <= layoutConfig.columns; col++) {
+                // Check if there's an existing seat at this position
+                const existingSeat = initialSeats.find(seat =>
+                    seat.row_number === row && seat.position_x === col
+                );
+
+                // Apply current config properties to the seat
+                let seat = existingSeat || null;
+                if (seat) {
+                    const isPremium = layoutConfig.premium_rows.includes(row);
+                    const isWindow = col === 1 || col === layoutConfig.columns;
+                    const isAisle = layoutConfig.aisles.includes(col);
+                    const isRowAisle = layoutConfig.rowAisles.includes(row);
+
+                    seat = {
+                        ...seat,
+                        is_premium: isPremium,
+                        is_window: isWindow,
+                        is_aisle: isAisle,
+                        seat_type: isPremium ? 'premium' : 'standard',
+                        seat_class: isPremium ? 'business' : 'economy',
+                        price_multiplier: isPremium ? 1.5 : 1.0,
+                        updated_at: new Date().toISOString(),
+                    };
+                } else {
+                    // Generate new seat if we haven't exceeded capacity
+                    if (seatCounter < seatingCapacity) {
+                        const seatNumber = `${String.fromCharCode(64 + col)}${row}`;
+                        const isPremium = layoutConfig.premium_rows.includes(row);
+                        const isWindow = col === 1 || col === layoutConfig.columns;
+                        const isAisle = layoutConfig.aisles.includes(col);
+                        const isRowAisle = layoutConfig.rowAisles.includes(row);
+
+                        seat = {
+                            id: `seat_${row}_${col}_${Date.now()}`,
+                            vessel_id: vesselId,
+                            layout_id: initialLayout?.id || '',
+                            seat_number: seatNumber,
+                            row_number: row,
+                            position_x: col,
+                            position_y: row,
+                            is_window: isWindow,
+                            is_aisle: isAisle,
+                            seat_type: isPremium ? 'premium' : 'standard',
+                            seat_class: isPremium ? 'business' : 'economy',
+                            is_disabled: false,
+                            is_premium: isPremium,
+                            price_multiplier: isPremium ? 1.5 : 1.0,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                        };
+                        seatCounter++;
+                    }
+                }
+
+                newRow.push({
+                    seat,
+                    position: { row, col }
+                });
+            }
+            newGrid.push(newRow);
+        }
+
+        console.log('Generated grid with', seatCounter, 'seats out of', seatingCapacity, 'capacity');
+        return newGrid;
+    }, [layoutConfig, isInitialized, initialSeats, seatingCapacity, vesselId, initialLayout?.id]);
+
+    // Update seat grid when memoized grid changes
+    useEffect(() => {
+        if (memoizedSeatGrid.length > 0) {
+            console.log('Updating seat grid with memoized data:', {
+                rows: memoizedSeatGrid.length,
+                columns: memoizedSeatGrid[0]?.length || 0
+            });
+            setSeatGrid(memoizedSeatGrid);
+        }
+    }, [memoizedSeatGrid]);
 
     return (
         <View style={styles.container}>
@@ -772,13 +991,7 @@ export default function SeatArrangementManager({
                         size="small"
                     />
 
-                    <Button
-                        title="Generate Seats"
-                        onPress={generateSeatsForGrid}
-                        icon={<Plus size={16} color={colors.white} />}
-                        variant="primary"
-                        size="small"
-                    />
+
 
                     <Button
                         title="Remove Selected"
