@@ -946,19 +946,16 @@ export interface VesselStoreActions extends BaseCrudActions<Vessel, VesselFormDa
 
     // Seat layout operations
     fetchSeatLayout: (vesselId: string) => Promise<SeatLayout | null>;
-    createSeatLayout: (vesselId: string, data: SeatLayoutFormData) => Promise<SeatLayout>;
-    createCustomSeatLayout: (vesselId: string, layoutData: any, seats: Seat[]) => Promise<{ layout: SeatLayout; seats: Seat[] }>;
-    updateSeatLayout: (layoutId: string, data: Partial<SeatLayoutFormData>) => Promise<SeatLayout>;
-    deleteSeatLayout: (layoutId: string) => Promise<void>;
-    deleteSeatsByLayout: (layoutId: string) => Promise<void>;
+    createCustomSeatLayout: (vesselId: string, layoutData: any, seats: Seat[]) => Promise<{ seats: Seat[] }>;
+    saveCustomSeatLayout: (vesselId: string, layoutData: any, seats: Seat[]) => Promise<{ seats: Seat[] }>;
     fetchSeats: (vesselId: string) => Promise<Seat[]>;
     updateSeats: (vesselId: string, seats: Seat[]) => Promise<void>;
 
     // NEW: Automatic seat layout generation
-    generateAutomaticSeatLayout: (vesselId: string, capacity: number, vesselType: string) => Promise<SeatLayout>;
+    generateAutomaticSeatLayout: (vesselId: string, capacity: number, vesselType: string) => Promise<{ seats: Seat[] }>;
 
     // Ferry-specific seat layout functions
-    generateFerryLayout: (vesselId: string, capacity: number, vesselType: string, layoutConfig?: any) => Promise<{ layout: SeatLayout; seats: Seat[] }>;
+    generateFerryLayout: (vesselId: string, capacity: number, vesselType: string, layoutConfig?: any) => Promise<{ seats: Seat[] }>;
     validateFerryLayoutData: (layoutData: SeatLayoutData) => ValidationResult;
     getLayoutStatistics: (seats: Seat[]) => {
         total: number;

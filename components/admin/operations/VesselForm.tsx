@@ -308,13 +308,6 @@ export default function VesselForm({
         }
 
         try {
-            console.log('Submitting vessel form with auto-generation:', {
-                autoGenerateLayout,
-                seatingCapacity: formData.seating_capacity,
-                vesselType: formData.vessel_type,
-                hasCustomLayout: !!customLayoutData
-            });
-
             // Prepare form data for submission
             const submitData: VesselFormData = {
                 name: formData.name.trim(),
@@ -345,22 +338,13 @@ export default function VesselForm({
             // Add auto-generation flag to submitData
             (submitData as any).autoGenerateLayout = autoGenerateLayout;
 
-            console.log('Submitting data to store:', {
-                ...submitData,
-                autoGenerateLayout: (submitData as any).autoGenerateLayout,
-                customSeatLayout: (submitData as any).customSeatLayout ? 'present' : 'none'
-            });
-
             // Save the vessel (and handle custom layout if it's a new vessel)
             await onSave(submitData);
-
-            console.log('Vessel saved successfully');
 
             // Reset custom layout state after successful save
             setCustomLayoutModified(false);
             setCustomLayoutData(null);
         } catch (error) {
-            console.error('Error saving vessel:', error);
             // Error handling is done by the parent component
         }
     };
@@ -903,27 +887,17 @@ export default function VesselForm({
                                         if (initialData?.id) {
                                             // For existing vessels, check if we have an existing layout to update
                                             if (existingSeatLayout?.id) {
-                                                // Update existing layout
-                                                console.log('Updating existing seat layout:', existingSeatLayout.id);
-                                                const { updateSeatLayout } = useVesselStore.getState();
-                                                await updateSeatLayout(existingSeatLayout.id, {
-                                                    layout_name: layout.layout_name,
-                                                    layout_data: layout.layout_data
-                                                });
-
-                                                // Delete existing seats and insert new ones
-                                                const { deleteSeatsByLayout, createCustomSeatLayout } = useVesselStore.getState();
-                                                await deleteSeatsByLayout(existingSeatLayout.id);
-                                                await createCustomSeatLayout(
+                                                // Update existing layout using the new simplified approach
+                                                const { saveCustomSeatLayout } = useVesselStore.getState();
+                                                await saveCustomSeatLayout(
                                                     initialData.id,
                                                     layout.layout_data,
                                                     seats
                                                 );
                                             } else {
                                                 // Create new layout for existing vessel
-                                                console.log('Creating new seat layout for existing vessel');
-                                                const { createCustomSeatLayout } = useVesselStore.getState();
-                                                await createCustomSeatLayout(
+                                                const { saveCustomSeatLayout } = useVesselStore.getState();
+                                                await saveCustomSeatLayout(
                                                     initialData.id,
                                                     layout.layout_data,
                                                     seats

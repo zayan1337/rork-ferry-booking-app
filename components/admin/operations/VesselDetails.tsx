@@ -78,12 +78,7 @@ interface Seat {
 interface SeatLayout {
     id: string;
     layout_name: string;
-    rows: number;
-    columns: number;
-    aisles: number[];
-    premium_rows: number[];
-    disabled_seats: string[];
-    crew_seats: string[];
+    layout_data: any;
     is_active: boolean;
 }
 
@@ -228,18 +223,30 @@ export default function VesselDetails({
             );
         }
 
-        if (!layout) {
-            // If no layout config, show seats in a simple grid
-            return generateSimpleSeatGrid(seats);
+        // Extract layout configuration from seats or use layout_data if available
+        let layoutConfig = null;
+        if (layout?.layout_data) {
+            layoutConfig = layout.layout_data;
+        } else {
+            // Generate layout config from seats
+            const maxRow = Math.max(...seats.map(s => s.row_number));
+            const maxCol = Math.max(...seats.map(s => s.position_x));
+            const aisles = seats.filter(s => s.is_aisle).map(s => s.position_x);
+
+            layoutConfig = {
+                rows: maxRow,
+                columns: maxCol,
+                aisles: [...new Set(aisles)]
+            };
         }
 
         // Create a 2D grid based on layout configuration
         const grid: (Seat | null)[][] = [];
 
         // Initialize empty grid
-        for (let row = 0; row < layout.rows; row++) {
+        for (let row = 0; row < layoutConfig.rows; row++) {
             grid[row] = [];
-            for (let col = 0; col < layout.columns; col++) {
+            for (let col = 0; col < layoutConfig.columns; col++) {
                 grid[row][col] = null;
             }
         }
@@ -249,7 +256,7 @@ export default function VesselDetails({
             const row = seat.row_number - 1; // Convert to 0-based index
             const col = seat.position_x - 1; // Convert to 0-based index
 
-            if (row >= 0 && row < layout.rows && col >= 0 && col < layout.columns) {
+            if (row >= 0 && row < layoutConfig.rows && col >= 0 && col < layoutConfig.columns) {
                 grid[row][col] = seat;
             }
         });
@@ -257,10 +264,10 @@ export default function VesselDetails({
         // Generate the visual layout
         const rows: React.ReactElement[] = [];
 
-        for (let rowIndex = 0; rowIndex < layout.rows; rowIndex++) {
+        for (let rowIndex = 0; rowIndex < layoutConfig.rows; rowIndex++) {
             const rowSeats: React.ReactElement[] = [];
 
-            for (let colIndex = 0; colIndex < layout.columns; colIndex++) {
+            for (let colIndex = 0; colIndex < layoutConfig.columns; colIndex++) {
                 const seat = grid[rowIndex][colIndex];
 
                 if (seat) {
@@ -274,7 +281,7 @@ export default function VesselDetails({
                 }
 
                 // Add aisle space if this column is marked as an aisle
-                if (layout.aisles.includes(colIndex + 1) && colIndex < layout.columns - 1) {
+                if (layoutConfig.aisles.includes(colIndex + 1) && colIndex < layoutConfig.columns - 1) {
                     rowSeats.push(
                         <View key={`aisle-${rowIndex}-${colIndex}`} style={styles.aisleSpace}>
                             <Text style={styles.aisleLabel}>AISLE</Text>
@@ -641,28 +648,28 @@ export default function VesselDetails({
                         style={styles.seatLayoutScrollView}
                         contentContainerStyle={styles.seatLayoutScrollContent}
                     >
-                    <View style={styles.seatLegend}>
-                        <View style={styles.legendItem}>
-                            <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-                            <Text style={styles.legendText}>Standard Seats</Text>
+                        <View style={styles.seatLegend}>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+                                <Text style={styles.legendText}>Standard Seats</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+                                <Text style={styles.legendText}>Premium Seats</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, { backgroundColor: colors.info }]} />
+                                <Text style={styles.legendText}>Window Seats</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
+                                <Text style={styles.legendText}>Crew Seats</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
+                                <Text style={styles.legendText}>Disabled Seats</Text>
+                            </View>
                         </View>
-                        <View style={styles.legendItem}>
-                            <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
-                            <Text style={styles.legendText}>Premium Seats</Text>
-                        </View>
-                        <View style={styles.legendItem}>
-                            <View style={[styles.legendDot, { backgroundColor: colors.info }]} />
-                            <Text style={styles.legendText}>Window Seats</Text>
-                        </View>
-                        <View style={styles.legendItem}>
-                            <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
-                            <Text style={styles.legendText}>Crew Seats</Text>
-                        </View>
-                        <View style={styles.legendItem}>
-                            <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
-                            <Text style={styles.legendText}>Disabled Seats</Text>
-                        </View>
-                    </View>
                     </ScrollView>
                     <View style={styles.seatLayoutInfo}>
                         <View style={styles.seatInfoRow}>
@@ -1114,7 +1121,6 @@ const styles = StyleSheet.create({
         fontWeight: "500",
     },
     operationButtons: {
-        flexDirection: "row",
         gap: 12,
     },
     operationButton: {
@@ -1162,7 +1168,7 @@ const styles = StyleSheet.create({
         fontWeight: "500",
     },
     seatLayoutContainer: {
-    
+
         backgroundColor: colors.card,
         borderRadius: 16,
         marginBottom: 20,

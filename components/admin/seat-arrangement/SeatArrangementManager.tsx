@@ -164,9 +164,16 @@ export default function SeatArrangementManager({
         setIsInitialized(true);
     }, [seatingCapacity, vesselType, generateGrid, calculateOptimalRowColumnRatio]);
 
-    // Initialize layout when capacity changes - only run once
+    // Initialize layout when capacity changes or when initial data is available
     useEffect(() => {
         if (seatingCapacity > 0 && !isInitialized) {
+            console.log('Initializing layout:', {
+                hasInitialLayout: !!initialLayout,
+                hasInitialSeats: initialSeats.length > 0,
+                seatingCapacity,
+                vesselType
+            });
+
             // If we have an existing layout, use it
             if (initialLayout && initialLayout.layout_data) {
                 const layoutData = initialLayout.layout_data;
@@ -179,16 +186,69 @@ export default function SeatArrangementManager({
                     disabled_seats: layoutData.disabled_seats || [],
                     crew_seats: layoutData.crew_seats || [],
                 };
+                console.log('Using existing layout config:', existingConfig);
+                setLayoutConfig(existingConfig);
+                setIsInitialized(true);
+            } else if (initialSeats && initialSeats.length > 0) {
+                // Generate layout from existing seats
+                const maxRow = Math.max(...initialSeats.map(s => s.row_number));
+                const maxCol = Math.max(...initialSeats.map(s => s.position_x));
+                const aisles = [...new Set(initialSeats.filter(s => s.is_aisle).map(s => s.position_x))];
+                const premiumRows = [...new Set(initialSeats.filter(s => s.is_premium).map(s => s.row_number))];
+                const disabledSeats = initialSeats.filter(s => s.is_disabled).map(s => s.seat_number);
+                const crewSeats = initialSeats.filter(s => s.seat_type === 'crew').map(s => s.seat_number);
+
+                const existingConfig = {
+                    rows: maxRow,
+                    columns: maxCol,
+                    aisles,
+                    rowAisles: [],
+                    premium_rows: premiumRows,
+                    disabled_seats: disabledSeats,
+                    crew_seats: crewSeats,
+                };
+                console.log('Generated layout config from seats:', existingConfig);
                 setLayoutConfig(existingConfig);
                 setIsInitialized(true);
             } else {
                 // Generate default layout
+                console.log('Generating default layout');
                 generateDefaultLayout();
             }
         }
-    }, [seatingCapacity, vesselType, isInitialized, initialLayout, generateDefaultLayout]);
+    }, [seatingCapacity, vesselType, isInitialized, initialLayout, initialSeats, generateDefaultLayout]);
 
+    // Handle initial seats being loaded after initialization
+    useEffect(() => {
+        if (isInitialized && initialSeats && initialSeats.length > 0 && !initialLayout) {
+            console.log('Re-initializing with initial seats after component was already initialized');
+            const maxRow = Math.max(...initialSeats.map(s => s.row_number));
+            const maxCol = Math.max(...initialSeats.map(s => s.position_x));
+            const aisles = [...new Set(initialSeats.filter(s => s.is_aisle).map(s => s.position_x))];
+            const premiumRows = [...new Set(initialSeats.filter(s => s.is_premium).map(s => s.row_number))];
+            const disabledSeats = initialSeats.filter(s => s.is_disabled).map(s => s.seat_number);
+            const crewSeats = initialSeats.filter(s => s.seat_type === 'crew').map(s => s.seat_number);
 
+            const existingConfig = {
+                rows: maxRow,
+                columns: maxCol,
+                aisles,
+                rowAisles: [],
+                premium_rows: premiumRows,
+                disabled_seats: disabledSeats,
+                crew_seats: crewSeats,
+            };
+            console.log('Re-generated layout config from seats:', existingConfig);
+            setLayoutConfig(existingConfig);
+        }
+    }, [isInitialized, initialSeats, initialLayout]);
+
+    // Generate grid when layout config changes
+    useEffect(() => {
+        if (layoutConfig.rows > 0 && layoutConfig.columns > 0) {
+            generateGrid(layoutConfig);
+        }
+    }, [layoutConfig, generateGrid]);
 
     // Auto-populate seats when capacity changes - only run when needed
     useEffect(() => {
