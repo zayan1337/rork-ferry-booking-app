@@ -362,12 +362,14 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
         set({ loading: { ...get().loading, create: true }, error: null });
 
         try {
-            // Extract custom layout data if provided
+            // Extract custom layout data and auto-generation flag if provided
             const customSeatLayout = (data as any).customSeatLayout;
+            const autoGenerateLayout = (data as any).autoGenerateLayout !== false; // Default to true if not specified
             const cleanData = { ...data };
             delete (cleanData as any).customSeatLayout;
+            delete (cleanData as any).autoGenerateLayout;
 
-            // Create vessel without triggering the layout creation
+            // Create vessel (the database trigger might create a layout automatically)
             const { data: vessel, error } = await supabase
                 .from('vessels')
                 .insert([cleanData])
@@ -392,9 +394,15 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
                             customSeatLayout.seats
                         );
                         console.log('Custom seat layout created successfully');
-                    } else {
+                    } else if (autoGenerateLayout) {
                         // Generate automatic seat layout
+                        console.log('Auto-generating seat layout for vessel:', vessel.id, {
+                            capacity: data.seating_capacity,
+                            vesselType: data.vessel_type || 'passenger'
+                        });
                         await get().generateAutomaticSeatLayout(vessel.id, data.seating_capacity, data.vessel_type || 'passenger');
+                    } else {
+                        console.log('Skipping seat layout generation - auto-generate disabled');
                     }
                 } catch (layoutError) {
                     console.warn('Failed to generate seat layout:', layoutError);
@@ -422,8 +430,28 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
         set({ loading: { ...get().loading, generateAutoLayout: true }, error: null });
 
         try {
+            console.log('Starting automatic seat layout generation:', {
+                vesselId,
+                capacity,
+                vesselType
+            });
+
             // Generate optimal layout configuration
             const layoutConfig = generateDefaultSeatLayoutConfig(capacity, vesselType);
+            console.log('Generated layout config:', layoutConfig);
+
+            // Check if a layout already exists for this vessel
+            const { data: existingLayout } = await supabase
+                .from('vessel_seat_layouts')
+                .select('id')
+                .eq('vessel_id', vesselId)
+                .eq('is_active', true)
+                .single();
+
+            if (existingLayout) {
+                console.log('Layout already exists for vessel, skipping generation');
+                return existingLayout;
+            }
 
             // Create layout record
             const { data: layout, error: layoutError } = await supabase
@@ -437,7 +465,12 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
                 .select()
                 .single();
 
-            if (layoutError) throw layoutError;
+            if (layoutError) {
+                console.error('Error creating layout:', layoutError);
+                throw layoutError;
+            }
+
+            console.log('Layout created successfully:', layout.id);
 
             // Generate seats directly in the frontend/store logic
             const seatsToInsert = [];
@@ -445,6 +478,11 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
 
             for (let row = 1; row <= layoutConfig.rows; row++) {
                 for (let col = 1; col <= layoutConfig.columns; col++) {
+                    // Stop generating seats if we've reached capacity
+                    if (seatCounter >= capacity) {
+                        break;
+                    }
+
                     seatCounter++;
 
                     const seatNumber = `${String.fromCharCode(64 + col)}${row}`;
@@ -486,21 +524,30 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
                         is_disabled: isDisabled,
                         is_premium: isPremium,
                         price_multiplier: priceMultiplier,
-                        seat_metadata: {
-                            generated_from: 'auto_layout'
-                        },
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString()
                     });
                 }
+
+                // Stop generating seats if we've reached capacity
+                if (seatCounter >= capacity) {
+                    break;
+                }
             }
+
+            console.log(`Generated ${seatsToInsert.length} seats for vessel ${vesselId}`);
 
             // Insert generated seats
             const { error: seatsError } = await supabase
                 .from('seats')
                 .insert(seatsToInsert);
 
-            if (seatsError) throw seatsError;
+            if (seatsError) {
+                console.error('Error inserting seats:', seatsError);
+                throw seatsError;
+            }
+
+            console.log('Seats inserted successfully');
 
             set({
                 loading: { ...get().loading, generateAutoLayout: false }
@@ -508,6 +555,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
 
             return layout;
         } catch (error) {
+            console.error('Error in generateAutomaticSeatLayout:', error);
             set({
                 error: error instanceof Error ? error.message : 'Failed to generate automatic seat layout',
                 loading: { ...get().loading, generateAutoLayout: false }
@@ -520,14 +568,46 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
         set({ loading: { ...get().loading, update: true }, error: null });
 
         try {
+            // Extract auto-generation flag if provided
+            const autoGenerateLayout = (data as any).autoGenerateLayout;
+            const cleanData = { ...data };
+            delete (cleanData as any).autoGenerateLayout;
+
             const { data: vessel, error } = await supabase
                 .from('vessels')
-                .update(data)
+                .update(cleanData)
                 .eq('id', id)
                 .select()
                 .single();
 
             if (error) throw error;
+
+            // Handle seat layout generation for updates if auto-generate is enabled
+            if (vessel && autoGenerateLayout && data.seating_capacity && data.seating_capacity > 0) {
+                try {
+                    // Check if vessel already has a seat layout
+                    const { data: existingLayout } = await supabase
+                        .from('vessel_seat_layouts')
+                        .select('id')
+                        .eq('vessel_id', id)
+                        .eq('is_active', true)
+                        .single();
+
+                    if (!existingLayout) {
+                        // No existing layout, generate one
+                        console.log('Auto-generating seat layout for updated vessel:', id, {
+                            capacity: data.seating_capacity,
+                            vesselType: data.vessel_type || 'passenger'
+                        });
+                        await get().generateAutomaticSeatLayout(id, data.seating_capacity, data.vessel_type || 'passenger');
+                    } else {
+                        console.log('Vessel already has seat layout, skipping auto-generation');
+                    }
+                } catch (layoutError) {
+                    console.warn('Failed to generate seat layout during update:', layoutError);
+                    // Don't fail the vessel update if seat layout generation fails
+                }
+            }
 
             set({
                 data: get().data.map(v => v.id === id ? vessel : v),

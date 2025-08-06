@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     ScrollView,
+    TextInput,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Plus, Minus, Settings, AlertCircle } from 'lucide-react-native';
@@ -30,6 +31,12 @@ export default function SeatLayoutConfig({
     onConfigChange,
     maxCapacity = 200,
 }: SeatLayoutConfigProps) {
+    const [editingRows, setEditingRows] = useState(false);
+    const [editingColumns, setEditingColumns] = useState(false);
+    const [tempRows, setTempRows] = useState(config.rows.toString());
+    const [tempColumns, setTempColumns] = useState(config.columns.toString());
+    const rowsInputRef = useRef<TextInput>(null);
+    const columnsInputRef = useRef<TextInput>(null);
     const updateConfig = (updates: Partial<SeatLayoutConfig>) => {
         // Only update if there are actual changes
         const hasChanges = Object.keys(updates).some(key => {
@@ -72,11 +79,26 @@ export default function SeatLayoutConfig({
         });
     };
 
+    const removeRowAisle = (aislePosition: number) => {
+        updateConfig({
+            rowAisles: config.rowAisles.filter(a => a !== aislePosition)
+        });
+    };
+
     const addAisleBetweenColumns = (afterColumn: number) => {
-        const newAislePosition = afterColumn + 1;
+        const newAislePosition = afterColumn;
         if (newAislePosition <= config.columns && !config.aisles.includes(newAislePosition)) {
             updateConfig({
                 aisles: [...config.aisles, newAislePosition].sort((a, b) => a - b)
+            });
+        }
+    };
+
+    const addAisleBetweenRows = (afterRow: number) => {
+        const newAislePosition = afterRow;
+        if (newAislePosition <= config.rows && !config.rowAisles.includes(newAislePosition)) {
+            updateConfig({
+                rowAisles: [...config.rowAisles, newAislePosition].sort((a, b) => a - b)
             });
         }
     };
@@ -90,14 +112,7 @@ export default function SeatLayoutConfig({
         });
     };
 
-    const toggleRowAisle = (rowNumber: number) => {
-        const hasAisle = config.rowAisles.includes(rowNumber);
-        updateConfig({
-            rowAisles: hasAisle
-                ? config.rowAisles.filter(r => r !== rowNumber)
-                : [...config.rowAisles, rowNumber].sort((a, b) => a - b)
-        });
-    };
+
 
     const totalSeats = config.rows * config.columns;
     const isOverCapacity = totalSeats > maxCapacity;
@@ -106,6 +121,50 @@ export default function SeatLayoutConfig({
     // Calculate maximum rows and columns based on capacity
     const maxRows = Math.min(50, Math.ceil(maxCapacity / 2)); // Allow up to 50 rows
     const maxColumns = Math.min(20, Math.ceil(maxCapacity / 5)); // Allow up to 20 columns
+
+    // Update temp values when config changes
+    React.useEffect(() => {
+        setTempRows(config.rows.toString());
+        setTempColumns(config.columns.toString());
+    }, [config.rows, config.columns]);
+
+    const handleRowsSubmit = () => {
+        const newRows = parseInt(tempRows);
+        if (!isNaN(newRows) && newRows >= 1 && newRows <= maxRows) {
+            updateConfig({ rows: newRows });
+        } else {
+            setTempRows(config.rows.toString());
+        }
+        setEditingRows(false);
+    };
+
+    const handleColumnsSubmit = () => {
+        const newColumns = parseInt(tempColumns);
+        if (!isNaN(newColumns) && newColumns >= 2 && newColumns <= maxColumns) {
+            updateConfig({ columns: newColumns });
+        } else {
+            setTempColumns(config.columns.toString());
+        }
+        setEditingColumns(false);
+    };
+
+    const startEditingRows = () => {
+        setEditingRows(true);
+        setTempRows(config.rows.toString());
+        // Auto-focus after a short delay to ensure the input is rendered
+        setTimeout(() => {
+            rowsInputRef.current?.focus();
+        }, 50);
+    };
+
+    const startEditingColumns = () => {
+        setEditingColumns(true);
+        setTempColumns(config.columns.toString());
+        // Auto-focus after a short delay to ensure the input is rendered
+        setTimeout(() => {
+            columnsInputRef.current?.focus();
+        }, 50);
+    };
 
     return (
         <ScrollView style={styles.container}>
@@ -135,7 +194,26 @@ export default function SeatLayoutConfig({
                         >
                             <Minus size={16} color={colors.primary} />
                         </TouchableOpacity>
-                        <Text style={styles.numberValue}>{config.rows}</Text>
+                        {editingRows ? (
+                            <TextInput
+                                ref={rowsInputRef}
+                                style={styles.numberInputField}
+                                value={tempRows}
+                                onChangeText={setTempRows}
+                                onBlur={handleRowsSubmit}
+                                onSubmitEditing={handleRowsSubmit}
+                                keyboardType="numeric"
+                                selectTextOnFocus
+                                maxLength={3}
+                            />
+                        ) : (
+                            <TouchableOpacity
+                                style={styles.numberValueContainer}
+                                onPress={startEditingRows}
+                            >
+                                <Text style={styles.numberValue}>{config.rows}</Text>
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                             style={styles.numberButton}
                             onPress={() => updateConfig({ rows: Math.min(maxRows, config.rows + 1) })}
@@ -152,7 +230,26 @@ export default function SeatLayoutConfig({
                         >
                             <Minus size={16} color={colors.primary} />
                         </TouchableOpacity>
-                        <Text style={styles.numberValue}>{config.columns}</Text>
+                        {editingColumns ? (
+                            <TextInput
+                                ref={columnsInputRef}
+                                style={styles.numberInputField}
+                                value={tempColumns}
+                                onChangeText={setTempColumns}
+                                onBlur={handleColumnsSubmit}
+                                onSubmitEditing={handleColumnsSubmit}
+                                keyboardType="numeric"
+                                selectTextOnFocus
+                                maxLength={3}
+                            />
+                        ) : (
+                            <TouchableOpacity
+                                style={styles.numberValueContainer}
+                                onPress={startEditingColumns}
+                            >
+                                <Text style={styles.numberValue}>{config.columns}</Text>
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                             style={styles.numberButton}
                             onPress={() => updateConfig({ columns: Math.min(maxColumns, config.columns + 1) })}
@@ -199,27 +296,7 @@ export default function SeatLayoutConfig({
                         Add aisles between columns for better passenger flow
                     </Text>
 
-                    {/* Current Aisles */}
-                    <View style={styles.currentAisles}>
-                        <Text style={styles.currentAislesLabel}>Current Aisles:</Text>
-                        {config.aisles.length > 0 ? (
-                            <View style={styles.aisleList}>
-                                {config.aisles.map(aisle => (
-                                    <View key={aisle} style={styles.aisleItem}>
-                                        <Text style={styles.aisleItemText}>Column {aisle}</Text>
-                                        <TouchableOpacity
-                                            style={styles.removeAisleButton}
-                                            onPress={() => removeAisle(aisle)}
-                                        >
-                                            <Minus size={12} color={colors.danger} />
-                                        </TouchableOpacity>
-                                    </View>
-                                ))}
-                            </View>
-                        ) : (
-                            <Text style={styles.noAislesText}>No aisles configured</Text>
-                        )}
-                    </View>
+
 
                     {/* Add Aisle Between Columns */}
                     <View style={styles.addAisleSection}>
@@ -228,7 +305,7 @@ export default function SeatLayoutConfig({
                             <View style={styles.aisleSelector}>
                                 {Array.from({ length: config.columns - 1 }, (_, i) => i + 1).map(col => {
                                     const nextCol = col + 1;
-                                    const isAisle = config.aisles.includes(nextCol);
+                                    const isAisle = config.aisles.includes(col);
                                     return (
                                         <TouchableOpacity
                                             key={col}
@@ -238,7 +315,7 @@ export default function SeatLayoutConfig({
                                             ]}
                                             onPress={() => {
                                                 if (isAisle) {
-                                                    removeAisle(nextCol);
+                                                    removeAisle(col);
                                                 } else {
                                                     addAisleBetweenColumns(col);
                                                 }
@@ -256,14 +333,40 @@ export default function SeatLayoutConfig({
                             </View>
                         </ScrollView>
                     </View>
-
-                    <TouchableOpacity
-                        style={styles.addAisleButton}
-                        onPress={addAisle}
-                    >
-                        <Plus size={16} color={colors.primary} />
-                        <Text style={styles.addAisleButtonText}>Auto Add Aisle</Text>
-                    </TouchableOpacity>
+                    <View style={styles.addAisleSection}>
+                        <Text style={styles.addAisleLabel}>Add Aisle Between Rows:</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <View style={styles.aisleSelector}>
+                                {Array.from({ length: config.rows - 1 }, (_, i) => i + 1).map(row => {
+                                    const nextRow = row + 1;
+                                    const isAisle = config.rowAisles.includes(row);
+                                    return (
+                                        <TouchableOpacity
+                                            key={row}
+                                            style={[
+                                                styles.aisleButton,
+                                                isAisle && styles.aisleButtonActive
+                                            ]}
+                                            onPress={() => {
+                                                if (isAisle) {
+                                                    removeRowAisle(row);
+                                                } else {
+                                                    addAisleBetweenRows(row);
+                                                }
+                                            }}
+                                        >
+                                            <Text style={[
+                                                styles.aisleButtonText,
+                                                isAisle && styles.aisleButtonTextActive
+                                            ]}>
+                                                {row} → {nextRow}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </ScrollView>
+                    </View>
                 </View>
 
                 {/* Premium Rows */}
@@ -298,40 +401,6 @@ export default function SeatLayoutConfig({
                         </View>
                     </ScrollView>
                 </View>
-
-                {/* Row Aisles */}
-                <View style={styles.configGroup}>
-                    <Text style={styles.configLabel}>Row Aisles</Text>
-                    <Text style={styles.configDescription}>
-                        Select rows to add horizontal aisles between them
-                    </Text>
-
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View style={styles.rowSelector}>
-                            {Array.from({ length: config.rows }, (_, i) => i + 1).map(row => {
-                                const hasAisle = config.rowAisles.includes(row);
-                                return (
-                                    <TouchableOpacity
-                                        key={row}
-                                        style={[
-                                            styles.rowButton,
-                                            hasAisle && styles.aisleRowButton
-                                        ]}
-                                        onPress={() => toggleRowAisle(row)}
-                                    >
-                                        <Text style={[
-                                            styles.rowButtonText,
-                                            hasAisle && styles.aisleRowButtonText
-                                        ]}>
-                                            Row {row}
-                                        </Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                    </ScrollView>
-                </View>
-
                 {/* Layout Preview */}
                 <View style={styles.configGroup}>
                     <Text style={styles.configLabel}>Layout Preview</Text>
@@ -339,49 +408,62 @@ export default function SeatLayoutConfig({
                         Visual representation of the seat layout configuration
                     </Text>
 
+                    {/* Preview Legend */}
+                    <View style={styles.previewLegend}>
+                        <View style={styles.legendItem}>
+                            <View style={[styles.legendBox, styles.previewSeat]} />
+                            <Text style={styles.legendText}>Regular Seat</Text>
+                        </View>
+                        <View style={styles.legendItem}>
+                            <View style={[styles.legendBox, styles.previewPremium]} />
+                            <Text style={styles.legendText}>Premium Seat</Text>
+                        </View>
+                        <View style={styles.legendItem}>
+                            <View style={[styles.legendBox, styles.previewAisleGap]} />
+                            <Text style={styles.legendText}>Column/Row Aisle</Text>
+                        </View>
+                    </View>
+
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
                         contentContainerStyle={styles.previewContainer}
                     >
                         <View style={styles.preview}>
-                            {Array.from({ length: Math.min(config.rows, 12) }, (_, rowIndex) => (
-                                <View key={rowIndex} style={styles.previewRow}>
-                                    {Array.from({ length: Math.min(config.columns, 10) }, (_, colIndex) => {
-                                        const colNumber = colIndex + 1;
-                                        const rowNumber = rowIndex + 1;
-                                        const isAisle = config.aisles.includes(colNumber);
-                                        const isPremium = config.premium_rows.includes(rowNumber);
-                                        const isRowAisle = config.rowAisles.includes(rowNumber);
-
-                                        return (
-                                            <React.Fragment key={colIndex}>
-                                                <View
-                                                    style={[
-                                                        styles.previewSeat,
-                                                        isPremium && styles.previewPremium,
-                                                        isRowAisle && styles.previewRowAisle
-                                                    ]}
-                                                />
-                                                {/* Render aisle gap after the seat if it's an aisle column */}
-                                                {isAisle && colIndex < Math.min(config.columns, 10) - 1 && (
-                                                    <View style={styles.previewAisleGap} />
-                                                )}
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                </View>
-                            ))}
-                            {/* Render row aisle gaps */}
                             {Array.from({ length: Math.min(config.rows, 12) }, (_, rowIndex) => {
                                 const rowNumber = rowIndex + 1;
                                 const isRowAisle = config.rowAisles.includes(rowNumber);
 
-                                return isRowAisle && rowIndex < Math.min(config.rows, 12) - 1 ? (
-                                    <View key={`row_aisle_${rowIndex}`} style={styles.previewRowAisleGap}>
-                                        <Text style={styles.previewAisleText}>Aisle</Text>
-                                    </View>
-                                ) : null;
+                                return (
+                                    <React.Fragment key={rowIndex}>
+                                        <View style={styles.previewRow}>
+                                            {Array.from({ length: Math.min(config.columns, 10) }, (_, colIndex) => {
+                                                const colNumber = colIndex + 1;
+                                                const isAisle = config.aisles.includes(colNumber);
+                                                const isPremium = config.premium_rows.includes(rowNumber);
+
+                                                return (
+                                                    <React.Fragment key={colIndex}>
+                                                        <View
+                                                            style={[
+                                                                styles.previewSeat,
+                                                                isPremium && styles.previewPremium
+                                                            ]}
+                                                        />
+                                                        {/* Render column aisle gap after the seat if it's an aisle column */}
+                                                        {isAisle && colIndex < Math.min(config.columns, 10) - 1 && (
+                                                            <View style={styles.previewAisleGap} />
+                                                        )}
+                                                    </React.Fragment>
+                                                );
+                                            })}
+                                        </View>
+                                        {/* Render row aisle gap after the row if it's an aisle row */}
+                                        {isRowAisle && rowIndex < Math.min(config.rows, 12) - 1 && (
+                                            <View style={styles.previewRowAisleGap} />
+                                        )}
+                                    </React.Fragment>
+                                );
                             })}
                             {(config.rows > 12 || config.columns > 10) && (
                                 <View style={styles.previewInfo}>
@@ -408,7 +490,7 @@ const styles = StyleSheet.create({
     section: {
         backgroundColor: colors.card,
         borderRadius: 12,
-        padding: 16,
+        padding: 12,
         marginBottom: 16,
     },
     sectionHeader: {
@@ -463,8 +545,8 @@ const styles = StyleSheet.create({
         width: 80,
     },
     numberButton: {
-        width: 32,
-        height: 32,
+        width: 40,
+        height: 40,
         borderRadius: 16,
         backgroundColor: colors.backgroundSecondary,
         alignItems: 'center',
@@ -477,6 +559,29 @@ const styles = StyleSheet.create({
         color: colors.text,
         minWidth: 30,
         textAlign: 'center',
+    },
+    numberValueContainer: {
+        minWidth: 30,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.backgroundSecondary,
+        borderRadius: 8,
+        marginHorizontal: 8,
+    },
+    numberInputField: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.text,
+        minWidth: 30,
+        height: 40,
+        textAlign: 'center',
+        backgroundColor: colors.white,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: colors.primary,
+        marginHorizontal: 8,
+        paddingHorizontal: 8,
     },
     summary: {
         marginTop: 8,
@@ -664,6 +769,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         marginBottom: 4,
+        alignItems: 'center',
     },
     previewSeat: {
         width: 12,
@@ -705,16 +811,49 @@ const styles = StyleSheet.create({
         borderRadius: 2,
     },
     previewRowAisleGap: {
-        height: 12,
-        backgroundColor: colors.warningLight,
+        height: 8,
+        backgroundColor: 'transparent',
         marginVertical: 2,
-        borderRadius: 4,
-        alignItems: 'center',
-        justifyContent: 'center',
+        borderRadius: 2,
+        alignSelf: 'stretch',
+        width: '100%',
     },
     previewAisleText: {
         fontSize: 8,
         color: colors.warning,
         fontWeight: '600',
+    },
+    previewLegend: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        marginBottom: 16,
+        padding: 12,
+        backgroundColor: colors.backgroundSecondary,
+        borderRadius: 8,
+    },
+    legendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    legendBox: {
+        width: 12,
+        height: 12,
+        borderRadius: 2,
+    },
+    legendBoxRowAisle: {
+        width: 20,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: colors.warningLight,
+        borderStyle: 'dashed',
+    },
+    legendText: {
+        fontSize: 12,
+        color: colors.text,
+        fontWeight: '500',
     },
 }); 

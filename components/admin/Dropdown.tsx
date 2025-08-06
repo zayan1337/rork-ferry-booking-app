@@ -39,7 +39,7 @@ export default function Dropdown({
 }: DropdownProps) {
     const [isModalVisible, setIsModalVisible] = useState(false);
 
-    const selectedOption = options.find(option => option.value === value);
+    const selectedOption = options?.find(option => option.value === value);
     const displayText = selectedOption ? selectedOption.label : placeholder;
 
     const handleSelect = (optionValue: string) => {
@@ -102,7 +102,7 @@ export default function Dropdown({
                         </View>
 
                         <ScrollView style={styles.optionsList}>
-                            {options.map((option) => (
+                            {options?.map((option) => (
                                 <TouchableOpacity
                                     key={option.value}
                                     style={[

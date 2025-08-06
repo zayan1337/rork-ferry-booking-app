@@ -308,6 +308,13 @@ export default function VesselForm({
         }
 
         try {
+            console.log('Submitting vessel form with auto-generation:', {
+                autoGenerateLayout,
+                seatingCapacity: formData.seating_capacity,
+                vesselType: formData.vessel_type,
+                hasCustomLayout: !!customLayoutData
+            });
+
             // Prepare form data for submission
             const submitData: VesselFormData = {
                 name: formData.name.trim(),
@@ -335,14 +342,19 @@ export default function VesselForm({
                 (submitData as any).customSeatLayout = customLayoutData;
             }
 
+            // Add auto-generation flag to submitData
+            (submitData as any).autoGenerateLayout = autoGenerateLayout;
+
+            console.log('Submitting data to store:', {
+                ...submitData,
+                autoGenerateLayout: (submitData as any).autoGenerateLayout,
+                customSeatLayout: (submitData as any).customSeatLayout ? 'present' : 'none'
+            });
+
             // Save the vessel (and handle custom layout if it's a new vessel)
             await onSave(submitData);
 
-            // Handle seat layout generation if auto-generate is enabled
-            if (autoGenerateLayout && formData.seating_capacity > 0) {
-                console.log('Auto-generating seat layout for capacity:', formData.seating_capacity);
-                // Auto-generate will be handled by the store during vessel creation/update
-            }
+            console.log('Vessel saved successfully');
 
             // Reset custom layout state after successful save
             setCustomLayoutModified(false);
@@ -898,7 +910,7 @@ export default function VesselForm({
                                                     layout_name: layout.layout_name,
                                                     layout_data: layout.layout_data
                                                 });
-                                                
+
                                                 // Delete existing seats and insert new ones
                                                 const { deleteSeatsByLayout, createCustomSeatLayout } = useVesselStore.getState();
                                                 await deleteSeatsByLayout(existingSeatLayout.id);
@@ -1038,7 +1050,7 @@ const styles = StyleSheet.create({
     section: {
         backgroundColor: colors.card,
         borderRadius: 16,
-        padding: 20,
+        padding: 12,
         marginBottom: 20,
         shadowColor: colors.shadowMedium,
         shadowOffset: { width: 0, height: 2 },
@@ -1128,7 +1140,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     seatLayoutContainer: {
-        marginTop: 16,
+        marginTop: 12,
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: 12,
