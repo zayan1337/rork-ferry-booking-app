@@ -16,6 +16,7 @@ where
   is_active = true
   and status::text = 'active'::text;
 
+
 create table public.activity_logs (
   id uuid not null default gen_random_uuid (),
   user_id uuid null,
@@ -50,6 +51,7 @@ create index IF not exists idx_activity_logs_action_date on public.activity_logs
 create index IF not exists idx_activity_logs_session on public.activity_logs using btree (session_id) TABLESPACE pg_default
 where
   (session_id is not null);
+
 
 create view public.activity_logs_with_users as
 select
@@ -123,7 +125,6 @@ from
   left join islands i2 on r.to_island_id = i2.id
   left join user_profiles agent on b.agent_id = agent.id
   left join payments p on b.id = p.booking_id;
-
 
 create table public.admin_cache_stats (
   cache_key character varying(100) not null,
@@ -383,6 +384,7 @@ create index IF not exists idx_admin_settings_category on public.admin_settings 
 
 create index IF not exists idx_admin_settings_key on public.admin_settings using btree (setting_key) TABLESPACE pg_default;
 
+
 create view public.admin_user_analytics as
 select
   up.role,
@@ -494,7 +496,6 @@ group by
 order by
   up.full_name;
 
-
 create view public.admin_users_view as
 select
   up.id,
@@ -572,7 +573,6 @@ from
       bookings.agent_id
   ) agent_stats on up.id = agent_stats.agent_id;
 
-
 create table public.agent_clients (
   id uuid not null default gen_random_uuid (),
   agent_id uuid not null,
@@ -612,7 +612,6 @@ create unique INDEX IF not exists idx_agent_client_without_account on public.age
 where
   (client_id is null);
 
-
 create view public.agent_clients_with_details as
 select
   ac.id,
@@ -633,8 +632,6 @@ select
 from
   agent_clients ac
   left join user_profiles up on ac.client_id = up.id;
-
-
 
 create table public.agent_credit_transactions (
   id uuid not null default gen_random_uuid (),
@@ -668,7 +665,6 @@ create table public.agent_rates (
   constraint agent_rates_pkey primary key (id),
   constraint agent_rates_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
-
 
 create view public.agent_statistics as
 with
@@ -1030,7 +1026,6 @@ select
 from
   translations;
 
-
 create table public.faq_categories (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
@@ -1064,7 +1059,6 @@ execute FUNCTION reorder_faq_categories_on_insert ();
 create trigger trigger_reorder_faq_categories_update BEFORE
 update OF order_index on faq_categories for EACH row when (old.order_index is distinct from new.order_index)
 execute FUNCTION reorder_faq_categories_on_insert ();
-
 
 create view public.faq_categories_with_stats as
 select
@@ -1137,7 +1131,6 @@ category_id on faqs for EACH row when (
 )
 execute FUNCTION reorder_faqs_on_insert ();
 
-
 create view public.faqs_with_category as
 select
   f.id,
@@ -1157,7 +1150,6 @@ order by
   fc.order_index,
   f.order_index,
   f.created_at;
-
 
 create table public.islands (
   id uuid not null default gen_random_uuid (),
@@ -1186,7 +1178,6 @@ or
 update on islands for EACH row
 execute FUNCTION notify_zone_stats_change ();
 
-
 create view public.islands_with_zones as
 select
   i.id,
@@ -1202,7 +1193,6 @@ select
 from
   islands i
   left join zones z on i.zone_id = z.id;
-
 
 create table public.manifest_passengers (
   id uuid not null default gen_random_uuid (),
@@ -1232,7 +1222,6 @@ create table public.manifest_shares (
   constraint manifest_shares_manifest_id_fkey foreign KEY (manifest_id) references passenger_manifests (id)
 ) TABLESPACE pg_default;
 
-
 create table public.mass_messages (
   id uuid not null default gen_random_uuid (),
   trip_id uuid null,
@@ -1249,7 +1238,6 @@ create table public.mass_messages (
   constraint mass_messages_trip_id_fkey foreign KEY (trip_id) references trips (id)
 ) TABLESPACE pg_default;
 
-
 create table public.modifications (
   id uuid not null default gen_random_uuid (),
   old_booking_id uuid not null,
@@ -1264,7 +1252,6 @@ create table public.modifications (
   constraint modifications_new_booking_id_fkey foreign KEY (new_booking_id) references bookings (id),
   constraint modifications_old_booking_id_fkey foreign KEY (old_booking_id) references bookings (id)
 ) TABLESPACE pg_default;
-
 
 create view public.operations_routes_view as
 select
@@ -1473,115 +1460,119 @@ from
       bookings.trip_id
   ) booking_stats on t.id = booking_stats.trip_id;
 
-
 create view public.operations_vessels_view as
 select
   v.id,
   v.name,
   v.seating_capacity,
   v.status,
-  v.is_active,
   v.vessel_type,
-  v.registration_number,
-  v.captain_name,
-  v.contact_number,
-  v.max_speed,
-  v.fuel_capacity,
+  v.is_active,
   v.created_at,
   v.updated_at,
-  vsl.id as active_layout_id,
-  vsl.layout_name as active_layout_name,
-  vsl.layout_data as active_layout_data,
-  count(s.id) as total_seats,
-  count(s.id) filter (
-    where
-      s.seat_type::text = 'standard'::text
-  ) as standard_seats,
-  count(s.id) filter (
-    where
-      s.seat_type::text = 'premium'::text
-  ) as premium_seats,
-  count(s.id) filter (
-    where
-      s.seat_type::text = 'crew'::text
-  ) as crew_seats,
-  count(s.id) filter (
-    where
-      s.seat_type::text = 'disabled'::text
-  ) as disabled_seats,
-  count(s.id) filter (
-    where
-      s.is_window = true
-  ) as window_seats,
-  count(s.id) filter (
-    where
-      s.is_aisle = true
-  ) as aisle_seats,
-  count(s.id) filter (
-    where
-      s.is_row_aisle = true
-  ) as row_aisle_seats,
-  count(distinct t.id) as total_trips,
-  count(distinct t.id) filter (
-    where
-      t.status::text = 'completed'::text
-  ) as completed_trips,
-  count(distinct t.id) filter (
-    where
-      t.status::text = 'cancelled'::text
-  ) as cancelled_trips,
-  count(distinct t.id) filter (
-    where
-      t.status::text = 'scheduled'::text
-  ) as scheduled_trips,
-  count(distinct b.id) as total_bookings,
-  count(distinct b.id) filter (
-    where
-      b.status = 'confirmed'::booking_status
-  ) as confirmed_bookings,
-  count(distinct b.id) filter (
-    where
-      b.status = 'cancelled'::booking_status
-  ) as cancelled_bookings,
-  COALESCE(
-    sum(p.amount) filter (
-      where
-        p.status = 'completed'::payment_status
-    ),
-    0::numeric
-  ) as total_revenue,
-  COALESCE(
-    avg(p.amount) filter (
-      where
-        p.status = 'completed'::payment_status
-    ),
-    0::numeric
-  ) as avg_booking_value
+  COALESCE(trip_stats.total_trips_30d, 0::bigint) as total_trips_30d,
+  COALESCE(trip_stats.total_bookings_30d, 0::bigint) as total_bookings_30d,
+  COALESCE(trip_stats.total_passengers_30d, 0::bigint) as total_passengers_30d,
+  COALESCE(trip_stats.total_revenue_30d, 0::numeric) as total_revenue_30d,
+  case
+    when v.seating_capacity > 0 then round(
+      COALESCE(trip_stats.total_passengers_30d, 0::bigint)::numeric / (
+        v.seating_capacity * COALESCE(trip_stats.total_trips_30d, 1::bigint)
+      )::numeric * 100::numeric,
+      2
+    )
+    else 0::numeric
+  end as capacity_utilization_30d,
+  case
+    when COALESCE(trip_stats.total_trips_30d, 0::bigint) > 0 then round(
+      COALESCE(trip_stats.total_passengers_30d, 0::bigint)::numeric / trip_stats.total_trips_30d::numeric,
+      2
+    )
+    else 0::numeric
+  end as avg_passengers_per_trip,
+  COALESCE(trip_stats.days_in_service_30d, 0::bigint) as days_in_service_30d,
+  COALESCE(today_stats.trips_today, 0::bigint) as trips_today,
+  COALESCE(today_stats.bookings_today, 0::bigint) as bookings_today,
+  COALESCE(today_stats.revenue_today, 0::numeric) as revenue_today,
+  COALESCE(week_stats.trips_7d, 0::bigint) as trips_7d,
+  COALESCE(week_stats.bookings_7d, 0::bigint) as bookings_7d,
+  COALESCE(week_stats.revenue_7d, 0::numeric) as revenue_7d
 from
   vessels v
-  left join vessel_seat_layouts vsl on v.id = vsl.vessel_id
-  and vsl.is_active = true
-  left join seats s on vsl.id = s.layout_id
-  left join trips t on v.id = t.vessel_id
-  left join bookings b on t.id = b.trip_id
-  left join payments p on b.id = p.booking_id
-group by
-  v.id,
-  v.name,
-  v.seating_capacity,
-  v.status,
-  v.is_active,
-  v.vessel_type,
-  v.registration_number,
-  v.captain_name,
-  v.contact_number,
-  v.max_speed,
-  v.fuel_capacity,
-  v.created_at,
-  v.updated_at,
-  vsl.id,
-  vsl.layout_name,
-  vsl.layout_data;
+  left join (
+    select
+      t.vessel_id,
+      count(*) as total_trips_30d,
+      sum(t.booked_seats) as total_bookings_30d,
+      sum(t.booked_seats) as total_passengers_30d,
+      sum(
+        t.booked_seats::numeric * r.base_fare * t.fare_multiplier
+      ) as total_revenue_30d,
+      count(distinct t.travel_date) as days_in_service_30d
+    from
+      trips t
+      join routes r on t.route_id = r.id
+    where
+      t.travel_date >= (CURRENT_DATE - '30 days'::interval)
+      and (
+        t.status::text = any (
+          array[
+            'departed'::character varying,
+            'arrived'::character varying
+          ]::text[]
+        )
+      )
+    group by
+      t.vessel_id
+  ) trip_stats on v.id = trip_stats.vessel_id
+  left join (
+    select
+      t.vessel_id,
+      count(*) as trips_today,
+      sum(t.booked_seats) as bookings_today,
+      sum(
+        t.booked_seats::numeric * r.base_fare * t.fare_multiplier
+      ) as revenue_today
+    from
+      trips t
+      join routes r on t.route_id = r.id
+    where
+      t.travel_date = CURRENT_DATE
+      and (
+        t.status::text = any (
+          array[
+            'departed'::character varying,
+            'arrived'::character varying
+          ]::text[]
+        )
+      )
+    group by
+      t.vessel_id
+  ) today_stats on v.id = today_stats.vessel_id
+  left join (
+    select
+      t.vessel_id,
+      count(*) as trips_7d,
+      sum(t.booked_seats) as bookings_7d,
+      sum(
+        t.booked_seats::numeric * r.base_fare * t.fare_multiplier
+      ) as revenue_7d
+    from
+      trips t
+      join routes r on t.route_id = r.id
+    where
+      t.travel_date >= (CURRENT_DATE - '7 days'::interval)
+      and (
+        t.status::text = any (
+          array[
+            'departed'::character varying,
+            'arrived'::character varying
+          ]::text[]
+        )
+      )
+    group by
+      t.vessel_id
+  ) week_stats on v.id = week_stats.vessel_id;
 
 create table public.passenger_manifests (
   id uuid not null default gen_random_uuid (),
@@ -1600,17 +1591,20 @@ create table public.passenger_manifests (
 create table public.passengers (
   id uuid not null default gen_random_uuid (),
   booking_id uuid not null,
-  seat_id uuid not null,
+  seat_id uuid null,
   passenger_name character varying(100) not null,
   passenger_contact_number character varying(20) not null,
   special_assistance_request text null,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
   constraint passengers_pkey primary key (id),
   constraint unique_booking_seat unique (booking_id, seat_id),
-  constraint passengers_booking_id_fkey foreign KEY (booking_id) references bookings (id)
+  constraint passengers_booking_id_fkey foreign KEY (booking_id) references bookings (id),
+  constraint passengers_seat_id_fkey foreign KEY (seat_id) references seats (id) on update CASCADE on delete set null
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_passengers_booking_id on public.passengers using btree (booking_id) TABLESPACE pg_default;
+
+create index IF not exists idx_passengers_seat_id on public.passengers using btree (seat_id) TABLESPACE pg_default;
 
 create trigger trg_update_trip_available_seats_passengers
 after INSERT
@@ -1664,7 +1658,6 @@ create index IF not exists idx_permission_audit_entity on public.permission_audi
 
 create index IF not exists idx_permission_audit_performed_by on public.permission_audit_logs using btree (performed_by, created_at) TABLESPACE pg_default;
 
-
 create table public.permission_categories (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
@@ -1684,7 +1677,6 @@ create index IF not exists idx_permission_categories_order on public.permission_
 create trigger update_permission_categories_updated_at BEFORE
 update on permission_categories for EACH row
 execute FUNCTION update_updated_at_column ();
-
 
 create view public.permission_categories_with_stats as
 select
@@ -1715,6 +1707,74 @@ order by
   pc.order_index,
   pc.name;
 
+create table public.permissions (
+  id uuid not null default gen_random_uuid (),
+  name character varying(200) not null,
+  description text not null,
+  resource character varying(50) not null,
+  action character varying(50) not null,
+  level character varying(20) not null,
+  category_id uuid not null,
+  dependencies uuid[] null default '{}'::uuid[],
+  is_critical boolean not null default false,
+  is_active boolean not null default true,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint permissions_pkey primary key (id),
+  constraint permissions_name_key unique (name),
+  constraint unique_permission_resource_action unique (resource, action, level),
+  constraint permissions_category_id_fkey foreign KEY (category_id) references permission_categories (id) on delete CASCADE,
+  constraint permissions_level_check check (
+    (
+      (level)::text = any (
+        (
+          array[
+            'read'::character varying,
+            'write'::character varying,
+            'delete'::character varying,
+            'admin'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_permissions_category on public.permissions using btree (category_id, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_permissions_resource_action on public.permissions using btree (resource, action) TABLESPACE pg_default;
+
+create index IF not exists idx_permissions_level on public.permissions using btree (level) TABLESPACE pg_default;
+
+create index IF not exists idx_permissions_active on public.permissions using btree (is_active) TABLESPACE pg_default;
+
+create trigger update_permissions_updated_at BEFORE
+update on permissions for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create view public.permissions_with_category as
+select
+  p.id,
+  p.name,
+  p.description,
+  p.resource,
+  p.action,
+  p.level,
+  p.dependencies,
+  p.is_critical,
+  p.is_active,
+  p.created_at,
+  p.updated_at,
+  pc.id as category_id,
+  pc.name as category_name
+from
+  permissions p
+  join permission_categories pc on p.category_id = pc.id
+where
+  p.is_active = true
+order by
+  pc.order_index,
+  p.name;
 
 create table public.promotion_routes (
   id uuid not null default gen_random_uuid (),
@@ -1726,7 +1786,6 @@ create table public.promotion_routes (
   constraint promotion_routes_promotion_id_fkey foreign KEY (promotion_id) references promotions (id),
   constraint promotion_routes_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
-
 
 create table public.promotions (
   id uuid not null default gen_random_uuid (),
@@ -1771,7 +1830,6 @@ or
 update on promotions for EACH row
 execute FUNCTION validate_promotion_dates ();
 
-
 create view public.promotions_with_status as
 select
   id,
@@ -1813,7 +1871,6 @@ from
 order by
   start_date desc,
   created_at desc;
-
 
 create view public.recent_activity_view as
 select
@@ -1878,7 +1935,6 @@ order by
 limit
   50;
 
-
 create table public.reports (
   id uuid not null default gen_random_uuid (),
   report_type public.report_type not null,
@@ -1896,7 +1952,6 @@ create table public.reports (
   constraint reports_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
 
-
 create table public.role_template_permissions (
   id uuid not null default gen_random_uuid (),
   role_template_id uuid not null,
@@ -1911,7 +1966,6 @@ create table public.role_template_permissions (
 create index IF not exists idx_role_template_permissions_template on public.role_template_permissions using btree (role_template_id) TABLESPACE pg_default;
 
 create index IF not exists idx_role_template_permissions_permission on public.role_template_permissions using btree (permission_id) TABLESPACE pg_default;
-
 
 create table public.role_templates (
   id uuid not null default gen_random_uuid (),
@@ -1932,7 +1986,6 @@ create index IF not exists idx_role_templates_system on public.role_templates us
 create trigger update_role_templates_updated_at BEFORE
 update on role_templates for EACH row
 execute FUNCTION update_updated_at_column ();
-
 
 create view public.role_templates_with_stats as
 select
@@ -1965,7 +2018,6 @@ order by
   rt.is_system_role desc,
   rt.name;
 
-
 create view public.round_trip_bookings as
 select
   departure.id as departure_booking_id,
@@ -1987,7 +2039,6 @@ from
   left join bookings return_booking on departure.return_booking_id = return_booking.id
 where
   departure.is_round_trip = true;
-
 
 create view public.round_trip_bookings_grouped as
 select
@@ -2032,7 +2083,6 @@ group by
   round_trip_group_id,
   user_id;
 
-
 create table public.route_activity_logs (
   id uuid not null default gen_random_uuid (),
   route_id uuid not null,
@@ -2049,7 +2099,6 @@ create table public.route_activity_logs (
 create index IF not exists idx_route_activity_logs_route_id on public.route_activity_logs using btree (route_id) TABLESPACE pg_default;
 
 create index IF not exists idx_route_activity_logs_created_at on public.route_activity_logs using btree (created_at) TABLESPACE pg_default;
-
 
 create view public.route_detailed_stats_view as
 select
@@ -2174,7 +2223,6 @@ from
       t.route_id
   ) financial on r.id = financial.route_id;
 
-
 create view public.route_performance_view as
 select
   r.id,
@@ -2248,7 +2296,6 @@ from
       t.route_id
   ) route_stats on r.id = route_stats.route_id;
 
-
 create table public.route_price_history (
   id uuid not null default gen_random_uuid (),
   route_id uuid not null,
@@ -2261,7 +2308,6 @@ create table public.route_price_history (
   constraint route_price_history_changed_by_fkey foreign KEY (changed_by) references auth.users (id),
   constraint route_price_history_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
-
 
 create table public.routes (
   id uuid not null default gen_random_uuid (),
@@ -2335,7 +2381,6 @@ create trigger trigger_set_route_name BEFORE INSERT
 or
 update on routes for EACH row
 execute FUNCTION set_route_name ();
-
 
 create view public.routes_simple_view as
 select
@@ -2451,6 +2496,7 @@ create table public.seat_reservations (
   constraint seat_reservations_pkey primary key (id),
   constraint unique_trip_seat unique (trip_id, seat_id),
   constraint seat_reservations_booking_id_fkey foreign KEY (booking_id) references bookings (id),
+  constraint seat_reservations_seat_id_fkey foreign KEY (seat_id) references seats (id) on update CASCADE on delete CASCADE,
   constraint seat_reservations_trip_id_fkey foreign KEY (trip_id) references trips (id)
 ) TABLESPACE pg_default;
 
@@ -2459,6 +2505,8 @@ create index IF not exists idx_seat_reservations_trip_id on public.seat_reservat
 create index IF not exists idx_seat_reservations_trip_seat on public.seat_reservations using btree (trip_id, seat_id) TABLESPACE pg_default;
 
 create index IF not exists idx_seat_reservations_trip_booking on public.seat_reservations using btree (trip_id, booking_id) TABLESPACE pg_default;
+
+create index IF not exists idx_seat_reservations_seat_id on public.seat_reservations using btree (seat_id) TABLESPACE pg_default;
 
 create trigger trg_update_trip_available_seats
 after INSERT
@@ -2470,7 +2518,6 @@ execute FUNCTION update_trip_available_seats ();
 create table public.seats (
   id uuid not null default gen_random_uuid (),
   vessel_id uuid not null,
-  layout_id uuid null,
   seat_number character varying(50) not null,
   row_number integer not null,
   position_x integer not null,
@@ -2486,29 +2533,8 @@ create table public.seats (
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
   constraint seats_pkey primary key (id),
-  constraint unique_seat_position_per_layout unique (layout_id, position_x, position_y),
-  constraint seats_layout_id_fkey foreign KEY (layout_id) references vessel_seat_layouts (id) on delete CASCADE,
+  constraint unique_seat_position_per_vessel unique (vessel_id, position_x, position_y),
   constraint seats_vessel_id_fkey foreign KEY (vessel_id) references vessels (id) on delete CASCADE,
-  constraint seats_seat_class_check check (
-    (
-      (seat_class)::text = any (
-        (
-          array[
-            'economy'::character varying,
-            'business'::character varying,
-            'first'::character varying
-          ]
-        )::text[]
-      )
-    )
-  ),
-  constraint check_seat_position_positive check (
-    (
-      (position_x > 0)
-      and (position_y > 0)
-      and (row_number > 0)
-    )
-  ),
   constraint check_price_multiplier_positive check ((price_multiplier > (0)::numeric)),
   constraint seats_seat_type_check check (
     (
@@ -2523,12 +2549,31 @@ create table public.seats (
         )::text[]
       )
     )
+  ),
+  constraint seats_seat_class_check check (
+    (
+      (seat_class)::text = any (
+        (
+          array[
+            'economy'::character varying,
+            'business'::character varying,
+            'first'::character varying
+          ]
+        )::text[]
+      )
+    )
+  ),
+  constraint check_seat_number_format check (((seat_number)::text ~ '^[A-Za-z0-9]+$'::text)),
+  constraint check_seat_position_positive check (
+    (
+      (position_x > 0)
+      and (position_y > 0)
+      and (row_number > 0)
+    )
   )
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_seats_vessel_id on public.seats using btree (vessel_id) TABLESPACE pg_default;
-
-create index IF not exists idx_seats_layout_id on public.seats using btree (layout_id) TABLESPACE pg_default;
 
 create index IF not exists idx_seats_position on public.seats using btree (position_x, position_y) TABLESPACE pg_default;
 
@@ -2542,14 +2587,21 @@ create index IF not exists idx_seats_disabled on public.seats using btree (is_di
 
 create index IF not exists idx_seats_premium on public.seats using btree (is_premium) TABLESPACE pg_default;
 
-create index IF not exists idx_seats_vessel_layout on public.seats using btree (vessel_id, layout_id) TABLESPACE pg_default;
-
 create index IF not exists idx_seats_type_class on public.seats using btree (seat_type, seat_class) TABLESPACE pg_default;
+
+create index IF not exists idx_seats_vessel_position on public.seats using btree (vessel_id, position_x, position_y) TABLESPACE pg_default;
+
+create index IF not exists idx_seats_vessel_type on public.seats using btree (vessel_id, seat_type) TABLESPACE pg_default;
+
+create index IF not exists idx_seats_vessel_class on public.seats using btree (vessel_id, seat_class) TABLESPACE pg_default;
+
+create index IF not exists idx_seats_vessel_premium on public.seats using btree (vessel_id, is_premium) TABLESPACE pg_default;
+
+create index IF not exists idx_seats_vessel_disabled on public.seats using btree (vessel_id, is_disabled) TABLESPACE pg_default;
 
 create trigger seats_updated_at_trigger BEFORE
 update on seats for EACH row
 execute FUNCTION update_updated_at_column ();
-
 
 create table public.system_health_metrics (
   id uuid not null default gen_random_uuid (),
@@ -2609,7 +2661,6 @@ or
 update on terms_and_conditions for EACH row
 execute FUNCTION validate_terms_version ();
 
-
 create view public.terms_with_stats as
 select
   id,
@@ -2635,7 +2686,6 @@ from
 order by
   effective_date desc,
   created_at desc;
-
 
 create view public.ticket_validation_view as
 select
@@ -2668,7 +2718,6 @@ from
   join islands fi on r.from_island_id = fi.id
   join islands ti on r.to_island_id = ti.id
   join vessels v on t.vessel_id = v.id;
-
 
 create table public.tickets (
   id uuid not null default gen_random_uuid (),
@@ -2730,48 +2779,6 @@ where
   and t.is_active = true
 order by
   t.departure_time;
-
-create table public.translations (
-  id uuid not null default gen_random_uuid (),
-  key character varying(255) not null,
-  language_code character varying(5) not null,
-  translation text not null,
-  context character varying(100) null,
-  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
-  is_active boolean not null default true,
-  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
-  constraint translations_pkey primary key (id),
-  constraint unique_translation unique (key, language_code)
-) TABLESPACE pg_default;
-
-create index IF not exists idx_translations_key_lang on public.translations using btree (key, language_code) TABLESPACE pg_default;
-
-create index IF not exists idx_translations_active on public.translations using btree (is_active) TABLESPACE pg_default;
-
-create index IF not exists idx_translations_context on public.translations using btree (context) TABLESPACE pg_default;
-
-create index IF not exists idx_translations_created_at on public.translations using btree (created_at) TABLESPACE pg_default;
-
-create index IF not exists idx_translations_updated_at on public.translations using btree (updated_at) TABLESPACE pg_default;
-
-create trigger content_activity_trigger_translations
-after INSERT
-or DELETE
-or
-update on translations for EACH row
-execute FUNCTION log_content_activity ();
-
-create trigger content_change_notify_translations
-after INSERT
-or DELETE
-or
-update on translations for EACH row
-execute FUNCTION notify_content_change ();
-
-create trigger translations_updated_at_trigger BEFORE
-update on translations for EACH row
-execute FUNCTION update_updated_at_column ();
-
 
 create view public.trip_availability as
 select
@@ -2850,7 +2857,6 @@ or
 update on trips for EACH row
 execute FUNCTION enhanced_audit_trigger ();
 
-
 create view public.trips_with_available_seats as
 select
   t.id,
@@ -2868,7 +2874,6 @@ from
   join vessels v on t.vessel_id = v.id
 where
   t.is_active = true;
-
 
 create table public.user_permissions (
   id uuid not null default gen_random_uuid (),
@@ -2902,7 +2907,6 @@ or DELETE
 or
 update on user_permissions for EACH row
 execute FUNCTION log_permission_changes ();
-
 
 create view public.user_permissions_summary as
 select
@@ -2948,8 +2952,7 @@ group by
 order by
   up.full_name;
 
-
-create table public.user_profiles (
+	create table public.user_profiles (
   id uuid not null,
   full_name character varying(100) not null,
   mobile_number character varying(20) not null,
@@ -3035,85 +3038,88 @@ create trigger trg_update_user_profile_timestamp BEFORE
 update on user_profiles for EACH row
 execute FUNCTION update_user_profile_timestamp ();
 
-
-create table public.vessel_seat_layouts (
-  id uuid not null default gen_random_uuid (),
-  vessel_id uuid not null,
-  layout_name character varying(255) not null,
-  layout_data jsonb not null,
-  is_active boolean null default true,
-  created_at timestamp with time zone null default now(),
-  updated_at timestamp with time zone null default now(),
-  constraint vessel_seat_layouts_pkey primary key (id),
-  constraint vessel_seat_layouts_vessel_id_fkey foreign KEY (vessel_id) references vessels (id) on delete CASCADE
-) TABLESPACE pg_default;
-
-create index IF not exists idx_vessel_seat_layouts_vessel_id on public.vessel_seat_layouts using btree (vessel_id) TABLESPACE pg_default;
-
-create index IF not exists idx_vessel_seat_layouts_active on public.vessel_seat_layouts using btree (is_active) TABLESPACE pg_default;
-
-create index IF not exists idx_vessel_seat_layouts_created_at on public.vessel_seat_layouts using btree (created_at) TABLESPACE pg_default;
-
-create unique INDEX IF not exists idx_vessel_seat_layouts_active_unique on public.vessel_seat_layouts using btree (vessel_id) TABLESPACE pg_default
-where
-  (is_active = true);
-
-create trigger vessel_seat_layouts_updated_at_trigger BEFORE
-update on vessel_seat_layouts for EACH row
-execute FUNCTION update_updated_at_column ();
-
-create view public.vessel_seat_layouts_view as
+create view public.vessel_details_view as
 select
-  vsl.id,
-  vsl.vessel_id,
-  v.name as vessel_name,
-  vsl.layout_name,
-  vsl.layout_data,
-  vsl.is_active,
-  vsl.created_at,
-  vsl.updated_at,
-  count(s.id) as seat_count,
-  count(s.id) filter (
-    where
-      s.seat_type::text = 'standard'::text
-  ) as standard_seats,
-  count(s.id) filter (
-    where
-      s.seat_type::text = 'premium'::text
-  ) as premium_seats,
-  count(s.id) filter (
-    where
-      s.seat_type::text = 'crew'::text
-  ) as crew_seats,
-  count(s.id) filter (
-    where
-      s.seat_type::text = 'disabled'::text
-  ) as disabled_seats,
-  count(s.id) filter (
-    where
-      s.is_window = true
-  ) as window_seats,
-  count(s.id) filter (
-    where
-      s.is_aisle = true
-  ) as aisle_seats,
-  count(s.id) filter (
-    where
-      s.is_row_aisle = true
-  ) as row_aisle_seats
-from
-  vessel_seat_layouts vsl
-  left join vessels v on vsl.vessel_id = v.id
-  left join seats s on vsl.id = s.layout_id
-group by
-  vsl.id,
-  vsl.vessel_id,
+  v.id,
   v.name,
-  vsl.layout_name,
-  vsl.layout_data,
-  vsl.is_active,
-  vsl.created_at,
-  vsl.updated_at;
+  v.seating_capacity,
+  v.is_active,
+  v.created_at,
+  v.status,
+  v.vessel_type,
+  v.registration_number,
+  v.captain_name,
+  v.contact_number,
+  v.maintenance_schedule,
+  v.last_maintenance_date,
+  v.next_maintenance_date,
+  v.insurance_expiry_date,
+  v.license_expiry_date,
+  v.max_speed,
+  v.fuel_capacity,
+  v.description,
+  v.notes,
+  v.updated_at,
+  vs.total_seats,
+  vs.active_seats,
+  vs.disabled_seats,
+  vs.premium_seats,
+  vs.crew_seats,
+  vs.window_seats,
+  vs.aisle_seats,
+  vs.utilization_rate,
+  vs.revenue_potential,
+  get_vessel_seat_layout (v.id) as seat_layout_data
+from
+  vessels v
+  left join vessel_seats_view vs on v.id = vs.vessel_id;
+
+create view public.vessel_seats_view as
+select
+  vessel_id,
+  count(*) as total_seats,
+  count(*) filter (
+    where
+      is_disabled = false
+  ) as active_seats,
+  count(*) filter (
+    where
+      is_disabled = true
+  ) as disabled_seats,
+  count(*) filter (
+    where
+      is_premium = true
+  ) as premium_seats,
+  count(*) filter (
+    where
+      seat_type::text = 'crew'::text
+  ) as crew_seats,
+  count(*) filter (
+    where
+      is_window = true
+  ) as window_seats,
+  count(*) filter (
+    where
+      is_aisle = true
+  ) as aisle_seats,
+  round(
+    count(*) filter (
+      where
+        is_disabled = false
+    )::numeric / count(*)::numeric * 100::numeric,
+    2
+  ) as utilization_rate,
+  round(
+    avg(price_multiplier) * count(*) filter (
+      where
+        is_disabled = false
+    )::numeric,
+    2
+  ) as revenue_potential
+from
+  seats
+group by
+  vessel_id;
 
 create table public.vessel_tracking (
   id uuid not null default gen_random_uuid (),
@@ -3297,7 +3303,6 @@ create trigger vessels_updated_at_trigger BEFORE
 update on vessels for EACH row
 execute FUNCTION update_vessel_updated_at ();
 
-
 create table public.view_performance_metrics (
   id uuid not null default gen_random_uuid (),
   view_name character varying(100) not null,
@@ -3309,7 +3314,6 @@ create table public.view_performance_metrics (
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_view_performance_view_time on public.view_performance_metrics using btree (view_name, query_timestamp) TABLESPACE pg_default;
-
 
 create table public.wallet_transactions (
   id uuid not null default gen_random_uuid (),
@@ -3333,7 +3337,6 @@ create table public.wallets (
   constraint wallets_user_id_key unique (user_id),
   constraint wallets_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
-
 
 create table public.zone_activity_logs (
   id uuid not null default gen_random_uuid (),
@@ -3489,7 +3492,6 @@ from
 order by
   z.order_index,
   z.name;
-
 create view public.zone_management_summary as
 select
   count(*) as total_zones,
@@ -3565,7 +3567,6 @@ execute FUNCTION log_zone_activity ();
 create trigger zones_updated_at_trigger BEFORE
 update on zones for EACH row
 execute FUNCTION update_zones_updated_at ();
-
 
 create view public.zones_stats_view as
 with
