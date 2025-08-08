@@ -457,10 +457,12 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
         set({ loading: { ...get().loading, update: true }, error: null });
 
         try {
-            // Extract auto-generation flag if provided
+            // Extract custom layout data and auto-generation flag if provided
             const autoGenerateLayout = (data as any).autoGenerateLayout;
+            const customSeatLayout = (data as any).customSeatLayout;
             const cleanData = { ...data };
             delete (cleanData as any).autoGenerateLayout;
+            delete (cleanData as any).customSeatLayout;
 
             const { data: vessel, error } = await supabase
                 .from('vessels')
@@ -471,26 +473,40 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
 
             if (error) throw error;
 
+            // Handle custom seat layout for updates
+            if (vessel && customSeatLayout) {
+                try {
+                    await get().saveCustomSeatLayout(
+                        id,
+                        customSeatLayout.layout.layout_data,
+                        customSeatLayout.seats
+                    );
+                } catch (layoutError) {
+                    console.warn('Failed to save custom seat layout during vessel update:', layoutError);
+                    // Don't fail the vessel update if seat layout saving fails
+                }
+            }
+
             // Handle seat layout generation for updates if auto-generate is enabled
             if (vessel && autoGenerateLayout && data.seating_capacity && data.seating_capacity > 0) {
                 try {
-                    // Check if vessel already has a seat layout
-                    const { data: existingLayout } = await supabase
-                        .from('vessel_seat_layouts')
+                    // Check if vessel already has seats (since we no longer use vessel_seat_layouts table)
+                    const { data: existingSeats } = await supabase
+                        .from('seats')
                         .select('id')
                         .eq('vessel_id', id)
-                        .eq('is_active', true)
+                        .limit(1)
                         .single();
 
-                    if (!existingLayout) {
-                        // No existing layout, generate one
+                    if (!existingSeats) {
+                        // No existing seats, generate default layout
                         console.log('Auto-generating seat layout for updated vessel:', id, {
                             capacity: data.seating_capacity,
                             vesselType: data.vessel_type || 'passenger'
                         });
                         await get().generateAutomaticSeatLayout(id, data.seating_capacity, data.vessel_type || 'passenger');
                     } else {
-                        console.log('Vessel already has seat layout, skipping auto-generation');
+                        console.log('Vessel already has seats, skipping auto-generation');
                     }
                 } catch (layoutError) {
                     console.warn('Failed to generate seat layout during update:', layoutError);

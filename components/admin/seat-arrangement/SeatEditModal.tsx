@@ -1,734 +1,990 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
-    View,
-    Text,
-    StyleSheet,
-    Modal,
-    TouchableOpacity,
-    ScrollView,
-    Alert,
-    TextInput as RNTextInput,
-    Dimensions,
-} from 'react-native';
-import { colors } from '@/constants/adminColors';
-import { AdminManagement } from '@/types';
-import Button from '@/components/admin/Button';
-import Switch from '@/components/admin/Switch';
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  TextInput as RNTextInput,
+  Dimensions,
+} from "react-native";
+import { colors } from "@/constants/adminColors";
+import { AdminManagement } from "@/types";
+import Button from "@/components/admin/Button";
+import Switch from "@/components/admin/Switch";
 import {
-    X,
-    User,
-    Crown,
-    Anchor,
-    UserCheck,
-    Trash2,
-    Save,
-    Plus,
-    Minus,
-} from 'lucide-react-native';
+  X,
+  User,
+  Crown,
+  Anchor,
+  UserCheck,
+  Trash2,
+  Save,
+  DollarSign,
+  Square,
+  ArrowRight,
+  Star,
+} from "lucide-react-native";
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 type Seat = AdminManagement.Seat;
 
 interface SeatEditModalProps {
-    seat: Seat | null;
-    visible: boolean;
-    onSave: (seat: Seat) => void;
-    onDelete?: (seatId: string) => void;
-    onCancel: () => void;
+  seat: Seat | null;
+  visible: boolean;
+  onSave: (seat: Seat) => void;
+  onDelete?: (seatId: string) => void;
+  onCancel: () => void;
 }
+
+// Constants for seat types and classes
+const SEAT_TYPES = [
+  { type: "standard", label: "Standard", icon: User, color: "#10b981" },
+  { type: "premium", label: "Premium", icon: Crown, color: "#3b82f6" },
+  { type: "crew", label: "Crew", icon: Anchor, color: "#f59e0b" },
+  { type: "disabled", label: "Disabled", icon: UserCheck, color: "#ef4444" },
+] as const;
+
+const SEAT_CLASSES = [
+  { class: "economy", label: "Economy", color: "#6b7280" },
+  { class: "business", label: "Business", color: "#3b82f6" },
+  { class: "first", label: "First Class", color: "#8b5cf6" },
+] as const;
+
+const SEAT_FEATURES = [
+  { key: "is_window", label: "Window Seat", description: "Seat by the window" },
+  { key: "is_aisle", label: "Aisle Seat", description: "Seat next to aisle" },
+  {
+    key: "is_disabled",
+    label: "Disabled Access",
+    description: "Wheelchair accessible",
+  },
+] as const;
 
 export default function SeatEditModal({
-    seat,
-    visible,
-    onSave,
-    onDelete,
-    onCancel,
+  seat,
+  visible,
+  onSave,
+  onDelete,
+  onCancel,
 }: SeatEditModalProps) {
-    const [editedSeat, setEditedSeat] = useState<Seat | null>(null);
-    const [isNewSeat, setIsNewSeat] = useState(false);
+  const [editedSeat, setEditedSeat] = useState<Seat | null>(null);
+  const [isNewSeat, setIsNewSeat] = useState(false);
 
-    useEffect(() => {
-        if (seat) {
-            setEditedSeat({ ...seat });
-            setIsNewSeat(false);
-        } else {
-            // Create a new seat template
-            const newSeat: Seat = {
-                id: `new_seat_${Date.now()}`,
-                vessel_id: '',
-                layout_id: '',
-                seat_number: '',
-                row_number: 1,
-                position_x: 1,
-                position_y: 1,
-                is_window: false,
-                is_aisle: false,
-                seat_type: 'standard',
-                seat_class: 'economy',
-                is_disabled: false,
-                is_premium: false,
-                price_multiplier: 1.0,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            };
-            setEditedSeat(newSeat);
-            setIsNewSeat(true);
-        }
-    }, [seat]);
+  useEffect(() => {
+    if (seat) {
+      setEditedSeat({ ...seat });
+      setIsNewSeat(!seat.id);
+    } else {
+      setEditedSeat(null);
+      setIsNewSeat(false);
+    }
+  }, [seat]);
 
-    const handleSave = () => {
-        if (!editedSeat) return;
+  if (!editedSeat) return null;
 
-        // Validate required fields
-        if (!editedSeat.seat_number.trim()) {
-            Alert.alert('Error', 'Seat number is required');
-            return;
-        }
+  const handleSave = () => {
+    // Validate required fields
+    if (!editedSeat.seat_number.trim()) {
+      Alert.alert("Error", "Seat number is required");
+      return;
+    }
 
-        if (editedSeat.row_number <= 0 || (editedSeat.position_x || 1) <= 0) {
-            Alert.alert('Error', 'Row and column numbers must be greater than 0');
-            return;
-        }
+    if (editedSeat.row_number <= 0 || (editedSeat.position_x || 1) <= 0) {
+      Alert.alert("Error", "Row and column numbers must be greater than 0");
+      return;
+    }
 
-        onSave(editedSeat);
+    // Ensure is_premium is correctly set based on seat type and class
+    const finalSeat = {
+      ...editedSeat,
+      is_premium:
+        editedSeat.seat_type === "premium" ||
+        editedSeat.seat_class === "business" ||
+        editedSeat.seat_class === "first",
     };
 
-    const handleDelete = () => {
-        if (!editedSeat) return;
+    onSave(finalSeat);
+  };
 
-        Alert.alert(
-            'Delete Seat',
-            `Are you sure you want to delete seat ${editedSeat.seat_number}?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => {
-                        if (onDelete && editedSeat.id) {
-                            onDelete(editedSeat.id);
-                        }
-                    },
-                },
-            ]
-        );
-    };
-
-    const handleCancel = () => {
-        setEditedSeat(null);
-        setIsNewSeat(false);
-        onCancel();
-    };
-
-    const updateSeat = (updates: Partial<Seat>) => {
-        if (editedSeat) {
-            setEditedSeat({ ...editedSeat, ...updates });
-        }
-    };
-
-    const getSeatTypeIcon = (type: string) => {
-        switch (type) {
-            case 'premium':
-                return Crown;
-            case 'crew':
-                return Anchor;
-            case 'disabled':
-                return UserCheck;
-            default:
-                return User;
-        }
-    };
-
-    const getSeatTypeColor = (type: string) => {
-        switch (type) {
-            case 'premium':
-                return colors.primary;
-            case 'crew':
-                return colors.warning;
-            case 'disabled':
-                return colors.danger;
-            default:
-                return colors.success;
-        }
-    };
-
-    if (!editedSeat) return null;
-
-    return (
-        <Modal
-            visible={visible}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={handleCancel}
-        >
-            <View style={styles.overlay}>
-                <View style={styles.modal}>
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View style={styles.headerLeft}>
-                            <View style={[
-                                styles.seatTypeIcon,
-                                { backgroundColor: getSeatTypeColor(editedSeat.seat_type) + '20' }
-                            ]}>
-                                {React.createElement(getSeatTypeIcon(editedSeat.seat_type), {
-                                    size: 20,
-                                    color: getSeatTypeColor(editedSeat.seat_type)
-                                })}
-                            </View>
-                            <View style={styles.headerContent}>
-                                <Text style={styles.title}>
-                                    {isNewSeat ? 'Add New Seat' : `Edit Seat ${editedSeat.seat_number}`}
-                                </Text>
-                                <Text style={styles.subtitle}>
-                                    {isNewSeat ? 'Configure new seat properties' : 'Modify seat configuration'}
-                                </Text>
-                            </View>
-                        </View>
-                        <TouchableOpacity
-                            style={styles.closeButton}
-                            onPress={handleCancel}
-                        >
-                            <X size={20} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Content Area */}
-                    <View style={styles.contentArea}>
-                        <ScrollView
-                            style={styles.scrollView}
-                            contentContainerStyle={styles.scrollContent}
-                            showsVerticalScrollIndicator={false}
-                        >
-                            {/* Basic Information */}
-                            <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>Basic Information</Text>
-
-                                {isNewSeat ? (
-                                    <View style={styles.infoGrid}>
-                                        <View style={styles.infoItem}>
-                                            <Text style={styles.infoLabel}>Seat Number</Text>
-                                            <CustomTextInput
-                                                style={styles.textInput}
-                                                value={editedSeat.seat_number}
-                                                onChangeText={(text: string) => updateSeat({ seat_number: text })}
-                                                placeholder="e.g., A1, B2"
-                                            />
-                                        </View>
-                                        <View style={styles.infoItem}>
-                                            <Text style={styles.infoLabel}>Row</Text>
-                                            <CustomTextInput
-                                                style={styles.textInput}
-                                                value={editedSeat.row_number.toString()}
-                                                onChangeText={(text: string) => updateSeat({ row_number: parseInt(text) || 1 })}
-                                                placeholder="Row number"
-                                                keyboardType="numeric"
-                                            />
-                                        </View>
-                                        <View style={styles.infoItem}>
-                                            <Text style={styles.infoLabel}>Column</Text>
-                                            <CustomTextInput
-                                                style={styles.textInput}
-                                                value={(editedSeat.position_x || 1).toString()}
-                                                onChangeText={(text: string) => updateSeat({ position_x: parseInt(text) || 1 })}
-                                                placeholder="Column number"
-                                                keyboardType="numeric"
-                                            />
-                                        </View>
-                                    </View>
-                                ) : (
-                                    <View style={styles.infoGrid}>
-                                        <View style={styles.infoItem}>
-                                            <Text style={styles.infoLabel}>Seat Number</Text>
-                                            <Text style={styles.infoValue}>{editedSeat.seat_number}</Text>
-                                        </View>
-                                        <View style={styles.infoItem}>
-                                            <Text style={styles.infoLabel}>Row</Text>
-                                            <Text style={styles.infoValue}>{editedSeat.row_number}</Text>
-                                        </View>
-                                        <View style={styles.infoItem}>
-                                            <Text style={styles.infoLabel}>Column</Text>
-                                            <Text style={styles.infoValue}>{editedSeat.position_x}</Text>
-                                        </View>
-                                    </View>
-                                )}
-                            </View>
-
-                            {/* Seat Type */}
-                            <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>Seat Type</Text>
-                                <View style={styles.typeGrid}>
-                                    {[
-                                        { type: 'standard', label: 'Standard', icon: User },
-                                        { type: 'premium', label: 'Premium', icon: Crown },
-                                        { type: 'crew', label: 'Crew', icon: Anchor },
-                                        { type: 'disabled', label: 'Disabled', icon: UserCheck },
-                                    ].map(({ type, label, icon: Icon }) => {
-                                        const isSelected = editedSeat.seat_type === type || (!editedSeat.seat_type && type === 'standard');
-                                        return (
-                                            <TouchableOpacity
-                                                key={type}
-                                                style={[
-                                                    styles.typeOption,
-                                                    isSelected && styles.typeOptionSelected,
-                                                    !isSelected && styles.typeOptionUnselected,
-                                                ]}
-                                                onPress={() => updateSeat({ seat_type: type as any })}
-                                            >
-                                                <Icon
-                                                    size={20}
-                                                    color={getSeatTypeColor(type)}
-                                                />
-                                                <Text style={[
-                                                    styles.typeOptionText,
-                                                    isSelected && styles.typeOptionTextSelected,
-                                                    !isSelected && styles.typeOptionTextUnselected,
-                                                ]}>
-                                                    {label}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-
-                            {/* Seat Class */}
-                            <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>Seat Class</Text>
-                                <View style={styles.typeGrid}>
-                                    {[
-                                        { class: 'economy', label: 'Economy' },
-                                        { class: 'business', label: 'Business' },
-                                        { class: 'first', label: 'First Class' },
-                                    ].map(({ class: seatClass, label }) => {
-                                        const isSelected = editedSeat.seat_class === seatClass || (!editedSeat.seat_class && seatClass === 'economy');
-                                        return (
-                                            <TouchableOpacity
-                                                key={seatClass}
-                                                style={[
-                                                    styles.typeOption,
-                                                    isSelected && styles.typeOptionSelected,
-                                                    !isSelected && styles.typeOptionUnselected,
-                                                ]}
-                                                onPress={() => updateSeat({ seat_class: seatClass as any })}
-                                            >
-                                                <Text style={[
-                                                    styles.typeOptionText,
-                                                    isSelected && styles.typeOptionTextSelected,
-                                                    !isSelected && styles.typeOptionTextUnselected,
-                                                ]}>
-                                                    {label}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-
-                            {/* Seat Features */}
-                            <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>Seat Features</Text>
-
-                                <View style={styles.featureGrid}>
-                                    <View style={styles.featureItem}>
-                                        <Switch
-                                            label="Window Seat"
-                                            value={editedSeat.is_window}
-                                            onValueChange={(value) => updateSeat({ is_window: value })}
-                                            description="Seat is located next to a window"
-                                        />
-                                    </View>
-
-                                    <View style={styles.featureItem}>
-                                        <Switch
-                                            label="Aisle Seat"
-                                            value={editedSeat.is_aisle}
-                                            onValueChange={(value) => updateSeat({ is_aisle: value })}
-                                            description="Seat is located next to an aisle"
-                                        />
-                                    </View>
-
-                                    <View style={styles.featureItem}>
-                                        <Switch
-                                            label="Premium Seat"
-                                            value={editedSeat.is_premium}
-                                            onValueChange={(value) => updateSeat({ is_premium: value })}
-                                            description="Seat has premium features and pricing"
-                                        />
-                                    </View>
-
-                                    <View style={styles.featureItem}>
-                                        <Switch
-                                            label="Disabled Seat"
-                                            value={editedSeat.is_disabled}
-                                            onValueChange={(value) => updateSeat({ is_disabled: value })}
-                                            description="Seat is disabled and not available for booking"
-                                        />
-                                    </View>
-                                </View>
-                            </View>
-
-                            {/* Price Multiplier */}
-                            <View style={styles.priceSection}>
-                                <View style={styles.priceHeader}>
-                                    <Text style={styles.priceLabel}>Price Multiplier</Text>
-                                    <Text style={styles.priceValue}>{editedSeat.price_multiplier}x</Text>
-                                </View>
-                                <Text style={styles.sectionDescription}>
-                                    Adjust the price multiplier for this seat (1.0 = standard price)
-                                </Text>
-
-                                <View style={styles.priceControls}>
-                                    <TouchableOpacity
-                                        style={[styles.priceButton, editedSeat.price_multiplier <= 0.5 && styles.priceButtonDisabled]}
-                                        onPress={() => {
-                                            const newMultiplier = Math.max(0.5, editedSeat.price_multiplier - 0.1);
-                                            updateSeat({ price_multiplier: parseFloat(newMultiplier.toFixed(1)) });
-                                        }}
-                                        disabled={editedSeat.price_multiplier <= 0.5}
-                                    >
-                                        <Minus size={16} color={colors.white} />
-                                    </TouchableOpacity>
-
-                                    <Text style={styles.priceButtonText}>{editedSeat.price_multiplier}</Text>
-
-                                    <TouchableOpacity
-                                        style={[styles.priceButton, editedSeat.price_multiplier >= 3.0 && styles.priceButtonDisabled]}
-                                        onPress={() => {
-                                            const newMultiplier = Math.min(3.0, editedSeat.price_multiplier + 0.1);
-                                            updateSeat({ price_multiplier: parseFloat(newMultiplier.toFixed(1)) });
-                                        }}
-                                        disabled={editedSeat.price_multiplier >= 3.0}
-                                    >
-                                        <Plus size={16} color={colors.white} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </ScrollView>
-                    </View>
-
-                    {/* Footer Actions */}
-                    <View style={styles.footer}>
-                        <View style={styles.footerLeft}>
-                            {!isNewSeat && onDelete && (
-                                <Button
-                                    title="Delete"
-                                    onPress={handleDelete}
-                                    icon={<Trash2 size={16} color={colors.white} />}
-                                    variant="danger"
-                                    size="medium"
-                                />
-                            )}
-                        </View>
-
-                        <View style={styles.footerRight}>
-                            <Button
-                                title="Cancel"
-                                onPress={handleCancel}
-                                variant="outline"
-                                size="medium"
-                            />
-                            <Button
-                                title={isNewSeat ? "Add Seat" : "Save Changes"}
-                                onPress={handleSave}
-                                icon={isNewSeat ? <Plus size={16} color={colors.white} /> : <Save size={16} color={colors.white} />}
-                                variant="primary"
-                                size="medium"
-                            />
-                        </View>
-                    </View>
-                </View>
-            </View>
-        </Modal>
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Seat",
+      `Are you sure you want to delete seat ${editedSeat.seat_number}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            if (onDelete && editedSeat.id) {
+              onDelete(editedSeat.id);
+            }
+          },
+        },
+      ]
     );
+  };
+
+  const handleCancel = () => {
+    setEditedSeat(null);
+    setIsNewSeat(false);
+    onCancel();
+  };
+
+  const updateSeat = (updates: Partial<Seat>) => {
+    if (editedSeat) {
+      setEditedSeat({ ...editedSeat, ...updates });
+    }
+  };
+
+  const getSeatTypeData = (type: string) => {
+    return SEAT_TYPES.find((t) => t.type === type) || SEAT_TYPES[0];
+  };
+
+  const getSeatClassData = (seatClass: string) => {
+    return SEAT_CLASSES.find((c) => c.class === seatClass) || SEAT_CLASSES[0];
+  };
+
+  // Reusable components
+  const InfoField = ({
+    label,
+    value,
+    editable = false,
+    onChangeText,
+    placeholder,
+    keyboardType = "default",
+  }: {
+    label: string;
+    value: string;
+    editable?: boolean;
+    onChangeText?: (text: string) => void;
+    placeholder?: string;
+    keyboardType?: "default" | "numeric";
+  }) => (
+    <View style={styles.infoItem}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      {editable ? (
+        <CustomTextInput
+          style={styles.textInput}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          keyboardType={keyboardType}
+        />
+      ) : (
+        <Text style={styles.infoValue}>{value}</Text>
+      )}
+    </View>
+  );
+
+  const SelectionGrid = ({
+    items,
+    selectedValue,
+    onSelect,
+    getItemColor,
+    renderIcon,
+  }: {
+    items: readonly any[];
+    selectedValue: string;
+    onSelect: (value: string) => void;
+    getItemColor?: (item: any) => string;
+    renderIcon?: (item: any) => React.ReactNode;
+  }) => (
+    <View style={styles.selectionGrid}>
+      {items.map((item) => {
+        const value = item.type || item.class;
+        const label = item.label;
+        const isSelected =
+          selectedValue === value ||
+          (!selectedValue && value === items[0].type) ||
+          value === items[0].class;
+
+        return (
+          <TouchableOpacity
+            key={value}
+            style={[
+              styles.selectionOption,
+              isSelected && styles.selectionOptionSelected,
+            ]}
+            onPress={() => onSelect(value)}
+          >
+            {renderIcon && renderIcon(item)}
+            <Text
+              style={[
+                styles.selectionOptionText,
+                isSelected && styles.selectionOptionTextSelected,
+              ]}
+            >
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const FeatureSwitch = ({
+    feature,
+    description,
+  }: {
+    feature: { key: string; label: string; description: string };
+    description?: string;
+  }) => (
+    <View style={styles.featureItem}>
+      <View style={styles.featureInfo}>
+        <Text style={styles.featureLabel}>{feature.label}</Text>
+        {description && (
+          <Text style={styles.featureDescription}>{description}</Text>
+        )}
+      </View>
+      <Switch
+        label=""
+        value={editedSeat[feature.key as keyof Seat] as boolean}
+        onValueChange={(value) => updateSeat({ [feature.key]: value })}
+      />
+    </View>
+  );
+
+  const currentTypeData = getSeatTypeData(editedSeat.seat_type);
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleCancel}
+    >
+      <View style={styles.overlay}>
+        <View style={styles.modal}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View
+                style={[
+                  styles.seatTypeIcon,
+                  { backgroundColor: currentTypeData.color + "20" },
+                ]}
+              >
+                <currentTypeData.icon size={24} color={currentTypeData.color} />
+              </View>
+              <View style={styles.headerContent}>
+                <Text style={styles.title}>
+                  {isNewSeat
+                    ? "Add New Seat"
+                    : `Edit Seat ${editedSeat.seat_number}`}
+                </Text>
+                <Text style={styles.subtitle}>
+                  {isNewSeat
+                    ? "Configure new seat properties"
+                    : "Modify seat configuration"}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.closeButton} onPress={handleCancel}>
+              <X size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Content */}
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Seat Identity - Only show if editable */}
+            {isNewSeat && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Seat Position</Text>
+                <View style={styles.compactRow}>
+                  <View style={styles.compactField}>
+                    <Text style={styles.compactLabel}>Seat #</Text>
+                    <CustomTextInput
+                      style={styles.compactInput}
+                      value={editedSeat.seat_number}
+                      onChangeText={(text: string) =>
+                        updateSeat({ seat_number: text })
+                      }
+                      placeholder="A1"
+                    />
+                  </View>
+                  <View style={styles.compactField}>
+                    <Text style={styles.compactLabel}>Row</Text>
+                    <CustomTextInput
+                      style={styles.compactInput}
+                      value={editedSeat.row_number.toString()}
+                      onChangeText={(text: string) =>
+                        updateSeat({ row_number: parseInt(text) || 1 })
+                      }
+                      placeholder="1"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={styles.compactField}>
+                    <Text style={styles.compactLabel}>Col</Text>
+                    <CustomTextInput
+                      style={styles.compactInput}
+                      value={(editedSeat.position_x || 1).toString()}
+                      onChangeText={(text: string) =>
+                        updateSeat({ position_x: parseInt(text) || 1 })
+                      }
+                      placeholder="1"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Quick Seat Type Selection */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Seat Type & Class</Text>
+              <View style={styles.quickSelection}>
+                {SEAT_TYPES.map((type) => (
+                  <TouchableOpacity
+                    key={type.type}
+                    style={[
+                      styles.quickOption,
+                      editedSeat.seat_type === type.type &&
+                        styles.quickOptionSelected,
+                    ]}
+                    onPress={() => {
+                      updateSeat({
+                        seat_type: type.type as any,
+                        seat_class:
+                          type.type === "premium"
+                            ? "business"
+                            : type.type === "crew"
+                            ? "economy"
+                            : editedSeat.seat_class,
+                        is_premium: type.type === "premium",
+                      });
+                    }}
+                  >
+                    <type.icon
+                      size={20}
+                      color={
+                        editedSeat.seat_type === type.type
+                          ? colors.primary
+                          : type.color
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.quickOptionText,
+                        editedSeat.seat_type === type.type &&
+                          styles.quickOptionTextSelected,
+                      ]}
+                    >
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Class selection only for standard/premium seats */}
+              {(editedSeat.seat_type === "standard" ||
+                editedSeat.seat_type === "premium") && (
+                <View style={styles.classSelection}>
+                  <Text style={styles.subLabel}>Class</Text>
+                  <View style={styles.classButtons}>
+                    {SEAT_CLASSES.map((seatClass) => (
+                      <TouchableOpacity
+                        key={seatClass.class}
+                        style={[
+                          styles.classButton,
+                          editedSeat.seat_class === seatClass.class &&
+                            styles.classButtonSelected,
+                        ]}
+                        onPress={() =>
+                          updateSeat({
+                            seat_class: seatClass.class as any,
+                            is_premium:
+                              seatClass.class === "business" ||
+                              seatClass.class === "first",
+                          })
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.classButtonText,
+                            editedSeat.seat_class === seatClass.class &&
+                              styles.classButtonTextSelected,
+                          ]}
+                        >
+                          {seatClass.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Seat Properties */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Position & Features</Text>
+              <View style={styles.propertiesGrid}>
+                <TouchableOpacity
+                  style={[
+                    styles.propertyCard,
+                    editedSeat.is_window && styles.propertyCardActive,
+                  ]}
+                  onPress={() =>
+                    updateSeat({ is_window: !editedSeat.is_window })
+                  }
+                >
+                  <View style={styles.propertyIcon}>
+                    <Square
+                      size={18}
+                      color={
+                        editedSeat.is_window
+                          ? colors.primary
+                          : colors.textSecondary
+                      }
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.propertyLabel,
+                      editedSeat.is_window && styles.propertyLabelActive,
+                    ]}
+                  >
+                    Window
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.propertyCard,
+                    editedSeat.is_aisle && styles.propertyCardActive,
+                  ]}
+                  onPress={() => updateSeat({ is_aisle: !editedSeat.is_aisle })}
+                >
+                  <View style={styles.propertyIcon}>
+                    <ArrowRight
+                      size={18}
+                      color={
+                        editedSeat.is_aisle
+                          ? colors.primary
+                          : colors.textSecondary
+                      }
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.propertyLabel,
+                      editedSeat.is_aisle && styles.propertyLabelActive,
+                    ]}
+                  >
+                    Aisle
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.propertyCard,
+                    editedSeat.is_disabled && styles.propertyCardActive,
+                  ]}
+                  onPress={() =>
+                    updateSeat({ is_disabled: !editedSeat.is_disabled })
+                  }
+                >
+                  <View style={styles.propertyIcon}>
+                    <X
+                      size={18}
+                      color={
+                        editedSeat.is_disabled
+                          ? colors.danger
+                          : colors.textSecondary
+                      }
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.propertyLabel,
+                      editedSeat.is_disabled && { color: colors.danger },
+                    ]}
+                  >
+                    Disabled
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Price Multiplier - Only for premium seats */}
+            {(editedSeat.seat_type === "premium" ||
+              editedSeat.seat_class === "business" ||
+              editedSeat.seat_class === "first") && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Price Adjustment</Text>
+                <View style={styles.priceSection}>
+                  <View style={styles.priceRow}>
+                    <DollarSign size={20} color={colors.primary} />
+                    <Text style={styles.priceLabel}>Multiplier</Text>
+                    <CustomTextInput
+                      style={styles.priceInput}
+                      value={editedSeat.price_multiplier.toString()}
+                      onChangeText={(text: string) => {
+                        const value = Math.max(0.1, parseFloat(text) || 1.0);
+                        updateSeat({ price_multiplier: value });
+                      }}
+                      placeholder="1.0"
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                  <Text style={styles.priceHint}>
+                    {editedSeat.price_multiplier < 1
+                      ? "↓ Discounted"
+                      : editedSeat.price_multiplier > 1
+                      ? "↑ Premium pricing"
+                      : "= Standard price"}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <View style={styles.footerActions}>
+              {!isNewSeat && onDelete && (
+                <Button
+                  title="Delete"
+                  onPress={handleDelete}
+                  variant="danger"
+                  icon={<Trash2 size={16} color={colors.white} />}
+                  style={styles.deleteButton}
+                />
+              )}
+              <View style={styles.primaryActions}>
+                <Button
+                  title="Cancel"
+                  onPress={handleCancel}
+                  variant="secondary"
+                  style={styles.cancelButton}
+                />
+                <Button
+                  title={isNewSeat ? "Add Seat" : "Save Changes"}
+                  onPress={handleSave}
+                  variant="primary"
+                  icon={<Save size={16} color={colors.white} />}
+                  style={styles.saveButton}
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 }
 
-// Custom TextInput component to avoid import conflicts
+// Custom TextInput component
 const CustomTextInput = ({ style, ...props }: any) => (
-    <View style={[styles.customTextInput, style]}>
-        <RNTextInput
-            {...props}
-            style={styles.textInputField}
-            placeholderTextColor={colors.textSecondary}
-        />
-    </View>
+  <RNTextInput
+    style={[styles.baseTextInput, style]}
+    placeholderTextColor={colors.textSecondary}
+    {...props}
+  />
 );
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    modal: {
-        backgroundColor: colors.card,
-        borderRadius: 16,
-        width: '100%',
-        maxWidth: Math.min(screenWidth - 40, 500),
-        height: Math.min(screenHeight * 0.85, 600),
-        minHeight: 500,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 8,
-        flexDirection: 'column',
-        overflow: 'hidden', // Prevent content from overflowing
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-        backgroundColor: colors.card,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        minHeight: 80,
-    },
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-        marginRight: 12,
-    },
-    seatTypeIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    headerContent: {
-        flex: 1,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.text,
-        marginBottom: 4,
-    },
-    subtitle: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        lineHeight: 18,
-    },
-    closeButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: colors.backgroundSecondary,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    contentArea: {
-        flex: 1,
-        backgroundColor: colors.background,
-        minHeight: 300,
-        overflow: 'hidden', // Prevent content from overflowing
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: 20,
-        paddingBottom: 20,
-        flexGrow: 1,
-    },
-    section: {
-        marginBottom: 24,
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: colors.border,
-        overflow: 'hidden', // Prevent content from overflowing
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 12,
-    },
-    sectionDescription: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        marginBottom: 12,
-        lineHeight: 20,
-    },
-    infoGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    infoItem: {
-        flex: 1,
-        minWidth: 120,
-    },
-    infoLabel: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: colors.textSecondary,
-        marginBottom: 6,
-    },
-    infoValue: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: colors.text,
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        backgroundColor: colors.backgroundSecondary,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    customTextInput: {
-        backgroundColor: colors.backgroundSecondary,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: colors.border,
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-    },
-    textInputField: {
-        fontSize: 16,
-        color: colors.text,
-        padding: 0,
-    },
-    textInput: {
-        flex: 1,
-    },
-    typeGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        alignItems: 'flex-start', // Prevent stretching
-        justifyContent: 'space-between', // Distribute buttons evenly
-    },
-    typeOption: {
-        flex: 0, // Don't flex, use fixed width
-        width: '48%', // Fixed width to prevent overlapping
-        minWidth: 100,
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        borderWidth: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        backgroundColor: colors.backgroundSecondary,
-        borderColor: colors.border,
-    },
-    typeOptionSelected: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primaryLight,
-    },
-    typeOptionUnselected: {
-        borderColor: colors.border,
-        backgroundColor: colors.backgroundSecondary,
-    },
-    typeOptionText: {
-        fontSize: 14,
-        fontWeight: '500',
-        textAlign: 'center', // Center text
-    },
-    typeOptionTextSelected: {
-        color: colors.primary,
-    },
-    typeOptionTextUnselected: {
-        color: colors.textSecondary,
-    },
-    featureGrid: {
-        flexDirection: 'column',
-        gap: 16,
-    },
-    featureItem: {
-        width: '100%',
-    },
-    priceSection: {
-        backgroundColor: colors.backgroundSecondary,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: colors.border,
-        overflow: 'hidden', // Prevent content from overflowing
-    },
-    priceHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 12,
-    },
-    priceLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
-    },
-    priceValue: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.primary,
-    },
-    priceControls: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 16,
-        marginTop: 12,
-    },
-    priceButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    priceButtonDisabled: {
-        backgroundColor: colors.border,
-        shadowOpacity: 0,
-        elevation: 0,
-    },
-    priceButtonText: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.text,
-        minWidth: 40,
-        textAlign: 'center',
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 20,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
-        backgroundColor: colors.card,
-        gap: 12,
-        minHeight: 80,
-        borderBottomLeftRadius: 16,
-        borderBottomRightRadius: 16,
-        overflow: 'hidden', // Prevent content from overflowing
-    },
-    footerLeft: {
-        flexDirection: 'row',
-        gap: 12,
-        flex: 1, // Take available space
-    },
-    footerRight: {
-        flexDirection: 'row',
-        gap: 12,
-        flex: 1, // Take available space
-        justifyContent: 'flex-end', // Align to the right
-    },
-}); 
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modal: {
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    minHeight: Math.max(500, screenHeight * 0.6),
+    width: Math.min(screenWidth - 32, 420),
+    maxHeight: screenHeight * 0.92,
+    overflow: "hidden",
+    elevation: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.3,
+    shadowRadius: 25,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 24,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    minHeight: 88,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  seatTypeIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  headerContent: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 4,
+    letterSpacing: 0.2,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  content: {
+    flex: 1,
+    paddingTop: 8,
+  },
+  section: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 18,
+    letterSpacing: 0.3,
+  },
+  infoGrid: {
+    gap: 16,
+  },
+  infoItem: {
+    gap: 10,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: "500",
+    padding: 14,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minHeight: 48,
+  },
+  baseTextInput: {
+    fontSize: 16,
+    color: colors.text,
+    padding: 14,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.border,
+    minHeight: 48,
+  },
+  textInput: {
+    // Inherits from baseTextInput
+  },
+  selectionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  selectionOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    gap: 10,
+    minWidth: 110,
+    flex: 1,
+  },
+  selectionOptionSelected: {
+    backgroundColor: colors.primary + "15",
+    borderColor: colors.primary,
+    borderWidth: 2,
+  },
+  selectionOptionText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.textSecondary,
+    textAlign: "center",
+    flex: 1,
+  },
+  selectionOptionTextSelected: {
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  featuresContainer: {
+    gap: 18,
+  },
+  featureItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  featureInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  featureLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 3,
+  },
+  featureDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  priceContainer: {
+    gap: 12,
+  },
+  priceField: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  priceLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.text,
+  },
+  priceInput: {
+    width: 80,
+    textAlign: "center",
+    backgroundColor: colors.background,
+  },
+  priceDescription: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+  footer: {
+    padding: 24,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    minHeight: 90,
+  },
+  footerActions: {
+    gap: 16,
+  },
+  primaryActions: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  deleteButton: {
+    alignSelf: "flex-start",
+    minWidth: 100,
+  },
+  cancelButton: {
+    flex: 1,
+    minHeight: 48,
+  },
+  saveButton: {
+    flex: 1,
+    minHeight: 48,
+  },
+  // New compact styles
+  compactRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  compactField: {
+    flex: 1,
+    gap: 6,
+  },
+  compactLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  compactInput: {
+    fontSize: 16,
+    color: colors.text,
+    padding: 12,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  // Quick selection styles
+  quickSelection: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 16,
+  },
+  quickOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    gap: 8,
+    flex: 1,
+    minWidth: 80,
+  },
+  quickOptionSelected: {
+    backgroundColor: colors.primary + "15",
+    borderColor: colors.primary,
+  },
+  quickOptionText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+  quickOptionTextSelected: {
+    color: colors.primary,
+  },
+  // Class selection styles
+  classSelection: {
+    gap: 10,
+  },
+  subLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 6,
+  },
+  classButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  classButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  classButtonSelected: {
+    backgroundColor: colors.primary + "15",
+    borderColor: colors.primary,
+  },
+  classButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    textAlign: "center",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  classButtonTextSelected: {
+    color: colors.primary,
+  },
+  // Properties grid styles
+  propertiesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  propertyCard: {
+    flex: 1,
+    minWidth: "45%",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    gap: 10,
+  },
+  propertyCardActive: {
+    backgroundColor: colors.primary + "15",
+    borderColor: colors.primary,
+  },
+  propertyIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.background,
+  },
+  propertyLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  propertyLabelActive: {
+    color: colors.primary,
+  },
+  // Price section styles
+  priceSection: {
+    gap: 12,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  priceHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+});
