@@ -1,6 +1,27 @@
 import { create } from 'zustand';
 import { supabase } from '@/utils/supabase';
 import { AdminManagement } from '@/types';
+import {
+    validateTripForm,
+    searchTrips,
+    filterTrips,
+    sortTrips,
+    calculateTripStats,
+    getTripPerformanceRating,
+    getTripPerformanceColor,
+    formatCurrency,
+    formatPercentage,
+    getOccupancyLevel,
+    getStatusColor,
+    tripToFormData,
+    createEmptyTripForm,
+    isTripTimeConflict,
+    generateTripsForSchedule,
+    detectTripConflicts,
+    validateTripGenerationRequest,
+    type TripGenerationRequest,
+    type GeneratedTrip,
+} from '@/utils/admin/tripUtils';
 
 type Trip = AdminManagement.Trip;
 type TripFormData = AdminManagement.TripFormData;
@@ -10,6 +31,48 @@ type TripWithDetails = AdminManagement.TripWithDetails;
 type ValidationResult = AdminManagement.ValidationResult;
 type TripStoreState = AdminManagement.TripStoreState;
 type TripStoreActions = AdminManagement.TripStoreActions;
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+const processTripData = (trip: any): Trip => ({
+    id: trip.id,
+    route_id: trip.route_id,
+    vessel_id: trip.vessel_id,
+    travel_date: trip.travel_date,
+    departure_time: trip.departure_time,
+    arrival_time: trip.arrival_time || undefined,
+    estimated_duration: trip.duration || '60 minutes',
+    status: trip.status || trip.computed_status || 'scheduled',
+    delay_reason: trip.delay_reason || undefined,
+    available_seats: trip.available_seats || 0,
+    booked_seats: trip.booked_seats || 0,
+    fare_multiplier: trip.fare_multiplier || 1.0,
+    weather_conditions: trip.weather_conditions || undefined,
+    captain_id: trip.captain_id || undefined,
+    crew_ids: trip.crew_ids || undefined,
+    notes: trip.notes || undefined,
+    is_active: trip.is_active ?? true,
+    created_at: trip.created_at,
+    updated_at: trip.updated_at || trip.created_at,
+
+    // Related data from the operations_trips_view
+    route_name: trip.route_name,
+    vessel_name: trip.vessel_name,
+    from_island_name: trip.from_island_name,
+    to_island_name: trip.to_island_name,
+    capacity: trip.capacity || trip.seating_capacity,
+    bookings: trip.bookings || trip.confirmed_bookings || 0,
+    occupancy_rate: trip.occupancy_rate || 0,
+    computed_status: trip.computed_status || trip.status || 'scheduled',
+    base_fare: trip.base_fare || 0,
+    confirmed_bookings: trip.confirmed_bookings || trip.bookings || 0,
+});
+
+const validateTripFormData = (data: Partial<TripFormData>): ValidationResult => {
+    return validateTripForm(data);
+};
 
 // ============================================================================
 // TRIP STORE IMPLEMENTATION
@@ -73,18 +136,31 @@ export const useTripStore = create<TripStore>((set, get) => ({
         set({ loading: { ...get().loading, data: true }, error: null });
 
         try {
+            // Fetch from operations_trips_view which has all the necessary data pre-calculated
             const { data, error } = await supabase
                 .from('operations_trips_view')
                 .select('*')
-                .order('travel_date', { ascending: false });
+                // .order('travel_date', { ascending: false })
+                .order('departure_time', { ascending: false });
 
             if (error) throw error;
 
-            const trips = data || [];
+            // Process the data from the view
+            const trips = (data || []).map((item) => {
+                return processTripData({
+                    ...item,
+                    // Map view fields to expected trip fields
+                    confirmed_bookings: item.confirmed_bookings || item.bookings,
+                    seating_capacity: item.capacity,
+                    // Keep computed values from the view
+                    computed_status: item.computed_status,
+                    occupancy_rate: item.occupancy_rate
+                });
+            });
+            
             set({ data: trips });
             get().calculateComputedData();
         } catch (error) {
-            console.error('Error fetching trips:', error);
             set({ error: error instanceof Error ? error.message : 'Failed to fetch trips' });
         } finally {
             set({ loading: { ...get().loading, data: false } });
@@ -103,10 +179,17 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
             if (error) throw error;
 
-            set({ currentItem: data });
-            return data;
+            const processedTrip = processTripData({
+                ...data,
+                confirmed_bookings: data.confirmed_bookings || data.bookings,
+                seating_capacity: data.capacity,
+                computed_status: data.computed_status,
+                occupancy_rate: data.occupancy_rate
+            });
+
+            set({ currentItem: processedTrip });
+            return processedTrip;
         } catch (error) {
-            console.error('Error fetching trip:', error);
             set({ error: error instanceof Error ? error.message : 'Failed to fetch trip' });
             return null;
         } finally {
@@ -119,9 +202,47 @@ export const useTripStore = create<TripStore>((set, get) => ({
         set({ loading: { ...get().loading, create: true }, error: null });
 
         try {
+            // Get vessel capacity if not provided
+            let availableSeats = tripData.available_seats;
+            if (!availableSeats) {
+                let vessels = get().vessels || [];
+                if (vessels.length === 0) {
+                    const { data: vesselData } = await supabase
+                        .from('operations_vessels_view')
+                        .select('*')
+                        .eq('is_active', true);
+                    
+                    if (vesselData) {
+                        const processedVessels = vesselData.map((vessel: any) => ({
+                            ...vessel,
+                            created_at: vessel.created_at || new Date().toISOString(),
+                            updated_at: vessel.updated_at || new Date().toISOString(),
+                        }));
+                        vessels = processedVessels;
+                        set({ vessels });
+                    }
+                }
+                
+                const selectedVessel = vessels.find(v => v.id === tripData.vessel_id);
+                availableSeats = selectedVessel?.seating_capacity || 50;
+            }
+
+            // Only include fields that exist in the database
+            const dbTripData = {
+                route_id: tripData.route_id,
+                vessel_id: tripData.vessel_id,
+                travel_date: tripData.travel_date,
+                departure_time: tripData.departure_time,
+                available_seats: availableSeats,
+                fare_multiplier: tripData.fare_multiplier,
+                status: tripData.status || 'scheduled',
+                is_active: tripData.is_active,
+                booked_seats: 0, // Default for new trips
+            };
+
             const { data, error } = await supabase
                 .from('trips')
-                .insert([tripData])
+                .insert([dbTripData])
                 .select()
                 .single();
 
@@ -143,9 +264,21 @@ export const useTripStore = create<TripStore>((set, get) => ({
         set({ loading: { ...get().loading, update: true }, error: null });
 
         try {
+            // Only include fields that exist in the database
+            const dbUpdates: any = {};
+            
+            if (updates.route_id !== undefined) dbUpdates.route_id = updates.route_id;
+            if (updates.vessel_id !== undefined) dbUpdates.vessel_id = updates.vessel_id;
+            if (updates.travel_date !== undefined) dbUpdates.travel_date = updates.travel_date;
+            if (updates.departure_time !== undefined) dbUpdates.departure_time = updates.departure_time;
+            if (updates.available_seats !== undefined) dbUpdates.available_seats = updates.available_seats;
+            if (updates.fare_multiplier !== undefined) dbUpdates.fare_multiplier = updates.fare_multiplier;
+            if (updates.status !== undefined) dbUpdates.status = updates.status;
+            if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
+
             const { data, error } = await supabase
                 .from('trips')
-                .update(updates)
+                .update(dbUpdates)
                 .eq('id', id)
                 .select()
                 .single();
@@ -247,7 +380,8 @@ export const useTripStore = create<TripStore>((set, get) => ({
                 .from('operations_trips_view')
                 .select('*')
                 .eq('computed_status', status)
-                .order('travel_date', { ascending: false });
+                .order('travel_date', { ascending: false })
+                .limit(10000); // Ensure all trips of this status are fetched
 
             if (error) throw error;
             return data || [];
@@ -263,7 +397,8 @@ export const useTripStore = create<TripStore>((set, get) => ({
                 .from('operations_trips_view')
                 .select('*')
                 .eq('route_id', routeId)
-                .order('travel_date', { ascending: false });
+                .order('travel_date', { ascending: false })
+                .limit(10000); // Ensure all trips for this route are fetched
 
             if (error) throw error;
             return data || [];
@@ -279,7 +414,8 @@ export const useTripStore = create<TripStore>((set, get) => ({
                 .from('operations_trips_view')
                 .select('*')
                 .eq('vessel_id', vesselId)
-                .order('travel_date', { ascending: false });
+                .order('travel_date', { ascending: false })
+                .limit(10000); // Ensure all trips for this vessel are fetched
 
             if (error) throw error;
             return data || [];
@@ -428,10 +564,189 @@ export const useTripStore = create<TripStore>((set, get) => ({
         return [];
     },
 
+    // Bulk trip generation
+    generateTripsFromSchedule: async (request: TripGenerationRequest) => {
+        set({ loading: { ...get().loading, create: true }, error: null });
+
+        try {
+            // Validate the request
+            const validation = validateTripGenerationRequest(request);
+            if (!validation.isValid) {
+                throw new Error(Object.values(validation.errors)[0]);
+            }
+
+            // Get vessel capacity from vessels data
+            let vessels = get().vessels || [];
+            
+            // If vessels not loaded, fetch them
+            if (vessels.length === 0) {
+                const { data: vesselData } = await supabase
+                    .from('operations_vessels_view')
+                    .select('*')
+                    .eq('is_active', true);
+                
+                if (vesselData) {
+                    const processedVessels = vesselData.map((vessel: any) => ({
+                        ...vessel,
+                        created_at: vessel.created_at || new Date().toISOString(),
+                        updated_at: vessel.updated_at || new Date().toISOString(),
+                    }));
+                    vessels = processedVessels;
+                    set({ vessels });
+                }
+            }
+            
+            const selectedVessel = vessels.find(v => v.id === request.vessel_id);
+            if (!selectedVessel) {
+                throw new Error('Selected vessel not found or is inactive');
+            }
+
+            // Create enhanced request with actual vessel capacity
+            const enhancedRequest = {
+                ...request,
+                vessel_capacity: selectedVessel.seating_capacity
+            };
+
+            // Generate trips
+            const generatedTrips = generateTripsForSchedule(enhancedRequest);
+            
+            if (generatedTrips.length === 0) {
+                throw new Error('No trips were generated. Please check your date range and selected days.');
+            }
+            
+            // Check for conflicts with existing trips
+            const existingTrips = get().data;
+            const { conflicts, safeTrips } = detectTripConflicts(generatedTrips, existingTrips);
+
+            if (conflicts.length > 0) {
+                console.warn(`Found ${conflicts.length} conflicting trips`);
+                const conflictDetails = conflicts.map(c => 
+                    `${c.trip.travel_date} at ${c.trip.departure_time}`
+                ).join(', ');
+                
+                if (safeTrips.length === 0) {
+                    throw new Error(`All ${conflicts.length} generated trips conflict with existing trips on: ${conflictDetails}`);
+                }
+            }
+
+            // Insert safe trips into database
+            if (safeTrips.length > 0) {
+                // Validate each trip before insertion - only include fields that exist in database
+                const validatedTrips = safeTrips.map(trip => ({
+                    route_id: trip.route_id,
+                    vessel_id: trip.vessel_id,
+                    travel_date: trip.travel_date,
+                    departure_time: trip.departure_time,
+                    available_seats: trip.available_seats,
+                    fare_multiplier: trip.fare_multiplier,
+                    status: trip.status,
+                    is_active: trip.is_active,
+                    booked_seats: 0, // Default to 0 for new trips
+                }));
+
+                const { data, error } = await supabase
+                    .from('trips')
+                    .insert(validatedTrips)
+                    .select();
+
+                if (error) {
+                    console.error('Database insertion error:', error);
+                    throw new Error(`Failed to create trips: ${error.message}`);
+                }
+
+                // Process and add to store
+                const processedTrips = (data || []).map(processTripData);
+                const currentData = get().data;
+                set({ data: [...currentData, ...processedTrips] });
+                
+                // Recalculate computed data
+                get().calculateComputedData();
+
+                return {
+                    success: true,
+                    generated: safeTrips.length,
+                    conflicts: conflicts.length,
+                    trips: processedTrips,
+                    message: conflicts.length > 0 ? 
+                        `Successfully created ${safeTrips.length} trips. ${conflicts.length} trips were skipped due to conflicts.` :
+                        `Successfully created ${safeTrips.length} trips.`
+                };
+            }
+
+            return {
+                success: true,
+                generated: 0,
+                conflicts: conflicts.length,
+                trips: [],
+                message: 'No trips were created due to conflicts with existing trips.'
+            };
+
+        } catch (error) {
+            console.error('Error generating trips:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to generate trips';
+            set({ error: errorMessage });
+            return {
+                success: false,
+                generated: 0,
+                conflicts: 0,
+                trips: [],
+                error: errorMessage
+            };
+        } finally {
+            set({ loading: { ...get().loading, create: false } });
+        }
+    },
+
+    // Preview trip generation without saving
+    previewTripGeneration: (request: TripGenerationRequest) => {
+        const validation = validateTripGenerationRequest(request);
+        if (!validation.isValid) {
+            return {
+                isValid: false,
+                errors: validation.errors,
+                generatedTrips: [],
+                conflicts: [],
+                safeTrips: []
+            };
+        }
+
+        // Get vessel capacity from vessels data
+        let vessels = get().vessels || [];
+        
+        // If vessels not loaded, we'll use a default capacity for preview
+        // (in a real implementation, you might want to fetch vessels here too)
+        const selectedVessel = vessels.find(v => v.id === request.vessel_id);
+        
+        // Create enhanced request with actual vessel capacity
+        const enhancedRequest = {
+            ...request,
+            vessel_capacity: selectedVessel?.seating_capacity || 50
+        };
+
+        const generatedTrips = generateTripsForSchedule(enhancedRequest);
+        const existingTrips = get().data;
+        const { conflicts, safeTrips } = detectTripConflicts(generatedTrips, existingTrips);
+
+        return {
+            isValid: true,
+            errors: {},
+            generatedTrips,
+            conflicts,
+            safeTrips,
+            summary: {
+                totalGenerated: generatedTrips.length,
+                conflicting: conflicts.length,
+                canCreate: safeTrips.length
+            }
+        };
+    },
+
     // Utility functions
     getTripById: (id: string) => {
         return get().data.find(trip => trip.id === id);
     },
+
+
 
     getTripsByStatus: (status: string) => {
         return get().data.filter(trip => trip.status === status);
@@ -495,87 +810,21 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
     // Search and filter utilities
     searchItems: (items, query) => {
-        if (!query.trim()) return items;
-        const searchTerm = query.toLowerCase();
-        return items.filter(trip =>
-            trip.route_name?.toLowerCase().includes(searchTerm) ||
-            trip.vessel_name?.toLowerCase().includes(searchTerm) ||
-            trip.travel_date.includes(searchTerm) ||
-            trip.departure_time.includes(searchTerm) ||
-            trip.status.toLowerCase().includes(searchTerm)
-        );
+        return searchTrips(items, query);
     },
 
     filterItems: (items, filters) => {
-        return items.filter(trip => {
-            if (filters.status && filters.status !== 'all' && trip.status !== filters.status) {
-                return false;
-            }
-            if (filters.route_id && trip.route_id !== filters.route_id) {
-                return false;
-            }
-            if (filters.vessel_id && trip.vessel_id !== filters.vessel_id) {
-                return false;
-            }
-            if (filters.date_range) {
-                const tripDate = new Date(trip.travel_date);
-                const fromDate = new Date(filters.date_range.from);
-                const toDate = new Date(filters.date_range.to);
-                if (tripDate < fromDate || tripDate > toDate) {
-                    return false;
-                }
-            }
-            return true;
-        });
+        return filterTrips(items, filters);
     },
 
-    sortItems: (items, sortBy, order) => {
-        return [...items].sort((a, b) => {
-            let aValue: any = (a as any)[sortBy];
-            let bValue: any = (b as any)[sortBy];
-
-            if (sortBy === 'travel_date' || sortBy === 'departure_time') {
-                aValue = new Date(`${a.travel_date} ${a.departure_time}`);
-                bValue = new Date(`${b.travel_date} ${b.departure_time}`);
-            }
-
-            if (aValue < bValue) return order === 'asc' ? -1 : 1;
-            if (aValue > bValue) return order === 'asc' ? 1 : -1;
-            return 0;
-        });
+    sortItems: (items: Trip[], sortBy: any, order: 'asc' | 'desc') => {
+        return sortTrips(items, sortBy as any, order);
     },
 
     // Statistics calculation
     calculateStats: () => {
         const trips = get().data;
-        const today = new Date().toISOString().split('T')[0];
-
-        const stats: TripStats = {
-            total: trips.length,
-            active: trips.filter(t => t.is_active).length,
-            inactive: trips.filter(t => !t.is_active).length,
-            scheduled: trips.filter(t => t.status === 'scheduled').length,
-            inProgress: trips.filter(t => ['boarding', 'departed'].includes(t.status)).length,
-            completed: trips.filter(t => t.status === 'arrived').length,
-            cancelled: trips.filter(t => t.status === 'cancelled').length,
-            delayed: trips.filter(t => t.status === 'delayed').length,
-            todayTrips: trips.filter(t => t.travel_date === today).length,
-            averageOccupancy: trips.length > 0 ?
-                trips.reduce((sum, trip) => sum + (trip.occupancy_rate || 0), 0) / trips.length : 0,
-            totalRevenue: trips.reduce((sum, trip) => {
-                const baseFare = trip.base_fare || 0;
-                const fareMultiplier = trip.fare_multiplier || 1;
-                const bookings = trip.confirmed_bookings || 0;
-                return sum + (bookings * baseFare * fareMultiplier);
-            }, 0),
-            onTimePerformance: trips.length > 0 ?
-                (trips.filter(t => t.status !== 'delayed' && t.status !== 'cancelled').length / trips.length) * 100 : 0,
-            avgFare: trips.length > 0 ?
-                trips.reduce((sum, trip) => sum + (trip.base_fare || 0), 0) / trips.length : 0,
-            totalBookings: trips.reduce((sum, trip) => sum + (trip.confirmed_bookings || 0), 0),
-            totalPassengers: trips.reduce((sum, trip) => sum + (trip.booked_seats || 0), 0),
-        };
-
+        const stats = calculateTripStats(trips);
         set({ stats });
     },
 

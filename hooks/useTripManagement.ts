@@ -3,6 +3,14 @@ import { useTripStore } from '@/store/admin/tripStore';
 import { useRouteStore } from '@/store/admin/routeStore';
 import { useVesselStore } from '@/store/admin/vesselStore';
 import { AdminManagement } from '@/types';
+import {
+    getTripPerformanceRating,
+    getTripPerformanceColor,
+    formatCurrency,
+    formatPercentage,
+    getOccupancyLevel,
+    getStatusColor,
+} from '@/utils/admin/tripUtils';
 
 type Trip = AdminManagement.Trip;
 type TripFormData = AdminManagement.TripFormData;
@@ -10,7 +18,10 @@ type TripStats = AdminManagement.TripStats;
 type TripFilters = AdminManagement.TripFilters;
 type TripWithDetails = AdminManagement.TripWithDetails;
 type ValidationResult = AdminManagement.ValidationResult;
-type UseTripManagementReturn = AdminManagement.UseTripManagementReturn;
+type UseTripManagementReturn = AdminManagement.UseTripManagementReturn & {
+    generateTripsFromSchedule: (request: any) => Promise<any>;
+    previewTripGeneration: (request: any) => any;
+};
 
 // ============================================================================
 // TRIP MANAGEMENT HOOK IMPLEMENTATION
@@ -75,6 +86,8 @@ export const useTripManagement = (
         searchItems,
         filterItems,
         sortItems,
+        generateTripsFromSchedule,
+        previewTripGeneration,
     } = tripStore;
 
     // ========================================================================
@@ -165,55 +178,28 @@ export const useTripManagement = (
     // PERFORMANCE HELPERS
     // ========================================================================
 
-    const getPerformanceRating = useCallback((trip: Trip): 'excellent' | 'good' | 'fair' | 'poor' => {
-        const occupancy = trip.occupancy_rate || 0;
-        const isOnTime = trip.status !== 'delayed' && trip.status !== 'cancelled';
-
-        if (occupancy >= 80 && isOnTime) return 'excellent';
-        if (occupancy >= 60 && isOnTime) return 'good';
-        if (occupancy >= 40 || isOnTime) return 'fair';
-        return 'poor';
+    const getPerformanceRating = useCallback((trip: Trip) => {
+        return getTripPerformanceRating(trip);
     }, []);
 
     const getPerformanceColor = useCallback((rating: string) => {
-        const colors = {
-            excellent: '#10B981', // green
-            good: '#3B82F6',      // blue
-            fair: '#F59E0B',      // yellow
-            poor: '#EF4444'       // red
-        };
-        return colors[rating as keyof typeof colors] || '#6B7280';
+        return getTripPerformanceColor(rating);
     }, []);
 
-    const formatCurrency = useCallback((amount: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD'
-        }).format(amount);
+    const formatCurrencyAmount = useCallback((amount: number) => {
+        return formatCurrency(amount);
     }, []);
 
-    const formatPercentage = useCallback((value: number) => {
-        return `${Math.round(value)}%`;
+    const formatPercentageValue = useCallback((value: number) => {
+        return formatPercentage(value);
     }, []);
 
-    const getOccupancyLevel = useCallback((trip: Trip): 'low' | 'medium' | 'high' | 'full' => {
-        const occupancy = trip.occupancy_rate || 0;
-        if (occupancy >= 100) return 'full';
-        if (occupancy >= 80) return 'high';
-        if (occupancy >= 50) return 'medium';
-        return 'low';
+    const getOccupancyLevelForTrip = useCallback((trip: Trip) => {
+        return getOccupancyLevel(trip);
     }, []);
 
-    const getStatusColor = useCallback((status: string) => {
-        const colors = {
-            scheduled: '#3B82F6', // blue
-            boarding: '#F59E0B',  // yellow
-            departed: '#10B981',  // green
-            arrived: '#059669',   // dark green
-            cancelled: '#EF4444', // red
-            delayed: '#F59E0B'    // yellow
-        };
-        return colors[status as keyof typeof colors] || '#6B7280';
+    const getStatusColorForTrip = useCallback((status: string) => {
+        return getStatusColor(status);
     }, []);
 
     // ========================================================================
@@ -256,6 +242,8 @@ export const useTripManagement = (
         update: updateTrip,
         remove,
         refresh,
+        generateTripsFromSchedule,
+        previewTripGeneration,
 
         // Trip-specific actions
         loadRoutes,
@@ -283,9 +271,9 @@ export const useTripManagement = (
         // Performance helpers
         getPerformanceRating,
         getPerformanceColor,
-        formatCurrency,
-        formatPercentage,
-        getOccupancyLevel,
-        getStatusColor
+        formatCurrency: formatCurrencyAmount,
+        formatPercentage: formatPercentageValue,
+        getOccupancyLevel: getOccupancyLevelForTrip,
+        getStatusColor: getStatusColorForTrip
     };
 }; 

@@ -1359,6 +1359,8 @@ const styles = StyleSheet.create({
   },
   visualPreviewContainer: {
     marginTop: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
   visualPreviewTitle: {
     fontSize: 13,
@@ -1372,9 +1374,11 @@ const styles = StyleSheet.create({
   scrollablePreviewContent: {
     paddingHorizontal: 8,
     alignItems: "center",
+    
   },
   visualPreview: {
     alignItems: "center",
+    justifyContent: "center",
   },
   scrollHintText: {
     fontSize: 11,

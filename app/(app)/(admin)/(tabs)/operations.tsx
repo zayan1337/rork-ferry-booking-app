@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-} from "react-native";
+import { View, StyleSheet, ScrollView, RefreshControl } from "react-native";
 import { Stack } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useAdminStore } from "@/store/admin/adminStore";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 // UPDATED: Use hooks from the hooks index
-import { useRouteManagement, useVesselManagement, useTripManagement } from "@/hooks";
+import {
+  useRouteManagement,
+  useVesselManagement,
+  useTripManagement,
+} from "@/hooks";
 import { useOperationsStore } from "@/store/admin/operationsStore";
-import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
+import {
+  getResponsiveDimensions,
+  getResponsivePadding,
+} from "@/utils/dashboardUtils";
 import { AdminManagement } from "@/types";
 
 // Operations Components
@@ -28,11 +30,7 @@ import {
 type Route = AdminManagement.Route;
 
 export default function OperationsScreen() {
-  const {
-    canViewRoutes,
-    canViewTrips,
-    canViewVessels,
-  } = useAdminPermissions();
+  const { canViewRoutes, canViewTrips, canViewVessels } = useAdminPermissions();
 
   // UPDATED: Use new route management hook for routes
   const {
@@ -80,28 +78,38 @@ export default function OperationsScreen() {
   };
 
   // Keep operations store for schedule and other data
-  const {
-    todaySchedule,
-    searchQueries,
-    setSearchQuery,
-    loading,
-    stats,
-  } = useOperationsStore();
+  const { todaySchedule, searchQueries, setSearchQuery, loading, stats } =
+    useOperationsStore();
 
   // Load routes, vessels, and trips on component mount
+
+  // Load routes, vessels, trips and operations stats on component mount
   useEffect(() => {
-    if (!allRoutes || allRoutes.length === 0) {
-      loadRoutes();
-    }
-    if (!safeVessels || safeVessels.length === 0) {
-      loadVessels();
-    }
-    if (!allTrips || allTrips.length === 0) {
-      loadTrips();
-    }
+    const initializeData = async () => {
+      const promises = [];
+
+      if (!allRoutes || allRoutes.length === 0) {
+        promises.push(loadRoutes());
+      }
+      if (!safeVessels || safeVessels.length === 0) {
+        promises.push(loadVessels());
+      }
+      if (!allTrips || allTrips.length === 0) {
+        promises.push(loadTrips());
+      }
+
+      // Always refresh operations stats to get latest data from database
+      promises.push(useOperationsStore.getState().refreshAll());
+
+      await Promise.all(promises);
+    };
+
+    initializeData();
   }, [allRoutes, loadRoutes, safeVessels, loadVessels, allTrips, loadTrips]);
 
-  const [activeSection, setActiveSection] = useState<"routes" | "trips" | "vessels" | "schedule">("routes");
+  const [activeSection, setActiveSection] = useState<
+    "routes" | "trips" | "vessels" | "schedule"
+  >("routes");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { isTablet, isSmallScreen } = getResponsiveDimensions();
@@ -109,15 +117,15 @@ export default function OperationsScreen() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Refresh routes, vessels, trips and other data
+      // Refresh routes, vessels, trips and operations stats
       await Promise.all([
         loadRoutes(),
         loadVessels(),
         loadTrips(),
-        // Add other refresh calls here if needed
+        useOperationsStore.getState().refreshAll(), // Refresh operations stats from database
       ]);
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error("Error refreshing data:", error);
     } finally {
       setIsRefreshing(false);
     }
@@ -126,15 +134,35 @@ export default function OperationsScreen() {
   const renderContent = () => {
     switch (activeSection) {
       case "routes":
-        return <RoutesTab isActive={activeSection === "routes"} searchQuery={routeSearchQuery} />;
+        return (
+          <RoutesTab
+            isActive={activeSection === "routes"}
+            searchQuery={routeSearchQuery}
+          />
+        );
       case "trips":
-        return <TripsTab isActive={activeSection === "trips"} searchQuery={tripSearchQuery} />;
+        return (
+          <TripsTab
+            isActive={activeSection === "trips"}
+            searchQuery={tripSearchQuery}
+          />
+        );
       case "vessels":
-        return <VesselsTab isActive={activeSection === "vessels"} searchQuery={vesselSearchQuery} />;
+        return (
+          <VesselsTab
+            isActive={activeSection === "vessels"}
+            searchQuery={vesselSearchQuery}
+          />
+        );
       case "schedule":
         return <ScheduleTab isActive={activeSection === "schedule"} />;
       default:
-        return <RoutesTab isActive={activeSection === "routes"} searchQuery={routeSearchQuery} />;
+        return (
+          <RoutesTab
+            isActive={activeSection === "routes"}
+            searchQuery={routeSearchQuery}
+          />
+        );
     }
   };
 
@@ -159,14 +187,21 @@ export default function OperationsScreen() {
       />
 
       {/* Operations Stats */}
-      <OperationsStats stats={{
-        ...stats,
-        activeRoutes: routeStats.active,
-        totalRoutes: routeStats.total,
-        activeVessels: safeVesselStats.active,
-        totalVessels: safeVesselStats.total,
-        todayTrips: tripStats.todayTrips,
-      }} isTablet={isTablet} />
+      <OperationsStats
+        stats={{
+          // Prioritize operations store stats (from database views) over individual hook stats
+          activeRoutes: stats.activeRoutes || routeStats.active,
+          totalRoutes: stats.totalRoutes || routeStats.total,
+          activeVessels: stats.activeVessels || safeVesselStats.active,
+          totalVessels: stats.totalVessels || safeVesselStats.total,
+          todayTrips: stats.todayTrips || tripStats.todayTrips,
+          // Combine revenue from all sources or use operations store total
+          totalRevenue30d:
+            (routeStats.totalRevenue30d || 0) +
+            (safeVesselStats.totalRevenue30d || 0),
+        }}
+        isTablet={isTablet}
+      />
 
       {/* Section Selector */}
       <SectionSelector
@@ -192,4 +227,4 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 16,
   },
-}); 
+});

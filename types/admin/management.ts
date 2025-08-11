@@ -1000,7 +1000,7 @@ export interface Trip extends BaseEntity, ActivatableEntity {
     travel_date: string;
     departure_time: string;
     arrival_time?: string;
-    estimated_duration: string;
+    estimated_duration?: string;
     status: "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed";
     delay_reason?: string;
     available_seats: number;
@@ -1031,15 +1031,18 @@ export interface TripFormData {
     vessel_id: string;
     travel_date: string;
     departure_time: string;
-    arrival_time?: string;
+    available_seats?: number; // Optional, will be derived from vessel capacity if not provided
     status?: "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed";
-    delay_reason?: string;
     fare_multiplier: number;
+    is_active: boolean;
+    
+    // Optional fields that don't exist in database but may be used by forms
+    arrival_time?: string;
+    delay_reason?: string;
     weather_conditions?: string;
     captain_id?: string;
     crew_ids?: string[];
     notes?: string;
-    is_active: boolean;
 }
 
 export interface TripWithDetails extends Trip {
@@ -1180,6 +1183,9 @@ export interface TripStoreActions extends BaseCrudActions<Trip, TripFormData>, S
     // Trip generation
     generateTripsForRoute: (routeId: string, startDate: string, endDate: string, schedule: any) => Promise<Trip[]>;
     generateTripsForDate: (date: string, routes?: string[]) => Promise<Trip[]>;
+    // Bulk generation (schedule-driven)
+    generateTripsFromSchedule: (request: any) => Promise<any>;
+    previewTripGeneration: (request: any) => any;
 
     // Utility functions
     getTripById: (id: string) => Trip | undefined;
@@ -1254,6 +1260,10 @@ export interface UseTripManagementReturn extends BaseManagementHook<Trip, TripFo
     formatPercentage: (value: number) => string;
     getOccupancyLevel: (trip: Trip) => 'low' | 'medium' | 'high' | 'full';
     getStatusColor: (status: string) => string;
+
+    // Trip generation
+    generateTripsFromSchedule: (request: any) => Promise<any>;
+    previewTripGeneration: (request: any) => any;
 }
 
 // ============================================================================

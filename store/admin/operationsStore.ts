@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { supabase } from "@/utils/supabase";
 import {
     OperationsRoute,
     OperationsTrip,
@@ -141,6 +142,7 @@ interface OperationsStore {
 
     // Utility
     refreshAll: () => Promise<void>;
+    calculateBasicStats: () => Promise<void>;
     clearData: () => void;
 }
 
@@ -217,18 +219,36 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
         set((state) => ({ loading: { ...state.loading, trips: true } }));
         try {
             const trips = await fetchTrips();
-            set((state) => {
+            
+            // Fetch accurate today's trips count from new database view
+            let todayTrips = 0;
+            try {
+                const { data: statsData, error: statsError } = await supabase
+                    .from('enhanced_operations_stats_view')
+                    .select('today_trips')
+                    .single();
+                
+                if (!statsError && statsData) {
+                    todayTrips = statsData.today_trips || 0;
+                } else {
+                    // Fallback to manual calculation
+                    const today = new Date().toISOString().split('T')[0];
+                    todayTrips = trips.filter(t => t.travel_date === today).length;
+                }
+            } catch (err) {
+                console.log('Enhanced stats view not available, using fallback calculation');
                 const today = new Date().toISOString().split('T')[0];
-                const todayTrips = trips.filter(t => t.travel_date === today).length;
-                return {
-                    trips,
-                    loading: { ...state.loading, trips: false },
-                    stats: {
-                        ...state.stats,
-                        todayTrips,
-                    }
-                };
-            });
+                todayTrips = trips.filter(t => t.travel_date === today).length;
+            }
+            
+            set((state) => ({
+                trips,
+                loading: { ...state.loading, trips: false },
+                stats: {
+                    ...state.stats,
+                    todayTrips,
+                }
+            }));
         } catch (error) {
             console.error('Error in fetchTrips:', error);
             set((state) => ({ loading: { ...state.loading, trips: false } }));
@@ -286,14 +306,45 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
     fetchTodaySchedule: async () => {
         set((state) => ({ loading: { ...state.loading, schedule: true } }));
         try {
-            const todaySchedule = await fetchTodaySchedule();
+            // Use operations_trips_view for today's data (includes travel_date)
+            const today = new Date().toISOString().split('T')[0];
+            const { data, error } = await supabase
+                .from('operations_trips_view')
+                .select('*')
+                .eq('travel_date', today)
+                .eq('is_active', true)
+                .order('departure_time', { ascending: true });
+            
+            if (error) throw error;
+            
+            const todaySchedule = data || [];
             set((state) => ({
                 todaySchedule,
                 loading: { ...state.loading, schedule: false },
             }));
         } catch (error) {
             console.error('Error in fetchTodaySchedule:', error);
-            set((state) => ({ loading: { ...state.loading, schedule: false } }));
+            // Fallback to regular trips query if view doesn't exist
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const { data: fallbackData, error: fallbackError } = await supabase
+                    .from('operations_trips_view')
+                    .select('*')
+                    .eq('travel_date', today)
+                    .order('departure_time', { ascending: true });
+                
+                if (!fallbackError) {
+                    set((state) => ({
+                        todaySchedule: fallbackData || [],
+                        loading: { ...state.loading, schedule: false },
+                    }));
+                } else {
+                    throw fallbackError;
+                }
+            } catch (fallbackError) {
+                console.error('Fallback fetchTodaySchedule also failed:', fallbackError);
+                set((state) => ({ loading: { ...state.loading, schedule: false } }));
+            }
         }
     },
 
@@ -470,6 +521,35 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
     // Utility
     refreshAll: async () => {
         const { fetchRoutes, fetchTrips, fetchVessels, fetchIslands, fetchTodaySchedule } = get();
+        
+        // Fetch enhanced stats for accurate data
+        try {
+            const { data: enhancedStats, error: statsError } = await supabase
+                .from('enhanced_operations_stats_view')
+                .select('*')
+                .single();
+            
+            if (!statsError && enhancedStats) {
+                set((state) => ({
+                    stats: {
+                        activeRoutes: enhancedStats.active_routes || 0,
+                        totalRoutes: enhancedStats.total_routes || 0,
+                        activeVessels: enhancedStats.active_vessels || 0,
+                        totalVessels: enhancedStats.total_vessels || 0,
+                        todayTrips: enhancedStats.today_trips || 0,
+                        totalCapacity: enhancedStats.today_total_capacity || 0,
+                    }
+                }));
+            } else {
+                console.warn('OperationsStore: Enhanced stats not available:', statsError);
+                // Fallback to basic stats calculation
+                await get().calculateBasicStats();
+            }
+        } catch (error) {
+            console.error('OperationsStore: Error fetching enhanced stats:', error);
+            await get().calculateBasicStats();
+        }
+        
         await Promise.all([
             fetchRoutes(),
             fetchTrips(),
@@ -477,6 +557,45 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
             fetchIslands(),
             fetchTodaySchedule(),
         ]);
+    },
+
+    calculateBasicStats: async () => {
+        try {
+            const { routes, trips, vessels } = get();
+            
+            // Calculate basic stats from loaded data
+            const activeRoutes = routes.filter(r => r.is_active).length;
+            const totalRoutes = routes.length;
+            const activeVessels = vessels.filter(v => v.is_active).length;
+            const totalVessels = vessels.length;
+            
+            // Today's trips
+            const today = new Date().toISOString().split('T')[0];
+            const todayTrips = trips.filter(t => 
+                t.travel_date === today && t.is_active
+            ).length;
+            
+            // Calculate total capacity for today
+            const todayTripIds = trips
+                .filter(t => t.travel_date === today && t.is_active)
+                .map(t => t.vessel_id);
+            const todayVessels = vessels.filter(v => todayTripIds.includes(v.id));
+            const totalCapacity = todayVessels.reduce((sum, v) => sum + (v.seating_capacity || 0), 0);
+            
+            
+            set((state) => ({
+                stats: {
+                    activeRoutes,
+                    totalRoutes,
+                    activeVessels,
+                    totalVessels,
+                    todayTrips,
+                    totalCapacity,
+                }
+            }));
+        } catch (error) {
+            console.error('OperationsStore: Error calculating basic stats:', error);
+        }
     },
 
     clearData: () => set({

@@ -1,10 +1,10 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { View, Text, StyleSheet, Alert, TouchableOpacity } from "react-native";
 import {
   Stack,
   router,
-  useFocusEffect,
   useLocalSearchParams,
+  useFocusEffect,
 } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { TripForm } from "@/components/admin/operations";
@@ -15,16 +15,10 @@ import { ArrowLeft } from "lucide-react-native";
 
 type TripFormData = AdminManagement.TripFormData;
 
-export default function NewTripPage() {
+export default function EditTripPage() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { canManageTrips } = useAdminPermissions();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const params = useLocalSearchParams();
-
-  // Extract pre-fill data from query parameters
-  const initialData = {
-    route_id: (params.route_id as string) || "",
-    vessel_id: (params.vessel_id as string) || "",
-  };
 
   // Reset state when page is focused
   useFocusEffect(
@@ -33,18 +27,27 @@ export default function NewTripPage() {
     }, [])
   );
 
+  // Handle missing trip ID
+  useEffect(() => {
+    if (!id) {
+      Alert.alert("Error", "Trip ID not found", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    }
+  }, [id]);
+
   const handleSave = async (tripData: TripFormData) => {
     if (isSubmitting) return;
 
     setIsSubmitting(true);
     try {
-      // The TripForm component now handles validation and creation
-      Alert.alert("Success", "Trip created successfully!", [
+      // The TripForm component now handles validation and updating
+      Alert.alert("Success", "Trip updated successfully!", [
         { text: "OK", onPress: () => router.back() },
       ]);
     } catch (error) {
-      console.error("Error creating trip:", error);
-      Alert.alert("Error", "Failed to create trip. Please try again.");
+      console.error("Error updating trip:", error);
+      Alert.alert("Error", "Failed to update trip. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -60,8 +63,19 @@ export default function NewTripPage() {
         <Stack.Screen options={{ title: "Access Denied" }} />
         <View style={styles.accessDeniedContainer}>
           <Text style={styles.accessDeniedText}>
-            You don't have permission to create trips.
+            You don't have permission to edit trips.
           </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (!id) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ title: "Trip Not Found" }} />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Trip ID not found</Text>
         </View>
       </View>
     );
@@ -71,7 +85,7 @@ export default function NewTripPage() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: "New Trip",
+          title: "Edit Trip",
           headerStyle: {
             backgroundColor: colors.card,
           },
@@ -87,11 +101,7 @@ export default function NewTripPage() {
         }}
       />
 
-      <TripForm
-        onSave={handleSave}
-        onCancel={handleCancel}
-        initialData={initialData}
-      />
+      <TripForm tripId={id} onSave={handleSave} onCancel={handleCancel} />
     </View>
   );
 }
@@ -104,6 +114,18 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
     marginLeft: -8,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: colors.error,
+    textAlign: "center",
+    fontWeight: "500",
   },
   accessDeniedContainer: {
     flex: 1,

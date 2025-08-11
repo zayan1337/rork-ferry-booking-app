@@ -1,428 +1,1115 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-    View,
-    StyleSheet,
-    ScrollView,
-    RefreshControl,
-    FlatList,
-    ActivityIndicator,
-    Alert,
-    TouchableOpacity,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  RefreshControl,
+  Dimensions,
+  Modal,
 } from "react-native";
-import { Stack, router, useFocusEffect } from "expo-router";
+import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
-import { useAdminStore } from "@/store/admin/adminStore";
+import { useTripManagement } from "@/hooks/useTripManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { Trip } from "@/types/operations";
-import { filterTrips, searchTrips, formatTripStatus, getTripOccupancy } from "@/utils/tripUtils";
-import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
-
-// Operations Components
+import { AdminManagement } from "@/types";
 import {
-    TripStats,
-    TripFilters,
-    TripBulkActions,
-    type TripFiltersState,
-    type TripSortConfig
-} from "@/components/admin/operations";
-
-// Common Components
-import { ListSection } from "@/components/admin/common";
-import EmptyState from "@/components/admin/EmptyState";
-import TripItem from "@/components/admin/TripItem";
-import Button from "@/components/admin/Button";
-
-// Icons
+  searchTrips,
+  filterTripsByStatus,
+  sortTrips,
+  calculateTripStats,
+  formatCurrency,
+  formatPercentage,
+} from "@/utils/admin/tripUtils";
 import {
-    Plus,
-    Calendar,
-    AlertTriangle,
-    Grid,
-    List,
-    MoreHorizontal,
+  ArrowLeft,
+  Plus,
+  Navigation,
+  Search,
+  Filter,
+  SortAsc,
+  SortDesc,
+  Activity,
+  TrendingUp,
+  DollarSign,
+  Calendar,
+  AlertTriangle,
+  Clock,
+  Users,
+  CalendarRange,
 } from "lucide-react-native";
 
-export default function TripsListingPage() {
-    const { canViewTrips, canManageTrips } = useAdminPermissions();
-    const { trips: allTrips, routes, vessels } = useAdminStore();
+import Button from "@/components/admin/Button";
+import SearchBar from "@/components/admin/SearchBar";
+import TripItem from "@/components/admin/TripItem";
+import LoadingSpinner from "@/components/admin/LoadingSpinner";
+import DatePicker from "@/components/admin/DatePicker";
 
-    const [trips, setTrips] = useState<Trip[]>([]);
-    const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
-    const [selectedTrips, setSelectedTrips] = useState<string[]>([]);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [viewMode, setViewMode] = useState<'card' | 'list' | 'compact'>('card');
-    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+const { width: screenWidth } = Dimensions.get("window");
+const isTablet = screenWidth >= 768;
 
-    // Filter and sort state
-    const [filters, setFilters] = useState<TripFiltersState>({
-        searchTerm: "",
-        status: "all",
-        dateFilter: "all",
-        occupancyFilter: "all",
-        fareFilter: "all",
-    });
+type Trip = AdminManagement.Trip;
 
-    const [sortConfig, setSortConfig] = useState<TripSortConfig>({
-        field: "travel_date",
-        direction: "desc",
-    });
+// Helper functions for date range
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const oneMonthLater = new Date();
+  oneMonthLater.setMonth(today.getMonth() + 1);
 
-    const { isTablet, isSmallScreen } = getResponsiveDimensions();
+  return {
+    from: today.toISOString().split("T")[0],
+    to: oneMonthLater.toISOString().split("T")[0],
+  };
+};
 
-    // Calculate trip statistics
-    const tripStats = useMemo(() => {
-        const statsTrips = trips.length ? trips : allTrips || [];
-        const scheduled = statsTrips.filter(t => t.status === 'scheduled').length;
-        const inProgress = statsTrips.filter(t => ['boarding', 'departed'].includes(t.status)).length;
-        const completed = statsTrips.filter(t => t.status === 'arrived').length;
-        const cancelled = statsTrips.filter(t => t.status === 'cancelled').length;
+export default function TripsScreen() {
+  const { canViewTrips, canManageTrips } = useAdminPermissions();
 
-        const totalOccupancy = statsTrips.reduce((sum, trip) => {
-            const occupancy = getTripOccupancy(trip);
-            return sum + occupancy;
-        }, 0);
+  const [filterActive, setFilterActive] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showFromDatePicker, setShowFromDatePicker] = useState(false);
+  const [showToDatePicker, setShowToDatePicker] = useState(false);
+  const [dateRange, setDateRange] = useState(getDefaultDateRange());
 
-        const averageOccupancy = statsTrips.length > 0 ? totalOccupancy / statsTrips.length : 0;
+  const {
+    trips: allTrips,
+    loading,
+    error,
+    stats,
+    searchQuery,
+    setSearchQuery,
+    sortBy,
+    setSortBy,
+    sortOrder,
+    setSortOrder,
+    filters,
+    setFilters,
+    loadAll: fetchTrips,
+    refresh,
+  } = useTripManagement();
 
-        const totalRevenue = statsTrips.reduce((sum, trip) => {
-            const baseFare = routes?.find(r => r.id === trip.route_id)?.base_fare || 0;
-            const fareMultiplier = trip.fare_multiplier || 1;
-            return sum + (trip.booked_seats * baseFare * fareMultiplier);
-        }, 0);
+  // No need to update filters - we handle date filtering directly in the component
 
-        const today = new Date().toISOString().split('T')[0];
-        const todayTrips = statsTrips.filter(t => t.travel_date === today).length;
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refresh();
+    setIsRefreshing(false);
+  };
 
-        return {
-            total: statsTrips.length,
-            scheduled,
-            inProgress,
-            completed,
-            cancelled,
-            averageOccupancy,
-            totalRevenue,
-            todayTrips,
-        };
-    }, [trips, allTrips, routes]);
+  const handleTripPress = (tripId: string) => {
+    router.push(`./trip/${tripId}` as any);
+  };
 
-    // Load and filter trips
-    const loadTrips = useCallback(async () => {
-        try {
-            // Only show loading if we have data to process
-            if (allTrips && allTrips.length > 0) {
-                setIsLoading(true);
-            }
+  const handleAddTrip = () => {
+    if (canManageTrips()) {
+      router.push("./trip/new" as any);
+    } else {
+      Alert.alert(
+        "Access Denied",
+        "You don't have permission to create trips."
+      );
+    }
+  };
 
-            const tripsData = allTrips || [];
+  const toggleSort = (field: typeof sortBy) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+  };
 
-            // Apply filters and search
-            let filtered = searchTrips(tripsData, filters.searchTerm);
-            filtered = filterTrips(filtered, filters as any);
+  const handleFromDateChange = (date: string) => {
+    setDateRange((prev) => ({ ...prev, from: date }));
+    setShowFromDatePicker(false);
+  };
 
-            // Apply sorting
-            filtered.sort((a, b) => {
-                let aValue: any = (a as any)[sortConfig.field];
-                let bValue: any = (b as any)[sortConfig.field];
+  const handleToDateChange = (date: string) => {
+    setDateRange((prev) => ({ ...prev, to: date }));
+    setShowToDatePicker(false);
+  };
 
-                if (sortConfig.field === 'travel_date' || sortConfig.field === 'departure_time') {
-                    aValue = new Date(`${a.travel_date} ${a.departure_time}`);
-                    bValue = new Date(`${b.travel_date} ${b.departure_time}`);
-                }
+  const resetDateRange = () => {
+    setDateRange(getDefaultDateRange());
+  };
 
-                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
-            });
+  const filteredAndSortedTrips = React.useMemo(() => {
+    let filtered = allTrips || [];
 
-            setTrips(tripsData);
-            setFilteredTrips(filtered);
-        } catch (error) {
-            console.error('Error loading trips:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [allTrips, filters, sortConfig]);
+    // Apply date range filter first
+    if (dateRange.from && dateRange.to) {
+      filtered = filtered.filter((trip) => {
+        const tripDate = trip.travel_date;
+        if (!tripDate) return false;
 
-    // Effects
-    useEffect(() => {
-        loadTrips();
-    }, [loadTrips]);
-
-    useFocusEffect(
-        useCallback(() => {
-            loadTrips();
-        }, [loadTrips])
-    );
-
-    // Event handlers
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        await loadTrips();
-        setIsRefreshing(false);
-    };
-
-    const handleFiltersChange = (newFilters: Partial<TripFiltersState>) => {
-        setFilters((prev: TripFiltersState) => ({ ...prev, ...newFilters }));
-        setSelectedTrips([]); // Clear selection when filters change
-    };
-
-    const handleSortChange = (newSortConfig: TripSortConfig) => {
-        setSortConfig(newSortConfig);
-    };
-
-    const handleResetFilters = () => {
-        setFilters({
-            searchTerm: "",
-            status: "all",
-            dateFilter: "all",
-            occupancyFilter: "all",
-            fareFilter: "all",
-        });
-        setSortConfig({
-            field: "travel_date",
-            direction: "desc",
-        });
-        setSelectedTrips([]);
-    };
-
-    const handleTripPress = (tripId: string) => {
-        if (canViewTrips()) {
-            router.push(`/trip/${tripId}` as any);
-        }
-    };
-
-    const handleAddTrip = () => {
-        if (canManageTrips()) {
-            router.push("/trip/new" as any);
+        let travelDate: string;
+        if (typeof tripDate === "string") {
+          travelDate = tripDate.split("T")[0];
+        } else if (
+          tripDate &&
+          typeof tripDate === "object" &&
+          "toISOString" in tripDate
+        ) {
+          travelDate = (tripDate as Date).toISOString().split("T")[0];
         } else {
-            Alert.alert("Access Denied", "You don't have permission to create trips.");
-        }
-    };
-
-    const handleTripSelection = (tripId: string) => {
-        setSelectedTrips(prev =>
-            prev.includes(tripId)
-                ? prev.filter(id => id !== tripId)
-                : [...prev, tripId]
-        );
-    };
-
-    const handleSelectAllTrips = () => {
-        setSelectedTrips(filteredTrips.map(trip => trip.id));
-    };
-
-    const handleClearSelection = () => {
-        setSelectedTrips([]);
-    };
-
-    const handleBulkAction = async (actionKey: string) => {
-        console.log(`Performing bulk action: ${actionKey} on ${selectedTrips.length} trips`);
-        // TODO: Implement actual bulk actions
-
-        switch (actionKey) {
-            case 'export':
-                // Export logic
-                break;
-            case 'reschedule':
-            case 'delay':
-            case 'complete':
-            case 'cancel':
-                // Update trip status logic
-                break;
+          travelDate = String(tripDate).split("T")[0];
         }
 
-        // Clear selection after action
-        setSelectedTrips([]);
-    };
-
-    const toggleViewMode = () => {
-        const modes: Array<'card' | 'list' | 'compact'> = ['card', 'list', 'compact'];
-        const currentIndex = modes.indexOf(viewMode);
-        const nextIndex = (currentIndex + 1) % modes.length;
-        setViewMode(modes[nextIndex]);
-    };
-
-    // Render trip item with enhanced props
-    const renderTripItem = ({ item: trip }: { item: Trip }) => {
-        // Enhance trip data with computed fields
-        const enhancedTrip = {
-            ...trip,
-            routeName: routes?.find(r => r.id === trip.route_id)?.name || 'Unknown Route',
-            vesselName: vessels?.find(v => v.id === trip.vessel_id)?.name || 'Unknown Vessel',
-            date: new Date(trip.travel_date).toLocaleDateString(),
-            departureTime: trip.departure_time,
-            arrivalTime: trip.arrival_time,
-            capacity: trip.available_seats + trip.booked_seats,
-            bookings: trip.booked_seats,
-        };
-
-        return (
-            <TripItem
-                trip={enhancedTrip as any}
-                viewMode={viewMode}
-                isSelected={selectedTrips.includes(trip.id)}
-                showSelection={selectedTrips.length > 0 || canManageTrips()}
-                onPress={() => handleTripPress(trip.id)}
-                onSelectionToggle={() => handleTripSelection(trip.id)}
-            />
-        );
-    };
-
-    // Permission check
-    if (!canViewTrips()) {
-        return (
-            <View style={styles.container}>
-                <Stack.Screen options={{ title: "Trips" }} />
-                <EmptyState
-                    icon={<AlertTriangle size={48} color={colors.warning} />}
-                    title="Access Denied"
-                    message="You don't have permission to view trips."
-                />
-            </View>
-        );
+        return travelDate >= dateRange.from && travelDate <= dateRange.to;
+      });
     }
 
-    return (
-        <View style={styles.container}>
-            <Stack.Screen
-                options={{
-                    title: "Trip Management",
-                    headerRight: () => (
-                        <View style={styles.headerActions}>
-                            <TouchableOpacity
-                                style={styles.viewModeButton}
-                                onPress={toggleViewMode}
-                            >
-                                {viewMode === 'card' ? <Grid size={20} color={colors.primary} /> :
-                                    viewMode === 'list' ? <List size={20} color={colors.primary} /> :
-                                        <MoreHorizontal size={20} color={colors.primary} />}
-                            </TouchableOpacity>
-                        </View>
-                    ),
-                }}
-            />
+    // Apply search filter
+    if (searchQuery) {
+      filtered = searchTrips(filtered, searchQuery);
+    }
 
-            <ScrollView
-                style={styles.content}
-                contentContainerStyle={[styles.contentContainer, getResponsivePadding()]}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isRefreshing}
-                        onRefresh={handleRefresh}
-                        colors={[colors.primary]}
-                        tintColor={colors.primary}
-                    />
-                }
+    // Apply status filter
+    filtered = filterTripsByStatus(filtered, filterActive);
+
+    // Apply sorting
+    filtered = sortTrips(filtered, sortBy, sortOrder);
+
+    return filtered;
+  }, [allTrips, searchQuery, filterActive, sortBy, sortOrder, dateRange]);
+
+  // Calculate stats for all trips (not filtered by date)
+  const overallStats = useMemo(() => {
+    return calculateTripStats(allTrips || []);
+  }, [allTrips]);
+
+  // Calculate stats for date-range filtered trips
+  const dateRangeStats = useMemo(() => {
+    return calculateTripStats(filteredAndSortedTrips);
+  }, [filteredAndSortedTrips]);
+
+  useEffect(() => {
+    if (!allTrips || allTrips.length === 0) {
+      fetchTrips();
+    }
+  }, []);
+
+  const renderTripItem = ({ item, index }: { item: Trip; index: number }) => (
+    <TripItem key={item.id} trip={item as any} onPress={handleTripPress} />
+  );
+
+  const renderListHeader = () => (
+    <View style={styles.listHeader}>
+      {/* Overall Stats */}
+      <View style={styles.quickStats}>
+        <Text style={styles.statsTitle}>Overall Trip Statistics</Text>
+        <View style={styles.quickStatsRow}>
+          <View style={styles.quickStatItem}>
+            <View
+              style={[
+                styles.quickStatIcon,
+                { backgroundColor: colors.primaryLight },
+              ]}
             >
-                {/* Statistics Section */}
-                <TripStats
-                    stats={tripStats}
-                    isTablet={isTablet}
-                    variant={isSmallScreen ? 'compact' : 'full'}
-                />
-
-                {/* Filters Section */}
-                <TripFilters
-                    filters={filters}
-                    sortConfig={sortConfig}
-                    onFiltersChange={handleFiltersChange}
-                    onSortChange={handleSortChange}
-                    onReset={handleResetFilters}
-                    showAdvanced={showAdvancedFilters}
-                    onToggleAdvanced={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                    resultsCount={filteredTrips.length}
-                    totalCount={trips.length}
-                    canManageTrips={canManageTrips()}
-                    onAddTrip={handleAddTrip}
-                />
-
-                {/* Bulk Actions */}
-                <TripBulkActions
-                    selectedCount={selectedTrips.length}
-                    totalCount={filteredTrips.length}
-                    onSelectAll={handleSelectAllTrips}
-                    onClearSelection={handleClearSelection}
-                    onBulkAction={handleBulkAction}
-                    canManageTrips={canManageTrips()}
-                />
-
-                {/* Trips List Section */}
-                <ListSection
-                    title="Trips"
-                    subtitle={`${filteredTrips.length} trips found`}
-                    listStyle={styles.tripsList}
-                >
-                    {isLoading ? (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color={colors.primary} />
-                        </View>
-                    ) : filteredTrips.length === 0 ? (
-                        <EmptyState
-                            icon={<Calendar size={48} color={colors.textSecondary} />}
-                            title="No trips found"
-                            message={
-                                filters.searchTerm || filters.status !== "all" || filters.dateFilter !== "all"
-                                    ? "Try adjusting your filters or search terms"
-                                    : canManageTrips()
-                                        ? "Create your first trip to get started"
-                                        : "No trips are currently available"
-                            }
-                            action={canManageTrips() ? (
-                                <Button
-                                    title="Add Trip"
-                                    onPress={handleAddTrip}
-                                    icon={<Plus size={16} color={colors.text} />}
-                                />
-                            ) : undefined}
-                        />
-                    ) : (
-                        <FlatList
-                            data={filteredTrips}
-                            renderItem={renderTripItem}
-                            keyExtractor={(item) => item.id}
-                            scrollEnabled={false}
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={styles.flatListContent}
-                        />
-                    )}
-                </ListSection>
-            </ScrollView>
+              <Calendar size={16} color={colors.primary} />
+            </View>
+            <Text style={styles.quickStatValue}>{overallStats.total}</Text>
+            <Text style={styles.quickStatLabel}>Total Trips</Text>
+          </View>
+          <View style={styles.quickStatItem}>
+            <View
+              style={[
+                styles.quickStatIcon,
+                { backgroundColor: colors.successLight },
+              ]}
+            >
+              <Activity size={16} color={colors.success} />
+            </View>
+            <Text style={styles.quickStatValue}>{overallStats.scheduled}</Text>
+            <Text style={styles.quickStatLabel}>Scheduled</Text>
+          </View>
+          <View style={styles.quickStatItem}>
+            <View
+              style={[
+                styles.quickStatIcon,
+                { backgroundColor: colors.infoLight },
+              ]}
+            >
+              <Users size={16} color={colors.info} />
+            </View>
+            <Text style={styles.quickStatValue}>
+              {Math.round(overallStats.averageOccupancy)}%
+            </Text>
+            <Text style={styles.quickStatLabel}>Avg Occupancy</Text>
+          </View>
+          <View style={styles.quickStatItem}>
+            <View
+              style={[
+                styles.quickStatIcon,
+                { backgroundColor: colors.backgroundTertiary },
+              ]}
+            >
+              <DollarSign size={16} color={colors.textSecondary} />
+            </View>
+            <Text style={styles.quickStatValue}>
+              {Math.round(overallStats.totalRevenue / 1000)}K
+            </Text>
+            <Text style={styles.quickStatLabel}>Total Revenue</Text>
+          </View>
         </View>
+      </View>
+
+      <View style={styles.searchSection}>
+        <SearchBar
+          placeholder="Search trips by route, vessel, date..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={styles.searchBar}
+        />
+      </View>
+
+      {/* Simplified Date Range Selector */}
+      <View style={styles.dateRangeSection}>
+        <View style={styles.dateRangeHeader}>
+          <View style={styles.dateRangeTitle}>
+            <CalendarRange size={16} color={colors.primary} />
+            <Text style={styles.dateRangeTitleText}>Date Range</Text>
+          </View>
+          <TouchableOpacity style={styles.resetButton} onPress={resetDateRange}>
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.dateRangeRow}>
+          <TouchableOpacity
+            style={styles.simpleDateButton}
+            onPress={() => setShowFromDatePicker(true)}
+          >
+            <Text style={styles.dateButtonLabel}>From</Text>
+            <Text style={styles.dateButtonValue}>
+              {new Date(dateRange.from).toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={styles.dateSeparator}>—</Text>
+
+          <TouchableOpacity
+            style={styles.simpleDateButton}
+            onPress={() => setShowToDatePicker(true)}
+          >
+            <Text style={styles.dateButtonLabel}>To</Text>
+            <Text style={styles.dateButtonValue}>
+              {new Date(dateRange.to).toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Simple Stats Row */}
+        <View style={styles.simpleStatsRow}>
+          <Text style={styles.simpleStatsText}>
+            Showing {dateRangeStats.total} trips • {dateRangeStats.scheduled}{" "}
+            scheduled
+          </Text>
+        </View>
+      </View>
+
+      {/* Controls Row */}
+      <View style={styles.controlsRow}>
+        <View style={styles.controlsLeft}>
+          <TouchableOpacity
+            style={[
+              styles.controlButton,
+              showFilters && styles.controlButtonActive,
+            ]}
+            onPress={() => setShowFilters(!showFilters)}
+          >
+            <Filter
+              size={16}
+              color={showFilters ? colors.primary : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.controlButtonText,
+                showFilters && styles.controlButtonTextActive,
+              ]}
+            >
+              Filters
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.sortControl}>
+            <Text style={styles.sortLabel}>Sort:</Text>
+            <TouchableOpacity
+              style={[
+                styles.sortButton,
+                sortBy === "travel_date" && styles.sortButtonActive,
+              ]}
+              onPress={() => toggleSort("travel_date")}
+            >
+              <Text
+                style={[
+                  styles.sortButtonText,
+                  sortBy === "travel_date" && styles.sortButtonTextActive,
+                ]}
+              >
+                Date
+              </Text>
+              {sortBy === "travel_date" &&
+                (sortOrder === "asc" ? (
+                  <SortAsc size={12} color={colors.primary} />
+                ) : (
+                  <SortDesc size={12} color={colors.primary} />
+                ))}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.sortButton,
+                sortBy === "departure_time" && styles.sortButtonActive,
+              ]}
+              onPress={() => toggleSort("departure_time")}
+            >
+              <Text
+                style={[
+                  styles.sortButtonText,
+                  sortBy === "departure_time" && styles.sortButtonTextActive,
+                ]}
+              >
+                Time
+              </Text>
+              {sortBy === "departure_time" &&
+                (sortOrder === "asc" ? (
+                  <SortAsc size={12} color={colors.primary} />
+                ) : (
+                  <SortDesc size={12} color={colors.primary} />
+                ))}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.sortButton,
+                sortBy === "status" && styles.sortButtonActive,
+              ]}
+              onPress={() => toggleSort("status")}
+            >
+              <Text
+                style={[
+                  styles.sortButtonText,
+                  sortBy === "status" && styles.sortButtonTextActive,
+                ]}
+              >
+                Status
+              </Text>
+              {sortBy === "status" &&
+                (sortOrder === "asc" ? (
+                  <SortAsc size={12} color={colors.primary} />
+                ) : (
+                  <SortDesc size={12} color={colors.primary} />
+                ))}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.controlsRight}>
+          <Text style={styles.resultsCount}>
+            {filteredAndSortedTrips.length} trip
+            {filteredAndSortedTrips.length !== 1 ? "s" : ""}
+          </Text>
+        </View>
+      </View>
+
+      {/* Filter Options (Collapsible) */}
+      {showFilters && (
+        <View style={styles.filtersSection}>
+          <Text style={styles.filterSectionTitle}>Filter by Status</Text>
+          <View style={styles.filterRow}>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                filterActive === null && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterActive(null)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterActive === null && styles.filterChipTextActive,
+                ]}
+              >
+                All Trips
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                filterActive === "scheduled" && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterActive("scheduled")}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterActive === "scheduled" && styles.filterChipTextActive,
+                ]}
+              >
+                Scheduled
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                filterActive === "boarding" && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterActive("boarding")}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterActive === "boarding" && styles.filterChipTextActive,
+                ]}
+              >
+                Boarding
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                filterActive === "departed" && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterActive("departed")}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterActive === "departed" && styles.filterChipTextActive,
+                ]}
+              >
+                Departed
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                filterActive === "arrived" && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterActive("arrived")}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterActive === "arrived" && styles.filterChipTextActive,
+                ]}
+              >
+                Arrived
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                filterActive === "cancelled" && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterActive("cancelled")}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterActive === "cancelled" && styles.filterChipTextActive,
+                ]}
+              >
+                Cancelled
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                filterActive === "delayed" && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterActive("delayed")}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterActive === "delayed" && styles.filterChipTextActive,
+                ]}
+              >
+                Delayed
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Section Divider */}
+      {filteredAndSortedTrips.length > 0 && (
+        <View style={styles.sectionDivider}>
+          <Text style={styles.listTitle}>Trips</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <View style={styles.emptyStateIcon}>
+        <Calendar size={64} color={colors.textTertiary} />
+      </View>
+      <Text style={styles.emptyStateTitle}>No trips found</Text>
+      <Text style={styles.emptyStateText}>
+        {searchQuery || filterActive !== null
+          ? "Try adjusting your search or filter criteria"
+          : "No trips have been scheduled yet"}
+      </Text>
+      {canManageTrips() && !searchQuery && filterActive === null && (
+        <Button
+          title="Schedule First Trip"
+          onPress={handleAddTrip}
+          variant="primary"
+          icon={<Plus size={20} color={colors.white} />}
+          style={styles.emptyStateButton}
+        />
+      )}
+    </View>
+  );
+
+  if (!canViewTrips()) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen
+          options={{
+            title: "Access Denied",
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+              >
+                <ArrowLeft size={24} color={colors.primary} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+        <View style={styles.noPermissionContainer}>
+          <View style={styles.noAccessIcon}>
+            <AlertTriangle size={48} color={colors.warning} />
+          </View>
+          <Text style={styles.noPermissionTitle}>Access Denied</Text>
+          <Text style={styles.noPermissionText}>
+            You don't have permission to view trips.
+          </Text>
+          <Button
+            title="Go Back"
+            variant="primary"
+            onPress={() => router.back()}
+          />
+        </View>
+      </View>
     );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: "Trips",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <ArrowLeft size={24} color={colors.primary} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+
+      {loading.data ? (
+        <View style={styles.loadingContainer}>
+          <LoadingSpinner />
+          <Text style={styles.loadingText}>Loading trips...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredAndSortedTrips}
+          renderItem={renderTripItem}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={renderEmptyState}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+        />
+      )}
+
+      {canManageTrips() && filteredAndSortedTrips.length > 0 && (
+        <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={handleAddTrip}
+          activeOpacity={0.8}
+        >
+          <Plus size={24} color={colors.white} />
+        </TouchableOpacity>
+      )}
+
+      {/* From Date Picker Modal */}
+      {showFromDatePicker && (
+        <Modal
+          visible={showFromDatePicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowFromDatePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <DatePicker
+                value={dateRange.from}
+                onChange={handleFromDateChange}
+                label="From Date"
+              />
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowFromDatePicker(false)}
+              >
+                <Text style={styles.modalCloseText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* To Date Picker Modal */}
+      {showToDatePicker && (
+        <Modal
+          visible={showToDatePicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowToDatePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <DatePicker
+                value={dateRange.to}
+                onChange={handleToDateChange}
+                label="To Date"
+              />
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowToDatePicker(false)}
+              >
+                <Text style={styles.modalCloseText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: colors.backgroundSecondary,
-    },
-    content: {
-        flex: 1,
-    },
-    contentContainer: {
-        flexGrow: 1,
-    },
-    headerActions: {
-        flexDirection: "row",
-        gap: 8,
-    },
-    viewModeButton: {
-        padding: 8,
-        borderRadius: 8,
-        backgroundColor: colors.primary + "20",
-    },
-    tripsList: {
-        flex: 1,
-    },
-    flatListContent: {
-        flexGrow: 1,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        paddingVertical: 40,
-    },
-}); 
+  container: {
+    flex: 1,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  noPermissionContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 20,
+  },
+  noAccessIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.backgroundTertiary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  noPermissionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  noPermissionText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: "center",
+    maxWidth: 280,
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: "500",
+  },
+  listContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 12,
+    paddingBottom: 100,
+  },
+  listHeader: {
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  statsTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  dateRangeSection: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  dateRangeHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  dateRangeTitle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  dateRangeTitleText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  resetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: colors.backgroundTertiary,
+  },
+  resetButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  dateRangeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+  simpleDateButton: {
+    flex: 1,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  dateButtonLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  dateButtonValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  dateSeparator: {
+    fontSize: 16,
+    fontWeight: "400",
+    color: colors.textTertiary,
+  },
+  simpleStatsRow: {
+    alignItems: "center",
+  },
+  simpleStatsText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: colors.textSecondary,
+  },
+  quickStats: {
+    marginBottom: 20,
+  },
+  quickStatsRow: {
+    flexDirection: "row",
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: colors.shadowMedium,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  quickStatItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 8,
+  },
+  quickStatIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickStatValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    lineHeight: 24,
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  searchSection: {
+    marginBottom: 20,
+  },
+  searchBar: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  controlsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 16,
+  },
+  controlsLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    flex: 1,
+  },
+  controlsRight: {
+    alignItems: "flex-end",
+  },
+  controlButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  controlButtonActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  controlButtonText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  controlButtonTextActive: {
+    color: colors.primary,
+  },
+  sortControl: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sortLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  sortButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  sortButtonActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  sortButtonText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  sortButtonTextActive: {
+    color: colors.primary,
+  },
+  resultsCount: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    fontWeight: "500",
+  },
+  filtersSection: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  filterSectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 12,
+  },
+  filterRow: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: colors.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  filterChipTextActive: {
+    color: colors.white,
+  },
+  sectionDivider: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    marginBottom: 8,
+  },
+  listTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  itemSeparator: {
+    height: 8,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 80,
+    paddingHorizontal: 20,
+    gap: 20,
+  },
+  emptyStateIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.backgroundTertiary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  emptyStateTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: colors.text,
+    textAlign: "center",
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: "center",
+    maxWidth: 320,
+    lineHeight: 24,
+  },
+  emptyStateButton: {
+    marginTop: 16,
+    minWidth: 200,
+  },
+  floatingButton: {
+    position: "absolute",
+    bottom: 30,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 20,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: colors.shadowMedium,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  modalCloseButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: colors.backgroundTertiary,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalCloseText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+});
