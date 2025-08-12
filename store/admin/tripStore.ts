@@ -140,8 +140,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
             const { data, error } = await supabase
                 .from('operations_trips_view')
                 .select('*')
-                // .order('travel_date', { ascending: false })
-                .order('departure_time', { ascending: false });
+                .order('departure_time', { ascending: true });
 
             if (error) throw error;
 
@@ -875,6 +874,74 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
         // Calculate stats
         get().calculateStats();
+    },
+
+    // Trip-specific data fetching
+    fetchTripPassengers: async (tripId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('passengers')
+                .select(`
+                    id,
+                    passenger_name,
+                    passenger_contact_number,
+                    special_assistance_request,
+                    booking_id,
+                    seat_id,
+                    bookings!inner (
+                        id,
+                        booking_number,
+                        status,
+                        trip_id,
+                        user_profiles (
+                            email,
+                            mobile_number
+                        )
+                    ),
+                    seats (
+                        seat_number
+                    )
+                `)
+                .eq('bookings.trip_id', tripId);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching trip passengers:', error);
+            return [];
+        }
+    },
+
+    fetchTripBookings: async (tripId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('bookings')
+                .select(`
+                    id,
+                    booking_number,
+                    status,
+                    total_fare,
+                    payment_method_type,
+                    created_at,
+                    user_profiles (
+                        full_name,
+                        email,
+                        mobile_number,
+                        role
+                    ),
+                    passengers (
+                        id,
+                        passenger_name
+                    )
+                `)
+                .eq('trip_id', tripId);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching trip bookings:', error);
+            return [];
+        }
     },
 
     // Utility

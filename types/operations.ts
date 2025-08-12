@@ -83,7 +83,7 @@ export interface Trip {
     departure_time: string;
     arrival_time?: string;
     estimated_duration: string;
-    status: "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed";
+    status: "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed" | "completed";
     delay_reason?: string;
     available_seats: number;
     booked_seats: number;

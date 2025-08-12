@@ -1001,7 +1001,7 @@ export interface Trip extends BaseEntity, ActivatableEntity {
     departure_time: string;
     arrival_time?: string;
     estimated_duration?: string;
-    status: "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed";
+    status: "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed" | "completed";
     delay_reason?: string;
     available_seats: number;
     booked_seats: number;
@@ -1032,7 +1032,7 @@ export interface TripFormData {
     travel_date: string;
     departure_time: string;
     available_seats?: number; // Optional, will be derived from vessel capacity if not provided
-    status?: "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed";
+    status?: "scheduled" | "boarding" | "departed" | "arrived" | "cancelled" | "delayed" | "completed";
     fare_multiplier: number;
     is_active: boolean;
     
@@ -1168,6 +1168,8 @@ export interface TripStoreActions extends BaseCrudActions<Trip, TripFormData>, S
     fetchTripsByRoute: (routeId: string) => Promise<Trip[]>;
     fetchTripsByVessel: (vesselId: string) => Promise<Trip[]>;
     fetchTripsByDate: (date: string) => Promise<Trip[]>;
+    fetchTripPassengers: (tripId: string) => Promise<any[]>;
+    fetchTripBookings: (tripId: string) => Promise<any[]>;
 
     // Trip management
     updateTripStatus: (tripId: string, status: Trip['status'], reason?: string) => Promise<void>;
@@ -1236,6 +1238,8 @@ export interface UseTripManagementReturn extends BaseManagementHook<Trip, TripFo
     loadTripsByRoute: (routeId: string) => Promise<Trip[]>;
     loadTripsByVessel: (vesselId: string) => Promise<Trip[]>;
     loadTripsByDate: (date: string) => Promise<Trip[]>;
+    loadTripPassengers: (tripId: string) => Promise<any[]>;
+    loadTripBookings: (tripId: string) => Promise<any[]>;
 
     // Enhanced getters
     getTripWithDetails: (id: string) => Promise<TripWithDetails | null>;
@@ -1260,6 +1264,10 @@ export interface UseTripManagementReturn extends BaseManagementHook<Trip, TripFo
     formatPercentage: (value: number) => string;
     getOccupancyLevel: (trip: Trip) => 'low' | 'medium' | 'high' | 'full';
     getStatusColor: (status: string) => string;
+
+    // Trip status management
+    cancel: (id: string, reason: string) => Promise<void>;
+    changeStatus: (id: string, status: Trip['status'], reason?: string) => Promise<void>;
 
     // Trip generation
     generateTripsFromSchedule: (request: any) => Promise<any>;

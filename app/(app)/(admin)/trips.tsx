@@ -14,6 +14,8 @@ import { Stack, router } from "expo-router";
 import { colors } from "@/constants/adminColors";
 import { useTripManagement } from "@/hooks/useTripManagement";
 import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import { useVesselManagement } from "@/hooks/useVesselManagement";
+import { useRouteManagement } from "@/hooks/useRouteManagement";
 import { AdminManagement } from "@/types";
 import {
   searchTrips,
@@ -39,6 +41,7 @@ import {
   Clock,
   Users,
   CalendarRange,
+  Ship,
 } from "lucide-react-native";
 
 import Button from "@/components/admin/Button";
@@ -46,6 +49,7 @@ import SearchBar from "@/components/admin/SearchBar";
 import TripItem from "@/components/admin/TripItem";
 import LoadingSpinner from "@/components/admin/LoadingSpinner";
 import DatePicker from "@/components/admin/DatePicker";
+import Dropdown from "@/components/admin/Dropdown";
 
 const { width: screenWidth } = Dimensions.get("window");
 const isTablet = screenWidth >= 768;
@@ -70,9 +74,11 @@ export default function TripsScreen() {
   const [filterActive, setFilterActive] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [showFromDatePicker, setShowFromDatePicker] = useState(false);
-  const [showToDatePicker, setShowToDatePicker] = useState(false);
+  const [fromDatePickerKey, setFromDatePickerKey] = useState(0);
+  const [toDatePickerKey, setToDatePickerKey] = useState(0);
   const [dateRange, setDateRange] = useState(getDefaultDateRange());
+  const [selectedVesselId, setSelectedVesselId] = useState<string>("");
+  const [selectedRouteId, setSelectedRouteId] = useState<string>("");
 
   const {
     trips: allTrips,
@@ -90,6 +96,17 @@ export default function TripsScreen() {
     loadAll: fetchTrips,
     refresh,
   } = useTripManagement();
+
+  // Get vessels and routes for filters
+  const { vessels: allVessels } = useVesselManagement();
+  const { routes: allRoutes } = useRouteManagement();
+
+  // Set initial sort order to ascending on component mount
+  useEffect(() => {
+    if (sortOrder === "desc") {
+      setSortOrder("asc");
+    }
+  }, []);
 
   // No need to update filters - we handle date filtering directly in the component
 
@@ -125,16 +142,17 @@ export default function TripsScreen() {
 
   const handleFromDateChange = (date: string) => {
     setDateRange((prev) => ({ ...prev, from: date }));
-    setShowFromDatePicker(false);
   };
 
   const handleToDateChange = (date: string) => {
     setDateRange((prev) => ({ ...prev, to: date }));
-    setShowToDatePicker(false);
   };
 
   const resetDateRange = () => {
     setDateRange(getDefaultDateRange());
+    // Reset the date picker keys to hide any open pickers
+    setFromDatePickerKey(0);
+    setToDatePickerKey(0);
   };
 
   const filteredAndSortedTrips = React.useMemo(() => {
@@ -163,6 +181,16 @@ export default function TripsScreen() {
       });
     }
 
+    // Apply vessel filter
+    if (selectedVesselId) {
+      filtered = filtered.filter((trip) => trip.vessel_id === selectedVesselId);
+    }
+
+    // Apply route filter
+    if (selectedRouteId) {
+      filtered = filtered.filter((trip) => trip.route_id === selectedRouteId);
+    }
+
     // Apply search filter
     if (searchQuery) {
       filtered = searchTrips(filtered, searchQuery);
@@ -175,7 +203,16 @@ export default function TripsScreen() {
     filtered = sortTrips(filtered, sortBy, sortOrder);
 
     return filtered;
-  }, [allTrips, searchQuery, filterActive, sortBy, sortOrder, dateRange]);
+  }, [
+    allTrips,
+    searchQuery,
+    filterActive,
+    sortBy,
+    sortOrder,
+    dateRange,
+    selectedVesselId,
+    selectedRouteId,
+  ]);
 
   // Calculate stats for all trips (not filtered by date)
   const overallStats = useMemo(() => {
@@ -279,28 +316,69 @@ export default function TripsScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.dateRangeRow}>
-          <TouchableOpacity
-            style={styles.simpleDateButton}
-            onPress={() => setShowFromDatePicker(true)}
-          >
-            <Text style={styles.dateButtonLabel}>From</Text>
-            <Text style={styles.dateButtonValue}>
-              {new Date(dateRange.from).toLocaleDateString()}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.dateRangeInputsRow}>
+          <View style={styles.dateInputContainer}>
+            <Text style={styles.dateInputLabel}>From</Text>
+            <DatePicker
+              key={`from-${fromDatePickerKey}`}
+              value={dateRange.from}
+              onChange={(date) => {
+                handleFromDateChange(date);
+                setFromDatePickerKey(0); // Hide after selection
+              }}
+              placeholder=""
+            />
+          </View>
 
-          <Text style={styles.dateSeparator}>—</Text>
+          {/* <Text style={styles.dateSeparator}>to</Text> */}
 
-          <TouchableOpacity
-            style={styles.simpleDateButton}
-            onPress={() => setShowToDatePicker(true)}
-          >
-            <Text style={styles.dateButtonLabel}>To</Text>
-            <Text style={styles.dateButtonValue}>
-              {new Date(dateRange.to).toLocaleDateString()}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.dateInputContainer}>
+            <Text style={styles.dateInputLabel}>To</Text>
+            <DatePicker
+              key={`to-${toDatePickerKey}`}
+              value={dateRange.to}
+              onChange={(date) => {
+                handleToDateChange(date);
+                setToDatePickerKey(0); // Hide after selection
+              }}
+              placeholder=""
+            />
+          </View>
+        </View>
+
+        {/* Additional Filters Row */}
+        <View style={styles.additionalFiltersRow}>
+          <View style={styles.filterDropdownContainer}>
+            <Dropdown
+              label="Vessel"
+              value={selectedVesselId}
+              onValueChange={setSelectedVesselId}
+              options={[
+                { label: "All Vessels", value: "" },
+                ...(allVessels?.map((vessel) => ({
+                  label: vessel.name,
+                  value: vessel.id,
+                })) || []),
+              ]}
+              placeholder="All Vessels"
+            />
+          </View>
+
+          <View style={styles.filterDropdownContainer}>
+            <Dropdown
+              label="Route"
+              value={selectedRouteId}
+              onValueChange={setSelectedRouteId}
+              options={[
+                { label: "All Routes", value: "" },
+                ...(allRoutes?.map((route) => ({
+                  label: route.name,
+                  value: route.id,
+                })) || []),
+              ]}
+              placeholder="All Routes"
+            />
+          </View>
         </View>
 
         {/* Simple Stats Row */}
@@ -653,58 +731,6 @@ export default function TripsScreen() {
           <Plus size={24} color={colors.white} />
         </TouchableOpacity>
       )}
-
-      {/* From Date Picker Modal */}
-      {showFromDatePicker && (
-        <Modal
-          visible={showFromDatePicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowFromDatePicker(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <DatePicker
-                value={dateRange.from}
-                onChange={handleFromDateChange}
-                label="From Date"
-              />
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowFromDatePicker(false)}
-              >
-                <Text style={styles.modalCloseText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
-
-      {/* To Date Picker Modal */}
-      {showToDatePicker && (
-        <Modal
-          visible={showToDatePicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowToDatePicker(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <DatePicker
-                value={dateRange.to}
-                onChange={handleToDateChange}
-                label="To Date"
-              />
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowToDatePicker(false)}
-              >
-                <Text style={styles.modalCloseText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
     </View>
   );
 }
@@ -812,39 +838,54 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.textSecondary,
   },
-  dateRangeRow: {
+  dateRangeInputsRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 16,
+    marginBottom: 4,
+  },
+  dateInputContainer: {
+    flex: 1,
+  },
+  dateInputLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  dateInput: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  simpleDateButton: {
-    flex: 1,
+    justifyContent: "space-between",
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.borderLight,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    alignItems: "center",
+    minHeight: 44,
   },
-  dateButtonLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.textSecondary,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  dateButtonValue: {
-    fontSize: 13,
-    fontWeight: "600",
+  dateInputText: {
+    fontSize: 14,
+    fontWeight: "500",
     color: colors.text,
+    flex: 1,
   },
   dateSeparator: {
-    fontSize: 16,
-    fontWeight: "400",
-    color: colors.textTertiary,
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.textSecondary,
+    paddingBottom: 10, // Align with the date input fields
+  },
+  additionalFiltersRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 16,
+  },
+  filterDropdownContainer: {
+    flex: 1,
   },
   simpleStatsRow: {
     alignItems: "center",

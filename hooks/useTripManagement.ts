@@ -71,6 +71,8 @@ export const useTripManagement = (
         fetchTripsByRoute,
         fetchTripsByVessel,
         fetchTripsByDate,
+        fetchTripPassengers,
+        fetchTripBookings,
         setSearchQuery,
         setFilters,
         clearFilters,
@@ -88,6 +90,8 @@ export const useTripManagement = (
         sortItems,
         generateTripsFromSchedule,
         previewTripGeneration,
+        updateTripStatus,
+        cancelTrip,
     } = tripStore;
 
     // ========================================================================
@@ -138,6 +142,14 @@ export const useTripManagement = (
         await deleteTrip(id);
     }, [deleteTrip]);
 
+    const cancel = useCallback(async (id: string, reason: string) => {
+        await cancelTrip(id, reason);
+    }, [cancelTrip]);
+
+    const changeStatus = useCallback(async (id: string, status: Trip['status'], reason?: string) => {
+        await updateTripStatus(id, status, reason);
+    }, [updateTripStatus]);
+
     const refresh = useCallback(async () => {
         await refreshAll();
     }, [refreshAll]);
@@ -165,6 +177,14 @@ export const useTripManagement = (
     const loadTripsByDate = useCallback(async (date: string) => {
         return await fetchTripsByDate(date);
     }, [fetchTripsByDate]);
+
+    const loadTripPassengers = useCallback(async (tripId: string) => {
+        return await fetchTripPassengers(tripId);
+    }, [fetchTripPassengers]);
+
+    const loadTripBookings = useCallback(async (tripId: string) => {
+        return await fetchTripBookings(tripId);
+    }, [fetchTripBookings]);
 
     const getTripWithDetails = useCallback(async (id: string) => {
         return await fetchTripDetails(id);
@@ -241,6 +261,8 @@ export const useTripManagement = (
         create: createTrip,
         update: updateTrip,
         remove,
+        cancel,
+        changeStatus,
         refresh,
         generateTripsFromSchedule,
         previewTripGeneration,
@@ -252,6 +274,8 @@ export const useTripManagement = (
         loadTripsByRoute,
         loadTripsByVessel,
         loadTripsByDate,
+        loadTripPassengers,
+        loadTripBookings,
         getTripWithDetails,
 
         // Search and filter
