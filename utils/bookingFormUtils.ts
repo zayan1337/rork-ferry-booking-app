@@ -43,10 +43,14 @@ export const formatRouteOptions = (routes: Route[] = []) => {
  * Format trip options for dropdown
  */
 export const formatTripOptions = (trips: Trip[] = []) => {
-  return trips.map(trip => ({
-    label: `${String(trip.departure_time || '').slice(0, 5)} - ${trip.vessel?.name || 'Unknown'} (${String(trip.available_seats || 0)} seats)`,
-    value: trip.id,
-  }));
+  return trips.map(trip => {
+    // Handle both nested vessel object and flat vessel_name string
+    const vesselName = trip.vessel?.name || (trip as any).vessel_name || trip.vesselName || 'Unknown';
+    return {
+      label: `${String(trip.departure_time || '').slice(0, 5)} - ${vesselName} (${String(trip.available_seats || 0)} seats)`,
+      value: trip.id,
+    };
+  });
 };
 
 /**

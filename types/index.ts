@@ -40,6 +40,14 @@ export interface Seat {
   isAisle: boolean;
   isAvailable: boolean;
   isSelected?: boolean;
+  // Enhanced seat properties
+  seatType?: 'standard' | 'premium' | 'crew' | 'disabled';
+  seatClass?: 'economy' | 'business' | 'first';
+  isDisabled?: boolean;
+  isPremium?: boolean;
+  priceMultiplier?: number;
+  positionX?: number;
+  positionY?: number;
 }
 
 export interface Passenger {

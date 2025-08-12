@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Stack, useRouter } from 'expo-router';
-import { useAuthStore } from '@/store/authStore';
-import Colors from '@/constants/colors';
-import AuthLoadingScreen from '@/components/AuthLoadingScreen';
+import { useEffect, useState } from "react";
+import { Stack, useRouter } from "expo-router";
+import { useAuthStore } from "@/store/authStore";
+import Colors from "@/constants/colors";
+import AuthLoadingScreen from "@/components/AuthLoadingScreen";
 
 export default function AppLayout() {
-  const { isAuthenticated, isLoading, user, isRehydrated, preventRedirect } = useAuthStore();
+  const { isAuthenticated, isLoading, user, isRehydrated, preventRedirect } =
+    useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -15,25 +16,28 @@ export default function AppLayout() {
       // Use setTimeout to ensure the navigation stack is ready
       setTimeout(() => {
         try {
-          router.replace('/(auth)' as any);
+          router.replace("/(auth)" as any);
         } catch (error) {
-          console.log('Navigation error during logout:', error);
+          console.log("Navigation error during logout:", error);
           // Fallback: try to navigate to auth screen
-          router.push('/(auth)' as any);
+          router.push("/(auth)" as any);
         }
       }, 100);
     }
   }, [isAuthenticated, isLoading, router, isRehydrated, preventRedirect]);
 
   // Show loading while waiting for auth data to load
-  if (!isRehydrated || !isAuthenticated || isLoading || !user?.profile) {
+  if (!isRehydrated || !isAuthenticated || isLoading) {
     return (
       <AuthLoadingScreen
         message={
-          !isRehydrated ? "Loading app data..." :
-            !isAuthenticated ? "Redirecting to login..." :
-              isLoading ? "Loading your account..." :
-                "Setting up your profile..."
+          !isRehydrated
+            ? "Loading app data..."
+            : !isAuthenticated
+            ? "Redirecting to login..."
+            : isLoading
+            ? "Loading your account..."
+            : "Setting up your profile..."
         }
       />
     );
@@ -46,12 +50,12 @@ export default function AppLayout() {
     }
 
     switch (user.profile.role) {
-      case 'admin':
-      case 'captain':
+      case "admin":
+      case "captain":
         return "(admin)";
-      case 'agent':
+      case "agent":
         return "(agent)";
-      case 'customer':
+      case "customer":
       default:
         return "(customer)";
     }
@@ -65,7 +69,7 @@ export default function AppLayout() {
         },
         headerTintColor: Colors.text,
         headerTitleStyle: {
-          fontWeight: '600',
+          fontWeight: "600",
         },
       }}
       initialRouteName={getInitialRouteName()}

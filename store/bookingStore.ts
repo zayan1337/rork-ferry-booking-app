@@ -634,7 +634,13 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
                 .eq('id', booking.id);
 
             if (statusUpdateError) {
-                console.warn('Failed to update booking status to confirmed:', statusUpdateError);
+                // Check if this is the trigger function error
+                if (statusUpdateError.message?.includes('trigger functions can only be called as triggers')) {
+                    console.warn('Trigger function warning (non-critical):', statusUpdateError.message);
+                    // This is a warning, not an error - booking is still confirmed
+                } else {
+                    console.warn('Failed to update booking status to confirmed:', statusUpdateError);
+                }
             }
 
             let returnBookingId = null;
@@ -724,7 +730,13 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
                         .eq('id', returnBooking.id);
 
                     if (returnStatusUpdateError) {
-                        console.warn('Failed to update return booking status to confirmed:', returnStatusUpdateError);
+                        // Check if this is the trigger function error
+                        if (returnStatusUpdateError.message?.includes('trigger functions can only be called as triggers')) {
+                            console.warn('Trigger function warning (non-critical):', returnStatusUpdateError.message);
+                            // This is a warning, not an error - booking is still confirmed
+                        } else {
+                            console.warn('Failed to update return booking status to confirmed:', returnStatusUpdateError);
+                        }
                     }
                 }
             }

@@ -16,7 +16,6 @@ where
   is_active = true
   and status::text = 'active'::text;
 
-
 create table public.activity_logs (
   id uuid not null default gen_random_uuid (),
   user_id uuid null,
@@ -52,7 +51,6 @@ create index IF not exists idx_activity_logs_session on public.activity_logs usi
 where
   (session_id is not null);
 
-
 create view public.activity_logs_with_users as
 select
   al.id,
@@ -73,6 +71,7 @@ select
 from
   activity_logs al
   left join user_profiles up on al.user_id = up.id;
+
 
 create view public.admin_bookings_view as
 select
@@ -125,6 +124,7 @@ from
   left join islands i2 on r.to_island_id = i2.id
   left join user_profiles agent on b.agent_id = agent.id
   left join payments p on b.id = p.booking_id;
+
 
 create table public.admin_cache_stats (
   cache_key character varying(100) not null,
@@ -340,6 +340,7 @@ select
       join vessels v on trip_stats.vessel_id = v.id
   ) as avg_occupancy_7d;
 
+
 create table public.admin_report_queue (
   id uuid not null default gen_random_uuid (),
   report_type character varying(100) not null,
@@ -362,6 +363,7 @@ create index IF not exists idx_admin_report_queue_status on public.admin_report_
 
 create index IF not exists idx_admin_report_queue_user on public.admin_report_queue using btree (requested_by, created_at) TABLESPACE pg_default;
 
+
 create table public.admin_settings (
   id uuid not null default gen_random_uuid (),
   setting_key character varying(100) not null,
@@ -383,7 +385,6 @@ create table public.admin_settings (
 create index IF not exists idx_admin_settings_category on public.admin_settings using btree (category) TABLESPACE pg_default;
 
 create index IF not exists idx_admin_settings_key on public.admin_settings using btree (setting_key) TABLESPACE pg_default;
-
 
 create view public.admin_user_analytics as
 select
@@ -654,7 +655,6 @@ create index IF not exists idx_agent_credit_transactions_booking_id on public.ag
 where
   (booking_id is not null);
 
-
 create table public.agent_rates (
   id uuid not null default gen_random_uuid (),
   route_id uuid not null,
@@ -665,6 +665,7 @@ create table public.agent_rates (
   constraint agent_rates_pkey primary key (id),
   constraint agent_rates_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
+
 
 create view public.agent_statistics as
 with
@@ -799,6 +800,17 @@ create index IF not exists idx_bookings_trip_date_status on public.bookings usin
 create index IF not exists idx_bookings_created_at on public.bookings using btree (created_at) TABLESPACE pg_default
 where
   (created_at is not null);
+
+create index IF not exists idx_bookings_status_fare on public.bookings using btree (status, total_fare) TABLESPACE pg_default
+where
+  (
+    status = any (
+      array[
+        'confirmed'::booking_status,
+        'checked_in'::booking_status
+      ]
+    )
+  );
 
 create trigger audit_bookings_trigger
 after INSERT
@@ -1026,6 +1038,159 @@ select
 from
   translations;
 
+create view public.enhanced_operations_stats_view as
+select
+  (
+    select
+      count(*) as count
+    from
+      routes
+    where
+      routes.is_active = true
+  ) as active_routes,
+  (
+    select
+      count(*) as count
+    from
+      routes
+  ) as total_routes,
+  (
+    select
+      count(*) as count
+    from
+      vessels
+    where
+      vessels.is_active = true
+  ) as active_vessels,
+  (
+    select
+      count(*) as count
+    from
+      vessels
+  ) as total_vessels,
+  (
+    select
+      count(*) as count
+    from
+      trips
+    where
+      trips.travel_date = CURRENT_DATE
+      and trips.is_active = true
+  ) as today_trips,
+  (
+    select
+      count(*) as count
+    from
+      trips
+    where
+      trips.travel_date = CURRENT_DATE
+      and trips.is_active = true
+      and trips.departure_time::time with time zone < CURRENT_TIME
+  ) as completed_trips_today,
+  (
+    select
+      count(*) as count
+    from
+      bookings b
+      join trips t on b.trip_id = t.id
+    where
+      t.travel_date = CURRENT_DATE
+      and (
+        b.status = any (
+          array[
+            'confirmed'::booking_status,
+            'checked_in'::booking_status
+          ]
+        )
+      )
+  ) as today_bookings,
+  (
+    select
+      COALESCE(sum(b.total_fare), 0::numeric) as "coalesce"
+    from
+      bookings b
+      join trips t on b.trip_id = t.id
+    where
+      t.travel_date = CURRENT_DATE
+      and (
+        b.status = any (
+          array[
+            'confirmed'::booking_status,
+            'checked_in'::booking_status
+          ]
+        )
+      )
+  ) as today_revenue,
+  (
+    select
+      COALESCE(sum(b.total_fare), 0::numeric) as "coalesce"
+    from
+      bookings b
+      join trips t on b.trip_id = t.id
+    where
+      t.travel_date >= (CURRENT_DATE - '30 days'::interval)
+      and (
+        b.status = any (
+          array[
+            'confirmed'::booking_status,
+            'checked_in'::booking_status
+          ]
+        )
+      )
+  ) as revenue_30d,
+  (
+    select
+      COALESCE(sum(v.seating_capacity), 0::bigint) as "coalesce"
+    from
+      trips t
+      join vessels v on t.vessel_id = v.id
+    where
+      t.travel_date = CURRENT_DATE
+      and t.is_active = true
+  ) as today_total_capacity,
+  (
+    select
+      case
+        when capacity_data.total_capacity > 0 then round(
+          capacity_data.total_bookings / capacity_data.total_capacity::numeric * 100::numeric,
+          2
+        )
+        else 0::numeric
+      end as "case"
+    from
+      (
+        select
+          COALESCE(sum(v.seating_capacity), 0::bigint) as total_capacity,
+          COALESCE(sum(booking_stats.confirmed_bookings), 0::numeric) as total_bookings
+        from
+          trips t
+          join vessels v on t.vessel_id = v.id
+          left join (
+            select
+              b.trip_id,
+              count(
+                case
+                  when b.status = any (
+                    array[
+                      'confirmed'::booking_status,
+                      'checked_in'::booking_status
+                    ]
+                  ) then 1
+                  else null::integer
+                end
+              ) as confirmed_bookings
+            from
+              bookings b
+            group by
+              b.trip_id
+          ) booking_stats on t.id = booking_stats.trip_id
+        where
+          t.travel_date = CURRENT_DATE
+          and t.is_active = true
+      ) capacity_data
+  ) as today_utilization;
+
+
 create table public.faq_categories (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
@@ -1089,6 +1254,7 @@ from
 order by
   fc.order_index,
   fc.name;
+
 
 create table public.faqs (
   id uuid not null default gen_random_uuid (),
@@ -1211,6 +1377,7 @@ create table public.manifest_passengers (
 
 create index IF not exists idx_manifest_passengers_manifest_id on public.manifest_passengers using btree (manifest_id) TABLESPACE pg_default;
 
+
 create table public.manifest_shares (
   id uuid not null default gen_random_uuid (),
   manifest_id uuid not null,
@@ -1221,6 +1388,7 @@ create table public.manifest_shares (
   constraint manifest_shares_pkey primary key (id),
   constraint manifest_shares_manifest_id_fkey foreign KEY (manifest_id) references passenger_manifests (id)
 ) TABLESPACE pg_default;
+
 
 create table public.mass_messages (
   id uuid not null default gen_random_uuid (),
@@ -1238,6 +1406,7 @@ create table public.mass_messages (
   constraint mass_messages_trip_id_fkey foreign KEY (trip_id) references trips (id)
 ) TABLESPACE pg_default;
 
+
 create table public.modifications (
   id uuid not null default gen_random_uuid (),
   old_booking_id uuid not null,
@@ -1252,6 +1421,7 @@ create table public.modifications (
   constraint modifications_new_booking_id_fkey foreign KEY (new_booking_id) references bookings (id),
   constraint modifications_old_booking_id_fkey foreign KEY (old_booking_id) references bookings (id)
 ) TABLESPACE pg_default;
+
 
 create view public.operations_routes_view as
 select
@@ -1313,91 +1483,19 @@ from
 
 create view public.operations_stats_view as
 select
-  (
-    select
-      count(*) as count
-    from
-      routes
-    where
-      routes.is_active = true
-  ) as active_routes,
-  (
-    select
-      count(*) as count
-    from
-      routes
-  ) as total_routes,
-  (
-    select
-      count(*) as count
-    from
-      vessels
-    where
-      vessels.is_active = true
-  ) as active_vessels,
-  (
-    select
-      count(*) as count
-    from
-      vessels
-  ) as total_vessels,
-  (
-    select
-      count(*) as count
-    from
-      trips
-    where
-      trips.travel_date = CURRENT_DATE
-      and trips.is_active = true
-  ) as today_trips,
-  (
-    select
-      count(*) as count
-    from
-      trips
-    where
-      trips.travel_date = CURRENT_DATE
-      and trips.departure_time::time with time zone < CURRENT_TIME
-  ) as completed_trips_today,
-  (
-    select
-      count(*) as count
-    from
-      bookings b
-      join trips t on b.trip_id = t.id
-    where
-      t.travel_date = CURRENT_DATE
-  ) as today_bookings,
-  (
-    select
-      count(*) as count
-    from
-      bookings b
-      join trips t on b.trip_id = t.id
-    where
-      t.travel_date = CURRENT_DATE
-      and b.status = 'confirmed'::booking_status
-  ) as confirmed_bookings_today,
-  (
-    select
-      COALESCE(sum(b.total_fare), 0::numeric) as "coalesce"
-    from
-      bookings b
-      join trips t on b.trip_id = t.id
-    where
-      t.travel_date = CURRENT_DATE
-      and b.status = 'confirmed'::booking_status
-  ) as today_revenue,
-  (
-    select
-      COALESCE(sum(b.total_fare), 0::numeric) as "coalesce"
-    from
-      bookings b
-      join trips t on b.trip_id = t.id
-    where
-      t.travel_date >= (CURRENT_DATE - '30 days'::interval)
-      and b.status = 'confirmed'::booking_status
-  ) as revenue_30d;
+  active_routes,
+  total_routes,
+  active_vessels,
+  total_vessels,
+  today_trips,
+  completed_trips_today,
+  today_bookings,
+  today_revenue,
+  revenue_30d,
+  today_total_capacity,
+  today_utilization
+from
+  enhanced_operations_stats_view;
 
 create view public.operations_trips_view as
 select
@@ -1406,33 +1504,44 @@ select
   t.vessel_id,
   t.travel_date,
   t.departure_time,
+  t.arrival_time,
   t.available_seats,
   t.is_active,
+  t.status,
+  t.fare_multiplier,
   t.created_at,
-  case
-    when t.travel_date < CURRENT_DATE then 'completed'::text
-    when t.travel_date = CURRENT_DATE
-    and t.departure_time::time with time zone < CURRENT_TIME then 'departed'::text
-    when t.travel_date = CURRENT_DATE
-    and t.departure_time::time with time zone <= (CURRENT_TIME + '00:30:00'::interval) then 'boarding'::text
-    when t.travel_date = CURRENT_DATE then 'scheduled'::text
-    else 'scheduled'::text
-  end as computed_status,
+  t.updated_at,
+  r.name as route_name,
   r.base_fare,
-  concat(oi.name, ' to ', di.name) as route_name,
+  r.distance,
+  r.duration,
+  r.is_active as route_is_active,
   oi.name as from_island_name,
   di.name as to_island_name,
   v.name as vessel_name,
   v.seating_capacity as capacity,
-  COALESCE(booking_stats.total_bookings, 0::bigint) as bookings,
+  v.vessel_type,
+  v.is_active as vessel_is_active,
+  COALESCE(booking_stats.confirmed_bookings, 0::bigint) as bookings,
+  COALESCE(booking_stats.total_passengers, 0::numeric) as booked_seats,
   COALESCE(booking_stats.confirmed_bookings, 0::bigint) as confirmed_bookings,
-  round(
-    case
-      when v.seating_capacity > 0 then COALESCE(booking_stats.confirmed_bookings, 0::bigint)::numeric * 100.0 / v.seating_capacity::numeric
-      else 0::numeric
-    end,
-    2
-  ) as occupancy_rate
+  COALESCE(booking_stats.total_revenue, 0::numeric) as trip_revenue,
+  case
+    when t.departure_time::time with time zone < CURRENT_TIME
+    and t.travel_date = CURRENT_DATE then 'departed'::character varying
+    when t.departure_time::time with time zone <= (CURRENT_TIME + '00:30:00'::interval)
+    and t.travel_date = CURRENT_DATE then 'boarding'::character varying
+    when t.travel_date < CURRENT_DATE then 'completed'::character varying
+    when t.travel_date > CURRENT_DATE then 'scheduled'::character varying
+    else COALESCE(t.status, 'scheduled'::character varying)
+  end as computed_status,
+  case
+    when v.seating_capacity > 0 then round(
+      COALESCE(booking_stats.confirmed_bookings, 0::bigint)::numeric / v.seating_capacity::numeric * 100::numeric,
+      2
+    )
+    else 0::numeric
+  end as occupancy_rate
 from
   trips t
   left join routes r on t.route_id = r.id
@@ -1441,11 +1550,10 @@ from
   left join vessels v on t.vessel_id = v.id
   left join (
     select
-      bookings.trip_id,
-      count(*) as total_bookings,
+      b.trip_id,
       count(
         case
-          when bookings.status = any (
+          when b.status = any (
             array[
               'confirmed'::booking_status,
               'checked_in'::booking_status
@@ -1453,12 +1561,51 @@ from
           ) then 1
           else null::integer
         end
-      ) as confirmed_bookings
+      ) as confirmed_bookings,
+      COALESCE(
+        sum(
+          case
+            when b.status = any (
+              array[
+                'confirmed'::booking_status,
+                'checked_in'::booking_status
+              ]
+            ) then passenger_counts.passenger_count
+            else 0::bigint
+          end
+        ),
+        0::numeric
+      ) as total_passengers,
+      sum(
+        case
+          when b.status = any (
+            array[
+              'confirmed'::booking_status,
+              'checked_in'::booking_status
+            ]
+          ) then b.total_fare
+          else 0::numeric
+        end
+      ) as total_revenue
     from
-      bookings
+      bookings b
+      left join (
+        select
+          passengers.booking_id,
+          count(*) as passenger_count
+        from
+          passengers
+        group by
+          passengers.booking_id
+      ) passenger_counts on b.id = passenger_counts.booking_id
     group by
-      bookings.trip_id
-  ) booking_stats on t.id = booking_stats.trip_id;
+      b.trip_id
+  ) booking_stats on t.id = booking_stats.trip_id
+where
+  t.is_active = true
+order by
+  t.travel_date desc,
+  t.departure_time;
 
 create view public.operations_vessels_view as
 select
@@ -1467,85 +1614,174 @@ select
   v.seating_capacity,
   v.status,
   v.vessel_type,
+  v.registration_number,
+  v.captain_name,
   v.is_active,
   v.created_at,
   v.updated_at,
-  COALESCE(trip_stats.total_trips_30d, 0::bigint) as total_trips_30d,
-  COALESCE(trip_stats.total_bookings_30d, 0::bigint) as total_bookings_30d,
-  COALESCE(trip_stats.total_passengers_30d, 0::bigint) as total_passengers_30d,
-  COALESCE(trip_stats.total_revenue_30d, 0::numeric) as total_revenue_30d,
+  COALESCE(trip_stats_30d.total_trips, 0::bigint) as total_trips_30d,
+  COALESCE(trip_stats_30d.total_bookings, 0::numeric) as total_bookings_30d,
+  COALESCE(trip_stats_30d.total_passengers, 0::numeric) as total_passengers_30d,
+  COALESCE(trip_stats_30d.total_revenue, 0::numeric) as total_revenue_30d,
+  COALESCE(trip_stats_30d.days_in_service, 0::bigint) as days_in_service_30d,
+  COALESCE(today_stats.trips_today, 0::bigint) as trips_today,
+  COALESCE(today_stats.bookings_today, 0::numeric) as bookings_today,
+  COALESCE(today_stats.passengers_today, 0::numeric) as passengers_today,
+  COALESCE(today_stats.revenue_today, 0::numeric) as revenue_today,
+  COALESCE(week_stats.trips_7d, 0::bigint) as trips_7d,
+  COALESCE(week_stats.bookings_7d, 0::numeric) as bookings_7d,
+  COALESCE(week_stats.revenue_7d, 0::numeric) as revenue_7d,
   case
-    when v.seating_capacity > 0 then round(
-      COALESCE(trip_stats.total_passengers_30d, 0::bigint)::numeric / (
-        v.seating_capacity * COALESCE(trip_stats.total_trips_30d, 1::bigint)
-      )::numeric * 100::numeric,
+    when v.seating_capacity > 0
+    and trip_stats_30d.total_trips > 0 then round(
+      trip_stats_30d.total_passengers / (v.seating_capacity * trip_stats_30d.total_trips)::numeric * 100::numeric,
       2
     )
     else 0::numeric
   end as capacity_utilization_30d,
   case
-    when COALESCE(trip_stats.total_trips_30d, 0::bigint) > 0 then round(
-      COALESCE(trip_stats.total_passengers_30d, 0::bigint)::numeric / trip_stats.total_trips_30d::numeric,
+    when trip_stats_30d.total_trips > 0 then round(
+      trip_stats_30d.total_passengers / trip_stats_30d.total_trips::numeric,
       2
     )
     else 0::numeric
-  end as avg_passengers_per_trip,
-  COALESCE(trip_stats.days_in_service_30d, 0::bigint) as days_in_service_30d,
-  COALESCE(today_stats.trips_today, 0::bigint) as trips_today,
-  COALESCE(today_stats.bookings_today, 0::bigint) as bookings_today,
-  COALESCE(today_stats.revenue_today, 0::numeric) as revenue_today,
-  COALESCE(week_stats.trips_7d, 0::bigint) as trips_7d,
-  COALESCE(week_stats.bookings_7d, 0::bigint) as bookings_7d,
-  COALESCE(week_stats.revenue_7d, 0::numeric) as revenue_7d
+  end as avg_passengers_per_trip
 from
   vessels v
   left join (
     select
       t.vessel_id,
-      count(*) as total_trips_30d,
-      sum(t.booked_seats) as total_bookings_30d,
-      sum(t.booked_seats) as total_passengers_30d,
-      sum(
-        t.booked_seats::numeric * r.base_fare * t.fare_multiplier
-      ) as total_revenue_30d,
-      count(distinct t.travel_date) as days_in_service_30d
+      count(*) as total_trips,
+      COALESCE(sum(bs.confirmed_bookings), 0::numeric) as total_bookings,
+      COALESCE(sum(bs.total_passengers), 0::numeric) as total_passengers,
+      COALESCE(sum(bs.total_revenue), 0::numeric) as total_revenue,
+      count(distinct t.travel_date) as days_in_service
     from
       trips t
-      join routes r on t.route_id = r.id
+      left join (
+        select
+          b.trip_id,
+          count(
+            case
+              when b.status = any (
+                array[
+                  'confirmed'::booking_status,
+                  'checked_in'::booking_status
+                ]
+              ) then 1
+              else null::integer
+            end
+          ) as confirmed_bookings,
+          COALESCE(
+            sum(
+              case
+                when b.status = any (
+                  array[
+                    'confirmed'::booking_status,
+                    'checked_in'::booking_status
+                  ]
+                ) then passenger_counts.passenger_count
+                else 0::bigint
+              end
+            ),
+            0::numeric
+          ) as total_passengers,
+          sum(
+            case
+              when b.status = any (
+                array[
+                  'confirmed'::booking_status,
+                  'checked_in'::booking_status
+                ]
+              ) then b.total_fare
+              else 0::numeric
+            end
+          ) as total_revenue
+        from
+          bookings b
+          left join (
+            select
+              passengers.booking_id,
+              count(*) as passenger_count
+            from
+              passengers
+            group by
+              passengers.booking_id
+          ) passenger_counts on b.id = passenger_counts.booking_id
+        group by
+          b.trip_id
+      ) bs on t.id = bs.trip_id
     where
       t.travel_date >= (CURRENT_DATE - '30 days'::interval)
-      and (
-        t.status::text = any (
-          array[
-            'departed'::character varying,
-            'arrived'::character varying
-          ]::text[]
-        )
-      )
+      and t.is_active = true
     group by
       t.vessel_id
-  ) trip_stats on v.id = trip_stats.vessel_id
+  ) trip_stats_30d on v.id = trip_stats_30d.vessel_id
   left join (
     select
       t.vessel_id,
       count(*) as trips_today,
-      sum(t.booked_seats) as bookings_today,
-      sum(
-        t.booked_seats::numeric * r.base_fare * t.fare_multiplier
-      ) as revenue_today
+      COALESCE(sum(bs.confirmed_bookings), 0::numeric) as bookings_today,
+      COALESCE(sum(bs.total_passengers), 0::numeric) as passengers_today,
+      COALESCE(sum(bs.total_revenue), 0::numeric) as revenue_today
     from
       trips t
-      join routes r on t.route_id = r.id
+      left join (
+        select
+          b.trip_id,
+          count(
+            case
+              when b.status = any (
+                array[
+                  'confirmed'::booking_status,
+                  'checked_in'::booking_status
+                ]
+              ) then 1
+              else null::integer
+            end
+          ) as confirmed_bookings,
+          COALESCE(
+            sum(
+              case
+                when b.status = any (
+                  array[
+                    'confirmed'::booking_status,
+                    'checked_in'::booking_status
+                  ]
+                ) then passenger_counts.passenger_count
+                else 0::bigint
+              end
+            ),
+            0::numeric
+          ) as total_passengers,
+          sum(
+            case
+              when b.status = any (
+                array[
+                  'confirmed'::booking_status,
+                  'checked_in'::booking_status
+                ]
+              ) then b.total_fare
+              else 0::numeric
+            end
+          ) as total_revenue
+        from
+          bookings b
+          left join (
+            select
+              passengers.booking_id,
+              count(*) as passenger_count
+            from
+              passengers
+            group by
+              passengers.booking_id
+          ) passenger_counts on b.id = passenger_counts.booking_id
+        group by
+          b.trip_id
+      ) bs on t.id = bs.trip_id
     where
       t.travel_date = CURRENT_DATE
-      and (
-        t.status::text = any (
-          array[
-            'departed'::character varying,
-            'arrived'::character varying
-          ]::text[]
-        )
-      )
+      and t.is_active = true
     group by
       t.vessel_id
   ) today_stats on v.id = today_stats.vessel_id
@@ -1553,26 +1789,48 @@ from
     select
       t.vessel_id,
       count(*) as trips_7d,
-      sum(t.booked_seats) as bookings_7d,
-      sum(
-        t.booked_seats::numeric * r.base_fare * t.fare_multiplier
-      ) as revenue_7d
+      COALESCE(sum(bs.confirmed_bookings), 0::numeric) as bookings_7d,
+      COALESCE(sum(bs.total_revenue), 0::numeric) as revenue_7d
     from
       trips t
-      join routes r on t.route_id = r.id
+      left join (
+        select
+          b.trip_id,
+          count(
+            case
+              when b.status = any (
+                array[
+                  'confirmed'::booking_status,
+                  'checked_in'::booking_status
+                ]
+              ) then 1
+              else null::integer
+            end
+          ) as confirmed_bookings,
+          sum(
+            case
+              when b.status = any (
+                array[
+                  'confirmed'::booking_status,
+                  'checked_in'::booking_status
+                ]
+              ) then b.total_fare
+              else 0::numeric
+            end
+          ) as total_revenue
+        from
+          bookings b
+        group by
+          b.trip_id
+      ) bs on t.id = bs.trip_id
     where
       t.travel_date >= (CURRENT_DATE - '7 days'::interval)
-      and (
-        t.status::text = any (
-          array[
-            'departed'::character varying,
-            'arrived'::character varying
-          ]::text[]
-        )
-      )
+      and t.is_active = true
     group by
       t.vessel_id
-  ) week_stats on v.id = week_stats.vessel_id;
+  ) week_stats on v.id = week_stats.vessel_id
+order by
+  v.name;
 
 create table public.passenger_manifests (
   id uuid not null default gen_random_uuid (),
@@ -1751,6 +2009,7 @@ create index IF not exists idx_permissions_active on public.permissions using bt
 create trigger update_permissions_updated_at BEFORE
 update on permissions for EACH row
 execute FUNCTION update_updated_at_column ();
+
 
 create view public.permissions_with_category as
 select
@@ -1935,6 +2194,7 @@ order by
 limit
   50;
 
+
 create table public.reports (
   id uuid not null default gen_random_uuid (),
   report_type public.report_type not null,
@@ -1952,6 +2212,7 @@ create table public.reports (
   constraint reports_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
 
+
 create table public.role_template_permissions (
   id uuid not null default gen_random_uuid (),
   role_template_id uuid not null,
@@ -1966,6 +2227,7 @@ create table public.role_template_permissions (
 create index IF not exists idx_role_template_permissions_template on public.role_template_permissions using btree (role_template_id) TABLESPACE pg_default;
 
 create index IF not exists idx_role_template_permissions_permission on public.role_template_permissions using btree (permission_id) TABLESPACE pg_default;
+
 
 create table public.role_templates (
   id uuid not null default gen_random_uuid (),
@@ -2309,6 +2571,73 @@ create table public.route_price_history (
   constraint route_price_history_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
 
+create view public.route_utilization_view as
+select
+  r.id,
+  r.name,
+  r.from_island_id,
+  r.to_island_id,
+  r.base_fare,
+  r.is_active,
+  oi.name as from_island_name,
+  di.name as to_island_name,
+  COALESCE(today_stats.trips_today, 0::bigint) as trips_today,
+  COALESCE(week_stats.trips_next_7_days, 0::bigint) as trips_next_7_days,
+  COALESCE(month_stats.trips_last_30_days, 0::bigint) as trips_last_30_days,
+  COALESCE(month_stats.revenue_30d, 0::numeric) as revenue_30d,
+  case
+    when not r.is_active then 'inactive'::text
+    when COALESCE(today_stats.trips_today, 0::bigint) = 0
+    and COALESCE(week_stats.trips_next_7_days, 0::bigint) = 0 then 'idle'::text
+    when COALESCE(today_stats.trips_today, 0::bigint) > 0 then 'active_today'::text
+    when COALESCE(week_stats.trips_next_7_days, 0::bigint) > 0 then 'scheduled'::text
+    else 'idle'::text
+  end as utilization_status
+from
+  routes r
+  left join islands oi on r.from_island_id = oi.id
+  left join islands di on r.to_island_id = di.id
+  left join (
+    select
+      trips.route_id,
+      count(*) as trips_today
+    from
+      trips
+    where
+      trips.travel_date = CURRENT_DATE
+      and trips.is_active = true
+    group by
+      trips.route_id
+  ) today_stats on r.id = today_stats.route_id
+  left join (
+    select
+      trips.route_id,
+      count(*) as trips_next_7_days
+    from
+      trips
+    where
+      trips.travel_date >= CURRENT_DATE
+      and trips.travel_date <= (CURRENT_DATE + '7 days'::interval)
+      and trips.is_active = true
+    group by
+      trips.route_id
+  ) week_stats on r.id = week_stats.route_id
+  left join (
+    select
+      t.route_id,
+      count(*) as trips_last_30_days,
+      sum(COALESCE(b.total_fare, 0::numeric)) as revenue_30d
+    from
+      trips t
+      left join bookings b on t.id = b.trip_id
+      and b.status = 'confirmed'::booking_status
+    where
+      t.travel_date >= (CURRENT_DATE - '30 days'::interval)
+      and t.is_active = true
+    group by
+      t.route_id
+  ) month_stats on r.id = month_stats.route_id;
+
 create table public.routes (
   id uuid not null default gen_random_uuid (),
   from_island_id uuid not null,
@@ -2514,6 +2843,7 @@ or DELETE
 or
 update on seat_reservations for EACH row
 execute FUNCTION update_trip_available_seats ();
+
 
 create table public.seats (
   id uuid not null default gen_random_uuid (),
@@ -2736,19 +3066,31 @@ select
   t.id,
   t.route_id,
   t.vessel_id,
+  t.travel_date,
   t.departure_time,
+  t.arrival_time,
   t.available_seats,
-  concat(oi.name, ' to ', di.name) as route_name,
+  t.status,
+  concat(oi.name, ' → ', di.name) as route_name,
   oi.name as from_island_name,
   di.name as to_island_name,
   v.name as vessel_name,
   v.seating_capacity as capacity,
+  COALESCE(booking_stats.confirmed_bookings, 0::bigint) as bookings,
+  COALESCE(booking_stats.total_passengers, 0::numeric) as booked_seats,
+  COALESCE(booking_stats.total_revenue, 0::numeric) as trip_revenue,
   case
     when t.departure_time::time with time zone < CURRENT_TIME then 'departed'::text
     when t.departure_time::time with time zone <= (CURRENT_TIME + '00:30:00'::interval) then 'boarding'::text
     else 'scheduled'::text
-  end as status,
-  COALESCE(booking_stats.confirmed_bookings, 0::bigint) as bookings
+  end as computed_status,
+  case
+    when v.seating_capacity > 0 then round(
+      COALESCE(booking_stats.confirmed_bookings, 0::bigint)::numeric / v.seating_capacity::numeric * 100::numeric,
+      2
+    )
+    else 0::numeric
+  end as occupancy_rate
 from
   trips t
   left join routes r on t.route_id = r.id
@@ -2757,10 +3099,110 @@ from
   left join vessels v on t.vessel_id = v.id
   left join (
     select
-      bookings.trip_id,
+      b.trip_id,
       count(
         case
-          when bookings.status = any (
+          when b.status = any (
+            array[
+              'confirmed'::booking_status,
+              'checked_in'::booking_status
+            ]
+          ) then 1
+          else null::integer
+        end
+      ) as confirmed_bookings,
+      COALESCE(
+        sum(
+          case
+            when b.status = any (
+              array[
+                'confirmed'::booking_status,
+                'checked_in'::booking_status
+              ]
+            ) then passenger_counts.passenger_count
+            else 0::bigint
+          end
+        ),
+        0::numeric
+      ) as total_passengers,
+      sum(
+        case
+          when b.status = any (
+            array[
+              'confirmed'::booking_status,
+              'checked_in'::booking_status
+            ]
+          ) then b.total_fare
+          else 0::numeric
+        end
+      ) as total_revenue
+    from
+      bookings b
+      left join (
+        select
+          passengers.booking_id,
+          count(*) as passenger_count
+        from
+          passengers
+        group by
+          passengers.booking_id
+      ) passenger_counts on b.id = passenger_counts.booking_id
+    group by
+      b.trip_id
+  ) booking_stats on t.id = booking_stats.trip_id
+where
+  t.travel_date = CURRENT_DATE
+  and t.is_active = true
+order by
+  t.departure_time;
+
+create view public.todays_schedule_view as
+select
+  t.id,
+  t.route_id,
+  t.vessel_id,
+  t.travel_date,
+  t.departure_time,
+  t.available_seats,
+  t.status,
+  t.fare_multiplier,
+  t.booked_seats,
+  t.is_active,
+  t.created_at,
+  case
+    when t.departure_time::time with time zone <= (CURRENT_TIME - '01:00:00'::interval) then 'departed'::text
+    when t.departure_time::time with time zone <= (CURRENT_TIME + '00:30:00'::interval) then 'boarding'::text
+    else 'scheduled'::text
+  end as current_status,
+  r.base_fare,
+  COALESCE(
+    r.name,
+    concat(oi.name, ' to ', di.name)::character varying
+  ) as route_name,
+  oi.name as from_island_name,
+  di.name as to_island_name,
+  v.name as vessel_name,
+  v.seating_capacity as capacity,
+  COALESCE(booking_stats.confirmed_bookings, 0::bigint) as confirmed_bookings,
+  round(
+    case
+      when v.seating_capacity > 0 then COALESCE(booking_stats.confirmed_bookings, 0::bigint)::numeric * 100.0 / v.seating_capacity::numeric
+      else 0::numeric
+    end,
+    2
+  ) as occupancy_rate
+from
+  trips t
+  left join routes r on t.route_id = r.id
+  left join islands oi on r.from_island_id = oi.id
+  left join islands di on r.to_island_id = di.id
+  left join vessels v on t.vessel_id = v.id
+  left join (
+    select
+      b.trip_id,
+      count(
+        case
+          when b.status = any (
             array[
               'confirmed'::booking_status,
               'checked_in'::booking_status
@@ -2770,9 +3212,9 @@ from
         end
       ) as confirmed_bookings
     from
-      bookings
+      bookings b
     group by
-      bookings.trip_id
+      b.trip_id
   ) booking_stats on t.id = booking_stats.trip_id
 where
   t.travel_date = CURRENT_DATE
@@ -2815,6 +3257,7 @@ order by
   r.id,
   t.travel_date;
 
+
 create table public.trips (
   id uuid not null default gen_random_uuid (),
   route_id uuid not null,
@@ -2827,8 +3270,10 @@ create table public.trips (
   status character varying(20) null default 'scheduled'::character varying,
   fare_multiplier numeric(3, 2) null default 1.0,
   booked_seats integer null default 0,
+  arrival_time time without time zone null,
+  updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
   constraint trips_pkey primary key (id),
-  constraint unique_trip unique (route_id, travel_date, departure_time),
+  constraint unique_trip_vessel unique (route_id, travel_date, departure_time, vessel_id),
   constraint trips_route_id_fkey foreign KEY (route_id) references routes (id),
   constraint trips_vessel_id_fkey foreign KEY (vessel_id) references vessels (id),
   constraint chk_trip_available_seats_valid check ((available_seats >= 0))
@@ -2850,12 +3295,31 @@ create index IF not exists idx_trips_vessel_date_status on public.trips using bt
 
 create index IF not exists idx_trips_route_date on public.trips using btree (route_id, travel_date) TABLESPACE pg_default;
 
+create index IF not exists idx_trips_route_date_time_vessel on public.trips using btree (route_id, travel_date, departure_time, vessel_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_today_active on public.trips using btree (travel_date, is_active, status) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_vessel_date_active on public.trips using btree (vessel_id, travel_date, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_route_date_active on public.trips using btree (route_id, travel_date, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_date_departure on public.trips using btree (travel_date, departure_time, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_travel_date_active on public.trips using btree (travel_date, is_active) TABLESPACE pg_default
+where
+  (is_active = true);
+
+create index IF not exists idx_trips_vessel_date on public.trips using btree (vessel_id, travel_date) TABLESPACE pg_default
+where
+  (is_active = true);
+
 create trigger audit_trips_trigger
 after INSERT
 or DELETE
 or
 update on trips for EACH row
 execute FUNCTION enhanced_audit_trigger ();
+
 
 create view public.trips_with_available_seats as
 select
@@ -2952,7 +3416,7 @@ group by
 order by
   up.full_name;
 
-	create table public.user_profiles (
+create table public.user_profiles (
   id uuid not null,
   full_name character varying(100) not null,
   mobile_number character varying(20) not null,
@@ -3074,6 +3538,7 @@ from
   vessels v
   left join vessel_seats_view vs on v.id = vs.vessel_id;
 
+
 create view public.vessel_seats_view as
 select
   vessel_id,
@@ -3139,72 +3604,62 @@ select
   v.id,
   v.name,
   v.seating_capacity,
+  v.status,
   v.is_active,
-  v.created_at,
-  COALESCE(
-    vessel_stats.status,
-    case
-      when v.is_active then 'active'::text
-      else 'inactive'::text
-    end
-  ) as status,
-  COALESCE(vessel_stats.total_trips, 0::bigint) as total_trips_30d,
-  COALESCE(vessel_stats.total_bookings, 0::bigint) as total_bookings_30d,
-  COALESCE(vessel_stats.total_passengers, 0::numeric) as total_passengers_30d,
-  COALESCE(vessel_stats.total_revenue, 0::numeric) as total_revenue_30d,
-  round(
-    case
-      when COALESCE(vessel_stats.total_trips, 0::bigint) = 0 then 0::numeric
-      else vessel_stats.total_passengers / (vessel_stats.total_trips * v.seating_capacity)::numeric * 100::numeric
-    end,
-    2
-  ) as capacity_utilization_30d,
-  round(
-    case
-      when COALESCE(vessel_stats.total_trips, 0::bigint) = 0 then 0::numeric
-      else vessel_stats.total_passengers / vessel_stats.total_trips::numeric
-    end,
-    2
-  ) as avg_passengers_per_trip,
-  COALESCE(vessel_stats.days_in_service, 0::bigint) as days_in_service_30d
+  COALESCE(today_stats.trips_today, 0::bigint) as trips_today,
+  COALESCE(week_stats.trips_next_7_days, 0::bigint) as trips_next_7_days,
+  COALESCE(month_stats.trips_last_30_days, 0::bigint) as trips_last_30_days,
+  COALESCE(month_stats.revenue_30d, 0::numeric) as revenue_30d,
+  case
+    when not v.is_active then 'inactive'::text
+    when COALESCE(today_stats.trips_today, 0::bigint) = 0
+    and COALESCE(week_stats.trips_next_7_days, 0::bigint) = 0 then 'idle'::text
+    when COALESCE(today_stats.trips_today, 0::bigint) > 0 then 'active_today'::text
+    when COALESCE(week_stats.trips_next_7_days, 0::bigint) > 0 then 'scheduled'::text
+    else 'idle'::text
+  end as utilization_status
 from
   vessels v
   left join (
     select
+      trips.vessel_id,
+      count(*) as trips_today
+    from
+      trips
+    where
+      trips.travel_date = CURRENT_DATE
+      and trips.is_active = true
+    group by
+      trips.vessel_id
+  ) today_stats on v.id = today_stats.vessel_id
+  left join (
+    select
+      trips.vessel_id,
+      count(*) as trips_next_7_days
+    from
+      trips
+    where
+      trips.travel_date >= CURRENT_DATE
+      and trips.travel_date <= (CURRENT_DATE + '7 days'::interval)
+      and trips.is_active = true
+    group by
+      trips.vessel_id
+  ) week_stats on v.id = week_stats.vessel_id
+  left join (
+    select
       t.vessel_id,
-      count(*) as total_trips,
-      count(b.id) as total_bookings,
-      COALESCE(sum(passenger_counts.passenger_count), 0::numeric) as total_passengers,
-      sum(
-        case
-          when b.status = 'confirmed'::booking_status then b.total_fare
-          else 0::numeric
-        end
-      ) as total_revenue,
-      count(distinct t.travel_date) as days_in_service,
-      case
-        when v2.is_active then 'active'::text
-        else 'inactive'::text
-      end as status
+      count(*) as trips_last_30_days,
+      sum(COALESCE(b.total_fare, 0::numeric)) as revenue_30d
     from
       trips t
-      left join vessels v2 on t.vessel_id = v2.id
       left join bookings b on t.id = b.trip_id
-      left join (
-        select
-          p.booking_id,
-          count(*) as passenger_count
-        from
-          passengers p
-        group by
-          p.booking_id
-      ) passenger_counts on b.id = passenger_counts.booking_id
+      and b.status = 'confirmed'::booking_status
     where
       t.travel_date >= (CURRENT_DATE - '30 days'::interval)
+      and t.is_active = true
     group by
-      t.vessel_id,
-      v2.is_active
-  ) vessel_stats on v.id = vessel_stats.vessel_id;
+      t.vessel_id
+  ) month_stats on v.id = month_stats.vessel_id;
 
 create table public.vessels (
   id uuid not null default gen_random_uuid (),
@@ -3337,6 +3792,7 @@ create table public.wallets (
   constraint wallets_user_id_key unique (user_id),
   constraint wallets_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
+
 
 create table public.zone_activity_logs (
   id uuid not null default gen_random_uuid (),
@@ -3492,6 +3948,7 @@ from
 order by
   z.order_index,
   z.name;
+
 create view public.zone_management_summary as
 select
   count(*) as total_zones,

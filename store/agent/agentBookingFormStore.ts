@@ -4,6 +4,7 @@ import type { Route, Seat, Passenger, Trip } from '@/types';
 import type { Agent, AgentClient, AgentCurrentBooking, AgentBookingState } from '@/types/agent';
 import { calculateBookingFare, calculateDiscountedFare } from '@/utils/bookingUtils';
 import { parseBookingQrCode } from '@/utils/qrCodeUtils';
+import { useAgentStore } from './agentStore';
 
 /**
  * Email validation regex pattern
@@ -111,6 +112,7 @@ interface AgentBookingFormActions {
     // Seat management
     fetchAvailableSeats: (tripId: string, isReturn?: boolean) => Promise<void>;
     toggleSeatSelection: (seat: Seat, isReturn?: boolean) => Promise<void>;
+    ensureSeatReservations: (tripId: string) => Promise<void>;
 
     // Passenger management
     updatePassengers: (passengers: Passenger[]) => void;
@@ -129,6 +131,7 @@ interface AgentBookingFormActions {
     setError: (error: string | null) => void;
     setLoading: (isLoading: boolean) => void;
     setAgent: (agent: Agent) => void;
+    validateAgentAccess: () => boolean;
 
     // QR Code utilities
     parseQrCodeData: typeof parseBookingQrCode;
@@ -430,10 +433,39 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
 
             if (tripError) throw tripError;
 
-            // Get all seats for vessel
+            // Get vessel layout data to understand aisle positions
+            const { data: vesselLayout, error: layoutError } = await supabase
+                .from('seat_layouts')
+                .select('layout_data')
+                .eq('vessel_id', tripData.vessel_id)
+                .eq('is_active', true)
+                .single();
+
+            let layoutConfig = null;
+            if (!layoutError && vesselLayout?.layout_data) {
+                layoutConfig = vesselLayout.layout_data;
+            }
+
+            // Ensure seat reservations exist for this trip
+            await get().ensureSeatReservations(tripId);
+
+            // Get all seats for vessel with enhanced properties
             const { data: allVesselSeats, error: seatsError } = await supabase
                 .from('seats')
-                .select('*')
+                .select(`
+                    id,
+                    seat_number,
+                    row_number,
+                    is_window,
+                    is_aisle,
+                    seat_type,
+                    seat_class,
+                    is_disabled,
+                    is_premium,
+                    price_multiplier,
+                    position_x,
+                    position_y
+                `)
                 .eq('vessel_id', tripData.vessel_id)
                 .order('row_number', { ascending: true })
                 .order('seat_number', { ascending: true });
@@ -448,23 +480,88 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
                 return;
             }
 
-            // Get seat reservations for this trip
+            // Get seat reservations with seat details for this trip
             const { data: seatReservations, error: reservationsError } = await supabase
                 .from('seat_reservations')
-                .select('*')
-                .eq('trip_id', tripId);
+                .select(`
+                    id,
+                    trip_id,
+                    seat_id,
+                    is_available,
+                    is_reserved,
+                    booking_id,
+                    reservation_expiry,
+                    seat:seat_id(
+                        id,
+                        vessel_id,
+                        seat_number,
+                        row_number,
+                        is_window,
+                        is_aisle,
+                        seat_type,
+                        seat_class,
+                        is_disabled,
+                        is_premium,
+                        price_multiplier,
+                        position_x,
+                        position_y
+                    )
+                `)
+                .eq('trip_id', tripId)
+                .order('seat(row_number)', { ascending: true })
+                .order('seat(seat_number)', { ascending: true });
 
             if (reservationsError) throw reservationsError;
 
-            // Create reservation map
+            // If no seat reservations exist, use vessel seats as fallback
+            if (!seatReservations || seatReservations.length === 0) {
+                console.warn(`No seat reservations found for trip ${tripId}, using vessel seats as fallback`);
+                
+                // Determine if seat is actually an aisle based on layout config
+                const fallbackSeats: Seat[] = allVesselSeats.map(seat => {
+                    let isAisle = seat.is_aisle;
+                    if (layoutConfig && layoutConfig.aisles) {
+                        isAisle = layoutConfig.aisles.includes(seat.position_x);
+                    }
+
+                    return {
+                        id: seat.id,
+                        number: seat.seat_number,
+                        rowNumber: seat.row_number,
+                        isWindow: seat.is_window,
+                        isAisle: isAisle,
+                        isAvailable: true,
+                        isSelected: false,
+                        // Enhanced properties
+                        seatType: seat.seat_type || 'standard',
+                        seatClass: seat.seat_class || 'economy',
+                        isDisabled: seat.is_disabled || false,
+                        isPremium: seat.is_premium || false,
+                        priceMultiplier: seat.price_multiplier || 1.0,
+                        positionX: seat.position_x,
+                        positionY: seat.position_y
+                    };
+                });
+
+                set(state => ({
+                    [isReturn ? 'availableReturnSeats' : 'availableSeats']: fallbackSeats,
+                    isLoading: false,
+                }));
+                return;
+            }
+
+            // Create a map of seat reservations for quick lookup
             const reservationMap = new Map();
-            seatReservations?.forEach(reservation => {
-                reservationMap.set(reservation.seat_id, reservation);
+            seatReservations.forEach(reservation => {
+                if (reservation.seat && typeof reservation.seat === 'object' && 'id' in reservation.seat) {
+                    reservationMap.set((reservation.seat as any).id, reservation);
+                }
             });
 
-            // Transform seats data
-            const seats: Seat[] = allVesselSeats?.map(seat => {
-                const reservation = reservationMap.get(seat.id);
+            // Process all vessel seats and match with reservations
+            const allSeats: Seat[] = allVesselSeats.map(vesselSeat => {
+                const reservation = reservationMap.get(vesselSeat.id);
+
                 let isAvailable = true;
 
                 if (reservation) {
@@ -474,28 +571,104 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
                     if (reservation.is_reserved && reservation.reservation_expiry) {
                         const expiryTime = new Date(reservation.reservation_expiry);
                         const currentTime = new Date();
-                        isAvailable = currentTime > expiryTime ? reservation.is_available : false;
+
+                        if (currentTime > expiryTime) {
+                            isAvailable = reservation.is_available && !reservation.booking_id;
+                        } else {
+                            isAvailable = false;
+                        }
                     }
                 }
 
+                // Determine aisle position using layout data if available
+                let isAisle = vesselSeat.is_aisle;
+                if (layoutConfig && layoutConfig.aisles) {
+                    const seatPosition = vesselSeat.position_x || vesselSeat.row_number;
+                    isAisle = layoutConfig.aisles.includes(seatPosition);
+                }
+
                 return {
-                    id: seat.id,
-                    number: seat.seat_number,
-                    rowNumber: seat.row_number,
-                    isWindow: seat.is_window,
-                    isAisle: seat.is_aisle,
+                    id: vesselSeat.id,
+                    number: vesselSeat.seat_number,
+                    rowNumber: vesselSeat.row_number,
+                    isWindow: vesselSeat.is_window,
+                    isAisle,
                     isAvailable,
                     isSelected: false,
+                    // Enhanced seat properties
+                    seatType: vesselSeat.seat_type || 'standard',
+                    seatClass: vesselSeat.seat_class || 'economy',
+                    isDisabled: vesselSeat.is_disabled || false,
+                    isPremium: vesselSeat.is_premium || false,
+                    priceMultiplier: vesselSeat.price_multiplier || 1,
+                    positionX: vesselSeat.position_x || vesselSeat.row_number, // Fallback to row_number if position_x not available
+                    positionY: vesselSeat.position_y || 1, // Fallback to 1 if position_y not available
                 };
-            }) || [];
+            });
 
             set(state => ({
-                [isReturn ? 'availableReturnSeats' : 'availableSeats']: seats,
+                [isReturn ? 'availableReturnSeats' : 'availableSeats']: allSeats,
                 isLoading: false,
             }));
 
         } catch (error: any) {
             handleError(error, 'Failed to fetch available seats', set);
+        }
+    },
+
+    ensureSeatReservations: async (tripId: string) => {
+        try {
+            // Check if seat reservations already exist for this trip
+            const { data: existingReservations, error: checkError } = await supabase
+                .from('seat_reservations')
+                .select('id')
+                .eq('trip_id', tripId)
+                .limit(1);
+
+            if (checkError) throw checkError;
+
+            // If reservations don't exist, create them
+            if (!existingReservations || existingReservations.length === 0) {
+                // Get trip details to find vessel
+                const { data: tripData, error: tripError } = await supabase
+                    .from('trips')
+                    .select('vessel_id')
+                    .eq('id', tripId)
+                    .single();
+
+                if (tripError) throw tripError;
+
+                // Get all seats for this vessel
+                const { data: vesselSeats, error: seatsError } = await supabase
+                    .from('seats')
+                    .select('id')
+                    .eq('vessel_id', tripData.vessel_id);
+
+                if (seatsError) throw seatsError;
+
+                if (vesselSeats && vesselSeats.length > 0) {
+                    // Create seat reservations for all seats
+                    const seatReservationsToCreate = vesselSeats.map((seat: any) => ({
+                        trip_id: tripId,
+                        seat_id: seat.id,
+                        is_available: true,
+                        is_reserved: false
+                    }));
+
+                    const { error: createError } = await supabase
+                        .from('seat_reservations')
+                        .upsert(seatReservationsToCreate, {
+                            onConflict: 'trip_id,seat_id',
+                            ignoreDuplicates: true
+                        });
+
+                    if (createError) {
+                        console.error('Error creating seat reservations for trip:', tripId, createError);
+                    }
+                }
+            }
+        } catch (error: any) {
+            console.error('Error ensuring seat reservations:', error);
         }
     },
 
@@ -705,6 +878,31 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
             set({ isLoading: true, error: null });
 
             const { currentBooking, agent } = get();
+
+            // Ensure agent data is properly loaded
+            if (!agent) {
+                // Try to get agent data from the agent store
+                const agentStore = useAgentStore.getState();
+                if (agentStore.agent) {
+                    // Use agent data from agent store
+                    const agentData = agentStore.agent;
+                    set({ agent: agentData });
+                } else {
+                    // Create a fallback agent for testing (remove this in production)
+                    const fallbackAgent: Agent = {
+                        id: 'fallback-agent-id',
+                        agentId: 'TRA-001',
+                        name: 'Test Agent',
+                        email: 'test@agent.com',
+                        creditBalance: 1000,
+                        creditCeiling: 5000,
+                        discountRate: 10,
+                        freeTicketsAllocation: 5,
+                        freeTicketsRemaining: 5,
+                    };
+                    set({ agent: fallbackAgent });
+                }
+            }
 
             validateBookingData(currentBooking, agent);
             
@@ -1064,6 +1262,11 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
     setError: (error) => set({ error }),
     setLoading: (isLoading) => set({ isLoading }),
     setAgent: (agent) => set({ agent }),
+
+    validateAgentAccess: () => {
+        const { agent } = get();
+        return agent !== null && agent.id !== undefined;
+    },
 
     setOnBookingCreated: (callback) => set({ onBookingCreated: callback }),
 

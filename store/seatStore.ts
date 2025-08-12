@@ -56,10 +56,37 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 
       if (tripError) throw tripError;
 
-      // Get all seats for this vessel
+      // Get vessel layout data to understand aisle positions
+      const { data: vesselLayout, error: layoutError } = await supabase
+        .from('seat_layouts')
+        .select('layout_data')
+        .eq('vessel_id', tripData.vessel_id)
+        .eq('is_active', true)
+        .single();
+
+      let layoutConfig = null;
+      if (!layoutError && vesselLayout?.layout_data) {
+        layoutConfig = vesselLayout.layout_data;
+      }
+
+      // Get all seats for this vessel with enhanced properties
       const { data: allVesselSeats, error: seatsError } = await supabase
         .from('seats')
-        .select('*')
+        .select(`
+          id,
+          vessel_id,
+          seat_number,
+          row_number,
+          is_window,
+          is_aisle,
+          seat_type,
+          seat_class,
+          is_disabled,
+          is_premium,
+          price_multiplier,
+          position_x,
+          position_y
+        `)
         .eq('vessel_id', tripData.vessel_id)
         .order('row_number', { ascending: true })
         .order('seat_number', { ascending: true });
@@ -94,7 +121,14 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
             seat_number,
             row_number,
             is_window,
-            is_aisle
+            is_aisle,
+            seat_type,
+            seat_class,
+            is_disabled,
+            is_premium,
+            price_multiplier,
+            position_x,
+            position_y
           )
         `)
         .eq('trip_id', tripId)
@@ -107,15 +141,31 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
       if (!seatReservations || seatReservations.length === 0) {
         console.warn(`No seat reservations found for trip ${tripId}, using vessel seats as fallback`);
 
-        const fallbackSeats: Seat[] = allVesselSeats.map(seat => ({
-          id: seat.id,
-          number: seat.seat_number,
-          rowNumber: seat.row_number,
-          isWindow: seat.is_window,
-          isAisle: seat.is_aisle,
-          isAvailable: true,
-          isSelected: false
-        }));
+        // Determine if seat is actually an aisle based on layout config
+        const fallbackSeats: Seat[] = allVesselSeats.map(seat => {
+          let isAisle = seat.is_aisle;
+          if (layoutConfig && layoutConfig.aisles) {
+            isAisle = layoutConfig.aisles.includes(seat.position_x);
+          }
+
+          return {
+            id: seat.id,
+            number: seat.seat_number,
+            rowNumber: seat.row_number,
+            isWindow: seat.is_window,
+            isAisle: isAisle,
+            isAvailable: true,
+            isSelected: false,
+            // Enhanced properties
+            seatType: seat.seat_type || 'standard',
+            seatClass: seat.seat_class || 'economy',
+            isDisabled: seat.is_disabled || false,
+            isPremium: seat.is_premium || false,
+            priceMultiplier: seat.price_multiplier || 1.0,
+            positionX: seat.position_x,
+            positionY: seat.position_y
+          };
+        });
 
         set(state => ({
           [isReturn ? 'availableReturnSeats' : 'availableSeats']: fallbackSeats
@@ -165,14 +215,28 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
           }
         }
 
+        // Determine if seat is actually an aisle based on layout config
+        let isAisle = vesselSeat.is_aisle;
+        if (layoutConfig && layoutConfig.aisles) {
+          isAisle = layoutConfig.aisles.includes(vesselSeat.position_x);
+        }
+
         const seat: Seat = {
           id: vesselSeat.id,
           number: vesselSeat.seat_number,
           rowNumber: vesselSeat.row_number,
           isWindow: vesselSeat.is_window,
-          isAisle: vesselSeat.is_aisle,
+          isAisle: isAisle,
           isAvailable: isAvailable,
-          isSelected: false
+          isSelected: false,
+          // Enhanced properties
+          seatType: vesselSeat.seat_type || 'standard',
+          seatClass: vesselSeat.seat_class || 'economy',
+          isDisabled: vesselSeat.is_disabled || false,
+          isPremium: vesselSeat.is_premium || false,
+          priceMultiplier: vesselSeat.price_multiplier || 1.0,
+          positionX: vesselSeat.position_x,
+          positionY: vesselSeat.position_y
         };
 
         return seat;
@@ -196,22 +260,65 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
     try {
       const { data: seatsData, error } = await supabase
         .from('seats')
-        .select('*')
+        .select(`
+          id,
+          vessel_id,
+          seat_number,
+          row_number,
+          is_window,
+          is_aisle,
+          seat_type,
+          seat_class,
+          is_disabled,
+          is_premium,
+          price_multiplier,
+          position_x,
+          position_y
+        `)
         .eq('vessel_id', vesselId)
         .order('row_number')
         .order('seat_number');
 
       if (error) throw error;
 
-      const formattedSeats: Seat[] = seatsData.map(seat => ({
-        id: seat.id,
-        number: seat.seat_number,
-        rowNumber: seat.row_number,
-        isWindow: seat.is_window,
-        isAisle: seat.is_aisle,
-        isAvailable: true,
-        isSelected: false
-      }));
+      // Get vessel layout data to understand aisle positions
+      const { data: vesselLayout, error: layoutError } = await supabase
+        .from('seat_layouts')
+        .select('layout_data')
+        .eq('vessel_id', vesselId)
+        .eq('is_active', true)
+        .single();
+
+      let layoutConfig = null;
+      if (!layoutError && vesselLayout?.layout_data) {
+        layoutConfig = vesselLayout.layout_data;
+      }
+
+      const formattedSeats: Seat[] = seatsData.map(seat => {
+        // Determine if seat is actually an aisle based on layout config
+        let isAisle = seat.is_aisle;
+        if (layoutConfig && layoutConfig.aisles) {
+          isAisle = layoutConfig.aisles.includes(seat.position_x);
+        }
+
+        return {
+          id: seat.id,
+          number: seat.seat_number,
+          rowNumber: seat.row_number,
+          isWindow: seat.is_window,
+          isAisle: isAisle,
+          isAvailable: true,
+          isSelected: false,
+          // Enhanced properties
+          seatType: seat.seat_type || 'standard',
+          seatClass: seat.seat_class || 'economy',
+          isDisabled: seat.is_disabled || false,
+          isPremium: seat.is_premium || false,
+          priceMultiplier: seat.price_multiplier || 1.0,
+          positionX: seat.position_x,
+          positionY: seat.position_y
+        };
+      });
 
       set({ seats: formattedSeats });
     } catch (error) {
@@ -359,18 +466,22 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
         }));
 
         try {
+          // Use upsert instead of insert to handle potential duplicates gracefully
           const { error: insertError } = await supabase
             .from('seat_reservations')
-            .insert(seatReservationsToCreate);
+            .upsert(seatReservationsToCreate, {
+              onConflict: 'trip_id,seat_id',
+              ignoreDuplicates: true
+            });
 
           if (insertError) {
-            console.error(`Error inserting batch ${i / BATCH_SIZE + 1}:`, insertError);
+            console.error(`Error upserting batch ${i / BATCH_SIZE + 1}:`, insertError);
             errorCount += batch.length;
           } else {
             successCount += batch.length;
           }
         } catch (batchError) {
-          console.error(`Exception inserting batch ${i / BATCH_SIZE + 1}:`, batchError);
+          console.error(`Exception upserting batch ${i / BATCH_SIZE + 1}:`, batchError);
           errorCount += batch.length;
         }
 
@@ -431,7 +542,10 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
             if (missingSeats.length > 0) {
               const { error: insertError } = await supabase
                 .from('seat_reservations')
-                .insert(missingSeats);
+                .upsert(missingSeats, {
+                  onConflict: 'trip_id,seat_id',
+                  ignoreDuplicates: true
+                });
 
               if (insertError) {
                 console.error(`Error creating seat reservations for trip ${trip.id}:`, insertError);
@@ -583,18 +697,22 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
         }));
 
         try {
+          // Use upsert instead of insert to handle potential duplicates gracefully
           const { error: insertError } = await supabase
             .from('seat_reservations')
-            .insert(seatReservationsToCreate);
+            .upsert(seatReservationsToCreate, {
+              onConflict: 'trip_id,seat_id',
+              ignoreDuplicates: true
+            });
 
           if (insertError) {
-            console.error(`Error inserting batch ${i / BATCH_SIZE + 1}:`, insertError);
+            console.error(`Error upserting batch ${i / BATCH_SIZE + 1}:`, insertError);
             errorCount += batch.length;
           } else {
             successCount += batch.length;
           }
         } catch (batchError) {
-          console.error(`Exception inserting batch ${i / BATCH_SIZE + 1}:`, batchError);
+          console.error(`Exception upserting batch ${i / BATCH_SIZE + 1}:`, batchError);
           errorCount += batch.length;
         }
 
