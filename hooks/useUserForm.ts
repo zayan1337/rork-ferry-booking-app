@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UserProfile, UserFormData, UserValidationErrors } from '@/types/userManagement';
 import { validateUserForm, validateUserUniqueness } from '@/utils/userManagementUtils';
-import { useAdminStore } from '@/store/admin/adminStore';
+import { useUserStore } from '@/store/admin/userStore';
 
 interface UseUserFormProps {
     initialData?: UserProfile;
@@ -30,7 +30,7 @@ export function useUserForm(userIdOrProps?: string | UseUserFormProps): ReturnTy
 }
 
 const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps = {}, userId?: string) => {
-    const { users = [], addUser, updateUser, loading, setLoading, getUser } = useAdminStore();
+    const { users = [], create, update, loading: storeLoading, fetchById } = useUserStore();
 
     // Ensure users is always an array to prevent .find() errors
     const safeUsers = Array.isArray(users) ? users : [];
@@ -71,47 +71,51 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
 
     // Fetch user data when userId is provided but no initialData
     useEffect(() => {
-        if (userId && !initialData && safeUsers.length > 0) {
-            try {
-                const userData = getUser(userId);
-                if (userData) {
-                    // Set the fetched user data as initialData
-                    setFormData({
-                        name: userData.name,
-                        email: userData.email,
-                        mobile_number: userData.mobile_number,
-                        role: userData.role,
-                        status: userData.status === 'banned' ? 'suspended' : userData.status,
-                        profile_picture: userData.profile_picture || '',
-                        date_of_birth: userData.date_of_birth || '',
-                        gender: userData.gender,
-                        address: userData.address,
-                        emergency_contact: userData.emergency_contact,
-                        preferences: userData.preferences || {
-                            language: 'en',
-                            currency: 'MVR',
-                            notifications: {
-                                email: true,
-                                sms: true,
-                                push: true
+        const fetchUserData = async () => {
+            if (userId && !initialData) {
+                try {
+                    const userData = await fetchById(userId);
+                    if (userData) {
+                        // Set the fetched user data as initialData
+                        setFormData({
+                            name: userData.name,
+                            email: userData.email,
+                            mobile_number: userData.mobile_number,
+                            role: userData.role,
+                            status: userData.status === 'banned' ? 'suspended' : userData.status,
+                            profile_picture: userData.profile_picture || '',
+                            date_of_birth: userData.date_of_birth || '',
+                            gender: userData.gender,
+                            address: userData.address,
+                            emergency_contact: userData.emergency_contact,
+                            preferences: userData.preferences || {
+                                language: 'en',
+                                currency: 'MVR',
+                                notifications: {
+                                    email: true,
+                                    sms: true,
+                                    push: true
+                                },
+                                accessibility: {
+                                    assistance_required: false,
+                                    assistance_type: ''
+                                }
                             },
-                            accessibility: {
-                                assistance_required: false,
-                                assistance_type: ''
-                            }
-                        },
-                        password: '',
-                        confirm_password: '',
-                        send_welcome_email: false,
-                        send_credentials_sms: false
-                    });
+                            password: '',
+                            confirm_password: '',
+                            send_welcome_email: false,
+                            send_credentials_sms: false
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error fetching user data:', error);
+                    onError?.('Failed to fetch user data');
                 }
-            } catch (error) {
-                console.error('Error fetching user data:', error);
-                onError?.('Failed to fetch user data');
             }
-        }
-    }, [userId, initialData, safeUsers, getUser, onError]);
+        };
+
+        fetchUserData();
+    }, [userId, initialData, fetchById, onError]);
 
     // Initialize form data when initialData changes
     useEffect(() => {
@@ -308,51 +312,37 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
         }
 
         setIsSubmitting(true);
-        setLoading('users', true);
 
         try {
-            const userData: UserProfile = {
-                id: initialData?.id || `user_${Date.now()}`,
+            const userData: Partial<UserProfile> & { password?: string } = {
                 name: formData.name,
                 email: formData.email,
                 mobile_number: formData.mobile_number,
                 role: formData.role,
                 status: formData.status,
-                email_verified: initialData?.email_verified || false,
-                mobile_verified: initialData?.mobile_verified || false,
                 profile_picture: formData.profile_picture,
                 date_of_birth: formData.date_of_birth,
                 gender: formData.gender,
                 address: formData.address,
                 emergency_contact: formData.emergency_contact,
                 preferences: formData.preferences,
-                created_at: initialData?.created_at || new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                last_login: initialData?.last_login,
-
-                // Preserve existing statistics
-                total_bookings: initialData?.total_bookings || 0,
-                total_spent: initialData?.total_spent || 0,
-                total_trips: initialData?.total_trips || 0,
-                average_rating: initialData?.average_rating || 0,
-                wallet_balance: initialData?.wallet_balance || 0,
-                credit_score: initialData?.credit_score || 0,
-                loyalty_points: initialData?.loyalty_points || 0
+                password: formData.password || undefined
             };
 
+            let result: UserProfile;
             if (initialData) {
-                await updateUser(initialData.id, userData);
+                result = await update(initialData.id, userData);
             } else {
-                await addUser(userData);
+                result = await create(userData);
             }
 
-            onSuccess?.(userData);
+            onSuccess?.(result);
 
             if (!initialData) {
                 resetForm();
             }
 
-            return userData;
+            return result;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'An error occurred while saving the user';
             setErrors({ general: errorMessage });
@@ -360,9 +350,8 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
             return false;
         } finally {
             setIsSubmitting(false);
-            setLoading('users', false);
         }
-    }, [formData, validateForm, initialData, addUser, updateUser, onSuccess, onError, resetForm, setLoading]);
+    }, [formData, validateForm, initialData, create, update, onSuccess, onError, resetForm]);
 
     const getFieldError = useCallback((fieldName: string) => {
         const topLevelField = fieldName.split('.')[0];
@@ -447,7 +436,7 @@ const useUserFormImpl = ({ initialData, onSuccess, onError }: UseUserFormProps =
         }, []),
 
         // Utilities
-        isLoading: loading['users'] || false,
+        isLoading: storeLoading || false,
         isEditing: !!initialData
     };
 }; 

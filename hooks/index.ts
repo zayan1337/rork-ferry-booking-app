@@ -38,6 +38,7 @@ export { useVesselManagement } from './useVesselManagement';
 
 // User Management Hooks
 export { useUserForm } from './useUserForm';
+export { useUserManagement } from './useUserManagement';
 
 // Consistent Management Hooks
 export { useFAQManagement } from './useFAQManagement';

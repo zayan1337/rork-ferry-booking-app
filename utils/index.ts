@@ -48,4 +48,5 @@ export * from './tripUtils';
 export * from './islandUtils';
 
 // User management utilities
-export * from './userManagementUtils'; 
+export * from './userManagementUtils';
+export * from './admin/userManagementUtils'; 

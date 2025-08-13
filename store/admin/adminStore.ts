@@ -258,13 +258,13 @@ const mockActivityLogs: ActivityLog[] = [
 export const useAdminStore = create<AdminState>()(
   persist(
     (set, get) => ({
-      // Existing data
-      alerts: mockAlerts || [],
-      bookings: mockBookings || [],
-      users: mockUsers || [],
-      vessels: mockVessels || [],
-      routes: mockRoutes || [],
-      trips: mockTrips || [],
+        // Existing data
+        alerts: mockAlerts || [],
+        bookings: mockBookings || [],
+        users: mockUsers || [],
+        vessels: mockVessels || [],
+        routes: mockRoutes || [],
+        trips: mockTrips || [],
       dashboardStats: mockDashboardStats || {
         totalUsers: 0,
         totalBookings: 0,
