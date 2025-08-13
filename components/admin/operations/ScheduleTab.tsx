@@ -242,15 +242,9 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
     const formatDate = (trip: any) => {
       const dateStr = trip.travel_date;
 
-      console.log(
-        "formatDate: trip.travel_date =",
-        dateStr,
-        "type:",
-        typeof dateStr
-      );
+    
 
       if (!dateStr) {
-        console.log("formatDate: No travel_date, showing Today");
         return "Today";
       }
 
@@ -266,7 +260,6 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
         });
         return formatted;
       } catch (error) {
-        console.log("formatDate: Error formatting date", error);
         return "Today";
       }
     };

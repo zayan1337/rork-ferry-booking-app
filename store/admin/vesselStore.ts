@@ -500,10 +500,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
 
                     if (!existingSeats) {
                         // No existing seats, generate default layout
-                        console.log('Auto-generating seat layout for updated vessel:', id, {
-                            capacity: data.seating_capacity,
-                            vesselType: data.vessel_type || 'passenger'
-                        });
+                       
                         await get().generateAutomaticSeatLayout(id, data.seating_capacity, data.vessel_type || 'passenger');
                     } else {
                         console.log('Vessel already has seats, skipping auto-generation');
@@ -716,7 +713,6 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
             // Check if layoutConfig contains custom seat data
             if (layoutConfig && layoutConfig.floors && layoutConfig.floors[0] && layoutConfig.floors[0].seat_count > 0) {
                 // This is a custom layout with predefined seat data
-                console.log('Processing custom ferry layout with predefined seats');
 
                 // Extract seat data from the floors
                 if (layoutConfig.floors[0].customSeats && layoutConfig.floors[0].customSeats.length > 0) {
@@ -739,7 +735,6 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>((set
                 };
             } else {
                 // Generate automatic layout
-                console.log('Generating automatic ferry layout');
                 const optimalConfig = calculateOptimalLayout(capacity, vesselType);
                 const ferryLayout = generateFerrySeatLayout(capacity, vesselType, { ...optimalConfig, ...layoutConfig });
 

@@ -1297,7 +1297,6 @@ export const useAgentBookingFormStore = create<AgentBookingState & AgentBookingF
                 return false;
             }
 
-            console.log('QR code successfully verified for booking:', bookingId);
             return true;
         } catch (error) {
             handleError(error, 'Failed to verify QR code storage', set);

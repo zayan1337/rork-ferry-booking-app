@@ -88,7 +88,6 @@ const updateBookingWithQrCode = async (bookingId: string, qrCodeUrl: string, max
                 }
             } else {
                 success = true;
-                console.log(`QR code updated successfully for booking:`, bookingId);
 
                 // Verify the QR code was stored
                 await new Promise(resolve => setTimeout(resolve, 200));

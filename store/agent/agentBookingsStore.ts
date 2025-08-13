@@ -491,7 +491,6 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                 throw new Error('Failed to create modified booking');
             }
 
-            console.log('New booking created:', newBooking);
 
             // Wait a moment to ensure booking_number is generated
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -508,12 +507,10 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                 throw new Error('Booking created but booking number not generated');
             }
 
-            console.log('Refreshed booking with booking_number:', refreshedBooking.booking_number);
 
             // Generate QR code URL using the booking number
             const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${refreshedBooking.booking_number}`)}`;
 
-            console.log('Generated QR code URL:', qrCodeUrl);
 
             // Update the new booking with QR code URL
             const { error: qrUpdateError } = await supabase
@@ -538,7 +535,6 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                 throw new Error('QR code was not saved properly');
             }
 
-            console.log('QR code successfully saved for modified booking:', newBooking.id);
 
             // Handle credit transaction for fare difference if using agent credit
             if (modificationData.fareDifference && modificationData.fareDifference !== 0 && modificationData.paymentMethod === 'agent_credit') {
@@ -737,7 +733,6 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                 } else {
                     returnBookingId = returnBooking.id;
 
-                    console.log('Return booking created:', returnBooking);
 
                     // Wait a moment to ensure booking_number is generated
                     await new Promise(resolve => setTimeout(resolve, 100));
@@ -752,12 +747,10 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                     if (returnRefreshError || !refreshedReturnBooking?.booking_number) {
                         console.error('Failed to fetch return booking with booking_number:', returnRefreshError);
                     } else {
-                        console.log('Refreshed return booking with booking_number:', refreshedReturnBooking.booking_number);
 
                         // Generate QR code URL for return booking
                         const returnQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${refreshedReturnBooking.booking_number}`)}`;
 
-                        console.log('Generated return QR code URL:', returnQrCodeUrl);
 
                         // Update return booking with QR code URL
                         const { error: returnQrUpdateError } = await supabase

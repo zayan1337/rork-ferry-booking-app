@@ -144,7 +144,6 @@ export function useSettingsActions({
             };
 
             // Update the admin users array (in real app, this would be done via store/API)
-            console.log("Updated user permissions:", updatedUser);
 
             setSelectedUser(null);
             Alert.alert("Success", "User permissions updated successfully.");
@@ -166,7 +165,6 @@ export function useSettingsActions({
         if (!newRole || !setNewRole) return;
         try {
             // Here you would typically create the role in your backend/store
-            console.log("Creating new role:", newRole);
 
             setNewRole({ name: "", description: "", permissions: [] });
             Alert.alert("Success", "Role created successfully.");

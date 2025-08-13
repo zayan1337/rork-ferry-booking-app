@@ -533,6 +533,22 @@ export default function TripsScreen() {
             <TouchableOpacity
               style={[
                 styles.filterChip,
+                filterActive === "completed" && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterActive("completed")}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterActive === "completed" && styles.filterChipTextActive,
+                ]}
+              >
+                Completed
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
                 filterActive === "boarding" && styles.filterChipActive,
               ]}
               onPress={() => setFilterActive("boarding")}

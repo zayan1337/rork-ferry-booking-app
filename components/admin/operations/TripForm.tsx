@@ -51,7 +51,8 @@ interface FormData {
     | "departed"
     | "arrived"
     | "cancelled"
-    | "delayed";
+    | "delayed"
+    | "completed";
   delay_reason?: string;
   fare_multiplier: number;
   weather_conditions?: string;

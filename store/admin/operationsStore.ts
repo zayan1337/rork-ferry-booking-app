@@ -236,7 +236,6 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
                     todayTrips = trips.filter(t => t.travel_date === today).length;
                 }
             } catch (err) {
-                console.log('Enhanced stats view not available, using fallback calculation');
                 const today = new Date().toISOString().split('T')[0];
                 todayTrips = trips.filter(t => t.travel_date === today).length;
             }

@@ -85,7 +85,7 @@ export default function TripItem({
       case "departed":
         return colors.success;
       case "arrived":
-        return colors.successDark;
+        return colors.success;
       case "cancelled":
         return colors.danger;
       case "delayed":
@@ -184,10 +184,16 @@ export default function TripItem({
           </View>
         </View>
         <View style={styles.headerRight}>
-          <StatusBadge
-            status={trip.status}
-            variant={getStatusVariant(trip.status)}
-          />
+          <View style={styles.statusBadge}>
+            <Text
+              style={[
+                styles.statusText,
+                { color: getStatusColor(trip.status) },
+              ]}
+            >
+              {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+            </Text>
+          </View>
           <ChevronRight size={20} color={colors.textTertiary} />
         </View>
       </View>
@@ -466,5 +472,16 @@ const styles = StyleSheet.create({
     width: 4,
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
+  },
+  statusBadge: {
+    backgroundColor: colors.backgroundSecondary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "capitalize",
   },
 });
