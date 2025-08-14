@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,14 @@ import {
   Alert,
   Dimensions,
   RefreshControl,
-} from "react-native";
-import { Stack, router, useLocalSearchParams } from "expo-router";
-import { colors } from "@/constants/adminColors";
+} from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { colors } from '@/constants/adminColors';
 // UPDATED: Use new route management hook instead of operations store
-import { useRouteManagement } from "@/hooks/useRouteManagement";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import { useRouteManagement } from '@/hooks/useRouteManagement';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 // UPDATED: Use AdminManagement types for consistency
-import { AdminManagement } from "@/types";
+import { AdminManagement } from '@/types';
 import {
   ArrowLeft,
   Edit,
@@ -37,11 +37,11 @@ import {
   Star,
   AlertCircle,
   Info,
-} from "lucide-react-native";
-import Button from "@/components/admin/Button";
-import StatusBadge from "@/components/admin/StatusBadge";
-import StatCard from "@/components/admin/StatCard";
-import LoadingSpinner from "@/components/admin/LoadingSpinner";
+} from 'lucide-react-native';
+import Button from '@/components/admin/Button';
+import StatusBadge from '@/components/admin/StatusBadge';
+import StatCard from '@/components/admin/StatCard';
+import LoadingSpinner from '@/components/admin/LoadingSpinner';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -49,7 +49,8 @@ type Route = AdminManagement.Route;
 
 export default function RouteDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { canViewRoutes, canUpdateRoutes, canDeleteRoutes } = useAdminPermissions();
+  const { canViewRoutes, canUpdateRoutes, canDeleteRoutes } =
+    useAdminPermissions();
 
   // UPDATED: Use new route management hook
   const {
@@ -81,7 +82,7 @@ export default function RouteDetailsScreen() {
     try {
       const route = getById(id);
       if (route) {
-      setRouteData(route);
+        setRouteData(route);
       } else {
         // Try to get detailed route data
         const detailedRoute = await getRouteWithDetails(id);
@@ -90,7 +91,7 @@ export default function RouteDetailsScreen() {
         }
       }
     } catch (error) {
-      console.error("Error loading route:", error);
+      console.error('Error loading route:', error);
       Alert.alert('Error', 'Failed to load route details');
     }
   };
@@ -126,35 +127,43 @@ export default function RouteDetailsScreen() {
     if (canUpdateRoutes()) {
       router.push(`../route/${id}/edit` as any);
     } else {
-      Alert.alert("Access Denied", "You don't have permission to edit routes.");
+      Alert.alert('Access Denied', "You don't have permission to edit routes.");
     }
   };
 
   const handleDelete = () => {
     if (!canDeleteRoutes()) {
-      Alert.alert("Access Denied", "You don't have permission to delete routes.");
+      Alert.alert(
+        'Access Denied',
+        "You don't have permission to delete routes."
+      );
       return;
     }
 
     Alert.alert(
-      "Delete Route",
+      'Delete Route',
       `Are you sure you want to delete the route "${routeData?.name}"? This action cannot be undone and will affect all associated trips and bookings.`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Delete",
-          style: "destructive",
+          text: 'Delete',
+          style: 'destructive',
           onPress: async () => {
             setIsDeleting(true);
             try {
               if (id) {
                 await remove(id);
-                  Alert.alert("Success", "Route deleted successfully.");
-                  router.back();
+                Alert.alert('Success', 'Route deleted successfully.');
+                router.back();
               }
             } catch (error) {
-              console.error("Error deleting route:", error);
-              Alert.alert("Error", error instanceof Error ? error.message : "Failed to delete route. There may be active bookings on this route.");
+              console.error('Error deleting route:', error);
+              Alert.alert(
+                'Error',
+                error instanceof Error
+                  ? error.message
+                  : 'Failed to delete route. There may be active bookings on this route.'
+              );
             } finally {
               setIsDeleting(false);
             }
@@ -170,19 +179,27 @@ export default function RouteDetailsScreen() {
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'active': return 'default';
-      case 'inactive': return 'payment';
-      case 'maintenance': return 'payment';
-      default: return 'default';
+      case 'active':
+        return 'default';
+      case 'inactive':
+        return 'payment';
+      case 'maintenance':
+        return 'payment';
+      default:
+        return 'default';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return colors.success;
-      case 'inactive': return colors.textSecondary;
-      case 'maintenance': return colors.warning;
-      default: return colors.textSecondary;
+      case 'active':
+        return colors.success;
+      case 'inactive':
+        return colors.textSecondary;
+      case 'maintenance':
+        return colors.warning;
+      default:
+        return colors.textSecondary;
     }
   };
 
@@ -200,7 +217,7 @@ export default function RouteDetailsScreen() {
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     }).format(date);
   };
 
@@ -209,7 +226,7 @@ export default function RouteDetailsScreen() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Access Denied",
+            title: 'Access Denied',
             headerLeft: () => (
               <TouchableOpacity
                 onPress={() => router.back()}
@@ -229,8 +246,8 @@ export default function RouteDetailsScreen() {
             You don't have permission to view route details.
           </Text>
           <Button
-            title="Go Back"
-            variant="primary"
+            title='Go Back'
+            variant='primary'
             onPress={() => router.back()}
           />
         </View>
@@ -243,7 +260,7 @@ export default function RouteDetailsScreen() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Loading...",
+            title: 'Loading...',
             headerLeft: () => (
               <TouchableOpacity
                 onPress={() => router.back()}
@@ -267,7 +284,7 @@ export default function RouteDetailsScreen() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Route Not Found",
+            title: 'Route Not Found',
             headerLeft: () => (
               <TouchableOpacity
                 onPress={() => router.back()}
@@ -287,8 +304,8 @@ export default function RouteDetailsScreen() {
             The route you're looking for doesn't exist or may have been deleted.
           </Text>
           <Button
-            title="Go Back"
-            variant="primary"
+            title='Go Back'
+            variant='primary'
             onPress={() => router.back()}
           />
         </View>
@@ -300,7 +317,7 @@ export default function RouteDetailsScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: routeData.name || "Route Details",
+          title: routeData.name || 'Route Details',
           headerLeft: () => (
             <TouchableOpacity
               style={styles.backButton}
@@ -357,24 +374,39 @@ export default function RouteDetailsScreen() {
               <View style={styles.routeDirection}>
                 <MapPin size={16} color={colors.textSecondary} />
                 <Text style={styles.routeDescription}>
-                  {routeData.from_island_name || routeData.origin || 'Unknown'} → {routeData.to_island_name || routeData.destination || 'Unknown'}
+                  {routeData.from_island_name || routeData.origin || 'Unknown'}{' '}
+                  →{' '}
+                  {routeData.to_island_name ||
+                    routeData.destination ||
+                    'Unknown'}
                 </Text>
               </View>
             </View>
           </View>
-          <View style={[
-            styles.statusBadge,
-            routeData.status === 'active' ? styles.statusActive : styles.statusInactive
-          ]}>
-            <View style={[
-              styles.statusDot,
-              { backgroundColor: getStatusColor(routeData.status) }
-            ]} />
-            <Text style={[
-              styles.statusText,
-              routeData.status === 'active' ? styles.statusTextActive : styles.statusTextInactive
-            ]}>
-              {routeData.status?.charAt(0).toUpperCase() + routeData.status?.slice(1)}
+          <View
+            style={[
+              styles.statusBadge,
+              routeData.status === 'active'
+                ? styles.statusActive
+                : styles.statusInactive,
+            ]}
+          >
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: getStatusColor(routeData.status) },
+              ]}
+            />
+            <Text
+              style={[
+                styles.statusText,
+                routeData.status === 'active'
+                  ? styles.statusTextActive
+                  : styles.statusTextInactive,
+              ]}
+            >
+              {routeData.status?.charAt(0).toUpperCase() +
+                routeData.status?.slice(1)}
             </Text>
           </View>
         </View>
@@ -389,39 +421,64 @@ export default function RouteDetailsScreen() {
                     <Calendar size={20} color={colors.primary} />
                   </View>
                   <View style={styles.statCardContent}>
-                    <Text style={styles.statCardValue}>{routeStats.totalTrips}</Text>
+                    <Text style={styles.statCardValue}>
+                      {routeStats.totalTrips}
+                    </Text>
                     <Text style={styles.statCardLabel}>Total Trips</Text>
                   </View>
                 </View>
 
                 <View style={styles.statCard}>
-                  <View style={[styles.statCardIcon, { backgroundColor: colors.successLight }]}>
+                  <View
+                    style={[
+                      styles.statCardIcon,
+                      { backgroundColor: colors.successLight },
+                    ]}
+                  >
                     <Timer size={20} color={colors.success} />
                   </View>
                   <View style={styles.statCardContent}>
-                    <Text style={styles.statCardValue}>{routeStats.onTimePerformance}%</Text>
-                    <Text style={styles.statCardLabel}>On-Time Performance</Text>
+                    <Text style={styles.statCardValue}>
+                      {routeStats.onTimePerformance}%
+                    </Text>
+                    <Text style={styles.statCardLabel}>
+                      On-Time Performance
+                    </Text>
                   </View>
                 </View>
               </View>
 
               <View style={styles.statsRow}>
                 <View style={styles.statCard}>
-                  <View style={[styles.statCardIcon, { backgroundColor: colors.infoLight }]}>
+                  <View
+                    style={[
+                      styles.statCardIcon,
+                      { backgroundColor: colors.infoLight },
+                    ]}
+                  >
                     <TrendingUp size={20} color={colors.info} />
                   </View>
                   <View style={styles.statCardContent}>
-                    <Text style={styles.statCardValue}>{formatCurrency(routeStats.estimatedRevenue)}</Text>
+                    <Text style={styles.statCardValue}>
+                      {formatCurrency(routeStats.estimatedRevenue)}
+                    </Text>
                     <Text style={styles.statCardLabel}>Revenue (Est.)</Text>
                   </View>
                 </View>
 
                 <View style={styles.statCard}>
-                  <View style={[styles.statCardIcon, { backgroundColor: colors.warningLight }]}>
+                  <View
+                    style={[
+                      styles.statCardIcon,
+                      { backgroundColor: colors.warningLight },
+                    ]}
+                  >
                     <Users size={20} color={colors.warning} />
                   </View>
                   <View style={styles.statCardContent}>
-                    <Text style={styles.statCardValue}>{routeStats.averageOccupancy}%</Text>
+                    <Text style={styles.statCardValue}>
+                      {routeStats.averageOccupancy}%
+                    </Text>
                     <Text style={styles.statCardLabel}>Avg Occupancy</Text>
                   </View>
                 </View>
@@ -442,68 +499,119 @@ export default function RouteDetailsScreen() {
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Origin</Text>
-                  <Text style={styles.infoValue}>{routeData.from_island_name || routeData.origin || 'Unknown'}</Text>
+                  <Text style={styles.infoValue}>
+                    {routeData.from_island_name ||
+                      routeData.origin ||
+                      'Unknown'}
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.infoItem}>
-                <View style={[styles.infoIcon, { backgroundColor: colors.infoLight }]}>
+                <View
+                  style={[
+                    styles.infoIcon,
+                    { backgroundColor: colors.infoLight },
+                  ]}
+                >
                   <Navigation size={20} color={colors.info} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Destination</Text>
-                  <Text style={styles.infoValue}>{routeData.to_island_name || routeData.destination || 'Unknown'}</Text>
+                  <Text style={styles.infoValue}>
+                    {routeData.to_island_name ||
+                      routeData.destination ||
+                      'Unknown'}
+                  </Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
-                <View style={[styles.infoIcon, { backgroundColor: colors.successLight }]}>
+                <View
+                  style={[
+                    styles.infoIcon,
+                    { backgroundColor: colors.successLight },
+                  ]}
+                >
                   <Activity size={20} color={colors.success} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Distance</Text>
-                  <Text style={styles.infoValue}>{routeData.distance || "N/A"}</Text>
+                  <Text style={styles.infoValue}>
+                    {routeData.distance || 'N/A'}
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.infoItem}>
-                <View style={[styles.infoIcon, { backgroundColor: colors.warningLight }]}>
+                <View
+                  style={[
+                    styles.infoIcon,
+                    { backgroundColor: colors.warningLight },
+                  ]}
+                >
                   <Clock size={20} color={colors.warning} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Duration</Text>
-                  <Text style={styles.infoValue}>{routeData.duration || "N/A"}</Text>
+                  <Text style={styles.infoValue}>
+                    {routeData.duration || 'N/A'}
+                  </Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
-                <View style={[styles.infoIcon, { backgroundColor: colors.primaryLight }]}>
+                <View
+                  style={[
+                    styles.infoIcon,
+                    { backgroundColor: colors.primaryLight },
+                  ]}
+                >
                   <DollarSign size={20} color={colors.primary} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Base Fare</Text>
-                  <Text style={styles.infoValue}>{formatCurrency(routeData.base_fare || 0)}</Text>
+                  <Text style={styles.infoValue}>
+                    {formatCurrency(routeData.base_fare || 0)}
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.infoItem}>
-                <View style={[
-                  styles.infoIcon,
-                  { backgroundColor: routeData.status === 'active' ? colors.successLight : colors.backgroundTertiary }
-                ]}>
-                  <Target size={20} color={routeData.status === 'active' ? colors.success : colors.textSecondary} />
+                <View
+                  style={[
+                    styles.infoIcon,
+                    {
+                      backgroundColor:
+                        routeData.status === 'active'
+                          ? colors.successLight
+                          : colors.backgroundTertiary,
+                    },
+                  ]}
+                >
+                  <Target
+                    size={20}
+                    color={
+                      routeData.status === 'active'
+                        ? colors.success
+                        : colors.textSecondary
+                    }
+                  />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Status</Text>
-                  <Text style={[
-                    styles.infoValue,
-                    { color: getStatusColor(routeData.status) }
-                  ]}>
-                    {routeData.status?.charAt(0).toUpperCase() + routeData.status?.slice(1)}
+                  <Text
+                    style={[
+                      styles.infoValue,
+                      { color: getStatusColor(routeData.status) },
+                    ]}
+                  >
+                    {routeData.status?.charAt(0).toUpperCase() +
+                      routeData.status?.slice(1)}
                   </Text>
                 </View>
               </View>
@@ -523,25 +631,36 @@ export default function RouteDetailsScreen() {
                 </View>
                 <View style={styles.performanceContent}>
                   <Text style={styles.performanceTitle}>Trip Statistics</Text>
-                  <Text style={styles.performanceValue}>{routeStats.totalTrips}</Text>
+                  <Text style={styles.performanceValue}>
+                    {routeStats.totalTrips}
+                  </Text>
                   <Text style={styles.performanceLabel}>Total Trips (30d)</Text>
-                    <Text style={styles.performanceSubtext}>
+                  <Text style={styles.performanceSubtext}>
                     Cancellation rate: {routeStats.cancellationRate}%
-                    </Text>
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.performanceCard}>
-                <View style={[styles.performanceIcon, { backgroundColor: colors.warningLight }]}>
+                <View
+                  style={[
+                    styles.performanceIcon,
+                    { backgroundColor: colors.warningLight },
+                  ]}
+                >
                   <Star size={20} color={colors.warning} />
                 </View>
                 <View style={styles.performanceContent}>
                   <Text style={styles.performanceTitle}>Reliability</Text>
-                  <Text style={styles.performanceValue}>{routeStats.onTimePerformance}%</Text>
-                  <Text style={styles.performanceLabel}>On-Time Performance</Text>
-                    <Text style={styles.performanceSubtext}>
+                  <Text style={styles.performanceValue}>
+                    {routeStats.onTimePerformance}%
+                  </Text>
+                  <Text style={styles.performanceLabel}>
+                    On-Time Performance
+                  </Text>
+                  <Text style={styles.performanceSubtext}>
                     Rating: {routeStats.performanceRating}
-                    </Text>
+                  </Text>
                 </View>
               </View>
             </View>
@@ -558,23 +677,26 @@ export default function RouteDetailsScreen() {
                 <Info size={20} color={colors.info} />
               </View>
               <Text style={styles.operationsDescription}>
-                This route has {routeStats?.totalTrips || 0} trip{(routeStats?.totalTrips || 0) !== 1 ? 's' : ''} in the last 30 days,
-                with {formatPercentage(routeStats?.averageOccupancy || 0)} average occupancy and {routeStats?.onTimePerformance || 0}% on-time performance.
+                This route has {routeStats?.totalTrips || 0} trip
+                {(routeStats?.totalTrips || 0) !== 1 ? 's' : ''} in the last 30
+                days, with {formatPercentage(routeStats?.averageOccupancy || 0)}{' '}
+                average occupancy and {routeStats?.onTimePerformance || 0}%
+                on-time performance.
               </Text>
             </View>
 
             <View style={styles.operationButtons}>
               <Button
-                title="View All Trips"
-                variant="outline"
+                title='View All Trips'
+                variant='outline'
                 onPress={handleViewTrips}
                 icon={<Calendar size={16} color={colors.primary} />}
                 style={styles.operationButton}
               />
 
               <Button
-                title="Schedule New Trip"
-                variant="primary"
+                title='Schedule New Trip'
+                variant='primary'
                 onPress={() => router.push(`../trip/new?route=${id}` as any)}
                 icon={<Plane size={16} color={colors.white} />}
                 style={styles.operationButton}
@@ -590,7 +712,9 @@ export default function RouteDetailsScreen() {
           <View style={styles.systemInfo}>
             <View style={styles.systemRow}>
               <Text style={styles.systemLabel}>Route ID</Text>
-              <Text style={styles.systemValue} selectable>{routeData.id}</Text>
+              <Text style={styles.systemValue} selectable>
+                {routeData.id}
+              </Text>
             </View>
 
             {routeData.created_at && (
@@ -616,17 +740,17 @@ export default function RouteDetailsScreen() {
         <View style={styles.actionsContainer}>
           {canUpdateRoutes() && (
             <Button
-              title="Edit Route"
+              title='Edit Route'
               onPress={handleEdit}
-              variant="primary"
+              variant='primary'
               icon={<Edit size={20} color={colors.white} />}
             />
           )}
           {canDeleteRoutes() && (
             <Button
-              title="Delete Route"
+              title='Delete Route'
               onPress={handleDelete}
-              variant="outline"
+              variant='outline'
               loading={isDeleting}
               style={styles.deleteButton}
               icon={<Trash2 size={20} color={colors.error} />}
@@ -653,8 +777,8 @@ const styles = StyleSheet.create({
   },
   noPermissionContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
     gap: 20,
   },
@@ -663,40 +787,40 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: colors.warningLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   noPermissionTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 8,
   },
   noPermissionText: {
     fontSize: 16,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 280,
     lineHeight: 22,
     marginBottom: 20,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 16,
   },
   loadingText: {
     fontSize: 16,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   notFoundContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
     gap: 20,
   },
@@ -705,21 +829,21 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: colors.warningLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   notFoundTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 8,
   },
   notFoundText: {
     fontSize: 15,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 300,
     lineHeight: 22,
     marginBottom: 20,
@@ -729,7 +853,7 @@ const styles = StyleSheet.create({
     marginLeft: -8,
   },
   headerActions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
   },
   headerActionButton: {
@@ -746,9 +870,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.errorLight,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: colors.card,
     padding: 24,
     borderRadius: 16,
@@ -760,8 +884,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
   routeIcon: {
@@ -769,8 +893,8 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 16,
   },
   headerContent: {
@@ -778,24 +902,24 @@ const styles = StyleSheet.create({
   },
   routeName: {
     fontSize: 24,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 6,
     lineHeight: 30,
   },
   routeDirection: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   routeDescription: {
     fontSize: 15,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
@@ -814,7 +938,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   statusTextActive: {
@@ -830,13 +954,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statsRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   statCard: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.card,
     padding: 16,
     borderRadius: 12,
@@ -852,15 +976,15 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statCardContent: {
     flex: 1,
   },
   statCardValue: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     lineHeight: 22,
     marginBottom: 2,
@@ -868,8 +992,8 @@ const styles = StyleSheet.create({
   statCardLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "600",
-    textTransform: "uppercase",
+    fontWeight: '600',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   section: {
@@ -885,7 +1009,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 20,
     lineHeight: 24,
@@ -894,13 +1018,13 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   infoRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 16,
   },
   infoItem: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   infoIcon: {
@@ -908,8 +1032,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoContent: {
     flex: 1,
@@ -917,19 +1041,19 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 12,
     color: colors.textTertiary,
-    textTransform: "uppercase",
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 4,
   },
   infoValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     lineHeight: 20,
   },
   performanceGrid: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   performanceCard: {
@@ -944,29 +1068,29 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: colors.successLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   performanceContent: {
     gap: 2,
   },
   performanceTitle: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 4,
   },
   performanceValue: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     lineHeight: 24,
   },
   performanceLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "600",
-    textTransform: "uppercase",
+    fontWeight: '600',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   performanceSubtext: {
@@ -979,8 +1103,8 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   summaryCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: colors.infoLight,
     padding: 16,
     borderRadius: 12,
@@ -991,8 +1115,8 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: colors.info + '20',
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 2,
   },
   operationsDescription: {
@@ -1000,10 +1124,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.info,
     lineHeight: 20,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   operationButtons: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   operationButton: {
@@ -1013,9 +1137,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   systemRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
@@ -1023,22 +1147,22 @@ const styles = StyleSheet.create({
   systemLabel: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: '600',
     flex: 1,
   },
   systemValue: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
     flex: 2,
-    textAlign: "right",
+    textAlign: 'right',
     lineHeight: 18,
   },
   description: {
     fontSize: 15,
     lineHeight: 22,
     color: colors.text,
-    fontWeight: "400",
+    fontWeight: '400',
   },
   actionsContainer: {
     gap: 16,
@@ -1047,4 +1171,4 @@ const styles = StyleSheet.create({
   deleteButton: {
     borderColor: colors.error,
   },
-}); 
+});

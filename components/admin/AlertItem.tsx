@@ -1,8 +1,8 @@
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { colors } from "@/constants/adminColors";
-import { AlertCircle, Calendar, CreditCard, Ship } from "lucide-react-native";
-import { Alert } from "@/types/admin";
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { AlertCircle, Calendar, CreditCard, Ship } from 'lucide-react-native';
+import { Alert } from '@/types/admin';
 
 interface AlertItemProps {
   alert: Alert;
@@ -12,13 +12,13 @@ interface AlertItemProps {
 export default function AlertItem({ alert, onPress }: AlertItemProps) {
   const getAlertIcon = () => {
     switch (alert.type) {
-      case "schedule":
+      case 'schedule':
         return <Calendar size={20} color={colors.primary} />;
-      case "payment":
+      case 'payment':
         return <CreditCard size={20} color={colors.warning} />;
-      case "capacity":
+      case 'capacity':
         return <Ship size={20} color={colors.success} />;
-      case "system":
+      case 'system':
       default:
         return <AlertCircle size={20} color={colors.danger} />;
     }
@@ -26,11 +26,11 @@ export default function AlertItem({ alert, onPress }: AlertItemProps) {
 
   const getSeverityColor = () => {
     switch (alert.severity) {
-      case "high":
+      case 'high':
         return colors.danger;
-      case "medium":
+      case 'medium':
         return colors.warning;
-      case "low":
+      case 'low':
       default:
         return colors.success;
     }
@@ -38,7 +38,7 @@ export default function AlertItem({ alert, onPress }: AlertItemProps) {
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -51,7 +51,12 @@ export default function AlertItem({ alert, onPress }: AlertItemProps) {
       <View style={styles.content}>
         <Text style={styles.message}>{alert.message}</Text>
         <View style={styles.footer}>
-          <View style={[styles.severityIndicator, { backgroundColor: getSeverityColor() }]} />
+          <View
+            style={[
+              styles.severityIndicator,
+              { backgroundColor: getSeverityColor() },
+            ]}
+          />
           <Text style={styles.time}>{formatTime(alert.timestamp)}</Text>
         </View>
       </View>
@@ -61,7 +66,7 @@ export default function AlertItem({ alert, onPress }: AlertItemProps) {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
+    flexDirection: 'row',
     padding: 12,
     backgroundColor: colors.card,
     borderRadius: 12,
@@ -81,8 +86,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.backgroundSecondary,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   content: {
@@ -94,8 +99,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   footer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   severityIndicator: {
     width: 8,

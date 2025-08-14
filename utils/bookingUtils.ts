@@ -6,15 +6,15 @@ import { Booking } from '@/types/agent';
  * @returns true if the booking's departure date has passed, false otherwise
  */
 export const isBookingExpired = (booking: Booking | any): boolean => {
-    if (!booking.departureDate) return false;
+  if (!booking.departureDate) return false;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
 
-    const departureDate = new Date(booking.departureDate);
-    departureDate.setHours(0, 0, 0, 0); // Set to start of day
+  const departureDate = new Date(booking.departureDate);
+  departureDate.setHours(0, 0, 0, 0); // Set to start of day
 
-    return departureDate < today;
+  return departureDate < today;
 };
 
 /**
@@ -23,8 +23,8 @@ export const isBookingExpired = (booking: Booking | any): boolean => {
  * @returns true if the booking is active, false otherwise
  */
 export const isBookingActive = (booking: Booking | any): boolean => {
-    const activeStatuses = ['confirmed', 'pending'];
-    return activeStatuses.includes(booking.status) && !isBookingExpired(booking);
+  const activeStatuses = ['confirmed', 'pending'];
+  return activeStatuses.includes(booking.status) && !isBookingExpired(booking);
 };
 
 /**
@@ -33,8 +33,8 @@ export const isBookingActive = (booking: Booking | any): boolean => {
  * @returns true if the booking is inactive, false otherwise
  */
 export const isBookingInactive = (booking: Booking | any): boolean => {
-    const inactiveStatuses = ['cancelled', 'modified'];
-    return inactiveStatuses.includes(booking.status) || isBookingExpired(booking);
+  const inactiveStatuses = ['cancelled', 'modified'];
+  return inactiveStatuses.includes(booking.status) || isBookingExpired(booking);
 };
 
 /**
@@ -42,8 +42,10 @@ export const isBookingInactive = (booking: Booking | any): boolean => {
  * @param bookings - Array of bookings to filter
  * @returns Array of active bookings
  */
-export const getActiveBookings = (bookings: Booking[] | any[]): (Booking | any)[] => {
-    return bookings.filter(isBookingActive);
+export const getActiveBookings = (
+  bookings: Booking[] | any[]
+): (Booking | any)[] => {
+  return bookings.filter(isBookingActive);
 };
 
 /**
@@ -51,8 +53,10 @@ export const getActiveBookings = (bookings: Booking[] | any[]): (Booking | any)[
  * @param bookings - Array of bookings to filter
  * @returns Array of inactive bookings
  */
-export const getInactiveBookings = (bookings: Booking[] | any[]): (Booking | any)[] => {
-    return bookings.filter(isBookingInactive);
+export const getInactiveBookings = (
+  bookings: Booking[] | any[]
+): (Booking | any)[] => {
+  return bookings.filter(isBookingInactive);
 };
 
 /**
@@ -79,7 +83,7 @@ export const calculateBookingFare = (
         returnFare: 0,
         totalFare: 0,
         isValid: false,
-        errors: ['Departure route is required']
+        errors: ['Departure route is required'],
       };
     }
 
@@ -91,7 +95,7 @@ export const calculateBookingFare = (
         returnFare: 0,
         totalFare: 0,
         isValid: false,
-        errors: [`Invalid departure base fare: ${route.baseFare}`]
+        errors: [`Invalid departure base fare: ${route.baseFare}`],
       };
     }
 
@@ -130,9 +134,8 @@ export const calculateBookingFare = (
       returnFare,
       totalFare: errors.length > 0 ? 0 : totalFare,
       isValid: errors.length === 0,
-      errors
+      errors,
     };
-
   } catch (error) {
     console.error('Error calculating booking fare:', error);
     return {
@@ -140,7 +143,7 @@ export const calculateBookingFare = (
       returnFare: 0,
       totalFare: 0,
       isValid: false,
-      errors: ['Error calculating fare']
+      errors: ['Error calculating fare'],
     };
   }
 };
@@ -151,14 +154,17 @@ export const calculateBookingFare = (
  * @param discountRate - Agent discount rate (percentage)
  * @returns Object with discounted fare and validation status
  */
-export const calculateDiscountedFare = (totalFare: number, discountRate: number) => {
+export const calculateDiscountedFare = (
+  totalFare: number,
+  discountRate: number
+) => {
   try {
     // Validate inputs
     if (isNaN(totalFare) || totalFare < 0) {
       return {
         discountedFare: 0,
         isValid: false,
-        errors: [`Invalid total fare: ${totalFare}`]
+        errors: [`Invalid total fare: ${totalFare}`],
       };
     }
 
@@ -167,7 +173,7 @@ export const calculateDiscountedFare = (totalFare: number, discountRate: number)
       return {
         discountedFare: 0,
         isValid: false,
-        errors: [`Invalid discount rate: ${discountRate}%`]
+        errors: [`Invalid discount rate: ${discountRate}%`],
       };
     }
 
@@ -177,22 +183,21 @@ export const calculateDiscountedFare = (totalFare: number, discountRate: number)
       return {
         discountedFare: 0,
         isValid: false,
-        errors: [`Invalid discounted fare calculated: ${discountedFare}`]
+        errors: [`Invalid discounted fare calculated: ${discountedFare}`],
       };
     }
 
     return {
       discountedFare,
       isValid: true,
-      errors: []
+      errors: [],
     };
-
   } catch (error) {
     console.error('Error calculating discounted fare:', error);
     return {
       discountedFare: 0,
       isValid: false,
-      errors: ['Error calculating discounted fare']
+      errors: ['Error calculating discounted fare'],
     };
   }
 };
@@ -241,10 +246,13 @@ export const validateBookingData = (booking: any) => {
 
     // Validate round trip seat selection
     if (booking.tripType === 'round_trip') {
-      if (!booking.returnSelectedSeats || booking.returnSelectedSeats.length === 0) {
+      if (
+        !booking.returnSelectedSeats ||
+        booking.returnSelectedSeats.length === 0
+      ) {
         errors.push('At least one return seat must be selected');
       }
-      
+
       // Validate seat count consistency
       if (booking.selectedSeats.length !== booking.returnSelectedSeats.length) {
         errors.push('Number of departure and return seats must match');
@@ -262,7 +270,10 @@ export const validateBookingData = (booking: any) => {
     }
 
     // Validate round trip passenger consistency
-    if (booking.tripType === 'round_trip' && booking.returnSelectedSeats.length !== booking.passengers.length) {
+    if (
+      booking.tripType === 'round_trip' &&
+      booking.returnSelectedSeats.length !== booking.passengers.length
+    ) {
       errors.push('Number of return seats must match number of passengers');
     }
 
@@ -277,14 +288,13 @@ export const validateBookingData = (booking: any) => {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
-
   } catch (error) {
     console.error('Error validating booking data:', error);
     return {
       isValid: false,
-      errors: ['Error validating booking data']
+      errors: ['Error validating booking data'],
     };
   }
 };
@@ -305,4 +315,4 @@ export const formatFare = (fare: number, currency: string = 'MVR'): string => {
     console.error('Error formatting fare:', error);
     return `${currency} 0.00`;
   }
-}; 
+};

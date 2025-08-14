@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Modal, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
   FlatList,
-  TextInput
+  TextInput,
 } from 'react-native';
 import { ChevronDown, Search, X } from 'lucide-react-native';
 import Colors from '@/constants/colors';
@@ -26,30 +26,31 @@ const Dropdown: React.FC<DropdownProps> = ({
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const selectedItem = items.find(item => item.value === value);
-  
-  const filteredItems = searchable && searchQuery
-    ? items.filter(item => 
-        item.label.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : items;
-  
+
+  const filteredItems =
+    searchable && searchQuery
+      ? items.filter(item =>
+          item.label.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : items;
+
   const handleSelect = (itemValue: string) => {
     onChange(itemValue);
     setModalVisible(false);
     setSearchQuery('');
   };
-  
+
   const handleCancel = () => {
     setModalVisible(false);
     setSearchQuery('');
   };
-  
+
   const clearSelection = () => {
     onChange('');
   };
-  
+
   return (
     <View style={styles.container}>
       {label && (
@@ -57,30 +58,27 @@ const Dropdown: React.FC<DropdownProps> = ({
           {label} {required && <Text style={styles.required}>*</Text>}
         </Text>
       )}
-      
+
       <TouchableOpacity
         style={[
           styles.dropdownContainer,
           error ? styles.dropdownError : null,
-          disabled ? styles.dropdownDisabled : null
+          disabled ? styles.dropdownDisabled : null,
         ]}
         onPress={() => !disabled && setModalVisible(true)}
         disabled={disabled}
       >
-        <Text 
-          style={[
-            styles.dropdownText, 
-            !selectedItem && styles.placeholderText
-          ]}
+        <Text
+          style={[styles.dropdownText, !selectedItem && styles.placeholderText]}
           numberOfLines={1}
         >
           {selectedItem ? selectedItem.label : placeholder}
         </Text>
-        
+
         <View style={styles.dropdownRight}>
           {value && (
-            <TouchableOpacity 
-              style={styles.clearButton} 
+            <TouchableOpacity
+              style={styles.clearButton}
               onPress={clearSelection}
               hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
             >
@@ -90,55 +88,61 @@ const Dropdown: React.FC<DropdownProps> = ({
           <ChevronDown size={20} color={Colors.textSecondary} />
         </View>
       </TouchableOpacity>
-      
+
       {error && <Text style={styles.errorText}>{error}</Text>}
-      
+
       <Modal
         visible={modalVisible}
-        animationType="slide"
+        animationType='slide'
         transparent={true}
         onRequestClose={handleCancel}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{label || 'Select an option'}</Text>
+              <Text style={styles.modalTitle}>
+                {label || 'Select an option'}
+              </Text>
             </View>
-            
+
             {searchable && (
               <View style={styles.searchContainer}>
-                <Search size={20} color={Colors.textSecondary} style={styles.searchIcon} />
+                <Search
+                  size={20}
+                  color={Colors.textSecondary}
+                  style={styles.searchIcon}
+                />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Search..."
+                  placeholder='Search...'
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  autoCapitalize="none"
-                  clearButtonMode="while-editing"
+                  autoCapitalize='none'
+                  clearButtonMode='while-editing'
                 />
               </View>
             )}
-            
+
             <FlatList
               data={filteredItems}
-              keyExtractor={(item) => item.value}
+              keyExtractor={item => item.value}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
                     styles.optionItem,
-                    item.value === value && styles.selectedOptionItem
+                    item.value === value && styles.selectedOptionItem,
                   ]}
                   onPress={() => handleSelect(item.value)}
                 >
-                  <Text 
+                  <Text
                     style={[
                       styles.optionText,
-                      item.value === value && styles.selectedOptionText
+                      item.value === value && styles.selectedOptionText,
                     ]}
                   >
                     {item.label}
                   </Text>
-                  
+
                   {item.value === value && (
                     <View style={styles.selectedIndicator} />
                   )}
@@ -151,12 +155,12 @@ const Dropdown: React.FC<DropdownProps> = ({
                 </View>
               }
             />
-            
+
             <View style={styles.modalFooter}>
-              <Button 
-                title="Cancel" 
-                onPress={handleCancel} 
-                variant="outline"
+              <Button
+                title='Cancel'
+                onPress={handleCancel}
+                variant='outline'
                 style={styles.footerButton}
               />
             </View>

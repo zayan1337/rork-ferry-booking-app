@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import {
   Calendar,
   DollarSign,
@@ -11,9 +11,9 @@ import {
   Clock,
   Route as RouteIcon,
   Ship,
-} from "lucide-react-native";
-import { colors } from "@/constants/adminColors";
-import { UserProfile } from "@/types/userManagement";
+} from 'lucide-react-native';
+import { colors } from '@/constants/adminColors';
+import { UserProfile } from '@/types/userManagement';
 
 interface UserStatsSectionProps {
   user: UserProfile;
@@ -25,9 +25,9 @@ export default function UserStatsSection({
   userStats,
 }: UserStatsSectionProps) {
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "MVR",
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'MVR',
       minimumFractionDigits: 0,
     }).format(amount);
   };
@@ -298,15 +298,15 @@ export default function UserStatsSection({
 
   const renderStats = () => {
     switch (user.role) {
-      case "customer":
+      case 'customer':
         return renderCustomerStats();
-      case "agent":
+      case 'agent':
         return renderAgentStats();
-      case "admin":
+      case 'admin':
         return renderAdminStats();
-      case "passenger":
+      case 'passenger':
         return renderPassengerStats();
-      case "captain":
+      case 'captain':
         return renderCaptainStats();
       default:
         return null;
@@ -330,13 +330,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statsRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   statCard: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.card,
     padding: 16,
     borderRadius: 12,
@@ -352,15 +352,15 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statCardContent: {
     flex: 1,
   },
   statCardValue: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     lineHeight: 22,
     marginBottom: 2,
@@ -368,8 +368,8 @@ const styles = StyleSheet.create({
   statCardLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "600",
-    textTransform: "uppercase",
+    fontWeight: '600',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
 });

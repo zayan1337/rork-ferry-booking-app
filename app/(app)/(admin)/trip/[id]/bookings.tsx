@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,14 @@ import {
   RefreshControl,
   TextInput,
   Modal,
-} from "react-native";
-import { Stack, router, useLocalSearchParams } from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { useOperationsStore } from "@/store/admin/operationsStore";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { useTripStore } from "@/store/admin/tripStore";
-import RoleGuard from "@/components/RoleGuard";
-import { formatCurrency } from "@/utils/currencyUtils";
+} from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { useOperationsStore } from '@/store/admin/operationsStore';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useTripStore } from '@/store/admin/tripStore';
+import RoleGuard from '@/components/RoleGuard';
+import { formatCurrency } from '@/utils/currencyUtils';
 import {
   ArrowLeft,
   Search,
@@ -38,7 +38,7 @@ import {
   Edit,
   Trash,
   RefreshCw,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
 interface Booking {
   id: string;
@@ -48,14 +48,14 @@ interface Booking {
   customer_phone?: string;
   passenger_count: number;
   total_fare: number;
-  status: "reserved" | "confirmed" | "cancelled" | "completed";
-  payment_status: "pending" | "paid" | "failed" | "refunded";
+  status: 'reserved' | 'confirmed' | 'cancelled' | 'completed';
+  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
   payment_method?:
-    | "gateway"
-    | "cash"
-    | "bank_transfer"
-    | "card"
-    | "mobile_money";
+    | 'gateway'
+    | 'cash'
+    | 'bank_transfer'
+    | 'card'
+    | 'mobile_money';
   booking_date: string;
   special_requests?: string;
   agent_booking?: boolean;
@@ -72,8 +72,8 @@ export default function TripBookingsPage() {
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
@@ -93,19 +93,19 @@ export default function TripBookingsPage() {
         (booking: any) => ({
           id: booking.id,
           booking_reference: booking.booking_number,
-          customer_name: booking.user_profiles?.full_name || "Unknown Customer",
+          customer_name: booking.user_profiles?.full_name || 'Unknown Customer',
           customer_email: booking.user_profiles?.email,
           customer_phone: booking.user_profiles?.mobile_number,
           passenger_count: booking.passengers?.length || 0,
           total_fare: booking.total_fare || 0,
           status: booking.status,
-          payment_status: "pending", // Default since payment_status doesn't exist in schema
+          payment_status: 'pending', // Default since payment_status doesn't exist in schema
           payment_method: booking.payment_method_type,
           booking_date: booking.created_at,
           special_requests: undefined, // Not available in schema
-          agent_booking: booking.user_profiles?.role === "agent",
+          agent_booking: booking.user_profiles?.role === 'agent',
           agent_name:
-            booking.user_profiles?.role === "agent"
+            booking.user_profiles?.role === 'agent'
               ? booking.user_profiles?.full_name
               : undefined,
         })
@@ -113,7 +113,7 @@ export default function TripBookingsPage() {
 
       setBookings(transformedBookings);
     } catch (error) {
-      console.error("Error fetching bookings:", error);
+      console.error('Error fetching bookings:', error);
       // Fall back to empty array if no bookings found
       setBookings([]);
     }
@@ -135,7 +135,7 @@ export default function TripBookingsPage() {
       // Fetch real booking data
       await fetchBookings();
     } catch (error) {
-      Alert.alert("Error", "Failed to load booking data");
+      Alert.alert('Error', 'Failed to load booking data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -148,18 +148,18 @@ export default function TripBookingsPage() {
 
   const getStatusInfo = (status: string) => {
     switch (status) {
-      case "confirmed":
-        return { color: colors.success, label: "Confirmed", icon: CheckCircle };
-      case "pending":
-        return { color: colors.warning, label: "Pending", icon: Clock };
-      case "paid":
-        return { color: colors.primary, label: "Paid", icon: CheckCircle };
-      case "cancelled":
-        return { color: colors.danger, label: "Cancelled", icon: XCircle };
-      case "refunded":
-        return { color: colors.info, label: "Refunded", icon: RefreshCw };
-      case "failed":
-        return { color: colors.danger, label: "Failed", icon: AlertTriangle };
+      case 'confirmed':
+        return { color: colors.success, label: 'Confirmed', icon: CheckCircle };
+      case 'pending':
+        return { color: colors.warning, label: 'Pending', icon: Clock };
+      case 'paid':
+        return { color: colors.primary, label: 'Paid', icon: CheckCircle };
+      case 'cancelled':
+        return { color: colors.danger, label: 'Cancelled', icon: XCircle };
+      case 'refunded':
+        return { color: colors.info, label: 'Refunded', icon: RefreshCw };
+      case 'failed':
+        return { color: colors.danger, label: 'Failed', icon: AlertTriangle };
       default:
         return {
           color: colors.textSecondary,
@@ -171,20 +171,20 @@ export default function TripBookingsPage() {
 
   const getPaymentMethodIcon = (method?: string) => {
     switch (method) {
-      case "card":
+      case 'card':
         return CreditCard;
-      case "cash":
+      case 'cash':
         return DollarSign;
-      case "bank_transfer":
+      case 'bank_transfer':
         return ArrowLeft;
-      case "mobile_money":
+      case 'mobile_money':
         return Phone;
       default:
         return CreditCard;
     }
   };
 
-  const filteredBookings = bookings.filter((booking) => {
+  const filteredBookings = bookings.filter(booking => {
     const matchesSearch =
       booking.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       booking.booking_reference
@@ -196,41 +196,41 @@ export default function TripBookingsPage() {
       booking.customer_phone?.includes(searchQuery);
 
     const matchesFilter =
-      filterStatus === "all" || booking.status === filterStatus;
+      filterStatus === 'all' || booking.status === filterStatus;
 
     return matchesSearch && matchesFilter;
   });
 
   const bookingStats = {
     total: bookings.length,
-    confirmed: bookings.filter((b) => b.status === "confirmed").length,
-    pending: bookings.filter((b) => b.status === "reserved").length,
+    confirmed: bookings.filter(b => b.status === 'confirmed').length,
+    pending: bookings.filter(b => b.status === 'reserved').length,
     totalRevenue: bookings
-      .filter((b) => b.payment_status === "paid")
+      .filter(b => b.payment_status === 'paid')
       .reduce((sum, b) => sum + b.total_fare, 0),
     totalPassengers: bookings
-      .filter((b) => b.status === "confirmed")
+      .filter(b => b.status === 'confirmed')
       .reduce((sum, b) => sum + b.passenger_count, 0),
   };
 
   const handleBookingAction = (booking: Booking, action: string) => {
     switch (action) {
-      case "view":
+      case 'view':
         setSelectedBooking(booking);
         setShowBookingDetails(true);
         break;
-      case "confirm":
+      case 'confirm':
         Alert.alert(
-          "Confirm Booking",
+          'Confirm Booking',
           `Confirm booking ${booking.booking_reference}?`,
           [
-            { text: "Cancel", style: "cancel" },
+            { text: 'Cancel', style: 'cancel' },
             {
-              text: "Confirm",
+              text: 'Confirm',
               onPress: () => {
-                setBookings((prev) =>
-                  prev.map((b) =>
-                    b.id === booking.id ? { ...b, status: "confirmed" } : b
+                setBookings(prev =>
+                  prev.map(b =>
+                    b.id === booking.id ? { ...b, status: 'confirmed' } : b
                   )
                 );
               },
@@ -238,19 +238,19 @@ export default function TripBookingsPage() {
           ]
         );
         break;
-      case "cancel":
+      case 'cancel':
         Alert.alert(
-          "Cancel Booking",
+          'Cancel Booking',
           `Cancel booking ${booking.booking_reference}? This action cannot be undone.`,
           [
-            { text: "Keep Booking", style: "cancel" },
+            { text: 'Keep Booking', style: 'cancel' },
             {
-              text: "Cancel Booking",
-              style: "destructive",
+              text: 'Cancel Booking',
+              style: 'destructive',
               onPress: () => {
-                setBookings((prev) =>
-                  prev.map((b) =>
-                    b.id === booking.id ? { ...b, status: "cancelled" } : b
+                setBookings(prev =>
+                  prev.map(b =>
+                    b.id === booking.id ? { ...b, status: 'cancelled' } : b
                   )
                 );
               },
@@ -270,7 +270,7 @@ export default function TripBookingsPage() {
     return (
       <TouchableOpacity
         style={styles.bookingCard}
-        onPress={() => handleBookingAction(item, "view")}
+        onPress={() => handleBookingAction(item, 'view')}
       >
         <View style={styles.bookingHeader}>
           <View style={styles.bookingInfo}>
@@ -283,7 +283,7 @@ export default function TripBookingsPage() {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: statusInfo.color + "20" },
+                { backgroundColor: statusInfo.color + '20' },
               ]}
             >
               <StatusIcon size={12} color={statusInfo.color} />
@@ -295,31 +295,31 @@ export default function TripBookingsPage() {
               style={styles.moreButton}
               onPress={() => {
                 Alert.alert(
-                  "Booking Actions",
+                  'Booking Actions',
                   `Actions for ${item.booking_reference}`,
                   [
                     {
-                      text: "View Details",
-                      onPress: () => handleBookingAction(item, "view"),
+                      text: 'View Details',
+                      onPress: () => handleBookingAction(item, 'view'),
                     },
-                    ...(item.status === "reserved"
+                    ...(item.status === 'reserved'
                       ? [
                           {
-                            text: "Confirm",
-                            onPress: () => handleBookingAction(item, "confirm"),
+                            text: 'Confirm',
+                            onPress: () => handleBookingAction(item, 'confirm'),
                           },
                         ]
                       : []),
-                    ...(item.status !== "cancelled"
+                    ...(item.status !== 'cancelled'
                       ? [
                           {
-                            text: "Cancel",
-                            style: "destructive" as const,
-                            onPress: () => handleBookingAction(item, "cancel"),
+                            text: 'Cancel',
+                            style: 'destructive' as const,
+                            onPress: () => handleBookingAction(item, 'cancel'),
                           },
                         ]
                       : []),
-                    { text: "Close", style: "cancel" as const },
+                    { text: 'Close', style: 'cancel' as const },
                   ]
                 );
               }}
@@ -340,7 +340,7 @@ export default function TripBookingsPage() {
             <View style={styles.detailItem}>
               <DollarSign size={14} color={colors.textSecondary} />
               <Text style={styles.detailText}>
-                {formatCurrency(item.total_fare, "MVR")}
+                {formatCurrency(item.total_fare, 'MVR')}
               </Text>
             </View>
           </View>
@@ -349,7 +349,7 @@ export default function TripBookingsPage() {
             <View style={styles.detailItem}>
               <PaymentIcon size={14} color={colors.textSecondary} />
               <Text style={styles.detailText}>
-                {item.payment_method || "N/A"} • {paymentStatusInfo.label}
+                {item.payment_method || 'N/A'} • {paymentStatusInfo.label}
               </Text>
             </View>
             <View style={styles.detailItem}>
@@ -400,7 +400,7 @@ export default function TripBookingsPage() {
       <View style={styles.loadingContainer}>
         <Stack.Screen
           options={{
-            title: "Loading...",
+            title: 'Loading...',
             headerShown: true,
             headerLeft: () => (
               <TouchableOpacity
@@ -412,18 +412,18 @@ export default function TripBookingsPage() {
             ),
           }}
         />
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size='large' color={colors.primary} />
         <Text style={styles.loadingText}>Loading bookings...</Text>
       </View>
     );
   }
 
   return (
-    <RoleGuard allowedRoles={["admin", "captain"]}>
+    <RoleGuard allowedRoles={['admin', 'captain']}>
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Trip Bookings",
+            title: 'Trip Bookings',
             headerShown: true,
             headerLeft: () => (
               <TouchableOpacity
@@ -435,7 +435,7 @@ export default function TripBookingsPage() {
             ),
             headerRight: () => (
               <TouchableOpacity
-                onPress={() => console.log("Export")}
+                onPress={() => console.log('Export')}
                 style={styles.exportButton}
               >
                 <Download size={20} color={colors.primary} />
@@ -464,7 +464,7 @@ export default function TripBookingsPage() {
           </View>
           <View style={styles.revenueContainer}>
             <Text style={styles.revenueValue}>
-              {formatCurrency(bookingStats.totalRevenue, "MVR")}
+              {formatCurrency(bookingStats.totalRevenue, 'MVR')}
             </Text>
             <Text style={styles.revenueLabel}>Total Revenue</Text>
           </View>
@@ -476,7 +476,7 @@ export default function TripBookingsPage() {
             <Search size={20} color={colors.textSecondary} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search bookings..."
+              placeholder='Search bookings...'
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor={colors.textSecondary}
@@ -494,7 +494,7 @@ export default function TripBookingsPage() {
         <FlatList
           data={filteredBookings}
           renderItem={renderBookingItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           contentContainerStyle={styles.listContainer}
           refreshControl={
             <RefreshControl
@@ -511,13 +511,13 @@ export default function TripBookingsPage() {
         <Modal
           visible={showFilterModal}
           transparent
-          animationType="fade"
+          animationType='fade'
           onRequestClose={() => setShowFilterModal(false)}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.filterModal}>
               <Text style={styles.filterTitle}>Filter Bookings</Text>
-              {["all", "confirmed", "pending", "cancelled"].map((status) => (
+              {['all', 'confirmed', 'pending', 'cancelled'].map(status => (
                 <TouchableOpacity
                   key={status}
                   style={[
@@ -536,8 +536,8 @@ export default function TripBookingsPage() {
                         styles.filterOptionTextSelected,
                     ]}
                   >
-                    {status === "all"
-                      ? "All Bookings"
+                    {status === 'all'
+                      ? 'All Bookings'
                       : status.charAt(0).toUpperCase() + status.slice(1)}
                   </Text>
                 </TouchableOpacity>
@@ -557,8 +557,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: colors.backgroundSecondary,
     gap: 12,
   },
@@ -585,50 +585,50 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   summaryRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     marginBottom: 16,
   },
   summaryItem: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   summaryValue: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
   },
   summaryLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   revenueContainer: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border + "30",
+    borderTopColor: colors.border + '30',
   },
   revenueValue: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: colors.success,
     marginBottom: 4,
   },
   revenueLabel: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   controlsContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     padding: 16,
     gap: 12,
   },
   searchBar: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: 12,
     paddingHorizontal: 16,
@@ -644,8 +644,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listContainer: {
     padding: 16,
@@ -663,9 +663,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   bookingHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   bookingInfo: {
@@ -673,23 +673,23 @@ const styles = StyleSheet.create({
   },
   bookingReference: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.primary,
     marginBottom: 2,
   },
   customerName: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
   },
   bookingActions: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   moreButton: {
     padding: 4,
@@ -706,19 +706,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   detailRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 20,
   },
   detailItem: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   detailText: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   agentInfo: {
     backgroundColor: colors.primaryLight,
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
   agentText: {
     fontSize: 12,
     color: colors.primary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   specialRequests: {
     backgroundColor: colors.backgroundSecondary,
@@ -740,27 +740,27 @@ const styles = StyleSheet.create({
   specialRequestsText: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterModal: {
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 20,
-    width: "80%",
+    width: '80%',
     maxWidth: 300,
   },
   filterTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 16,
-    textAlign: "center",
+    textAlign: 'center',
   },
   filterOption: {
     paddingVertical: 12,
@@ -774,10 +774,10 @@ const styles = StyleSheet.create({
   filterOptionText: {
     fontSize: 16,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   filterOptionTextSelected: {
     color: colors.primary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
 });

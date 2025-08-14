@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,8 +8,8 @@ import {
   RefreshControl,
   Dimensions,
   Alert,
-} from "react-native";
-import { useRouter } from "expo-router";
+} from 'react-native';
+import { useRouter } from 'expo-router';
 import {
   Plus,
   TicketIcon,
@@ -32,27 +32,27 @@ import {
   ArrowDown,
   MapPin,
   Bell,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
-import Colors from "@/constants/colors";
-import Card from "@/components/Card";
-import StatCard from "@/components/StatCard";
-import AgentBookingCard from "@/components/AgentBookingCard";
-import Button from "@/components/Button";
-import { AgentInfoCard } from "@/components/agent";
+import Colors from '@/constants/colors';
+import Card from '@/components/Card';
+import StatCard from '@/components/StatCard';
+import AgentBookingCard from '@/components/AgentBookingCard';
+import Button from '@/components/Button';
+import { AgentInfoCard } from '@/components/agent';
 import {
   SkeletonAgentInfoSection,
   SkeletonStatsSection,
   SkeletonRecentBookingsList,
-} from "@/components/skeleton";
+} from '@/components/skeleton';
 
-import { useAgentData } from "@/hooks/useAgentData";
-import { useRefreshControl } from "@/hooks/useRefreshControl";
+import { useAgentData } from '@/hooks/useAgentData';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 import {
   formatCurrency,
   formatAgentDisplayName,
-} from "@/utils/agentFormatters";
+} from '@/utils/agentFormatters';
 import {
   getDashboardStats,
   getDashboardBookings,
@@ -62,9 +62,9 @@ import {
   getResponsiveConfig,
   getBookingTrends,
   formatBookingStatus,
-} from "@/utils/agentDashboard";
+} from '@/utils/agentDashboard';
 
-const { width: screenWidth } = Dimensions.get("window");
+const { width: screenWidth } = Dimensions.get('window');
 const responsiveConfig = getResponsiveConfig(screenWidth);
 
 // Trend Indicator Component
@@ -86,7 +86,7 @@ const TrendIndicator = ({
     <View
       style={[
         styles.trendIndicator,
-        { backgroundColor: isUp ? Colors.success + "20" : Colors.error + "20" },
+        { backgroundColor: isUp ? Colors.success + '20' : Colors.error + '20' },
       ]}
     >
       {isUp ? (
@@ -142,7 +142,7 @@ const CreditOverviewCard = ({
           <View
             style={[
               styles.creditBadge,
-              { backgroundColor: Colors.error + "20" },
+              { backgroundColor: Colors.error + '20' },
             ]}
           >
             <AlertCircle size={14} color={Colors.error} />
@@ -155,7 +155,7 @@ const CreditOverviewCard = ({
           <View
             style={[
               styles.creditBadge,
-              { backgroundColor: Colors.warning + "20" },
+              { backgroundColor: Colors.warning + '20' },
             ]}
           >
             <AlertCircle size={14} color={Colors.warning} />
@@ -176,8 +176,8 @@ const CreditOverviewCard = ({
                 color: creditHealth.isCriticalCredit
                   ? Colors.error
                   : creditHealth.isLowCredit
-                  ? Colors.warning
-                  : Colors.success,
+                    ? Colors.warning
+                    : Colors.success,
               },
             ]}
           >
@@ -210,8 +210,8 @@ const CreditOverviewCard = ({
               backgroundColor: creditHealth.isCriticalCredit
                 ? Colors.error
                 : creditHealth.isLowCredit
-                ? Colors.warning
-                : Colors.success,
+                  ? Colors.warning
+                  : Colors.success,
             },
           ]}
         />
@@ -343,8 +343,8 @@ const UpcomingDeparturesCard = ({
             new Date(Date.now() + 86400000).toDateString();
 
           let dateLabel = departureDate.toLocaleDateString();
-          if (isToday) dateLabel = "Today";
-          else if (isTomorrow) dateLabel = "Tomorrow";
+          if (isToday) dateLabel = 'Today';
+          else if (isTomorrow) dateLabel = 'Tomorrow';
 
           return (
             <View key={booking.id} style={styles.upcomingItem}>
@@ -375,7 +375,7 @@ const UpcomingDeparturesCard = ({
               <View
                 style={[
                   styles.upcomingStatus,
-                  { backgroundColor: statusInfo.color + "20" },
+                  { backgroundColor: statusInfo.color + '20' },
                 ]}
               >
                 <Text
@@ -397,8 +397,8 @@ const UpcomingDeparturesCard = ({
           style={styles.upcomingViewAll}
           onPress={() =>
             router.push({
-              pathname: "./bookings",
-              params: { sortBy: "upcoming", filter: "upcoming" },
+              pathname: './bookings',
+              params: { sortBy: 'upcoming', filter: 'upcoming' },
             })
           }
         >
@@ -444,23 +444,23 @@ export default function AgentDashboardScreen() {
 
   const handleNewBooking = () => {
     // Navigate to booking page immediately
-    router.push("../booking/new" as any);
+    router.push('../booking/new' as any);
   };
 
   const handleViewAllBookings = () => {
-    router.push("./bookings");
+    router.push('./bookings');
   };
 
   const handleViewClients = () => {
-    router.push("./clients");
+    router.push('./clients');
   };
 
   const handleViewCredit = () => {
-    router.push("./credit");
+    router.push('./credit');
   };
 
   const handleViewProfile = () => {
-    router.push("./profile");
+    router.push('./profile');
   };
 
   // Stable function for booking press
@@ -471,22 +471,22 @@ export default function AgentDashboardScreen() {
   // Quick actions configuration
   const quickActions = [
     {
-      title: "New Booking",
+      title: 'New Booking',
       icon: <Plus size={24} color={Colors.primary} />,
       onPress: handleNewBooking,
     },
     {
-      title: "Add Client",
+      title: 'Add Client',
       icon: <UserPlus size={24} color={Colors.primary} />,
       onPress: handleViewClients,
     },
     {
-      title: "View Reports",
+      title: 'View Reports',
       icon: <FileText size={24} color={Colors.primary} />,
       onPress: handleViewAllBookings,
     },
     {
-      title: "Settings",
+      title: 'Settings',
       icon: <Settings size={24} color={Colors.primary} />,
       onPress: handleViewProfile,
     },
@@ -496,7 +496,7 @@ export default function AgentDashboardScreen() {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.errorText}>Error: {error}</Text>
-        <Button title="Retry" onPress={retryInitialization} variant="primary" />
+        <Button title='Retry' onPress={retryInitialization} variant='primary' />
       </View>
     );
   }
@@ -542,7 +542,7 @@ export default function AgentDashboardScreen() {
           style={styles.newBookingButton}
           onPress={handleNewBooking}
         >
-          <Plus size={20} color="white" />
+          <Plus size={20} color='white' />
           <Text style={styles.newBookingText}>New Booking</Text>
         </TouchableOpacity>
       </View>
@@ -552,7 +552,7 @@ export default function AgentDashboardScreen() {
         {isInitializing || !agent ? (
           <SkeletonAgentInfoSection delay={0} />
         ) : (
-          <AgentInfoCard agent={agent} variant="dashboard" />
+          <AgentInfoCard agent={agent} variant='dashboard' />
         )}
       </View>
 
@@ -605,40 +605,40 @@ export default function AgentDashboardScreen() {
             contentContainerStyle={styles.statsContainer}
           >
             <StatCard
-              title="Total Bookings"
+              title='Total Bookings'
               value={displayStats.totalBookings}
               icon={<TicketIcon size={16} color={Colors.primary} />}
             />
             <StatCard
-              title="Active Bookings"
+              title='Active Bookings'
               value={displayStats.activeBookings}
               icon={<Calendar size={16} color={Colors.primary} />}
             />
             <StatCard
-              title="Completed"
+              title='Completed'
               value={displayStats.completedBookings}
               icon={<CheckCircle size={16} color={Colors.success} />}
               color={Colors.success}
             />
             <StatCard
-              title="Cancelled"
+              title='Cancelled'
               value={displayStats.cancelledBookings}
               icon={<XCircle size={16} color={Colors.error} />}
               color={Colors.error}
             />
             <StatCard
-              title="Total Revenue"
+              title='Total Revenue'
               value={formatCurrency(displayStats.totalRevenue)}
               icon={<DollarSign size={16} color={Colors.primary} />}
             />
             <StatCard
-              title="Commission"
+              title='Commission'
               value={formatCurrency(displayStats.totalCommission)}
               icon={<CreditCard size={16} color={Colors.secondary} />}
               color={Colors.secondary}
             />
             <StatCard
-              title="Unique Clients"
+              title='Unique Clients'
               value={displayStats.uniqueClients}
               icon={<Users size={16} color={Colors.primary} />}
             />
@@ -689,7 +689,7 @@ export default function AgentDashboardScreen() {
           ) : null
         )
       ) : (
-        <Card variant="outlined" style={styles.emptyCard}>
+        <Card variant='outlined' style={styles.emptyCard}>
           <View style={styles.emptyIcon}>
             <TicketIcon size={48} color={Colors.inactive} />
           </View>
@@ -699,15 +699,15 @@ export default function AgentDashboardScreen() {
           </Text>
           <View style={styles.emptyActions}>
             <Button
-              title="Create Booking"
+              title='Create Booking'
               onPress={handleNewBooking}
-              variant="primary"
+              variant='primary'
               style={styles.emptyButton}
             />
             <Button
-              title="Add Client"
+              title='Add Client'
               onPress={handleViewClients}
-              variant="outline"
+              variant='outline'
               style={styles.emptyButton}
             />
           </View>
@@ -727,26 +727,26 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: Colors.background,
   },
   errorText: {
     fontSize: 16,
     color: Colors.error,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 16,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 20,
     paddingTop: 8,
   },
   greeting: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: Colors.text,
     marginBottom: 4,
   },
@@ -756,24 +756,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headerBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.highlight,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    alignSelf: "flex-start",
+    alignSelf: 'flex-start',
   },
   headerBadgeText: {
     fontSize: 12,
     color: Colors.primary,
-    fontWeight: "500",
+    fontWeight: '500',
     marginLeft: 4,
   },
   newBookingButton: {
     backgroundColor: Colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
@@ -784,8 +784,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   newBookingText: {
-    color: "white",
-    fontWeight: "600",
+    color: 'white',
+    fontWeight: '600',
     marginLeft: 6,
     fontSize: 16,
   },
@@ -794,15 +794,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: 16,
     marginTop: 8,
   },
   quickActionsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     marginBottom: 24,
   },
   quickActionCard: {
@@ -812,7 +812,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: 12,
     padding: 16,
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -820,45 +820,45 @@ const styles = StyleSheet.create({
   quickActionText: {
     marginTop: 8,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: Colors.text,
-    textAlign: "center",
+    textAlign: 'center',
   },
   creditOverviewCard: {
     marginBottom: 24,
     padding: 16,
   },
   creditHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
   creditTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
   },
   creditBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
   },
   creditBadgeText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: '500',
     marginLeft: 4,
   },
   creditMetrics: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   creditMetric: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   creditLabel: {
     fontSize: 12,
@@ -867,7 +867,7 @@ const styles = StyleSheet.create({
   },
   creditValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
   },
   creditBar: {
@@ -875,14 +875,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
     borderRadius: 3,
     marginBottom: 12,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   creditBarFill: {
-    height: "100%",
+    height: '100%',
     borderRadius: 3,
   },
   creditWarning: {
-    backgroundColor: Colors.warning + "10",
+    backgroundColor: Colors.warning + '10',
     padding: 8,
     borderRadius: 8,
     marginBottom: 8,
@@ -890,12 +890,12 @@ const styles = StyleSheet.create({
   creditWarningText: {
     fontSize: 12,
     color: Colors.warning,
-    textAlign: "center",
+    textAlign: 'center',
   },
   freeTicketsInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
@@ -903,7 +903,7 @@ const styles = StyleSheet.create({
   freeTicketsText: {
     fontSize: 14,
     color: Colors.secondary,
-    fontWeight: "500",
+    fontWeight: '500',
     marginLeft: 8,
   },
   performanceCard: {
@@ -911,46 +911,46 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   performanceHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
   performanceTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
     marginLeft: 8,
   },
   performanceMetrics: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   performanceMetric: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   performanceLabel: {
     fontSize: 12,
     color: Colors.subtext,
     marginBottom: 4,
-    textAlign: "center",
+    textAlign: 'center',
   },
   performanceValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
   },
   trendsSection: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },
   trendItem: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   trendLabel: {
     fontSize: 12,
@@ -958,18 +958,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   trendValueContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   trendValue: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
   },
   trendIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -977,20 +977,20 @@ const styles = StyleSheet.create({
   },
   trendText: {
     fontSize: 10,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   upcomingCard: {
     marginBottom: 24,
     padding: 16,
   },
   upcomingHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
   upcomingTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
     marginLeft: 8,
     flex: 1,
@@ -1000,21 +1000,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: 24,
     height: 24,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   upcomingBadgeText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "white",
+    fontWeight: '600',
+    color: 'white',
   },
   upcomingList: {
     maxHeight: 200,
   },
   upcomingItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
@@ -1023,13 +1023,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   upcomingRoute: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
   },
   upcomingRouteText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
     marginLeft: 4,
   },
@@ -1039,12 +1039,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   upcomingDetails: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
   },
   upcomingDate: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   upcomingTime: {
     fontSize: 12,
@@ -1057,38 +1057,38 @@ const styles = StyleSheet.create({
   },
   upcomingStatusText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   upcomingViewAll: {
     marginTop: 12,
-    alignItems: "center",
+    alignItems: 'center',
   },
   upcomingViewAllText: {
     fontSize: 14,
     color: Colors.primary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   statsContainer: {
     paddingBottom: 8,
   },
   recentBookingsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 8,
     marginBottom: 8,
   },
   recentBookingsTitle: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   viewAllText: {
     color: Colors.primary,
-    fontWeight: "600",
+    fontWeight: '600',
     fontSize: 16,
   },
   emptyCard: {
-    alignItems: "center",
+    alignItems: 'center',
     padding: 32,
   },
   emptyIcon: {
@@ -1096,7 +1096,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
     marginBottom: 8,
   },
@@ -1104,13 +1104,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.subtext,
     marginBottom: 24,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 22,
   },
   emptyActions: {
-    flexDirection: responsiveConfig.isTablet ? "row" : "column",
+    flexDirection: responsiveConfig.isTablet ? 'row' : 'column',
     gap: 12,
-    width: "100%",
+    width: '100%',
     maxWidth: 300,
   },
   emptyButton: {

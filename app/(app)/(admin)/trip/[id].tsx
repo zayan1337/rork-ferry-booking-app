@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,28 +9,28 @@ import {
   ScrollView,
   RefreshControl,
   Dimensions,
-} from "react-native";
+} from 'react-native';
 import {
   Stack,
   router,
   useLocalSearchParams,
   useFocusEffect,
-} from "expo-router";
-import { colors } from "@/constants/adminColors";
+} from 'expo-router';
+import { colors } from '@/constants/adminColors';
 import {
   TripDetails,
   TripForm,
   TripAnalytics,
-} from "@/components/admin/operations";
-import { OperationsTrip } from "@/types/database";
-import { Trip, TripFormData } from "@/types/operations";
-import { useOperationsStore } from "@/store/admin/operationsStore";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { useTripManagement } from "@/hooks/useTripManagement";
-import { useTripStore } from "@/store/admin/tripStore";
-import RoleGuard from "@/components/RoleGuard";
-import { formatCurrency } from "@/utils/currencyUtils";
-import { formatTripStatus, getTripOccupancy } from "@/utils/tripUtils";
+} from '@/components/admin/operations';
+import { OperationsTrip } from '@/types/database';
+import { Trip, TripFormData } from '@/types/operations';
+import { useOperationsStore } from '@/store/admin/operationsStore';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useTripManagement } from '@/hooks/useTripManagement';
+import { useTripStore } from '@/store/admin/tripStore';
+import RoleGuard from '@/components/RoleGuard';
+import { formatCurrency } from '@/utils/currencyUtils';
+import { formatTripStatus, getTripOccupancy } from '@/utils/tripUtils';
 import {
   BarChart3,
   Info,
@@ -53,7 +53,7 @@ import {
   CheckCircle,
   Bookmark,
   ChevronRight,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
 // Function to convert OperationsTrip to Trip type expected by components
 const mapOperationsTripToTrip = (operationsTrip: OperationsTrip): Trip => {
@@ -64,7 +64,7 @@ const mapOperationsTripToTrip = (operationsTrip: OperationsTrip): Trip => {
     travel_date: operationsTrip.travel_date,
     departure_time: operationsTrip.departure_time,
     arrival_time: operationsTrip.arrival_time || undefined,
-    estimated_duration: "1h 30m", // Default estimate
+    estimated_duration: '1h 30m', // Default estimate
     status: operationsTrip.status as any,
     available_seats: operationsTrip.available_seats,
     booked_seats: operationsTrip.booked_seats || operationsTrip.bookings || 0,
@@ -93,8 +93,8 @@ export default function TripDetailsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "details" | "analytics" | "passengers" | "bookings"
-  >("details");
+    'details' | 'analytics' | 'passengers' | 'bookings'
+  >('details');
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
 
   // Auto-refresh when page is focused
@@ -134,9 +134,9 @@ export default function TripDetailsPage() {
         }
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to load trip details. Please try again.", [
-        { text: "Retry", onPress: () => loadTrip() },
-        { text: "Go Back", onPress: () => router.back() },
+      Alert.alert('Error', 'Failed to load trip details. Please try again.', [
+        { text: 'Retry', onPress: () => loadTrip() },
+        { text: 'Go Back', onPress: () => router.back() },
       ]);
     } finally {
       setLoading(false);
@@ -169,14 +169,14 @@ export default function TripDetailsPage() {
       if (success) {
         await loadTrip(); // Refresh the trip data
         setEditMode(false);
-        Alert.alert("Success", "Trip updated successfully!");
+        Alert.alert('Success', 'Trip updated successfully!');
       } else {
-        throw new Error("Failed to update trip");
+        throw new Error('Failed to update trip');
       }
     } catch (error) {
       Alert.alert(
-        "Error",
-        error instanceof Error ? error.message : "Failed to update trip"
+        'Error',
+        error instanceof Error ? error.message : 'Failed to update trip'
       );
     }
   };
@@ -188,15 +188,15 @@ export default function TripDetailsPage() {
   const handleCancel = async () => {
     if (!id || !trip) return;
 
-    const route = routes?.find((r) => r.id === trip.route_id);
+    const route = routes?.find(r => r.id === trip.route_id);
     const routeName = route
       ? `${route.origin || route.from_island_name} → ${
           route.destination || route.to_island_name
         }`
-      : "this trip";
+      : 'this trip';
 
     Alert.alert(
-      "Cancel Trip",
+      'Cancel Trip',
       `Are you sure you want to cancel ${routeName} on ${new Date(
         trip.travel_date
       ).toLocaleDateString()} at ${
@@ -205,13 +205,13 @@ export default function TripDetailsPage() {
         trip.booked_seats
       } booked passengers.`,
       [
-        { text: "Keep Trip", style: "cancel" },
+        { text: 'Keep Trip', style: 'cancel' },
         {
-          text: "Cancel Trip",
-          style: "destructive",
+          text: 'Cancel Trip',
+          style: 'destructive',
           onPress: async () => {
             // Use a default reason for cross-platform compatibility
-            const defaultReason = "Trip cancelled by administrator";
+            const defaultReason = 'Trip cancelled by administrator';
             try {
               await cancel(id, defaultReason);
 
@@ -221,13 +221,13 @@ export default function TripDetailsPage() {
               await loadTrip(true);
 
               Alert.alert(
-                "Trip Cancelled",
-                "The trip has been cancelled successfully. Passengers will be notified."
+                'Trip Cancelled',
+                'The trip has been cancelled successfully. Passengers will be notified.'
               );
             } catch (error) {
               Alert.alert(
-                "Error",
-                error instanceof Error ? error.message : "Failed to cancel trip"
+                'Error',
+                error instanceof Error ? error.message : 'Failed to cancel trip'
               );
             }
           },
@@ -239,15 +239,15 @@ export default function TripDetailsPage() {
   const handleDelete = async () => {
     if (!id || !trip) return;
 
-    const route = routes?.find((r) => r.id === trip.route_id);
+    const route = routes?.find(r => r.id === trip.route_id);
     const routeName = route
       ? `${route.origin || route.from_island_name} → ${
           route.destination || route.to_island_name
         }`
-      : "this trip";
+      : 'this trip';
 
     Alert.alert(
-      "Delete Trip",
+      'Delete Trip',
       `Are you sure you want to permanently delete ${routeName} on ${new Date(
         trip.travel_date
       ).toLocaleDateString()} at ${
@@ -256,27 +256,27 @@ export default function TripDetailsPage() {
         trip.booked_seats
       } bookings.`,
       [
-        { text: "Keep Trip", style: "cancel" },
+        { text: 'Keep Trip', style: 'cancel' },
         {
-          text: "Delete Permanently",
-          style: "destructive",
+          text: 'Delete Permanently',
+          style: 'destructive',
           onPress: async () => {
             try {
               await remove(id);
               Alert.alert(
-                "Trip Deleted",
-                "The trip has been permanently deleted from the system.",
+                'Trip Deleted',
+                'The trip has been permanently deleted from the system.',
                 [
                   {
-                    text: "OK",
+                    text: 'OK',
                     onPress: () => router.back(),
                   },
                 ]
               );
             } catch (error) {
               Alert.alert(
-                "Error",
-                error instanceof Error ? error.message : "Failed to delete trip"
+                'Error',
+                error instanceof Error ? error.message : 'Failed to delete trip'
               );
             }
           },
@@ -298,18 +298,18 @@ export default function TripDetailsPage() {
   const handleShare = () => {
     if (!trip) return;
 
-    Alert.alert("Share Trip", "Choose how to share this trip information:", [
-      { text: "Copy Link", onPress: () => console.log("Copy link") },
-      { text: "Export PDF", onPress: () => console.log("Export PDF") },
-      { text: "Cancel", style: "cancel" },
+    Alert.alert('Share Trip', 'Choose how to share this trip information:', [
+      { text: 'Copy Link', onPress: () => console.log('Copy link') },
+      { text: 'Export PDF', onPress: () => console.log('Export PDF') },
+      { text: 'Cancel', style: 'cancel' },
     ]);
   };
 
   const getTripStatusInfo = (trip: Trip) => {
     const status = formatTripStatus(trip.status);
     const occupancy = getTripOccupancy(trip);
-    const route = routes?.find((r) => r.id === trip.route_id);
-    const vessel = vessels?.find((v) => v.id === trip.vessel_id);
+    const route = routes?.find(r => r.id === trip.route_id);
+    const vessel = vessels?.find(v => v.id === trip.vessel_id);
 
     return {
       status,
@@ -327,7 +327,7 @@ export default function TripDetailsPage() {
       <View style={styles.loadingContainer}>
         <Stack.Screen
           options={{
-            title: "Loading...",
+            title: 'Loading...',
             headerShown: true,
             headerLeft: () => (
               <TouchableOpacity
@@ -339,7 +339,7 @@ export default function TripDetailsPage() {
             ),
           }}
         />
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size='large' color={colors.primary} />
         <Text style={styles.loadingText}>Loading trip details...</Text>
       </View>
     );
@@ -350,7 +350,7 @@ export default function TripDetailsPage() {
       <View style={styles.errorContainer}>
         <Stack.Screen
           options={{
-            title: "Trip Not Found",
+            title: 'Trip Not Found',
             headerShown: true,
             headerLeft: () => (
               <TouchableOpacity
@@ -368,7 +368,7 @@ export default function TripDetailsPage() {
           moved.
         </Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => loadTrip()}>
-          <RefreshCw size={16} color="#FFFFFF" />
+          <RefreshCw size={16} color='#FFFFFF' />
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>
@@ -378,13 +378,13 @@ export default function TripDetailsPage() {
   const tripInfo = getTripStatusInfo(trip);
 
   return (
-    <RoleGuard allowedRoles={["admin", "captain"]}>
+    <RoleGuard allowedRoles={['admin', 'captain']}>
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: editMode ? "Edit Trip" : "Trip Details",
+            title: editMode ? 'Edit Trip' : 'Trip Details',
             headerShown: true,
-            presentation: "card",
+            presentation: 'card',
             headerLeft: () => (
               <TouchableOpacity
                 onPress={() => (editMode ? setEditMode(false) : router.back())}
@@ -446,15 +446,15 @@ export default function TripDetailsPage() {
                   <View style={styles.routeInfo}>
                     <MapPin size={16} color={colors.primary} />
                     <Text style={styles.routeName}>
-                      {tripInfo.route?.origin || "Unknown"} →{" "}
-                      {tripInfo.route?.destination || "Unknown"}
+                      {tripInfo.route?.origin || 'Unknown'} →{' '}
+                      {tripInfo.route?.destination || 'Unknown'}
                     </Text>
                   </View>
                 </View>
                 <View
                   style={[
                     styles.statusBadge,
-                    { backgroundColor: tripInfo.status.color + "20" },
+                    { backgroundColor: tripInfo.status.color + '20' },
                   ]}
                 >
                   <Text
@@ -487,7 +487,7 @@ export default function TripDetailsPage() {
                   <View style={styles.detailItem}>
                     <Ship size={16} color={colors.textSecondary} />
                     <Text style={styles.detailText}>
-                      {tripInfo.vessel?.name || "Unknown Vessel"}
+                      {tripInfo.vessel?.name || 'Unknown Vessel'}
                     </Text>
                   </View>
                   <View style={styles.detailItem}>
@@ -504,7 +504,7 @@ export default function TripDetailsPage() {
               <View style={styles.metricsContainer}>
                 <View style={styles.metric}>
                   <Text style={styles.metricValue}>
-                    {formatCurrency(tripInfo.revenue, "MVR")}
+                    {formatCurrency(tripInfo.revenue, 'MVR')}
                   </Text>
                   <Text style={styles.metricLabel}>Revenue</Text>
                 </View>
@@ -529,7 +529,7 @@ export default function TripDetailsPage() {
                 </View>
                 <View style={styles.statContent}>
                   <Text style={styles.statValue}>
-                    {formatCurrency(tripInfo.revenue, "MVR")}
+                    {formatCurrency(tripInfo.revenue, 'MVR')}
                   </Text>
                   <Text style={styles.statLabel}>Revenue</Text>
                 </View>
@@ -618,8 +618,8 @@ export default function TripDetailsPage() {
                 style={styles.managementAction}
                 onPress={() => {
                   Alert.alert(
-                    "Feature Coming Soon",
-                    "Real-time tracking will be available in the next update."
+                    'Feature Coming Soon',
+                    'Real-time tracking will be available in the next update.'
                   );
                 }}
               >
@@ -639,7 +639,7 @@ export default function TripDetailsPage() {
                 <ChevronRight size={20} color={colors.textSecondary} />
               </TouchableOpacity>
 
-              {trip.status !== "completed" && trip.status !== "cancelled" && (
+              {trip.status !== 'completed' && trip.status !== 'cancelled' && (
                 <TouchableOpacity
                   style={[styles.managementAction, styles.dangerAction]}
                   onPress={handleCancel}
@@ -738,7 +738,7 @@ export default function TripDetailsPage() {
                     <Clock size={16} color={colors.info} />
                   </View>
                   <Text style={styles.analyticsValue}>
-                    {tripInfo.route?.duration || "N/A"}
+                    {tripInfo.route?.duration || 'N/A'}
                   </Text>
                   <Text style={styles.analyticsLabel}>Estimated Duration</Text>
                 </View>
@@ -758,15 +758,15 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: colors.backgroundSecondary,
     gap: 12,
   },
   errorContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: colors.backgroundSecondary,
     padding: 20,
     gap: 16,
@@ -783,19 +783,19 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: colors.text,
-    textAlign: "center",
+    textAlign: 'center',
   },
   errorMessage: {
     fontSize: 16,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 24,
   },
   retryButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -803,9 +803,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   retryButtonText: {
-    color: "#FFFFFF",
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   content: {
     flex: 1,
@@ -825,9 +825,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   overviewHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
   overviewHeaderLeft: {
@@ -836,17 +836,17 @@ const styles = StyleSheet.create({
   tripId: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
     marginBottom: 4,
   },
   routeInfo: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   routeName: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     flex: 1,
   },
@@ -857,57 +857,57 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   detailsGrid: {
     gap: 12,
     marginBottom: 16,
   },
   detailRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 20,
   },
   detailItem: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   detailText: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   metricsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border + "30",
+    borderTopColor: colors.border + '30',
   },
   metric: {
-    alignItems: "center",
+    alignItems: 'center',
   },
   metricValue: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
   },
   metricLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   actionsContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   actionButton: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.card,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -920,11 +920,11 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   dangerButton: {
-    backgroundColor: colors.danger + "10",
+    backgroundColor: colors.danger + '10',
   },
   actionButtonText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
   },
   dangerButtonText: {
@@ -942,35 +942,35 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 16,
   },
   analyticsGrid: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
   },
   analyticsItem: {
-    alignItems: "center",
+    alignItems: 'center',
   },
   analyticsValue: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: colors.primary,
     marginBottom: 4,
   },
   analyticsLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   analyticsIconContainer: {
     width: 24,
     height: 24,
     borderRadius: 12,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   quickStatsContainer: {
@@ -980,8 +980,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -993,8 +993,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   statContent: {
@@ -1002,23 +1002,23 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   statTrend: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
   statTrendText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.textSecondary,
   },
   managementCard: {
@@ -1032,9 +1032,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   managementAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -1042,8 +1042,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundSecondary,
   },
   managementActionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
   managementIconContainer: {
@@ -1051,16 +1051,16 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   dangerIconContainer: {
-    backgroundColor: colors.danger + "20",
+    backgroundColor: colors.danger + '20',
   },
   managementActionTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 2,
   },
@@ -1072,19 +1072,19 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   dangerAction: {
-    backgroundColor: colors.danger + "10",
+    backgroundColor: colors.danger + '10',
   },
   deleteAction: {
-    backgroundColor: colors.danger + "15",
+    backgroundColor: colors.danger + '15',
     borderWidth: 1,
-    borderColor: colors.danger + "30",
+    borderColor: colors.danger + '30',
   },
   deleteIconContainer: {
-    backgroundColor: colors.danger + "25",
+    backgroundColor: colors.danger + '25',
   },
   deleteActionTitle: {
     color: colors.danger,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   actionMenu: {
     backgroundColor: colors.card,
@@ -1098,15 +1098,15 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   actionMenuItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
     gap: 12,
   },
   actionMenuItemDanger: {
-    backgroundColor: colors.danger + "20",
+    backgroundColor: colors.danger + '20',
   },
   actionMenuText: {
     fontSize: 16,
@@ -1116,20 +1116,20 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   actionMenuOverlay: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionMenuContainer: {
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 15,
-    width: "80%",
+    width: '80%',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -1137,19 +1137,19 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   comingSoon: {
-    alignItems: "center",
+    alignItems: 'center',
     padding: 20,
   },
   comingSoonTitle: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: colors.text,
     marginTop: 15,
   },
   comingSoonText: {
     fontSize: 16,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: 5,
     marginBottom: 20,
   },
@@ -1160,8 +1160,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   viewButtonText: {
-    color: "#FFFFFF",
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });

@@ -1,7 +1,7 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { colors } from "@/constants/adminColors";
-import Button from "@/components/admin/Button";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '@/constants/adminColors';
+import Button from '@/components/admin/Button';
 
 interface BulkActionsBarProps {
   selectedCount: number;
@@ -29,20 +29,20 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
         {canUpdateUsers && (
           <>
             <Button
-              title="Activate"
-              variant="primary"
-              size="small"
+              title='Activate'
+              variant='primary'
+              size='small'
               onPress={onActivate}
             />
             <Button
-              title="Suspend"
-              variant="danger"
-              size="small"
+              title='Suspend'
+              variant='danger'
+              size='small'
               onPress={onSuspend}
             />
           </>
         )}
-        <Button title="Clear" variant="ghost" size="small" onPress={onClear} />
+        <Button title='Clear' variant='ghost' size='small' onPress={onClear} />
       </View>
     </View>
   );
@@ -50,23 +50,23 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
 
 const styles = StyleSheet.create({
   bulkActionsBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: colors.primary + "10",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '10',
     borderWidth: 1,
-    borderColor: colors.primary + "30",
+    borderColor: colors.primary + '30',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
   },
   bulkActionsText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.primary,
   },
   bulkActionsButtons: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
   },
 });

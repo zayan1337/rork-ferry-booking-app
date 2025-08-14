@@ -14,9 +14,9 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * @throws {Error} If agent ID is not provided
  */
 const validateRequired = (agentId: string, paramName: string = 'Agent ID') => {
-    if (!agentId) {
-        throw new Error(`${paramName} is required`);
-    }
+  if (!agentId) {
+    throw new Error(`${paramName} is required`);
+  }
 };
 
 /**
@@ -27,372 +27,380 @@ const validateRequired = (agentId: string, paramName: string = 'Agent ID') => {
  * @returns The error message string
  */
 const handleError = (error: unknown, defaultMessage: string, set: any) => {
-    const errorMessage = error instanceof Error ? error.message : defaultMessage;
-    console.error(defaultMessage, error);
-    set({
-        error: errorMessage,
-        isLoading: false,
-    });
-    return errorMessage;
+  const errorMessage = error instanceof Error ? error.message : defaultMessage;
+  console.error(defaultMessage, error);
+  set({
+    error: errorMessage,
+    isLoading: false,
+  });
+  return errorMessage;
 };
 
 /**
  * Agent clients state and actions
  */
 interface AgentClientsState {
-    // State
-    clients: Client[];
-    isLoading: boolean;
-    error: string | null;
+  // State
+  clients: Client[];
+  isLoading: boolean;
+  error: string | null;
 
-    // Actions
-    fetchClients: (agentId: string) => Promise<void>;
-    addClientToAgent: (agentId: string, clientId: string) => Promise<void>;
-    createAgentClient: (agentId: string, clientData: {
-        name: string;
-        email: string;
-        phone: string;
-        idNumber?: string;
-    }) => Promise<string>;
-    searchExistingUser: (email: string) => Promise<any | null>;
-    addExistingUserAsClient: (agentId: string, userId: string) => Promise<void>;
-    clearError: () => void;
-    reset: () => void;
+  // Actions
+  fetchClients: (agentId: string) => Promise<void>;
+  addClientToAgent: (agentId: string, clientId: string) => Promise<void>;
+  createAgentClient: (
+    agentId: string,
+    clientData: {
+      name: string;
+      email: string;
+      phone: string;
+      idNumber?: string;
+    }
+  ) => Promise<string>;
+  searchExistingUser: (email: string) => Promise<any | null>;
+  addExistingUserAsClient: (agentId: string, userId: string) => Promise<void>;
+  clearError: () => void;
+  reset: () => void;
 
-    // Internal helper methods
-    getAgentClients: (agentId: string) => Promise<Client[]>;
+  // Internal helper methods
+  getAgentClients: (agentId: string) => Promise<Client[]>;
 }
 
 export const useAgentClientsStore = create<AgentClientsState>((set, get) => ({
-    // Initial state
-    clients: [],
-    isLoading: false,
-    error: null,
+  // Initial state
+  clients: [],
+  isLoading: false,
+  error: null,
 
-    /**
-     * Get agent clients with booking counts from database
-     * @param agentId - Agent ID to fetch clients for
-     * @returns Array of clients with booking counts
-     */
-    getAgentClients: async (agentId: string): Promise<Client[]> => {
-        try {
-            validateRequired(agentId);
+  /**
+   * Get agent clients with booking counts from database
+   * @param agentId - Agent ID to fetch clients for
+   * @returns Array of clients with booking counts
+   */
+  getAgentClients: async (agentId: string): Promise<Client[]> => {
+    try {
+      validateRequired(agentId);
 
-            // Use the comprehensive approach: query the view that handles both cases
-            const { data: clientData, error: clientError } = await supabase
-                .from('agent_clients_with_details')
-                .select('*')
-                .eq('agent_id', agentId);
+      // Use the comprehensive approach: query the view that handles both cases
+      const { data: clientData, error: clientError } = await supabase
+        .from('agent_clients_with_details')
+        .select('*')
+        .eq('agent_id', agentId);
 
-            if (clientError) {
-                throw clientError;
+      if (clientError) {
+        throw clientError;
+      }
+
+      // Map the data - handle both clients with and without accounts
+      const mappedClients = (clientData || []).map((item: any) => ({
+        id: item.has_account ? item.client_id : item.id, // Use client_id for accounts, agent_clients id for no accounts
+        name: item.full_name || 'Unknown',
+        email: item.email || '',
+        phone: item.mobile_number || '',
+        bookingsCount: 0, // Will be updated with actual count below
+        hasAccount: item.has_account,
+        agentClientId: item.id, // Store the agent_clients record id
+      }));
+
+      // Get booking counts for each client (both types) - exclude "modified" status
+      try {
+        const { data: bookingCounts, error: bookingError } = await supabase
+          .from('bookings')
+          .select('user_id, agent_client_id, status')
+          .eq('agent_id', agentId)
+          .neq('status', 'modified'); // Exclude modified bookings from count
+
+        if (!bookingError && bookingCounts) {
+          // Count bookings by both user_id and agent_client_id
+          const bookingCountsMap: Record<string, number> = {};
+
+          bookingCounts.forEach((booking: any) => {
+            // Count bookings for clients with accounts (user_id)
+            if (booking.user_id) {
+              bookingCountsMap[booking.user_id] =
+                (bookingCountsMap[booking.user_id] || 0) + 1;
             }
-
-            // Map the data - handle both clients with and without accounts
-            const mappedClients = (clientData || []).map((item: any) => ({
-                id: item.has_account ? item.client_id : item.id, // Use client_id for accounts, agent_clients id for no accounts
-                name: item.full_name || 'Unknown',
-                email: item.email || '',
-                phone: item.mobile_number || '',
-                bookingsCount: 0, // Will be updated with actual count below
-                hasAccount: item.has_account,
-                agentClientId: item.id, // Store the agent_clients record id
-            }));
-
-            // Get booking counts for each client (both types) - exclude "modified" status
-            try {
-                const { data: bookingCounts, error: bookingError } = await supabase
-                    .from('bookings')
-                    .select('user_id, agent_client_id, status')
-                    .eq('agent_id', agentId)
-                    .neq('status', 'modified'); // Exclude modified bookings from count
-
-                if (!bookingError && bookingCounts) {
-                    // Count bookings by both user_id and agent_client_id
-                    const bookingCountsMap: Record<string, number> = {};
-
-                    bookingCounts.forEach((booking: any) => {
-                        // Count bookings for clients with accounts (user_id)
-                        if (booking.user_id) {
-                            bookingCountsMap[booking.user_id] = (bookingCountsMap[booking.user_id] || 0) + 1;
-                        }
-                        // Count bookings for clients without accounts (agent_client_id)
-                        if (booking.agent_client_id) {
-                            bookingCountsMap[booking.agent_client_id] = (bookingCountsMap[booking.agent_client_id] || 0) + 1;
-                        }
-                    });
-
-                    // Update booking counts for all clients
-                    mappedClients.forEach(client => {
-                        if (client.hasAccount) {
-                            // For clients with accounts, use client.id (which is user_id)
-                            client.bookingsCount = bookingCountsMap[client.id] || 0;
-                        } else {
-                            // For clients without accounts, use agentClientId (which is agent_clients.id)
-                            client.bookingsCount = bookingCountsMap[client.agentClientId] || 0;
-                        }
-                    });
-                }
-            } catch (bookingError) {
-                console.warn('Could not fetch booking counts:', bookingError);
+            // Count bookings for clients without accounts (agent_client_id)
+            if (booking.agent_client_id) {
+              bookingCountsMap[booking.agent_client_id] =
+                (bookingCountsMap[booking.agent_client_id] || 0) + 1;
             }
+          });
 
-            return mappedClients;
-        } catch (error) {
-            console.error('Error fetching agent clients:', error);
-
-            // Final fallback to stored procedure if view doesn't work
-            try {
-                const { data, error: rpcError } = await supabase.rpc('get_agent_clients_with_stats', {
-                    agent_user_id: agentId
-                });
-
-                if (!rpcError && data) {
-                    return (data || []).map((client: any) => ({
-                        id: client.id,
-                        name: client.name,
-                        email: client.email,
-                        phone: client.phone,
-                        bookingsCount: Number(client.bookingscount),
-                        hasAccount: true, // Stored procedure likely only returns clients with accounts
-                    }));
-                }
-            } catch (rpcError) {
-                console.error('RPC fallback also failed:', rpcError);
+          // Update booking counts for all clients
+          mappedClients.forEach(client => {
+            if (client.hasAccount) {
+              // For clients with accounts, use client.id (which is user_id)
+              client.bookingsCount = bookingCountsMap[client.id] || 0;
+            } else {
+              // For clients without accounts, use agentClientId (which is agent_clients.id)
+              client.bookingsCount =
+                bookingCountsMap[client.agentClientId] || 0;
             }
-
-            throw error;
+          });
         }
-    },
+      } catch (bookingError) {
+        console.warn('Could not fetch booking counts:', bookingError);
+      }
 
-    /**
-     * Fetch all clients for an agent
-     * @param agentId - Agent ID to fetch clients for
-     */
-    fetchClients: async (agentId: string) => {
-        if (!agentId) return;
+      return mappedClients;
+    } catch (error) {
+      console.error('Error fetching agent clients:', error);
 
-        try {
-            set({ isLoading: true, error: null });
+      // Final fallback to stored procedure if view doesn't work
+      try {
+        const { data, error: rpcError } = await supabase.rpc(
+          'get_agent_clients_with_stats',
+          {
+            agent_user_id: agentId,
+          }
+        );
 
-            const clients = await get().getAgentClients(agentId);
-            set({ 
-                clients, 
-                isLoading: false,
-                error: null 
-            });
-        } catch (error) {
-            handleError(error, 'Failed to fetch clients', set);
+        if (!rpcError && data) {
+          return (data || []).map((client: any) => ({
+            id: client.id,
+            name: client.name,
+            email: client.email,
+            phone: client.phone,
+            bookingsCount: Number(client.bookingscount),
+            hasAccount: true, // Stored procedure likely only returns clients with accounts
+          }));
         }
-    },
+      } catch (rpcError) {
+        console.error('RPC fallback also failed:', rpcError);
+      }
 
-    /**
-     * Add existing client to agent
-     * @param agentId - Agent ID to add client to
-     * @param clientId - Client ID to add
-     */
-    addClientToAgent: async (agentId: string, clientId: string) => {
-        try {
-            validateRequired(agentId);
-            validateRequired(clientId, 'Client ID');
+      throw error;
+    }
+  },
 
-            set({ isLoading: true, error: null });
+  /**
+   * Fetch all clients for an agent
+   * @param agentId - Agent ID to fetch clients for
+   */
+  fetchClients: async (agentId: string) => {
+    if (!agentId) return;
 
-            const { error } = await supabase
-                .from('agent_clients')
-                .insert({
-                    agent_id: agentId,
-                    user_profile_id: clientId,
-                });
+    try {
+      set({ isLoading: true, error: null });
 
-            if (error) throw error;
+      const clients = await get().getAgentClients(agentId);
+      set({
+        clients,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      handleError(error, 'Failed to fetch clients', set);
+    }
+  },
 
-            // Refresh clients after adding new one
-            await get().fetchClients(agentId);
-        } catch (error) {
-            handleError(error, 'Failed to add client', set);
-            throw error;
-        }
-    },
+  /**
+   * Add existing client to agent
+   * @param agentId - Agent ID to add client to
+   * @param clientId - Client ID to add
+   */
+  addClientToAgent: async (agentId: string, clientId: string) => {
+    try {
+      validateRequired(agentId);
+      validateRequired(clientId, 'Client ID');
 
-    /**
-     * Create new agent client
-     * @param agentId - Agent ID to create client for
-     * @param clientData - Client data to create
-     * @returns Created client ID
-     */
-    createAgentClient: async (agentId: string, clientData: {
-        name: string;
-        email: string;
-        phone: string;
-        idNumber?: string;
-    }) => {
-        try {
-            validateRequired(agentId);
+      set({ isLoading: true, error: null });
 
-            // Validate client data
-            if (!clientData.name?.trim()) {
-                throw new Error('Client name is required');
-            }
-            if (!clientData.email?.trim() || !EMAIL_REGEX.test(clientData.email)) {
-                throw new Error('Valid email address is required');
-            }
-            if (!clientData.phone?.trim()) {
-                throw new Error('Phone number is required');
-            }
+      const { error } = await supabase.from('agent_clients').insert({
+        agent_id: agentId,
+        user_profile_id: clientId,
+      });
 
-            set({ isLoading: true, error: null });
+      if (error) throw error;
 
-            const email = clientData.email.trim().toLowerCase();
+      // Refresh clients after adding new one
+      await get().fetchClients(agentId);
+    } catch (error) {
+      handleError(error, 'Failed to add client', set);
+      throw error;
+    }
+  },
 
-            // Check if a client with this email already exists for this agent
-            const { data: existingClient, error: checkError } = await supabase
-                .from('agent_clients')
-                .select('id')
-                .eq('agent_id', agentId)
-                .eq('email', email)
-                .maybeSingle(); // Use maybeSingle to avoid errors if no record found
+  /**
+   * Create new agent client
+   * @param agentId - Agent ID to create client for
+   * @param clientData - Client data to create
+   * @returns Created client ID
+   */
+  createAgentClient: async (
+    agentId: string,
+    clientData: {
+      name: string;
+      email: string;
+      phone: string;
+      idNumber?: string;
+    }
+  ) => {
+    try {
+      validateRequired(agentId);
 
-            if (checkError) throw checkError;
+      // Validate client data
+      if (!clientData.name?.trim()) {
+        throw new Error('Client name is required');
+      }
+      if (!clientData.email?.trim() || !EMAIL_REGEX.test(clientData.email)) {
+        throw new Error('Valid email address is required');
+      }
+      if (!clientData.phone?.trim()) {
+        throw new Error('Phone number is required');
+      }
 
-            if (existingClient) {
-                throw new Error('A client with this email already exists in your client list');
-            }
+      set({ isLoading: true, error: null });
 
-            // Create new client record
-            const { data: newClient, error: createError } = await supabase
-                .from('agent_clients')
-                .insert({
-                    agent_id: agentId,
-                    full_name: clientData.name.trim(),
-                    email: email,
-                    mobile_number: clientData.phone.trim(),
-                    id_number: clientData.idNumber?.trim() || null,
-                })
-                .select()
-                .single();
+      const email = clientData.email.trim().toLowerCase();
 
-            if (createError) throw createError;
+      // Check if a client with this email already exists for this agent
+      const { data: existingClient, error: checkError } = await supabase
+        .from('agent_clients')
+        .select('id')
+        .eq('agent_id', agentId)
+        .eq('email', email)
+        .maybeSingle(); // Use maybeSingle to avoid errors if no record found
 
-            // Refresh clients after creating new one
-            await get().fetchClients(agentId);
+      if (checkError) throw checkError;
 
-            set({ isLoading: false });
-            return newClient.id;
+      if (existingClient) {
+        throw new Error(
+          'A client with this email already exists in your client list'
+        );
+      }
 
-        } catch (error) {
-            handleError(error, 'Failed to create client', set);
-            throw error;
-        }
-    },
+      // Create new client record
+      const { data: newClient, error: createError } = await supabase
+        .from('agent_clients')
+        .insert({
+          agent_id: agentId,
+          full_name: clientData.name.trim(),
+          email: email,
+          mobile_number: clientData.phone.trim(),
+          id_number: clientData.idNumber?.trim() || null,
+        })
+        .select()
+        .single();
 
-    /**
-     * Search for existing user by email
-     * @param email - Email address to search for
-     * @returns User data if found, null otherwise
-     */
-    searchExistingUser: async (email: string) => {
-        if (!email?.trim() || !EMAIL_REGEX.test(email)) {
-            return null;
-        }
+      if (createError) throw createError;
 
-        try {
-            set({ isLoading: true, error: null });
+      // Refresh clients after creating new one
+      await get().fetchClients(agentId);
 
-            const { data, error } = await supabase
-                .from('user_profiles')
-                .select('id, full_name, email, mobile_number, role')
-                .eq('email', email.toLowerCase().trim())
-                .eq('role', 'customer')
-                .maybeSingle(); // Use maybeSingle to avoid errors if no record found
+      set({ isLoading: false });
+      return newClient.id;
+    } catch (error) {
+      handleError(error, 'Failed to create client', set);
+      throw error;
+    }
+  },
 
-            set({ isLoading: false });
+  /**
+   * Search for existing user by email
+   * @param email - Email address to search for
+   * @returns User data if found, null otherwise
+   */
+  searchExistingUser: async (email: string) => {
+    if (!email?.trim() || !EMAIL_REGEX.test(email)) {
+      return null;
+    }
 
-            if (error) {
-                console.error('Error searching for existing user:', error);
-                return null;
-            }
+    try {
+      set({ isLoading: true, error: null });
 
-            return data;
-        } catch (error) {
-            handleError(error, 'Failed to search for existing user', set);
-            return null;
-        }
-    },
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email, mobile_number, role')
+        .eq('email', email.toLowerCase().trim())
+        .eq('role', 'customer')
+        .maybeSingle(); // Use maybeSingle to avoid errors if no record found
 
-    /**
-     * Add existing user as agent client
-     * @param agentId - Agent ID to add client to
-     * @param userId - User ID to add as client
-     */
-    addExistingUserAsClient: async (agentId: string, userId: string) => {
-        try {
-            validateRequired(agentId);
-            validateRequired(userId, 'User ID');
+      set({ isLoading: false });
 
-            set({ isLoading: true, error: null });
+      if (error) {
+        console.error('Error searching for existing user:', error);
+        return null;
+      }
 
-            // Get user details
-            const { data: userData, error: userError } = await supabase
-                .from('user_profiles')
-                .select('id, full_name, email, mobile_number')
-                .eq('id', userId)
-                .single();
+      return data;
+    } catch (error) {
+      handleError(error, 'Failed to search for existing user', set);
+      return null;
+    }
+  },
 
-            if (userError) throw userError;
-            if (!userData) throw new Error('User not found');
+  /**
+   * Add existing user as agent client
+   * @param agentId - Agent ID to add client to
+   * @param userId - User ID to add as client
+   */
+  addExistingUserAsClient: async (agentId: string, userId: string) => {
+    try {
+      validateRequired(agentId);
+      validateRequired(userId, 'User ID');
 
-            // Check if this user is already a client of this agent
-            const { data: existingAgentClient, error: checkError } = await supabase
-                .from('agent_clients')
-                .select('id')
-                .eq('agent_id', agentId)
-                .eq('client_id', userId)
-                .maybeSingle(); // Use maybeSingle to avoid errors if no record found
+      set({ isLoading: true, error: null });
 
-            if (checkError) throw checkError;
+      // Get user details
+      const { data: userData, error: userError } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email, mobile_number')
+        .eq('id', userId)
+        .single();
 
-            if (existingAgentClient) {
-                throw new Error('This user is already a client of yours');
-            }
+      if (userError) throw userError;
+      if (!userData) throw new Error('User not found');
 
-            // Add existing user as client
-            const { error: addError } = await supabase
-                .from('agent_clients')
-                .insert({
-                    agent_id: agentId,
-                    client_id: userId,
-                    full_name: userData.full_name,
-                    email: userData.email,
-                    mobile_number: userData.mobile_number,
-                });
+      // Check if this user is already a client of this agent
+      const { data: existingAgentClient, error: checkError } = await supabase
+        .from('agent_clients')
+        .select('id')
+        .eq('agent_id', agentId)
+        .eq('client_id', userId)
+        .maybeSingle(); // Use maybeSingle to avoid errors if no record found
 
-            if (addError) throw addError;
+      if (checkError) throw checkError;
 
-            // Refresh clients data
-            await get().fetchClients(agentId);
+      if (existingAgentClient) {
+        throw new Error('This user is already a client of yours');
+      }
 
-            set({ isLoading: false });
+      // Add existing user as client
+      const { error: addError } = await supabase.from('agent_clients').insert({
+        agent_id: agentId,
+        client_id: userId,
+        full_name: userData.full_name,
+        email: userData.email,
+        mobile_number: userData.mobile_number,
+      });
 
-        } catch (error) {
-            handleError(error, 'Failed to add existing user as client', set);
-            throw error;
-        }
-    },
+      if (addError) throw addError;
 
-    /**
-     * Clear error state
-     */
-    clearError: () => set({ error: null }),
+      // Refresh clients data
+      await get().fetchClients(agentId);
 
-    /**
-     * Reset store to initial state
-     */
-    reset: () => {
-        set({
-            clients: [],
-            isLoading: false,
-            error: null,
-        });
-    },
-})); 
+      set({ isLoading: false });
+    } catch (error) {
+      handleError(error, 'Failed to add existing user as client', set);
+      throw error;
+    }
+  },
+
+  /**
+   * Clear error state
+   */
+  clearError: () => set({ error: null }),
+
+  /**
+   * Reset store to initial state
+   */
+  reset: () => {
+    set({
+      clients: [],
+      isLoading: false,
+      error: null,
+    });
+  },
+}));

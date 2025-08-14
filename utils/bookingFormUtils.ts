@@ -1,15 +1,15 @@
-import type { Route, Trip, AgentClient } from "@/types/agent";
+import type { Route, Trip, AgentClient } from '@/types/agent';
 
 /**
  * Booking form step configuration
  */
 export const BOOKING_STEPS = [
-  { id: 1, label: "Route", description: "Select route and dates" },
-  { id: 2, label: "Trip", description: "Choose departure and return trips" },
-  { id: 3, label: "Client", description: "Select or add client" },
-  { id: 4, label: "Seats", description: "Select seats" },
-  { id: 5, label: "Details", description: "Passenger information" },
-  { id: 6, label: "Payment", description: "Payment and confirmation" },
+  { id: 1, label: 'Route', description: 'Select route and dates' },
+  { id: 2, label: 'Trip', description: 'Choose departure and return trips' },
+  { id: 3, label: 'Client', description: 'Select or add client' },
+  { id: 4, label: 'Seats', description: 'Select seats' },
+  { id: 5, label: 'Details', description: 'Passenger information' },
+  { id: 6, label: 'Payment', description: 'Payment and confirmation' },
 ] as const;
 
 /**
@@ -35,7 +35,7 @@ export const AGENT_PAYMENT_OPTIONS = [
 export const formatRouteOptions = (routes: Route[] = []) => {
   return routes.map(route => ({
     label: `${route.from_island?.name || 'Unknown'} → ${route.to_island?.name || 'Unknown'}`,
-    value: route.id
+    value: route.id,
   }));
 };
 
@@ -45,7 +45,11 @@ export const formatRouteOptions = (routes: Route[] = []) => {
 export const formatTripOptions = (trips: Trip[] = []) => {
   return trips.map(trip => {
     // Handle both nested vessel object and flat vessel_name string
-    const vesselName = trip.vessel?.name || (trip as any).vessel_name || trip.vesselName || 'Unknown';
+    const vesselName =
+      trip.vessel?.name ||
+      (trip as any).vessel_name ||
+      trip.vesselName ||
+      'Unknown';
     return {
       label: `${String(trip.departure_time || '').slice(0, 5)} - ${vesselName} (${String(trip.available_seats || 0)} seats)`,
       value: trip.id,
@@ -56,7 +60,10 @@ export const formatTripOptions = (trips: Trip[] = []) => {
 /**
  * Validate booking step data
  */
-export const validateBookingStep = (step: number, data: any): { isValid: boolean; errors: Record<string, string> } => {
+export const validateBookingStep = (
+  step: number,
+  data: any
+): { isValid: boolean; errors: Record<string, string> } => {
   const errors: Record<string, string> = {};
 
   switch (step) {
@@ -107,17 +114,24 @@ export const validateBookingStep = (step: number, data: any): { isValid: boolean
       if (!data.selectedSeats || data.selectedSeats.length === 0) {
         errors.seats = 'Please select at least one seat';
       }
-      if (data.tripType === 'round_trip' && (!data.returnSelectedSeats || data.returnSelectedSeats.length === 0)) {
+      if (
+        data.tripType === 'round_trip' &&
+        (!data.returnSelectedSeats || data.returnSelectedSeats.length === 0)
+      ) {
         errors.seats = 'Please select at least one return seat';
       }
-      if (data.tripType === 'round_trip' &&
-        data.selectedSeats?.length !== data.returnSelectedSeats?.length) {
+      if (
+        data.tripType === 'round_trip' &&
+        data.selectedSeats?.length !== data.returnSelectedSeats?.length
+      ) {
         errors.seats = 'Number of departure and return seats must match';
       }
       break;
 
     case 5: // Passenger Details
-      const incompletePassenger = data.passengers?.find((p: any) => !p.fullName?.trim());
+      const incompletePassenger = data.passengers?.find(
+        (p: any) => !p.fullName?.trim()
+      );
       if (incompletePassenger) {
         errors.passengers = 'Please enter details for all passengers';
       }
@@ -135,7 +149,7 @@ export const validateBookingStep = (step: number, data: any): { isValid: boolean
 
   return {
     isValid: Object.keys(errors).length === 0,
-    errors
+    errors,
   };
 };
 
@@ -176,7 +190,9 @@ export const prefillClientFormFromQuery = (query: string) => {
 /**
  * Create agent client object from form data
  */
-export const createAgentClientFromForm = (formData: any): Omit<AgentClient, 'id'> => {
+export const createAgentClientFromForm = (
+  formData: any
+): Omit<AgentClient, 'id'> => {
   return {
     name: formData.name,
     email: formData.email,
@@ -194,12 +210,24 @@ export const formatBookingSummary = (booking: any) => {
     client: booking.client?.name || 'N/A',
     tripType: booking.tripType === 'one_way' ? 'One Way' : 'Round Trip',
     route: `${booking.route?.fromIsland?.name || 'N/A'} → ${booking.route?.toIsland?.name || 'N/A'}`,
-    returnRoute: booking.returnRoute ? `${booking.returnRoute.fromIsland?.name || 'N/A'} → ${booking.returnRoute.toIsland?.name || 'N/A'}` : null,
-    departureDate: booking.departureDate ? new Date(booking.departureDate).toLocaleDateString() : 'N/A',
-    returnDate: booking.returnDate ? new Date(booking.returnDate).toLocaleDateString() : null,
+    returnRoute: booking.returnRoute
+      ? `${booking.returnRoute.fromIsland?.name || 'N/A'} → ${booking.returnRoute.toIsland?.name || 'N/A'}`
+      : null,
+    departureDate: booking.departureDate
+      ? new Date(booking.departureDate).toLocaleDateString()
+      : 'N/A',
+    returnDate: booking.returnDate
+      ? new Date(booking.returnDate).toLocaleDateString()
+      : null,
     passengers: booking.passengers?.length || 0,
-    seats: booking.selectedSeats?.map((seat: any) => String(seat.number || '')).join(', ') || 'None',
-    returnSeats: booking.returnSelectedSeats?.map((seat: any) => String(seat.number || '')).join(', ') || 'None',
+    seats:
+      booking.selectedSeats
+        ?.map((seat: any) => String(seat.number || ''))
+        .join(', ') || 'None',
+    returnSeats:
+      booking.returnSelectedSeats
+        ?.map((seat: any) => String(seat.number || ''))
+        .join(', ') || 'None',
     totalAmount: booking.discountedFare || booking.totalFare || 0,
   };
 };
@@ -207,7 +235,10 @@ export const formatBookingSummary = (booking: any) => {
 /**
  * Generate success message for booking creation
  */
-export const generateBookingSuccessMessage = (result: any, tripType: string) => {
+export const generateBookingSuccessMessage = (
+  result: any,
+  tripType: string
+) => {
   let message = `Your ${tripType === 'round_trip' ? 'round trip' : 'one way'} booking has been confirmed with QR codes generated.`;
 
   if (typeof result === 'string') {
@@ -215,7 +246,10 @@ export const generateBookingSuccessMessage = (result: any, tripType: string) => 
     message += `\n\nBooking ID: ${result}`;
   } else if (result && typeof result === 'object') {
     // New format with departure and return booking IDs
-    const bookingResult = result as { bookingId: string; returnBookingId?: string };
+    const bookingResult = result as {
+      bookingId: string;
+      returnBookingId?: string;
+    };
     message += `\n\nDeparture Booking ID: ${bookingResult.bookingId}`;
     if (bookingResult.returnBookingId) {
       message += `\nReturn Booking ID: ${bookingResult.returnBookingId}`;
@@ -223,4 +257,4 @@ export const generateBookingSuccessMessage = (result: any, tripType: string) => 
   }
 
   return message;
-}; 
+};

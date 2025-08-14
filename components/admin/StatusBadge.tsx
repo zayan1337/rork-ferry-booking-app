@@ -1,42 +1,58 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { colors } from "@/constants/adminColors";
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { colors } from '@/constants/adminColors';
 
 type StatusType =
-  | "confirmed" | "pending" | "cancelled" | "completed"
-  | "paid" | "refunded" | "failed"
-  | "active" | "inactive" | "suspended" | "banned" | "maintenance"
-  | "scheduled" | "in-progress"
-  | "reserved" | "pending_payment" | "checked_in"; // Added booking-specific statuses
+  | 'confirmed'
+  | 'pending'
+  | 'cancelled'
+  | 'completed'
+  | 'paid'
+  | 'refunded'
+  | 'failed'
+  | 'active'
+  | 'inactive'
+  | 'suspended'
+  | 'banned'
+  | 'maintenance'
+  | 'scheduled'
+  | 'in-progress'
+  | 'reserved'
+  | 'pending_payment'
+  | 'checked_in'; // Added booking-specific statuses
 
 interface StatusBadgeProps {
   status: StatusType;
-  size?: "small" | "medium";
-  variant?: "default" | "payment";
+  size?: 'small' | 'medium';
+  variant?: 'default' | 'payment';
 }
 
-export default function StatusBadge({ status, size = "medium", variant = "default" }: StatusBadgeProps) {
+export default function StatusBadge({
+  status,
+  size = 'medium',
+  variant = 'default',
+}: StatusBadgeProps) {
   const getStatusColor = () => {
     // Payment-specific styling
-    if (variant === "payment") {
+    if (variant === 'payment') {
       switch (status) {
-        case "paid":
-        case "completed":
+        case 'paid':
+        case 'completed':
           return {
-            bg: "#E8F5E8",
-            text: "#2E7D32",
+            bg: '#E8F5E8',
+            text: '#2E7D32',
           };
-        case "pending":
-        case "pending_payment":
+        case 'pending':
+        case 'pending_payment':
           return {
-            bg: "#FFF3E0",
-            text: "#F57C00",
+            bg: '#FFF3E0',
+            text: '#F57C00',
           };
-        case "failed":
-        case "refunded":
+        case 'failed':
+        case 'refunded':
           return {
-            bg: "#FFEBEE",
-            text: "#C62828",
+            bg: '#FFEBEE',
+            text: '#C62828',
           };
         default:
           return {
@@ -48,47 +64,47 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
 
     // Default status styling
     switch (status) {
-      case "confirmed":
-      case "completed":
-      case "checked_in":
+      case 'confirmed':
+      case 'completed':
+      case 'checked_in':
         return {
-          bg: "#E8F5E8",
-          text: "#2E7D32",
+          bg: '#E8F5E8',
+          text: '#2E7D32',
         };
-      case "pending":
-      case "pending_payment":
-      case "reserved":
+      case 'pending':
+      case 'pending_payment':
+      case 'reserved':
         return {
-          bg: "#FFF3E0",
-          text: "#F57C00",
+          bg: '#FFF3E0',
+          text: '#F57C00',
         };
-      case "cancelled":
+      case 'cancelled':
         return {
-          bg: "#FFEBEE",
-          text: "#C62828",
+          bg: '#FFEBEE',
+          text: '#C62828',
         };
-      case "active":
-      case "scheduled":
+      case 'active':
+      case 'scheduled':
         return {
-          bg: "#E3F2FD",
-          text: "#1976D2",
+          bg: '#E3F2FD',
+          text: '#1976D2',
         };
-      case "inactive":
-      case "suspended":
-      case "banned":
+      case 'inactive':
+      case 'suspended':
+      case 'banned':
         return {
-          bg: "#F3E5F5",
-          text: "#7B1FA2",
+          bg: '#F3E5F5',
+          text: '#7B1FA2',
         };
-      case "maintenance":
+      case 'maintenance':
         return {
-          bg: "#FFF8E1",
-          text: "#F57F17",
+          bg: '#FFF8E1',
+          text: '#F57F17',
         };
-      case "in-progress":
+      case 'in-progress':
         return {
-          bg: "#E8F5E8",
-          text: "#388E3C",
+          bg: '#E8F5E8',
+          text: '#388E3C',
         };
       default:
         return {
@@ -102,13 +118,13 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
     return status
       .split(/[-_]/)
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
+      .join(' ');
   };
 
   const statusStyle = getStatusColor();
-  const textSize = size === "small" ? 11 : 12;
-  const paddingVertical = size === "small" ? 4 : 6;
-  const paddingHorizontal = size === "small" ? 8 : 12;
+  const textSize = size === 'small' ? 11 : 12;
+  const paddingVertical = size === 'small' ? 4 : 6;
+  const paddingHorizontal = size === 'small' ? 8 : 12;
 
   return (
     <View
@@ -140,10 +156,10 @@ export default function StatusBadge({ status, size = "medium", variant = "defaul
 const styles = StyleSheet.create({
   badge: {
     borderRadius: 16,
-    alignSelf: "flex-start",
+    alignSelf: 'flex-start',
   },
   badgeText: {
-    fontWeight: "600",
-    textAlign: "center",
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

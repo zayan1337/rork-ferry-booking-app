@@ -1,6 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Calendar, Clock, MapPin, Users, CheckCircle } from 'lucide-react-native';
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Users,
+  CheckCircle,
+} from 'lucide-react-native';
 import Card from '@/components/Card';
 import { formatCurrency } from '@/utils/agentFormatters';
 import { formatBookingDate } from '@/utils/agentFormatters';
@@ -46,21 +52,21 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
       weekday: 'short',
       day: 'numeric',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
   const getDefaultStatusColor = (status: string) => {
     switch (status) {
-      case "confirmed":
+      case 'confirmed':
         return Colors.success;
-      case "completed":
+      case 'completed':
         return Colors.primary;
-      case "cancelled":
+      case 'cancelled':
         return Colors.error;
-      case "modified":
+      case 'modified':
         return Colors.warning;
-      case "pending":
+      case 'pending':
         return Colors.inactive;
       default:
         return Colors.inactive;
@@ -69,15 +75,15 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
 
   const getDefaultStatusBadgeStyle = (status: string) => {
     switch (status) {
-      case "confirmed":
+      case 'confirmed':
         return styles.statusConfirmed;
-      case "completed":
+      case 'completed':
         return styles.statusCompleted;
-      case "cancelled":
+      case 'cancelled':
         return styles.statusCancelled;
-      case "modified":
+      case 'modified':
         return styles.statusModified;
-      case "pending":
+      case 'pending':
         return styles.statusPending;
       default:
         return {};
@@ -86,15 +92,15 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
 
   const getDefaultStatusTextStyle = (status: string) => {
     switch (status) {
-      case "confirmed":
+      case 'confirmed':
         return styles.statusTextConfirmed;
-      case "completed":
+      case 'completed':
         return styles.statusTextCompleted;
-      case "cancelled":
+      case 'cancelled':
         return styles.statusTextCancelled;
-      case "modified":
+      case 'modified':
         return styles.statusTextModified;
-      case "pending":
+      case 'pending':
         return styles.statusTextPending;
       default:
         return {};
@@ -106,7 +112,7 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
   const statusTextFn = getStatusTextStyle || getDefaultStatusTextStyle;
 
   return (
-    <Card variant="elevated" style={styles.detailsCard}>
+    <Card variant='elevated' style={styles.detailsCard}>
       <Text style={styles.cardTitle}>Trip Details</Text>
 
       <View style={styles.detailRow}>
@@ -148,7 +154,8 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
         <View style={styles.detailContent}>
           <Text style={styles.detailLabel}>Route</Text>
           <Text style={styles.detailValue}>
-            {route?.fromIsland?.name || origin || 'Unknown'} → {route?.toIsland?.name || destination || 'Unknown'}
+            {route?.fromIsland?.name || origin || 'Unknown'} →{' '}
+            {route?.toIsland?.name || destination || 'Unknown'}
           </Text>
         </View>
       </View>
@@ -159,7 +166,9 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
         </View>
         <View style={styles.detailContent}>
           <Text style={styles.detailLabel}>Zone</Text>
-          <Text style={styles.detailValue}>{route?.fromIsland?.zone || 'N/A'}</Text>
+          <Text style={styles.detailValue}>
+            {route?.fromIsland?.zone || 'N/A'}
+          </Text>
         </View>
       </View>
 
@@ -278,4 +287,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TripDetailsCard; 
+export default TripDetailsCard;

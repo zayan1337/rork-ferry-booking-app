@@ -20,23 +20,15 @@ const BookingProgressStepper: React.FC<BookingProgressStepperProps> = ({
 }) => {
   return (
     <View style={styles.container}>
-      {steps.map((step) => (
+      {steps.map(step => (
         <View key={step.id} style={styles.step}>
           <View
-            style={[
-              styles.dot,
-              currentStep >= step.id && styles.dotActive
-            ]}
+            style={[styles.dot, currentStep >= step.id && styles.dotActive]}
           >
-            {currentStep > step.id && (
-              <Check size={12} color="#fff" />
-            )}
+            {currentStep > step.id && <Check size={12} color='#fff' />}
           </View>
           <Text
-            style={[
-              styles.text,
-              currentStep >= step.id && styles.textActive
-            ]}
+            style={[styles.text, currentStep >= step.id && styles.textActive]}
           >
             {step.label}
           </Text>
@@ -91,4 +83,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BookingProgressStepper; 
+export default BookingProgressStepper;

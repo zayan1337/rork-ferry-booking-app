@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import {
   User,
   Mail,
@@ -8,9 +8,9 @@ import {
   Shield,
   Users,
   Ship,
-} from "lucide-react-native";
-import { colors } from "@/constants/adminColors";
-import { UserProfile } from "@/types/userManagement";
+} from 'lucide-react-native';
+import { colors } from '@/constants/adminColors';
+import { UserProfile } from '@/types/userManagement';
 
 interface UserInfoSectionProps {
   user: UserProfile;
@@ -19,15 +19,15 @@ interface UserInfoSectionProps {
 export default function UserInfoSection({ user }: UserInfoSectionProps) {
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case "admin":
+      case 'admin':
         return <Shield size={20} color={colors.warning} />;
-      case "agent":
+      case 'agent':
         return <Users size={20} color={colors.info} />;
-      case "customer":
+      case 'customer':
         return <User size={20} color={colors.primary} />;
-      case "passenger":
+      case 'passenger':
         return <User size={20} color={colors.success} />;
-      case "captain":
+      case 'captain':
         return <Ship size={20} color={colors.primary} />;
       default:
         return <User size={20} color={colors.textSecondary} />;
@@ -36,15 +36,15 @@ export default function UserInfoSection({ user }: UserInfoSectionProps) {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case "admin":
+      case 'admin':
         return colors.warning;
-      case "agent":
+      case 'agent':
         return colors.info;
-      case "customer":
+      case 'customer':
         return colors.primary;
-      case "passenger":
+      case 'passenger':
         return colors.success;
-      case "captain":
+      case 'captain':
         return colors.primary;
       default:
         return colors.textSecondary;
@@ -53,11 +53,11 @@ export default function UserInfoSection({ user }: UserInfoSectionProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active":
+      case 'active':
         return colors.success;
-      case "inactive":
+      case 'inactive':
         return colors.textSecondary;
-      case "suspended":
+      case 'suspended':
         return colors.warning;
       default:
         return colors.textSecondary;
@@ -106,7 +106,7 @@ export default function UserInfoSection({ user }: UserInfoSectionProps) {
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Phone</Text>
               <Text style={styles.infoValue}>
-                {user.mobile_number || "N/A"}
+                {user.mobile_number || 'N/A'}
               </Text>
             </View>
           </View>
@@ -115,7 +115,7 @@ export default function UserInfoSection({ user }: UserInfoSectionProps) {
             <View
               style={[
                 styles.infoIcon,
-                { backgroundColor: getRoleColor(user.role) + "20" },
+                { backgroundColor: getRoleColor(user.role) + '20' },
               ]}
             >
               {getRoleIcon(user.role)}
@@ -154,7 +154,7 @@ export default function UserInfoSection({ user }: UserInfoSectionProps) {
                   styles.infoIcon,
                   {
                     backgroundColor:
-                      user.status === "active"
+                      user.status === 'active'
                         ? colors.successLight
                         : colors.backgroundTertiary,
                   },
@@ -163,7 +163,7 @@ export default function UserInfoSection({ user }: UserInfoSectionProps) {
                 <User
                   size={20}
                   color={
-                    user.status === "active"
+                    user.status === 'active'
                       ? colors.success
                       : colors.textSecondary
                   }
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 20,
     lineHeight: 24,
@@ -211,13 +211,13 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   infoRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 16,
   },
   infoItem: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   infoIcon: {
@@ -225,8 +225,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoContent: {
     flex: 1,
@@ -234,14 +234,14 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 12,
     color: colors.textTertiary,
-    textTransform: "uppercase",
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 4,
   },
   infoValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     lineHeight: 20,
   },

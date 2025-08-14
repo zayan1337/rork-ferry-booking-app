@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import {
   Calendar,
   Activity,
@@ -8,10 +8,10 @@ import {
   CreditCard,
   Ship,
   Route as RouteIcon,
-} from "lucide-react-native";
-import { colors } from "@/constants/adminColors";
-import { UserProfile } from "@/types/userManagement";
-import Button from "@/components/admin/Button";
+} from 'lucide-react-native';
+import { colors } from '@/constants/adminColors';
+import { UserProfile } from '@/types/userManagement';
+import Button from '@/components/admin/Button';
 
 interface UserActionsSectionProps {
   user: UserProfile;
@@ -39,15 +39,15 @@ export default function UserActionsSection({
   const renderCustomerActions = () => (
     <View style={styles.actionButtons}>
       <Button
-        title="View Bookings"
-        variant="outline"
+        title='View Bookings'
+        variant='outline'
         onPress={onViewBookings || (() => {})}
         icon={<Calendar size={16} color={colors.primary} />}
         style={styles.actionButton}
       />
       <Button
-        title="View Activity"
-        variant="outline"
+        title='View Activity'
+        variant='outline'
         onPress={onViewActivity || (() => {})}
         icon={<Activity size={16} color={colors.primary} />}
         style={styles.actionButton}
@@ -58,22 +58,22 @@ export default function UserActionsSection({
   const renderAgentActions = () => (
     <View style={styles.actionButtons}>
       <Button
-        title="View Clients"
-        variant="outline"
+        title='View Clients'
+        variant='outline'
         onPress={onViewClients || (() => {})}
         icon={<Users size={16} color={colors.primary} />}
         style={styles.actionButton}
       />
       <Button
-        title="View Transactions"
-        variant="outline"
+        title='View Transactions'
+        variant='outline'
         onPress={onViewTransactions || (() => {})}
         icon={<CreditCard size={16} color={colors.primary} />}
         style={styles.actionButton}
       />
       <Button
-        title="View Bookings"
-        variant="outline"
+        title='View Bookings'
+        variant='outline'
         onPress={onViewBookings || (() => {})}
         icon={<Calendar size={16} color={colors.primary} />}
         style={styles.actionButton}
@@ -84,15 +84,15 @@ export default function UserActionsSection({
   const renderAdminActions = () => (
     <View style={styles.actionButtons}>
       <Button
-        title="View Permissions"
-        variant="outline"
+        title='View Permissions'
+        variant='outline'
         onPress={onViewPermissions || (() => {})}
         icon={<Shield size={16} color={colors.primary} />}
         style={styles.actionButton}
       />
       <Button
-        title="View Activity"
-        variant="outline"
+        title='View Activity'
+        variant='outline'
         onPress={onViewActivity || (() => {})}
         icon={<Activity size={16} color={colors.primary} />}
         style={styles.actionButton}
@@ -103,8 +103,8 @@ export default function UserActionsSection({
   const renderPassengerActions = () => (
     <View style={styles.actionButtons}>
       <Button
-        title="View Trip Details"
-        variant="outline"
+        title='View Trip Details'
+        variant='outline'
         onPress={onViewTrips || (() => {})}
         icon={<Calendar size={16} color={colors.primary} />}
         style={styles.actionButton}
@@ -115,22 +115,22 @@ export default function UserActionsSection({
   const renderCaptainActions = () => (
     <View style={styles.actionButtons}>
       <Button
-        title="View Vessel"
-        variant="outline"
+        title='View Vessel'
+        variant='outline'
         onPress={onViewVessel || (() => {})}
         icon={<Ship size={16} color={colors.primary} />}
         style={styles.actionButton}
       />
       <Button
-        title="View Routes"
-        variant="outline"
+        title='View Routes'
+        variant='outline'
         onPress={onViewRoutes || (() => {})}
         icon={<RouteIcon size={16} color={colors.primary} />}
         style={styles.actionButton}
       />
       <Button
-        title="View Trips"
-        variant="outline"
+        title='View Trips'
+        variant='outline'
         onPress={onViewTrips || (() => {})}
         icon={<Calendar size={16} color={colors.primary} />}
         style={styles.actionButton}
@@ -140,15 +140,15 @@ export default function UserActionsSection({
 
   const renderActions = () => {
     switch (user.role) {
-      case "customer":
+      case 'customer':
         return renderCustomerActions();
-      case "agent":
+      case 'agent':
         return renderAgentActions();
-      case "admin":
+      case 'admin':
         return renderAdminActions();
-      case "passenger":
+      case 'passenger':
         return renderPassengerActions();
-      case "captain":
+      case 'captain':
         return renderCaptainActions();
       default:
         return null;
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 20,
     lineHeight: 24,
@@ -186,9 +186,9 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   actionButtons: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
-    flexWrap: "wrap",
+    flexWrap: 'wrap',
   },
   actionButton: {
     flex: 1,

@@ -1,7 +1,7 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Check } from "lucide-react-native";
-import { colors } from "@/constants/adminColors";
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Check } from 'lucide-react-native';
+import { colors } from '@/constants/adminColors';
 
 interface SelectAllSectionProps {
   canUpdateUsers: boolean;
@@ -27,9 +27,9 @@ const SelectAllSection: React.FC<SelectAllSectionProps> = ({
       <TouchableOpacity
         style={styles.selectAllButton}
         onPress={onSelectAll}
-        accessibilityRole="button"
+        accessibilityRole='button'
         accessibilityLabel={
-          isAllSelected ? "Deselect all users" : "Select all users"
+          isAllSelected ? 'Deselect all users' : 'Select all users'
         }
       >
         <View
@@ -39,13 +39,13 @@ const SelectAllSection: React.FC<SelectAllSectionProps> = ({
             isPartiallySelected && styles.checkboxPartial,
           ]}
         >
-          {isAllSelected && <Check size={14} color="white" />}
+          {isAllSelected && <Check size={14} color='white' />}
           {isPartiallySelected && !isAllSelected && (
             <View style={styles.partialCheckmark} />
           )}
         </View>
         <Text style={styles.selectAllTextLarge}>
-          {isAllSelected ? "Deselect All" : "Select All"}
+          {isAllSelected ? 'Deselect All' : 'Select All'}
         </Text>
       </TouchableOpacity>
     </View>
@@ -54,8 +54,8 @@ const SelectAllSection: React.FC<SelectAllSectionProps> = ({
 
 const styles = StyleSheet.create({
   selectAllButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 8,
     gap: 12,
   },
@@ -64,14 +64,14 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: colors.primary + "40",
+    borderColor: colors.primary + '40',
     backgroundColor: colors.card,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   selectAllTextLarge: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.primary,
   },
   checkboxSelected: {
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   checkboxPartial: {
-    backgroundColor: colors.primary + "40",
+    backgroundColor: colors.primary + '40',
     borderColor: colors.primary,
   },
   partialCheckmark: {

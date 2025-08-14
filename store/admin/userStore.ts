@@ -11,46 +11,50 @@ interface UserState {
   users: UserProfile[];
   currentUser: UserProfile | null;
   stats: UserStats;
-  
+
   // Loading states
   loading: boolean;
   error: string | null;
-  
+
   // Search and filtering
   searchQuery: string;
   filters: UserFilters;
   sortBy: 'name' | 'email' | 'role' | 'status' | 'created_at' | 'last_login';
   sortOrder: 'asc' | 'desc';
-  
+
   // Pagination
   currentPage: number;
   itemsPerPage: number;
   totalItems: number;
-  
+
   // Actions
   fetchAll: () => Promise<void>;
   fetchById: (id: string) => Promise<UserProfile | null>;
-  create: (userData: Partial<UserProfile> & { password?: string }) => Promise<UserProfile>;
+  create: (
+    userData: Partial<UserProfile> & { password?: string }
+  ) => Promise<UserProfile>;
   update: (id: string, updates: Partial<UserProfile>) => Promise<UserProfile>;
   delete: (id: string) => Promise<void>;
   updateStatus: (id: string, status: string) => Promise<void>;
   updateRole: (id: string, role: string) => Promise<void>;
-  
+
   // Search and filter actions
   setSearchQuery: (query: string) => void;
   setFilters: (filters: Partial<UserFilters>) => void;
   clearFilters: () => void;
-  setSortBy: (sortBy: 'name' | 'email' | 'role' | 'status' | 'created_at' | 'last_login') => void;
+  setSortBy: (
+    sortBy: 'name' | 'email' | 'role' | 'status' | 'created_at' | 'last_login'
+  ) => void;
   setSortOrder: (order: 'asc' | 'desc') => void;
-  
+
   // Pagination actions
   setCurrentPage: (page: number) => void;
   setItemsPerPage: (items: number) => void;
   loadMore: () => void;
-  
+
   // Stats actions
   fetchStats: () => Promise<void>;
-  
+
   // Utility actions
   reset: () => void;
 }
@@ -81,62 +85,78 @@ export const useUserStore = create<UserState>((set, get) => ({
     users_with_bookings: 0,
     average_user_age: 0,
     top_locations: [],
-    user_growth_trend: []
+    user_growth_trend: [],
   },
-  
+
   loading: false,
   error: null,
-  
+
   searchQuery: '',
   filters: {},
   sortBy: 'created_at',
   sortOrder: 'desc',
-  
+
   currentPage: 1,
   itemsPerPage: 20,
   totalItems: 0,
-  
+
   // ========================================================================
   // CRUD OPERATIONS
   // ========================================================================
-  
-      fetchAll: async () => {
+
+  fetchAll: async () => {
     set({ loading: true, error: null });
-    
+
     try {
-      const { searchQuery, filters, sortBy, sortOrder, currentPage, itemsPerPage } = get();
-      
+      const {
+        searchQuery,
+        filters,
+        sortBy,
+        sortOrder,
+        currentPage,
+        itemsPerPage,
+      } = get();
+
       // Fetch ALL users from user_profiles table (no pagination initially)
-      let userQuery = supabase
-        .from('user_profiles')
-        .select('*');
-      
+      let userQuery = supabase.from('user_profiles').select('*');
+
       // Apply search to user_profiles
       if (searchQuery) {
-        userQuery = userQuery.or(`full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,mobile_number.ilike.%${searchQuery}%`);
+        userQuery = userQuery.or(
+          `full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,mobile_number.ilike.%${searchQuery}%`
+        );
       }
-      
+
       // Apply role filter
-      if (filters.role && filters.role !== 'all' && filters.role !== 'passenger') {
+      if (
+        filters.role &&
+        filters.role !== 'all' &&
+        filters.role !== 'passenger'
+      ) {
         userQuery = userQuery.eq('role', filters.role);
       }
-      
+
       // Apply status filter
       if (filters.status && filters.status !== 'all') {
         userQuery = userQuery.eq('is_active', filters.status === 'active');
       }
-      
+
       const { data: userData, error: userError } = await userQuery;
-      
+
       if (userError) throw userError;
-      
+
       // Transform user_profiles data
       const transformedUsers: UserProfile[] = (userData || []).map(user => ({
         id: user.id,
         name: user.full_name,
         email: user.email,
         mobile_number: user.mobile_number,
-        role: user.role as "admin" | "agent" | "customer" | "passenger" | "captain",
+        role: user.role as
+          | 'admin'
+          | 'agent'
+          | 'customer'
+          | 'passenger'
+          | 'captain',
         status: user.is_active ? 'active' : 'inactive',
         email_verified: true,
         mobile_verified: true,
@@ -145,37 +165,42 @@ export const useUserStore = create<UserState>((set, get) => ({
         updated_at: user.updated_at,
         last_login: user.last_login,
         total_bookings: 0, // Will be updated with booking stats
-        total_spent: 0
+        total_spent: 0,
       }));
-      
 
-      
       // If filtering for passengers or all, also fetch passengers
       let allUsers = [...transformedUsers];
-      
-      if (filters.role === 'passenger' || filters.role === 'all' || !filters.role) {
+
+      if (
+        filters.role === 'passenger' ||
+        filters.role === 'all' ||
+        !filters.role
+      ) {
         // Fetch ALL passengers from passengers table (no pagination initially)
-        let passengerQuery = supabase
-          .from('passengers')
-          .select(`
+        let passengerQuery = supabase.from('passengers').select(`
             id,
             passenger_name,
             passenger_contact_number,
             created_at,
             booking_id
           `);
-        
+
         if (searchQuery) {
-          passengerQuery = passengerQuery.or(`passenger_name.ilike.%${searchQuery}%,passenger_contact_number.ilike.%${searchQuery}%`);
+          passengerQuery = passengerQuery.or(
+            `passenger_name.ilike.%${searchQuery}%,passenger_contact_number.ilike.%${searchQuery}%`
+          );
         }
-        
-        const { data: passengerData, error: passengerError } = await passengerQuery;
-        
+
+        const { data: passengerData, error: passengerError } =
+          await passengerQuery;
+
         if (passengerError) {
           console.error('Error fetching passengers:', passengerError);
         } else {
           // Transform passengers data
-          const transformedPassengers: UserProfile[] = (passengerData || []).map(passenger => ({
+          const transformedPassengers: UserProfile[] = (
+            passengerData || []
+          ).map(passenger => ({
             id: passenger.id,
             name: passenger.passenger_name,
             email: '', // Passengers don't have emails in the table
@@ -189,44 +214,45 @@ export const useUserStore = create<UserState>((set, get) => ({
             updated_at: passenger.created_at,
             last_login: undefined,
             total_bookings: 1, // Each passenger record represents one booking
-            total_spent: 0
+            total_spent: 0,
           }));
-          
 
-          
           allUsers = [...transformedUsers, ...transformedPassengers];
         }
       }
-      
+
       // Apply final filtering and sorting
       let filteredUsers = allUsers;
-      
+
       // Apply role filter for passengers
       if (filters.role === 'passenger') {
         filteredUsers = allUsers.filter(user => user.role === 'passenger');
       }
-      
+
       // Apply status filter
       if (filters.status && filters.status !== 'all') {
-        filteredUsers = filteredUsers.filter(user => user.status === filters.status);
+        filteredUsers = filteredUsers.filter(
+          user => user.status === filters.status
+        );
       }
-      
+
       // Apply search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        filteredUsers = filteredUsers.filter(user => 
-          user.name?.toLowerCase().includes(query) ||
-          user.email?.toLowerCase().includes(query) ||
-          user.mobile_number?.toLowerCase().includes(query) ||
-          user.id?.toLowerCase().includes(query)
+        filteredUsers = filteredUsers.filter(
+          user =>
+            user.name?.toLowerCase().includes(query) ||
+            user.email?.toLowerCase().includes(query) ||
+            user.mobile_number?.toLowerCase().includes(query) ||
+            user.id?.toLowerCase().includes(query)
         );
       }
-      
+
       // Apply sorting
       filteredUsers.sort((a, b) => {
         let aValue: any;
         let bValue: any;
-        
+
         switch (sortBy) {
           case 'name':
             aValue = a.name || '';
@@ -255,38 +281,36 @@ export const useUserStore = create<UserState>((set, get) => ({
           default:
             return 0;
         }
-        
+
         if (sortOrder === 'asc') {
           return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
         } else {
           return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
         }
       });
-      
+
       // Apply pagination
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       const paginatedUsers = filteredUsers.slice(from, to + 1);
-      
 
-      
       set({
         users: filteredUsers, // Return all filtered users, not just paginated ones
         totalItems: filteredUsers.length,
-        loading: false
+        loading: false,
       });
     } catch (error) {
       console.error('Error fetching users:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch users',
-        loading: false
+        loading: false,
       });
     }
   },
-  
+
   fetchById: async (id: string) => {
     set({ loading: true, error: null });
-    
+
     try {
       // Try to fetch from all_users_view (includes both user_profiles and passengers)
       let { data, error } = await supabase
@@ -294,7 +318,7 @@ export const useUserStore = create<UserState>((set, get) => ({
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (data) {
         // User found in the view
         const user: UserProfile = {
@@ -302,7 +326,12 @@ export const useUserStore = create<UserState>((set, get) => ({
           name: data.full_name,
           email: data.email || '',
           mobile_number: data.mobile_number,
-          role: data.role as "admin" | "agent" | "customer" | "passenger" | "captain",
+          role: data.role as
+            | 'admin'
+            | 'agent'
+            | 'customer'
+            | 'passenger'
+            | 'captain',
           status: data.status || 'active',
           email_verified: true,
           mobile_verified: true,
@@ -316,13 +345,13 @@ export const useUserStore = create<UserState>((set, get) => ({
           average_rating: data.average_rating || 0,
           wallet_balance: data.wallet_balance || 0,
           credit_score: data.credit_score || 0,
-          loyalty_points: data.loyalty_points || 0
+          loyalty_points: data.loyalty_points || 0,
         };
-        
+
         set({ currentUser: user, loading: false });
         return user;
       }
-      
+
       // If not found in the view
       set({ loading: false, currentUser: null });
       return null;
@@ -330,25 +359,26 @@ export const useUserStore = create<UserState>((set, get) => ({
       console.error('Error fetching user:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch user',
-        loading: false
+        loading: false,
       });
       return null;
     }
   },
-  
+
   create: async (userData: Partial<UserProfile> & { password?: string }) => {
     set({ loading: true, error: null });
-    
+
     try {
       // Create user in auth.users first
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email!,
-        password: userData.password || 'tempPassword123!',
-        email_confirm: true
-      });
-      
+      const { data: authData, error: authError } =
+        await supabase.auth.admin.createUser({
+          email: userData.email!,
+          password: userData.password || 'tempPassword123!',
+          email_confirm: true,
+        });
+
       if (authError) throw authError;
-      
+
       // Create user profile
       const { data, error } = await supabase
         .from('user_profiles')
@@ -359,13 +389,13 @@ export const useUserStore = create<UserState>((set, get) => ({
           mobile_number: userData.mobile_number,
           role: userData.role,
           is_active: userData.status === 'active',
-          date_of_birth: userData.date_of_birth
+          date_of_birth: userData.date_of_birth,
         })
         .select()
         .single();
-      
+
       if (error) throw error;
-      
+
       const newUser: UserProfile = {
         id: data.id,
         name: data.full_name,
@@ -377,52 +407,54 @@ export const useUserStore = create<UserState>((set, get) => ({
         mobile_verified: true,
         date_of_birth: data.date_of_birth,
         created_at: data.created_at,
-        updated_at: data.updated_at
+        updated_at: data.updated_at,
       };
-      
+
       // Refresh the users list
       await get().fetchAll();
-      
+
       set({ loading: false });
       return newUser;
     } catch (error) {
       console.error('Error creating user:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to create user',
-        loading: false
+        loading: false,
       });
       throw error;
     }
   },
-  
+
   update: async (id: string, updates: Partial<UserProfile>) => {
     set({ loading: true, error: null });
-    
+
     try {
       // Prepare update data
       const updateData: any = {};
-      
+
       if (updates.name) updateData.full_name = updates.name;
       if (updates.email) updateData.email = updates.email;
-      if (updates.mobile_number) updateData.mobile_number = updates.mobile_number;
+      if (updates.mobile_number)
+        updateData.mobile_number = updates.mobile_number;
       if (updates.role) updateData.role = updates.role;
-      if (updates.date_of_birth) updateData.date_of_birth = updates.date_of_birth;
-      
+      if (updates.date_of_birth)
+        updateData.date_of_birth = updates.date_of_birth;
+
       // Handle status update using the new status field
       if (updates.status) {
         updateData.status = updates.status;
         updateData.is_active = updates.status === 'active';
       }
-      
+
       const { data, error } = await supabase
         .from('user_profiles')
         .update(updateData)
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) throw error;
-      
+
       const updatedUser: UserProfile = {
         id: data.id,
         name: data.full_name,
@@ -434,217 +466,260 @@ export const useUserStore = create<UserState>((set, get) => ({
         mobile_verified: true,
         date_of_birth: data.date_of_birth,
         created_at: data.created_at,
-        updated_at: data.updated_at
+        updated_at: data.updated_at,
       };
-      
+
       // Update in local state
       set(state => ({
-        users: state.users.map(user => 
-          user.id === id ? updatedUser : user
-        ),
-        currentUser: state.currentUser?.id === id ? updatedUser : state.currentUser,
-        loading: false
+        users: state.users.map(user => (user.id === id ? updatedUser : user)),
+        currentUser:
+          state.currentUser?.id === id ? updatedUser : state.currentUser,
+        loading: false,
       }));
-      
+
       return updatedUser;
     } catch (error) {
       console.error('Error updating user:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to update user',
-        loading: false
+        loading: false,
       });
       throw error;
     }
   },
-  
+
   delete: async (id: string) => {
     set({ loading: true, error: null });
-    
+
     try {
       // Delete from user_profiles (cascade will handle auth.users)
       const { error } = await supabase
         .from('user_profiles')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
-      
+
       // Update local state
       set(state => ({
         users: state.users.filter(user => user.id !== id),
         currentUser: state.currentUser?.id === id ? null : state.currentUser,
-        loading: false
+        loading: false,
       }));
     } catch (error) {
       console.error('Error deleting user:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to delete user',
-        loading: false
+        loading: false,
       });
       throw error;
     }
   },
-  
+
   updateStatus: async (id: string, status: string) => {
     set({ loading: true, error: null });
-    
+
     try {
       // Use the update_user_status function for both user_profiles and passengers
       const { error } = await supabase.rpc('update_user_status', {
         user_id: id,
         new_status: status,
         reason: null,
-        admin_id: null
+        admin_id: null,
       });
-      
+
       if (error) throw error;
-      
+
       // Update in local state
       set(state => ({
-        users: state.users.map(user => 
-          user.id === id ? { ...user, status: status as "active" | "inactive" | "suspended" | "banned" } : user
+        users: state.users.map(user =>
+          user.id === id
+            ? {
+                ...user,
+                status: status as
+                  | 'active'
+                  | 'inactive'
+                  | 'suspended'
+                  | 'banned',
+              }
+            : user
         ),
-        currentUser: state.currentUser?.id === id 
-          ? { ...state.currentUser, status: status as "active" | "inactive" | "suspended" | "banned" }
-          : state.currentUser,
-        loading: false
+        currentUser:
+          state.currentUser?.id === id
+            ? {
+                ...state.currentUser,
+                status: status as
+                  | 'active'
+                  | 'inactive'
+                  | 'suspended'
+                  | 'banned',
+              }
+            : state.currentUser,
+        loading: false,
       }));
     } catch (error) {
       console.error('Error updating user status:', error);
       set({
-        error: error instanceof Error ? error.message : 'Failed to update user status',
-        loading: false
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to update user status',
+        loading: false,
       });
       throw error;
     }
   },
-  
+
   updateRole: async (id: string, role: string) => {
     set({ loading: true, error: null });
-    
+
     try {
       const { error } = await supabase
         .from('user_profiles')
         .update({ role })
         .eq('id', id);
-      
+
       if (error) throw error;
-      
+
       // Update in local state
       set(state => ({
-        users: state.users.map(user => 
-          user.id === id ? { ...user, role: role as "admin" | "agent" | "customer" | "passenger" | "captain" } : user
+        users: state.users.map(user =>
+          user.id === id
+            ? {
+                ...user,
+                role: role as
+                  | 'admin'
+                  | 'agent'
+                  | 'customer'
+                  | 'passenger'
+                  | 'captain',
+              }
+            : user
         ),
-        currentUser: state.currentUser?.id === id 
-          ? { ...state.currentUser, role: role as "admin" | "agent" | "customer" | "passenger" | "captain" }
-          : state.currentUser,
-        loading: false
+        currentUser:
+          state.currentUser?.id === id
+            ? {
+                ...state.currentUser,
+                role: role as
+                  | 'admin'
+                  | 'agent'
+                  | 'customer'
+                  | 'passenger'
+                  | 'captain',
+              }
+            : state.currentUser,
+        loading: false,
       }));
     } catch (error) {
       console.error('Error updating user role:', error);
       set({
-        error: error instanceof Error ? error.message : 'Failed to update user role',
-        loading: false
+        error:
+          error instanceof Error ? error.message : 'Failed to update user role',
+        loading: false,
       });
       throw error;
     }
   },
-  
+
   // ========================================================================
   // SEARCH AND FILTER ACTIONS
   // ========================================================================
-  
+
   setSearchQuery: (query: string) => {
     set({ searchQuery: query, currentPage: 1 });
     get().fetchAll();
   },
-  
+
   setFilters: (filters: Partial<UserFilters>) => {
-    set(state => ({ 
+    set(state => ({
       filters: { ...state.filters, ...filters },
-      currentPage: 1
+      currentPage: 1,
     }));
     get().fetchAll();
   },
-  
+
   clearFilters: () => {
-    set({ 
+    set({
       filters: {},
       searchQuery: '',
-      currentPage: 1
+      currentPage: 1,
     });
     get().fetchAll();
   },
-  
-  setSortBy: (sortBy: 'name' | 'email' | 'role' | 'status' | 'created_at' | 'last_login') => {
+
+  setSortBy: (
+    sortBy: 'name' | 'email' | 'role' | 'status' | 'created_at' | 'last_login'
+  ) => {
     set({ sortBy });
     get().fetchAll();
   },
-  
+
   setSortOrder: (order: 'asc' | 'desc') => {
     set({ sortOrder: order });
     get().fetchAll();
   },
-  
+
   // ========================================================================
   // PAGINATION ACTIONS
   // ========================================================================
-  
+
   setCurrentPage: (page: number) => {
     set({ currentPage: page });
     get().fetchAll();
   },
-  
+
   setItemsPerPage: (items: number) => {
     set({ itemsPerPage: items, currentPage: 1 });
     get().fetchAll();
   },
-  
+
   loadMore: () => {
     const { currentPage, totalItems, itemsPerPage } = get();
     const hasMore = currentPage * itemsPerPage < totalItems;
-    
+
     if (hasMore) {
       set({ currentPage: currentPage + 1 });
     }
   },
-  
+
   // ========================================================================
   // STATS ACTIONS
   // ========================================================================
-  
+
   fetchStats: async () => {
     set({ loading: true, error: null });
-    
+
     try {
       // Get ALL user_profiles counts (no pagination for stats)
       const { data: userProfiles, error: userError } = await supabase
         .from('user_profiles')
         .select('role, is_active, created_at, date_of_birth');
-      
+
       if (userError) throw userError;
-      
+
       // Get passengers count
       const { count: passengerCount, error: passengerError } = await supabase
         .from('passengers')
         .select('*', { count: 'exact', head: true });
-      
+
       if (passengerError) {
         console.error('Error fetching passenger count:', passengerError);
       }
-      
+
       // Get users with bookings
       const { data: usersWithBookings, error: bookingError } = await supabase
         .from('bookings')
         .select('user_id')
         .not('user_id', 'is', null);
-      
+
       if (bookingError) {
         console.error('Error fetching users with bookings:', bookingError);
       }
-      
-      const uniqueUsersWithBookings = new Set(usersWithBookings?.map(b => b.user_id) || []).size;
-      
+
+      const uniqueUsersWithBookings = new Set(
+        usersWithBookings?.map(b => b.user_id) || []
+      ).size;
+
       // Calculate age statistics
       const validBirthDates = userProfiles?.filter(u => u.date_of_birth) || [];
       const totalAge = validBirthDates.reduce((sum, user) => {
@@ -652,32 +727,37 @@ export const useUserStore = create<UserState>((set, get) => ({
         const today = new Date();
         const age = today.getFullYear() - birthDate.getFullYear();
         const monthDiff = today.getMonth() - birthDate.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        if (
+          monthDiff < 0 ||
+          (monthDiff === 0 && today.getDate() < birthDate.getDate())
+        ) {
           return sum + age - 1;
         }
         return sum + age;
       }, 0);
-      
-      const averageAge = validBirthDates.length > 0 ? Math.round(totalAge / validBirthDates.length) : 0;
-      
+
+      const averageAge =
+        validBirthDates.length > 0
+          ? Math.round(totalAge / validBirthDates.length)
+          : 0;
+
       // Calculate time-based statistics
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
       const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-      
-      const newUsersToday = userProfiles?.filter(u => 
-        new Date(u.created_at) >= today
-      ).length || 0;
-      
-      const newUsersThisWeek = userProfiles?.filter(u => 
-        new Date(u.created_at) >= weekAgo
-      ).length || 0;
-      
-      const newUsersThisMonth = userProfiles?.filter(u => 
-        new Date(u.created_at) >= monthAgo
-      ).length || 0;
-      
+
+      const newUsersToday =
+        userProfiles?.filter(u => new Date(u.created_at) >= today).length || 0;
+
+      const newUsersThisWeek =
+        userProfiles?.filter(u => new Date(u.created_at) >= weekAgo).length ||
+        0;
+
+      const newUsersThisMonth =
+        userProfiles?.filter(u => new Date(u.created_at) >= monthAgo).length ||
+        0;
+
       // Calculate stats
       const stats: UserStats = {
         total_users: (userProfiles?.length || 0) + (passengerCount || 0),
@@ -687,7 +767,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         banned_users: 0, // Not implemented in current schema
         admin_count: userProfiles?.filter(u => u.role === 'admin').length || 0,
         agent_count: userProfiles?.filter(u => u.role === 'agent').length || 0,
-        customer_count: userProfiles?.filter(u => u.role === 'customer').length || 0,
+        customer_count:
+          userProfiles?.filter(u => u.role === 'customer').length || 0,
         passenger_count: passengerCount || 0,
         new_users_today: newUsersToday,
         new_users_this_week: newUsersThisWeek,
@@ -697,25 +778,24 @@ export const useUserStore = create<UserState>((set, get) => ({
         users_with_bookings: uniqueUsersWithBookings,
         average_user_age: averageAge,
         top_locations: [],
-        user_growth_trend: []
+        user_growth_trend: [],
       };
-      
 
-      
       set({ stats, loading: false });
     } catch (error) {
       console.error('Error fetching user stats:', error);
       set({
-        error: error instanceof Error ? error.message : 'Failed to fetch user stats',
-        loading: false
+        error:
+          error instanceof Error ? error.message : 'Failed to fetch user stats',
+        loading: false,
       });
     }
   },
-  
+
   // ========================================================================
   // UTILITY ACTIONS
   // ========================================================================
-  
+
   reset: () => {
     set({
       users: [],
@@ -738,7 +818,7 @@ export const useUserStore = create<UserState>((set, get) => ({
         users_with_bookings: 0,
         average_user_age: 0,
         top_locations: [],
-        user_growth_trend: []
+        user_growth_trend: [],
       },
       loading: false,
       error: null,
@@ -748,7 +828,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       sortOrder: 'desc',
       currentPage: 1,
       itemsPerPage: 20,
-      totalItems: 0
+      totalItems: 0,
     });
-  }
+  },
 }));

@@ -44,7 +44,7 @@ export default function AgentCancelBookingScreen() {
       <View style={styles.notFoundContainer}>
         <Text style={styles.notFoundText}>Invalid booking ID</Text>
         <Button
-          title="Go Back"
+          title='Go Back'
           onPress={() => router.back()}
           style={styles.notFoundButton}
         />
@@ -64,7 +64,8 @@ export default function AgentCancelBookingScreen() {
   const [reason, setReason] = useState('');
   const [agentNotes, setAgentNotes] = useState('');
   const [clientNotification, setClientNotification] = useState('');
-  const [refundMethod, setRefundMethod] = useState<RefundMethod>('agent_credit');
+  const [refundMethod, setRefundMethod] =
+    useState<RefundMethod>('agent_credit');
   const [refundPercentage, setRefundPercentage] = useState(100);
   const [bankDetails, setBankDetails] = useState<BankDetails>({
     accountNumber: '',
@@ -80,7 +81,7 @@ export default function AgentCancelBookingScreen() {
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
-      (e) => {
+      e => {
         setKeyboardHeight(e.endCoordinates.height);
         if (activeInput) {
           scrollToInput(activeInput);
@@ -103,7 +104,8 @@ export default function AgentCancelBookingScreen() {
 
   const scrollToInput = (inputKey: string) => {
     setTimeout(() => {
-      const inputRef = inputRefs.current[inputKey as keyof typeof inputRefs.current];
+      const inputRef =
+        inputRefs.current[inputKey as keyof typeof inputRefs.current];
       if (inputRef && scrollViewRef.current) {
         inputRef.measureLayout(
           scrollViewRef.current,
@@ -115,7 +117,7 @@ export default function AgentCancelBookingScreen() {
               animated: true,
             });
           },
-          () => { }
+          () => {}
         );
       }
     }, 100);
@@ -133,7 +135,7 @@ export default function AgentCancelBookingScreen() {
       <View style={styles.notFoundContainer}>
         <Text style={styles.notFoundText}>Booking not found</Text>
         <Button
-          title="Go Back"
+          title='Go Back'
           onPress={() => router.back()}
           style={styles.notFoundButton}
         />
@@ -167,8 +169,13 @@ export default function AgentCancelBookingScreen() {
     }
 
     if (refundMethod === 'bank_transfer') {
-      if (!bankDetails.accountNumber.trim() || !bankDetails.accountName.trim() || !bankDetails.bankName.trim()) {
-        newErrors.bankDetails = 'Please provide complete bank details for bank transfer';
+      if (
+        !bankDetails.accountNumber.trim() ||
+        !bankDetails.accountName.trim() ||
+        !bankDetails.bankName.trim()
+      ) {
+        newErrors.bankDetails =
+          'Please provide complete bank details for bank transfer';
         isValid = false;
       } else {
         newErrors.bankDetails = '';
@@ -180,8 +187,6 @@ export default function AgentCancelBookingScreen() {
     setErrors(newErrors);
     return isValid;
   };
-
-
 
   const getRouteDisplay = () => {
     let fromLocation = 'Unknown';
@@ -218,67 +223,70 @@ export default function AgentCancelBookingScreen() {
       return;
     }
 
-    const confirmMessage = 'Are you sure you want to cancel this booking? ' +
-      String(refundPercentage) + '% refund will be processed.';
+    const confirmMessage =
+      'Are you sure you want to cancel this booking? ' +
+      String(refundPercentage) +
+      '% refund will be processed.';
 
-    Alert.alert(
-      "Confirm Cancellation",
-      confirmMessage,
-      [
-        {
-          text: "No",
-          style: "cancel",
+    Alert.alert('Confirm Cancellation', confirmMessage, [
+      {
+        text: 'No',
+        style: 'cancel',
+      },
+      {
+        text: 'Yes, Cancel',
+        onPress: async () => {
+          setIsCancelling(true);
+          try {
+            const cancellationData = {
+              reason,
+              refundPercentage,
+              refundMethod,
+              bankDetails:
+                refundMethod === 'bank_transfer' ? bankDetails : undefined,
+              agentNotes,
+              overrideFee: true,
+            };
+
+            const cancellationNumber = await agentCancelBooking(
+              safeBooking.id,
+              cancellationData
+            );
+
+            const calculatedRefundAmount =
+              (safeBooking.totalAmount * refundPercentage) / 100;
+            const refundMethodDisplay = refundMethod.replace('_', ' ');
+
+            const successMessage =
+              'Booking has been cancelled successfully. ' +
+              'Cancellation number: ' +
+              String(cancellationNumber) +
+              '. ' +
+              formatCurrency(calculatedRefundAmount) +
+              ' will be refunded via ' +
+              refundMethodDisplay +
+              '.';
+
+            Alert.alert('Booking Cancelled', successMessage, [
+              {
+                text: 'OK',
+                onPress: () => router.back(),
+              },
+            ]);
+          } catch (error) {
+            console.error('Cancellation error:', error);
+            const errorMessage =
+              'There was an error cancelling the booking: ' +
+              (error instanceof Error ? error.message : 'Unknown error');
+
+            Alert.alert('Cancellation Failed', errorMessage);
+          } finally {
+            setIsCancelling(false);
+          }
         },
-        {
-          text: "Yes, Cancel",
-          onPress: async () => {
-            setIsCancelling(true);
-            try {
-              const cancellationData = {
-                reason,
-                refundPercentage,
-                refundMethod,
-                bankDetails: refundMethod === 'bank_transfer' ? bankDetails : undefined,
-                agentNotes,
-                overrideFee: true,
-              };
-
-              const cancellationNumber = await agentCancelBooking(safeBooking.id, cancellationData);
-
-              const calculatedRefundAmount = (safeBooking.totalAmount * refundPercentage) / 100;
-              const refundMethodDisplay = refundMethod.replace('_', ' ');
-
-              const successMessage = 'Booking has been cancelled successfully. ' +
-                'Cancellation number: ' + String(cancellationNumber) + '. ' +
-                formatCurrency(calculatedRefundAmount) + ' will be refunded via ' + refundMethodDisplay + '.';
-
-              Alert.alert(
-                "Booking Cancelled",
-                successMessage,
-                [
-                  {
-                    text: "OK",
-                    onPress: () => router.back()
-                  }
-                ]
-              );
-            } catch (error) {
-              console.error('Cancellation error:', error);
-              const errorMessage = 'There was an error cancelling the booking: ' +
-                (error instanceof Error ? error.message : 'Unknown error');
-
-              Alert.alert(
-                "Cancellation Failed",
-                errorMessage
-              );
-            } finally {
-              setIsCancelling(false);
-            }
-          },
-          style: "destructive",
-        },
-      ]
-    );
+        style: 'destructive',
+      },
+    ]);
   };
 
   // Calculate refund amount
@@ -288,7 +296,7 @@ export default function AgentCancelBookingScreen() {
     <>
       <Stack.Screen
         options={{
-          title: "Cancel Booking",
+          title: 'Cancel Booking',
           headerTitleStyle: { fontSize: 18 },
         }}
       />
@@ -303,7 +311,7 @@ export default function AgentCancelBookingScreen() {
           style={styles.scrollView}
           contentContainerStyle={[styles.contentContainer, { flexGrow: 1 }]}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps='handled'
         >
           {/* Agent Policy Info */}
           <AgentPolicyCard />
@@ -312,16 +320,24 @@ export default function AgentCancelBookingScreen() {
           <CurrentTicketDetailsCard
             bookingNumber={safeBooking.bookingNumber}
             clientName={safeBooking.clientName}
-            route={safeBooking.route ? {
-              fromIsland: { name: safeBooking.route.fromIsland?.name || 'Unknown' },
-              toIsland: { name: safeBooking.route.toIsland?.name || 'Unknown' }
-            } : undefined}
+            route={
+              safeBooking.route
+                ? {
+                    fromIsland: {
+                      name: safeBooking.route.fromIsland?.name || 'Unknown',
+                    },
+                    toIsland: {
+                      name: safeBooking.route.toIsland?.name || 'Unknown',
+                    },
+                  }
+                : undefined
+            }
             origin={safeBooking.origin}
             destination={safeBooking.destination}
             currentDate={safeBooking.departureDate || ''}
             currentSeats={[]}
             totalAmount={safeBooking.totalAmount}
-            ticketLabel="Booking"
+            ticketLabel='Booking'
           />
 
           {/* Refund Configuration */}
@@ -339,7 +355,7 @@ export default function AgentCancelBookingScreen() {
           {/* Cancellation Details */}
           <CancellationDetailsForm
             reason={reason}
-            onReasonChange={(text) => {
+            onReasonChange={text => {
               setReason(text);
               if (errors.reason) setErrors({ ...errors, reason: '' });
             }}
@@ -368,14 +384,14 @@ export default function AgentCancelBookingScreen() {
 
           <View style={styles.buttonContainer}>
             <Button
-              title="Go Back"
+              title='Go Back'
               onPress={() => router.back()}
-              variant="outline"
+              variant='outline'
               style={styles.backButton}
             />
 
             <Button
-              title="Cancel Booking"
+              title='Cancel Booking'
               onPress={handleCancel}
               loading={isCancelling}
               disabled={isCancelling}
@@ -589,4 +605,4 @@ const styles = StyleSheet.create({
   notFoundButton: {
     minWidth: 120,
   },
-}); 
+});

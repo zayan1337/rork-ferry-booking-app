@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,13 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
-} from "react-native";
-import { Stack, router, useLocalSearchParams } from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { useOperationsStore } from "@/store/admin/operationsStore";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { useTripStore } from "@/store/admin/tripStore";
-import RoleGuard from "@/components/RoleGuard";
+} from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { useOperationsStore } from '@/store/admin/operationsStore';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useTripStore } from '@/store/admin/tripStore';
+import RoleGuard from '@/components/RoleGuard';
 import {
   ArrowLeft,
   Search,
@@ -28,7 +28,7 @@ import {
   AlertTriangle,
   Download,
   Share,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
 interface Passenger {
   id: string;
@@ -37,8 +37,8 @@ interface Passenger {
   phone?: string;
   seat_number?: string;
   booking_id: string;
-  booking_status: "confirmed" | "pending" | "cancelled" | "checked_in";
-  passenger_type: "adult" | "child" | "infant";
+  booking_status: 'confirmed' | 'pending' | 'cancelled' | 'checked_in';
+  passenger_type: 'adult' | 'child' | 'infant';
   special_requirements?: string;
   checked_in_at?: string;
 }
@@ -53,7 +53,7 @@ export default function TripPassengersPage() {
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadData();
@@ -77,10 +77,10 @@ export default function TripPassengersPage() {
           seat_number: passenger.seats?.seat_number,
           booking_id: passenger.booking_id,
           booking_status: passenger.bookings?.status,
-          passenger_type: "adult", // Default since it's not in the schema
+          passenger_type: 'adult', // Default since it's not in the schema
           special_requirements: passenger.special_assistance_request,
           checked_in_at:
-            passenger.bookings?.status === "checked_in"
+            passenger.bookings?.status === 'checked_in'
               ? new Date().toISOString()
               : undefined,
         })
@@ -88,7 +88,7 @@ export default function TripPassengersPage() {
 
       setPassengers(transformedPassengers);
     } catch (error) {
-      console.error("Error fetching passengers:", error);
+      console.error('Error fetching passengers:', error);
       // Fall back to empty array if no passengers found
       setPassengers([]);
     }
@@ -110,7 +110,7 @@ export default function TripPassengersPage() {
       // Fetch real passenger data
       await fetchPassengers();
     } catch (error) {
-      Alert.alert("Error", "Failed to load passenger data");
+      Alert.alert('Error', 'Failed to load passenger data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -122,17 +122,17 @@ export default function TripPassengersPage() {
   };
 
   const handleCheckIn = (passengerId: string) => {
-    Alert.alert("Check In Passenger", "Mark this passenger as checked in?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert('Check In Passenger', 'Mark this passenger as checked in?', [
+      { text: 'Cancel', style: 'cancel' },
       {
-        text: "Check In",
+        text: 'Check In',
         onPress: () => {
-          setPassengers((prev) =>
-            prev.map((p) =>
+          setPassengers(prev =>
+            prev.map(p =>
               p.id === passengerId
                 ? {
                     ...p,
-                    booking_status: "checked_in",
+                    booking_status: 'checked_in',
                     checked_in_at: new Date().toISOString(),
                   }
                 : p
@@ -144,29 +144,29 @@ export default function TripPassengersPage() {
   };
 
   const handleExportManifest = () => {
-    Alert.alert("Export Manifest", "Choose export format:", [
-      { text: "PDF", onPress: () => console.log("Export PDF") },
-      { text: "Excel", onPress: () => console.log("Export Excel") },
-      { text: "Cancel", style: "cancel" },
+    Alert.alert('Export Manifest', 'Choose export format:', [
+      { text: 'PDF', onPress: () => console.log('Export PDF') },
+      { text: 'Excel', onPress: () => console.log('Export Excel') },
+      { text: 'Cancel', style: 'cancel' },
     ]);
   };
 
   const getStatusInfo = (status: string) => {
     switch (status) {
-      case "checked_in":
+      case 'checked_in':
         return {
           color: colors.success,
-          label: "Checked In",
+          label: 'Checked In',
           icon: CheckCircle,
         };
-      case "confirmed":
-        return { color: colors.primary, label: "Confirmed", icon: Clock };
-      case "pending":
-        return { color: colors.warning, label: "Pending", icon: AlertTriangle };
-      case "cancelled":
+      case 'confirmed':
+        return { color: colors.primary, label: 'Confirmed', icon: Clock };
+      case 'pending':
+        return { color: colors.warning, label: 'Pending', icon: AlertTriangle };
+      case 'cancelled':
         return {
           color: colors.danger,
-          label: "Cancelled",
+          label: 'Cancelled',
           icon: AlertTriangle,
         };
       default:
@@ -179,7 +179,7 @@ export default function TripPassengersPage() {
   };
 
   const filteredPassengers = passengers.filter(
-    (passenger) =>
+    passenger =>
       passenger.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       passenger.booking_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       passenger.seat_number?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -200,7 +200,7 @@ export default function TripPassengersPage() {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: statusInfo.color + "20" },
+                { backgroundColor: statusInfo.color + '20' },
               ]}
             >
               <StatusIcon size={12} color={statusInfo.color} />
@@ -216,7 +216,7 @@ export default function TripPassengersPage() {
             <View style={styles.detailItem}>
               <MapPin size={14} color={colors.textSecondary} />
               <Text style={styles.detailText}>
-                Seat {item.seat_number || "N/A"}
+                Seat {item.seat_number || 'N/A'}
               </Text>
             </View>
             <View style={styles.detailItem}>
@@ -250,7 +250,7 @@ export default function TripPassengersPage() {
             </View>
           )}
 
-          {item.booking_status === "confirmed" && (
+          {item.booking_status === 'confirmed' && (
             <TouchableOpacity
               style={styles.checkInButton}
               onPress={() => handleCheckIn(item.id)}
@@ -269,7 +269,7 @@ export default function TripPassengersPage() {
       <View style={styles.loadingContainer}>
         <Stack.Screen
           options={{
-            title: "Loading...",
+            title: 'Loading...',
             headerShown: true,
             headerLeft: () => (
               <TouchableOpacity
@@ -281,18 +281,18 @@ export default function TripPassengersPage() {
             ),
           }}
         />
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size='large' color={colors.primary} />
         <Text style={styles.loadingText}>Loading passengers...</Text>
       </View>
     );
   }
 
   return (
-    <RoleGuard allowedRoles={["admin", "captain"]}>
+    <RoleGuard allowedRoles={['admin', 'captain']}>
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Trip Passengers",
+            title: 'Trip Passengers',
             headerShown: true,
             headerLeft: () => (
               <TouchableOpacity
@@ -321,19 +321,13 @@ export default function TripPassengersPage() {
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>
-              {
-                passengers.filter((p) => p.booking_status === "checked_in")
-                  .length
-              }
+              {passengers.filter(p => p.booking_status === 'checked_in').length}
             </Text>
             <Text style={styles.statLabel}>Checked In</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>
-              {
-                passengers.filter((p) => p.booking_status === "confirmed")
-                  .length
-              }
+              {passengers.filter(p => p.booking_status === 'confirmed').length}
             </Text>
             <Text style={styles.statLabel}>Pending Check-in</Text>
           </View>
@@ -345,7 +339,7 @@ export default function TripPassengersPage() {
             <Search size={20} color={colors.textSecondary} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search passengers..."
+              placeholder='Search passengers...'
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor={colors.textSecondary}
@@ -357,7 +351,7 @@ export default function TripPassengersPage() {
         <FlatList
           data={filteredPassengers}
           renderItem={renderPassengerItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           contentContainerStyle={styles.listContainer}
           refreshControl={
             <RefreshControl
@@ -381,8 +375,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: colors.backgroundSecondary,
     gap: 12,
   },
@@ -397,7 +391,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   headerStats: {
-    flexDirection: "row",
+    flexDirection: 'row',
     backgroundColor: colors.card,
     padding: 16,
     marginHorizontal: 16,
@@ -411,26 +405,26 @@ const styles = StyleSheet.create({
   },
   statItem: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   statValue: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "500",
-    textAlign: "center",
+    fontWeight: '500',
+    textAlign: 'center',
   },
   searchContainer: {
     padding: 16,
   },
   searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: 12,
     paddingHorizontal: 16,
@@ -458,9 +452,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   passengerHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   passengerInfo: {
@@ -468,21 +462,21 @@ const styles = StyleSheet.create({
   },
   passengerName: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 4,
   },
   bookingId: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   passengerActions: {
-    alignItems: "flex-end",
+    alignItems: 'flex-end',
   },
   statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
@@ -490,25 +484,25 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   passengerDetails: {
     gap: 8,
   },
   detailRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 20,
   },
   detailItem: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   detailText: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   specialRequirements: {
     backgroundColor: colors.backgroundSecondary,
@@ -519,22 +513,22 @@ const styles = StyleSheet.create({
   specialRequirementsText: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   checkInButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.primaryLight,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
-    alignSelf: "flex-start",
+    alignSelf: 'flex-start',
     gap: 6,
     marginTop: 8,
   },
   checkInButtonText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.primary,
   },
 });

@@ -11,7 +11,7 @@ const Card: React.FC<CardProps> = ({
 }) => {
   const getCardStyle = () => {
     const baseStyle: ViewStyle[] = [styles.card];
-    
+
     // Add variant styles
     switch (variant) {
       case 'elevated':
@@ -23,7 +23,7 @@ const Card: React.FC<CardProps> = ({
       default:
         baseStyle.push(styles.cardDefault);
     }
-    
+
     // Add padding styles
     switch (padding) {
       case 'none':
@@ -37,15 +37,11 @@ const Card: React.FC<CardProps> = ({
       default:
         baseStyle.push(styles.paddingMedium);
     }
-    
+
     return baseStyle;
   };
-  
-  return (
-    <View style={[...getCardStyle(), style]}>
-      {children}
-    </View>
-  );
+
+  return <View style={[...getCardStyle(), style]}>{children}</View>;
 };
 
 const styles = StyleSheet.create({

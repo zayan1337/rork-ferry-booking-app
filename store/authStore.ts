@@ -39,14 +39,17 @@ export const useAuthStore = create<AuthState>()(
 
       clearError: () => set({ error: null }),
 
-      setPreventRedirect: (prevent: boolean) => set({ preventRedirect: prevent }),
+      setPreventRedirect: (prevent: boolean) =>
+        set({ preventRedirect: prevent }),
 
       setRehydrated: (rehydrated: boolean) => set({ isRehydrated: rehydrated }),
 
       checkAuth: async () => {
         try {
           set({ isLoading: true, error: null });
-          const { data: { session } } = await supabase.auth.getSession();
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
 
           if (session?.user) {
             // Ensure we have a valid user profile
@@ -64,7 +67,7 @@ export const useAuthStore = create<AuthState>()(
                 isAuthenticated: false,
                 user: null,
                 isLoading: false,
-                error: 'Profile not found. Please contact support.'
+                error: 'Profile not found. Please contact support.',
               });
               return;
             }
@@ -76,7 +79,7 @@ export const useAuthStore = create<AuthState>()(
                 isAuthenticated: false,
                 user: null,
                 isLoading: false,
-                error: 'User profile not found. Please contact support.'
+                error: 'User profile not found. Please contact support.',
               });
               return;
             }
@@ -88,7 +91,7 @@ export const useAuthStore = create<AuthState>()(
                 isAuthenticated: false,
                 user: null,
                 isLoading: false,
-                error: 'Account is inactive. Please contact support.'
+                error: 'Account is inactive. Please contact support.',
               });
               return;
             }
@@ -97,25 +100,28 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               user: {
                 ...session.user,
-                profile: userProfile
+                profile: userProfile,
               },
-              isLoading: false
+              isLoading: false,
             });
           } else {
             set({
               isAuthenticated: false,
               user: null,
-              isLoading: false
+              isLoading: false,
             });
           }
         } catch (error) {
           console.error('Auth check error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Authentication check failed';
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : 'Authentication check failed';
           set({
             isAuthenticated: false,
             user: null,
             isLoading: false,
-            error: errorMessage
+            error: errorMessage,
           });
         }
       },
@@ -126,7 +132,7 @@ export const useAuthStore = create<AuthState>()(
 
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
-            password
+            password,
           });
 
           if (error) throw error;
@@ -138,7 +144,10 @@ export const useAuthStore = create<AuthState>()(
             .eq('id', data.user.id)
             .single();
 
-          if (profileError) throw new Error('Failed to fetch user profile: ' + profileError.message);
+          if (profileError)
+            throw new Error(
+              'Failed to fetch user profile: ' + profileError.message
+            );
           if (!profile) throw new Error('User profile not found');
 
           // Verify user is active
@@ -151,17 +160,18 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             user: {
               ...data.user,
-              profile
+              profile,
             },
             isLoading: false,
-            error: null
+            error: null,
           });
         } catch (error) {
           console.error('Login error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Login failed';
+          const errorMessage =
+            error instanceof Error ? error.message : 'Login failed';
           set({
             isLoading: false,
-            error: errorMessage
+            error: errorMessage,
           });
           throw error;
         }
@@ -181,9 +191,9 @@ export const useAuthStore = create<AuthState>()(
               data: {
                 full_name: profileData.full_name,
                 mobile_number: profileData.mobile_number,
-                date_of_birth: profileData.date_of_birth
-              }
-            }
+                date_of_birth: profileData.date_of_birth,
+              },
+            },
           });
 
           if (error) throw error;
@@ -196,19 +206,23 @@ export const useAuthStore = create<AuthState>()(
             .eq('id', data.user.id)
             .single();
 
-          if (profileError) throw new Error('Failed to fetch user profile: ' + profileError.message);
+          if (profileError)
+            throw new Error(
+              'Failed to fetch user profile: ' + profileError.message
+            );
 
           set({
             isLoading: false,
-            error: null
+            error: null,
           });
         } catch (error) {
           console.error('Signup error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Signup failed';
+          const errorMessage =
+            error instanceof Error ? error.message : 'Signup failed';
           set({
             isLoading: false,
             error: errorMessage,
-            preventRedirect: false
+            preventRedirect: false,
           });
           throw error;
         }
@@ -226,7 +240,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isLoading: false,
             error: null,
-            preventRedirect: true
+            preventRedirect: true,
           });
 
           // Allow a small delay before allowing redirects again
@@ -235,10 +249,11 @@ export const useAuthStore = create<AuthState>()(
           }, 500);
         } catch (error) {
           console.error('Signout error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Sign out failed';
+          const errorMessage =
+            error instanceof Error ? error.message : 'Sign out failed';
           set({
             isLoading: false,
-            error: errorMessage
+            error: errorMessage,
           });
           throw error;
         }
@@ -255,10 +270,11 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false });
         } catch (error) {
           console.error('Reset password error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Password reset failed';
+          const errorMessage =
+            error instanceof Error ? error.message : 'Password reset failed';
           set({
             isLoading: false,
-            error: errorMessage
+            error: errorMessage,
           });
           throw error;
         }
@@ -268,17 +284,18 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
           const { error } = await supabase.auth.updateUser({
-            password: newPassword
+            password: newPassword,
           });
 
           if (error) throw error;
           set({ isLoading: false });
         } catch (error) {
           console.error('Update password error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Password update failed';
+          const errorMessage =
+            error instanceof Error ? error.message : 'Password update failed';
           set({
             isLoading: false,
-            error: errorMessage
+            error: errorMessage,
           });
           throw error;
         }
@@ -299,29 +316,32 @@ export const useAuthStore = create<AuthState>()(
 
           set(state => ({
             isLoading: false,
-            user: state.user ? {
-              ...state.user,
-              profile: {
-                ...state.user.profile as UserProfile,
-                ...profile
-              }
-            } : null
+            user: state.user
+              ? {
+                  ...state.user,
+                  profile: {
+                    ...(state.user.profile as UserProfile),
+                    ...profile,
+                  },
+                }
+              : null,
           }));
         } catch (error) {
           console.error('Update profile error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Profile update failed';
+          const errorMessage =
+            error instanceof Error ? error.message : 'Profile update failed';
           set({
             isLoading: false,
-            error: errorMessage
+            error: errorMessage,
           });
           throw error;
         }
-      }
+      },
     }),
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => state => {
         if (state) {
           state.setRehydrated(true);
         }

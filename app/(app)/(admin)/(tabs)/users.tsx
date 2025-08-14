@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   RefreshControl,
   FlatList,
@@ -9,23 +9,23 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
-} from "react-native";
-import { Stack, router } from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { useUserManagement } from "@/hooks";
+} from 'react-native';
+import { Stack, router } from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useUserManagement } from '@/hooks';
 import {
   Users,
   Plus,
   Download,
   AlertTriangle,
   Check,
-} from "lucide-react-native";
-import Button from "@/components/admin/Button";
-import LoadingSpinner from "@/components/admin/LoadingSpinner";
-import UserItem from "@/components/admin/UserItem";
-import EmptyState from "@/components/admin/EmptyState";
-import { UserProfile } from "@/types/userManagement";
+} from 'lucide-react-native';
+import Button from '@/components/admin/Button';
+import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import UserItem from '@/components/admin/UserItem';
+import EmptyState from '@/components/admin/EmptyState';
+import { UserProfile } from '@/types/userManagement';
 
 // Users Components
 import {
@@ -38,25 +38,25 @@ import {
   SelectAllSection,
   UserList,
   UserStats,
-} from "@/components/admin/users";
+} from '@/components/admin/users';
 
-const { width: screenWidth } = Dimensions.get("window");
+const { width: screenWidth } = Dimensions.get('window');
 
 type FilterRole =
-  | "all"
-  | "admin"
-  | "agent"
-  | "customer"
-  | "passenger"
-  | "captain";
-type FilterStatus = "all" | "active" | "inactive" | "suspended";
+  | 'all'
+  | 'admin'
+  | 'agent'
+  | 'customer'
+  | 'passenger'
+  | 'captain';
+type FilterStatus = 'all' | 'active' | 'inactive' | 'suspended';
 type SortOrder =
-  | "name_asc"
-  | "name_desc"
-  | "date_desc"
-  | "date_asc"
-  | "role_asc"
-  | "status_asc";
+  | 'name_asc'
+  | 'name_desc'
+  | 'date_desc'
+  | 'date_asc'
+  | 'role_asc'
+  | 'status_asc';
 
 export default function UsersScreen() {
   const {
@@ -101,11 +101,11 @@ export default function UsersScreen() {
   } = useAdminPermissions();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [filterRole, setFilterRole] = useState<FilterRole>("all");
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [filterRole, setFilterRole] = useState<FilterRole>('all');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"overview" | "users">("overview");
+  const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview');
 
   const isTablet = screenWidth >= 768;
   const isSmallScreen = screenWidth < 480;
@@ -116,7 +116,7 @@ export default function UsersScreen() {
       try {
         await Promise.all([fetchAll(), fetchStats()]);
       } catch (error) {
-        console.error("Error initializing user data:", error);
+        console.error('Error initializing user data:', error);
       }
     };
 
@@ -128,7 +128,7 @@ export default function UsersScreen() {
     try {
       await Promise.all([fetchAll(), fetchStats()]);
     } catch (error) {
-      console.error("Refresh error:", error);
+      console.error('Refresh error:', error);
     } finally {
       setRefreshing(false);
     }
@@ -136,13 +136,13 @@ export default function UsersScreen() {
 
   // Use the paginated users from the hook (already filtered and sorted)
   const filteredAndSortedUsers = useMemo(() => {
-    return paginatedUsers.filter((user) => {
+    return paginatedUsers.filter(user => {
       // Role filter
-      const roleMatch = filterRole === "all" || user.role === filterRole;
+      const roleMatch = filterRole === 'all' || user.role === filterRole;
 
       // Status filter
       const statusMatch =
-        filterStatus === "all" || user.status === filterStatus;
+        filterStatus === 'all' || user.status === filterStatus;
 
       return roleMatch && statusMatch;
     });
@@ -162,7 +162,7 @@ export default function UsersScreen() {
       totalUsers,
       activeUsers,
       activeRate:
-        totalUsers > 0 ? ((activeUsers / totalUsers) * 100).toFixed(1) : "0",
+        totalUsers > 0 ? ((activeUsers / totalUsers) * 100).toFixed(1) : '0',
       adminCount,
       agentCount,
       customerCount,
@@ -180,10 +180,10 @@ export default function UsersScreen() {
 
   const handleNewUser = () => {
     if (canCreateUsers()) {
-      router.push("../user/new" as any);
+      router.push('../user/new' as any);
     } else {
       Alert.alert(
-        "Access Denied",
+        'Access Denied',
         "You don't have permission to create users."
       );
     }
@@ -193,13 +193,13 @@ export default function UsersScreen() {
     if (canExportReports()) {
       try {
         // TODO: Implement export functionality
-        Alert.alert("Success", "Users report exported successfully.");
+        Alert.alert('Success', 'Users report exported successfully.');
       } catch (error) {
-        Alert.alert("Error", "Failed to export users report.");
+        Alert.alert('Error', 'Failed to export users report.');
       }
     } else {
       Alert.alert(
-        "Access Denied",
+        'Access Denied',
         "You don't have permission to export reports."
       );
     }
@@ -208,28 +208,28 @@ export default function UsersScreen() {
   const handleBulkStatusUpdate = async (status: string) => {
     if (!canUpdateUsers()) {
       Alert.alert(
-        "Access Denied",
+        'Access Denied',
         "You don't have permission to update users."
       );
       return;
     }
 
     Alert.alert(
-      "Bulk Update",
+      'Bulk Update',
       `Update ${selectedUsers.length} user(s) status to ${status}?`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Update",
+          text: 'Update',
           onPress: async () => {
             try {
               for (const userId of selectedUsers) {
                 await updateStatus(userId, status);
               }
               setSelectedUsers([]);
-              Alert.alert("Success", "Users updated successfully.");
+              Alert.alert('Success', 'Users updated successfully.');
             } catch (error) {
-              Alert.alert("Error", "Failed to update users.");
+              Alert.alert('Error', 'Failed to update users.');
             }
           },
         },
@@ -244,9 +244,9 @@ export default function UsersScreen() {
   };
 
   const toggleUserSelection = (userId: string) => {
-    setSelectedUsers((prev) =>
+    setSelectedUsers(prev =>
       prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
+        ? prev.filter(id => id !== userId)
         : [...prev, userId]
     );
   };
@@ -258,7 +258,7 @@ export default function UsersScreen() {
       setSelectedUsers([]);
     } else {
       // Select all visible users
-      setSelectedUsers(filteredAndSortedUsers.map((user) => user.id));
+      setSelectedUsers(filteredAndSortedUsers.map(user => user.id));
     }
   };
 
@@ -271,17 +271,17 @@ export default function UsersScreen() {
 
   const getCount = (role: FilterRole, status?: FilterStatus) => {
     let filtered = users;
-    if (role !== "all") {
-      if (role === "agent") {
-        filtered = users.filter((u) => u.role === "agent");
-      } else if (role === "passenger") {
-        filtered = users.filter((u) => u.role === "passenger");
+    if (role !== 'all') {
+      if (role === 'agent') {
+        filtered = users.filter(u => u.role === 'agent');
+      } else if (role === 'passenger') {
+        filtered = users.filter(u => u.role === 'passenger');
       } else {
-        filtered = users.filter((u) => u.role === role);
+        filtered = users.filter(u => u.role === role);
       }
     }
-    if (status && status !== "all") {
-      filtered = filtered.filter((u) => u.status === status);
+    if (status && status !== 'all') {
+      filtered = filtered.filter(u => u.status === status);
     }
     return filtered.length;
   };
@@ -295,13 +295,13 @@ export default function UsersScreen() {
   const getCurrentFilterText = () => {
     let filterText = [];
 
-    if (filterRole !== "all") {
+    if (filterRole !== 'all') {
       filterText.push(
         `Role: ${filterRole.charAt(0).toUpperCase() + filterRole.slice(1)}`
       );
     }
 
-    if (filterStatus !== "all") {
+    if (filterStatus !== 'all') {
       filterText.push(
         `Status: ${
           filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)
@@ -311,41 +311,41 @@ export default function UsersScreen() {
 
     const sortText = {
       created_at:
-        sortOrder === "desc" ? "Date (Newest first)" : "Date (Oldest first)",
-      name: sortOrder === "asc" ? "Name (A-Z)" : "Name (Z-A)",
-      role: sortOrder === "asc" ? "Role (A-Z)" : "Role (Z-A)",
-      status: sortOrder === "asc" ? "Status (A-Z)" : "Status (Z-A)",
-      email: sortOrder === "asc" ? "Email (A-Z)" : "Email (Z-A)",
+        sortOrder === 'desc' ? 'Date (Newest first)' : 'Date (Oldest first)',
+      name: sortOrder === 'asc' ? 'Name (A-Z)' : 'Name (Z-A)',
+      role: sortOrder === 'asc' ? 'Role (A-Z)' : 'Role (Z-A)',
+      status: sortOrder === 'asc' ? 'Status (A-Z)' : 'Status (Z-A)',
+      email: sortOrder === 'asc' ? 'Email (A-Z)' : 'Email (Z-A)',
       last_login:
-        sortOrder === "desc"
-          ? "Last Login (Recent first)"
-          : "Last Login (Oldest first)",
+        sortOrder === 'desc'
+          ? 'Last Login (Recent first)'
+          : 'Last Login (Oldest first)',
     };
 
     return {
-      filters: filterText.length > 0 ? filterText.join(", ") : "All users",
-      sort: sortText[sortBy] || "Date (Newest first)",
+      filters: filterText.length > 0 ? filterText.join(', ') : 'All users',
+      sort: sortText[sortBy] || 'Date (Newest first)',
     };
   };
 
   // Helper to check if any filters are active
   const hasActiveFilters = () => {
     return (
-      filterRole !== "all" ||
-      filterStatus !== "all" ||
-      sortBy !== "created_at" ||
-      sortOrder !== "desc" ||
-      searchQuery !== ""
+      filterRole !== 'all' ||
+      filterStatus !== 'all' ||
+      sortBy !== 'created_at' ||
+      sortOrder !== 'desc' ||
+      searchQuery !== ''
     );
   };
 
   // Clear all filters function
   const clearAllFilters = () => {
-    setFilterRole("all");
-    setFilterStatus("all");
-    setSortBy("created_at");
-    setSortOrder("desc");
-    setSearchQuery("");
+    setFilterRole('all');
+    setFilterStatus('all');
+    setSortBy('created_at');
+    setSortOrder('desc');
+    setSearchQuery('');
     setSelectedUsers([]);
   };
 
@@ -353,7 +353,7 @@ export default function UsersScreen() {
   if (loading && users.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <LoadingSpinner size="large" />
+        <LoadingSpinner size='large' />
         <Text style={styles.loadingText}>Loading users...</Text>
       </View>
     );
@@ -372,7 +372,7 @@ export default function UsersScreen() {
 
   return (
     <>
-      {activeTab === "overview" ? (
+      {activeTab === 'overview' ? (
         <ScrollView
           style={styles.container}
           contentContainerStyle={[
@@ -391,25 +391,25 @@ export default function UsersScreen() {
         >
           <Stack.Screen
             options={{
-              title: "User Management",
+              title: 'User Management',
               headerRight: () => (
                 <View style={styles.headerActions}>
                   {canExportReports() && (
                     <TouchableOpacity
                       style={styles.headerButton}
                       onPress={handleExport}
-                      accessibilityRole="button"
-                      accessibilityLabel="Export"
+                      accessibilityRole='button'
+                      accessibilityLabel='Export'
                     >
                       <Download size={18} color={colors.primary} />
                     </TouchableOpacity>
                   )}
                   {canCreateUsers() && (
                     <Button
-                      title={isSmallScreen ? "New" : "New User"}
-                      variant="primary"
-                      size={isTablet ? "medium" : "small"}
-                      icon={<Plus size={isTablet ? 18 : 16} color="#FFFFFF" />}
+                      title={isSmallScreen ? 'New' : 'New User'}
+                      variant='primary'
+                      size={isTablet ? 'medium' : 'small'}
+                      icon={<Plus size={isTablet ? 18 : 16} color='#FFFFFF' />}
                       onPress={handleNewUser}
                     />
                   )}
@@ -420,7 +420,7 @@ export default function UsersScreen() {
 
           <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-          {activeTab === "overview" ? (
+          {activeTab === 'overview' ? (
             <UserStats stats={userStats} isTablet={isTablet} />
           ) : (
             <>
@@ -430,19 +430,19 @@ export default function UsersScreen() {
                 onFilterPress={() => setShowFilterModal(true)}
                 onSortPress={() => {
                   const sortFields: Array<
-                    | "name"
-                    | "email"
-                    | "role"
-                    | "status"
-                    | "created_at"
-                    | "last_login"
+                    | 'name'
+                    | 'email'
+                    | 'role'
+                    | 'status'
+                    | 'created_at'
+                    | 'last_login'
                   > = [
-                    "created_at",
-                    "name",
-                    "email",
-                    "role",
-                    "status",
-                    "last_login",
+                    'created_at',
+                    'name',
+                    'email',
+                    'role',
+                    'status',
+                    'last_login',
                   ];
                   const currentIndex = sortFields.indexOf(sortBy);
                   const nextIndex = (currentIndex + 1) % sortFields.length;
@@ -459,8 +459,8 @@ export default function UsersScreen() {
 
               <BulkActionsBar
                 selectedCount={selectedUsers.length}
-                onActivate={() => handleBulkStatusUpdate("active")}
-                onSuspend={() => handleBulkStatusUpdate("suspended")}
+                onActivate={() => handleBulkStatusUpdate('active')}
+                onSuspend={() => handleBulkStatusUpdate('suspended')}
                 onClear={() => setSelectedUsers([])}
                 canUpdateUsers={canUpdateUsers()}
               />
@@ -502,7 +502,7 @@ export default function UsersScreen() {
             getResponsivePadding(),
           ]}
           data={filteredAndSortedUsers}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           renderItem={({ item: user }) => (
             <View style={styles.userItemWrapper}>
               {canUpdateUsers() && (
@@ -518,7 +518,7 @@ export default function UsersScreen() {
                     ]}
                   >
                     {selectedUsers.includes(user.id) && (
-                      <Check size={14} color="white" />
+                      <Check size={14} color='white' />
                     )}
                   </View>
                 </TouchableOpacity>
@@ -531,11 +531,11 @@ export default function UsersScreen() {
           ListEmptyComponent={() => (
             <EmptyState
               icon={<Users size={48} color={colors.textSecondary} />}
-              title="No users found"
+              title='No users found'
               message={
                 searchQuery
-                  ? "Try adjusting your search criteria"
-                  : "No users match the current filters"
+                  ? 'Try adjusting your search criteria'
+                  : 'No users match the current filters'
               }
             />
           )}
@@ -569,19 +569,19 @@ export default function UsersScreen() {
                 onFilterPress={() => setShowFilterModal(true)}
                 onSortPress={() => {
                   const sortFields: Array<
-                    | "name"
-                    | "email"
-                    | "role"
-                    | "status"
-                    | "created_at"
-                    | "last_login"
+                    | 'name'
+                    | 'email'
+                    | 'role'
+                    | 'status'
+                    | 'created_at'
+                    | 'last_login'
                   > = [
-                    "created_at",
-                    "name",
-                    "email",
-                    "role",
-                    "status",
-                    "last_login",
+                    'created_at',
+                    'name',
+                    'email',
+                    'role',
+                    'status',
+                    'last_login',
                   ];
                   const currentIndex = sortFields.indexOf(sortBy);
                   const nextIndex = (currentIndex + 1) % sortFields.length;
@@ -598,8 +598,8 @@ export default function UsersScreen() {
 
               <BulkActionsBar
                 selectedCount={selectedUsers.length}
-                onActivate={() => handleBulkStatusUpdate("active")}
-                onSuspend={() => handleBulkStatusUpdate("suspended")}
+                onActivate={() => handleBulkStatusUpdate('active')}
+                onSuspend={() => handleBulkStatusUpdate('suspended')}
                 onClear={() => setSelectedUsers([])}
                 canUpdateUsers={canUpdateUsers()}
               />
@@ -643,8 +643,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginRight: 12,
   },
@@ -658,11 +658,11 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
     borderWidth: 1,
-    borderColor: colors.border + "60",
+    borderColor: colors.border + '60',
   },
   userItemWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   selectionCheckbox: {
@@ -673,10 +673,10 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: colors.primary + "40",
+    borderColor: colors.primary + '40',
     backgroundColor: colors.card,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -692,21 +692,21 @@ const styles = StyleSheet.create({
   },
   noPermissionContainer: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 64,
     gap: 16,
   },
   noPermissionText: {
     fontSize: 16,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 250,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: colors.backgroundSecondary,
   },
   loadingText: {

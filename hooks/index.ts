@@ -43,5 +43,10 @@ export { useUserManagement } from './useUserManagement';
 // Consistent Management Hooks
 export { useFAQManagement } from './useFAQManagement';
 export { useZoneManagement } from './useZoneManagement';
-export { useIslandManagement, useIslandsByZone, useIslandStats, useIslandDetails } from './useIslandManagement';
-export { useContentManagement } from './useContentManagement'; 
+export {
+  useIslandManagement,
+  useIslandsByZone,
+  useIslandStats,
+  useIslandDetails,
+} from './useIslandManagement';
+export { useContentManagement } from './useContentManagement';

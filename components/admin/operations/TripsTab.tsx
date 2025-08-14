@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,24 +6,24 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
-} from "react-native";
-import { router } from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { useTripManagement } from "@/hooks/useTripManagement";
-import { useRouteManagement } from "@/hooks/useRouteManagement";
-import { useVesselManagement } from "@/hooks/useVesselManagement";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { useOperationsStore } from "@/store/admin/operationsStore";
-import { Plus, Eye, AlertTriangle, Calendar, Zap } from "lucide-react-native";
+} from 'react-native';
+import { router } from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { useTripManagement } from '@/hooks/useTripManagement';
+import { useRouteManagement } from '@/hooks/useRouteManagement';
+import { useVesselManagement } from '@/hooks/useVesselManagement';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useOperationsStore } from '@/store/admin/operationsStore';
+import { Plus, Eye, AlertTriangle, Calendar, Zap } from 'lucide-react-native';
 
 // Components
-import SectionHeader from "@/components/admin/SectionHeader";
-import Button from "@/components/admin/Button";
-import SearchBar from "@/components/admin/SearchBar";
-import TripItem from "@/components/admin/TripItem";
-import LoadingSpinner from "@/components/admin/LoadingSpinner";
-import TripGenerator from "./TripGenerator";
-import TripInsights from "./TripInsights";
+import SectionHeader from '@/components/admin/SectionHeader';
+import Button from '@/components/admin/Button';
+import SearchBar from '@/components/admin/SearchBar';
+import TripItem from '@/components/admin/TripItem';
+import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import TripGenerator from './TripGenerator';
+import TripInsights from './TripInsights';
 
 interface TripsTabProps {
   isActive: boolean;
@@ -32,7 +32,7 @@ interface TripsTabProps {
 
 export default function TripsTab({
   isActive,
-  searchQuery = "",
+  searchQuery = '',
 }: TripsTabProps) {
   const { canViewTrips, canManageTrips } = useAdminPermissions();
   const {
@@ -92,11 +92,11 @@ export default function TripsTab({
     if (!filteredTrips) return [];
 
     let filtered = filteredTrips;
-    const query = searchQuery || tripSearchQuery || "";
+    const query = searchQuery || tripSearchQuery || '';
 
     if (query) {
       filtered = filteredTrips.filter(
-        (trip) =>
+        trip =>
           trip.route_name?.toLowerCase().includes(query.toLowerCase()) ||
           trip.vessel_name?.toLowerCase().includes(query.toLowerCase()) ||
           trip.travel_date?.toLowerCase().includes(query.toLowerCase()) ||
@@ -111,7 +111,7 @@ export default function TripsTab({
   const displayTrips = useMemo(() => {
     return filteredTripsData
       .filter(
-        (trip, index, self) => index === self.findIndex((t) => t.id === trip.id)
+        (trip, index, self) => index === self.findIndex(t => t.id === trip.id)
       )
       .sort((a, b) => {
         // Sort by travel date (most recent first)
@@ -136,7 +136,7 @@ export default function TripsTab({
         refreshAll(),
       ]);
     } catch (error) {
-      console.error("Error refreshing data:", error);
+      console.error('Error refreshing data:', error);
     } finally {
       setIsRefreshing(false);
     }
@@ -150,17 +150,17 @@ export default function TripsTab({
 
   const handleAddTrip = () => {
     if (canManageTrips()) {
-      router.push("../trip/new" as any);
+      router.push('../trip/new' as any);
     } else {
       Alert.alert(
-        "Access Denied",
+        'Access Denied',
         "You don't have permission to create trips."
       );
     }
   };
 
   const handleViewAllTrips = () => {
-    router.push("../trips" as any);
+    router.push('../trips' as any);
   };
 
   const handleGeneratorResult = (result: any) => {
@@ -175,7 +175,7 @@ export default function TripsTab({
       router.push(`../trip/new?route_id=${routeId}` as any);
     } else {
       Alert.alert(
-        "Access Denied",
+        'Access Denied',
         "You don't have permission to create trips."
       );
     }
@@ -186,7 +186,7 @@ export default function TripsTab({
       router.push(`../trip/new?vessel_id=${vesselId}` as any);
     } else {
       Alert.alert(
-        "Access Denied",
+        'Access Denied',
         "You don't have permission to create trips."
       );
     }
@@ -195,22 +195,22 @@ export default function TripsTab({
   // Helper function to map computed_status to TripItem status
   const mapTripStatus = (computedStatus: string) => {
     switch (computedStatus) {
-      case "scheduled":
-        return "scheduled";
-      case "boarding":
-        return "boarding";
-      case "departed":
-        return "departed";
-      case "arrived":
-        return "arrived";
-      case "completed":
-        return "arrived"; // Map completed to arrived for display
-      case "cancelled":
-        return "cancelled";
-      case "delayed":
-        return "delayed";
+      case 'scheduled':
+        return 'scheduled';
+      case 'boarding':
+        return 'boarding';
+      case 'departed':
+        return 'departed';
+      case 'arrived':
+        return 'arrived';
+      case 'completed':
+        return 'arrived'; // Map completed to arrived for display
+      case 'cancelled':
+        return 'cancelled';
+      case 'delayed':
+        return 'delayed';
       default:
-        return "scheduled";
+        return 'scheduled';
     }
   };
 
@@ -237,24 +237,24 @@ export default function TripsTab({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderContent}>
           <SectionHeader
-            title="Trips Management"
+            title='Trips Management'
             subtitle={`${stats.todayTrips} trips today`}
           />
         </View>
         {canManageTrips() && (
           <View style={styles.sectionHeaderActions}>
             <Button
-              title="Generate"
+              title='Generate'
               onPress={() => setShowGenerator(true)}
-              size="small"
-              variant="outline"
+              size='small'
+              variant='outline'
               icon={<Zap size={16} color={colors.primary} />}
             />
             <Button
-              title="Add Trip"
+              title='Add Trip'
               onPress={handleAddTrip}
-              size="small"
-              variant="primary"
+              size='small'
+              variant='primary'
               icon={<Plus size={16} color={colors.white} />}
             />
           </View>
@@ -263,9 +263,9 @@ export default function TripsTab({
 
       {/* Search Bar */}
       <SearchBar
-        placeholder="Search trips..."
-        value={searchQuery || tripSearchQuery || ""}
-        onChangeText={(text) => setTripSearchQuery(text)}
+        placeholder='Search trips...'
+        value={searchQuery || tripSearchQuery || ''}
+        onChangeText={text => setTripSearchQuery(text)}
       />
 
       {/* Trip Insights */}
@@ -317,8 +317,8 @@ export default function TripsTab({
             <Text style={styles.emptyStateTitle}>No trips found</Text>
             <Text style={styles.emptyStateText}>
               {searchQuery || tripSearchQuery
-                ? "Try adjusting your search terms"
-                : "No trips scheduled"}
+                ? 'Try adjusting your search terms'
+                : 'No trips scheduled'}
             </Text>
           </View>
         )}
@@ -348,9 +348,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
     minHeight: 44,
     paddingHorizontal: 4,
@@ -361,61 +361,61 @@ const styles = StyleSheet.create({
   },
   sectionHeaderButton: {
     flexShrink: 0,
-    maxWidth: "40%",
+    maxWidth: '40%',
   },
   sectionHeaderActions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
     flexShrink: 0,
-    maxWidth: "50%",
+    maxWidth: '50%',
   },
   itemsList: {
     gap: 12,
     marginTop: 16,
   },
   viewAllButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 16,
-    backgroundColor: colors.primary + "10",
+    backgroundColor: colors.primary + '10',
     borderRadius: 8,
     gap: 8,
   },
   viewAllText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.primary,
   },
   emptyState: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingVertical: 40,
     gap: 12,
   },
   emptyStateTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
   },
   emptyStateText: {
     fontSize: 14,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 280,
   },
   noPermissionContainer: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 64,
     gap: 16,
   },
   noPermissionText: {
     fontSize: 16,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 250,
   },
 });

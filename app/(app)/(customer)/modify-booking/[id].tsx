@@ -8,10 +8,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  TouchableOpacity
+  TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useUserBookingsStore, useRouteStore, useTripStore, useSeatStore } from '@/store';
+import {
+  useUserBookingsStore,
+  useRouteStore,
+  useTripStore,
+  useSeatStore,
+} from '@/store';
 import { supabase } from '@/utils/supabase';
 import { useKeyboardHandler } from '@/hooks/useKeyboardHandler';
 import { useFormValidation } from '@/hooks/useFormValidation';
@@ -25,7 +30,12 @@ import SeatSelector from '@/components/SeatSelector';
 import { processPayment, calculateFareDifference } from '@/utils/paymentUtils';
 import { formatSimpleDate } from '@/utils/dateUtils';
 import type { Seat } from '@/types';
-import type { PaymentMethod, BankDetails, ModifyBookingData, BookingFormErrors } from '@/types/pages/booking';
+import type {
+  PaymentMethod,
+  BankDetails,
+  ModifyBookingData,
+  BookingFormErrors,
+} from '@/types/pages/booking';
 
 export default function ModifyBookingScreen() {
   const { id } = useLocalSearchParams();
@@ -36,24 +46,23 @@ export default function ModifyBookingScreen() {
     bookings,
     modifyBooking,
     fetchUserBookings,
-    isLoading: bookingsLoading
+    isLoading: bookingsLoading,
   } = useUserBookingsStore();
 
-  const {
-    fetchTrips,
-    trips,
-    isLoading: tripLoading
-  } = useTripStore();
+  const { fetchTrips, trips, isLoading: tripLoading } = useTripStore();
 
   const {
     availableSeats,
     fetchAvailableSeats,
-    isLoading: seatLoading
+    isLoading: seatLoading,
   } = useSeatStore();
 
   // Custom hooks
-  const { handleInputFocus, setInputRef } = useKeyboardHandler({ scrollViewRef });
-  const { errors, setErrors, clearError, validateRequired } = useFormValidation();
+  const { handleInputFocus, setInputRef } = useKeyboardHandler({
+    scrollViewRef,
+  });
+  const { errors, setErrors, clearError, validateRequired } =
+    useFormValidation();
 
   // State management
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -61,8 +70,11 @@ export default function ModifyBookingScreen() {
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [modificationReason, setModificationReason] = useState('');
   const [fareDifference, setFareDifference] = useState(0);
-  const [tripSeatCounts, setTripSeatCounts] = useState<Record<string, number>>({});
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('wallet');
+  const [tripSeatCounts, setTripSeatCounts] = useState<Record<string, number>>(
+    {}
+  );
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<PaymentMethod>('wallet');
   const [bankAccountDetails, setBankAccountDetails] = useState<BankDetails>({
     accountNumber: '',
     accountName: '',
@@ -82,7 +94,8 @@ export default function ModifyBookingScreen() {
   const isLoading = bookingsLoading || tripLoading || seatLoading;
 
   // Find the specific booking
-  const booking = bookings.find((b: any) => String(b.id) === String(id)) || null;
+  const booking =
+    bookings.find((b: any) => String(b.id) === String(id)) || null;
 
   // Use booking eligibility hook
   const { isModifiable, message } = useBookingEligibility({ booking });
@@ -91,7 +104,7 @@ export default function ModifyBookingScreen() {
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
-      (e) => {
+      e => {
         setKeyboardHeight(e.endCoordinates.height);
         if (activeInput) {
           scrollToInput(activeInput);
@@ -114,7 +127,8 @@ export default function ModifyBookingScreen() {
 
   const scrollToInput = (inputKey: string) => {
     setTimeout(() => {
-      const inputRef = inputRefs.current[inputKey as keyof typeof inputRefs.current];
+      const inputRef =
+        inputRefs.current[inputKey as keyof typeof inputRefs.current];
       if (inputRef && scrollViewRef.current) {
         inputRef.measureLayout(
           scrollViewRef.current,
@@ -126,7 +140,7 @@ export default function ModifyBookingScreen() {
               animated: true,
             });
           },
-          () => { }
+          () => {}
         );
       }
     }, 100);
@@ -147,9 +161,18 @@ export default function ModifyBookingScreen() {
       // Set default payment method based on original booking
       if (booking.payment?.method) {
         // Ensure the payment method is valid, fallback to 'wallet' if not
-        const validMethods: PaymentMethod[] = ['bank_transfer', 'bml', 'mib', 'ooredoo_m_faisa', 'fahipay', 'wallet'];
-        const method = validMethods.includes(booking.payment.method as PaymentMethod)
-          ? booking.payment.method as PaymentMethod
+        const validMethods: PaymentMethod[] = [
+          'bank_transfer',
+          'bml',
+          'mib',
+          'ooredoo_m_faisa',
+          'fahipay',
+          'wallet',
+        ];
+        const method = validMethods.includes(
+          booking.payment.method as PaymentMethod
+        )
+          ? (booking.payment.method as PaymentMethod)
           : 'wallet';
         setSelectedPaymentMethod(method);
       }
@@ -198,9 +221,10 @@ export default function ModifyBookingScreen() {
         return;
       }
 
-      const availableCount = seatReservations?.filter(
-        (seat: any) => seat.is_available && !seat.booking_id
-      ).length || 0;
+      const availableCount =
+        seatReservations?.filter(
+          (seat: any) => seat.is_available && !seat.booking_id
+        ).length || 0;
 
       setTripSeatCounts(prev => ({ ...prev, [tripId]: availableCount }));
     } catch (error) {
@@ -248,7 +272,10 @@ export default function ModifyBookingScreen() {
       isValid = false;
     }
 
-    const reasonError = validateRequired(modificationReason, 'Modification reason');
+    const reasonError = validateRequired(
+      modificationReason,
+      'Modification reason'
+    );
     if (reasonError) {
       newErrors.reason = reasonError;
       isValid = false;
@@ -256,19 +283,28 @@ export default function ModifyBookingScreen() {
 
     // Validate payment details for refunds
     if (fareDifference < 0 && selectedPaymentMethod === 'bank_transfer') {
-      const accountNumberError = validateRequired(bankAccountDetails.accountNumber, 'Account number');
+      const accountNumberError = validateRequired(
+        bankAccountDetails.accountNumber,
+        'Account number'
+      );
       if (accountNumberError) {
         newErrors.accountNumber = accountNumberError;
         isValid = false;
       }
 
-      const accountNameError = validateRequired(bankAccountDetails.accountName, 'Account name');
+      const accountNameError = validateRequired(
+        bankAccountDetails.accountName,
+        'Account name'
+      );
       if (accountNameError) {
         newErrors.accountName = accountNameError;
         isValid = false;
       }
 
-      const bankNameError = validateRequired(bankAccountDetails.bankName, 'Bank name');
+      const bankNameError = validateRequired(
+        bankAccountDetails.bankName,
+        'Bank name'
+      );
       if (bankNameError) {
         newErrors.bankName = bankNameError;
         isValid = false;
@@ -281,7 +317,10 @@ export default function ModifyBookingScreen() {
 
   const handleModify = async () => {
     if (!isModifiable) {
-      Alert.alert("Cannot Modify", message || "This booking cannot be modified");
+      Alert.alert(
+        'Cannot Modify',
+        message || 'This booking cannot be modified'
+      );
       return;
     }
 
@@ -309,49 +348,56 @@ export default function ModifyBookingScreen() {
       if (fareDifference > 0) {
         // Additional payment required
         Alert.alert(
-          "Booking Modified",
+          'Booking Modified',
           `Your booking has been modified successfully. An additional payment of MVR ${fareDifference.toFixed(2)} is required.`,
           [
             {
-              text: "Pay Later",
-              onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings')
+              text: 'Pay Later',
+              onPress: () =>
+                router.replace('/(app)/(customer)/(tabs)/bookings'),
             },
             {
-              text: "Pay Now",
+              text: 'Pay Now',
               onPress: async () => {
-                await processPayment(selectedPaymentMethod, fareDifference, booking.id);
+                await processPayment(
+                  selectedPaymentMethod,
+                  fareDifference,
+                  booking.id
+                );
                 router.replace('/(app)/(customer)/(tabs)/bookings');
-              }
-            }
+              },
+            },
           ]
         );
       } else if (fareDifference < 0) {
         // Refund scenario
         Alert.alert(
-          "Booking Modified",
+          'Booking Modified',
           `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed within 72 hours.`,
           [
             {
-              text: "OK",
-              onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings')
-            }
+              text: 'OK',
+              onPress: () =>
+                router.replace('/(app)/(customer)/(tabs)/bookings'),
+            },
           ]
         );
       } else {
         // No fare difference
         Alert.alert(
-          "Booking Modified",
-          "Your booking has been modified successfully. No additional payment or refund is required.",
+          'Booking Modified',
+          'Your booking has been modified successfully. No additional payment or refund is required.',
           [
             {
-              text: "OK",
-              onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings')
-            }
+              text: 'OK',
+              onPress: () =>
+                router.replace('/(app)/(customer)/(tabs)/bookings'),
+            },
           ]
         );
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to modify booking. Please try again.");
+      Alert.alert('Error', 'Failed to modify booking. Please try again.');
     }
   };
 
@@ -370,7 +416,7 @@ export default function ModifyBookingScreen() {
       <View style={styles.notFoundContainer}>
         <Text style={styles.notFoundText}>Booking not found</Text>
         <Button
-          title="Go Back"
+          title='Go Back'
           onPress={() => router.back()}
           style={styles.notFoundButton}
         />
@@ -390,10 +436,10 @@ export default function ModifyBookingScreen() {
         style={styles.scrollView}
         contentContainerStyle={[styles.contentContainer, { flexGrow: 1 }]}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps='handled'
       >
         {/* Current Booking Details */}
-        <Card variant="elevated" style={styles.bookingCard}>
+        <Card variant='elevated' style={styles.bookingCard}>
           <Text style={styles.cardTitle}>Current Booking Details</Text>
 
           <View style={styles.detailRow}>
@@ -434,18 +480,20 @@ export default function ModifyBookingScreen() {
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Current Fare:</Text>
-            <Text style={styles.detailValue}>MVR {booking.totalFare.toFixed(2)}</Text>
+            <Text style={styles.detailValue}>
+              MVR {booking.totalFare.toFixed(2)}
+            </Text>
           </View>
         </Card>
 
         {/* Modification Form */}
-        <Card variant="elevated" style={styles.modifyCard}>
+        <Card variant='elevated' style={styles.modifyCard}>
           <Text style={styles.cardTitle}>Modify Booking</Text>
 
           <DatePicker
-            label="New Travel Date"
+            label='New Travel Date'
             value={selectedDate}
-            onChange={(date) => {
+            onChange={date => {
               setSelectedDate(date);
               setSelectedTrip(null);
               setSelectedSeats([]);
@@ -460,12 +508,12 @@ export default function ModifyBookingScreen() {
           {trips.length > 0 && (
             <View style={styles.tripSelection}>
               <Text style={styles.sectionTitle}>Select New Trip</Text>
-              {trips.map((trip) => (
+              {trips.map(trip => (
                 <TouchableOpacity
                   key={trip.id}
                   style={[
                     styles.tripOption,
-                    selectedTrip?.id === trip.id && styles.tripOptionSelected
+                    selectedTrip?.id === trip.id && styles.tripOptionSelected,
                   ]}
                   onPress={() => {
                     setSelectedTrip(trip);
@@ -476,7 +524,10 @@ export default function ModifyBookingScreen() {
                   <Text style={styles.tripTime}>{trip.departure_time}</Text>
                   <Text style={styles.tripVessel}>{trip.vessel_name}</Text>
                   <Text style={styles.tripSeats}>
-                    {tripSeatCounts[trip.id] !== undefined ? tripSeatCounts[trip.id] : '...'} seats available
+                    {tripSeatCounts[trip.id] !== undefined
+                      ? tripSeatCounts[trip.id]
+                      : '...'}{' '}
+                    seats available
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -488,7 +539,8 @@ export default function ModifyBookingScreen() {
 
           {/* Seat Selection */}
           <Text style={styles.seatSectionTitle}>
-            Select New Seats ({selectedSeats.length}/{booking.passengers.length})
+            Select New Seats ({selectedSeats.length}/{booking.passengers.length}
+            )
           </Text>
           {!selectedTrip ? (
             <Text style={styles.noSeatsText}>Please select a trip first</Text>
@@ -502,7 +554,9 @@ export default function ModifyBookingScreen() {
               maxSeats={booking.passengers.length}
             />
           ) : (
-            <Text style={styles.noSeatsText}>No seats available for this trip</Text>
+            <Text style={styles.noSeatsText}>
+              No seats available for this trip
+            </Text>
           )}
           {errors.seats ? (
             <Text style={styles.errorText}>{errors.seats}</Text>
@@ -511,13 +565,15 @@ export default function ModifyBookingScreen() {
           {/* Modification Reason */}
           <View
             style={styles.reasonContainer}
-            ref={(ref) => { inputRefs.current.reason = ref; }}
+            ref={ref => {
+              inputRefs.current.reason = ref;
+            }}
           >
             <Input
-              label="Reason for Modification"
-              placeholder="Please provide a reason for this modification"
+              label='Reason for Modification'
+              placeholder='Please provide a reason for this modification'
               value={modificationReason}
-              onChangeText={(text) => {
+              onChangeText={text => {
                 setModificationReason(text);
                 if (errors.reason) setErrors({ ...errors, reason: '' });
               }}
@@ -535,13 +591,17 @@ export default function ModifyBookingScreen() {
 
         {/* Fare Difference and Payment Options */}
         {selectedTrip && (
-          <Card variant="elevated" style={styles.fareDifferenceContainer}>
-            <Text style={styles.fareDifferenceTitle}>Fare Difference & Payment</Text>
+          <Card variant='elevated' style={styles.fareDifferenceContainer}>
+            <Text style={styles.fareDifferenceTitle}>
+              Fare Difference & Payment
+            </Text>
 
             <View style={styles.fareRow}>
               <View style={styles.fareColumn}>
                 <Text style={styles.fareLabel}>Current Fare</Text>
-                <Text style={styles.fareValue}>MVR {booking.totalFare.toFixed(2)}</Text>
+                <Text style={styles.fareValue}>
+                  MVR {booking.totalFare.toFixed(2)}
+                </Text>
               </View>
 
               <View style={styles.fareColumn}>
@@ -554,10 +614,14 @@ export default function ModifyBookingScreen() {
 
             <View style={styles.differenceRow}>
               <Text style={styles.differenceLabel}>Difference:</Text>
-              <Text style={[
-                styles.differenceValue,
-                fareDifference > 0 ? styles.additionalPayment : styles.refundAmount
-              ]}>
+              <Text
+                style={[
+                  styles.differenceValue,
+                  fareDifference > 0
+                    ? styles.additionalPayment
+                    : styles.refundAmount,
+                ]}
+              >
                 {fareDifference > 0 ? '+' : ''}MVR {fareDifference.toFixed(2)}
               </Text>
             </View>
@@ -573,106 +637,140 @@ export default function ModifyBookingScreen() {
                   <TouchableOpacity
                     style={[
                       styles.paymentOption,
-                      selectedPaymentMethod === 'wallet' && styles.paymentOptionSelected
+                      selectedPaymentMethod === 'wallet' &&
+                        styles.paymentOptionSelected,
                     ]}
                     onPress={() => setSelectedPaymentMethod('wallet')}
                   >
-                    <Text style={[
-                      styles.paymentOptionText,
-                      selectedPaymentMethod === 'wallet' && styles.paymentOptionTextSelected
-                    ]}>
-                      {fareDifference > 0 ? 'Online Payment' : 'Original Method'}
+                    <Text
+                      style={[
+                        styles.paymentOptionText,
+                        selectedPaymentMethod === 'wallet' &&
+                          styles.paymentOptionTextSelected,
+                      ]}
+                    >
+                      {fareDifference > 0
+                        ? 'Online Payment'
+                        : 'Original Method'}
                     </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[
                       styles.paymentOption,
-                      selectedPaymentMethod === 'bank_transfer' && styles.paymentOptionSelected
+                      selectedPaymentMethod === 'bank_transfer' &&
+                        styles.paymentOptionSelected,
                     ]}
                     onPress={() => setSelectedPaymentMethod('bank_transfer')}
                   >
-                    <Text style={[
-                      styles.paymentOptionText,
-                      selectedPaymentMethod === 'bank_transfer' && styles.paymentOptionTextSelected
-                    ]}>
+                    <Text
+                      style={[
+                        styles.paymentOptionText,
+                        selectedPaymentMethod === 'bank_transfer' &&
+                          styles.paymentOptionTextSelected,
+                      ]}
+                    >
                       Bank Transfer
                     </Text>
                   </TouchableOpacity>
-
-
                 </View>
               </View>
             )}
 
             {/* Bank Account Details for Refunds */}
-            {fareDifference < 0 && selectedPaymentMethod === 'bank_transfer' && (
-              <View style={styles.bankDetailsContainer}>
-                <Text style={styles.bankDetailsTitle}>Bank Account Details for Refund</Text>
+            {fareDifference < 0 &&
+              selectedPaymentMethod === 'bank_transfer' && (
+                <View style={styles.bankDetailsContainer}>
+                  <Text style={styles.bankDetailsTitle}>
+                    Bank Account Details for Refund
+                  </Text>
 
-                <View ref={(ref) => { inputRefs.current.accountNumber = ref; }}>
-                  <Input
-                    label="Account Number"
-                    placeholder="Enter your bank account number"
-                    value={bankAccountDetails.accountNumber}
-                    onChangeText={(text) => {
-                      setBankAccountDetails({ ...bankAccountDetails, accountNumber: text });
-                      if (errors.accountNumber) setErrors({ ...errors, accountNumber: '' });
+                  <View
+                    ref={ref => {
+                      inputRefs.current.accountNumber = ref;
                     }}
-                    onFocus={() => {
-                      setActiveInput('accountNumber');
-                      scrollToInput('accountNumber');
-                    }}
-                    error={errors.accountNumber}
-                    required
-                  />
-                </View>
+                  >
+                    <Input
+                      label='Account Number'
+                      placeholder='Enter your bank account number'
+                      value={bankAccountDetails.accountNumber}
+                      onChangeText={text => {
+                        setBankAccountDetails({
+                          ...bankAccountDetails,
+                          accountNumber: text,
+                        });
+                        if (errors.accountNumber)
+                          setErrors({ ...errors, accountNumber: '' });
+                      }}
+                      onFocus={() => {
+                        setActiveInput('accountNumber');
+                        scrollToInput('accountNumber');
+                      }}
+                      error={errors.accountNumber}
+                      required
+                    />
+                  </View>
 
-                <View ref={(ref) => { inputRefs.current.accountName = ref; }}>
-                  <Input
-                    label="Account Holder Name"
-                    placeholder="Enter account holder name"
-                    value={bankAccountDetails.accountName}
-                    onChangeText={(text) => {
-                      setBankAccountDetails({ ...bankAccountDetails, accountName: text });
-                      if (errors.accountName) setErrors({ ...errors, accountName: '' });
+                  <View
+                    ref={ref => {
+                      inputRefs.current.accountName = ref;
                     }}
-                    onFocus={() => {
-                      setActiveInput('accountName');
-                      scrollToInput('accountName');
-                    }}
-                    error={errors.accountName}
-                    required
-                  />
-                </View>
+                  >
+                    <Input
+                      label='Account Holder Name'
+                      placeholder='Enter account holder name'
+                      value={bankAccountDetails.accountName}
+                      onChangeText={text => {
+                        setBankAccountDetails({
+                          ...bankAccountDetails,
+                          accountName: text,
+                        });
+                        if (errors.accountName)
+                          setErrors({ ...errors, accountName: '' });
+                      }}
+                      onFocus={() => {
+                        setActiveInput('accountName');
+                        scrollToInput('accountName');
+                      }}
+                      error={errors.accountName}
+                      required
+                    />
+                  </View>
 
-                <View ref={(ref) => { inputRefs.current.bankName = ref; }}>
-                  <Input
-                    label="Bank Name"
-                    placeholder="Enter bank name"
-                    value={bankAccountDetails.bankName}
-                    onChangeText={(text) => {
-                      setBankAccountDetails({ ...bankAccountDetails, bankName: text });
-                      if (errors.bankName) setErrors({ ...errors, bankName: '' });
+                  <View
+                    ref={ref => {
+                      inputRefs.current.bankName = ref;
                     }}
-                    onFocus={() => {
-                      setActiveInput('bankName');
-                      scrollToInput('bankName');
-                    }}
-                    error={errors.bankName}
-                    required
-                  />
+                  >
+                    <Input
+                      label='Bank Name'
+                      placeholder='Enter bank name'
+                      value={bankAccountDetails.bankName}
+                      onChangeText={text => {
+                        setBankAccountDetails({
+                          ...bankAccountDetails,
+                          bankName: text,
+                        });
+                        if (errors.bankName)
+                          setErrors({ ...errors, bankName: '' });
+                      }}
+                      onFocus={() => {
+                        setActiveInput('bankName');
+                        scrollToInput('bankName');
+                      }}
+                      error={errors.bankName}
+                      required
+                    />
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
 
             <Text style={styles.differenceNote}>
               {fareDifference > 0
-                ? "Additional payment will be required"
+                ? 'Additional payment will be required'
                 : fareDifference < 0
-                  ? "Refund will be processed within 72 hours"
-                  : "No additional payment or refund required"
-              }
+                  ? 'Refund will be processed within 72 hours'
+                  : 'No additional payment or refund required'}
             </Text>
           </Card>
         )}
@@ -680,14 +778,14 @@ export default function ModifyBookingScreen() {
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Button
-            title="Cancel"
+            title='Cancel'
             onPress={() => router.back()}
-            variant="outline"
+            variant='outline'
             style={styles.cancelButton}
           />
 
           <Button
-            title="Confirm Modification"
+            title='Confirm Modification'
             onPress={handleModify}
             loading={isLoading}
             disabled={isLoading}

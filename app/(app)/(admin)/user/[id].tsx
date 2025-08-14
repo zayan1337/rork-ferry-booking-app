@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,15 +9,15 @@ import {
   Dimensions,
   Text,
   TouchableOpacity,
-} from "react-native";
-import { Stack, router, useLocalSearchParams } from "expo-router";
-import { colors } from "@/constants/adminColors";
+} from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { colors } from '@/constants/adminColors';
 
-import { UserProfile } from "@/types/userManagement";
-import { useUserStore } from "@/store/admin/userStore";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import RoleGuard from "@/components/RoleGuard";
-import EmptyState from "@/components/admin/EmptyState";
+import { UserProfile } from '@/types/userManagement';
+import { useUserStore } from '@/store/admin/userStore';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import RoleGuard from '@/components/RoleGuard';
+import EmptyState from '@/components/admin/EmptyState';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -27,22 +27,22 @@ import {
   Ship,
   Calendar,
   DollarSign,
-} from "lucide-react-native";
-import { supabase } from "@/utils/supabase";
+} from 'lucide-react-native';
+import { supabase } from '@/utils/supabase';
 
-import Button from "@/components/admin/Button";
-import StatusBadge from "@/components/admin/StatusBadge";
-import StatCard from "@/components/admin/StatCard";
-import LoadingSpinner from "@/components/admin/LoadingSpinner";
+import Button from '@/components/admin/Button';
+import StatusBadge from '@/components/admin/StatusBadge';
+import StatCard from '@/components/admin/StatCard';
+import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import {
   UserDetailsHeader,
   UserStatsSection,
   UserInfoSection,
   UserActionsSection,
   UserSystemInfoSection,
-} from "@/components/admin/users";
+} from '@/components/admin/users';
 
-const { width: screenWidth } = Dimensions.get("window");
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function UserDetailsPage() {
   const { id } = useLocalSearchParams();
@@ -75,8 +75,8 @@ export default function UserDetailsPage() {
         setPassengerTripData(null);
         setIslandNames(null);
 
-        if (!id || typeof id !== "string") {
-          setError("Invalid user ID");
+        if (!id || typeof id !== 'string') {
+          setError('Invalid user ID');
           return;
         }
 
@@ -87,15 +87,15 @@ export default function UserDetailsPage() {
           setUser(fetchedUser);
 
           // If it's a passenger, fetch their trip details
-          if (fetchedUser.role === "passenger") {
+          if (fetchedUser.role === 'passenger') {
             await loadPassengerTripData(fetchedUser.id);
           }
         } else {
           setError(`User with ID "${id}" not found`);
         }
       } catch (err) {
-        setError("Failed to load user details");
-        console.error("Error loading user:", err);
+        setError('Failed to load user details');
+        console.error('Error loading user:', err);
       } finally {
         setLoading(false);
       }
@@ -108,29 +108,29 @@ export default function UserDetailsPage() {
     try {
       // First, get the passenger's booking_id from the passengers table
       const { data: passengerData, error: passengerError } = await supabase
-        .from("passengers")
-        .select("booking_id")
-        .eq("id", passengerId)
+        .from('passengers')
+        .select('booking_id')
+        .eq('id', passengerId)
         .single();
 
       if (passengerError) throw passengerError;
 
       if (!passengerData?.booking_id) {
-        console.log("No booking found for passenger");
+        console.log('No booking found for passenger');
         return;
       }
 
       // Now fetch the complete trip details using the operations_trips_view
       const { data, error } = await supabase
-        .from("operations_trips_view")
-        .select("*")
+        .from('operations_trips_view')
+        .select('*')
         .eq(
-          "id",
+          'id',
           (
             await supabase
-              .from("bookings")
-              .select("trip_id")
-              .eq("id", passengerData.booking_id)
+              .from('bookings')
+              .select('trip_id')
+              .eq('id', passengerData.booking_id)
               .single()
           ).data?.trip_id
         )
@@ -147,9 +147,9 @@ export default function UserDetailsPage() {
             id: passengerData.booking_id,
             total_fare: (
               await supabase
-                .from("bookings")
-                .select("total_fare, status, created_at")
-                .eq("id", passengerData.booking_id)
+                .from('bookings')
+                .select('total_fare, status, created_at')
+                .eq('id', passengerData.booking_id)
                 .single()
             ).data,
             trips: data,
@@ -162,31 +162,31 @@ export default function UserDetailsPage() {
       // Set island names directly from the view data
       if (data) {
         setIslandNames({
-          from: data.from_island_name || "Unknown",
-          to: data.to_island_name || "Unknown",
+          from: data.from_island_name || 'Unknown',
+          to: data.to_island_name || 'Unknown',
         });
       }
     } catch (error) {
-      console.error("Error loading passenger trip data:", error);
+      console.error('Error loading passenger trip data:', error);
     }
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      if (id && typeof id === "string") {
+      if (id && typeof id === 'string') {
         const fetchedUser = await fetchById(id);
         if (fetchedUser) {
           setUser(fetchedUser);
 
           // If it's a passenger, refresh trip data too
-          if (fetchedUser.role === "passenger") {
+          if (fetchedUser.role === 'passenger') {
             await loadPassengerTripData(fetchedUser.id);
           }
         }
       }
     } catch (err) {
-      console.error("Error refreshing user:", err);
+      console.error('Error refreshing user:', err);
     } finally {
       setIsRefreshing(false);
     }
@@ -195,41 +195,41 @@ export default function UserDetailsPage() {
   const handleStatusChange = () => {
     if (!user) return;
     // Show status change modal or navigate to status management
-    Alert.alert("Change User Status", `Current status: ${user.status}`, [
+    Alert.alert('Change User Status', `Current status: ${user.status}`, [
       {
-        text: "Cancel",
-        style: "cancel",
+        text: 'Cancel',
+        style: 'cancel',
       },
       {
-        text: "Activate",
-        onPress: () => updateUserStatus("active"),
+        text: 'Activate',
+        onPress: () => updateUserStatus('active'),
       },
       {
-        text: "Suspend",
-        onPress: () => updateUserStatus("suspended"),
+        text: 'Suspend',
+        onPress: () => updateUserStatus('suspended'),
       },
       {
-        text: "Block",
-        onPress: () => updateUserStatus("inactive"),
+        text: 'Block',
+        onPress: () => updateUserStatus('inactive'),
       },
     ]);
   };
 
   const updateUserStatus = async (
-    newStatus: "active" | "inactive" | "suspended"
+    newStatus: 'active' | 'inactive' | 'suspended'
   ) => {
     if (!user) return;
 
     try {
       await update(user.id, { status: newStatus });
-      Alert.alert("Success", `User status updated to ${newStatus}`, [
+      Alert.alert('Success', `User status updated to ${newStatus}`, [
         {
-          text: "OK",
+          text: 'OK',
           onPress: () => handleRefresh(),
         },
       ]);
     } catch (error) {
-      Alert.alert("Error", "Failed to update user status");
+      Alert.alert('Error', 'Failed to update user status');
     }
   };
 
@@ -262,11 +262,11 @@ export default function UserDetailsPage() {
     if (!user) return;
 
     // For passengers, we need to find their associated trip/booking
-    if (user.role === "passenger") {
+    if (user.role === 'passenger') {
       try {
         // Find the passenger's booking to get the trip ID
         const { data: passengerData, error } = await supabase
-          .from("passengers")
+          .from('passengers')
           .select(
             `
             id,
@@ -276,7 +276,7 @@ export default function UserDetailsPage() {
             )
           `
           )
-          .eq("id", user.id)
+          .eq('id', user.id)
           .single();
 
         if (error) throw error;
@@ -291,13 +291,13 @@ export default function UserDetailsPage() {
           router.push(`../trip/${passengerData.bookings[0].trip_id}` as any);
         } else {
           Alert.alert(
-            "No Trip Found",
-            "This passenger is not associated with any trip."
+            'No Trip Found',
+            'This passenger is not associated with any trip.'
           );
         }
       } catch (error) {
-        console.error("Error finding passenger trip:", error);
-        Alert.alert("Error", "Failed to find passenger's trip details.");
+        console.error('Error finding passenger trip:', error);
+        Alert.alert('Error', "Failed to find passenger's trip details.");
       }
     } else {
       // For other users, navigate to their trips list
@@ -331,7 +331,7 @@ export default function UserDetailsPage() {
     };
 
     switch (user.role) {
-      case "customer":
+      case 'customer':
         return {
           ...baseStats,
           // Customer-specific stats
@@ -343,7 +343,7 @@ export default function UserDetailsPage() {
           completedTrips: number;
           pendingPayments: number;
         };
-      case "agent":
+      case 'agent':
         return {
           ...baseStats,
           // Agent-specific stats
@@ -359,7 +359,7 @@ export default function UserDetailsPage() {
           creditLimit: number;
           availableCredit: number;
         };
-      case "admin":
+      case 'admin':
         return {
           ...baseStats,
           // Admin-specific stats
@@ -371,7 +371,7 @@ export default function UserDetailsPage() {
           systemActions: number;
           lastLogin: string;
         };
-      case "passenger":
+      case 'passenger':
         return {
           ...baseStats,
           // Passenger-specific stats
@@ -383,7 +383,7 @@ export default function UserDetailsPage() {
           completedTrips: number;
           upcomingTrips: number;
         };
-      case "captain":
+      case 'captain':
         return {
           ...baseStats,
           // Captain-specific stats
@@ -407,7 +407,7 @@ export default function UserDetailsPage() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Loading...",
+            title: 'Loading...',
             headerShown: true,
           }}
         />
@@ -424,13 +424,13 @@ export default function UserDetailsPage() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Error",
+            title: 'Error',
             headerShown: true,
           }}
         />
         <EmptyState
           icon={<AlertTriangle size={48} color={colors.danger} />}
-          title="Error"
+          title='Error'
           message={error}
         />
       </View>
@@ -442,25 +442,25 @@ export default function UserDetailsPage() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "User Not Found",
+            title: 'User Not Found',
             headerShown: true,
           }}
         />
         <EmptyState
           icon={<AlertTriangle size={48} color={colors.warning} />}
-          title="User Not Found"
-          message="The requested user could not be found."
+          title='User Not Found'
+          message='The requested user could not be found.'
         />
       </View>
     );
   }
 
   return (
-    <RoleGuard allowedRoles={["admin"]}>
+    <RoleGuard allowedRoles={['admin']}>
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: user.name || "User Details",
+            title: user.name || 'User Details',
             headerShown: true,
             headerLeft: () => (
               <TouchableOpacity
@@ -508,7 +508,7 @@ export default function UserDetailsPage() {
           <UserInfoSection user={user} />
 
           {/* Role-Specific Actions - Hide for passengers */}
-          {user.role !== "passenger" && (
+          {user.role !== 'passenger' && (
             <UserActionsSection
               user={user}
               onViewBookings={handleViewBookings}
@@ -526,7 +526,7 @@ export default function UserDetailsPage() {
           <UserSystemInfoSection user={user} />
 
           {/* Passenger Trip Details */}
-          {user.role === "passenger" && passengerTripData && (
+          {user.role === 'passenger' && passengerTripData && (
             <View style={styles.tripDetailsCard}>
               <Text style={styles.sectionTitle}>Trip Details</Text>
 
@@ -538,8 +538,8 @@ export default function UserDetailsPage() {
                     <View style={styles.tripRoute}>
                       <MapPin size={16} color={colors.primary} />
                       <Text style={styles.tripRouteText}>
-                        {islandNames?.from || "Unknown"} →{" "}
-                        {islandNames?.to || "Unknown"}
+                        {islandNames?.from || 'Unknown'} →{' '}
+                        {islandNames?.to || 'Unknown'}
                       </Text>
                     </View>
 
@@ -553,7 +553,7 @@ export default function UserDetailsPage() {
                             ? new Date(
                                 passengerTripData.bookings[0].trips.travel_date
                               ).toLocaleDateString()
-                            : "N/A"}
+                            : 'N/A'}
                         </Text>
                       </View>
 
@@ -562,7 +562,7 @@ export default function UserDetailsPage() {
                         <Text style={styles.tripDetailLabel}>Departure</Text>
                         <Text style={styles.tripDetailValue}>
                           {passengerTripData.bookings[0].trips
-                            ?.departure_time || "N/A"}
+                            ?.departure_time || 'N/A'}
                         </Text>
                       </View>
 
@@ -571,7 +571,7 @@ export default function UserDetailsPage() {
                         <Text style={styles.tripDetailLabel}>Vessel</Text>
                         <Text style={styles.tripDetailValue}>
                           {passengerTripData.bookings[0].trips?.vessel_name ||
-                            "N/A"}
+                            'N/A'}
                         </Text>
                       </View>
 
@@ -579,9 +579,9 @@ export default function UserDetailsPage() {
                         <DollarSign size={16} color={colors.textSecondary} />
                         <Text style={styles.tripDetailLabel}>Fare</Text>
                         <Text style={styles.tripDetailValue}>
-                          MVR{" "}
+                          MVR{' '}
                           {passengerTripData.bookings[0].total_fare
-                            ?.total_fare || "N/A"}
+                            ?.total_fare || 'N/A'}
                         </Text>
                       </View>
                     </View>
@@ -597,9 +597,9 @@ export default function UserDetailsPage() {
                           {
                             backgroundColor:
                               passengerTripData.bookings[0].total_fare
-                                ?.status === "confirmed"
-                                ? colors.success + "20"
-                                : colors.warning + "20",
+                                ?.status === 'confirmed'
+                                ? colors.success + '20'
+                                : colors.warning + '20',
                           },
                         ]}
                       >
@@ -609,7 +609,7 @@ export default function UserDetailsPage() {
                             {
                               color:
                                 passengerTripData.bookings[0].total_fare
-                                  ?.status === "confirmed"
+                                  ?.status === 'confirmed'
                                   ? colors.success
                                   : colors.warning,
                             },
@@ -620,7 +620,7 @@ export default function UserDetailsPage() {
                             .toUpperCase() +
                             passengerTripData.bookings[0].total_fare?.status?.slice(
                               1
-                            ) || "Unknown"}
+                            ) || 'Unknown'}
                         </Text>
                       </View>
                     </View>
@@ -649,9 +649,9 @@ export default function UserDetailsPage() {
           <View style={styles.actionsContainer}>
             {canUpdateUsers() && (
               <Button
-                title="Manage Status"
+                title='Manage Status'
                 onPress={handleStatusChange}
-                variant="primary"
+                variant='primary'
                 icon={<Shield size={20} color={colors.white} />}
               />
             )}
@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
     marginLeft: -8,
   },
   headerActions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
   },
   headerActionButton: {
@@ -698,14 +698,14 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 16,
   },
   loadingText: {
     fontSize: 16,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
 
   actionsContainer: {
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 20,
     lineHeight: 24,
@@ -738,47 +738,47 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   tripRoute: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginBottom: 16,
   },
   tripRouteText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
   },
   tripDetailsGrid: {
     gap: 12,
   },
   tripDetailItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     paddingVertical: 8,
   },
   tripDetailLabel: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
     minWidth: 80,
   },
   tripDetailValue: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "600",
+    fontWeight: '600',
     flex: 1,
   },
   bookingStatus: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginTop: 8,
   },
   bookingStatusLabel: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   statusBadge: {
     paddingVertical: 4,
@@ -787,19 +787,19 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   viewTripButton: {
     backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
     marginTop: 16,
   },
   viewTripButtonText: {
     color: colors.white,
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
 });

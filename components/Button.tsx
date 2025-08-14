@@ -1,12 +1,19 @@
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, ActivityIndicator, ViewStyle, TextStyle } from "react-native";
-import Colors from "@/constants/colors";
+import React from 'react';
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
+import Colors from '@/constants/colors';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "outline" | "text";
-  size?: "small" | "medium" | "large";
+  variant?: 'primary' | 'secondary' | 'outline' | 'text';
+  size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
@@ -18,8 +25,8 @@ interface ButtonProps {
 export default function Button({
   title,
   onPress,
-  variant = "primary",
-  size = "medium",
+  variant = 'primary',
+  size = 'medium',
   disabled = false,
   loading = false,
   style,
@@ -29,13 +36,13 @@ export default function Button({
 }: ButtonProps) {
   const getButtonStyle = () => {
     switch (variant) {
-      case "primary":
+      case 'primary':
         return styles.primaryButton;
-      case "secondary":
+      case 'secondary':
         return styles.secondaryButton;
-      case "outline":
+      case 'outline':
         return styles.outlineButton;
-      case "text":
+      case 'text':
         return styles.textButton;
       default:
         return styles.primaryButton;
@@ -44,13 +51,13 @@ export default function Button({
 
   const getTextStyle = () => {
     switch (variant) {
-      case "primary":
+      case 'primary':
         return styles.primaryText;
-      case "secondary":
+      case 'secondary':
         return styles.secondaryText;
-      case "outline":
+      case 'outline':
         return styles.outlineText;
-      case "text":
+      case 'text':
         return styles.textButtonText;
       default:
         return styles.primaryText;
@@ -59,11 +66,11 @@ export default function Button({
 
   const getSizeStyle = () => {
     switch (size) {
-      case "small":
+      case 'small':
         return styles.smallButton;
-      case "medium":
+      case 'medium':
         return styles.mediumButton;
-      case "large":
+      case 'large':
         return styles.largeButton;
       default:
         return styles.mediumButton;
@@ -72,11 +79,11 @@ export default function Button({
 
   const getTextSizeStyle = () => {
     switch (size) {
-      case "small":
+      case 'small':
         return styles.smallText;
-      case "medium":
+      case 'medium':
         return styles.mediumText;
-      case "large":
+      case 'large':
         return styles.largeText;
       default:
         return styles.mediumText;
@@ -98,8 +105,12 @@ export default function Button({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === "outline" || variant === "text" ? Colors.primary : "white"}
-          size="small"
+          color={
+            variant === 'outline' || variant === 'text'
+              ? Colors.primary
+              : 'white'
+          }
+          size='small'
         />
       ) : (
         <>
@@ -124,9 +135,9 @@ export default function Button({
 const styles = StyleSheet.create({
   button: {
     borderRadius: 8,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   primaryButton: {
     backgroundColor: Colors.primary,
@@ -135,12 +146,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary,
   },
   outlineButton: {
-    backgroundColor: "transparent",
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: Colors.primary,
   },
   textButton: {
-    backgroundColor: "transparent",
+    backgroundColor: 'transparent',
   },
   smallButton: {
     paddingVertical: 6,
@@ -155,20 +166,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   primaryText: {
-    color: "white",
-    fontWeight: "600",
+    color: 'white',
+    fontWeight: '600',
   },
   secondaryText: {
-    color: "white",
-    fontWeight: "600",
+    color: 'white',
+    fontWeight: '600',
   },
   outlineText: {
     color: Colors.primary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   textButtonText: {
     color: Colors.primary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   smallText: {
     fontSize: 14,

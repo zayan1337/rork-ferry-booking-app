@@ -1,31 +1,31 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl } from "react-native";
-import { Stack } from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { useAdminStore } from "@/store/admin/adminStore";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { Stack } from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { useAdminStore } from '@/store/admin/adminStore';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 // UPDATED: Use hooks from the hooks index
 import {
   useRouteManagement,
   useVesselManagement,
   useTripManagement,
-} from "@/hooks";
-import { useOperationsStore } from "@/store/admin/operationsStore";
+} from '@/hooks';
+import { useOperationsStore } from '@/store/admin/operationsStore';
 import {
   getResponsiveDimensions,
   getResponsivePadding,
-} from "@/utils/dashboardUtils";
-import { AdminManagement } from "@/types";
+} from '@/utils/dashboardUtils';
+import { AdminManagement } from '@/types';
 
 // Operations Components
-import OperationsStats from "@/components/admin/operations/OperationsStats";
-import SectionSelector from "@/components/admin/operations/SectionSelector";
+import OperationsStats from '@/components/admin/operations/OperationsStats';
+import SectionSelector from '@/components/admin/operations/SectionSelector';
 import {
   RoutesTab,
   TripsTab,
   VesselsTab,
   ScheduleTab,
-} from "@/components/admin/operations";
+} from '@/components/admin/operations';
 
 type Route = AdminManagement.Route;
 
@@ -108,8 +108,8 @@ export default function OperationsScreen() {
   }, [allRoutes, loadRoutes, safeVessels, loadVessels, allTrips, loadTrips]);
 
   const [activeSection, setActiveSection] = useState<
-    "routes" | "trips" | "vessels" | "schedule"
-  >("routes");
+    'routes' | 'trips' | 'vessels' | 'schedule'
+  >('routes');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { isTablet, isSmallScreen } = getResponsiveDimensions();
@@ -125,7 +125,7 @@ export default function OperationsScreen() {
         useOperationsStore.getState().refreshAll(), // Refresh operations stats from database
       ]);
     } catch (error) {
-      console.error("Error refreshing data:", error);
+      console.error('Error refreshing data:', error);
     } finally {
       setIsRefreshing(false);
     }
@@ -133,33 +133,33 @@ export default function OperationsScreen() {
 
   const renderContent = () => {
     switch (activeSection) {
-      case "routes":
+      case 'routes':
         return (
           <RoutesTab
-            isActive={activeSection === "routes"}
+            isActive={activeSection === 'routes'}
             searchQuery={routeSearchQuery}
           />
         );
-      case "trips":
+      case 'trips':
         return (
           <TripsTab
-            isActive={activeSection === "trips"}
+            isActive={activeSection === 'trips'}
             searchQuery={tripSearchQuery}
           />
         );
-      case "vessels":
+      case 'vessels':
         return (
           <VesselsTab
-            isActive={activeSection === "vessels"}
+            isActive={activeSection === 'vessels'}
             searchQuery={vesselSearchQuery}
           />
         );
-      case "schedule":
-        return <ScheduleTab isActive={activeSection === "schedule"} />;
+      case 'schedule':
+        return <ScheduleTab isActive={activeSection === 'schedule'} />;
       default:
         return (
           <RoutesTab
-            isActive={activeSection === "routes"}
+            isActive={activeSection === 'routes'}
             searchQuery={routeSearchQuery}
           />
         );
@@ -182,7 +182,7 @@ export default function OperationsScreen() {
     >
       <Stack.Screen
         options={{
-          title: "Operations",
+          title: 'Operations',
         }}
       />
 

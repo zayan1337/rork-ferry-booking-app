@@ -1,9 +1,9 @@
-import React from "react";
-import { View, StyleSheet } from "react-native";
-import { Filter, ArrowUpDown } from "lucide-react-native";
-import { colors } from "@/constants/adminColors";
-import SearchBar from "@/components/admin/SearchBar";
-import Button from "@/components/admin/Button";
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Filter, ArrowUpDown } from 'lucide-react-native';
+import { colors } from '@/constants/adminColors';
+import SearchBar from '@/components/admin/SearchBar';
+import Button from '@/components/admin/Button';
 
 interface SearchAndFilterBarProps {
   searchQuery: string;
@@ -26,20 +26,20 @@ const SearchAndFilterBar: React.FC<SearchAndFilterBarProps> = ({
         <SearchBar
           value={searchQuery}
           onChangeText={onSearchChange}
-          placeholder="Search by name, email, phone, or ID..."
+          placeholder='Search by name, email, phone, or ID...'
         />
       </View>
       <Button
-        title=""
-        variant="outline"
-        size={isTablet ? "large" : "medium"}
+        title=''
+        variant='outline'
+        size={isTablet ? 'large' : 'medium'}
         icon={<Filter size={isTablet ? 20 : 18} color={colors.primary} />}
         onPress={onFilterPress}
       />
       <Button
-        title=""
-        variant="outline"
-        size={isTablet ? "large" : "medium"}
+        title=''
+        variant='outline'
+        size={isTablet ? 'large' : 'medium'}
         icon={<ArrowUpDown size={isTablet ? 20 : 18} color={colors.primary} />}
         onPress={onSortPress}
       />
@@ -49,8 +49,8 @@ const SearchAndFilterBar: React.FC<SearchAndFilterBarProps> = ({
 
 const styles = StyleSheet.create({
   searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
     marginBottom: 16,
   },

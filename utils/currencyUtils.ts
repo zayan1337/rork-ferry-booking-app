@@ -5,15 +5,19 @@
  * @param locale - Locale for formatting (default: en-US)
  * @returns Formatted currency string
  */
-export const formatCurrency = (amount: number | undefined, currency: string = '$', locale: string = 'en-US'): string => {
-    if (typeof amount !== 'number' || isNaN(amount)) {
-        return `${currency}0.00`;
-    }
-    
-    return `${currency}${amount.toLocaleString(locale, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    })}`;
+export const formatCurrency = (
+  amount: number | undefined,
+  currency: string = '$',
+  locale: string = 'en-US'
+): string => {
+  if (typeof amount !== 'number' || isNaN(amount)) {
+    return `${currency}0.00`;
+  }
+
+  return `${currency}${amount.toLocaleString(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 };
 
 /**
@@ -22,7 +26,7 @@ export const formatCurrency = (amount: number | undefined, currency: string = '$
  * @returns Formatted MVR currency string
  */
 export const formatMVR = (amount: number | undefined): string => {
-    return formatCurrency(amount, 'MVR ');
+  return formatCurrency(amount, 'MVR ');
 };
 
 /**
@@ -31,7 +35,7 @@ export const formatMVR = (amount: number | undefined): string => {
  * @returns Formatted USD currency string
  */
 export const formatUSD = (amount: number | undefined): string => {
-    return formatCurrency(amount, '$');
+  return formatCurrency(amount, '$');
 };
 
 /**
@@ -40,13 +44,13 @@ export const formatUSD = (amount: number | undefined): string => {
  * @returns Parsed number or 0 if invalid
  */
 export const parseCurrency = (currencyString: string): number => {
-    if (!currencyString) return 0;
-    
-    // Remove currency symbols and parse
-    const cleanString = currencyString.replace(/[^0-9.-]/g, '');
-    const parsed = parseFloat(cleanString);
-    
-    return isNaN(parsed) ? 0 : parsed;
+  if (!currencyString) return 0;
+
+  // Remove currency symbols and parse
+  const cleanString = currencyString.replace(/[^0-9.-]/g, '');
+  const parsed = parseFloat(cleanString);
+
+  return isNaN(parsed) ? 0 : parsed;
 };
 
 /**
@@ -57,21 +61,27 @@ export const parseCurrency = (currencyString: string): number => {
  * @returns Validation result
  */
 export const validateCurrencyAmount = (
-    amount: number, 
-    minAmount: number = 0, 
-    maxAmount?: number
+  amount: number,
+  minAmount: number = 0,
+  maxAmount?: number
 ): { isValid: boolean; error?: string } => {
-    if (isNaN(amount)) {
-        return { isValid: false, error: 'Invalid amount' };
-    }
-    
-    if (amount < minAmount) {
-        return { isValid: false, error: `Amount must be at least ${formatCurrency(minAmount)}` };
-    }
-    
-    if (maxAmount !== undefined && amount > maxAmount) {
-        return { isValid: false, error: `Amount cannot exceed ${formatCurrency(maxAmount)}` };
-    }
-    
-    return { isValid: true };
-}; 
+  if (isNaN(amount)) {
+    return { isValid: false, error: 'Invalid amount' };
+  }
+
+  if (amount < minAmount) {
+    return {
+      isValid: false,
+      error: `Amount must be at least ${formatCurrency(minAmount)}`,
+    };
+  }
+
+  if (maxAmount !== undefined && amount > maxAmount) {
+    return {
+      isValid: false,
+      error: `Amount cannot exceed ${formatCurrency(maxAmount)}`,
+    };
+  }
+
+  return { isValid: true };
+};

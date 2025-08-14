@@ -1,8 +1,8 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { User, Mail, Shield, Users, Ship } from "lucide-react-native";
-import { colors } from "@/constants/adminColors";
-import { UserProfile } from "@/types/userManagement";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { User, Mail, Shield, Users, Ship } from 'lucide-react-native';
+import { colors } from '@/constants/adminColors';
+import { UserProfile } from '@/types/userManagement';
 
 interface UserDetailsHeaderProps {
   user: UserProfile;
@@ -11,15 +11,15 @@ interface UserDetailsHeaderProps {
 export default function UserDetailsHeader({ user }: UserDetailsHeaderProps) {
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case "admin":
+      case 'admin':
         return <Shield size={20} color={colors.warning} />;
-      case "agent":
+      case 'agent':
         return <Users size={20} color={colors.info} />;
-      case "customer":
+      case 'customer':
         return <User size={20} color={colors.primary} />;
-      case "passenger":
+      case 'passenger':
         return <User size={20} color={colors.success} />;
-      case "captain":
+      case 'captain':
         return <Ship size={20} color={colors.primary} />;
       default:
         return <User size={20} color={colors.textSecondary} />;
@@ -28,11 +28,11 @@ export default function UserDetailsHeader({ user }: UserDetailsHeaderProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active":
+      case 'active':
         return colors.success;
-      case "inactive":
+      case 'inactive':
         return colors.textSecondary;
-      case "suspended":
+      case 'suspended':
         return colors.warning;
       default:
         return colors.textSecondary;
@@ -54,7 +54,7 @@ export default function UserDetailsHeader({ user }: UserDetailsHeaderProps) {
       <View
         style={[
           styles.statusBadge,
-          user.status === "active"
+          user.status === 'active'
             ? styles.statusActive
             : styles.statusInactive,
         ]}
@@ -68,7 +68,7 @@ export default function UserDetailsHeader({ user }: UserDetailsHeaderProps) {
         <Text
           style={[
             styles.statusText,
-            user.status === "active"
+            user.status === 'active'
               ? styles.statusTextActive
               : styles.statusTextInactive,
           ]}
@@ -82,9 +82,9 @@ export default function UserDetailsHeader({ user }: UserDetailsHeaderProps) {
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: colors.card,
     padding: 24,
     borderRadius: 16,
@@ -96,8 +96,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
   userIcon: {
@@ -105,8 +105,8 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 16,
   },
   headerContent: {
@@ -114,24 +114,24 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 24,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 6,
     lineHeight: 30,
   },
   userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   userEmail: {
     fontSize: 15,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   statusTextActive: {

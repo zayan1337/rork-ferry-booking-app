@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
-import { colors } from "@/constants/adminColors";
-import { UserFormData } from "@/types/userManagement";
-import { useUserForm } from "@/hooks/useUserForm";
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { UserFormData } from '@/types/userManagement';
+import { useUserForm } from '@/hooks/useUserForm';
 import {
   User as UserIcon,
   Mail,
@@ -18,15 +18,15 @@ import {
   Users,
   MapPin,
   Clock,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
 // Components
-import Button from "@/components/admin/Button";
-import TextInput from "@/components/admin/TextInput";
-import Switch from "@/components/admin/Switch";
-import Dropdown from "@/components/admin/Dropdown";
-import LoadingSpinner from "@/components/admin/LoadingSpinner";
-import { DateSelector } from "@/components/DateSelector";
+import Button from '@/components/admin/Button';
+import TextInput from '@/components/admin/TextInput';
+import Switch from '@/components/admin/Switch';
+import Dropdown from '@/components/admin/Dropdown';
+import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { DateSelector } from '@/components/DateSelector';
 
 interface UserFormProps {
   userId?: string;
@@ -39,10 +39,10 @@ interface FormData {
   name: string;
   email: string;
   mobile_number: string;
-  role: "admin" | "agent" | "customer" | "passenger" | "captain";
-  status: "active" | "inactive" | "suspended";
+  role: 'admin' | 'agent' | 'customer' | 'passenger' | 'captain';
+  status: 'active' | 'inactive' | 'suspended';
   date_of_birth?: string;
-  gender?: "male" | "female" | "other";
+  gender?: 'male' | 'female' | 'other';
   profile_picture?: string;
   address?: {
     street: string;
@@ -127,56 +127,56 @@ export default function UserForm({
 
     // Name validation
     if (!formData.name?.trim()) {
-      errors.name = "Full name is required";
+      errors.name = 'Full name is required';
     } else if (formData.name.trim().length < 2) {
-      errors.name = "Full name must be at least 2 characters long";
+      errors.name = 'Full name must be at least 2 characters long';
     } else if (formData.name.trim().length > 100) {
-      errors.name = "Full name must be less than 100 characters";
+      errors.name = 'Full name must be less than 100 characters';
     }
 
     // Email validation
     if (!formData.email?.trim()) {
-      errors.email = "Email address is required";
+      errors.email = 'Email address is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      errors.email = "Please enter a valid email address";
+      errors.email = 'Please enter a valid email address';
     }
 
     // Mobile number validation
     if (!formData.mobile_number?.trim()) {
-      errors.mobile_number = "Phone number is required";
+      errors.mobile_number = 'Phone number is required';
     } else if (
       !/^[\+]?[1-9][\d]{0,15}$/.test(
-        formData.mobile_number.trim().replace(/\s/g, "")
+        formData.mobile_number.trim().replace(/\s/g, '')
       )
     ) {
-      errors.mobile_number = "Please enter a valid phone number";
+      errors.mobile_number = 'Please enter a valid phone number';
     }
 
     // Role validation
     if (!formData.role) {
-      errors.role = "User role is required";
+      errors.role = 'User role is required';
     }
 
     // Status validation
     if (!formData.status) {
-      errors.status = "User status is required";
+      errors.status = 'User status is required';
     }
 
     // Password validation for new users
     if (!userId) {
       if (!formData.password?.trim()) {
-        errors.password = "Password is required for new users";
+        errors.password = 'Password is required for new users';
       } else if (formData.password.length < 8) {
-        errors.password = "Password must be at least 8 characters long";
+        errors.password = 'Password must be at least 8 characters long';
       } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
         errors.password =
-          "Password must contain uppercase, lowercase, and number";
+          'Password must contain uppercase, lowercase, and number';
       }
 
       if (!formData.confirm_password?.trim()) {
-        errors.confirm_password = "Please confirm your password";
+        errors.confirm_password = 'Please confirm your password';
       } else if (formData.password !== formData.confirm_password) {
-        errors.confirm_password = "Passwords do not match";
+        errors.confirm_password = 'Passwords do not match';
       }
     }
 
@@ -186,7 +186,7 @@ export default function UserForm({
       const today = new Date();
       const age = today.getFullYear() - dob.getFullYear();
       if (age < 0 || age > 120) {
-        errors.date_of_birth = "Please enter a valid date of birth";
+        errors.date_of_birth = 'Please enter a valid date of birth';
       }
     }
 
@@ -205,16 +205,16 @@ export default function UserForm({
     try {
       await handleSubmit();
     } catch (error) {
-      console.error("Error saving user:", error);
+      console.error('Error saving user:', error);
       let errorMessage =
-        "Failed to save user. Please check your connection and try again.";
+        'Failed to save user. Please check your connection and try again.';
 
       if (error instanceof Error) {
         if (
-          error.message.includes("duplicate key value") ||
-          error.message.includes("unique constraint")
+          error.message.includes('duplicate key value') ||
+          error.message.includes('unique constraint')
         ) {
-          errorMessage = "A user with this email address already exists.";
+          errorMessage = 'A user with this email address already exists.';
         } else {
           errorMessage = error.message;
         }
@@ -234,24 +234,24 @@ export default function UserForm({
 
   const getStatusDescription = (status: string) => {
     switch (status) {
-      case "active":
-        return "User account is active and can access the system";
-      case "inactive":
-        return "User account is temporarily disabled";
-      case "suspended":
-        return "User account is suspended due to policy violations";
+      case 'active':
+        return 'User account is active and can access the system';
+      case 'inactive':
+        return 'User account is temporarily disabled';
+      case 'suspended':
+        return 'User account is suspended due to policy violations';
       default:
-        return "";
+        return '';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active":
+      case 'active':
         return colors.success;
-      case "inactive":
+      case 'inactive':
         return colors.textSecondary;
-      case "suspended":
+      case 'suspended':
         return colors.warning;
       default:
         return colors.textSecondary;
@@ -259,23 +259,23 @@ export default function UserForm({
   };
 
   const roleOptions = [
-    { label: "Admin", value: "admin" },
-    { label: "Agent", value: "agent" },
-    { label: "Customer", value: "customer" },
-    { label: "Passenger", value: "passenger" },
-    { label: "Captain", value: "captain" },
+    { label: 'Admin', value: 'admin' },
+    { label: 'Agent', value: 'agent' },
+    { label: 'Customer', value: 'customer' },
+    { label: 'Passenger', value: 'passenger' },
+    { label: 'Captain', value: 'captain' },
   ];
 
   const statusOptions = [
-    { label: "Active", value: "active" },
-    { label: "Inactive", value: "inactive" },
-    { label: "Suspended", value: "suspended" },
+    { label: 'Active', value: 'active' },
+    { label: 'Inactive', value: 'inactive' },
+    { label: 'Suspended', value: 'suspended' },
   ];
 
   const genderOptions = [
-    { label: "Male", value: "male" },
-    { label: "Female", value: "female" },
-    { label: "Other", value: "other" },
+    { label: 'Male', value: 'male' },
+    { label: 'Female', value: 'female' },
+    { label: 'Other', value: 'other' },
   ];
 
   if (isLoading) {
@@ -283,7 +283,7 @@ export default function UserForm({
       <View style={styles.loadingContainer}>
         <LoadingSpinner />
         <Text style={styles.loadingText}>
-          {userId ? "Loading user data..." : "Preparing form..."}
+          {userId ? 'Loading user data...' : 'Preparing form...'}
         </Text>
       </View>
     );
@@ -298,12 +298,12 @@ export default function UserForm({
         </View>
         <View style={styles.headerContent}>
           <Text style={styles.title}>
-            {userId ? "Edit User" : "Create New User"}
+            {userId ? 'Edit User' : 'Create New User'}
           </Text>
           <Text style={styles.subtitle}>
             {userId
-              ? "Update user information and settings"
-              : "Add a new user to the system"}
+              ? 'Update user information and settings'
+              : 'Add a new user to the system'}
           </Text>
         </View>
       </View>
@@ -320,14 +320,14 @@ export default function UserForm({
 
           <View style={styles.formGroup}>
             <TextInput
-              label="Full Name"
-              value={formData.name || ""}
-              onChangeText={(text) => {
-                setFieldValue("name", text);
-                clearFieldError("name");
+              label='Full Name'
+              value={formData.name || ''}
+              onChangeText={text => {
+                setFieldValue('name', text);
+                clearFieldError('name');
               }}
-              placeholder="Enter full name"
-              error={validationErrors.name || getFieldError("name")}
+              placeholder='Enter full name'
+              error={validationErrors.name || getFieldError('name')}
               required
             />
           </View>
@@ -335,33 +335,33 @@ export default function UserForm({
           <View style={styles.formRow}>
             <View style={styles.formHalf}>
               <TextInput
-                label="Email Address"
-                value={formData.email || ""}
-                onChangeText={(text) => {
-                  setFieldValue("email", text);
-                  clearFieldError("email");
+                label='Email Address'
+                value={formData.email || ''}
+                onChangeText={text => {
+                  setFieldValue('email', text);
+                  clearFieldError('email');
                 }}
-                placeholder="Enter email address"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                error={validationErrors.email || getFieldError("email")}
+                placeholder='Enter email address'
+                keyboardType='email-address'
+                autoCapitalize='none'
+                error={validationErrors.email || getFieldError('email')}
                 required
               />
             </View>
 
             <View style={styles.formHalf}>
               <TextInput
-                label="Phone Number"
-                value={formData.mobile_number || ""}
-                onChangeText={(text) => {
-                  setFieldValue("mobile_number", text);
-                  clearFieldError("mobile_number");
+                label='Phone Number'
+                value={formData.mobile_number || ''}
+                onChangeText={text => {
+                  setFieldValue('mobile_number', text);
+                  clearFieldError('mobile_number');
                 }}
-                placeholder="Enter phone number"
-                keyboardType="phone-pad"
+                placeholder='Enter phone number'
+                keyboardType='phone-pad'
                 error={
                   validationErrors.mobile_number ||
-                  getFieldError("mobile_number")
+                  getFieldError('mobile_number')
                 }
                 required
               />
@@ -371,32 +371,32 @@ export default function UserForm({
           <View style={styles.formRow}>
             <View style={styles.formHalf}>
               <DateSelector
-                label="Date of Birth"
+                label='Date of Birth'
                 value={formData.date_of_birth || null}
-                onChange={(date) => {
-                  setFieldValue("date_of_birth", date);
-                  clearFieldError("date_of_birth");
+                onChange={date => {
+                  setFieldValue('date_of_birth', date);
+                  clearFieldError('date_of_birth');
                 }}
                 isDateOfBirth={true}
-                maxDate={new Date().toISOString().split("T")[0]}
+                maxDate={new Date().toISOString().split('T')[0]}
                 error={
                   validationErrors.date_of_birth ||
-                  getFieldError("date_of_birth")
+                  getFieldError('date_of_birth')
                 }
               />
             </View>
 
             <View style={styles.formHalf}>
               <Dropdown
-                label="Gender"
-                value={formData.gender || ""}
-                onValueChange={(value) => {
-                  setFieldValue("gender", value);
-                  clearFieldError("gender");
+                label='Gender'
+                value={formData.gender || ''}
+                onValueChange={value => {
+                  setFieldValue('gender', value);
+                  clearFieldError('gender');
                 }}
                 options={genderOptions}
-                placeholder="Select gender"
-                error={validationErrors.gender || getFieldError("gender")}
+                placeholder='Select gender'
+                error={validationErrors.gender || getFieldError('gender')}
               />
             </View>
           </View>
@@ -413,30 +413,30 @@ export default function UserForm({
 
           <View style={styles.formGroup}>
             <Dropdown
-              label="User Role"
-              value={formData.role || ""}
-              onValueChange={(value) => {
-                setFieldValue("role", value);
-                clearFieldError("role");
+              label='User Role'
+              value={formData.role || ''}
+              onValueChange={value => {
+                setFieldValue('role', value);
+                clearFieldError('role');
               }}
               options={roleOptions}
-              placeholder="Select user role"
-              error={validationErrors.role || getFieldError("role")}
+              placeholder='Select user role'
+              error={validationErrors.role || getFieldError('role')}
               required
             />
           </View>
 
           <View style={styles.formGroup}>
             <Dropdown
-              label="Account Status"
-              value={formData.status || ""}
-              onValueChange={(value) => {
-                setFieldValue("status", value);
-                clearFieldError("status");
+              label='Account Status'
+              value={formData.status || ''}
+              onValueChange={value => {
+                setFieldValue('status', value);
+                clearFieldError('status');
               }}
               options={statusOptions}
-              placeholder="Select account status"
-              error={validationErrors.status || getFieldError("status")}
+              placeholder='Select account status'
+              error={validationErrors.status || getFieldError('status')}
               required
             />
           </View>
@@ -472,32 +472,32 @@ export default function UserForm({
             <View style={styles.formRow}>
               <View style={styles.formHalf}>
                 <TextInput
-                  label="Password"
-                  value={formData.password || ""}
-                  onChangeText={(text) => {
-                    setFieldValue("password", text);
-                    clearFieldError("password");
+                  label='Password'
+                  value={formData.password || ''}
+                  onChangeText={text => {
+                    setFieldValue('password', text);
+                    clearFieldError('password');
                   }}
-                  placeholder="Enter password"
+                  placeholder='Enter password'
                   secureTextEntry
-                  error={validationErrors.password || getFieldError("password")}
+                  error={validationErrors.password || getFieldError('password')}
                   required
                 />
               </View>
 
               <View style={styles.formHalf}>
                 <TextInput
-                  label="Confirm Password"
-                  value={formData.confirm_password || ""}
-                  onChangeText={(text) => {
-                    setFieldValue("confirm_password", text);
-                    clearFieldError("confirm_password");
+                  label='Confirm Password'
+                  value={formData.confirm_password || ''}
+                  onChangeText={text => {
+                    setFieldValue('confirm_password', text);
+                    clearFieldError('confirm_password');
                   }}
-                  placeholder="Confirm password"
+                  placeholder='Confirm password'
                   secureTextEntry
                   error={
                     validationErrors.confirm_password ||
-                    getFieldError("confirm_password")
+                    getFieldError('confirm_password')
                   }
                   required
                 />
@@ -521,11 +521,11 @@ export default function UserForm({
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Button
-            title={userId ? "Update User" : "Create User"}
+            title={userId ? 'Update User' : 'Create User'}
             onPress={handleFormSubmit}
             loading={loading || isSubmitting}
             disabled={loading || isSubmitting || !canSubmit}
-            variant="primary"
+            variant='primary'
             icon={
               <Save
                 size={20}
@@ -536,9 +536,9 @@ export default function UserForm({
 
           {hasChanges && (
             <Button
-              title="Reset Changes"
+              title='Reset Changes'
               onPress={handleReset}
-              variant="outline"
+              variant='outline'
               disabled={loading || isSubmitting}
               icon={<RotateCcw size={20} color={colors.primary} />}
             />
@@ -546,9 +546,9 @@ export default function UserForm({
 
           {onCancel && (
             <Button
-              title="Cancel"
+              title='Cancel'
               onPress={onCancel}
-              variant="outline"
+              variant='outline'
               disabled={loading || isSubmitting}
             />
           )}
@@ -568,7 +568,7 @@ export default function UserForm({
   );
 
   function getFieldError(fieldName: string) {
-    return (errors as any)[fieldName] || "";
+    return (errors as any)[fieldName] || '';
   }
 }
 
@@ -577,8 +577,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.card,
     padding: 20,
     borderRadius: 16,
@@ -594,8 +594,8 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 16,
   },
   headerContent: {
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 4,
     lineHeight: 28,
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textSecondary,
     lineHeight: 20,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   section: {
     backgroundColor: colors.card,
@@ -626,8 +626,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
     gap: 12,
   },
@@ -636,12 +636,12 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     lineHeight: 24,
   },
@@ -649,15 +649,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   formRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 16,
   },
   formHalf: {
     flex: 1,
   },
   statusDescription: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
     marginTop: 12,
     paddingHorizontal: 16,
@@ -669,18 +669,18 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statusDescriptionText: {
     fontSize: 13,
     flex: 1,
-    fontWeight: "600",
+    fontWeight: '600',
     lineHeight: 18,
   },
   errorContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
     backgroundColor: colors.errorLight,
     padding: 20,
@@ -693,15 +693,15 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.error + "20",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: colors.error + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   errorText: {
     fontSize: 14,
     color: colors.error,
     flex: 1,
-    fontWeight: "600",
+    fontWeight: '600',
     lineHeight: 18,
   },
   buttonContainer: {
@@ -709,8 +709,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   statusContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
     backgroundColor: colors.warningLight,
     padding: 16,
@@ -722,19 +722,19 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.warning + "20",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: colors.warning + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statusText: {
     fontSize: 13,
     color: colors.warning,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: colors.backgroundSecondary,
     padding: 32,
   },

@@ -5,7 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import {
@@ -15,7 +15,7 @@ import {
   Users,
   Share2,
   Edit,
-  XCircle
+  XCircle,
 } from 'lucide-react-native';
 import { useUserBookingsStore } from '@/store/userBookingsStore';
 import { useBookingEligibility } from '@/hooks/useBookingEligibility';
@@ -42,14 +42,16 @@ export default function BookingDetailsScreen() {
   const booking = bookings.find(b => String(b.id) === String(id)) ?? null;
 
   // Use booking eligibility hook
-  const { isModifiable, isCancellable, message } = useBookingEligibility({ booking });
+  const { isModifiable, isCancellable, message } = useBookingEligibility({
+    booking,
+  });
 
   if (!booking) {
     return (
       <View style={styles.notFoundContainer}>
         <Text style={styles.notFoundText}>Booking not found</Text>
         <Button
-          title="Go Back"
+          title='Go Back'
           onPress={() => router.back()}
           style={styles.notFoundButton}
         />
@@ -63,7 +65,10 @@ export default function BookingDetailsScreen() {
 
   const handleModifyBooking = () => {
     if (!isModifiable) {
-      Alert.alert("Cannot Modify", message || "This booking cannot be modified");
+      Alert.alert(
+        'Cannot Modify',
+        message || 'This booking cannot be modified'
+      );
       return;
     }
 
@@ -72,7 +77,10 @@ export default function BookingDetailsScreen() {
 
   const handleCancelBooking = () => {
     if (!isCancellable) {
-      Alert.alert("Cannot Cancel", message || "This booking cannot be cancelled");
+      Alert.alert(
+        'Cannot Cancel',
+        message || 'This booking cannot be cancelled'
+      );
       return;
     }
 
@@ -80,7 +88,7 @@ export default function BookingDetailsScreen() {
   };
 
   const renderBookingDetails = () => (
-    <Card variant="elevated" style={styles.detailsCard}>
+    <Card variant='elevated' style={styles.detailsCard}>
       <Text style={styles.cardTitle}>Booking Details</Text>
 
       <View style={styles.detailRow}>
@@ -89,7 +97,9 @@ export default function BookingDetailsScreen() {
         </View>
         <View style={styles.detailContent}>
           <Text style={styles.detailLabel}>Departure Date</Text>
-          <Text style={styles.detailValue}>{formatBookingDate(booking.departureDate)}</Text>
+          <Text style={styles.detailValue}>
+            {formatBookingDate(booking.departureDate)}
+          </Text>
         </View>
       </View>
 
@@ -111,7 +121,9 @@ export default function BookingDetailsScreen() {
             </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Return Date</Text>
-              <Text style={styles.detailValue}>{formatBookingDate(booking.returnDate)}</Text>
+              <Text style={styles.detailValue}>
+                {formatBookingDate(booking.returnDate)}
+              </Text>
             </View>
           </View>
 
@@ -147,7 +159,8 @@ export default function BookingDetailsScreen() {
           <View style={styles.detailContent}>
             <Text style={styles.detailLabel}>Return Route</Text>
             <Text style={styles.detailValue}>
-              {booking.returnRoute.fromIsland.name} → {booking.returnRoute.toIsland.name}
+              {booking.returnRoute.fromIsland.name} →{' '}
+              {booking.returnRoute.toIsland.name}
             </Text>
           </View>
         </View>
@@ -166,7 +179,7 @@ export default function BookingDetailsScreen() {
   );
 
   const renderPassengerDetails = () => (
-    <Card variant="elevated" style={styles.passengersCard}>
+    <Card variant='elevated' style={styles.passengersCard}>
       <Text style={styles.cardTitle}>Passenger Details</Text>
 
       {booking.passengers.map((passenger, index) => (
@@ -193,7 +206,7 @@ export default function BookingDetailsScreen() {
   );
 
   const renderPaymentDetails = () => (
-    <Card variant="elevated" style={styles.paymentCard}>
+    <Card variant='elevated' style={styles.paymentCard}>
       <Text style={styles.cardTitle}>Payment Details</Text>
 
       {booking.payment ? (
@@ -220,12 +233,16 @@ export default function BookingDetailsScreen() {
           </View>
         </>
       ) : (
-        <Text style={styles.paymentValue}>No payment information available</Text>
+        <Text style={styles.paymentValue}>
+          No payment information available
+        </Text>
       )}
 
       <View style={styles.paymentRow}>
         <Text style={styles.paymentLabel}>Total Amount</Text>
-        <Text style={styles.totalAmount}>MVR {booking.totalFare.toFixed(2)}</Text>
+        <Text style={styles.totalAmount}>
+          MVR {booking.totalFare.toFixed(2)}
+        </Text>
       </View>
     </Card>
   );
@@ -233,9 +250,9 @@ export default function BookingDetailsScreen() {
   const renderActionButtons = () => (
     <View style={styles.actionButtons}>
       <Button
-        title="Share Ticket"
+        title='Share Ticket'
         onPress={handleShareTicket}
-        variant="outline"
+        variant='outline'
         style={styles.actionButton}
         textStyle={styles.actionButtonText}
       />
@@ -243,18 +260,18 @@ export default function BookingDetailsScreen() {
       {(isModifiable || isCancellable) && (
         <>
           <Button
-            title="Modify Booking"
+            title='Modify Booking'
             onPress={handleModifyBooking}
-            variant="outline"
+            variant='outline'
             style={styles.actionButton}
             textStyle={styles.modifyButtonText}
             disabled={!isModifiable}
           />
 
           <Button
-            title="Cancel Booking"
+            title='Cancel Booking'
             onPress={handleCancelBooking}
-            variant="outline"
+            variant='outline'
             style={styles.actionButton}
             textStyle={styles.cancelButtonText}
             disabled={!isCancellable}
@@ -270,7 +287,9 @@ export default function BookingDetailsScreen() {
       contentContainerStyle={styles.contentContainer}
     >
       <View style={styles.header}>
-        <Text style={styles.bookingNumber}>Booking #{booking.bookingNumber}</Text>
+        <Text style={styles.bookingNumber}>
+          Booking #{booking.bookingNumber}
+        </Text>
         <View
           style={[
             styles.statusBadge,

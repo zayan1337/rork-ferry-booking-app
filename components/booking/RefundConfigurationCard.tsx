@@ -36,28 +36,30 @@ const RefundConfigurationCard: React.FC<RefundConfigurationCardProps> = ({
   bankDetailsError,
 }) => {
   return (
-    <Card variant="elevated" style={styles.refundCard}>
+    <Card variant='elevated' style={styles.refundCard}>
       <Text style={styles.cardTitle}>Refund Configuration</Text>
 
       <View style={styles.refundMethodContainer}>
         <Text style={styles.refundMethodLabel}>Refund Method</Text>
         <View style={styles.refundMethods}>
           <Button
-            title="Agent Credit"
+            title='Agent Credit'
             onPress={() => onRefundMethodChange('agent_credit')}
             variant={refundMethod === 'agent_credit' ? 'primary' : 'outline'}
             style={styles.refundMethodButton}
             textStyle={styles.refundMethodText}
           />
           <Button
-            title="Original Payment"
+            title='Original Payment'
             onPress={() => onRefundMethodChange('original_payment')}
-            variant={refundMethod === 'original_payment' ? 'primary' : 'outline'}
+            variant={
+              refundMethod === 'original_payment' ? 'primary' : 'outline'
+            }
             style={styles.refundMethodButton}
             textStyle={styles.refundMethodText}
           />
           <Button
-            title="Bank Transfer"
+            title='Bank Transfer'
             onPress={() => onRefundMethodChange('bank_transfer')}
             variant={refundMethod === 'bank_transfer' ? 'primary' : 'outline'}
             style={styles.refundMethodButton}
@@ -71,27 +73,33 @@ const RefundConfigurationCard: React.FC<RefundConfigurationCardProps> = ({
             <Text style={styles.bankDetailsTitle}>Bank Transfer Details</Text>
 
             <Input
-              label="Account Number"
-              placeholder="Enter bank account number"
+              label='Account Number'
+              placeholder='Enter bank account number'
               value={bankDetails.accountNumber}
-              onChangeText={(text) => onBankDetailsChange({ ...bankDetails, accountNumber: text })}
-              keyboardType="numeric"
+              onChangeText={text =>
+                onBankDetailsChange({ ...bankDetails, accountNumber: text })
+              }
+              keyboardType='numeric'
               required
             />
 
             <Input
-              label="Account Holder Name"
-              placeholder="Enter account holder name"
+              label='Account Holder Name'
+              placeholder='Enter account holder name'
               value={bankDetails.accountName}
-              onChangeText={(text) => onBankDetailsChange({ ...bankDetails, accountName: text })}
+              onChangeText={text =>
+                onBankDetailsChange({ ...bankDetails, accountName: text })
+              }
               required
             />
 
             <Input
-              label="Bank Name"
-              placeholder="Enter bank name"
+              label='Bank Name'
+              placeholder='Enter bank name'
               value={bankDetails.bankName}
-              onChangeText={(text) => onBankDetailsChange({ ...bankDetails, bankName: text })}
+              onChangeText={text =>
+                onBankDetailsChange({ ...bankDetails, bankName: text })
+              }
               required
             />
 
@@ -106,19 +114,19 @@ const RefundConfigurationCard: React.FC<RefundConfigurationCardProps> = ({
         <Text style={styles.refundPercentageLabel}>Refund Percentage</Text>
         <View style={styles.refundPercentageButtons}>
           <Button
-            title="50%"
+            title='50%'
             onPress={() => onRefundPercentageChange(50)}
             variant={refundPercentage === 50 ? 'primary' : 'outline'}
             style={styles.percentageButton}
           />
           <Button
-            title="75%"
+            title='75%'
             onPress={() => onRefundPercentageChange(75)}
             variant={refundPercentage === 75 ? 'primary' : 'outline'}
             style={styles.percentageButton}
           />
           <Button
-            title="100%"
+            title='100%'
             onPress={() => onRefundPercentageChange(100)}
             variant={refundPercentage === 100 ? 'primary' : 'outline'}
             style={styles.percentageButton}
@@ -128,7 +136,9 @@ const RefundConfigurationCard: React.FC<RefundConfigurationCardProps> = ({
 
       <View style={styles.refundAmountRow}>
         <Text style={styles.refundAmountLabel}>Refund Amount:</Text>
-        <Text style={styles.refundAmountValue}>{formatCurrency(refundAmount)}</Text>
+        <Text style={styles.refundAmountValue}>
+          {formatCurrency(refundAmount)}
+        </Text>
       </View>
     </Card>
   );
@@ -214,4 +224,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RefundConfigurationCard; 
+export default RefundConfigurationCard;

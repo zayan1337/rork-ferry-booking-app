@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   StyleSheet,
@@ -6,18 +6,18 @@ import {
   TouchableOpacity,
   Text,
   Alert,
-} from "react-native";
-import { Stack, router } from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { ArrowLeft, AlertCircle, Plus, User } from "lucide-react-native";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+} from 'react-native';
+import { Stack, router } from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { ArrowLeft, AlertCircle, Plus, User } from 'lucide-react-native';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 // UPDATED: Use new user management hook and types
-import { useUserManagement } from "@/hooks/useUserManagement";
-import { UserFormData } from "@/types/userManagement";
+import { useUserManagement } from '@/hooks/useUserManagement';
+import { UserFormData } from '@/types/userManagement';
 
 // Components
-import UserForm from "@/components/admin/users/UserForm";
-import Button from "@/components/admin/Button";
+import UserForm from '@/components/admin/users/UserForm';
+import Button from '@/components/admin/Button';
 
 export default function NewUserScreen() {
   const { canCreateUsers } = useAdminPermissions();
@@ -28,19 +28,19 @@ export default function NewUserScreen() {
       // Create the user
       await create(userData);
 
-      Alert.alert("Success", "User created successfully!", [
+      Alert.alert('Success', 'User created successfully!', [
         {
-          text: "Create Another",
-          onPress: () => router.replace("/user/new"),
+          text: 'Create Another',
+          onPress: () => router.replace('/user/new'),
         },
         {
-          text: "Back to List",
+          text: 'Back to List',
           onPress: () => router.back(),
         },
       ]);
     } catch (error) {
-      console.error("Error creating user:", error);
-      Alert.alert("Error", "Failed to create user. Please try again.");
+      console.error('Error creating user:', error);
+      Alert.alert('Error', 'Failed to create user. Please try again.');
     }
   };
 
@@ -53,7 +53,7 @@ export default function NewUserScreen() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Access Denied",
+            title: 'Access Denied',
             headerLeft: () => (
               <TouchableOpacity
                 onPress={() => router.back()}
@@ -73,8 +73,8 @@ export default function NewUserScreen() {
             You don't have permission to create new users.
           </Text>
           <Button
-            title="Go Back"
-            variant="primary"
+            title='Go Back'
+            variant='primary'
             onPress={() => router.back()}
           />
         </View>
@@ -86,7 +86,7 @@ export default function NewUserScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: "Create User",
+          title: 'Create User',
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => router.back()}
@@ -116,8 +116,8 @@ const styles = StyleSheet.create({
   },
   noPermissionContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 20,
   },
   noAccessIcon: {
@@ -125,21 +125,21 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: colors.warningLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   noPermissionTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 8,
   },
   noPermissionText: {
     fontSize: 16,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 280,
     lineHeight: 22,
     marginBottom: 20,

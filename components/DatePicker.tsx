@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   Modal,
   Platform,
-  ScrollView
+  ScrollView,
 } from 'react-native';
 import { Calendar } from 'lucide-react-native';
 import Colors from '@/constants/colors';
@@ -76,7 +76,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
       weekday: 'short',
       day: 'numeric',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -92,17 +92,12 @@ const DatePicker: React.FC<DatePickerProps> = ({
         style={[
           styles.pickerContainer,
           error ? styles.pickerError : null,
-          disabled ? styles.pickerDisabled : null
+          disabled ? styles.pickerDisabled : null,
         ]}
         onPress={() => !disabled && setModalVisible(true)}
         disabled={disabled}
       >
-        <Text
-          style={[
-            styles.pickerText,
-            !value && styles.placeholderText
-          ]}
-        >
+        <Text style={[styles.pickerText, !value && styles.placeholderText]}>
           {value ? formatDisplayDate(value) : placeholder}
         </Text>
         <Calendar size={20} color={Colors.textSecondary} />
@@ -112,7 +107,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
 
       <Modal
         visible={modalVisible}
-        animationType="slide"
+        animationType='slide'
         transparent={true}
         onRequestClose={handleCancel}
       >
@@ -123,12 +118,12 @@ const DatePicker: React.FC<DatePickerProps> = ({
             </View>
 
             <ScrollView style={styles.dateList}>
-              {dates.map((date) => (
+              {dates.map(date => (
                 <TouchableOpacity
                   key={date.dateString}
                   style={[
                     styles.dateItem,
-                    tempDate === date.dateString && styles.selectedDateItem
+                    tempDate === date.dateString && styles.selectedDateItem,
                   ]}
                   onPress={() => setTempDate(date.dateString)}
                 >
@@ -137,7 +132,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                     <Text
                       style={[
                         styles.dateText,
-                        tempDate === date.dateString && styles.selectedDateText
+                        tempDate === date.dateString && styles.selectedDateText,
                       ]}
                     >
                       {date.day} {date.month} {date.year}
@@ -153,13 +148,13 @@ const DatePicker: React.FC<DatePickerProps> = ({
 
             <View style={styles.modalFooter}>
               <Button
-                title="Cancel"
+                title='Cancel'
                 onPress={handleCancel}
-                variant="outline"
+                variant='outline'
                 style={styles.footerButton}
               />
               <Button
-                title="Confirm"
+                title='Confirm'
                 onPress={handleConfirm}
                 disabled={!tempDate}
                 style={styles.footerButton}

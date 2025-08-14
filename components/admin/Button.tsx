@@ -1,12 +1,20 @@
-import React from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, Dimensions, ViewStyle } from "react-native";
-import { colors } from "@/constants/adminColors";
+import React from 'react';
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Dimensions,
+  ViewStyle,
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "outline" | "danger" | "ghost";
-  size?: "small" | "medium" | "large";
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
+  size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   loading?: boolean;
   icon?: React.ReactNode;
@@ -20,8 +28,8 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function Button({
   title,
   onPress,
-  variant = "primary",
-  size = "medium",
+  variant = 'primary',
+  size = 'medium',
   disabled = false,
   loading = false,
   icon,
@@ -29,22 +37,21 @@ export default function Button({
   rounded = false,
   style,
 }: ButtonProps) {
-
   const isSmallScreen = screenWidth < 480;
 
   const getBackgroundColor = () => {
     if (disabled) return colors.backgroundSecondary;
 
     switch (variant) {
-      case "primary":
+      case 'primary':
         return colors.primary;
-      case "secondary":
+      case 'secondary':
         return colors.secondary;
-      case "danger":
+      case 'danger':
         return colors.danger;
-      case "outline":
-      case "ghost":
-        return "transparent";
+      case 'outline':
+      case 'ghost':
+        return 'transparent';
       default:
         return colors.primary;
     }
@@ -54,16 +61,16 @@ export default function Button({
     if (disabled) return colors.textSecondary;
 
     switch (variant) {
-      case "outline":
+      case 'outline':
         return colors.primary;
-      case "ghost":
+      case 'ghost':
         return colors.text;
-      case "primary":
-      case "secondary":
-      case "danger":
-        return "#FFFFFF";
+      case 'primary':
+      case 'secondary':
+      case 'danger':
+        return '#FFFFFF';
       default:
-        return "#FFFFFF";
+        return '#FFFFFF';
     }
   };
 
@@ -71,32 +78,32 @@ export default function Button({
     if (disabled) return colors.border;
 
     switch (variant) {
-      case "outline":
+      case 'outline':
         return colors.primary;
-      case "ghost":
-        return "transparent";
+      case 'ghost':
+        return 'transparent';
       default:
-        return "transparent";
+        return 'transparent';
     }
   };
 
   const getSizeStyles = () => {
     switch (size) {
-      case "small":
+      case 'small':
         return {
           height: isSmallScreen ? 32 : 36,
           paddingHorizontal: isSmallScreen ? 10 : 12,
           fontSize: isSmallScreen ? 13 : 14,
           borderRadius: rounded ? 18 : 8,
         };
-      case "large":
+      case 'large':
         return {
           height: isSmallScreen ? 48 : 52,
           paddingHorizontal: isSmallScreen ? 20 : 24,
           fontSize: isSmallScreen ? 16 : 18,
           borderRadius: rounded ? 26 : 12,
         };
-      case "medium":
+      case 'medium':
       default:
         return {
           height: isSmallScreen ? 40 : 44,
@@ -117,10 +124,10 @@ export default function Button({
       height: sizeStyles.height,
       paddingHorizontal: sizeStyles.paddingHorizontal,
       borderRadius: sizeStyles.borderRadius,
-      width: fullWidth ? ("100%" as const) : undefined,
+      width: fullWidth ? ('100%' as const) : undefined,
       minWidth: icon && !title ? sizeStyles.height : undefined,
     },
-    variant === "ghost" && styles.ghostButton,
+    variant === 'ghost' && styles.ghostButton,
     disabled && styles.disabledButton,
     style, // Apply the custom style prop
   ];
@@ -139,19 +146,18 @@ export default function Button({
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={disabled ? 1 : 0.7}
-      accessibilityRole="button"
+      accessibilityRole='button'
       accessibilityState={{ disabled }}
       accessibilityLabel={title}
     >
       {loading ? (
-        <ActivityIndicator
-          color={getTextColor()}
-          size="small"
-        />
+        <ActivityIndicator color={getTextColor()} size='small' />
       ) : (
         <View style={styles.content}>
           {icon && (
-            <View style={[styles.iconContainer, { marginRight: title ? 8 : 0 }]}>
+            <View
+              style={[styles.iconContainer, { marginRight: title ? 8 : 0 }]}
+            >
               {icon}
             </View>
           )}
@@ -168,8 +174,8 @@ export default function Button({
 
 const styles = StyleSheet.create({
   button: {
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
@@ -178,17 +184,17 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   content: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconContainer: {
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
-    fontWeight: "600",
-    textAlign: "center",
+    fontWeight: '600',
+    textAlign: 'center',
   },
   ghostButton: {
     shadowOpacity: 0,

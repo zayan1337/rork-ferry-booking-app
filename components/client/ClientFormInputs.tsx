@@ -32,43 +32,43 @@ const ClientFormInputs: React.FC<ClientFormInputsProps> = ({
   return (
     <View style={styles.formSection}>
       <Input
-        label="Client Name"
-        placeholder="Enter full name"
+        label='Client Name'
+        placeholder='Enter full name'
         value={formData.name}
-        onChangeText={(text) => onInputChange('name', text)}
+        onChangeText={text => onInputChange('name', text)}
         error={errors.name}
         leftIcon={<User size={20} color={Colors.textSecondary} />}
         required
       />
 
       <Input
-        label="Email Address"
-        placeholder="Enter email address"
+        label='Email Address'
+        placeholder='Enter email address'
         value={formData.email}
-        onChangeText={(text) => onInputChange('email', text)}
+        onChangeText={text => onInputChange('email', text)}
         error={errors.email}
         leftIcon={<Mail size={20} color={Colors.textSecondary} />}
-        keyboardType="email-address"
-        autoCapitalize="none"
+        keyboardType='email-address'
+        autoCapitalize='none'
         required
       />
 
       <Input
-        label="Phone Number"
-        placeholder="Enter phone number"
+        label='Phone Number'
+        placeholder='Enter phone number'
         value={formData.phone}
-        onChangeText={(text) => onInputChange('phone', text)}
+        onChangeText={text => onInputChange('phone', text)}
         error={errors.phone}
         leftIcon={<Phone size={20} color={Colors.textSecondary} />}
-        keyboardType="phone-pad"
+        keyboardType='phone-pad'
         required
       />
 
       <Input
-        label="ID Number (Optional)"
-        placeholder="Enter ID number"
+        label='ID Number (Optional)'
+        placeholder='Enter ID number'
         value={formData.idNumber}
-        onChangeText={(text) => onInputChange('idNumber', text)}
+        onChangeText={text => onInputChange('idNumber', text)}
         error={errors.idNumber}
         leftIcon={<CreditCard size={20} color={Colors.textSecondary} />}
       />
@@ -82,4 +82,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ClientFormInputs; 
+export default ClientFormInputs;

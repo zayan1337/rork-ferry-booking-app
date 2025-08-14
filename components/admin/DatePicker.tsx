@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,15 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
-} from "react-native";
-import { colors } from "@/constants/adminColors";
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
 import {
   Calendar,
   X,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
 interface DatePickerProps {
   value: string;
@@ -30,7 +30,7 @@ interface DatePickerProps {
 export default function DatePicker({
   value,
   onChange,
-  placeholder = "Select date",
+  placeholder = 'Select date',
   label,
   error,
   disabled = false,
@@ -39,7 +39,7 @@ export default function DatePicker({
   const [isVisible, setIsVisible] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(
-    value ? new Date(value + "T00:00:00") : null
+    value ? new Date(value + 'T00:00:00') : null
   );
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -89,8 +89,8 @@ export default function DatePicker({
 
     // Auto-confirm: format the date and call onChange immediately
     const year = newDate.getFullYear();
-    const month = String(newDate.getMonth() + 1).padStart(2, "0");
-    const dayFormatted = String(newDate.getDate()).padStart(2, "0");
+    const month = String(newDate.getMonth() + 1).padStart(2, '0');
+    const dayFormatted = String(newDate.getDate()).padStart(2, '0');
     const formattedDate = `${year}-${month}-${dayFormatted}`;
 
     onChange(formattedDate);
@@ -100,8 +100,8 @@ export default function DatePicker({
   const handleConfirm = () => {
     if (selectedDate) {
       const year = selectedDate.getFullYear();
-      const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-      const day = String(selectedDate.getDate()).padStart(2, "0");
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}`;
       onChange(formattedDate);
     }
@@ -109,7 +109,7 @@ export default function DatePicker({
   };
 
   const handleCancel = () => {
-    setSelectedDate(value ? new Date(value + "T00:00:00") : null);
+    setSelectedDate(value ? new Date(value + 'T00:00:00') : null);
     setIsVisible(false);
   };
 
@@ -128,11 +128,11 @@ export default function DatePicker({
   };
 
   const formatDisplayDate = (dateString: string) => {
-    const date = new Date(dateString + "T00:00:00");
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     });
   };
 
@@ -156,18 +156,18 @@ export default function DatePicker({
 
   const calendarDays = generateCalendarDays();
   const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   // Generate year options (current year ± 50 years)
@@ -222,7 +222,7 @@ export default function DatePicker({
       <Modal
         visible={isVisible}
         transparent
-        animationType="fade"
+        animationType='fade'
         onRequestClose={handleCancel}
       >
         <View style={styles.modalOverlay}>
@@ -264,7 +264,7 @@ export default function DatePicker({
                       style={styles.dropdownScrollView}
                       showsVerticalScrollIndicator={false}
                     >
-                      {yearOptions.map((year) => (
+                      {yearOptions.map(year => (
                         <TouchableOpacity
                           key={year}
                           style={[
@@ -373,13 +373,11 @@ export default function DatePicker({
             <View style={styles.calendarGrid}>
               {/* Day headers */}
               <View style={styles.dayHeaders}>
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                  (day) => (
-                    <Text key={day} style={styles.dayHeader}>
-                      {day}
-                    </Text>
-                  )
-                )}
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <Text key={day} style={styles.dayHeader}>
+                    {day}
+                  </Text>
+                ))}
               </View>
 
               {/* Calendar days */}
@@ -439,7 +437,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
   },
@@ -447,9 +445,9 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
   input: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
@@ -483,54 +481,54 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     backgroundColor: colors.background,
     borderRadius: 12,
     padding: 20,
-    width: "90%",
+    width: '90%',
     maxWidth: 350,
-    maxHeight: "80%",
+    maxHeight: '80%',
   },
   modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
   },
   closeButton: {
     padding: 4,
   },
   yearMonthSelector: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 20,
     gap: 12,
   },
   selectorContainer: {
     flex: 1,
-    position: "relative",
+    position: 'relative',
   },
   selectorLabel: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.textSecondary,
     marginBottom: 6,
-    textTransform: "uppercase",
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   selectorButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.backgroundSecondary,
     borderWidth: 1,
     borderColor: colors.border,
@@ -541,18 +539,18 @@ const styles = StyleSheet.create({
   },
   selectorButtonText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.text,
   },
   chevronIcon: {
     marginLeft: 8,
   },
   chevronIconRotated: {
-    transform: [{ rotate: "180deg" }],
+    transform: [{ rotate: '180deg' }],
   },
   dropdownContainer: {
-    position: "absolute",
-    top: "100%",
+    position: 'absolute',
+    top: '100%',
     left: 0,
     right: 0,
     backgroundColor: colors.background,
@@ -561,7 +559,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 4,
     elevation: 5,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -586,12 +584,12 @@ const styles = StyleSheet.create({
   },
   dropdownOptionTextSelected: {
     color: colors.primary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   calendarHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
   navButton: {
@@ -599,11 +597,11 @@ const styles = StyleSheet.create({
   },
   monthYearText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
   },
   todayButton: {
-    alignSelf: "center",
+    alignSelf: 'center',
     paddingVertical: 8,
     paddingHorizontal: 16,
     backgroundColor: colors.primaryLight,
@@ -612,33 +610,33 @@ const styles = StyleSheet.create({
   },
   todayButtonText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.primary,
   },
   calendarGrid: {
     marginBottom: 20,
   },
   dayHeaders: {
-    flexDirection: "row",
+    flexDirection: 'row',
     marginBottom: 8,
   },
   dayHeader: {
     flex: 1,
-    textAlign: "center",
+    textAlign: 'center',
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.textSecondary,
     paddingVertical: 8,
   },
   daysGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   dayCell: {
-    width: "14.28%",
+    width: '14.28%',
     aspectRatio: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: 6,
     margin: 1,
   },
@@ -654,15 +652,15 @@ const styles = StyleSheet.create({
   },
   todayText: {
     color: colors.primary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   selectedText: {
     color: colors.white,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   actionButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 12,
   },
   cancelButton: {
@@ -671,11 +669,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.textSecondary,
   },
   confirmButton: {
@@ -684,11 +682,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: colors.primary,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
   },
   confirmButtonText: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.white,
   },
 });

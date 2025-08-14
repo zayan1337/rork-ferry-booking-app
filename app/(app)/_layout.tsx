@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { Stack, useRouter } from "expo-router";
-import { useAuthStore } from "@/store/authStore";
-import Colors from "@/constants/colors";
-import AuthLoadingScreen from "@/components/AuthLoadingScreen";
+import { useEffect, useState } from 'react';
+import { Stack, useRouter } from 'expo-router';
+import { useAuthStore } from '@/store/authStore';
+import Colors from '@/constants/colors';
+import AuthLoadingScreen from '@/components/AuthLoadingScreen';
 
 export default function AppLayout() {
   const { isAuthenticated, isLoading, user, isRehydrated, preventRedirect } =
@@ -16,11 +16,11 @@ export default function AppLayout() {
       // Use setTimeout to ensure the navigation stack is ready
       setTimeout(() => {
         try {
-          router.replace("/(auth)" as any);
+          router.replace('/(auth)' as any);
         } catch (error) {
-          console.log("Navigation error during logout:", error);
+          console.log('Navigation error during logout:', error);
           // Fallback: try to navigate to auth screen
-          router.push("/(auth)" as any);
+          router.push('/(auth)' as any);
         }
       }, 100);
     }
@@ -32,12 +32,12 @@ export default function AppLayout() {
       <AuthLoadingScreen
         message={
           !isRehydrated
-            ? "Loading app data..."
+            ? 'Loading app data...'
             : !isAuthenticated
-            ? "Redirecting to login..."
-            : isLoading
-            ? "Loading your account..."
-            : "Setting up your profile..."
+              ? 'Redirecting to login...'
+              : isLoading
+                ? 'Loading your account...'
+                : 'Setting up your profile...'
         }
       />
     );
@@ -46,18 +46,18 @@ export default function AppLayout() {
   // Determine initial route based on user role
   const getInitialRouteName = () => {
     if (!user?.profile) {
-      return "(customer)";
+      return '(customer)';
     }
 
     switch (user.profile.role) {
-      case "admin":
-      case "captain":
-        return "(admin)";
-      case "agent":
-        return "(agent)";
-      case "customer":
+      case 'admin':
+      case 'captain':
+        return '(admin)';
+      case 'agent':
+        return '(agent)';
+      case 'customer':
       default:
-        return "(customer)";
+        return '(customer)';
     }
   };
 
@@ -69,14 +69,14 @@ export default function AppLayout() {
         },
         headerTintColor: Colors.text,
         headerTitleStyle: {
-          fontWeight: "600",
+          fontWeight: '600',
         },
       }}
       initialRouteName={getInitialRouteName()}
     >
-      <Stack.Screen name="(customer)" options={{ headerShown: false }} />
-      <Stack.Screen name="(agent)" options={{ headerShown: false }} />
-      <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+      <Stack.Screen name='(customer)' options={{ headerShown: false }} />
+      <Stack.Screen name='(agent)' options={{ headerShown: false }} />
+      <Stack.Screen name='(admin)' options={{ headerShown: false }} />
     </Stack>
   );
 }

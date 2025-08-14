@@ -7,15 +7,15 @@ interface FaqState {
   faqs: DBFaq[];
   categories: DBFaqCategory[];
   faqsByCategory: Record<string, DBFaq[]>;
-  
+
   // Loading states
   isLoadingFaqs: boolean;
   isLoadingCategories: boolean;
-  
+
   // Error states
   faqsError: string | null;
   categoriesError: string | null;
-  
+
   // Actions
   fetchFaqs: () => Promise<void>;
   fetchCategories: () => Promise<void>;
@@ -37,7 +37,7 @@ export const useFaqStore = create<FaqState>((set, get) => ({
   // Fetch FAQs
   fetchFaqs: async () => {
     set({ isLoadingFaqs: true, faqsError: null });
-    
+
     try {
       const { data: faqs, error } = await supabase
         .from('faqs')
@@ -48,19 +48,19 @@ export const useFaqStore = create<FaqState>((set, get) => ({
         throw error;
       }
 
-      set({ 
+      set({
         faqs: faqs || [],
-        isLoadingFaqs: false 
+        isLoadingFaqs: false,
       });
-      
+
       // Organize FAQs by category after fetching
       get().organizeFaqsByCategory();
-      
     } catch (error) {
       console.error('Error fetching FAQs:', error);
-      set({ 
-        faqsError: error instanceof Error ? error.message : 'Failed to fetch FAQs',
-        isLoadingFaqs: false 
+      set({
+        faqsError:
+          error instanceof Error ? error.message : 'Failed to fetch FAQs',
+        isLoadingFaqs: false,
       });
     }
   },
@@ -68,7 +68,7 @@ export const useFaqStore = create<FaqState>((set, get) => ({
   // Fetch FAQ categories
   fetchCategories: async () => {
     set({ isLoadingCategories: true, categoriesError: null });
-    
+
     try {
       const { data: categories, error } = await supabase
         .from('faq_categories')
@@ -79,36 +79,40 @@ export const useFaqStore = create<FaqState>((set, get) => ({
         throw error;
       }
 
-      set({ 
+      set({
         categories: categories || [],
-        isLoadingCategories: false 
+        isLoadingCategories: false,
       });
-      
     } catch (error) {
       console.error('Error fetching FAQ categories:', error);
-      set({ 
-        categoriesError: error instanceof Error ? error.message : 'Failed to fetch FAQ categories',
-        isLoadingCategories: false 
+      set({
+        categoriesError:
+          error instanceof Error
+            ? error.message
+            : 'Failed to fetch FAQ categories',
+        isLoadingCategories: false,
       });
     }
   },
 
   // Fetch FAQs with their categories
   fetchFaqsWithCategories: async () => {
-    set({ 
-      isLoadingFaqs: true, 
+    set({
+      isLoadingFaqs: true,
       isLoadingCategories: true,
       faqsError: null,
-      categoriesError: null 
+      categoriesError: null,
     });
-    
+
     try {
       const { data: faqsWithCategories, error } = await supabase
         .from('faqs')
-        .select(`
+        .select(
+          `
           *,
           category:faq_categories(*)
-        `)
+        `
+        )
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -119,37 +123,38 @@ export const useFaqStore = create<FaqState>((set, get) => ({
       const categoriesMap = new Map<string, DBFaqCategory>();
       const processedFaqs: DBFaq[] = [];
 
-      faqsWithCategories?.forEach((faq) => {
+      faqsWithCategories?.forEach(faq => {
         if (faq.category) {
           categoriesMap.set(faq.category.id, faq.category);
         }
         processedFaqs.push({
           ...faq,
-          category: faq.category
+          category: faq.category,
         });
       });
 
-      const uniqueCategories = Array.from(categoriesMap.values())
-        .sort((a, b) => a.name.localeCompare(b.name));
+      const uniqueCategories = Array.from(categoriesMap.values()).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
 
-      set({ 
+      set({
         faqs: processedFaqs,
         categories: uniqueCategories,
         isLoadingFaqs: false,
-        isLoadingCategories: false
+        isLoadingCategories: false,
       });
-      
+
       // Organize FAQs by category after fetching
       get().organizeFaqsByCategory();
-      
     } catch (error) {
       console.error('Error fetching FAQs with categories:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch FAQs';
-      set({ 
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch FAQs';
+      set({
         faqsError: errorMessage,
         categoriesError: errorMessage,
         isLoadingFaqs: false,
-        isLoadingCategories: false
+        isLoadingCategories: false,
       });
     }
   },
@@ -159,7 +164,7 @@ export const useFaqStore = create<FaqState>((set, get) => ({
     const { faqs } = get();
     const organized: Record<string, DBFaq[]> = {};
 
-    faqs.forEach((faq) => {
+    faqs.forEach(faq => {
       const categoryId = faq.category_id;
       if (!organized[categoryId]) {
         organized[categoryId] = [];
@@ -172,9 +177,9 @@ export const useFaqStore = create<FaqState>((set, get) => ({
 
   // Clear all errors
   clearErrors: () => {
-    set({ 
+    set({
       faqsError: null,
-      categoriesError: null 
+      categoriesError: null,
     });
   },
-})); 
+}));

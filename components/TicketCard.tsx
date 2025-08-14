@@ -14,12 +14,12 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
   return (
-    <Card variant="elevated" style={styles.card}>
+    <Card variant='elevated' style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.title}>Ferry Ticket</Text>
         <Text style={styles.bookingNumber}>#{booking.bookingNumber}</Text>
@@ -36,7 +36,9 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
         ) : (
           <View style={styles.qrPlaceholder}>
             <Text style={styles.qrPlaceholderText}>QR Code</Text>
-            <Text style={styles.qrPlaceholderText}>#{booking.bookingNumber}</Text>
+            <Text style={styles.qrPlaceholderText}>
+              #{booking.bookingNumber}
+            </Text>
           </View>
         )}
       </View>
@@ -47,12 +49,16 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
         <View style={styles.routeRow}>
           <View style={styles.routePoint}>
             <View style={[styles.routeDot, styles.startDot]} />
-            <Text style={styles.routeLocation}>{booking.route.fromIsland.name}</Text>
+            <Text style={styles.routeLocation}>
+              {booking.route.fromIsland.name}
+            </Text>
           </View>
           <View style={styles.routeLine} />
           <View style={styles.routePoint}>
             <View style={[styles.routeDot, styles.endDot]} />
-            <Text style={styles.routeLocation}>{booking.route.toIsland.name}</Text>
+            <Text style={styles.routeLocation}>
+              {booking.route.toIsland.name}
+            </Text>
           </View>
         </View>
       </View>
@@ -60,13 +66,23 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
       <View style={styles.infoContainer}>
         <View style={styles.infoRow}>
           <View style={styles.infoItem}>
-            <Calendar size={16} color={Colors.textSecondary} style={styles.infoIcon} />
+            <Calendar
+              size={16}
+              color={Colors.textSecondary}
+              style={styles.infoIcon}
+            />
             <Text style={styles.infoLabel}>Date</Text>
-            <Text style={styles.infoValue}>{formatDate(booking.departureDate)}</Text>
+            <Text style={styles.infoValue}>
+              {formatDate(booking.departureDate)}
+            </Text>
           </View>
 
           <View style={styles.infoItem}>
-            <Clock size={16} color={Colors.textSecondary} style={styles.infoIcon} />
+            <Clock
+              size={16}
+              color={Colors.textSecondary}
+              style={styles.infoIcon}
+            />
             <Text style={styles.infoLabel}>Time</Text>
             <Text style={styles.infoValue}>{booking.departureTime}</Text>
           </View>
@@ -74,13 +90,23 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
 
         <View style={styles.infoRow}>
           <View style={styles.infoItem}>
-            <MapPin size={16} color={Colors.textSecondary} style={styles.infoIcon} />
+            <MapPin
+              size={16}
+              color={Colors.textSecondary}
+              style={styles.infoIcon}
+            />
             <Text style={styles.infoLabel}>Zone</Text>
-            <Text style={styles.infoValue}>{booking.route.fromIsland.zone}</Text>
+            <Text style={styles.infoValue}>
+              {booking.route.fromIsland.zone}
+            </Text>
           </View>
 
           <View style={styles.infoItem}>
-            <Users size={16} color={Colors.textSecondary} style={styles.infoIcon} />
+            <Users
+              size={16}
+              color={Colors.textSecondary}
+              style={styles.infoIcon}
+            />
             <Text style={styles.infoLabel}>Passengers</Text>
             <Text style={styles.infoValue}>{booking.passengers.length}</Text>
           </View>

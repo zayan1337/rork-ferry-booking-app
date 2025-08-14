@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,13 @@ import {
   Alert,
   Dimensions,
   ActivityIndicator,
-} from "react-native";
-import { colors } from "@/constants/adminColors";
-import { Vessel } from "@/types/admin/management";
-import { formatCurrency } from "@/utils/currencyUtils";
-import Button from "@/components/admin/Button";
-import StatCard from "@/components/admin/StatCard";
-import StatusBadge from "@/components/admin/StatusBadge";
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { Vessel } from '@/types/admin/management';
+import { formatCurrency } from '@/utils/currencyUtils';
+import Button from '@/components/admin/Button';
+import StatCard from '@/components/admin/StatCard';
+import StatusBadge from '@/components/admin/StatusBadge';
 import {
   Ship,
   Users,
@@ -59,7 +59,7 @@ import {
   Crown,
   Star,
   Info,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
 interface Seat {
   id: string;
@@ -98,7 +98,7 @@ interface VesselDetailsProps {
   showActions?: boolean;
 }
 
-const { width: screenWidth } = Dimensions.get("window");
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function VesselDetails({
   vessel,
@@ -123,11 +123,11 @@ export default function VesselDetails({
   const handleArchive = () => {
     if (onArchive) {
       Alert.alert(
-        "Archive Vessel",
+        'Archive Vessel',
         `Are you sure you want to archive "${vessel.name}"? This will remove it from active service.`,
         [
-          { text: "Cancel", style: "cancel" },
-          { text: "Archive", style: "destructive", onPress: onArchive },
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Archive', style: 'destructive', onPress: onArchive },
         ]
       );
     }
@@ -135,13 +135,13 @@ export default function VesselDetails({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active":
+      case 'active':
         return colors.success;
-      case "inactive":
+      case 'inactive':
         return colors.warning;
-      case "maintenance":
+      case 'maintenance':
         return colors.warning;
-      case "decommissioned":
+      case 'decommissioned':
         return colors.danger;
       default:
         return colors.textSecondary;
@@ -155,16 +155,16 @@ export default function VesselDetails({
   };
 
   const getUtilizationRating = (utilization: number) => {
-    if (utilization >= 90) return "Excellent";
-    if (utilization >= 70) return "Good";
-    if (utilization >= 50) return "Average";
-    return "Poor";
+    if (utilization >= 90) return 'Excellent';
+    if (utilization >= 70) return 'Good';
+    if (utilization >= 50) return 'Average';
+    return 'Poor';
   };
 
   const vesselAge = 0; // year_built not available in this Vessel type
   const vesselTypeLabel =
     vessel.vessel_type?.charAt(0).toUpperCase() +
-      vessel.vessel_type?.slice(1) || "Passenger";
+      vessel.vessel_type?.slice(1) || 'Passenger';
 
   const maintenanceStatus = vessel.next_maintenance_date
     ? (() => {
@@ -176,33 +176,33 @@ export default function VesselDetails({
 
         if (daysUntil < 0)
           return {
-            status: "overdue",
+            status: 'overdue',
             message: `${Math.abs(daysUntil)} days overdue`,
             color: colors.danger,
           };
         if (daysUntil <= 30)
           return {
-            status: "due_soon",
+            status: 'due_soon',
             message: `Due in ${daysUntil} days`,
             color: colors.warning,
           };
         return {
-          status: "up_to_date",
+          status: 'up_to_date',
           message: `Due in ${daysUntil} days`,
           color: colors.success,
         };
       })()
     : {
-        status: "unknown",
-        message: "Not scheduled",
+        status: 'unknown',
+        message: 'Not scheduled',
         color: colors.textSecondary,
       };
 
   const stats = [
     {
-      title: "Utilization",
+      title: 'Utilization',
       value: `${vessel.capacity_utilization_30d || 0}%`,
-      subtitle: "Last 30 days",
+      subtitle: 'Last 30 days',
       icon: (
         <Users
           size={20}
@@ -211,34 +211,34 @@ export default function VesselDetails({
       ),
       trend:
         vessel.capacity_utilization_30d && vessel.capacity_utilization_30d > 70
-          ? "up"
-          : "neutral",
+          ? 'up'
+          : 'neutral',
     },
     {
-      title: "Trips",
-      value: vessel.total_trips_30d?.toString() || "0",
-      subtitle: "Last 30 days",
+      title: 'Trips',
+      value: vessel.total_trips_30d?.toString() || '0',
+      subtitle: 'Last 30 days',
       icon: <Activity size={20} color={colors.primary} />,
       trend:
-        vessel.total_trips_30d && vessel.total_trips_30d > 0 ? "up" : "neutral",
+        vessel.total_trips_30d && vessel.total_trips_30d > 0 ? 'up' : 'neutral',
     },
     {
-      title: "Revenue",
+      title: 'Revenue',
       value: formatCurrency(vessel.total_revenue_30d || 0),
-      subtitle: "Last 30 days",
+      subtitle: 'Last 30 days',
       icon: <DollarSign size={20} color={colors.success} />,
       trend:
         vessel.total_revenue_30d && vessel.total_revenue_30d > 0
-          ? "up"
-          : "neutral",
+          ? 'up'
+          : 'neutral',
     },
     {
-      title: "Rating",
+      title: 'Rating',
       value: `${(vessel.average_rating || 0).toFixed(1)}/5`,
-      subtitle: "Average rating",
+      subtitle: 'Average rating',
       icon: <Target size={20} color={colors.primary} />,
       trend:
-        vessel.average_rating && vessel.average_rating > 4 ? "up" : "neutral",
+        vessel.average_rating && vessel.average_rating > 4 ? 'up' : 'neutral',
     },
   ];
 
@@ -246,30 +246,30 @@ export default function VesselDetails({
   const getCompatibleStatus = (
     status: string
   ):
-    | "confirmed"
-    | "pending"
-    | "cancelled"
-    | "completed"
-    | "paid"
-    | "refunded"
-    | "failed"
-    | "active"
-    | "inactive"
-    | "suspended"
-    | "maintenance"
-    | "scheduled"
-    | "in-progress" => {
+    | 'confirmed'
+    | 'pending'
+    | 'cancelled'
+    | 'completed'
+    | 'paid'
+    | 'refunded'
+    | 'failed'
+    | 'active'
+    | 'inactive'
+    | 'suspended'
+    | 'maintenance'
+    | 'scheduled'
+    | 'in-progress' => {
     switch (status) {
-      case "active":
-        return "active";
-      case "inactive":
-        return "inactive";
-      case "maintenance":
-        return "maintenance";
-      case "decommissioned":
-        return "inactive";
+      case 'active':
+        return 'active';
+      case 'inactive':
+        return 'inactive';
+      case 'maintenance':
+        return 'maintenance';
+      case 'decommissioned':
+        return 'inactive';
       default:
-        return "pending";
+        return 'pending';
     }
   };
 
@@ -296,9 +296,9 @@ export default function VesselDetails({
       layoutConfig = layout.layout_data;
     } else {
       // Generate layout config from seats
-      const maxRow = Math.max(...seats.map((s) => s.row_number));
-      const maxCol = Math.max(...seats.map((s) => s.position_x));
-      const aisles = seats.filter((s) => s.is_aisle).map((s) => s.position_x);
+      const maxRow = Math.max(...seats.map(s => s.row_number));
+      const maxCol = Math.max(...seats.map(s => s.position_x));
+      const aisles = seats.filter(s => s.is_aisle).map(s => s.position_x);
 
       layoutConfig = {
         rows: maxRow,
@@ -319,7 +319,7 @@ export default function VesselDetails({
     }
 
     // Place seats in the grid based on their position
-    seats.forEach((seat) => {
+    seats.forEach(seat => {
       const row = seat.row_number - 1; // Convert to 0-based index
       const col = seat.position_x - 1; // Convert to 0-based index
 
@@ -382,7 +382,7 @@ export default function VesselDetails({
   const generateSimpleSeatGrid = (seats: Seat[]) => {
     // Group seats by row
     const seatsByRow = new Map<number, Seat[]>();
-    seats.forEach((seat) => {
+    seats.forEach(seat => {
       if (!seatsByRow.has(seat.row_number)) {
         seatsByRow.set(seat.row_number, []);
       }
@@ -394,14 +394,14 @@ export default function VesselDetails({
     // Sort rows and create layout
     Array.from(seatsByRow.keys())
       .sort((a, b) => a - b)
-      .forEach((rowNumber) => {
+      .forEach(rowNumber => {
         const rowSeats = seatsByRow.get(rowNumber)!;
         // Sort seats by position_x within the row
         rowSeats.sort((a, b) => a.position_x - b.position_x);
 
         const rowElements: React.ReactElement[] = [];
 
-        rowSeats.forEach((seat) => {
+        rowSeats.forEach(seat => {
           rowElements.push(renderSeat(seat));
         });
 
@@ -418,7 +418,7 @@ export default function VesselDetails({
 
   const renderSeat = (seat: Seat) => {
     const seatColor = getSeatColor(seat);
-    const isDisabled = seat.is_disabled || seat.seat_type === "disabled";
+    const isDisabled = seat.is_disabled || seat.seat_type === 'disabled';
 
     return (
       <View
@@ -455,9 +455,9 @@ export default function VesselDetails({
   };
 
   const getSeatColor = (seat: Seat) => {
-    if (seat.is_disabled || seat.seat_type === "disabled") return colors.danger;
+    if (seat.is_disabled || seat.seat_type === 'disabled') return colors.danger;
     if (seat.is_premium) return colors.success;
-    if (seat.seat_type === "crew") return colors.warning;
+    if (seat.seat_type === 'crew') return colors.warning;
     if (seat.is_window) return colors.info;
     if (seat.is_aisle) return colors.primary;
     return colors.primary;
@@ -488,7 +488,7 @@ export default function VesselDetails({
         <View
           style={[
             styles.statusBadge,
-            vessel.status === "active"
+            vessel.status === 'active'
               ? styles.statusActive
               : styles.statusInactive,
           ]}
@@ -502,7 +502,7 @@ export default function VesselDetails({
           <Text
             style={[
               styles.statusText,
-              vessel.status === "active"
+              vessel.status === 'active'
                 ? styles.statusTextActive
                 : styles.statusTextInactive,
             ]}
@@ -585,7 +585,7 @@ export default function VesselDetails({
       </View>
 
       {/* Maintenance Alert */}
-      {maintenanceStatus.status !== "up_to_date" && (
+      {maintenanceStatus.status !== 'up_to_date' && (
         <View
           style={[
             styles.alertContainer,
@@ -599,8 +599,8 @@ export default function VesselDetails({
             <Text
               style={[styles.alertTitle, { color: maintenanceStatus.color }]}
             >
-              Maintenance{" "}
-              {maintenanceStatus.status === "overdue" ? "Overdue" : "Due Soon"}
+              Maintenance{' '}
+              {maintenanceStatus.status === 'overdue' ? 'Overdue' : 'Due Soon'}
             </Text>
             <Text style={styles.alertMessage}>{maintenanceStatus.message}</Text>
           </View>
@@ -651,7 +651,7 @@ export default function VesselDetails({
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Registration</Text>
                 <Text style={styles.infoValue}>
-                  {vessel.registration_number || "N/A"}
+                  {vessel.registration_number || 'N/A'}
                 </Text>
               </View>
             </View>
@@ -668,7 +668,7 @@ export default function VesselDetails({
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Captain</Text>
                 <Text style={styles.infoValue}>
-                  {vessel.captain_name || "N/A"}
+                  {vessel.captain_name || 'N/A'}
                 </Text>
               </View>
             </View>
@@ -754,7 +754,7 @@ export default function VesselDetails({
               </Text>
               <Text style={styles.performanceLabel}>Total Trips (30d)</Text>
               <Text style={styles.performanceSubtext}>
-                Avg passengers:{" "}
+                Avg passengers:{' '}
                 {vessel.avg_passengers_per_trip?.toFixed(1) || 0}
               </Text>
             </View>
@@ -776,7 +776,7 @@ export default function VesselDetails({
               </Text>
               <Text style={styles.performanceLabel}>Capacity Utilization</Text>
               <Text style={styles.performanceSubtext}>
-                Rating:{" "}
+                Rating:{' '}
                 {getUtilizationRating(vessel.capacity_utilization_30d || 0)}
               </Text>
             </View>
@@ -799,7 +799,7 @@ export default function VesselDetails({
 
           {isLoadingSeats ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <ActivityIndicator size='large' color={colors.primary} />
               <Text style={styles.loadingText}>Loading seat layout...</Text>
             </View>
           ) : (
@@ -807,7 +807,7 @@ export default function VesselDetails({
               const seats = vessel.seats || [];
               const maxColumns =
                 seats.length > 0
-                  ? Math.max(...seats.map((s) => s.position_x))
+                  ? Math.max(...seats.map(s => s.position_x))
                   : 0;
               const shouldScroll = maxColumns > 8; // Threshold for scrolling
 
@@ -904,26 +904,20 @@ export default function VesselDetails({
                 <View style={styles.seatInfoRow}>
                   <Text style={styles.seatInfoLabel}>Window Seats:</Text>
                   <Text style={styles.seatInfoValue}>
-                    {
-                      (vessel.seats || []).filter((seat) => seat.is_window)
-                        .length
-                    }
+                    {(vessel.seats || []).filter(seat => seat.is_window).length}
                   </Text>
                 </View>
                 <View style={styles.seatInfoRow}>
                   <Text style={styles.seatInfoLabel}>Aisle Seats:</Text>
                   <Text style={styles.seatInfoValue}>
-                    {
-                      (vessel.seats || []).filter((seat) => seat.is_aisle)
-                        .length
-                    }
+                    {(vessel.seats || []).filter(seat => seat.is_aisle).length}
                   </Text>
                 </View>
                 <View style={styles.seatInfoRow}>
                   <Text style={styles.seatInfoLabel}>Premium Seats:</Text>
                   <Text style={styles.seatInfoValue}>
                     {
-                      (vessel.seats || []).filter((seat) => seat.is_premium)
+                      (vessel.seats || []).filter(seat => seat.is_premium)
                         .length
                     }
                   </Text>
@@ -933,7 +927,7 @@ export default function VesselDetails({
                   <Text style={styles.seatInfoValue}>
                     {
                       (vessel.seats || []).filter(
-                        (seat) => seat.seat_type === "crew"
+                        seat => seat.seat_type === 'crew'
                       ).length
                     }
                   </Text>
@@ -943,8 +937,8 @@ export default function VesselDetails({
                   <Text style={styles.seatInfoValue}>
                     {
                       (vessel.seats || []).filter(
-                        (seat) =>
-                          seat.is_disabled || seat.seat_type === "disabled"
+                        seat =>
+                          seat.is_disabled || seat.seat_type === 'disabled'
                       ).length
                     }
                   </Text>
@@ -966,9 +960,9 @@ export default function VesselDetails({
             </View>
             <Text style={styles.operationsDescription}>
               This vessel has {vessel.total_trips_30d || 0} trip
-              {(vessel.total_trips_30d || 0) !== 1 ? "s" : ""} in the last 30
+              {(vessel.total_trips_30d || 0) !== 1 ? 's' : ''} in the last 30
               days, with {vessel.capacity_utilization_30d?.toFixed(1) || 0}%
-              capacity utilization and{" "}
+              capacity utilization and{' '}
               {vessel.avg_passengers_per_trip?.toFixed(1) || 0} average
               passengers per trip.
             </Text>
@@ -977,8 +971,8 @@ export default function VesselDetails({
           <View style={styles.operationButtons}>
             {onViewTrips && (
               <Button
-                title="View All Trips"
-                variant="outline"
+                title='View All Trips'
+                variant='outline'
                 onPress={onViewTrips}
                 icon={<Calendar size={16} color={colors.primary} />}
                 style={styles.operationButton}
@@ -987,8 +981,8 @@ export default function VesselDetails({
 
             {onViewSeatLayout && (
               <Button
-                title="Seat Layout"
-                variant="outline"
+                title='Seat Layout'
+                variant='outline'
                 onPress={onViewSeatLayout}
                 icon={<Layout size={16} color={colors.primary} />}
                 style={styles.operationButton}
@@ -997,8 +991,8 @@ export default function VesselDetails({
 
             {onViewMaintenance && (
               <Button
-                title="Maintenance Log"
-                variant="outline"
+                title='Maintenance Log'
+                variant='outline'
                 onPress={onViewMaintenance}
                 icon={<Wrench size={16} color={colors.primary} />}
                 style={styles.operationButton}
@@ -1048,7 +1042,7 @@ export default function VesselDetails({
       </View>
 
       {/* Warnings */}
-      {vessel.status === "maintenance" && (
+      {vessel.status === 'maintenance' && (
         <View style={styles.warningContainer}>
           <AlertTriangle size={16} color={colors.warning} />
           <Text style={styles.warningText}>
@@ -1058,7 +1052,7 @@ export default function VesselDetails({
         </View>
       )}
 
-      {vessel.status === "inactive" && (
+      {vessel.status === 'inactive' && (
         <View style={styles.warningContainer}>
           <AlertTriangle size={16} color={colors.danger} />
           <Text style={styles.warningText}>
@@ -1081,9 +1075,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: colors.card,
     padding: 24,
     borderRadius: 16,
@@ -1095,8 +1089,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
   vesselIcon: {
@@ -1104,8 +1098,8 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 16,
   },
   headerContent: {
@@ -1113,24 +1107,24 @@ const styles = StyleSheet.create({
   },
   vesselName: {
     fontSize: 24,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 6,
     lineHeight: 30,
   },
   vesselInfo: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   vesselDescription: {
     fontSize: 15,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
@@ -1149,7 +1143,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   statusTextActive: {
@@ -1165,13 +1159,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statsRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   statCard: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.card,
     padding: 16,
     borderRadius: 12,
@@ -1187,15 +1181,15 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statCardContent: {
     flex: 1,
   },
   statCardValue: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     lineHeight: 22,
     marginBottom: 2,
@@ -1203,13 +1197,13 @@ const styles = StyleSheet.create({
   statCardLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "600",
-    textTransform: "uppercase",
+    fontWeight: '600',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   alertContainer: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: colors.card,
     padding: 16,
     borderRadius: 12,
@@ -1230,7 +1224,7 @@ const styles = StyleSheet.create({
   },
   alertTitle: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 4,
   },
   alertMessage: {
@@ -1251,7 +1245,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 20,
     lineHeight: 24,
@@ -1260,13 +1254,13 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   infoRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 16,
   },
   infoItem: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   infoIcon: {
@@ -1274,8 +1268,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoContent: {
     flex: 1,
@@ -1283,19 +1277,19 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 12,
     color: colors.textTertiary,
-    textTransform: "uppercase",
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 4,
   },
   infoValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     lineHeight: 20,
   },
   performanceGrid: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   performanceCard: {
@@ -1310,29 +1304,29 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: colors.successLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   performanceContent: {
     gap: 2,
   },
   performanceTitle: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 4,
   },
   performanceValue: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     lineHeight: 24,
   },
   performanceLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "600",
-    textTransform: "uppercase",
+    fontWeight: '600',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   performanceSubtext: {
@@ -1345,8 +1339,8 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   summaryCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: colors.infoLight,
     padding: 16,
     borderRadius: 12,
@@ -1356,9 +1350,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.info + "20",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: colors.info + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 2,
   },
   operationsDescription: {
@@ -1366,7 +1360,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.info,
     lineHeight: 20,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   operationButtons: {
     gap: 12,
@@ -1378,9 +1372,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   systemRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
@@ -1388,20 +1382,20 @@ const styles = StyleSheet.create({
   systemLabel: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: '600',
     flex: 1,
   },
   systemValue: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
     flex: 2,
-    textAlign: "right",
+    textAlign: 'right',
     lineHeight: 18,
   },
   warningContainer: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: colors.warningLight,
     padding: 16,
     borderRadius: 12,
@@ -1413,7 +1407,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.warning,
     lineHeight: 20,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   seatLayoutContainer: {
     backgroundColor: colors.card,
@@ -1426,19 +1420,19 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   seatLayoutHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
   seatLayoutHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   seatLayoutTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
   },
   seatLayoutSubtitle: {
@@ -1448,17 +1442,17 @@ const styles = StyleSheet.create({
   seatLayoutScrollView: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 12,
-    width: "100%",
+    width: '100%',
   },
   seatLayoutScrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 16,
   },
   loadingContainer: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 60,
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 12,
@@ -1468,52 +1462,52 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   seatLayoutWrapper: {
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   seatLayoutGrid: {
     padding: 16,
     marginBottom: 16,
-    alignItems: "center",
-    minWidth: "100%",
+    alignItems: 'center',
+    minWidth: '100%',
   },
   seatRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 12,
     gap: 8,
   },
   seatRowContent: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 4,
   },
   rowLabel: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.textSecondary,
     width: 20,
-    textAlign: "right",
+    textAlign: 'right',
   },
   seatLayoutCell: {
     width: 32,
     height: 32,
     borderRadius: 4,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginHorizontal: 2,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 1,
-    position: "relative",
+    position: 'relative',
   },
   aisleSpace: {
     width: 16,
@@ -1522,17 +1516,17 @@ const styles = StyleSheet.create({
   },
   seatLayoutNumber: {
     fontSize: 8,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   seatLegend: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     gap: 12,
     marginTop: 16,
   },
   legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
   legendDot: {
@@ -1551,22 +1545,22 @@ const styles = StyleSheet.create({
     borderTopColor: colors.borderLight,
   },
   seatInfoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 8,
   },
   seatInfoLabel: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   seatInfoValue: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   windowIndicator: {
-    position: "absolute",
+    position: 'absolute',
     top: 2,
     right: 2,
     width: 6,
@@ -1575,7 +1569,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   aisleIndicator: {
-    position: "absolute",
+    position: 'absolute',
     top: 2,
     left: 2,
     width: 6,
@@ -1584,7 +1578,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   premiumIndicator: {
-    position: "absolute",
+    position: 'absolute',
     top: 2,
     left: 2,
     width: 6,
@@ -1600,7 +1594,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   disabledIndicator: {
-    position: "absolute",
+    position: 'absolute',
     top: 2,
     right: 2,
     width: 6,
@@ -1609,19 +1603,19 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   noSeatsContainer: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingVertical: 40,
   },
   noSeatsTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginTop: 16,
   },
   noSeatsMessage: {
     fontSize: 14,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 20,
   },

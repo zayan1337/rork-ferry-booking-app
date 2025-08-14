@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,9 @@ import {
   Modal,
   StyleSheet,
   ScrollView,
-} from "react-native";
-import { colors } from "@/constants/adminColors";
-import { Clock, X } from "lucide-react-native";
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { Clock, X } from 'lucide-react-native';
 
 interface TimePickerProps {
   label?: string;
@@ -24,7 +24,7 @@ export default function TimePicker({
   label,
   value,
   onChange,
-  placeholder = "Select time",
+  placeholder = 'Select time',
   error,
   required = false,
   disabled = false,
@@ -32,7 +32,7 @@ export default function TimePicker({
   const [isVisible, setIsVisible] = useState(false);
 
   const { selectedHour, selectedMinute } = useMemo(() => {
-    const [h, m] = (value || "").split(":");
+    const [h, m] = (value || '').split(':');
     return {
       selectedHour: Number.isFinite(parseInt(h)) ? parseInt(h) : undefined,
       selectedMinute: Number.isFinite(parseInt(m)) ? parseInt(m) : undefined,
@@ -43,8 +43,8 @@ export default function TimePicker({
   const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
 
   const handleSelect = (hour: number, minute: number) => {
-    const hh = String(hour).padStart(2, "0");
-    const mm = String(minute).padStart(2, "0");
+    const hh = String(hour).padStart(2, '0');
+    const mm = String(minute).padStart(2, '0');
     onChange(`${hh}:${mm}`);
     setIsVisible(false);
   };
@@ -84,7 +84,7 @@ export default function TimePicker({
       <Modal
         visible={isVisible}
         transparent
-        animationType="fade"
+        animationType='fade'
         onRequestClose={() => setIsVisible(false)}
       >
         <View style={styles.modalOverlay}>
@@ -107,7 +107,7 @@ export default function TimePicker({
                   style={styles.scroll}
                   showsVerticalScrollIndicator={false}
                 >
-                  {hours.map((h) => (
+                  {hours.map(h => (
                     <TouchableOpacity
                       key={h}
                       style={[
@@ -122,7 +122,7 @@ export default function TimePicker({
                           selectedHour === h && styles.optionTextSelected,
                         ]}
                       >
-                        {String(h).padStart(2, "0")}
+                        {String(h).padStart(2, '0')}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -136,7 +136,7 @@ export default function TimePicker({
                   style={styles.scroll}
                   showsVerticalScrollIndicator={false}
                 >
-                  {minutes.map((m) => (
+                  {minutes.map(m => (
                     <TouchableOpacity
                       key={m}
                       style={[
@@ -151,7 +151,7 @@ export default function TimePicker({
                           selectedMinute === m && styles.optionTextSelected,
                         ]}
                       >
-                        {String(m).padStart(2, "0")}
+                        {String(m).padStart(2, '0')}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
   },
@@ -179,9 +179,9 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
   input: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
@@ -215,33 +215,33 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
-    width: "90%",
+    width: '90%',
     maxWidth: 360,
   },
   modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
   },
   modalTitle: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
   },
   closeButton: {
     padding: 6,
   },
   pickersRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   pickerColumn: {
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   columnLabel: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.textSecondary,
     paddingHorizontal: 12,
     paddingBottom: 6,
@@ -275,6 +275,6 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: {
     color: colors.primary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
 });

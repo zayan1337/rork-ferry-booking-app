@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,18 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
-} from "react-native";
-import { colors } from "@/constants/adminColors";
-import { UserProfile } from "@/types/userManagement";
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { UserProfile } from '@/types/userManagement';
 import {
   formatUserDisplayName,
   formatActivityLevel,
   formatEngagementScore,
   calculateUserAge,
-} from "@/utils/userManagementUtils";
-import Button from "@/components/admin/Button";
-import StatCard from "@/components/admin/StatCard";
-import StatusBadge from "@/components/admin/StatusBadge";
+} from '@/utils/userManagementUtils';
+import Button from '@/components/admin/Button';
+import StatCard from '@/components/admin/StatCard';
+import StatusBadge from '@/components/admin/StatusBadge';
 import {
   User,
   Mail,
@@ -43,7 +43,7 @@ import {
   Settings,
   Home,
   Contact,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
 interface UserDetailsProps {
   user: UserProfile;
@@ -55,7 +55,7 @@ interface UserDetailsProps {
   showActions?: boolean;
 }
 
-const { width: screenWidth } = Dimensions.get("window");
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function UserDetails({
   user,
@@ -70,13 +70,13 @@ export default function UserDetails({
 
   const handleArchive = () => {
     Alert.alert(
-      "Archive User",
+      'Archive User',
       `Are you sure you want to archive "${user.name}"? This will disable their account.`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Archive",
-          style: "destructive",
+          text: 'Archive',
+          style: 'destructive',
           onPress: onArchive,
         },
       ]
@@ -85,11 +85,11 @@ export default function UserDetails({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active":
+      case 'active':
         return colors.success;
-      case "inactive":
+      case 'inactive':
         return colors.warning;
-      case "suspended":
+      case 'suspended':
         return colors.danger;
       default:
         return colors.textSecondary;
@@ -98,11 +98,11 @@ export default function UserDetails({
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case "admin":
+      case 'admin':
         return <Crown size={16} color={colors.danger} />;
-      case "agent":
+      case 'agent':
         return <UserCheck size={16} color={colors.primary} />;
-      case "customer":
+      case 'customer':
         return <User size={16} color={colors.secondary} />;
       default:
         return <User size={16} color={colors.textSecondary} />;
@@ -111,11 +111,11 @@ export default function UserDetails({
 
   const getActivityLevelColor = (level: string) => {
     switch (level) {
-      case "high":
+      case 'high':
         return colors.success;
-      case "medium":
+      case 'medium':
         return colors.warning;
-      case "low":
+      case 'low':
         return colors.danger;
       default:
         return colors.textSecondary;
@@ -132,45 +132,45 @@ export default function UserDetails({
 
   const stats = [
     {
-      title: "Total Bookings",
-      value: user.statistics?.total_bookings?.toString() || "0",
-      subtitle: "All time",
+      title: 'Total Bookings',
+      value: user.statistics?.total_bookings?.toString() || '0',
+      subtitle: 'All time',
       icon: <BarChart3 size={20} color={colors.primary} />,
       trend:
         user.statistics?.total_bookings && user.statistics.total_bookings > 0
-          ? "+"
-          : "",
+          ? '+'
+          : '',
     },
     {
-      title: "Total Spent",
+      title: 'Total Spent',
       value: `MVR ${user.statistics?.total_spent || 0}`,
-      subtitle: "All time",
+      subtitle: 'All time',
       icon: <DollarSign size={20} color={colors.success} />,
       trend:
         user.statistics?.total_spent && user.statistics.total_spent > 0
-          ? "+"
-          : "",
+          ? '+'
+          : '',
     },
     {
-      title: "Activity Level",
+      title: 'Activity Level',
       value: activityLevelData.label,
-      subtitle: "Current status",
+      subtitle: 'Current status',
       icon: <Activity size={20} color={activityLevelData.color} />,
       trend:
         user.statistics?.activity_level && user.statistics.activity_level > 50
-          ? "+"
-          : "",
+          ? '+'
+          : '',
     },
     {
-      title: "Engagement",
+      title: 'Engagement',
       value: engagementScoreData.percentage,
-      subtitle: "User score",
+      subtitle: 'User score',
       icon: <TrendingUp size={20} color={engagementScoreData.color} />,
       trend:
         user.statistics?.engagement_score &&
         user.statistics.engagement_score > 70
-          ? "+"
-          : "",
+          ? '+'
+          : '',
     },
   ];
 
@@ -236,7 +236,7 @@ export default function UserDetails({
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Phone</Text>
               <Text style={styles.infoValue}>
-                {user.mobile_number || "Not provided"}
+                {user.mobile_number || 'Not provided'}
               </Text>
             </View>
           </View>
@@ -277,7 +277,7 @@ export default function UserDetails({
               <Text style={styles.infoValue}>
                 {user.last_active_at
                   ? new Date(user.last_active_at).toLocaleDateString()
-                  : "Never"}
+                  : 'Never'}
               </Text>
             </View>
           </View>
@@ -386,8 +386,8 @@ export default function UserDetails({
                   ]}
                 >
                   {user.preferences.email_notifications
-                    ? "Enabled"
-                    : "Disabled"}
+                    ? 'Enabled'
+                    : 'Disabled'}
                 </Text>
               </View>
             </View>
@@ -408,7 +408,7 @@ export default function UserDetails({
                       styles.preferenceTextEnabled,
                   ]}
                 >
-                  {user.preferences.sms_notifications ? "Enabled" : "Disabled"}
+                  {user.preferences.sms_notifications ? 'Enabled' : 'Disabled'}
                 </Text>
               </View>
             </View>
@@ -430,8 +430,8 @@ export default function UserDetails({
         <View style={styles.actionContainer}>
           {onViewActivity && (
             <Button
-              title="View Activity"
-              variant="outline"
+              title='View Activity'
+              variant='outline'
               onPress={onViewActivity}
               icon={<Activity size={18} color={colors.primary} />}
               style={styles.actionButton}
@@ -439,8 +439,8 @@ export default function UserDetails({
           )}
           {onViewPermissions && (
             <Button
-              title="Permissions"
-              variant="outline"
+              title='Permissions'
+              variant='outline'
               onPress={onViewPermissions}
               icon={<Shield size={18} color={colors.primary} />}
               style={styles.actionButton}
@@ -448,8 +448,8 @@ export default function UserDetails({
           )}
           {onViewBookings && (
             <Button
-              title="View Bookings"
-              variant="outline"
+              title='View Bookings'
+              variant='outline'
               onPress={onViewBookings}
               icon={<BarChart3 size={18} color={colors.primary} />}
               style={styles.actionButton}
@@ -457,10 +457,10 @@ export default function UserDetails({
           )}
           {onEdit && (
             <Button
-              title="Edit User"
-              variant="primary"
+              title='Edit User'
+              variant='primary'
               onPress={onEdit}
-              icon={<Edit size={18} color="#FFFFFF" />}
+              icon={<Edit size={18} color='#FFFFFF' />}
               style={styles.actionButton}
             />
           )}
@@ -468,7 +468,7 @@ export default function UserDetails({
       )}
 
       {/* Warnings */}
-      {user.status === "suspended" && (
+      {user.status === 'suspended' && (
         <View style={styles.warningContainer}>
           <AlertTriangle size={16} color={colors.danger} />
           <Text style={styles.warningText}>
@@ -478,7 +478,7 @@ export default function UserDetails({
         </View>
       )}
 
-      {user.status === "inactive" && (
+      {user.status === 'inactive' && (
         <View style={styles.infoContainer}>
           <CheckCircle size={16} color={colors.warning} />
           <Text style={styles.infoText}>
@@ -501,9 +501,9 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 24,
   },
   headerContent: {
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 4,
   },
@@ -521,15 +521,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statusContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   roleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.primary + "10",
+    backgroundColor: colors.primary + '10',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -537,11 +537,11 @@ const styles = StyleSheet.create({
   roleText: {
     fontSize: 12,
     color: colors.primary,
-    fontWeight: "600",
-    textTransform: "capitalize",
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
   headerActions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
   },
   iconButton: {
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 16,
   },
@@ -572,17 +572,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   infoItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   infoIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary + "10",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: colors.primary + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoContent: {
     flex: 1,
@@ -594,29 +594,29 @@ const styles = StyleSheet.create({
   },
   infoValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
   },
   statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   statsGridTablet: {
     gap: 16,
   },
   addressContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 16,
   },
   addressIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary + "10",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: colors.primary + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addressContent: {
     flex: 1,
@@ -630,17 +630,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   contactItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   contactIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary + "10",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: colors.primary + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   contactContent: {
     flex: 1,
@@ -652,19 +652,19 @@ const styles = StyleSheet.create({
   },
   contactValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
   },
   preferencesContainer: {
     gap: 12,
   },
   preferenceItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border + "30",
+    borderBottomColor: colors.border + '30',
   },
   preferenceLabel: {
     fontSize: 14,
@@ -674,14 +674,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: colors.danger + "10",
+    backgroundColor: colors.danger + '10',
   },
   preferenceEnabled: {
-    backgroundColor: colors.success + "10",
+    backgroundColor: colors.success + '10',
   },
   preferenceText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.danger,
   },
   preferenceTextEnabled: {
@@ -689,26 +689,26 @@ const styles = StyleSheet.create({
   },
   preferenceValue: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
   },
   actionContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginTop: 8,
   },
   actionButton: {
     flex: 1,
-    minWidth: "45%",
+    minWidth: '45%',
   },
   warningContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.danger + "10",
+    backgroundColor: colors.danger + '10',
     borderWidth: 1,
-    borderColor: colors.danger + "30",
+    borderColor: colors.danger + '30',
     borderRadius: 8,
     padding: 12,
     marginTop: 16,
@@ -719,12 +719,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.warning + "10",
+    backgroundColor: colors.warning + '10',
     borderWidth: 1,
-    borderColor: colors.warning + "30",
+    borderColor: colors.warning + '30',
     borderRadius: 8,
     padding: 12,
     marginTop: 16,

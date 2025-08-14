@@ -24,7 +24,7 @@ const ExistingUserCard: React.FC<ExistingUserCardProps> = ({
   loading = false,
 }) => {
   return (
-    <Card variant="outlined" style={styles.existingUserCard}>
+    <Card variant='outlined' style={styles.existingUserCard}>
       <View style={styles.existingUserHeader}>
         <Check size={20} color={Colors.primary} />
         <Text style={styles.existingUserTitle}>Existing User Found</Text>
@@ -36,14 +36,16 @@ const ExistingUserCard: React.FC<ExistingUserCardProps> = ({
         {user.email} • {user.mobile_number || 'No phone'}
       </Text>
       <Button
-        title="Add This User as Client"
+        title='Add This User as Client'
         onPress={onAddUser}
-        variant="primary"
+        variant='primary'
         style={styles.addExistingButton}
         loading={loading}
         disabled={loading}
       />
-      <Text style={styles.orText}>or continue creating new client record below</Text>
+      <Text style={styles.orText}>
+        or continue creating new client record below
+      </Text>
     </Card>
   );
 };
@@ -87,4 +89,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ExistingUserCard; 
+export default ExistingUserCard;

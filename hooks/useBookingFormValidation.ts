@@ -21,7 +21,7 @@ interface UseBookingFormValidationProps {
 }
 
 export const useBookingFormValidation = ({
-  initialErrors = {}
+  initialErrors = {},
 }: UseBookingFormValidationProps = {}) => {
   const [errors, setErrors] = useState<ValidationErrors>({
     tripType: '',
@@ -60,20 +60,24 @@ export const useBookingFormValidation = ({
     });
   }, []);
 
-  const setError = useCallback((field: keyof ValidationErrors, message: string) => {
-    setErrors(prev => ({ ...prev, [field]: message }));
-  }, []);
+  const setError = useCallback(
+    (field: keyof ValidationErrors, message: string) => {
+      setErrors(prev => ({ ...prev, [field]: message }));
+    },
+    []
+  );
 
   const validateStep = useCallback((step: number, data: any) => {
     const validation = validateBookingStep(step, data);
-    
+
     // Clear previous errors for this step
     const stepErrors = Object.keys(validation.errors);
     setErrors(prev => {
       const newErrors = { ...prev };
       stepErrors.forEach(key => {
         if (key in newErrors) {
-          newErrors[key as keyof ValidationErrors] = validation.errors[key] || '';
+          newErrors[key as keyof ValidationErrors] =
+            validation.errors[key] || '';
         }
       });
       return newErrors;
@@ -93,4 +97,4 @@ export const useBookingFormValidation = ({
     validateStep,
     setErrors,
   };
-}; 
+};

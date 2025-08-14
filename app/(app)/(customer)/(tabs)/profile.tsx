@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Switch,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import {
   User,
@@ -17,7 +17,7 @@ import {
   Lock,
   Bell,
   LogOut,
-  ChevronRight
+  ChevronRight,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
@@ -38,13 +38,12 @@ export default function ProfileScreen() {
     if (error) {
       Alert.alert('Error', error);
     }
-
   }, [error]);
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size='large' color={Colors.primary} />
       </View>
     );
   }
@@ -58,50 +57,46 @@ export default function ProfileScreen() {
   }
 
   const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Logout',
+        onPress: async () => {
+          try {
+            await signOut();
+            // Navigation will be handled by the app layout
+          } catch (error) {
+            console.error('Logout error:', error);
+          }
         },
-        {
-          text: "Logout",
-          onPress: async () => {
-            try {
-              await signOut();
-              // Navigation will be handled by the app layout
-            } catch (error) {
-              console.error('Logout error:', error);
-            }
-          },
-          style: "destructive"
-        }
-      ]
-    );
+        style: 'destructive',
+      },
+    ]);
   };
 
   const updateProfileSetting = (key: keyof ProfileSettings, value: boolean) => {
     setProfileSettings(prev => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   };
 
   const handleExportCSV = () => {
     Alert.alert(
-      "Export Data",
-      "Your data will be exported as CSV and sent to your email address.",
-      [{ text: "OK" }]
+      'Export Data',
+      'Your data will be exported as CSV and sent to your email address.',
+      [{ text: 'OK' }]
     );
   };
 
   const handleExportPDF = () => {
     Alert.alert(
-      "Export Data",
-      "Your data will be exported as PDF and sent to your email address.",
-      [{ text: "OK" }]
+      'Export Data',
+      'Your data will be exported as PDF and sent to your email address.',
+      [{ text: 'OK' }]
     );
   };
 
@@ -116,11 +111,15 @@ export default function ProfileScreen() {
             {getUserInitials(user?.profile?.full_name)}
           </Text>
         </View>
-        <Text style={styles.profileName}>{user?.profile?.full_name || 'Guest User'}</Text>
-        <Text style={styles.profileUsername}>{user?.email || 'guest@example.com'}</Text>
+        <Text style={styles.profileName}>
+          {user?.profile?.full_name || 'Guest User'}
+        </Text>
+        <Text style={styles.profileUsername}>
+          {user?.email || 'guest@example.com'}
+        </Text>
       </View>
 
-      <Card variant="elevated" style={styles.section}>
+      <Card variant='elevated' style={styles.section}>
         <Text style={styles.sectionTitle}>Personal Information</Text>
 
         <View style={styles.infoItem}>
@@ -162,13 +161,15 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Date of Birth</Text>
-            <Text style={styles.infoValue}>{formatProfileDate(user?.profile?.date_of_birth || '')}</Text>
+            <Text style={styles.infoValue}>
+              {formatProfileDate(user?.profile?.date_of_birth || '')}
+            </Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
         </View>
       </Card>
 
-      <Card variant="elevated" style={styles.section}>
+      <Card variant='elevated' style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
 
         <TouchableOpacity style={styles.settingItem}>
@@ -190,7 +191,9 @@ export default function ProfileScreen() {
           </View>
           <Switch
             value={profileSettings.emailNotifications}
-            onValueChange={(value) => updateProfileSetting('emailNotifications', value)}
+            onValueChange={value =>
+              updateProfileSetting('emailNotifications', value)
+            }
             trackColor={{ false: Colors.inactive, true: Colors.primary }}
             thumbColor={Colors.card}
           />
@@ -205,30 +208,32 @@ export default function ProfileScreen() {
           </View>
           <Switch
             value={profileSettings.smsNotifications}
-            onValueChange={(value) => updateProfileSetting('smsNotifications', value)}
+            onValueChange={value =>
+              updateProfileSetting('smsNotifications', value)
+            }
             trackColor={{ false: Colors.inactive, true: Colors.primary }}
             thumbColor={Colors.card}
           />
         </View>
       </Card>
 
-      <Card variant="elevated" style={styles.section}>
+      <Card variant='elevated' style={styles.section}>
         <Text style={styles.sectionTitle}>Export Data</Text>
         <Text style={styles.exportText}>
           Download your booking history and personal information
         </Text>
         <View style={styles.exportButtons}>
           <Button
-            title="Export as CSV"
-            variant="outline"
-            size="small"
+            title='Export as CSV'
+            variant='outline'
+            size='small'
             style={styles.exportButton}
             onPress={handleExportCSV}
           />
           <Button
-            title="Export as PDF"
-            variant="outline"
-            size="small"
+            title='Export as PDF'
+            variant='outline'
+            size='small'
             style={styles.exportButton}
             onPress={handleExportPDF}
           />
@@ -236,8 +241,8 @@ export default function ProfileScreen() {
       </Card>
 
       <Button
-        title="Logout"
-        variant="outline"
+        title='Logout'
+        variant='outline'
         onPress={handleLogout}
         style={styles.logoutButton}
         textStyle={styles.logoutButtonText}

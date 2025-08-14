@@ -1,8 +1,8 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { X } from "lucide-react-native";
-import { colors } from "@/constants/adminColors";
-import SectionHeader from "@/components/admin/SectionHeader";
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { X } from 'lucide-react-native';
+import { colors } from '@/constants/adminColors';
+import SectionHeader from '@/components/admin/SectionHeader';
 
 interface UserListHeaderProps {
   searchQuery: string;
@@ -25,11 +25,11 @@ const UserListHeader: React.FC<UserListHeaderProps> = ({
     <View style={styles.section}>
       <View style={styles.usersHeader}>
         <SectionHeader
-          title={searchQuery ? "Search Results" : "Users"}
+          title={searchQuery ? 'Search Results' : 'Users'}
           subtitle={`${filteredCount} ${
-            filteredCount === 1 ? "user" : "users"
+            filteredCount === 1 ? 'user' : 'users'
           } found`}
-          size={isTablet ? "large" : "medium"}
+          size={isTablet ? 'large' : 'medium'}
         />
       </View>
 
@@ -47,8 +47,8 @@ const UserListHeader: React.FC<UserListHeaderProps> = ({
               <TouchableOpacity
                 style={styles.clearFiltersButton}
                 onPress={onClearFilters}
-                accessibilityRole="button"
-                accessibilityLabel="Clear all filters"
+                accessibilityRole='button'
+                accessibilityLabel='Clear all filters'
               >
                 <X size={14} color={colors.textSecondary} />
               </TouchableOpacity>
@@ -65,28 +65,28 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   usersHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   compactFilterStatus: {
     paddingHorizontal: 0,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border + "40",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    borderBottomColor: colors.border + '40',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   filterStatusDivider: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   compactFilterText: {
     fontSize: 11,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   clearFiltersButton: {
     padding: 2,

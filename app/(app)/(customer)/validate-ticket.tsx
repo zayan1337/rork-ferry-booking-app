@@ -8,11 +8,15 @@ import {
   ScrollView,
   Platform,
   Alert,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Search, CheckCircle, XCircle, Camera, X } from 'lucide-react-native';
-import { CameraView, Camera as ExpoCamera, useCameraPermissions } from 'expo-camera';
+import {
+  CameraView,
+  Camera as ExpoCamera,
+  useCameraPermissions,
+} from 'expo-camera';
 import { useTicketStore } from '@/store/ticketStore';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
@@ -25,7 +29,8 @@ const { width } = Dimensions.get('window');
 
 export default function ValidateTicketScreen() {
   const [bookingNumber, setBookingNumber] = useState('');
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [validationResult, setValidationResult] =
+    useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -39,7 +44,10 @@ export default function ValidateTicketScreen() {
       if (!permission?.granted && showCamera) {
         const { status } = await requestPermission();
         if (status !== 'granted') {
-          Alert.alert('Permission Required', 'Camera permission is required to scan QR codes');
+          Alert.alert(
+            'Permission Required',
+            'Camera permission is required to scan QR codes'
+          );
           setShowCamera(false);
         }
       }
@@ -77,7 +85,7 @@ export default function ValidateTicketScreen() {
         'Please grant camera permission to scan QR codes',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Grant Permission', onPress: requestPermission }
+          { text: 'Grant Permission', onPress: requestPermission },
         ]
       );
       return;
@@ -112,8 +120,13 @@ export default function ValidateTicketScreen() {
             const decodedData = decodeURIComponent(urlMatch[1]);
 
             // Now extract booking number from decoded data
-            if (decodedData.includes('Booking:') || decodedData.includes('Booking ')) {
-              const bookingMatch = decodedData.match(/Booking[:\s]+([A-Z0-9]+)/i);
+            if (
+              decodedData.includes('Booking:') ||
+              decodedData.includes('Booking ')
+            ) {
+              const bookingMatch = decodedData.match(
+                /Booking[:\s]+([A-Z0-9]+)/i
+              );
               if (bookingMatch && bookingMatch[1]) {
                 bookingNum = bookingMatch[1];
               }
@@ -136,21 +149,33 @@ export default function ValidateTicketScreen() {
         setBookingNumber(formattedBookingNum);
 
         // Auto-validate after scanning
-        validateTicket(formattedBookingNum).then(result => {
-          setValidationResult(result);
+        validateTicket(formattedBookingNum)
+          .then(result => {
+            setValidationResult(result);
 
-          if (error) {
-            Alert.alert('Error', error);
-          }
-        }).catch(err => {
-          Alert.alert('Error', 'Failed to validate scanned ticket. Please try again.');
-        });
+            if (error) {
+              Alert.alert('Error', error);
+            }
+          })
+          .catch(err => {
+            Alert.alert(
+              'Error',
+              'Failed to validate scanned ticket. Please try again.'
+            );
+          });
       } else {
-        Alert.alert('Invalid QR Code', `The scanned QR code does not contain valid booking information. Data: "${data}"`);
+        Alert.alert(
+          'Invalid QR Code',
+          `The scanned QR code does not contain valid booking information. Data: "${data}"`
+        );
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      Alert.alert('Error', `Failed to process scanned QR code: ${errorMessage}`);
+      const errorMessage =
+        err instanceof Error ? err.message : 'Unknown error occurred';
+      Alert.alert(
+        'Error',
+        `Failed to process scanned QR code: ${errorMessage}`
+      );
     }
   };
 
@@ -164,7 +189,10 @@ export default function ValidateTicketScreen() {
       router.push(`./booking-details/${validationResult.booking.id}`);
     } else {
       // This shouldn't happen as the button should be hidden, but just in case
-      Alert.alert('Access Denied', 'You can only view details of your own bookings.');
+      Alert.alert(
+        'Access Denied',
+        'You can only view details of your own bookings.'
+      );
     }
   };
 
@@ -199,7 +227,9 @@ export default function ValidateTicketScreen() {
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Type:</Text>
           <Text style={styles.summaryValue}>
-            {booking.bookingType === 'agent' ? 'Agent Booking' : 'Customer Booking'}
+            {booking.bookingType === 'agent'
+              ? 'Agent Booking'
+              : 'Customer Booking'}
           </Text>
         </View>
 
@@ -212,12 +242,14 @@ export default function ValidateTicketScreen() {
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Status:</Text>
-          <Text style={[
-            styles.summaryValue,
-            booking.status === 'confirmed'
-              ? styles.confirmedStatus
-              : styles.cancelledStatus
-          ]}>
+          <Text
+            style={[
+              styles.summaryValue,
+              booking.status === 'confirmed'
+                ? styles.confirmedStatus
+                : styles.cancelledStatus,
+            ]}
+          >
             {booking.status.toUpperCase()}
           </Text>
         </View>
@@ -246,7 +278,9 @@ export default function ValidateTicketScreen() {
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Vessel:</Text>
-          <Text style={styles.summaryValue}>{booking.vessel?.name || 'N/A'}</Text>
+          <Text style={styles.summaryValue}>
+            {booking.vessel?.name || 'N/A'}
+          </Text>
         </View>
 
         <View style={styles.summaryRow}>
@@ -268,18 +302,22 @@ export default function ValidateTicketScreen() {
         {isOwnBooking && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Fare:</Text>
-            <Text style={styles.summaryValue}>MVR {booking.totalFare.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>
+              MVR {booking.totalFare.toFixed(2)}
+            </Text>
           </View>
         )}
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Check-in:</Text>
-          <Text style={[
-            styles.summaryValue,
-            booking.checkInStatus
-              ? styles.checkedInStatus
-              : styles.notCheckedInStatus
-          ]}>
+          <Text
+            style={[
+              styles.summaryValue,
+              booking.checkInStatus
+                ? styles.checkedInStatus
+                : styles.notCheckedInStatus,
+            ]}
+          >
             {booking.checkInStatus ? 'CHECKED IN' : 'NOT CHECKED IN'}
           </Text>
         </View>
@@ -291,7 +329,10 @@ export default function ValidateTicketScreen() {
     <View style={styles.cameraContainer}>
       <View style={styles.cameraHeader}>
         <Text style={styles.cameraTitle}>Scan QR Code</Text>
-        <TouchableOpacity onPress={handleCloseCamera} style={styles.closeButton}>
+        <TouchableOpacity
+          onPress={handleCloseCamera}
+          style={styles.closeButton}
+        >
           <X size={24} color={Colors.text} />
         </TouchableOpacity>
       </View>
@@ -299,7 +340,7 @@ export default function ValidateTicketScreen() {
       <View style={styles.cameraWrapper}>
         <CameraView
           style={styles.camera}
-          facing="back"
+          facing='back'
           onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
           barcodeScannerSettings={{
             barcodeTypes: ['qr'],
@@ -326,30 +367,27 @@ export default function ValidateTicketScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
-      keyboardShouldPersistTaps="handled"
+      keyboardShouldPersistTaps='handled'
     >
       <Text style={styles.title}>Validate Ticket</Text>
       <Text style={styles.subtitle}>
         Enter booking number or scan QR code to validate a ticket
       </Text>
 
-      <Card variant="elevated" style={styles.inputCard}>
+      <Card variant='elevated' style={styles.inputCard}>
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Enter booking number"
+            placeholder='Enter booking number'
             value={bookingNumber}
             onChangeText={setBookingNumber}
-            keyboardType="default"
+            keyboardType='default'
             maxLength={20}
-            autoCapitalize="characters"
+            autoCapitalize='characters'
             editable={!showCamera}
           />
           {bookingNumber ? (
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={handleClear}
-            >
+            <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
               <XCircle size={20} color={Colors.textSecondary} />
             </TouchableOpacity>
           ) : null}
@@ -358,7 +396,7 @@ export default function ValidateTicketScreen() {
         {!showCamera ? (
           <View style={styles.buttonContainer}>
             <Button
-              title="Validate"
+              title='Validate'
               onPress={handleValidate}
               loading={isValidating}
               disabled={!bookingNumber.trim() || isValidating}
@@ -366,9 +404,9 @@ export default function ValidateTicketScreen() {
             />
 
             <Button
-              title="Scan QR"
+              title='Scan QR'
               onPress={handleScanQR}
-              variant="outline"
+              variant='outline'
               style={styles.scanButton}
             />
           </View>
@@ -378,20 +416,27 @@ export default function ValidateTicketScreen() {
       </Card>
 
       {validationResult && !showCamera && (
-        <Card
-          variant="elevated"
-          style={getResultCardStyle()}
-        >
+        <Card variant='elevated' style={getResultCardStyle()}>
           <View style={styles.resultHeader}>
             {validationResult.isValid ? (
-              <CheckCircle size={24} color={Colors.success} style={styles.resultIcon} />
+              <CheckCircle
+                size={24}
+                color={Colors.success}
+                style={styles.resultIcon}
+              />
             ) : (
-              <XCircle size={24} color={Colors.error} style={styles.resultIcon} />
+              <XCircle
+                size={24}
+                color={Colors.error}
+                style={styles.resultIcon}
+              />
             )}
             <Text
               style={[
                 styles.resultMessage,
-                validationResult.isValid ? styles.validMessage : styles.invalidMessage
+                validationResult.isValid
+                  ? styles.validMessage
+                  : styles.invalidMessage,
               ]}
             >
               {validationResult.message}
@@ -409,7 +454,7 @@ export default function ValidateTicketScreen() {
                   <View style={styles.divider} />
                   <View style={styles.actionContainer}>
                     <Button
-                      title="View Full Details"
+                      title='View Full Details'
                       onPress={handleViewBooking}
                       style={styles.viewButton}
                     />
@@ -423,7 +468,8 @@ export default function ValidateTicketScreen() {
                   <View style={styles.divider} />
                   <View style={styles.noteContainer}>
                     <Text style={styles.noteText}>
-                      ℹ️ This ticket belongs to another user. Limited information is shown for privacy.
+                      ℹ️ This ticket belongs to another user. Limited
+                      information is shown for privacy.
                     </Text>
                   </View>
                 </>
@@ -434,7 +480,7 @@ export default function ValidateTicketScreen() {
       )}
 
       {error && (
-        <Card variant="elevated" style={styles.errorCard}>
+        <Card variant='elevated' style={styles.errorCard}>
           <Text style={styles.errorText}>{error}</Text>
         </Card>
       )}

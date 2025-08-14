@@ -1,7 +1,7 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { colors } from "@/constants/adminColors";
-import { UserProfile } from "@/types/userManagement";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { UserProfile } from '@/types/userManagement';
 
 interface UserSystemInfoSectionProps {
   user: UserProfile;
@@ -12,13 +12,13 @@ export default function UserSystemInfoSection({
 }: UserSystemInfoSectionProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     }).format(date);
   };
 
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 20,
     lineHeight: 24,
@@ -79,9 +79,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   systemRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
@@ -89,15 +89,15 @@ const styles = StyleSheet.create({
   systemLabel: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: '600',
     flex: 1,
   },
   systemValue: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
     flex: 2,
-    textAlign: "right",
+    textAlign: 'right',
     lineHeight: 18,
   },
 });

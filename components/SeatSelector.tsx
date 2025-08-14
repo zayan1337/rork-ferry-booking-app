@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,10 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
-} from "react-native";
-import { Seat } from "@/types";
-import { SeatSelectorProps } from "@/types/components";
-import Colors from "@/constants/colors";
+} from 'react-native';
+import { Seat } from '@/types';
+import { SeatSelectorProps } from '@/types/components';
+import Colors from '@/constants/colors';
 
 const SeatSelector: React.FC<SeatSelectorProps> = ({
   seats,
@@ -24,11 +24,11 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size='large' color={Colors.primary} />
           <Text style={styles.loadingText}>
             {isLoading
-              ? "Loading seat availability..."
-              : "No seats available for this trip"}
+              ? 'Loading seat availability...'
+              : 'No seats available for this trip'}
           </Text>
         </View>
       </View>
@@ -40,7 +40,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     seatNumber: string | number | null | undefined
   ): string => {
     if (seatNumber === null || seatNumber === undefined) {
-      return "";
+      return '';
     }
     return String(seatNumber);
   };
@@ -51,15 +51,15 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
       return styles.unavailableSeat;
     }
 
-    if (seat.isDisabled || seat.seatType === "disabled") {
+    if (seat.isDisabled || seat.seatType === 'disabled') {
       return styles.disabledSeat;
     }
 
-    if (seat.seatType === "crew") {
+    if (seat.seatType === 'crew') {
       return styles.crewSeat;
     }
 
-    if (seat.isPremium || seat.seatType === "premium") {
+    if (seat.isPremium || seat.seatType === 'premium') {
       return styles.premiumSeat;
     }
 
@@ -71,13 +71,13 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     if (!seats || seats.length === 0) return { grid: [], aisles: [] };
 
     // Find the maximum row and column numbers
-    const maxRow = Math.max(...seats.map((s) => s.rowNumber));
-    const maxCol = Math.max(...seats.map((s) => s.positionX || 0));
+    const maxRow = Math.max(...seats.map(s => s.rowNumber));
+    const maxCol = Math.max(...seats.map(s => s.positionX || 0));
 
     // Get aisle positions from seats
     const aislePositions = seats
-      .filter((seat) => seat.isAisle)
-      .map((seat) => seat.positionX || 0);
+      .filter(seat => seat.isAisle)
+      .map(seat => seat.positionX || 0);
     const uniqueAisles = [...new Set(aislePositions)];
 
     // Create a 2D grid
@@ -92,7 +92,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     }
 
     // Place seats in the grid based on their position
-    seats.forEach((seat) => {
+    seats.forEach(seat => {
       const row = seat.rowNumber - 1; // Convert to 0-based index
       const col = (seat.positionX || 0) - 1; // Convert to 0-based index
 
@@ -108,7 +108,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 
   // Check if a seat is selected
   const isSeatSelected = (seatId: string) => {
-    return selectedSeats.some((seat) => seat.id === seatId);
+    return selectedSeats.some(seat => seat.id === seatId);
   };
 
   // Check if max seats are selected
@@ -131,7 +131,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     try {
       await onSeatToggle(seat);
     } catch (error) {
-      console.error("Error toggling seat selection:", error);
+      console.error('Error toggling seat selection:', error);
     }
   };
 
@@ -171,7 +171,6 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
           <View style={styles.windowIndicator} />
           <Text style={styles.legendText}>Window</Text>
         </View>
-       
       </ScrollView>
 
       <View style={styles.cabinContainer}>
@@ -217,7 +216,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                               disabled={
                                 !seat.isAvailable ||
                                 seat.isDisabled ||
-                                seat.seatType === "disabled"
+                                seat.seatType === 'disabled'
                               }
                               activeOpacity={0.7}
                             >
@@ -283,7 +282,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
   );
 };
 
-const { width } = Dimensions.get("window");
+const { width } = Dimensions.get('window');
 const seatSize = Math.min(40, (width - 80) / 8); // Adjust based on screen width
 
 const styles = StyleSheet.create({
@@ -291,8 +290,8 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   legend: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     marginBottom: 16,
   },
   legendContainer: {
@@ -303,8 +302,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginRight: 8,
   },
   legendBox: {
@@ -326,7 +325,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
   },
   frontLabel: {
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 12,
     paddingBottom: 8,
     borderBottomWidth: 1,
@@ -334,7 +333,7 @@ const styles = StyleSheet.create({
   },
   frontLabelText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.textSecondary,
   },
   seatMapContainer: {
@@ -351,19 +350,19 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.textSecondary,
     marginBottom: 6,
   },
   seats: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   seat: {
     width: seatSize,
     height: seatSize,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     margin: 4,
     borderRadius: 6,
     borderWidth: 1,
@@ -404,7 +403,7 @@ const styles = StyleSheet.create({
   },
   seatNumber: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
   },
   selectedSeatNumber: {
@@ -414,7 +413,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   rearLabel: {
-    alignItems: "center",
+    alignItems: 'center',
     marginTop: 12,
     paddingTop: 8,
     borderTopWidth: 1,
@@ -422,35 +421,35 @@ const styles = StyleSheet.create({
   },
   rearLabelText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.textSecondary,
   },
   selectionInfo: {
     marginTop: 16,
-    alignItems: "center",
+    alignItems: 'center',
   },
   selectionText: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: '500',
     color: Colors.text,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingVertical: 40,
   },
   loadingText: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: '500',
     color: Colors.text,
     marginTop: 16,
   },
   aisle: {
     width: 30,
     height: seatSize,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginHorizontal: 8,
   },
   aisleIndicator: {
@@ -474,8 +473,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   seatsGrid: {
-    flexDirection: "column",
-  
+    flexDirection: 'column',
   },
   horizontalScrollContent: {
     paddingVertical: 16,
@@ -483,7 +481,7 @@ const styles = StyleSheet.create({
   },
   legendBoxText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,20 +7,20 @@ import {
   Alert,
   RefreshControl,
   ScrollView,
-} from "react-native";
-import { router } from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { useOperationsStore } from "@/store/admin/operationsStore";
-import { useTripManagement } from "@/hooks/useTripManagement";
-import { useRouteManagement } from "@/hooks/useRouteManagement";
-import { useVesselManagement } from "@/hooks/useVesselManagement";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { Eye, AlertTriangle, Calendar, Filter, X } from "lucide-react-native";
+} from 'react-native';
+import { router } from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { useOperationsStore } from '@/store/admin/operationsStore';
+import { useTripManagement } from '@/hooks/useTripManagement';
+import { useRouteManagement } from '@/hooks/useRouteManagement';
+import { useVesselManagement } from '@/hooks/useVesselManagement';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { Eye, AlertTriangle, Calendar, Filter, X } from 'lucide-react-native';
 
 // Components
-import SectionHeader from "@/components/admin/SectionHeader";
-import LoadingSpinner from "@/components/admin/LoadingSpinner";
-import Dropdown from "@/components/admin/Dropdown";
+import SectionHeader from '@/components/admin/SectionHeader';
+import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import Dropdown from '@/components/admin/Dropdown';
 
 interface ScheduleTabProps {
   isActive: boolean;
@@ -39,8 +39,8 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
   const { vessels: allVessels, loadAll: loadVessels } = useVesselManagement();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedRouteId, setSelectedRouteId] = useState<string>("");
-  const [selectedVesselId, setSelectedVesselId] = useState<string>("");
+  const [selectedRouteId, setSelectedRouteId] = useState<string>('');
+  const [selectedVesselId, setSelectedVesselId] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
 
   // Initialize schedule data when tab becomes active
@@ -79,35 +79,35 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
       filtered = todaySchedule;
     } else {
       // Fallback to all trips and filter for today's date
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date().toISOString().split('T')[0];
       const allTripsArray = allTrips || [];
 
       // Debug: Show sample trip data to understand the format
       if (allTripsArray.length > 0) {
         // Show a few more travel dates to understand the pattern
-        const sampleDates = allTripsArray.slice(0, 5).map((trip) => ({
+        const sampleDates = allTripsArray.slice(0, 5).map(trip => ({
           id: trip.id,
           travel_date: trip.travel_date,
           formatted_date:
-            typeof trip.travel_date === "string"
-              ? trip.travel_date.split("T")[0]
-              : "not_string",
+            typeof trip.travel_date === 'string'
+              ? trip.travel_date.split('T')[0]
+              : 'not_string',
         }));
       }
 
-      filtered = allTripsArray.filter((trip) => {
+      filtered = allTripsArray.filter(trip => {
         // Handle both string and date formats
-        let tripDate: string = "";
-        if (typeof trip.travel_date === "string") {
-          tripDate = trip.travel_date.split("T")[0]; // Extract date part if datetime
+        let tripDate: string = '';
+        if (typeof trip.travel_date === 'string') {
+          tripDate = trip.travel_date.split('T')[0]; // Extract date part if datetime
         } else if (
           trip.travel_date &&
-          typeof trip.travel_date === "object" &&
-          "toISOString" in trip.travel_date
+          typeof trip.travel_date === 'object' &&
+          'toISOString' in trip.travel_date
         ) {
-          tripDate = (trip.travel_date as Date).toISOString().split("T")[0];
+          tripDate = (trip.travel_date as Date).toISOString().split('T')[0];
         } else {
-          tripDate = String(trip.travel_date || "").split("T")[0];
+          tripDate = String(trip.travel_date || '').split('T')[0];
         }
         const isToday = tripDate === today;
         return isToday;
@@ -117,12 +117,12 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
       if (filtered.length === 0 && allTripsArray.length > 0) {
         // Get all future trips and find the earliest
         const futureTripDates = allTripsArray
-          .map((trip) => {
-            let tripDate = "";
-            if (typeof trip.travel_date === "string") {
-              tripDate = trip.travel_date.split("T")[0];
+          .map(trip => {
+            let tripDate = '';
+            if (typeof trip.travel_date === 'string') {
+              tripDate = trip.travel_date.split('T')[0];
             } else {
-              tripDate = String(trip.travel_date || "").split("T")[0];
+              tripDate = String(trip.travel_date || '').split('T')[0];
             }
             return { trip, tripDate };
           })
@@ -140,19 +140,19 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
     }
 
     // Filter by route if selected
-    if (selectedRouteId && selectedRouteId !== "") {
-      filtered = filtered.filter((trip) => trip.route_id === selectedRouteId);
+    if (selectedRouteId && selectedRouteId !== '') {
+      filtered = filtered.filter(trip => trip.route_id === selectedRouteId);
     }
 
     // Filter by vessel if selected
-    if (selectedVesselId && selectedVesselId !== "") {
-      filtered = filtered.filter((trip) => trip.vessel_id === selectedVesselId);
+    if (selectedVesselId && selectedVesselId !== '') {
+      filtered = filtered.filter(trip => trip.vessel_id === selectedVesselId);
     }
 
     // Sort by departure time (earliest first)
     return filtered.sort((a, b) => {
-      const timeA = a.departure_time || "";
-      const timeB = b.departure_time || "";
+      const timeA = a.departure_time || '';
+      const timeB = b.departure_time || '';
       return timeA.localeCompare(timeB);
     });
   }, [todaySchedule, allTrips, selectedRouteId, selectedVesselId]);
@@ -160,43 +160,43 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
   // Determine what date we're actually showing
   const actualDisplayDate = useMemo(() => {
     if (todaySchedule && todaySchedule.length > 0) {
-      return "Today";
+      return 'Today';
     }
     if (displaySchedule.length > 0) {
       // Check if we're showing today's data or fallback data
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date().toISOString().split('T')[0];
       const firstTrip = displaySchedule[0];
-      let firstTripDate = "";
+      let firstTripDate = '';
 
-      if (typeof firstTrip.travel_date === "string") {
-        firstTripDate = firstTrip.travel_date.split("T")[0];
+      if (typeof firstTrip.travel_date === 'string') {
+        firstTripDate = firstTrip.travel_date.split('T')[0];
       } else {
-        firstTripDate = String(firstTrip.travel_date || "").split("T")[0];
+        firstTripDate = String(firstTrip.travel_date || '').split('T')[0];
       }
 
       if (firstTripDate === today) {
-        return "Today";
+        return 'Today';
       } else {
         const date = new Date(firstTripDate);
-        return date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
           year:
             date.getFullYear() !== new Date().getFullYear()
-              ? "numeric"
+              ? 'numeric'
               : undefined,
         });
       }
     }
-    return "Today";
+    return 'Today';
   }, [todaySchedule, displaySchedule]);
 
   // Prepare dropdown options
   const routeOptions = useMemo(() => {
     if (!allRoutes) return [];
     return [
-      { label: "All Routes", value: "" },
-      ...allRoutes.map((route) => ({
+      { label: 'All Routes', value: '' },
+      ...allRoutes.map(route => ({
         label:
           route.name || `${route.from_island_name} → ${route.to_island_name}`,
         value: route.id,
@@ -207,8 +207,8 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
   const vesselOptions = useMemo(() => {
     if (!allVessels) return [];
     return [
-      { label: "All Vessels", value: "" },
-      ...allVessels.map((vessel) => ({
+      { label: 'All Vessels', value: '' },
+      ...allVessels.map(vessel => ({
         label: vessel.name,
         value: vessel.id,
       })),
@@ -226,15 +226,15 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
         loadVessels(),
       ]);
     } catch (error) {
-      console.error("Error refreshing schedule:", error);
+      console.error('Error refreshing schedule:', error);
     } finally {
       setIsRefreshing(false);
     }
   };
 
   const clearFilters = () => {
-    setSelectedRouteId("");
-    setSelectedVesselId("");
+    setSelectedRouteId('');
+    setSelectedVesselId('');
   };
 
   const renderScheduleItem = React.useCallback((trip: any, index: number) => {
@@ -242,25 +242,23 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
     const formatDate = (trip: any) => {
       const dateStr = trip.travel_date;
 
-    
-
       if (!dateStr) {
-        return "Today";
+        return 'Today';
       }
 
       try {
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) {
-          return "Today";
+          return 'Today';
         }
 
-        const formatted = date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
+        const formatted = date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
         });
         return formatted;
       } catch (error) {
-        return "Today";
+        return 'Today';
       }
     };
 
@@ -273,14 +271,14 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
         <View style={styles.scheduleDateTime}>
           <Text style={styles.scheduleDate}>{formatDate(trip)}</Text>
           <Text style={styles.scheduleTime}>
-            {trip.departure_time || "--:--"}
+            {trip.departure_time || '--:--'}
           </Text>
         </View>
         <Text style={styles.scheduleRoute}>
-          {trip.routeName || trip.route_name || "Unknown Route"}
+          {trip.routeName || trip.route_name || 'Unknown Route'}
         </Text>
         <Text style={styles.scheduleVessel}>
-          {trip.vesselName || trip.vessel_name || "Unknown Vessel"}
+          {trip.vesselName || trip.vessel_name || 'Unknown Vessel'}
         </Text>
         <View style={styles.scheduleBookings}>
           <Text style={styles.scheduleBookingText}>
@@ -298,7 +296,7 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
   };
 
   const handleViewAllTrips = () => {
-    router.push("../trips" as any);
+    router.push('../trips' as any);
   };
 
   // Function to render schedule items in a grid layout
@@ -310,8 +308,8 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
           <Text style={styles.emptyStateTitle}>No trips scheduled today</Text>
           <Text style={styles.emptyStateText}>
             {selectedRouteId || selectedVesselId
-              ? "No trips match the selected filters for today"
-              : "No trips are scheduled for today"}
+              ? 'No trips match the selected filters for today'
+              : 'No trips are scheduled for today'}
           </Text>
         </View>
       );
@@ -364,7 +362,7 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
       <SectionHeader
         title={`${actualDisplayDate}'s Schedule`}
         subtitle={`${
-          actualDisplayDate === "Today" ? "Today's" : `${actualDisplayDate}'s`
+          actualDisplayDate === 'Today' ? "Today's" : `${actualDisplayDate}'s`
         } scheduled trips (${displaySchedule.length} trips)`}
       />
 
@@ -405,20 +403,20 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
           <View style={styles.filterRow}>
             <View style={styles.filterItem}>
               <Dropdown
-                label="Route"
+                label='Route'
                 options={routeOptions}
                 value={selectedRouteId}
                 onValueChange={setSelectedRouteId}
-                placeholder="Select route..."
+                placeholder='Select route...'
               />
             </View>
             <View style={styles.filterItem}>
               <Dropdown
-                label="Vessel"
+                label='Vessel'
                 options={vesselOptions}
                 value={selectedVesselId}
                 onValueChange={setSelectedVesselId}
-                placeholder="Select vessel..."
+                placeholder='Select vessel...'
               />
             </View>
           </View>
@@ -454,15 +452,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   filterControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 16,
     marginBottom: 8,
   },
   filterButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -478,14 +476,14 @@ const styles = StyleSheet.create({
   filterButtonText: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   filterButtonTextActive: {
     color: colors.primary,
   },
   clearButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 6,
@@ -503,7 +501,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
   },
   filterRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   filterItem: {
@@ -511,7 +509,7 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
   },
@@ -529,15 +527,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scheduleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   scheduleItem: {
     backgroundColor: colors.card,
     padding: 12,
     borderRadius: 8,
-    width: "48%",
+    width: '48%',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -545,22 +543,22 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   scheduleItemPlaceholder: {
-    width: "48%",
+    width: '48%',
   },
   scheduleDateTime: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 6,
   },
   scheduleDate: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.textSecondary,
   },
   scheduleTime: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.primary,
   },
   scheduleRoute: {
@@ -574,57 +572,57 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   scheduleBookings: {
-    alignSelf: "flex-start",
+    alignSelf: 'flex-start',
   },
   scheduleBookingText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.primary,
   },
   viewAllButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 16,
-    backgroundColor: colors.primary + "10",
+    backgroundColor: colors.primary + '10',
     borderRadius: 8,
     gap: 8,
   },
   viewAllText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.primary,
   },
 
   emptyState: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingVertical: 40,
     gap: 12,
   },
   emptyStateTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
   },
   emptyStateText: {
     fontSize: 14,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 280,
   },
   noPermissionContainer: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 64,
     gap: 16,
   },
   noPermissionText: {
     fontSize: 16,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 250,
   },
 });

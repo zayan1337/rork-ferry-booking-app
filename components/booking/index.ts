@@ -29,4 +29,4 @@ export { default as ModificationReasonForm } from './ModificationReasonForm';
 export { default as AgentPolicyCard } from './AgentPolicyCard';
 export { default as RefundConfigurationCard } from './RefundConfigurationCard';
 export { default as CancellationDetailsForm } from './CancellationDetailsForm';
-export { default as CommissionImpactCard } from './CommissionImpactCard'; 
+export { default as CommissionImpactCard } from './CommissionImpactCard';

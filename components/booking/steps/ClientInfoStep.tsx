@@ -17,21 +17,21 @@ interface ClientInfoStepProps {
   // Selected client
   selectedClient: AgentClient | null;
   onClientChange: (client: AgentClient | null) => void;
-  
+
   // Client search
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
   searchResults: AgentClient[];
   isSearching: boolean;
   onSelectClient: (client: AgentClient) => void;
-  
+
   // Add new client form
   showAddForm: boolean;
   onToggleAddForm: (show: boolean) => void;
   clientForm: ClientFormData;
   onClientFormChange: (field: keyof ClientFormData, value: string) => void;
   onSaveNewClient: () => void;
-  
+
   // Validation
   errors: {
     client?: string;
@@ -88,13 +88,15 @@ const ClientInfoStep: React.FC<ClientInfoStepProps> = ({
 
       {!selectedClient && !showAddForm && (
         <View>
-          <Text style={styles.searchLabel}>Search for existing client by email or phone:</Text>
+          <Text style={styles.searchLabel}>
+            Search for existing client by email or phone:
+          </Text>
           <Input
-            label=""
-            placeholder="Enter client email or phone number"
+            label=''
+            placeholder='Enter client email or phone number'
             value={searchQuery}
             onChangeText={onSearchQueryChange}
-            keyboardType="email-address"
+            keyboardType='email-address'
           />
 
           {isSearching && (
@@ -127,16 +129,20 @@ const ClientInfoStep: React.FC<ClientInfoStepProps> = ({
             </View>
           )}
 
-          {searchQuery.length >= 3 && searchResults.length === 0 && !isSearching && (
-            <View style={styles.noResultsContainer}>
-              <Text style={styles.noResultsText}>No existing clients found</Text>
-            </View>
-          )}
+          {searchQuery.length >= 3 &&
+            searchResults.length === 0 &&
+            !isSearching && (
+              <View style={styles.noResultsContainer}>
+                <Text style={styles.noResultsText}>
+                  No existing clients found
+                </Text>
+              </View>
+            )}
 
           <Button
-            title="Add New Client"
+            title='Add New Client'
             onPress={handleShowAddForm}
-            variant="outline"
+            variant='outline'
             style={styles.addNewClientButton}
           />
         </View>
@@ -155,9 +161,9 @@ const ClientInfoStep: React.FC<ClientInfoStepProps> = ({
             )}
           </View>
           <Button
-            title="Change Client"
+            title='Change Client'
             onPress={handleChangeClient}
-            variant="outline"
+            variant='outline'
             style={styles.changeClientButton}
           />
         </View>
@@ -168,58 +174,56 @@ const ClientInfoStep: React.FC<ClientInfoStepProps> = ({
           <Text style={styles.newClientFormTitle}>Add New Client</Text>
 
           <Input
-            label="Client Name"
-            placeholder="Enter client name"
+            label='Client Name'
+            placeholder='Enter client name'
             value={clientForm.name}
-            onChangeText={(text) => handleFormChange('name', text)}
+            onChangeText={text => handleFormChange('name', text)}
             required
           />
 
           <Input
-            label="Client Email"
-            placeholder="Enter client email"
+            label='Client Email'
+            placeholder='Enter client email'
             value={clientForm.email}
-            onChangeText={(text) => handleFormChange('email', text)}
-            keyboardType="email-address"
+            onChangeText={text => handleFormChange('email', text)}
+            keyboardType='email-address'
             required
           />
 
           <Input
-            label="Client Phone"
-            placeholder="Enter client phone"
+            label='Client Phone'
+            placeholder='Enter client phone'
             value={clientForm.phone}
-            onChangeText={(text) => handleFormChange('phone', text)}
-            keyboardType="phone-pad"
+            onChangeText={text => handleFormChange('phone', text)}
+            keyboardType='phone-pad'
             required
           />
 
           <Input
-            label="ID Number (Optional)"
-            placeholder="Enter ID number (optional)"
+            label='ID Number (Optional)'
+            placeholder='Enter ID number (optional)'
             value={clientForm.idNumber}
-            onChangeText={(text) => handleFormChange('idNumber', text)}
+            onChangeText={text => handleFormChange('idNumber', text)}
           />
 
           <View style={styles.formButtons}>
             <Button
-              title="Cancel"
+              title='Cancel'
               onPress={() => onToggleAddForm(false)}
-              variant="outline"
+              variant='outline'
               style={styles.formButton}
             />
             <Button
-              title="Save Client"
+              title='Save Client'
               onPress={onSaveNewClient}
-              variant="primary"
+              variant='primary'
               style={styles.formButton}
             />
           </View>
         </View>
       )}
 
-      {errors.client && (
-        <Text style={styles.errorText}>{errors.client}</Text>
-      )}
+      {errors.client && <Text style={styles.errorText}>{errors.client}</Text>}
     </View>
   );
 };
@@ -360,4 +364,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ClientInfoStep; 
+export default ClientInfoStep;

@@ -1,6 +1,6 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { colors } from "@/constants/adminColors";
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { colors } from '@/constants/adminColors';
 import {
   Navigation,
   MapPin,
@@ -12,18 +12,18 @@ import {
   Calendar,
   TrendingUp,
   Anchor,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
 // Components
-import StatusBadge from "@/components/admin/StatusBadge";
+import StatusBadge from '@/components/admin/StatusBadge';
 
 type TripStatus =
-  | "scheduled"
-  | "boarding"
-  | "departed"
-  | "arrived"
-  | "cancelled"
-  | "delayed";
+  | 'scheduled'
+  | 'boarding'
+  | 'departed'
+  | 'arrived'
+  | 'cancelled'
+  | 'delayed';
 
 interface TripItemProps {
   trip: {
@@ -59,36 +59,36 @@ export default function TripItem({
 }: TripItemProps) {
   const getStatusVariant = (status: TripStatus) => {
     switch (status) {
-      case "scheduled":
-        return "default";
-      case "boarding":
-        return "warning";
-      case "departed":
-        return "success";
-      case "arrived":
-        return "success";
-      case "cancelled":
-        return "danger";
-      case "delayed":
-        return "warning";
+      case 'scheduled':
+        return 'default';
+      case 'boarding':
+        return 'warning';
+      case 'departed':
+        return 'success';
+      case 'arrived':
+        return 'success';
+      case 'cancelled':
+        return 'danger';
+      case 'delayed':
+        return 'warning';
       default:
-        return "default";
+        return 'default';
     }
   };
 
   const getStatusColor = (status: TripStatus) => {
     switch (status) {
-      case "scheduled":
+      case 'scheduled':
         return colors.primary;
-      case "boarding":
+      case 'boarding':
         return colors.warning;
-      case "departed":
+      case 'departed':
         return colors.success;
-      case "arrived":
+      case 'arrived':
         return colors.success;
-      case "cancelled":
+      case 'cancelled':
         return colors.danger;
-      case "delayed":
+      case 'delayed':
         return colors.warning;
       default:
         return colors.textSecondary;
@@ -103,17 +103,17 @@ export default function TripItem({
   };
 
   const getOccupancyLevel = (occupancy: number) => {
-    if (occupancy >= 90) return "Full";
-    if (occupancy >= 70) return "High";
-    if (occupancy >= 50) return "Medium";
-    return "Low";
+    if (occupancy >= 90) return 'Full';
+    if (occupancy >= 70) return 'High';
+    if (occupancy >= 50) return 'Medium';
+    return 'Low';
   };
 
   const formatTime = (time: string) => {
     try {
-      return new Date(`1970-01-01T${time}`).toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
+      return new Date(`1970-01-01T${time}`).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
         hour12: true,
       });
     } catch {
@@ -123,10 +123,10 @@ export default function TripItem({
 
   const formatDate = (date: string) => {
     try {
-      return new Date(date).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        weekday: "short",
+      return new Date(date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        weekday: 'short',
       });
     } catch {
       return date;
@@ -139,8 +139,8 @@ export default function TripItem({
 
   const routeDisplay =
     trip.route_name ||
-    `${trip.from_island_name || "Unknown"} → ${
-      trip.to_island_name || "Unknown"
+    `${trip.from_island_name || 'Unknown'} → ${
+      trip.to_island_name || 'Unknown'
     }`;
 
   const occupancyRate =
@@ -203,7 +203,7 @@ export default function TripItem({
         <View style={styles.vesselInfo}>
           <Anchor size={14} color={colors.textSecondary} />
           <Text style={styles.vesselName} numberOfLines={1}>
-            {trip.vessel_name || "Unknown Vessel"}
+            {trip.vessel_name || 'Unknown Vessel'}
           </Text>
           {trip.fare_multiplier !== 1.0 && (
             <View style={styles.fareMultiplier}>
@@ -327,12 +327,12 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    position: "relative",
+    position: 'relative',
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   headerLeft: {
@@ -340,37 +340,37 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   routeInfo: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginBottom: 6,
   },
   routeName: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     flex: 1,
   },
   dateTimeInfo: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
-    flexWrap: "wrap",
+    flexWrap: 'wrap',
   },
   dateText: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   timeText: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   arrow: {
     fontSize: 12,
@@ -381,8 +381,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   vesselInfo: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginBottom: 6,
   },
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fareMultiplier: {
-    backgroundColor: colors.warning + "20",
+    backgroundColor: colors.warning + '20',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   fareMultiplierText: {
     fontSize: 12,
     color: colors.warning,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   alertsSection: {
     gap: 4,
@@ -408,12 +408,12 @@ const styles = StyleSheet.create({
   delayText: {
     fontSize: 12,
     color: colors.warning,
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   weatherText: {
     fontSize: 12,
     color: colors.info,
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   statsSection: {
     paddingTop: 12,
@@ -421,30 +421,30 @@ const styles = StyleSheet.create({
     borderTopColor: colors.borderLight,
   },
   statRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   statItem: {
-    alignItems: "center",
+    alignItems: 'center',
     minWidth: 60,
     gap: 4,
   },
   statLabel: {
     fontSize: 10,
     color: colors.textTertiary,
-    fontWeight: "600",
-    textTransform: "uppercase",
+    fontWeight: '600',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   statValue: {
     fontSize: 13,
     color: colors.text,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   occupancyBar: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   occupancyBarTrack: {
@@ -452,20 +452,20 @@ const styles = StyleSheet.create({
     height: 6,
     backgroundColor: colors.backgroundTertiary,
     borderRadius: 3,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   occupancyBarFill: {
-    height: "100%",
+    height: '100%',
     borderRadius: 3,
   },
   occupancyLevel: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     minWidth: 45,
-    textAlign: "right",
+    textAlign: 'right',
   },
   statusIndicator: {
-    position: "absolute",
+    position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: "600",
-    textTransform: "capitalize",
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
 });

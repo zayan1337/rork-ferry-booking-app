@@ -1,11 +1,11 @@
-import React from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
-import { Check } from "lucide-react-native";
-import { colors } from "@/constants/adminColors";
-import UserItem from "@/components/admin/UserItem";
-import EmptyState from "@/components/admin/EmptyState";
-import { Users } from "lucide-react-native";
-import { UserProfile } from "@/types/userManagement";
+import React from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Check } from 'lucide-react-native';
+import { colors } from '@/constants/adminColors';
+import UserItem from '@/components/admin/UserItem';
+import EmptyState from '@/components/admin/EmptyState';
+import { Users } from 'lucide-react-native';
+import { UserProfile } from '@/types/userManagement';
 
 interface UserListProps {
   users: UserProfile[];
@@ -28,11 +28,11 @@ const UserList: React.FC<UserListProps> = ({
     return (
       <EmptyState
         icon={<Users size={48} color={colors.textSecondary} />}
-        title="No users found"
+        title='No users found'
         message={
           searchQuery
-            ? "Try adjusting your search criteria"
-            : "No users match the current filters"
+            ? 'Try adjusting your search criteria'
+            : 'No users match the current filters'
         }
       />
     );
@@ -40,7 +40,7 @@ const UserList: React.FC<UserListProps> = ({
 
   return (
     <View style={styles.usersList}>
-      {users.map((user) => (
+      {users.map(user => (
         <View key={user.id} style={styles.userItemWrapper}>
           {canUpdateUsers && (
             <TouchableOpacity
@@ -54,7 +54,7 @@ const UserList: React.FC<UserListProps> = ({
                 ]}
               >
                 {selectedUsers.includes(user.id) && (
-                  <Check size={14} color="white" />
+                  <Check size={14} color='white' />
                 )}
               </View>
             </TouchableOpacity>
@@ -74,8 +74,8 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   userItemWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   selectionCheckbox: {
@@ -86,10 +86,10 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: colors.primary + "40",
+    borderColor: colors.primary + '40',
     backgroundColor: colors.card,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,

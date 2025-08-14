@@ -15,45 +15,62 @@ type BaseManagementHook<T, F, S> = AdminManagement.BaseManagementHook<T, F, S>;
 // ROUTE MANAGEMENT HOOK INTERFACE
 // ============================================================================
 
-export interface UseRouteManagementReturn extends BaseManagementHook<Route, RouteFormData, RouteStats> {
-    // Route-specific data
-    routes: Route[];
-    currentRoute: Route | null;
+export interface UseRouteManagementReturn
+  extends BaseManagementHook<Route, RouteFormData, RouteStats> {
+  // Route-specific data
+  routes: Route[];
+  currentRoute: Route | null;
 
-    // Computed data with current filters and sort
-    filteredRoutes: Route[];
-    sortedRoutes: Route[];
-    routesByIsland: Record<string, Route[]>;
+  // Computed data with current filters and sort
+  filteredRoutes: Route[];
+  sortedRoutes: Route[];
+  routesByIsland: Record<string, Route[]>;
 
-    // Island data for route management
-    islands: any[]; // Island type from island store
-    loadIslands: () => Promise<void>;
+  // Island data for route management
+  islands: any[]; // Island type from island store
+  loadIslands: () => Promise<void>;
 
-    // Route-specific actions
-    loadRoutesByIsland: (islandId: string) => Promise<Route[]>;
-    getRoutesByIsland: (islandId: string) => Route[];
+  // Route-specific actions
+  loadRoutesByIsland: (islandId: string) => Promise<Route[]>;
+  getRoutesByIsland: (islandId: string) => Route[];
 
-    // Enhanced getters
-    getRouteWithDetails: (id: string) => Promise<RouteWithDetails | null>;
+  // Enhanced getters
+  getRouteWithDetails: (id: string) => Promise<RouteWithDetails | null>;
 
-    // Filter and sort state
-    sortBy: 'name' | 'base_fare' | 'created_at' | 'total_trips_30d' | 'total_revenue_30d' | 'average_occupancy_30d';
-    sortOrder: 'asc' | 'desc';
-    setSortBy: (sortBy: 'name' | 'base_fare' | 'created_at' | 'total_trips_30d' | 'total_revenue_30d' | 'average_occupancy_30d') => void;
-    setSortOrder: (order: 'asc' | 'desc') => void;
+  // Filter and sort state
+  sortBy:
+    | 'name'
+    | 'base_fare'
+    | 'created_at'
+    | 'total_trips_30d'
+    | 'total_revenue_30d'
+    | 'average_occupancy_30d';
+  sortOrder: 'asc' | 'desc';
+  setSortBy: (
+    sortBy:
+      | 'name'
+      | 'base_fare'
+      | 'created_at'
+      | 'total_trips_30d'
+      | 'total_revenue_30d'
+      | 'average_occupancy_30d'
+  ) => void;
+  setSortOrder: (order: 'asc' | 'desc') => void;
 
-    // Search and filter management
-    searchQuery: string;
-    filters: RouteFilters;
-    setSearchQuery: (query: string) => void;
-    setFilters: (filters: Partial<RouteFilters>) => void;
-    clearFilters: () => void;
+  // Search and filter management
+  searchQuery: string;
+  filters: RouteFilters;
+  setSearchQuery: (query: string) => void;
+  setFilters: (filters: Partial<RouteFilters>) => void;
+  clearFilters: () => void;
 
-    // Performance helpers
-    getPerformanceRating: (route: Route) => 'excellent' | 'good' | 'fair' | 'poor';
-    getPerformanceColor: (rating: string) => string;
-    formatCurrency: (amount: number) => string;
-    formatPercentage: (value: number) => string;
+  // Performance helpers
+  getPerformanceRating: (
+    route: Route
+  ) => 'excellent' | 'good' | 'fair' | 'poor';
+  getPerformanceColor: (rating: string) => string;
+  formatCurrency: (amount: number) => string;
+  formatPercentage: (value: number) => string;
 }
 
 // ============================================================================
@@ -61,255 +78,286 @@ export interface UseRouteManagementReturn extends BaseManagementHook<Route, Rout
 // ============================================================================
 
 export const useRouteManagement = (
-    // Optional parameters for pre-filtering
-    initialSearchQuery: string = '',
-    initialFilters: RouteFilters = {},
-    initialSortBy: 'name' | 'base_fare' | 'created_at' | 'total_trips_30d' | 'total_revenue_30d' | 'average_occupancy_30d' = 'name',
-    initialSortOrder: 'asc' | 'desc' = 'asc'
+  // Optional parameters for pre-filtering
+  initialSearchQuery: string = '',
+  initialFilters: RouteFilters = {},
+  initialSortBy:
+    | 'name'
+    | 'base_fare'
+    | 'created_at'
+    | 'total_trips_30d'
+    | 'total_revenue_30d'
+    | 'average_occupancy_30d' = 'name',
+  initialSortOrder: 'asc' | 'desc' = 'asc'
 ): UseRouteManagementReturn => {
+  // ========================================================================
+  // STORE ACCESS
+  // ========================================================================
 
-    // ========================================================================
-    // STORE ACCESS
-    // ========================================================================
+  const routeStore = useRouteStore();
+  const islandStore = useIslandStore();
 
-    const routeStore = useRouteStore();
-    const islandStore = useIslandStore();
+  const {
+    data: routes,
+    currentItem: currentRoute,
+    loading,
+    error,
+    stats,
+    searchQuery,
+    filters,
+    sortBy,
+    sortOrder,
+    fetchAll,
+    fetchById,
+    create,
+    update,
+    delete: deleteRoute,
+    fetchRouteDetails,
+    fetchRoutesByIsland,
+    setSearchQuery,
+    setFilters,
+    clearFilters,
+    setSortBy,
+    setSortOrder,
+    getRouteById,
+    getRoutesByIsland,
+    validateRouteData,
+    refreshAll,
+    searchItems,
+    filterItems,
+    sortItems,
+  } = routeStore;
 
-    const {
-        data: routes,
-        currentItem: currentRoute,
-        loading,
-        error,
-        stats,
-        searchQuery,
-        filters,
-        sortBy,
-        sortOrder,
-        fetchAll,
-        fetchById,
-        create,
-        update,
-        delete: deleteRoute,
-        fetchRouteDetails,
-        fetchRoutesByIsland,
-        setSearchQuery,
-        setFilters,
-        clearFilters,
-        setSortBy,
-        setSortOrder,
-        getRouteById,
-        getRoutesByIsland,
-        validateRouteData,
-        refreshAll,
-        searchItems,
-        filterItems,
-        sortItems,
-    } = routeStore;
+  const { data: islands, fetchAll: fetchIslands } = islandStore;
 
-    const {
-        data: islands,
-        fetchAll: fetchIslands,
-    } = islandStore;
+  // ========================================================================
+  // COMPUTED DATA
+  // ========================================================================
 
-    // ========================================================================
-    // COMPUTED DATA
-    // ========================================================================
+  // Apply current search and filters
+  const filteredRoutes = useMemo(() => {
+    let filtered = routes;
 
-    // Apply current search and filters
-    const filteredRoutes = useMemo(() => {
-        let filtered = routes;
+    // Apply search
+    if (searchQuery.trim()) {
+      filtered = searchItems(filtered, searchQuery);
+    }
 
-        // Apply search
-        if (searchQuery.trim()) {
-            filtered = searchItems(filtered, searchQuery);
+    // Apply filters
+    filtered = filterItems(filtered, filters);
+
+    return filtered;
+  }, [routes, searchQuery, filters, searchItems, filterItems]);
+
+  // Apply current sort
+  const sortedRoutes = useMemo(() => {
+    return sortItems(filteredRoutes, sortBy, sortOrder);
+  }, [filteredRoutes, sortBy, sortOrder, sortItems]);
+
+  // Group routes by island
+  const routesByIsland = useMemo(() => {
+    const grouped: Record<string, Route[]> = {};
+
+    routes.forEach(route => {
+      // Group by origin island
+      if (!grouped[route.from_island_id]) {
+        grouped[route.from_island_id] = [];
+      }
+      grouped[route.from_island_id].push(route);
+
+      // Group by destination island (if different)
+      if (route.to_island_id !== route.from_island_id) {
+        if (!grouped[route.to_island_id]) {
+          grouped[route.to_island_id] = [];
         }
-
-        // Apply filters
-        filtered = filterItems(filtered, filters);
-
-        return filtered;
-    }, [routes, searchQuery, filters, searchItems, filterItems]);
-
-    // Apply current sort
-    const sortedRoutes = useMemo(() => {
-        return sortItems(filteredRoutes, sortBy, sortOrder);
-    }, [filteredRoutes, sortBy, sortOrder, sortItems]);
-
-    // Group routes by island
-    const routesByIsland = useMemo(() => {
-        const grouped: Record<string, Route[]> = {};
-
-        routes.forEach(route => {
-            // Group by origin island
-            if (!grouped[route.from_island_id]) {
-                grouped[route.from_island_id] = [];
-            }
-            grouped[route.from_island_id].push(route);
-
-            // Group by destination island (if different)
-            if (route.to_island_id !== route.from_island_id) {
-                if (!grouped[route.to_island_id]) {
-                    grouped[route.to_island_id] = [];
-                }
-                if (!grouped[route.to_island_id].some(r => r.id === route.id)) {
-                    grouped[route.to_island_id].push(route);
-                }
-            }
-        });
-
-        return grouped;
-    }, [routes]);
-
-    // ========================================================================
-    // ACTIONS
-    // ========================================================================
-
-    const loadAll = useCallback(async () => {
-        await fetchAll();
-    }, [fetchAll]);
-
-    const getById = useCallback((id: string) => {
-        return getRouteById(id);
-    }, [getRouteById]);
-
-    const createRoute = useCallback(async (data: RouteFormData) => {
-        try {
-            await create(data);
-        } catch (error) {
-            throw error;
+        if (!grouped[route.to_island_id].some(r => r.id === route.id)) {
+          grouped[route.to_island_id].push(route);
         }
-    }, [create]);
+      }
+    });
 
-    const updateRoute = useCallback(async (id: string, data: Partial<RouteFormData>) => {
-        try {
-            await update(id, data);
-        } catch (error) {
-            throw error;
-        }
-    }, [update]);
+    return grouped;
+  }, [routes]);
 
-    const removeRoute = useCallback(async (id: string) => {
-        try {
-            await deleteRoute(id);
-        } catch (error) {
-            throw error;
-        }
-    }, [deleteRoute]);
+  // ========================================================================
+  // ACTIONS
+  // ========================================================================
 
-    const refresh = useCallback(async () => {
-        await refreshAll();
-    }, [refreshAll]);
+  const loadAll = useCallback(async () => {
+    await fetchAll();
+  }, [fetchAll]);
 
-    const loadIslands = useCallback(async () => {
-        if (!islands || islands.length === 0) {
-            await fetchIslands();
-        }
-    }, [islands, fetchIslands]);
+  const getById = useCallback(
+    (id: string) => {
+      return getRouteById(id);
+    },
+    [getRouteById]
+  );
 
-    const loadRoutesByIsland = useCallback(async (islandId: string) => {
-        return await fetchRoutesByIsland(islandId);
-    }, [fetchRoutesByIsland]);
+  const createRoute = useCallback(
+    async (data: RouteFormData) => {
+      try {
+        await create(data);
+      } catch (error) {
+        throw error;
+      }
+    },
+    [create]
+  );
 
-    const getRouteWithDetails = useCallback(async (id: string) => {
-        return await fetchRouteDetails(id);
-    }, [fetchRouteDetails]);
+  const updateRoute = useCallback(
+    async (id: string, data: Partial<RouteFormData>) => {
+      try {
+        await update(id, data);
+      } catch (error) {
+        throw error;
+      }
+    },
+    [update]
+  );
 
-    const validateData = useCallback((data: Partial<RouteFormData>) => {
-        return validateRouteData(data);
-    }, [validateRouteData]);
+  const removeRoute = useCallback(
+    async (id: string) => {
+      try {
+        await deleteRoute(id);
+      } catch (error) {
+        throw error;
+      }
+    },
+    [deleteRoute]
+  );
 
-    // ========================================================================
-    // PERFORMANCE HELPERS
-    // ========================================================================
+  const refresh = useCallback(async () => {
+    await refreshAll();
+  }, [refreshAll]);
 
-    const getPerformanceRating = useCallback((route: Route): 'excellent' | 'good' | 'fair' | 'poor' => {
-        const onTimePerf = route.on_time_performance_30d || 0;
+  const loadIslands = useCallback(async () => {
+    if (!islands || islands.length === 0) {
+      await fetchIslands();
+    }
+  }, [islands, fetchIslands]);
 
-        if (onTimePerf >= 95) return 'excellent';
-        if (onTimePerf >= 85) return 'good';
-        if (onTimePerf >= 70) return 'fair';
-        return 'poor';
-    }, []);
+  const loadRoutesByIsland = useCallback(
+    async (islandId: string) => {
+      return await fetchRoutesByIsland(islandId);
+    },
+    [fetchRoutesByIsland]
+  );
 
-    const getPerformanceColor = useCallback((rating: string): string => {
-        switch (rating) {
-            case 'excellent': return '#10B981'; // Green
-            case 'good': return '#3B82F6'; // Blue
-            case 'fair': return '#F59E0B'; // Yellow
-            case 'poor': return '#EF4444'; // Red
-            default: return '#6B7280'; // Gray
-        }
-    }, []);
+  const getRouteWithDetails = useCallback(
+    async (id: string) => {
+      return await fetchRouteDetails(id);
+    },
+    [fetchRouteDetails]
+  );
 
-    const formatCurrency = useCallback((amount: number): string => {
-        return `MVR ${amount.toLocaleString()}`;
-    }, []);
+  const validateData = useCallback(
+    (data: Partial<RouteFormData>) => {
+      return validateRouteData(data);
+    },
+    [validateRouteData]
+  );
 
-    const formatPercentage = useCallback((value: number): string => {
-        return `${value.toFixed(1)}%`;
-    }, []);
+  // ========================================================================
+  // PERFORMANCE HELPERS
+  // ========================================================================
 
-    // ========================================================================
-    // RETURN INTERFACE
-    // ========================================================================
+  const getPerformanceRating = useCallback(
+    (route: Route): 'excellent' | 'good' | 'fair' | 'poor' => {
+      const onTimePerf = route.on_time_performance_30d || 0;
 
-    return {
-        // Data
-        items: routes,
-        routes,
-        currentItem: currentRoute,
-        currentRoute,
-        loading,
-        error,
-        stats,
+      if (onTimePerf >= 95) return 'excellent';
+      if (onTimePerf >= 85) return 'good';
+      if (onTimePerf >= 70) return 'fair';
+      return 'poor';
+    },
+    []
+  );
 
-        // Computed data
-        filteredItems: filteredRoutes,
-        filteredRoutes,
-        sortedItems: sortedRoutes,
-        sortedRoutes,
-        routesByIsland,
+  const getPerformanceColor = useCallback((rating: string): string => {
+    switch (rating) {
+      case 'excellent':
+        return '#10B981'; // Green
+      case 'good':
+        return '#3B82F6'; // Blue
+      case 'fair':
+        return '#F59E0B'; // Yellow
+      case 'poor':
+        return '#EF4444'; // Red
+      default:
+        return '#6B7280'; // Gray
+    }
+  }, []);
 
-        // Islands data
-        islands,
-        loadIslands,
+  const formatCurrency = useCallback((amount: number): string => {
+    return `MVR ${amount.toLocaleString()}`;
+  }, []);
 
-        // Actions
-        loadAll,
-        getById,
-        create: createRoute,
-        update: updateRoute,
-        remove: removeRoute,
-        refresh,
+  const formatPercentage = useCallback((value: number): string => {
+    return `${value.toFixed(1)}%`;
+  }, []);
 
-        // Route-specific actions
-        loadRoutesByIsland,
-        getRoutesByIsland,
-        getRouteWithDetails,
+  // ========================================================================
+  // RETURN INTERFACE
+  // ========================================================================
 
-        // Search and filter
-        searchQuery,
-        filters,
-        setSearchQuery,
-        setFilters,
-        clearFilters,
+  return {
+    // Data
+    items: routes,
+    routes,
+    currentItem: currentRoute,
+    currentRoute,
+    loading,
+    error,
+    stats,
 
-        // Sort
-        sortBy,
-        sortOrder,
-        setSortBy,
-        setSortOrder,
+    // Computed data
+    filteredItems: filteredRoutes,
+    filteredRoutes,
+    sortedItems: sortedRoutes,
+    sortedRoutes,
+    routesByIsland,
 
-        // Validation
-        validateData,
+    // Islands data
+    islands,
+    loadIslands,
 
-        // Performance helpers
-        getPerformanceRating,
-        getPerformanceColor,
-        formatCurrency,
-        formatPercentage,
-    };
+    // Actions
+    loadAll,
+    getById,
+    create: createRoute,
+    update: updateRoute,
+    remove: removeRoute,
+    refresh,
+
+    // Route-specific actions
+    loadRoutesByIsland,
+    getRoutesByIsland,
+    getRouteWithDetails,
+
+    // Search and filter
+    searchQuery,
+    filters,
+    setSearchQuery,
+    setFilters,
+    clearFilters,
+
+    // Sort
+    sortBy,
+    sortOrder,
+    setSortBy,
+    setSortOrder,
+
+    // Validation
+    validateData,
+
+    // Performance helpers
+    getPerformanceRating,
+    getPerformanceColor,
+    formatCurrency,
+    formatPercentage,
+  };
 };
 
 // Export for use in components
-export default useRouteManagement; 
+export default useRouteManagement;

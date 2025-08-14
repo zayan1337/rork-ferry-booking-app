@@ -91,10 +91,9 @@ export type ButtonProps = {
   textStyle?: TextStyle;
   fullWidth?: boolean;
   icon?: React.ReactNode;
-
 };
 
 export type BookingCardProps = {
   booking: Booking;
   onPress: (booking: Booking) => void;
-}; 
+};

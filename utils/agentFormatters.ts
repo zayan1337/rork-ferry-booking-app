@@ -13,17 +13,17 @@ export const formatCurrency = (amount: number): string => {
  */
 export const formatAgentDisplayName = (agent: Agent | null): string => {
   if (!agent) return 'User';
-  
+
   if (agent.name) {
     // Extract first name from full name
     return agent.name.split(' ')[0];
   }
-  
+
   if (agent.email) {
     // Extract name from email if no name available
     return agent.email.split('@')[0];
   }
-  
+
   return 'Agent';
 };
 
@@ -32,21 +32,27 @@ export const formatAgentDisplayName = (agent: Agent | null): string => {
  */
 export const formatAgentId = (agentId: string): string => {
   if (!agentId) return 'N/A';
-  
+
   // Format as AG-XXXX if not already formatted
   if (agentId.startsWith('AG-')) {
     return agentId;
   }
-  
+
   return `AG-${agentId.slice(-4).toUpperCase()}`;
 };
 
 /**
  * Format credit utilization percentage
  */
-export const formatCreditUtilization = (creditBalance: number, creditCeiling: number): number => {
+export const formatCreditUtilization = (
+  creditBalance: number,
+  creditCeiling: number
+): number => {
   if (creditCeiling <= 0) return 0;
-  return Math.min(100, Math.max(0, ((creditCeiling - creditBalance) / creditCeiling) * 100));
+  return Math.min(
+    100,
+    Math.max(0, ((creditCeiling - creditBalance) / creditCeiling) * 100)
+  );
 };
 
 /**
@@ -54,8 +60,11 @@ export const formatCreditUtilization = (creditBalance: number, creditCeiling: nu
  */
 export const isAgentCreditLow = (agent: Agent | null): boolean => {
   if (!agent || !agent.creditCeiling || agent.creditCeiling <= 0) return false;
-  
-  const utilizationPercentage = formatCreditUtilization(agent.creditBalance, agent.creditCeiling);
+
+  const utilizationPercentage = formatCreditUtilization(
+    agent.creditBalance,
+    agent.creditCeiling
+  );
   return utilizationPercentage > 80; // Low if used more than 80% of ceiling
 };
 
@@ -63,7 +72,7 @@ export const isAgentCreditLow = (agent: Agent | null): boolean => {
  * Calculate credit summary from transactions
  */
 export const calculateCreditSummary = (
-  agent: Agent | null, 
+  agent: Agent | null,
   transactions: CreditTransaction[]
 ) => {
   if (!agent) {
@@ -85,7 +94,10 @@ export const calculateCreditSummary = (
     .filter(t => t.type === 'deduction')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const creditUtilization = formatCreditUtilization(agent.creditBalance, agent.creditCeiling);
+  const creditUtilization = formatCreditUtilization(
+    agent.creditBalance,
+    agent.creditCeiling
+  );
   const isLowCredit = isAgentCreditLow(agent);
 
   return {
@@ -103,7 +115,7 @@ export const calculateCreditSummary = (
  */
 export const formatBookingDate = (date: string | null): string => {
   if (!date) return 'N/A';
-  
+
   try {
     return new Date(date).toLocaleDateString();
   } catch (error) {
@@ -116,10 +128,10 @@ export const formatBookingDate = (date: string | null): string => {
  */
 export const formatRouteDisplay = (route: any): string => {
   if (!route) return 'Unknown Route';
-  
+
   const fromName = route.fromIsland?.name || route.origin || 'Unknown';
   const toName = route.toIsland?.name || route.destination || 'Unknown';
-  
+
   return `${fromName} → ${toName}`;
 };
 
@@ -128,7 +140,7 @@ export const formatRouteDisplay = (route: any): string => {
  */
 export const formatSeatNumbers = (seats: any[]): string => {
   if (!seats || seats.length === 0) return 'N/A';
-  
+
   return seats
     .map(seat => seat.number || seat.seat_number || '')
     .filter(Boolean)
@@ -140,7 +152,7 @@ export const formatSeatNumbers = (seats: any[]): string => {
  */
 export const formatAgentInitials = (agent: Agent | null): string => {
   if (!agent) return '??';
-  
+
   if (agent.name) {
     const nameParts = agent.name.trim().split(' ');
     if (nameParts.length >= 2) {
@@ -148,11 +160,11 @@ export const formatAgentInitials = (agent: Agent | null): string => {
     }
     return nameParts[0].slice(0, 2).toUpperCase();
   }
-  
+
   if (agent.email) {
     return agent.email.slice(0, 2).toUpperCase();
   }
-  
+
   return 'AG';
 };
 
@@ -175,11 +187,14 @@ export const formatCommission = (amount: number | null | undefined): string => {
 /**
  * Format free tickets remaining display
  */
-export const formatFreeTickets = (remaining: number | null | undefined, allocation: number | null | undefined): string => {
+export const formatFreeTickets = (
+  remaining: number | null | undefined,
+  allocation: number | null | undefined
+): string => {
   const remainingCount = Number(remaining) || 0;
   const totalAllocation = Number(allocation) || 0;
-  
+
   if (totalAllocation === 0) return '0';
-  
+
   return `${remainingCount} / ${totalAllocation}`;
-}; 
+};

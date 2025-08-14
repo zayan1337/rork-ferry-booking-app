@@ -7,24 +7,24 @@ export const formatBookingDate = (dateString: string) => {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
-    year: 'numeric'
+    year: 'numeric',
   });
 };
 
 // Status styling utilities
 export const getStatusColor = (status: string) => {
   const Colors = require('@/constants/colors').default;
-  
+
   switch (status) {
-    case "confirmed":
+    case 'confirmed':
       return Colors.success;
-    case "completed":
+    case 'completed':
       return Colors.primary;
-    case "cancelled":
+    case 'cancelled':
       return Colors.error;
-    case "modified":
+    case 'modified':
       return Colors.warning;
-    case "pending":
+    case 'pending':
       return Colors.inactive;
     default:
       return Colors.inactive;
@@ -34,7 +34,7 @@ export const getStatusColor = (status: string) => {
 // Share functionality
 export const shareBookingTicket = async (booking: any) => {
   try {
-    const shareMessage = 
+    const shareMessage =
       `Ferry Booking #${booking.bookingNumber}\n` +
       `From: ${booking.route?.fromIsland?.name || booking.origin}\n` +
       `To: ${booking.route?.toIsland?.name || booking.destination}\n` +
@@ -67,7 +67,8 @@ export const isBookingCancellable = (status: string) => {
 export const checkTimeRestriction = (departureDate: string) => {
   const departure = new Date(departureDate);
   const now = new Date();
-  const hoursDifference = (departure.getTime() - now.getTime()) / (1000 * 60 * 60);
-  
+  const hoursDifference =
+    (departure.getTime() - now.getTime()) / (1000 * 60 * 60);
+
   return hoursDifference >= 72;
-}; 
+};

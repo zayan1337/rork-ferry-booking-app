@@ -22,15 +22,15 @@ const BookingDetailsHeader: React.FC<BookingDetailsHeaderProps> = ({
 }) => {
   const getStatusBadgeStyle = (status: string) => {
     switch (status) {
-      case "confirmed":
+      case 'confirmed':
         return styles.statusConfirmed;
-      case "completed":
+      case 'completed':
         return styles.statusCompleted;
-      case "cancelled":
+      case 'cancelled':
         return styles.statusCancelled;
-      case "modified":
+      case 'modified':
         return styles.statusModified;
-      case "pending":
+      case 'pending':
         return styles.statusPending;
       default:
         return {};
@@ -39,15 +39,15 @@ const BookingDetailsHeader: React.FC<BookingDetailsHeaderProps> = ({
 
   const getStatusTextStyle = (status: string) => {
     switch (status) {
-      case "confirmed":
+      case 'confirmed':
         return styles.statusTextConfirmed;
-      case "completed":
+      case 'completed':
         return styles.statusTextCompleted;
-      case "cancelled":
+      case 'cancelled':
         return styles.statusTextCancelled;
-      case "modified":
+      case 'modified':
         return styles.statusTextModified;
-      case "pending":
+      case 'pending':
         return styles.statusTextPending;
       default:
         return {};
@@ -134,4 +134,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BookingDetailsHeader; 
+export default BookingDetailsHeader;

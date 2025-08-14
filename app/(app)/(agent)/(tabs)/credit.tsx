@@ -1,17 +1,41 @@
 // Enhanced Credit Screen with Optimized Search and Fixed Empty State
-import React, { useState, useMemo, useCallback } from "react";
-import { StyleSheet, Text, View, FlatList, RefreshControl, TouchableOpacity, ScrollView, TextInput, Dimensions, KeyboardAvoidingView, Platform } from "react-native";
-import { ArrowUp, ArrowDown, Filter, Search, Calendar, TrendingUp, TrendingDown, Clock } from "lucide-react-native";
+import React, { useState, useMemo, useCallback } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
+  RefreshControl,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import {
+  ArrowUp,
+  ArrowDown,
+  Filter,
+  Search,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+} from 'lucide-react-native';
 
-import Colors from "@/constants/colors";
-import CreditTransactionCard from "@/components/CreditTransactionCard";
-import { CreditSummaryCard } from "@/components/agent";
-import { SkeletonCreditTransactionsList } from "@/components/skeleton";
+import Colors from '@/constants/colors';
+import CreditTransactionCard from '@/components/CreditTransactionCard';
+import { CreditSummaryCard } from '@/components/agent';
+import { SkeletonCreditTransactionsList } from '@/components/skeleton';
 
-import { useAgentData } from "@/hooks/useAgentData";
-import { useRefreshControl } from "@/hooks/useRefreshControl";
-import { formatCurrency, calculateCreditSummary } from "@/utils/agentFormatters";
-import { CreditTransaction } from "@/types/agent";
+import { useAgentData } from '@/hooks/useAgentData';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
+import {
+  formatCurrency,
+  calculateCreditSummary,
+} from '@/utils/agentFormatters';
+import { CreditTransaction } from '@/types/agent';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -20,116 +44,134 @@ type FilterType = 'all' | 'refill' | 'deduction';
 type SortType = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
 
 // Separate Search Header Component to prevent re-renders
-const SearchHeader = React.memo(({
-  searchQuery,
-  showFilters,
-  onSearchChange,
-  onClearSearch,
-  onToggleFilters
-}: {
-  searchQuery: string;
-  showFilters: boolean;
-  onSearchChange: (text: string) => void;
-  onClearSearch: () => void;
-  onToggleFilters: () => void;
-}) => {
-  const textInputRef = React.useRef<TextInput>(null);
-  const [isFocused, setIsFocused] = React.useState(false);
+const SearchHeader = React.memo(
+  ({
+    searchQuery,
+    showFilters,
+    onSearchChange,
+    onClearSearch,
+    onToggleFilters,
+  }: {
+    searchQuery: string;
+    showFilters: boolean;
+    onSearchChange: (text: string) => void;
+    onClearSearch: () => void;
+    onToggleFilters: () => void;
+  }) => {
+    const textInputRef = React.useRef<TextInput>(null);
+    const [isFocused, setIsFocused] = React.useState(false);
 
-  // Auto-focus when component mounts or when user starts interacting
-  React.useEffect(() => {
-    if (showFilters && searchQuery.length === 0) {
-      // Small delay to ensure the component is fully rendered
-      const timer = setTimeout(() => {
-        textInputRef.current?.focus();
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [showFilters]);
+    // Auto-focus when component mounts or when user starts interacting
+    React.useEffect(() => {
+      if (showFilters && searchQuery.length === 0) {
+        // Small delay to ensure the component is fully rendered
+        const timer = setTimeout(() => {
+          textInputRef.current?.focus();
+        }, 150);
+        return () => clearTimeout(timer);
+      }
+    }, [showFilters]);
 
-  const handleContainerPress = () => {
-    textInputRef.current?.focus();
-  };
-
-  const handleClearAndFocus = () => {
-    onClearSearch();
-    // Small delay to ensure state is updated before focusing
-    setTimeout(() => {
+    const handleContainerPress = () => {
       textInputRef.current?.focus();
-    }, 50);
-  };
+    };
 
-  const handleSearchSubmit = () => {
-    textInputRef.current?.blur();
-  };
+    const handleClearAndFocus = () => {
+      onClearSearch();
+      // Small delay to ensure state is updated before focusing
+      setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 50);
+    };
 
-  const handleFocus = () => {
-    setIsFocused(true);
-  };
+    const handleSearchSubmit = () => {
+      textInputRef.current?.blur();
+    };
 
-  const handleBlur = () => {
-    setIsFocused(false);
-  };
+    const handleFocus = () => {
+      setIsFocused(true);
+    };
 
-  return (
-    <View style={styles.searchAndFiltersContainer}>
-      {/* Enhanced Search Bar */}
-      <TouchableOpacity
-        style={[
-          styles.searchContainer,
-          (searchQuery.length > 0 || isFocused) && styles.searchContainerActive
-        ]}
-        onPress={handleContainerPress}
-        activeOpacity={0.7}
-      >
-        <Search size={16} color={(searchQuery.length > 0 || isFocused) ? Colors.primary : Colors.subtext} />
-        <TextInput
-          ref={textInputRef}
-          style={styles.searchInput}
-          placeholder="Search transactions or booking numbers..."
-          value={searchQuery}
-          onChangeText={onSearchChange}
-          onSubmitEditing={handleSearchSubmit}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          placeholderTextColor={Colors.subtext}
-          returnKeyType="search"
-          autoCorrect={false}
-          autoCapitalize="none"
-          blurOnSubmit={false}
-          selectionColor={Colors.primary}
-          textContentType="none"
-          autoComplete="off"
-          clearButtonMode="never"
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearSearchButton}
-            onPress={handleClearAndFocus}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={styles.clearSearchText}>×</Text>
-          </TouchableOpacity>
-        )}
-      </TouchableOpacity>
+    const handleBlur = () => {
+      setIsFocused(false);
+    };
 
-      {/* Filter Toggle */}
-      <TouchableOpacity
-        style={[styles.filterToggle, showFilters && styles.activeFilterToggle]}
-        onPress={onToggleFilters}
-        activeOpacity={0.7}
-      >
-        <Filter size={16} color={showFilters ? 'white' : Colors.subtext} />
-      </TouchableOpacity>
-    </View>
-  );
-});
+    return (
+      <View style={styles.searchAndFiltersContainer}>
+        {/* Enhanced Search Bar */}
+        <TouchableOpacity
+          style={[
+            styles.searchContainer,
+            (searchQuery.length > 0 || isFocused) &&
+              styles.searchContainerActive,
+          ]}
+          onPress={handleContainerPress}
+          activeOpacity={0.7}
+        >
+          <Search
+            size={16}
+            color={
+              searchQuery.length > 0 || isFocused
+                ? Colors.primary
+                : Colors.subtext
+            }
+          />
+          <TextInput
+            ref={textInputRef}
+            style={styles.searchInput}
+            placeholder='Search transactions or booking numbers...'
+            value={searchQuery}
+            onChangeText={onSearchChange}
+            onSubmitEditing={handleSearchSubmit}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            placeholderTextColor={Colors.subtext}
+            returnKeyType='search'
+            autoCorrect={false}
+            autoCapitalize='none'
+            blurOnSubmit={false}
+            selectionColor={Colors.primary}
+            textContentType='none'
+            autoComplete='off'
+            clearButtonMode='never'
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearSearchButton}
+              onPress={handleClearAndFocus}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.clearSearchText}>×</Text>
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+
+        {/* Filter Toggle */}
+        <TouchableOpacity
+          style={[
+            styles.filterToggle,
+            showFilters && styles.activeFilterToggle,
+          ]}
+          onPress={onToggleFilters}
+          activeOpacity={0.7}
+        >
+          <Filter size={16} color={showFilters ? 'white' : Colors.subtext} />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+);
 
 export default function AgentCreditScreen() {
-  const { agent, creditTransactions, isLoadingCredit, refreshCreditTransactions } = useAgentData();
+  const {
+    agent,
+    creditTransactions,
+    isLoadingCredit,
+    refreshCreditTransactions,
+  } = useAgentData();
 
   const { isRefreshing, onRefresh } = useRefreshControl({
-    onRefresh: refreshCreditTransactions
+    onRefresh: refreshCreditTransactions,
   });
 
   // State for filters and search
@@ -139,7 +181,7 @@ export default function AgentCreditScreen() {
   const [showFilters, setShowFilters] = useState(false);
 
   const handleRequestCredit = () => {
-    alert("Credit request functionality would be implemented here");
+    alert('Credit request functionality would be implemented here');
   };
 
   const creditSummary = calculateCreditSummary(agent, creditTransactions);
@@ -175,15 +217,18 @@ export default function AgentCreditScreen() {
 
     // Apply filter
     if (activeFilter !== 'all') {
-      filtered = filtered.filter(transaction => transaction.type === activeFilter);
+      filtered = filtered.filter(
+        transaction => transaction.type === activeFilter
+      );
     }
 
     // Apply search
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(transaction =>
-        transaction.description?.toLowerCase().includes(query) ||
-        transaction.bookingNumber?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        transaction =>
+          transaction.description?.toLowerCase().includes(query) ||
+          transaction.bookingNumber?.toLowerCase().includes(query)
       );
     }
 
@@ -208,16 +253,26 @@ export default function AgentCreditScreen() {
 
   // Calculate filtered statistics
   const filteredStats = useMemo(() => {
-    const refills = filteredAndSortedTransactions.filter(t => t.type === 'refill');
-    const deductions = filteredAndSortedTransactions.filter(t => t.type === 'deduction');
+    const refills = filteredAndSortedTransactions.filter(
+      t => t.type === 'refill'
+    );
+    const deductions = filteredAndSortedTransactions.filter(
+      t => t.type === 'deduction'
+    );
 
     return {
       totalRefills: refills.reduce((sum, t) => sum + t.amount, 0),
       totalDeductions: deductions.reduce((sum, t) => sum + t.amount, 0),
       refillCount: refills.length,
       deductionCount: deductions.length,
-      averageRefill: refills.length > 0 ? refills.reduce((sum, t) => sum + t.amount, 0) / refills.length : 0,
-      averageDeduction: deductions.length > 0 ? deductions.reduce((sum, t) => sum + t.amount, 0) / deductions.length : 0,
+      averageRefill:
+        refills.length > 0
+          ? refills.reduce((sum, t) => sum + t.amount, 0) / refills.length
+          : 0,
+      averageDeduction:
+        deductions.length > 0
+          ? deductions.reduce((sum, t) => sum + t.amount, 0) / deductions.length
+          : 0,
     };
   }, [filteredAndSortedTransactions]);
 
@@ -226,208 +281,294 @@ export default function AgentCreditScreen() {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    return creditTransactions?.filter(t =>
-      new Date(t.date) >= sevenDaysAgo
-    ) || [];
+    return (
+      creditTransactions?.filter(t => new Date(t.date) >= sevenDaysAgo) || []
+    );
   }, [creditTransactions]);
 
-  const renderFilterButton = useCallback((filter: FilterType, label: string, icon: React.ReactNode) => (
-    <TouchableOpacity
-      key={filter}
-      style={[
-        styles.filterButton,
-        activeFilter === filter && styles.activeFilterButton
-      ]}
-      onPress={() => handleFilterChange(filter)}
-    >
-      {icon}
-      <Text style={[
-        styles.filterButtonText,
-        activeFilter === filter && styles.activeFilterButtonText
-      ]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  ), [activeFilter, handleFilterChange]);
+  const renderFilterButton = useCallback(
+    (filter: FilterType, label: string, icon: React.ReactNode) => (
+      <TouchableOpacity
+        key={filter}
+        style={[
+          styles.filterButton,
+          activeFilter === filter && styles.activeFilterButton,
+        ]}
+        onPress={() => handleFilterChange(filter)}
+      >
+        {icon}
+        <Text
+          style={[
+            styles.filterButtonText,
+            activeFilter === filter && styles.activeFilterButtonText,
+          ]}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    ),
+    [activeFilter, handleFilterChange]
+  );
 
-  const renderTransactionItem = React.useCallback(({ item }: { item: CreditTransaction }) => (
-    <CreditTransactionCard transaction={item} />
-  ), []);
+  const renderTransactionItem = React.useCallback(
+    ({ item }: { item: CreditTransaction }) => (
+      <CreditTransactionCard transaction={item} />
+    ),
+    []
+  );
 
-  const ListHeaderComponent = useMemo(() => (
-    <View style={styles.headerContainer}>
-      {/* Enhanced Credit Summary */}
-      <View style={styles.summarySection}>
-        <CreditSummaryCard
-          agent={agent}
-          transactions={creditTransactions}
-          onRequestCredit={handleRequestCredit}
-        />
-      </View>
-
-      {/* Enhanced Transaction Summary Grid */}
-      <View style={styles.statsGrid}>
-        <View style={[styles.statCard, styles.refillCard]}>
-          <View style={[styles.statIconContainer, { backgroundColor: `${Colors.success}15` }]}>
-            <TrendingUp size={20} color={Colors.success} />
-          </View>
-          <View style={styles.statContent}>
-            <Text style={styles.statLabel} numberOfLines={1}>Credit Added</Text>
-            <Text style={[styles.statValue, { color: Colors.success }]} numberOfLines={1}>
-              {formatCurrency(creditSummary.totalCreditAdded)}
-            </Text>
-            <Text style={styles.statSubtext} numberOfLines={1}>
-              {creditTransactions?.filter(t => t.type === 'refill').length || 0} transactions
-            </Text>
-          </View>
+  const ListHeaderComponent = useMemo(
+    () => (
+      <View style={styles.headerContainer}>
+        {/* Enhanced Credit Summary */}
+        <View style={styles.summarySection}>
+          <CreditSummaryCard
+            agent={agent}
+            transactions={creditTransactions}
+            onRequestCredit={handleRequestCredit}
+          />
         </View>
 
-        <View style={[styles.statCard, styles.deductionCard]}>
-          <View style={[styles.statIconContainer, { backgroundColor: `${Colors.error}15` }]}>
-            <TrendingDown size={20} color={Colors.error} />
-          </View>
-          <View style={styles.statContent}>
-            <Text style={styles.statLabel} numberOfLines={1}>Credit Used</Text>
-            <Text style={[styles.statValue, { color: Colors.error }]} numberOfLines={1}>
-              {formatCurrency(creditSummary.totalCreditUsed)}
-            </Text>
-            <Text style={styles.statSubtext} numberOfLines={1}>
-              {creditTransactions?.filter(t => t.type === 'deduction').length || 0} transactions
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Recent Activity Summary */}
-      {recentTransactions.length > 0 && (
-        <View style={styles.recentActivityCard}>
-          <View style={styles.recentActivityHeader}>
-            <Clock size={16} color={Colors.primary} />
-            <Text style={styles.recentActivityTitle}>Last 7 Days Activity</Text>
-          </View>
-          <View style={styles.recentActivityStats}>
-            <View style={styles.recentStat}>
-              <Text style={styles.recentStatLabel}>Transactions</Text>
-              <Text style={styles.recentStatValue}>{recentTransactions.length}</Text>
+        {/* Enhanced Transaction Summary Grid */}
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCard, styles.refillCard]}>
+            <View
+              style={[
+                styles.statIconContainer,
+                { backgroundColor: `${Colors.success}15` },
+              ]}
+            >
+              <TrendingUp size={20} color={Colors.success} />
             </View>
-            <View style={styles.recentStat}>
-              <Text style={styles.recentStatLabel}>Net Change</Text>
-              <Text style={[
-                styles.recentStatValue,
-                {
-                  color: recentTransactions.reduce((sum, t) =>
-                    sum + (t.type === 'refill' ? t.amount : -t.amount), 0
-                  ) >= 0 ? Colors.success : Colors.error
-                }
-              ]}>
-                {formatCurrency(Math.abs(recentTransactions.reduce((sum, t) =>
-                  sum + (t.type === 'refill' ? t.amount : -t.amount), 0
-                )))}
+            <View style={styles.statContent}>
+              <Text style={styles.statLabel} numberOfLines={1}>
+                Credit Added
+              </Text>
+              <Text
+                style={[styles.statValue, { color: Colors.success }]}
+                numberOfLines={1}
+              >
+                {formatCurrency(creditSummary.totalCreditAdded)}
+              </Text>
+              <Text style={styles.statSubtext} numberOfLines={1}>
+                {creditTransactions?.filter(t => t.type === 'refill').length ||
+                  0}{' '}
+                transactions
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.statCard, styles.deductionCard]}>
+            <View
+              style={[
+                styles.statIconContainer,
+                { backgroundColor: `${Colors.error}15` },
+              ]}
+            >
+              <TrendingDown size={20} color={Colors.error} />
+            </View>
+            <View style={styles.statContent}>
+              <Text style={styles.statLabel} numberOfLines={1}>
+                Credit Used
+              </Text>
+              <Text
+                style={[styles.statValue, { color: Colors.error }]}
+                numberOfLines={1}
+              >
+                {formatCurrency(creditSummary.totalCreditUsed)}
+              </Text>
+              <Text style={styles.statSubtext} numberOfLines={1}>
+                {creditTransactions?.filter(t => t.type === 'deduction')
+                  .length || 0}{' '}
+                transactions
               </Text>
             </View>
           </View>
         </View>
-      )}
 
-      {/* Search and Filters */}
-      <SearchHeader
-        searchQuery={searchQuery}
-        showFilters={showFilters}
-        onSearchChange={handleSearchChange}
-        onClearSearch={handleClearSearch}
-        onToggleFilters={toggleFilters}
-      />
-
-      {/* Filter Buttons */}
-      {showFilters && (
-        <View style={styles.filtersContainer}>
-          <View style={styles.filterButtonsWrapper}>
-            {renderFilterButton('all', 'All', <Calendar size={14} color={activeFilter === 'all' ? 'white' : Colors.subtext} />)}
-            {renderFilterButton('refill', 'Refills', <ArrowUp size={14} color={activeFilter === 'refill' ? 'white' : Colors.success} />)}
-            {renderFilterButton('deduction', 'Deductions', <ArrowDown size={14} color={activeFilter === 'deduction' ? 'white' : Colors.error} />)}
-          </View>
-
-          {/* Sort Options */}
-          <View style={styles.sortContainer}>
-            <Text style={styles.sortLabel}>Sort by:</Text>
-            <View style={styles.sortButtonsWrapper}>
-              {[
-                { key: 'newest', label: 'Newest' },
-                { key: 'oldest', label: 'Oldest' },
-                { key: 'amount_high', label: 'Amount ↓' },
-                { key: 'amount_low', label: 'Amount ↑' }
-              ].map((sort) => (
-                <TouchableOpacity
-                  key={sort.key}
-                  style={[styles.sortButton, sortBy === sort.key && styles.activeSortButton]}
-                  onPress={() => handleSortChange(sort.key as SortType)}
+        {/* Recent Activity Summary */}
+        {recentTransactions.length > 0 && (
+          <View style={styles.recentActivityCard}>
+            <View style={styles.recentActivityHeader}>
+              <Clock size={16} color={Colors.primary} />
+              <Text style={styles.recentActivityTitle}>
+                Last 7 Days Activity
+              </Text>
+            </View>
+            <View style={styles.recentActivityStats}>
+              <View style={styles.recentStat}>
+                <Text style={styles.recentStatLabel}>Transactions</Text>
+                <Text style={styles.recentStatValue}>
+                  {recentTransactions.length}
+                </Text>
+              </View>
+              <View style={styles.recentStat}>
+                <Text style={styles.recentStatLabel}>Net Change</Text>
+                <Text
+                  style={[
+                    styles.recentStatValue,
+                    {
+                      color:
+                        recentTransactions.reduce(
+                          (sum, t) =>
+                            sum + (t.type === 'refill' ? t.amount : -t.amount),
+                          0
+                        ) >= 0
+                          ? Colors.success
+                          : Colors.error,
+                    },
+                  ]}
                 >
-                  <Text style={[styles.sortButtonText, sortBy === sort.key && styles.activeSortButtonText]}>
-                    {sort.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                  {formatCurrency(
+                    Math.abs(
+                      recentTransactions.reduce(
+                        (sum, t) =>
+                          sum + (t.type === 'refill' ? t.amount : -t.amount),
+                        0
+                      )
+                    )
+                  )}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      )}
-
-      {/* Results Summary */}
-      <View style={styles.resultsHeader}>
-        <Text style={styles.resultsTitle}>
-          Transaction History {filteredAndSortedTransactions.length > 0 && `(${filteredAndSortedTransactions.length})`}
-        </Text>
-        {activeFilter !== 'all' || searchQuery.trim() ? (
-          <TouchableOpacity
-            style={styles.clearFiltersButton}
-            onPress={clearAllFilters}
-          >
-            <Text style={styles.clearFiltersText}>Clear Filters</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-    </View>
-  ), [
-    agent,
-    creditTransactions,
-    creditSummary,
-    recentTransactions,
-    searchQuery,
-    showFilters,
-    activeFilter,
-    sortBy,
-    filteredAndSortedTransactions.length,
-    handleSearchChange,
-    handleClearSearch,
-    toggleFilters,
-    renderFilterButton,
-    handleSortChange,
-    clearAllFilters
-  ]);
-
-  const ListEmptyComponent = useMemo(() => (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyContent}>
-        <View style={styles.emptyIconContainer}>
-          <Calendar size={48} color={Colors.subtext} />
-        </View>
-        <Text style={styles.emptyTitle}>No transactions found</Text>
-        <Text style={styles.emptySubtitle}>
-          {searchQuery.trim() || activeFilter !== 'all'
-            ? "Try adjusting your filters or search terms"
-            : "Your credit transactions will appear here"}
-        </Text>
-        {(searchQuery.trim() || activeFilter !== 'all') && (
-          <TouchableOpacity
-            style={styles.emptyActionButton}
-            onPress={clearAllFilters}
-          >
-            <Text style={styles.emptyActionText}>Clear Filters</Text>
-          </TouchableOpacity>
         )}
+
+        {/* Search and Filters */}
+        <SearchHeader
+          searchQuery={searchQuery}
+          showFilters={showFilters}
+          onSearchChange={handleSearchChange}
+          onClearSearch={handleClearSearch}
+          onToggleFilters={toggleFilters}
+        />
+
+        {/* Filter Buttons */}
+        {showFilters && (
+          <View style={styles.filtersContainer}>
+            <View style={styles.filterButtonsWrapper}>
+              {renderFilterButton(
+                'all',
+                'All',
+                <Calendar
+                  size={14}
+                  color={activeFilter === 'all' ? 'white' : Colors.subtext}
+                />
+              )}
+              {renderFilterButton(
+                'refill',
+                'Refills',
+                <ArrowUp
+                  size={14}
+                  color={activeFilter === 'refill' ? 'white' : Colors.success}
+                />
+              )}
+              {renderFilterButton(
+                'deduction',
+                'Deductions',
+                <ArrowDown
+                  size={14}
+                  color={activeFilter === 'deduction' ? 'white' : Colors.error}
+                />
+              )}
+            </View>
+
+            {/* Sort Options */}
+            <View style={styles.sortContainer}>
+              <Text style={styles.sortLabel}>Sort by:</Text>
+              <View style={styles.sortButtonsWrapper}>
+                {[
+                  { key: 'newest', label: 'Newest' },
+                  { key: 'oldest', label: 'Oldest' },
+                  { key: 'amount_high', label: 'Amount ↓' },
+                  { key: 'amount_low', label: 'Amount ↑' },
+                ].map(sort => (
+                  <TouchableOpacity
+                    key={sort.key}
+                    style={[
+                      styles.sortButton,
+                      sortBy === sort.key && styles.activeSortButton,
+                    ]}
+                    onPress={() => handleSortChange(sort.key as SortType)}
+                  >
+                    <Text
+                      style={[
+                        styles.sortButtonText,
+                        sortBy === sort.key && styles.activeSortButtonText,
+                      ]}
+                    >
+                      {sort.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Results Summary */}
+        <View style={styles.resultsHeader}>
+          <Text style={styles.resultsTitle}>
+            Transaction History{' '}
+            {filteredAndSortedTransactions.length > 0 &&
+              `(${filteredAndSortedTransactions.length})`}
+          </Text>
+          {activeFilter !== 'all' || searchQuery.trim() ? (
+            <TouchableOpacity
+              style={styles.clearFiltersButton}
+              onPress={clearAllFilters}
+            >
+              <Text style={styles.clearFiltersText}>Clear Filters</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
-    </View>
-  ), [searchQuery, activeFilter, clearAllFilters]);
+    ),
+    [
+      agent,
+      creditTransactions,
+      creditSummary,
+      recentTransactions,
+      searchQuery,
+      showFilters,
+      activeFilter,
+      sortBy,
+      filteredAndSortedTransactions.length,
+      handleSearchChange,
+      handleClearSearch,
+      toggleFilters,
+      renderFilterButton,
+      handleSortChange,
+      clearAllFilters,
+    ]
+  );
+
+  const ListEmptyComponent = useMemo(
+    () => (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyContent}>
+          <View style={styles.emptyIconContainer}>
+            <Calendar size={48} color={Colors.subtext} />
+          </View>
+          <Text style={styles.emptyTitle}>No transactions found</Text>
+          <Text style={styles.emptySubtitle}>
+            {searchQuery.trim() || activeFilter !== 'all'
+              ? 'Try adjusting your filters or search terms'
+              : 'Your credit transactions will appear here'}
+          </Text>
+          {(searchQuery.trim() || activeFilter !== 'all') && (
+            <TouchableOpacity
+              style={styles.emptyActionButton}
+              onPress={clearAllFilters}
+            >
+              <Text style={styles.emptyActionText}>Clear Filters</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    ),
+    [searchQuery, activeFilter, clearAllFilters]
+  );
 
   return (
     <KeyboardAvoidingView
@@ -436,7 +577,8 @@ export default function AgentCreditScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
       <View style={styles.innerContainer}>
-        {isLoadingCredit && (!creditTransactions || creditTransactions.length === 0) ? (
+        {isLoadingCredit &&
+        (!creditTransactions || creditTransactions.length === 0) ? (
           <ScrollView style={styles.container}>
             <View style={styles.headerContainer}>
               <View style={styles.summarySection}>
@@ -451,15 +593,16 @@ export default function AgentCreditScreen() {
           </ScrollView>
         ) : (
           <FlatList
-            key="credit-transactions-list"
+            key='credit-transactions-list'
             data={filteredAndSortedTransactions}
-            keyExtractor={(item) => item.id}
+            keyExtractor={item => item.id}
             renderItem={renderTransactionItem}
             ListHeaderComponent={ListHeaderComponent}
             ListEmptyComponent={ListEmptyComponent}
             contentContainerStyle={[
               styles.listContainer,
-              filteredAndSortedTransactions.length === 0 && styles.emptyListContainer
+              filteredAndSortedTransactions.length === 0 &&
+                styles.emptyListContainer,
             ]}
             style={styles.flatListStyle}
             refreshControl={
@@ -470,14 +613,16 @@ export default function AgentCreditScreen() {
                 tintColor={Colors.primary}
               />
             }
-            getItemLayout={(data, index) => (
-              { length: 120, offset: 120 * index, index }
-            )}
+            getItemLayout={(data, index) => ({
+              length: 120,
+              offset: 120 * index,
+              index,
+            })}
             removeClippedSubviews={true}
             maxToRenderPerBatch={15}
             windowSize={15}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps='handled'
           />
         )}
       </View>
@@ -503,8 +648,8 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   statsGrid: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     width: '100%',
     paddingHorizontal: 0,
   },
@@ -515,7 +660,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     maxWidth: '48%',
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -528,28 +673,28 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 12,
-    alignSelf: "center",
+    alignSelf: 'center',
   },
   statContent: {
-    alignItems: "center",
+    alignItems: 'center',
   },
   statLabel: {
     fontSize: 12,
     color: Colors.subtext,
-    textAlign: "center",
+    textAlign: 'center',
   },
   statValue: {
     fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
+    fontWeight: '600',
+    textAlign: 'center',
   },
   statSubtext: {
     fontSize: 12,
     color: Colors.subtext,
-    textAlign: "center",
+    textAlign: 'center',
   },
   refillCard: {
     marginRight: 8,
@@ -562,7 +707,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: 12,
     marginTop: 16,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -572,24 +717,24 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   recentActivityHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
   recentActivityTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
     marginLeft: 8,
   },
   recentActivityStats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   recentStat: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   recentStatLabel: {
     fontSize: 12,
@@ -598,17 +743,17 @@ const styles = StyleSheet.create({
   },
   recentStatValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   searchAndFiltersContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
     width: '100%',
   },
   searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.card,
     borderRadius: 8,
     paddingHorizontal: 12,
@@ -677,17 +822,17 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   filterButtonsWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
     flexGrow: 0,
     width: '100%',
     gap: isTablet ? 8 : 4,
   },
   filterButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.card,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -696,7 +841,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     minWidth: 80,
     height: 40,
-    justifyContent: "center",
+    justifyContent: 'center',
     flex: 1,
   },
   activeFilterButton: {
@@ -707,12 +852,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.text,
     marginLeft: 4,
-    fontWeight: "500",
-    textAlign: "center",
+    fontWeight: '500',
+    textAlign: 'center',
   },
   activeFilterButtonText: {
     color: 'white',
-    fontWeight: "600",
+    fontWeight: '600',
   },
   sortContainer: {
     marginTop: 8,
@@ -725,9 +870,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   sortButtonsWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     width: '100%',
     gap: isTablet ? 8 : 4,
   },
@@ -740,8 +885,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     minWidth: 70,
     height: 32,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     flex: 1,
   },
   activeSortButton: {
@@ -751,12 +896,12 @@ const styles = StyleSheet.create({
   sortButtonText: {
     fontSize: 12,
     color: Colors.text,
-    fontWeight: "500",
-    textAlign: "center",
+    fontWeight: '500',
+    textAlign: 'center',
   },
   activeSortButtonText: {
     color: 'white',
-    fontWeight: "600",
+    fontWeight: '600',
   },
   resultsHeader: {
     padding: 16,
@@ -764,7 +909,7 @@ const styles = StyleSheet.create({
   },
   resultsTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
   },
   clearFiltersButton: {
@@ -776,13 +921,13 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingVertical: 20,
   },
   emptyContent: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 32,
   },
   emptyIconContainer: {
@@ -790,21 +935,21 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: `${Colors.subtext}10`,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
     marginBottom: 8,
-    textAlign: "center",
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
     color: Colors.subtext,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -825,8 +970,8 @@ const styles = StyleSheet.create({
   },
   emptyListContainer: {
     flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     minHeight: 200,
   },
   flatListStyle: {

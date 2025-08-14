@@ -9,7 +9,7 @@ export const formatBookingDate = (dateString: string): string => {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
-    year: 'numeric'
+    year: 'numeric',
   });
 };
 
@@ -45,4 +45,4 @@ export const isDateInPast = (dateString: string): boolean => {
   date.setHours(0, 0, 0, 0);
   now.setHours(0, 0, 0, 0);
   return date < now;
-}; 
+};

@@ -1,6 +1,6 @@
-import React from "react";
-import { Stack } from "expo-router";
-import Colors from "@/constants/colors";
+import React from 'react';
+import { Stack } from 'expo-router';
+import Colors from '@/constants/colors';
 
 export default function AgentLayout() {
   return (
@@ -11,44 +11,44 @@ export default function AgentLayout() {
         },
         headerTintColor: Colors.text,
         headerTitleStyle: {
-          fontWeight: "600",
+          fontWeight: '600',
         },
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
       <Stack.Screen
-        name="booking/[id]"
+        name='booking/[id]'
         options={{
-          title: "Booking Details",
-          presentation: "card",
+          title: 'Booking Details',
+          presentation: 'card',
         }}
       />
       <Stack.Screen
-        name="booking/new"
+        name='booking/new'
         options={{
-          title: "New Booking",
-          presentation: "card",
+          title: 'New Booking',
+          presentation: 'card',
         }}
       />
       <Stack.Screen
-        name="agent-cancel-booking/[id]"
+        name='agent-cancel-booking/[id]'
         options={{
-          title: "Cancel Booking",
-          presentation: "card",
+          title: 'Cancel Booking',
+          presentation: 'card',
         }}
       />
       <Stack.Screen
-        name="agent-modify-booking/[id]"
+        name='agent-modify-booking/[id]'
         options={{
-          title: "Modify Booking",
-          presentation: "card",
+          title: 'Modify Booking',
+          presentation: 'card',
         }}
       />
       <Stack.Screen
-        name="client/[id]"
+        name='client/[id]'
         options={{
-          title: "Client Details",
-          presentation: "card",
+          title: 'Client Details',
+          presentation: 'card',
         }}
       />
     </Stack>

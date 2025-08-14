@@ -7,9 +7,9 @@ interface UseBookingEligibilityProps {
   minimumHours?: number;
 }
 
-export const useBookingEligibility = ({ 
-  booking, 
-  minimumHours = 72 
+export const useBookingEligibility = ({
+  booking,
+  minimumHours = 72,
 }: UseBookingEligibilityProps): BookingEligibility => {
   return useMemo(() => {
     if (!booking) {
@@ -32,17 +32,18 @@ export const useBookingEligibility = ({
 
     const departureDate = new Date(booking.departureDate);
     const now = new Date();
-    const hoursUntilDeparture = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const hoursUntilDeparture =
+      (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     const isEligible = hoursUntilDeparture >= minimumHours;
 
     return {
       isModifiable: isEligible,
       isCancellable: isEligible,
-      message: isEligible 
-        ? undefined 
+      message: isEligible
+        ? undefined
         : `Bookings can only be modified or cancelled at least ${minimumHours} hours before departure`,
       hoursUntilDeparture,
     };
   }, [booking, minimumHours]);
-}; 
+};

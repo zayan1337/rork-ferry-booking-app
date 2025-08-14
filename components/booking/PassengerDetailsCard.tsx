@@ -32,14 +32,16 @@ const PassengerDetailsCard: React.FC<PassengerDetailsCardProps> = ({
   }
 
   return (
-    <Card variant="elevated" style={styles.passengersCard}>
+    <Card variant='elevated' style={styles.passengersCard}>
       <Text style={styles.cardTitle}>Passenger Details</Text>
 
       {passengers.map((passenger, index) => (
         <View key={index} style={styles.passengerItem}>
           <View style={styles.passengerHeader}>
             <Text style={styles.passengerName}>
-              {passenger.fullName || passenger.passenger_name || `Passenger ${index + 1}`}
+              {passenger.fullName ||
+                passenger.passenger_name ||
+                `Passenger ${index + 1}`}
             </Text>
             <Text style={styles.seatNumber}>
               Seat: {seats[index]?.number || 'N/A'}
@@ -52,15 +54,19 @@ const PassengerDetailsCard: React.FC<PassengerDetailsCardProps> = ({
             </Text>
           )}
 
-          {(passenger.specialAssistance || passenger.special_assistance_request) && (
+          {(passenger.specialAssistance ||
+            passenger.special_assistance_request) && (
             <Text style={styles.passengerDetail}>
-              Special Assistance: {passenger.specialAssistance || passenger.special_assistance_request}
+              Special Assistance:{' '}
+              {passenger.specialAssistance ||
+                passenger.special_assistance_request}
             </Text>
           )}
 
           {(passenger.contactNumber || passenger.passenger_contact_number) && (
             <Text style={styles.passengerDetail}>
-              Contact: {passenger.contactNumber || passenger.passenger_contact_number}
+              Contact:{' '}
+              {passenger.contactNumber || passenger.passenger_contact_number}
             </Text>
           )}
         </View>
@@ -106,4 +112,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PassengerDetailsCard; 
+export default PassengerDetailsCard;

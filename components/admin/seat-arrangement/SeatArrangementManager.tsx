@@ -4,7 +4,7 @@ import React, {
   useCallback,
   useRef,
   useMemo,
-} from "react";
+} from 'react';
 import {
   View,
   Text,
@@ -13,20 +13,20 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-} from "react-native";
-import { colors } from "@/constants/adminColors";
-import { AdminManagement } from "@/types";
-import Button from "@/components/admin/Button";
-import SeatGrid from "./SeatGrid";
-import SeatLayoutConfig from "./SeatLayoutConfig";
-import SeatEditModal from "./SeatEditModal";
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { AdminManagement } from '@/types';
+import Button from '@/components/admin/Button';
+import SeatGrid from './SeatGrid';
+import SeatLayoutConfig from './SeatLayoutConfig';
+import SeatEditModal from './SeatEditModal';
 import {
   generateFerrySeatLayout,
   generateSeatsForFloor,
   calculateOptimalLayout,
   validateFerryLayout,
   calculateOptimalRowColumnRatio,
-} from "@/utils/admin/vesselUtils";
+} from '@/utils/admin/vesselUtils';
 import {
   Grid3X3,
   Settings,
@@ -43,7 +43,7 @@ import {
   Minus,
   AlertCircle,
   Crown,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
 type Seat = AdminManagement.Seat;
 type SeatLayout = AdminManagement.SeatLayout;
@@ -66,7 +66,7 @@ export default function SeatArrangementManager({
   initialLayout,
   initialSeats = [],
   seatingCapacity = 0,
-  vesselType = "passenger",
+  vesselType = 'passenger',
   onSave,
   onChange,
   onCancel,
@@ -90,12 +90,12 @@ export default function SeatArrangementManager({
   const [showEditModal, setShowEditModal] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
-  const [mode, setMode] = useState<"view" | "edit" | "arrange">("view");
+  const [mode, setMode] = useState<'view' | 'edit' | 'arrange'>('view');
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Add ref to track last layout data to prevent unnecessary onChange calls
-  const lastLayoutDataRef = useRef<string>("");
-  const lastSeatsDataRef = useRef<string>("");
+  const lastLayoutDataRef = useRef<string>('');
+  const lastSeatsDataRef = useRef<string>('');
 
   // Generate grid from layout config
   const generateGrid = useCallback(
@@ -107,7 +107,7 @@ export default function SeatArrangementManager({
         for (let col = 1; col <= config.columns; col++) {
           // Check if there's an existing seat at this position
           const existingSeat = initialSeats.find(
-            (seat) => seat.row_number === row && seat.position_x === col
+            seat => seat.row_number === row && seat.position_x === col
           );
 
           let seatToUse = existingSeat;
@@ -122,18 +122,18 @@ export default function SeatArrangementManager({
             );
             const isCrew = config.crew_seats.includes(existingSeat.seat_number);
 
-            let seatType: "standard" | "premium" | "disabled" | "crew" =
-              "standard";
-            let seatClass: "economy" | "business" | "first" = "economy";
+            let seatType: 'standard' | 'premium' | 'disabled' | 'crew' =
+              'standard';
+            let seatClass: 'economy' | 'business' | 'first' = 'economy';
             let priceMultiplier = 1.0;
 
             if (isDisabled) {
-              seatType = "disabled";
+              seatType = 'disabled';
             } else if (isCrew) {
-              seatType = "crew";
+              seatType = 'crew';
             } else if (isPremium) {
-              seatType = "premium";
-              seatClass = "business";
+              seatType = 'premium';
+              seatClass = 'business';
               priceMultiplier = 1.5;
             }
 
@@ -159,7 +159,7 @@ export default function SeatArrangementManager({
         newGrid.push(newRow);
       }
 
-      const seatsInGrid = newGrid.flat().filter((cell) => cell.seat).length;
+      const seatsInGrid = newGrid.flat().filter(cell => cell.seat).length;
 
       setSeatGrid(newGrid);
     },
@@ -184,18 +184,18 @@ export default function SeatArrangementManager({
           const isCrew = config.crew_seats.includes(seatNumber);
           const isRowAisle = config.rowAisles.includes(row);
 
-          let seatType: "standard" | "premium" | "disabled" | "crew" =
-            "standard";
-          let seatClass: "economy" | "business" | "first" = "economy";
+          let seatType: 'standard' | 'premium' | 'disabled' | 'crew' =
+            'standard';
+          let seatClass: 'economy' | 'business' | 'first' = 'economy';
           let priceMultiplier = 1.0;
 
           if (isDisabled) {
-            seatType = "disabled";
+            seatType = 'disabled';
           } else if (isCrew) {
-            seatType = "crew";
+            seatType = 'crew';
           } else if (isPremium) {
-            seatType = "premium";
-            seatClass = "business";
+            seatType = 'premium';
+            seatClass = 'business';
             priceMultiplier = 1.5;
           }
 
@@ -255,9 +255,9 @@ export default function SeatArrangementManager({
 
     // Determine premium rows based on vessel type
     let premiumRows: number[] = [];
-    if (vesselType === "luxury") {
+    if (vesselType === 'luxury') {
       premiumRows = [1, 2, 3]; // First 3 rows for luxury
-    } else if (vesselType === "mixed") {
+    } else if (vesselType === 'mixed') {
       premiumRows = [1, 2]; // First 2 rows for mixed
     } else {
       premiumRows = [1]; // First row for standard/economy
@@ -285,7 +285,7 @@ export default function SeatArrangementManager({
         const newRow: SeatCell[] = [];
         for (let col = 1; col <= newConfig.columns; col++) {
           const seat = generatedSeats.find(
-            (s) => s.row_number === row && s.position_x === col
+            s => s.row_number === row && s.position_x === col
           );
           newRow.push({
             seat: seat || null,
@@ -323,8 +323,8 @@ export default function SeatArrangementManager({
           // Capacity has changed - need to adapt the layout
           if (seatingCapacity > currentSeatCount) {
             // Need to add seats - use existing layout but expand to accommodate new capacity
-            const maxRow = Math.max(...initialSeats.map((s) => s.row_number));
-            const maxCol = Math.max(...initialSeats.map((s) => s.position_x));
+            const maxRow = Math.max(...initialSeats.map(s => s.row_number));
+            const maxCol = Math.max(...initialSeats.map(s => s.position_x));
 
             // Calculate new layout dimensions to fit the new capacity
             const optimalLayout =
@@ -333,23 +333,21 @@ export default function SeatArrangementManager({
             const newCols = Math.max(maxCol, optimalLayout.columns);
 
             // Extract existing configuration
-            const aisleSeats = initialSeats.filter((s) => s.is_aisle);
-            const aisles = [
-              ...new Set(aisleSeats.map((s) => s.position_x)),
-            ].sort((a, b) => a - b);
+            const aisleSeats = initialSeats.filter(s => s.is_aisle);
+            const aisles = [...new Set(aisleSeats.map(s => s.position_x))].sort(
+              (a, b) => a - b
+            );
             const premiumRows = [
               ...new Set(
-                initialSeats
-                  .filter((s) => s.is_premium)
-                  .map((s) => s.row_number)
+                initialSeats.filter(s => s.is_premium).map(s => s.row_number)
               ),
             ];
             const disabledSeats = initialSeats
-              .filter((s) => s.is_disabled)
-              .map((s) => s.seat_number);
+              .filter(s => s.is_disabled)
+              .map(s => s.seat_number);
             const crewSeats = initialSeats
-              .filter((s) => s.seat_type === "crew")
-              .map((s) => s.seat_number);
+              .filter(s => s.seat_type === 'crew')
+              .map(s => s.seat_number);
 
             const expandedConfig = {
               rows: newRows,
@@ -365,27 +363,25 @@ export default function SeatArrangementManager({
             setIsInitialized(true);
           } else {
             // Need to remove seats - keep existing layout but reduce seats
-            const maxRow = Math.max(...initialSeats.map((s) => s.row_number));
-            const maxCol = Math.max(...initialSeats.map((s) => s.position_x));
+            const maxRow = Math.max(...initialSeats.map(s => s.row_number));
+            const maxCol = Math.max(...initialSeats.map(s => s.position_x));
 
             // Extract existing configuration
-            const aisleSeats = initialSeats.filter((s) => s.is_aisle);
-            const aisles = [
-              ...new Set(aisleSeats.map((s) => s.position_x)),
-            ].sort((a, b) => a - b);
+            const aisleSeats = initialSeats.filter(s => s.is_aisle);
+            const aisles = [...new Set(aisleSeats.map(s => s.position_x))].sort(
+              (a, b) => a - b
+            );
             const premiumRows = [
               ...new Set(
-                initialSeats
-                  .filter((s) => s.is_premium)
-                  .map((s) => s.row_number)
+                initialSeats.filter(s => s.is_premium).map(s => s.row_number)
               ),
             ];
             const disabledSeats = initialSeats
-              .filter((s) => s.is_disabled)
-              .map((s) => s.seat_number);
+              .filter(s => s.is_disabled)
+              .map(s => s.seat_number);
             const crewSeats = initialSeats
-              .filter((s) => s.seat_type === "crew")
-              .map((s) => s.seat_number);
+              .filter(s => s.seat_type === 'crew')
+              .map(s => s.seat_number);
 
             const reducedConfig = {
               rows: maxRow,
@@ -402,25 +398,25 @@ export default function SeatArrangementManager({
           }
         } else {
           // Capacity hasn't changed - use existing layout
-          const maxRow = Math.max(...initialSeats.map((s) => s.row_number));
-          const maxCol = Math.max(...initialSeats.map((s) => s.position_x));
+          const maxRow = Math.max(...initialSeats.map(s => s.row_number));
+          const maxCol = Math.max(...initialSeats.map(s => s.position_x));
           // First, try to get aisles from seats marked as aisle seats
-          const aisleSeats = initialSeats.filter((s) => s.is_aisle);
-          const aisles = [...new Set(aisleSeats.map((s) => s.position_x))].sort(
+          const aisleSeats = initialSeats.filter(s => s.is_aisle);
+          const aisles = [...new Set(aisleSeats.map(s => s.position_x))].sort(
             (a, b) => a - b
           );
 
           const premiumRows = [
             ...new Set(
-              initialSeats.filter((s) => s.is_premium).map((s) => s.row_number)
+              initialSeats.filter(s => s.is_premium).map(s => s.row_number)
             ),
           ];
           const disabledSeats = initialSeats
-            .filter((s) => s.is_disabled)
-            .map((s) => s.seat_number);
+            .filter(s => s.is_disabled)
+            .map(s => s.seat_number);
           const crewSeats = initialSeats
-            .filter((s) => s.seat_type === "crew")
-            .map((s) => s.seat_number);
+            .filter(s => s.seat_type === 'crew')
+            .map(s => s.seat_number);
 
           const existingConfig = {
             rows: maxRow,
@@ -471,25 +467,23 @@ export default function SeatArrangementManager({
       initialSeats.length > 0 &&
       !initialLayout
     ) {
-      const maxRow = Math.max(...initialSeats.map((s) => s.row_number));
-      const maxCol = Math.max(...initialSeats.map((s) => s.position_x));
+      const maxRow = Math.max(...initialSeats.map(s => s.row_number));
+      const maxCol = Math.max(...initialSeats.map(s => s.position_x));
       // Get aisles from seats marked as aisle seats in the database
       const aisles = [
-        ...new Set(
-          initialSeats.filter((s) => s.is_aisle).map((s) => s.position_x)
-        ),
+        ...new Set(initialSeats.filter(s => s.is_aisle).map(s => s.position_x)),
       ].sort((a, b) => a - b);
       const premiumRows = [
         ...new Set(
-          initialSeats.filter((s) => s.is_premium).map((s) => s.row_number)
+          initialSeats.filter(s => s.is_premium).map(s => s.row_number)
         ),
       ];
       const disabledSeats = initialSeats
-        .filter((s) => s.is_disabled)
-        .map((s) => s.seat_number);
+        .filter(s => s.is_disabled)
+        .map(s => s.seat_number);
       const crewSeats = initialSeats
-        .filter((s) => s.seat_type === "crew")
-        .map((s) => s.seat_number);
+        .filter(s => s.seat_type === 'crew')
+        .map(s => s.seat_number);
 
       const existingConfig = {
         rows: maxRow,
@@ -517,7 +511,7 @@ export default function SeatArrangementManager({
           const newRow: SeatCell[] = [];
           for (let col = 1; col <= layoutConfig.columns; col++) {
             const seat = generatedSeats.find(
-              (s) => s.row_number === row && s.position_x === col
+              s => s.row_number === row && s.position_x === col
             );
             newRow.push({
               seat: seat || null,
@@ -544,7 +538,7 @@ export default function SeatArrangementManager({
 
             // Create a map of existing seats by position
             const existingSeatMap = new Map();
-            initialSeats.forEach((seat) => {
+            initialSeats.forEach(seat => {
               const key = `${seat.row_number}-${seat.position_x}`;
               existingSeatMap.set(key, seat);
             });
@@ -563,7 +557,7 @@ export default function SeatArrangementManager({
                 } else if (seatsPlaced < seatingCapacity) {
                   // Place new generated seat if we haven't reached capacity
                   const generatedSeat = generatedSeats.find(
-                    (s) => s.row_number === row && s.position_x === col
+                    s => s.row_number === row && s.position_x === col
                   );
                   if (generatedSeat) {
                     seatToPlace = generatedSeat;
@@ -589,7 +583,7 @@ export default function SeatArrangementManager({
               if (onChange) {
                 const allSeats = getAllSeats();
                 const layoutData: SeatLayout = {
-                  id: initialLayout?.id || "",
+                  id: initialLayout?.id || '',
                   vessel_id: vesselId,
                   layout_name: `${
                     vesselType.charAt(0).toUpperCase() + vesselType.slice(1)
@@ -605,7 +599,7 @@ export default function SeatArrangementManager({
                     floors: [
                       {
                         floor_number: 1,
-                        floor_name: "Main Deck",
+                        floor_name: 'Main Deck',
                         rows: layoutConfig.rows,
                         columns: layoutConfig.columns,
                         aisles: layoutConfig.aisles,
@@ -632,7 +626,7 @@ export default function SeatArrangementManager({
 
             // Create a map of seats to keep
             const keepSeatMap = new Map();
-            seatsToKeep.forEach((seat) => {
+            seatsToKeep.forEach(seat => {
               const key = `${seat.row_number}-${seat.position_x}`;
               keepSeatMap.set(key, seat);
             });
@@ -659,7 +653,7 @@ export default function SeatArrangementManager({
               if (onChange) {
                 const allSeats = getAllSeats();
                 const layoutData: SeatLayout = {
-                  id: initialLayout?.id || "",
+                  id: initialLayout?.id || '',
                   vessel_id: vesselId,
                   layout_name: `${
                     vesselType.charAt(0).toUpperCase() + vesselType.slice(1)
@@ -675,7 +669,7 @@ export default function SeatArrangementManager({
                     floors: [
                       {
                         floor_number: 1,
-                        floor_name: "Main Deck",
+                        floor_name: 'Main Deck',
                         rows: layoutConfig.rows,
                         columns: layoutConfig.columns,
                         aisles: layoutConfig.aisles,
@@ -713,7 +707,7 @@ export default function SeatArrangementManager({
       initialSeats.length === 0
     ) {
       const currentSeatCount = seatGrid.reduce(
-        (count, row) => count + row.filter((cell) => cell.seat).length,
+        (count, row) => count + row.filter(cell => cell.seat).length,
         0
       );
 
@@ -737,9 +731,7 @@ export default function SeatArrangementManager({
           const colNumber = col + 1;
 
           // Check if this is an existing seat from the database
-          const isExistingSeat = initialSeats.find(
-            (s) => s.id === cell.seat!.id
-          );
+          const isExistingSeat = initialSeats.find(s => s.id === cell.seat!.id);
 
           // For existing seats, PRESERVE the current seat data from the grid
           // Only apply layout config for position-based properties if seat data doesn't exist
@@ -790,16 +782,16 @@ export default function SeatArrangementManager({
       const cell = seatGrid[row - 1]?.[col - 1];
       if (!cell) return;
 
-      if (mode === "arrange") {
+      if (mode === 'arrange') {
         if (cell.seat) {
           // Toggle selection of existing seat
-          setSelectedSeats((prev) =>
+          setSelectedSeats(prev =>
             prev.includes(cell.seat!.id)
-              ? prev.filter((id) => id !== cell.seat!.id)
+              ? prev.filter(id => id !== cell.seat!.id)
               : [...prev, cell.seat!.id]
           );
         }
-      } else if (mode === "edit") {
+      } else if (mode === 'edit') {
         if (cell.seat) {
           // Edit existing seat
           setEditingSeat(cell.seat);
@@ -828,7 +820,7 @@ export default function SeatArrangementManager({
 
           // Create the layout data
           const layoutData: SeatLayout = {
-            id: initialLayout?.id || "",
+            id: initialLayout?.id || '',
             vessel_id: vesselId,
             layout_name: `${
               vesselType.charAt(0).toUpperCase() + vesselType.slice(1)
@@ -844,7 +836,7 @@ export default function SeatArrangementManager({
               floors: [
                 {
                   floor_number: 1,
-                  floor_name: "Main Deck",
+                  floor_name: 'Main Deck',
                   rows: layoutConfig.rows,
                   columns: layoutConfig.columns,
                   aisles: layoutConfig.aisles,
@@ -865,7 +857,7 @@ export default function SeatArrangementManager({
           // Create hash of current data to compare with last data
           const currentLayoutHash = JSON.stringify(layoutData.layout_data);
           const currentSeatsHash = JSON.stringify(
-            allSeats.map((s) => ({
+            allSeats.map(s => ({
               id: s.id,
               seat_number: s.seat_number,
               row_number: s.row_number,
@@ -885,7 +877,7 @@ export default function SeatArrangementManager({
           } else {
           }
         } catch (error) {
-          console.warn("Failed to trigger layout change:", error);
+          console.warn('Failed to trigger layout change:', error);
         }
       }, 1000); // Increased debounce to 1000ms for better performance
     }
@@ -896,15 +888,15 @@ export default function SeatArrangementManager({
     (row: number, col: number) => {
       // Check if we can add more seats based on capacity
       const currentSeatCount = seatGrid.reduce(
-        (count, gridRow) => count + gridRow.filter((cell) => cell.seat).length,
+        (count, gridRow) => count + gridRow.filter(cell => cell.seat).length,
         0
       );
 
       if (currentSeatCount >= seatingCapacity) {
         Alert.alert(
-          "Capacity Limit Reached",
+          'Capacity Limit Reached',
           `Cannot add more seats. Maximum capacity is ${seatingCapacity} seats.`,
-          [{ text: "OK" }]
+          [{ text: 'OK' }]
         );
         return;
       }
@@ -924,8 +916,8 @@ export default function SeatArrangementManager({
         position_y: row,
         is_window: isWindow,
         is_aisle: isAisle,
-        seat_type: isPremium ? "premium" : "standard",
-        seat_class: isPremium ? "business" : "economy",
+        seat_type: isPremium ? 'premium' : 'standard',
+        seat_class: isPremium ? 'business' : 'economy',
         is_disabled: false,
         is_premium: isPremium,
         price_multiplier: isPremium ? 1.5 : 1.0,
@@ -933,7 +925,7 @@ export default function SeatArrangementManager({
         updated_at: new Date().toISOString(),
       };
 
-      setSeatGrid((prev) => {
+      setSeatGrid(prev => {
         const newGrid = [...prev];
         newGrid[row - 1][col - 1] = { seat: newSeat, position: { row, col } };
         return newGrid;
@@ -944,7 +936,7 @@ export default function SeatArrangementManager({
 
   // Remove seat at specific position
   const removeSeatAtPosition = useCallback((row: number, col: number) => {
-    setSeatGrid((prev) => {
+    setSeatGrid(prev => {
       const newGrid = [...prev];
       newGrid[row - 1][col - 1] = { seat: null, position: { row, col } };
       return newGrid;
@@ -954,7 +946,7 @@ export default function SeatArrangementManager({
   // Handle seat edit save
   const handleSeatSave = useCallback(
     (updatedSeat: Seat) => {
-      setSeatGrid((prev) => {
+      setSeatGrid(prev => {
         const newGrid = [...prev];
         const row = updatedSeat.row_number - 1;
         const col = (updatedSeat.position_x || 1) - 1;
@@ -981,7 +973,7 @@ export default function SeatArrangementManager({
   // Handle seat deletion
   const handleSeatDelete = useCallback(
     (seatId: string) => {
-      setSeatGrid((prev) => {
+      setSeatGrid(prev => {
         const newGrid = [...prev];
         for (let row = 0; row < newGrid.length; row++) {
           for (let col = 0; col < newGrid[row].length; col++) {
@@ -1008,22 +1000,22 @@ export default function SeatArrangementManager({
   // Bulk remove selected seats
   const handleRemoveSelectedSeats = useCallback(() => {
     if (selectedSeats.length === 0) {
-      Alert.alert("No Seats Selected", "Please select seats to remove.");
+      Alert.alert('No Seats Selected', 'Please select seats to remove.');
       return;
     }
 
     Alert.alert(
-      "Remove Seats",
+      'Remove Seats',
       `Are you sure you want to remove ${selectedSeats.length} seat(s)?`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Remove",
-          style: "destructive",
+          text: 'Remove',
+          style: 'destructive',
           onPress: () => {
-            setSeatGrid((prev) => {
+            setSeatGrid(prev => {
               const newGrid = [...prev];
-              selectedSeats.forEach((seatId) => {
+              selectedSeats.forEach(seatId => {
                 for (let row = 0; row < newGrid.length; row++) {
                   for (let col = 0; col < newGrid[row].length; col++) {
                     if (newGrid[row][col].seat?.id === seatId) {
@@ -1049,7 +1041,7 @@ export default function SeatArrangementManager({
   const addAisleBetweenColumns = (afterColumn: number) => {
     const aislePosition = afterColumn + 1;
     if (!layoutConfig.aisles.includes(aislePosition)) {
-      setLayoutConfig((prev) => ({
+      setLayoutConfig(prev => ({
         ...prev,
         aisles: [...prev.aisles, aislePosition].sort((a, b) => a - b),
       }));
@@ -1058,16 +1050,16 @@ export default function SeatArrangementManager({
 
   // Remove aisle
   const removeAisle = (aislePosition: number) => {
-    setLayoutConfig((prev) => ({
+    setLayoutConfig(prev => ({
       ...prev,
-      aisles: prev.aisles.filter((a) => a !== aislePosition),
+      aisles: prev.aisles.filter(a => a !== aislePosition),
     }));
   };
 
   const addAisleBetweenRows = (afterRow: number) => {
     const aislePosition = afterRow + 1;
     if (!layoutConfig.rowAisles.includes(aislePosition)) {
-      setLayoutConfig((prev) => ({
+      setLayoutConfig(prev => ({
         ...prev,
         rowAisles: [...prev.rowAisles, aislePosition].sort((a, b) => a - b),
       }));
@@ -1075,15 +1067,15 @@ export default function SeatArrangementManager({
   };
 
   const removeRowAisle = (aislePosition: number) => {
-    setLayoutConfig((prev) => ({
+    setLayoutConfig(prev => ({
       ...prev,
-      rowAisles: prev.rowAisles.filter((a) => a !== aislePosition),
+      rowAisles: prev.rowAisles.filter(a => a !== aislePosition),
     }));
   };
 
   // Add row with auto-adjustment
   const addRow = useCallback(() => {
-    setLayoutConfig((prev) => ({
+    setLayoutConfig(prev => ({
       ...prev,
       rows: Math.min(prev.rows + 1, 20),
     }));
@@ -1093,7 +1085,7 @@ export default function SeatArrangementManager({
   const removeRow = useCallback(() => {
     if (layoutConfig.rows <= 1) return;
 
-    setLayoutConfig((prev) => {
+    setLayoutConfig(prev => {
       const newRows = prev.rows - 1;
       const newColumns = Math.ceil(seatingCapacity / newRows);
 
@@ -1107,7 +1099,7 @@ export default function SeatArrangementManager({
 
   // Add column with auto-adjustment
   const addColumn = useCallback(() => {
-    setLayoutConfig((prev) => ({
+    setLayoutConfig(prev => ({
       ...prev,
       columns: Math.min(prev.columns + 1, 10),
     }));
@@ -1117,7 +1109,7 @@ export default function SeatArrangementManager({
   const removeColumn = useCallback(() => {
     if (layoutConfig.columns <= 1) return;
 
-    setLayoutConfig((prev) => {
+    setLayoutConfig(prev => {
       const newColumns = prev.columns - 1;
       const newRows = Math.ceil(seatingCapacity / newColumns);
 
@@ -1135,28 +1127,28 @@ export default function SeatArrangementManager({
   const handleSave = useCallback(async () => {
     try {
       const allSeats = getAllSeats();
-      const activeSeats = allSeats.filter((s) => !s.is_disabled);
+      const activeSeats = allSeats.filter(s => !s.is_disabled);
 
       if (activeSeats.length !== seatingCapacity) {
         Alert.alert(
-          "Capacity Mismatch",
+          'Capacity Mismatch',
           `You have ${activeSeats.length} active seats but the vessel capacity is ${seatingCapacity}. Do you want to continue?`,
           [
-            { text: "Cancel", style: "cancel" },
-            { text: "Continue", onPress: () => saveLayout(allSeats) },
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Continue', onPress: () => saveLayout(allSeats) },
           ]
         );
       } else {
         saveLayout(allSeats);
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to save seat layout");
+      Alert.alert('Error', 'Failed to save seat layout');
     }
   }, [getAllSeats, seatingCapacity]);
 
   const saveLayout = async (seats: Seat[]) => {
     const layoutData: SeatLayout = {
-      id: initialLayout?.id || "",
+      id: initialLayout?.id || '',
       vessel_id: vesselId,
       layout_name: `${
         vesselType.charAt(0).toUpperCase() + vesselType.slice(1)
@@ -1172,7 +1164,7 @@ export default function SeatArrangementManager({
         floors: [
           {
             floor_number: 1,
-            floor_name: "Main Deck",
+            floor_name: 'Main Deck',
             rows: layoutConfig.rows,
             columns: layoutConfig.columns,
             aisles: layoutConfig.aisles,
@@ -1196,17 +1188,17 @@ export default function SeatArrangementManager({
   // Handle reset
   const handleReset = useCallback(() => {
     Alert.alert(
-      "Reset Layout",
-      "Are you sure you want to reset the seat layout? This will discard all changes.",
+      'Reset Layout',
+      'Are you sure you want to reset the seat layout? This will discard all changes.',
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Reset",
-          style: "destructive",
+          text: 'Reset',
+          style: 'destructive',
           onPress: () => {
             generateDefaultLayout();
             setSelectedSeats([]);
-            setMode("view");
+            setMode('view');
           },
         },
       ]
@@ -1217,11 +1209,11 @@ export default function SeatArrangementManager({
   const getLayoutStats = useCallback(() => {
     const allSeats = getAllSeats();
     const totalSeats = allSeats.length;
-    const activeSeats = allSeats.filter((s) => !s.is_disabled).length;
-    const premiumSeats = allSeats.filter((s) => s.is_premium).length;
-    const crewSeats = allSeats.filter((s) => s.seat_type === "crew").length;
-    const disabledSeats = allSeats.filter((s) => s.is_disabled).length;
-    const emptySpaces = seatGrid.flat().filter((cell) => !cell.seat).length;
+    const activeSeats = allSeats.filter(s => !s.is_disabled).length;
+    const premiumSeats = allSeats.filter(s => s.is_premium).length;
+    const crewSeats = allSeats.filter(s => s.seat_type === 'crew').length;
+    const disabledSeats = allSeats.filter(s => s.is_disabled).length;
+    const emptySpaces = seatGrid.flat().filter(cell => !cell.seat).length;
 
     return {
       total: totalSeats,
@@ -1244,7 +1236,7 @@ export default function SeatArrangementManager({
     if (allSeats.length === 0) return null;
 
     return {
-      id: initialLayout?.id || "",
+      id: initialLayout?.id || '',
       vessel_id: vesselId,
       layout_name: `Custom ${
         vesselType.charAt(0).toUpperCase() + vesselType.slice(1)
@@ -1260,7 +1252,7 @@ export default function SeatArrangementManager({
         floors: [
           {
             floor_number: 1,
-            floor_name: "Main Deck",
+            floor_name: 'Main Deck',
             rows: layoutConfig.rows,
             columns: layoutConfig.columns,
             aisles: layoutConfig.aisles,
@@ -1326,37 +1318,37 @@ export default function SeatArrangementManager({
           <TouchableOpacity
             style={[
               styles.modeButton,
-              mode === "view" && styles.modeButtonActive,
+              mode === 'view' && styles.modeButtonActive,
             ]}
-            onPress={() => setMode("view")}
+            onPress={() => setMode('view')}
           >
             <Eye
               size={16}
-              color={mode === "view" ? colors.white : colors.primary}
+              color={mode === 'view' ? colors.white : colors.primary}
             />
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.modeButton,
-              mode === "edit" && styles.modeButtonActive,
+              mode === 'edit' && styles.modeButtonActive,
             ]}
-            onPress={() => setMode("edit")}
+            onPress={() => setMode('edit')}
           >
             <Settings
               size={16}
-              color={mode === "edit" ? colors.white : colors.primary}
+              color={mode === 'edit' ? colors.white : colors.primary}
             />
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.modeButton,
-              mode === "arrange" && styles.modeButtonActive,
+              mode === 'arrange' && styles.modeButtonActive,
             ]}
-            onPress={() => setMode("arrange")}
+            onPress={() => setMode('arrange')}
           >
             <Grid3X3
               size={16}
-              color={mode === "arrange" ? colors.white : colors.primary}
+              color={mode === 'arrange' ? colors.white : colors.primary}
             />
           </TouchableOpacity>
         </View>
@@ -1405,10 +1397,10 @@ export default function SeatArrangementManager({
       {/* Mode Instructions */}
       <View style={styles.instructions}>
         <Text style={styles.instructionText}>
-          {mode === "view" && "View mode: Browse seat layout"}
-          {mode === "edit" &&
-            "Edit mode: Tap seats to edit, tap empty spaces to add seats"}
-          {mode === "arrange" && "Arrange mode: Select seats for bulk actions"}
+          {mode === 'view' && 'View mode: Browse seat layout'}
+          {mode === 'edit' &&
+            'Edit mode: Tap seats to edit, tap empty spaces to add seats'}
+          {mode === 'arrange' && 'Arrange mode: Select seats for bulk actions'}
         </Text>
       </View>
 
@@ -1490,19 +1482,19 @@ export default function SeatArrangementManager({
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <Button
-            title="Auto Generate"
+            title='Auto Generate'
             onPress={generateDefaultLayout}
             icon={<Grid3X3 size={16} color={colors.primary} />}
-            variant="outline"
-            size="small"
+            variant='outline'
+            size='small'
           />
 
           <Button
-            title="Remove Selected"
+            title='Remove Selected'
             onPress={handleRemoveSelectedSeats}
             icon={<Trash2 size={16} color={colors.white} />}
-            variant="danger"
-            size="small"
+            variant='danger'
+            size='small'
             disabled={selectedSeats.length === 0}
           />
 
@@ -1512,7 +1504,7 @@ export default function SeatArrangementManager({
           >
             <Settings size={16} color={colors.primary} />
             <Text style={styles.toggleButtonText}>
-              {showConfig ? "Hide Config" : "Show Config"}
+              {showConfig ? 'Hide Config' : 'Show Config'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1551,16 +1543,16 @@ export default function SeatArrangementManager({
       {/* Footer Actions */}
       <View style={styles.footer}>
         <Button
-          title="Reset"
+          title='Reset'
           onPress={handleReset}
           icon={<RotateCcw size={16} color={colors.primary} />}
-          variant="outline"
+          variant='outline'
         />
         <Button
-          title="Save Layout"
+          title='Save Layout'
           onPress={handleSave}
           icon={<Save size={16} color={colors.white} />}
-          variant="primary"
+          variant='primary'
           loading={loading}
         />
       </View>
@@ -1586,26 +1578,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 12,
     backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   title: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginLeft: 8,
   },
   headerActions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
   },
   modeButton: {
@@ -1613,8 +1605,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.backgroundSecondary,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1623,30 +1615,30 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     padding: 16,
     backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   statItem: {
-    alignItems: "center",
+    alignItems: 'center',
     gap: 4,
   },
   statValue: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
   },
   statLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   warningContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     padding: 12,
     backgroundColor: colors.warningLight,
@@ -1656,7 +1648,7 @@ const styles = StyleSheet.create({
   warningText: {
     fontSize: 14,
     color: colors.warning,
-    fontWeight: "500",
+    fontWeight: '500',
     flex: 1,
   },
   instructions: {
@@ -1668,7 +1660,7 @@ const styles = StyleSheet.create({
   instructionText: {
     fontSize: 14,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
   },
   controls: {
     padding: 16,
@@ -1677,35 +1669,35 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   controlRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 12,
     gap: 8,
   },
   inputGroup: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
   },
   numberInput: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   numberButton: {
     width: 40,
     height: 40,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: colors.background,
   },
   numberInputField: {
@@ -1713,14 +1705,14 @@ const styles = StyleSheet.create({
     height: 40,
     paddingHorizontal: 12,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
-    textAlign: "center",
+    textAlign: 'center',
     backgroundColor: colors.backgroundSecondary,
   },
   toggleButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: colors.backgroundSecondary,
@@ -1731,7 +1723,7 @@ const styles = StyleSheet.create({
   },
   toggleButtonText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.text,
   },
   configContainer: {
@@ -1739,20 +1731,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   gridContainer: {
     flex: 1,
     backgroundColor: colors.background,
     borderRadius: 12,
-    overflow: "hidden",
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
   },
   footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -1760,7 +1752,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   footerRight: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   controlsSection: {
@@ -1775,9 +1767,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   actionButtons: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 12,
     marginBottom: 16,
   },

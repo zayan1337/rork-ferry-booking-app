@@ -45,7 +45,7 @@ const CurrentTicketDetailsCard: React.FC<CurrentTicketDetailsCardProps> = ({
   };
 
   return (
-    <Card variant="elevated" style={styles.bookingCard}>
+    <Card variant='elevated' style={styles.bookingCard}>
       <Text style={styles.cardTitle}>Current {ticketLabel} Ticket Details</Text>
 
       <View style={styles.detailRow}>
@@ -110,4 +110,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CurrentTicketDetailsCard; 
+export default CurrentTicketDetailsCard;

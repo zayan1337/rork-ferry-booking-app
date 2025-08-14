@@ -1,6 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ChevronRight, Calendar, Clock, MapPin, Users } from 'lucide-react-native';
+import {
+  ChevronRight,
+  Calendar,
+  Clock,
+  MapPin,
+  Users,
+} from 'lucide-react-native';
 import type { Booking } from '@/types';
 import Colors from '@/constants/colors';
 import Card from './Card';
@@ -17,7 +23,7 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -38,7 +44,7 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
 
   return (
     <TouchableOpacity onPress={() => onPress(booking)} activeOpacity={0.7}>
-      <Card variant="elevated" style={styles.card}>
+      <Card variant='elevated' style={styles.card}>
         <View style={styles.header}>
           <View>
             <Text style={styles.bookingNumber}>#{booking.bookingNumber}</Text>
@@ -46,11 +52,12 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
               <View
                 style={[
                   styles.statusDot,
-                  { backgroundColor: getStatusColor(booking.status) }
+                  { backgroundColor: getStatusColor(booking.status) },
                 ]}
               />
               <Text style={styles.statusText}>
-                {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                {booking.status.charAt(0).toUpperCase() +
+                  booking.status.slice(1)}
               </Text>
             </View>
           </View>
@@ -65,31 +72,50 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
           </Text>
           {booking.tripType === 'round_trip' && booking.returnRoute && (
             <Text style={styles.returnRouteText}>
-              Return: {booking.route.toIsland.name} → {booking.route.fromIsland.name}
+              Return: {booking.route.toIsland.name} →{' '}
+              {booking.route.fromIsland.name}
             </Text>
           )}
         </View>
 
         <View style={styles.infoContainer}>
           <View style={styles.infoItem}>
-            <Calendar size={16} color={Colors.textSecondary} style={styles.infoIcon} />
-            <Text style={styles.infoText}>{formatDate(booking.departureDate)}</Text>
+            <Calendar
+              size={16}
+              color={Colors.textSecondary}
+              style={styles.infoIcon}
+            />
+            <Text style={styles.infoText}>
+              {formatDate(booking.departureDate)}
+            </Text>
           </View>
 
           <View style={styles.infoItem}>
-            <Clock size={16} color={Colors.textSecondary} style={styles.infoIcon} />
+            <Clock
+              size={16}
+              color={Colors.textSecondary}
+              style={styles.infoIcon}
+            />
             <Text style={styles.infoText}>{booking.departureTime}</Text>
           </View>
 
           <View style={styles.infoItem}>
-            <Users size={16} color={Colors.textSecondary} style={styles.infoIcon} />
-            <Text style={styles.infoText}>{booking.passengers.length} passenger(s)</Text>
+            <Users
+              size={16}
+              color={Colors.textSecondary}
+              style={styles.infoIcon}
+            />
+            <Text style={styles.infoText}>
+              {booking.passengers.length} passenger(s)
+            </Text>
           </View>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.priceLabel}>Total:</Text>
-          <Text style={styles.priceValue}>MVR {booking.totalFare.toFixed(2)}</Text>
+          <Text style={styles.priceValue}>
+            MVR {booking.totalFare.toFixed(2)}
+          </Text>
         </View>
       </Card>
     </TouchableOpacity>

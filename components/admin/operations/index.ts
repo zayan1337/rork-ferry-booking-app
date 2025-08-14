@@ -34,7 +34,11 @@ export { default as TripForm } from './TripForm';
 export { default as TripDetails } from './TripDetails';
 export { default as TripAnalytics } from './TripAnalytics';
 export { default as TripStats } from './TripStats';
-export { default as TripFilters, type TripFiltersState, type TripSortConfig } from './TripFilters';
+export {
+  default as TripFilters,
+  type TripFiltersState,
+  type TripSortConfig,
+} from './TripFilters';
 export { default as TripBulkActions } from './TripBulkActions';
 export { default as BulkTripOperations } from './BulkTripOperations';
-export { default as ScheduleManager } from './ScheduleManager'; 
+export { default as ScheduleManager } from './ScheduleManager';

@@ -20,7 +20,7 @@ export const processPayment = async (
       case 'mib':
       case 'ooredoo_m_faisa':
       case 'fahipay':
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
           Alert.alert(
             'Payment Processing',
             'Please complete the payment using the selected payment method.',
@@ -39,14 +39,14 @@ export const processPayment = async (
                     `Payment of MVR ${amount.toFixed(2)} has been processed successfully.`,
                     [{ text: 'OK', onPress: () => resolve() }]
                   );
-                }
-              }
+                },
+              },
             ]
           );
         });
 
       case 'bank_transfer':
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
           Alert.alert(
             'Bank Transfer',
             'Please transfer the amount to our bank account. Details will be provided via SMS/Email.',
@@ -69,7 +69,10 @@ export const processPayment = async (
  * @param newFare - New booking fare
  * @returns Fare difference (positive means additional payment needed)
  */
-export const calculateFareDifference = (currentFare: number, newFare: number): number => {
+export const calculateFareDifference = (
+  currentFare: number,
+  newFare: number
+): number => {
   return newFare - currentFare;
 };
 
@@ -79,7 +82,10 @@ export const calculateFareDifference = (currentFare: number, newFare: number): n
  * @param refundPercentage - Refund percentage (default 50%)
  * @returns Refund amount
  */
-export const calculateRefundAmount = (totalFare: number, refundPercentage: number = 50): number => {
+export const calculateRefundAmount = (
+  totalFare: number,
+  refundPercentage: number = 50
+): number => {
   return totalFare * (refundPercentage / 100);
 };
 
@@ -89,7 +95,8 @@ export const calculateRefundAmount = (totalFare: number, refundPercentage: numbe
  * @returns Formatted payment method name
  */
 export const formatPaymentMethod = (method: PaymentMethod): string => {
-  return method.split('_').map(word =>
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ');
-}; 
+  return method
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};

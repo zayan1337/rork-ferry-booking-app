@@ -72,14 +72,13 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
     departureDate: departureDate
       ? new Date(departureDate).toLocaleDateString()
       : 'N/A',
-    returnDate: returnDate
-      ? new Date(returnDate).toLocaleDateString()
-      : null,
+    returnDate: returnDate ? new Date(returnDate).toLocaleDateString() : null,
     passengerCount: String(passengers?.length || 0),
     seatNumbers: selectedSeats?.map(seat => seat.number).join(', ') || 'None',
-    returnSeatNumbers: selectedReturnSeats?.length > 0
-      ? selectedReturnSeats.map(seat => seat.number).join(', ')
-      : null,
+    returnSeatNumbers:
+      selectedReturnSeats?.length > 0
+        ? selectedReturnSeats.map(seat => seat.number).join(', ')
+        : null,
   };
 
   const handlePaymentMethodChange = (method: string) => {
@@ -120,7 +119,9 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
         {summaryData.returnRouteDisplay && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Return Route:</Text>
-            <Text style={styles.summaryValue}>{summaryData.returnRouteDisplay}</Text>
+            <Text style={styles.summaryValue}>
+              {summaryData.returnRouteDisplay}
+            </Text>
           </View>
         )}
 
@@ -149,7 +150,9 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
         {summaryData.returnSeatNumbers && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Return Seats:</Text>
-            <Text style={styles.summaryValue}>{summaryData.returnSeatNumbers}</Text>
+            <Text style={styles.summaryValue}>
+              {summaryData.returnSeatNumbers}
+            </Text>
           </View>
         )}
 
@@ -180,36 +183,33 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
 
       {/* Payment Method Selection */}
       <Dropdown
-        label="Payment Method"
+        label='Payment Method'
         items={[...AGENT_PAYMENT_OPTIONS]}
         value={paymentMethod || ''}
         onChange={handlePaymentMethodChange}
-        placeholder="Select payment method"
+        placeholder='Select payment method'
         error={errors.paymentMethod}
         required
       />
 
       {/* Terms and Conditions */}
       <View style={styles.termsContainer}>
-        <TouchableOpacity
-          style={styles.checkbox}
-          onPress={handleTermsToggle}
-        >
-          <View style={[
-            styles.checkboxInner,
-            termsAccepted && styles.checkboxChecked
-          ]} />
+        <TouchableOpacity style={styles.checkbox} onPress={handleTermsToggle}>
+          <View
+            style={[
+              styles.checkboxInner,
+              termsAccepted && styles.checkboxChecked,
+            ]}
+          />
         </TouchableOpacity>
         <Text style={styles.termsText}>
           I accept the{' '}
-          <Text style={styles.termsLink}>Terms and Conditions</Text>
-          {' '}and confirm that all booking details are correct
+          <Text style={styles.termsLink}>Terms and Conditions</Text> and confirm
+          that all booking details are correct
         </Text>
       </View>
 
-      {errors.terms && (
-        <Text style={styles.errorText}>{errors.terms}</Text>
-      )}
+      {errors.terms && <Text style={styles.errorText}>{errors.terms}</Text>}
 
       {errors.paymentMethod && (
         <Text style={styles.errorText}>{errors.paymentMethod}</Text>
@@ -366,4 +366,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PaymentStep; 
+export default PaymentStep;

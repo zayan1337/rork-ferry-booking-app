@@ -29,7 +29,7 @@ const ModificationReasonForm: React.FC<ModificationReasonFormProps> = ({
     <>
       {/* Modification Reason */}
       <View
-        ref={(el) => {
+        ref={el => {
           if (inputRefs) inputRefs.current.reason = el;
         }}
         style={styles.reasonContainer}
@@ -44,7 +44,7 @@ const ModificationReasonForm: React.FC<ModificationReasonFormProps> = ({
             onFocus={onReasonFocus}
             multiline
             numberOfLines={3}
-            textAlignVertical="top"
+            textAlignVertical='top'
           />
         </View>
         {reasonError ? (
@@ -54,7 +54,7 @@ const ModificationReasonForm: React.FC<ModificationReasonFormProps> = ({
 
       {/* Agent Notes */}
       <View
-        ref={(el) => {
+        ref={el => {
           if (inputRefs) inputRefs.current.agentNotes = el;
         }}
         style={styles.reasonContainer}
@@ -63,13 +63,13 @@ const ModificationReasonForm: React.FC<ModificationReasonFormProps> = ({
         <View style={styles.reasonInput}>
           <TextInput
             style={styles.reasonTextInput}
-            placeholder="Add any internal notes about this modification"
+            placeholder='Add any internal notes about this modification'
             value={agentNotes}
             onChangeText={onNotesChange}
             onFocus={onNotesFocus}
             multiline
             numberOfLines={2}
-            textAlignVertical="top"
+            textAlignVertical='top'
           />
         </View>
       </View>
@@ -106,4 +106,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ModificationReasonForm; 
+export default ModificationReasonForm;

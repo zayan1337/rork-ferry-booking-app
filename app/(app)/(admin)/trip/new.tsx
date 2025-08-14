@@ -1,17 +1,17 @@
-import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet, Alert, TouchableOpacity } from "react-native";
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import {
   Stack,
   router,
   useFocusEffect,
   useLocalSearchParams,
-} from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { TripForm } from "@/components/admin/operations";
-import { AdminManagement } from "@/types";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import RoleGuard from "@/components/RoleGuard";
-import { ArrowLeft } from "lucide-react-native";
+} from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { TripForm } from '@/components/admin/operations';
+import { AdminManagement } from '@/types';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import RoleGuard from '@/components/RoleGuard';
+import { ArrowLeft } from 'lucide-react-native';
 
 type TripFormData = AdminManagement.TripFormData;
 
@@ -22,8 +22,8 @@ export default function NewTripPage() {
 
   // Extract pre-fill data from query parameters
   const initialData = {
-    route_id: (params.route_id as string) || "",
-    vessel_id: (params.vessel_id as string) || "",
+    route_id: (params.route_id as string) || '',
+    vessel_id: (params.vessel_id as string) || '',
   };
 
   // Reset state when page is focused
@@ -39,12 +39,12 @@ export default function NewTripPage() {
     setIsSubmitting(true);
     try {
       // The TripForm component now handles validation and creation
-      Alert.alert("Success", "Trip created successfully!", [
-        { text: "OK", onPress: () => router.back() },
+      Alert.alert('Success', 'Trip created successfully!', [
+        { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (error) {
-      console.error("Error creating trip:", error);
-      Alert.alert("Error", "Failed to create trip. Please try again.");
+      console.error('Error creating trip:', error);
+      Alert.alert('Error', 'Failed to create trip. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -57,7 +57,7 @@ export default function NewTripPage() {
   if (!canManageTrips()) {
     return (
       <View style={styles.container}>
-        <Stack.Screen options={{ title: "Access Denied" }} />
+        <Stack.Screen options={{ title: 'Access Denied' }} />
         <View style={styles.accessDeniedContainer}>
           <Text style={styles.accessDeniedText}>
             You don't have permission to create trips.
@@ -71,7 +71,7 @@ export default function NewTripPage() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: "New Trip",
+          title: 'New Trip',
           headerStyle: {
             backgroundColor: colors.card,
           },
@@ -107,13 +107,13 @@ const styles = StyleSheet.create({
   },
   accessDeniedContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   accessDeniedText: {
     fontSize: 16,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
   },
 });

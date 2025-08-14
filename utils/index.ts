@@ -12,33 +12,31 @@ export * from './clientUtils';
 // Agent utilities with explicit re-exports to avoid conflicts
 export * from './agentUtils';
 export {
-    formatCurrency as agentFormatCurrency,
-    formatBookingDate as agentFormatBookingDate,
-    formatAgentId as agentFormatAgentId,
-    isAgentCreditLow as agentIsAgentCreditLow
+  formatCurrency as agentFormatCurrency,
+  formatBookingDate as agentFormatBookingDate,
+  formatAgentId as agentFormatAgentId,
+  isAgentCreditLow as agentIsAgentCreditLow,
 } from './agentFormatters';
 export * from './agentDashboard';
 export {
-    formatBookingDate as bookingDetailsFormatBookingDate,
-    shareBookingTicket as bookingDetailsShareBookingTicket
+  formatBookingDate as bookingDetailsFormatBookingDate,
+  shareBookingTicket as bookingDetailsShareBookingTicket,
 } from './bookingDetailsUtils';
 export * from './bookingFormUtils';
-export {
-    shareBookingTicket as shareUtilsShareBookingTicket
-} from './shareUtils';
+export { shareBookingTicket as shareUtilsShareBookingTicket } from './shareUtils';
 
 // Dashboard utilities with explicit re-exports
 export {
-    formatCurrency as dashboardFormatCurrency,
-    formatTime as dashboardFormatTime,
-    getResponsivePadding as dashboardGetResponsivePadding,
-    getResponsiveDimensions
+  formatCurrency as dashboardFormatCurrency,
+  formatTime as dashboardFormatTime,
+  getResponsivePadding as dashboardGetResponsivePadding,
+  getResponsiveDimensions,
 } from './dashboardUtils';
 
 // Settings utilities with explicit re-exports
 export {
-    getUserInitials as settingsGetUserInitials,
-    getResponsivePadding as settingsGetResponsivePadding
+  getUserInitials as settingsGetUserInitials,
+  getResponsivePadding as settingsGetResponsivePadding,
 } from './settingsUtils';
 
 // Operations utilities
@@ -49,4 +47,4 @@ export * from './islandUtils';
 
 // User management utilities
 export * from './userManagementUtils';
-export * from './admin/userManagementUtils'; 
+export * from './admin/userManagementUtils';

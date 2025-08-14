@@ -103,7 +103,10 @@ export interface AgentBookingState {
   agent: Agent | null;
 
   // Callback for when booking is created
-  onBookingCreated?: (bookingId: string, returnBookingId?: string | null) => Promise<void>;
+  onBookingCreated?: (
+    bookingId: string,
+    returnBookingId?: string | null
+  ) => Promise<void>;
 }
 
 export interface AgentState {
@@ -172,10 +175,10 @@ export interface Booking {
   }>;
   totalAmount: number;
   discountedAmount: number;
-  status: "confirmed" | "completed" | "cancelled" | "pending" | "modified";
+  status: 'confirmed' | 'completed' | 'cancelled' | 'pending' | 'modified';
   bookingDate: string;
   updatedAt?: string;
-  paymentMethod: "credit" | "gateway" | "free";
+  paymentMethod: 'credit' | 'gateway' | 'free';
   payment?: {
     method: string;
     status: string;
@@ -205,7 +208,7 @@ export interface CreditTransaction {
   id: string;
   date: string;
   amount: number;
-  type: "refill" | "deduction";
+  type: 'refill' | 'deduction';
   bookingId?: string;
   bookingNumber?: string;
   description?: string;
@@ -326,4 +329,4 @@ export interface AgentDisplayOptions {
   showDiscount: boolean;
   showCreditBalance: boolean;
   compactView: boolean;
-} 
+}

@@ -32,15 +32,17 @@ const CancellationDetailsForm: React.FC<CancellationDetailsFormProps> = ({
   inputRefs,
 }) => {
   return (
-    <Card variant="elevated" style={styles.formCard}>
+    <Card variant='elevated' style={styles.formCard}>
       <Text style={styles.cardTitle}>Cancellation Details</Text>
 
       <View
-        ref={(ref) => { if (inputRefs) inputRefs.current.reason = ref; }}
+        ref={ref => {
+          if (inputRefs) inputRefs.current.reason = ref;
+        }}
       >
         <Input
-          label="Reason for Cancellation"
-          placeholder="Please provide a detailed reason for cancellation"
+          label='Reason for Cancellation'
+          placeholder='Please provide a detailed reason for cancellation'
           value={reason}
           onChangeText={onReasonChange}
           onFocus={onReasonFocus}
@@ -52,11 +54,13 @@ const CancellationDetailsForm: React.FC<CancellationDetailsFormProps> = ({
       </View>
 
       <View
-        ref={(ref) => { if (inputRefs) inputRefs.current.agentNotes = ref; }}
+        ref={ref => {
+          if (inputRefs) inputRefs.current.agentNotes = ref;
+        }}
       >
         <Input
-          label="Agent Notes (Internal)"
-          placeholder="Add any internal notes or special circumstances"
+          label='Agent Notes (Internal)'
+          placeholder='Add any internal notes or special circumstances'
           value={agentNotes}
           onChangeText={onAgentNotesChange}
           onFocus={onAgentNotesFocus}
@@ -66,11 +70,13 @@ const CancellationDetailsForm: React.FC<CancellationDetailsFormProps> = ({
       </View>
 
       <View
-        ref={(ref) => { if (inputRefs) inputRefs.current.clientNotification = ref; }}
+        ref={ref => {
+          if (inputRefs) inputRefs.current.clientNotification = ref;
+        }}
       >
         <Input
-          label="Client Notification Message"
-          placeholder="Optional custom message to send to client"
+          label='Client Notification Message'
+          placeholder='Optional custom message to send to client'
           value={clientNotification}
           onChangeText={onClientNotificationChange}
           onFocus={onClientNotificationFocus}
@@ -94,4 +100,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CancellationDetailsForm; 
+export default CancellationDetailsForm;

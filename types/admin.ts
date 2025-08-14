@@ -22,8 +22,8 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  role: "customer" | "agent" | "admin" | "captain";
-  status: "active" | "inactive" | "suspended";
+  role: 'customer' | 'agent' | 'admin' | 'captain';
+  status: 'active' | 'inactive' | 'suspended';
   mobile_number?: string;
   date_of_birth?: string;
   credit_balance?: number;
@@ -50,8 +50,14 @@ export type Booking = {
   customerMobile?: string;
   date: string;
   departureTime: string;
-  status: "reserved" | "pending_payment" | "confirmed" | "checked_in" | "completed" | "cancelled";
-  paymentStatus: "pending" | "completed" | "failed" | "refunded";
+  status:
+    | 'reserved'
+    | 'pending_payment'
+    | 'confirmed'
+    | 'checked_in'
+    | 'completed'
+    | 'cancelled';
+  paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
   passengers: number;
   totalAmount: number;
   agentId?: string;
@@ -74,7 +80,7 @@ export type Route = {
   distance: string;
   duration: string;
   base_fare: number;
-  status: "active" | "inactive";
+  status: 'active' | 'inactive';
   total_trips_30d?: number;
   total_bookings_30d?: number;
   total_revenue_30d?: number;
@@ -88,7 +94,7 @@ export type Vessel = {
   name: string;
   capacity: number;
   seating_capacity: number;
-  status: "active" | "maintenance" | "inactive";
+  status: 'active' | 'maintenance' | 'inactive';
   total_trips_30d?: number;
   capacity_utilization_30d?: number;
   total_revenue_30d?: number;
@@ -111,7 +117,7 @@ export type Trip = {
   departureTime: string;
   departure_time: string;
   arrivalTime?: string;
-  status: "scheduled" | "in-progress" | "completed" | "cancelled";
+  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
   bookings: number;
   capacity: number;
   available_seats: number;
@@ -126,7 +132,7 @@ export type WalletTransaction = {
   user_id: string;
   user_name: string;
   amount: number;
-  transaction_type: "credit" | "debit" | "refund" | "payment";
+  transaction_type: 'credit' | 'debit' | 'refund' | 'payment';
   reference_id?: string;
   description?: string;
   created_at: string;
@@ -153,8 +159,8 @@ export type PaymentReport = {
   booking_number: string;
   user_name: string;
   amount: number;
-  payment_method: "gateway" | "wallet" | "bank_transfer" | "cash";
-  status: "pending" | "completed" | "failed" | "refunded";
+  payment_method: 'gateway' | 'wallet' | 'bank_transfer' | 'cash';
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
   receipt_number?: string;
   transaction_date: string;
   created_at: string;
@@ -165,9 +171,9 @@ export type Notification = {
   id: string;
   title: string;
   message: string;
-  type: "system" | "booking" | "payment" | "maintenance" | "emergency";
-  priority: "low" | "medium" | "high" | "critical";
-  target_users: "all" | "customers" | "agents" | "admins";
+  type: 'system' | 'booking' | 'payment' | 'maintenance' | 'emergency';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  target_users: 'all' | 'customers' | 'agents' | 'admins';
   is_read: boolean;
   sent_by: string;
   sent_by_name: string;
@@ -194,7 +200,7 @@ export type BulkMessage = {
   recipient_count: number;
   sent_count: number;
   failed_count: number;
-  status: "draft" | "sending" | "sent" | "failed";
+  status: 'draft' | 'sending' | 'sent' | 'failed';
   sent_by: string;
   sent_by_name: string;
   scheduled_at?: string;
@@ -226,7 +232,7 @@ export type PassengerManifest = {
   travel_date: string;
   departure_time: string;
   actual_departure_time?: string;
-  status: "in_progress" | "departed" | "completed";
+  status: 'in_progress' | 'departed' | 'completed';
   passenger_count: number;
   captain_confirmed: boolean;
   passengers: Passenger[];
@@ -237,15 +243,20 @@ export type PassengerManifest = {
 // Reports Types
 export type Report = {
   id: string;
-  report_type: "booking" | "financial" | "passenger" | "route_performance" | "vessel_utilization";
+  report_type:
+    | 'booking'
+    | 'financial'
+    | 'passenger'
+    | 'route_performance'
+    | 'vessel_utilization';
   title: string;
   description?: string;
   start_date: string;
   end_date: string;
   route_id?: string;
   vessel_id?: string;
-  status: "generating" | "completed" | "failed";
-  format: "pdf" | "excel" | "csv";
+  status: 'generating' | 'completed' | 'failed';
+  format: 'pdf' | 'excel' | 'csv';
   report_url?: string;
   row_count: number;
   generated_by: string;
@@ -294,7 +305,7 @@ export type DashboardStats = {
     total_transactions_today: number;
   };
   systemHealth: {
-    status: "healthy" | "warning" | "critical";
+    status: 'healthy' | 'warning' | 'critical';
     last_backup: string;
     database_size: string;
     active_sessions: number;
@@ -304,11 +315,17 @@ export type DashboardStats = {
 // Enhanced Alert Types
 export type Alert = {
   id: string;
-  type: "schedule" | "payment" | "system" | "capacity" | "maintenance" | "security";
+  type:
+    | 'schedule'
+    | 'payment'
+    | 'system'
+    | 'capacity'
+    | 'maintenance'
+    | 'security';
   title: string;
   message: string;
-  severity: "low" | "medium" | "high" | "critical";
-  status: "active" | "acknowledged" | "resolved";
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  status: 'active' | 'acknowledged' | 'resolved';
   affected_systems?: string[];
   action_required?: string;
   assigned_to?: string;
@@ -357,7 +374,7 @@ export const PERMISSION_RESOURCES = {
   REPORTS: 'reports',
   SETTINGS: 'settings',
   PERMISSIONS: 'permissions',
-  ACTIVITY_LOGS: 'activity_logs'
+  ACTIVITY_LOGS: 'activity_logs',
 } as const;
 
 export const PERMISSION_ACTIONS = {
@@ -369,5 +386,5 @@ export const PERMISSION_ACTIONS = {
   EXPORT: 'export',
   SEND: 'send',
   APPROVE: 'approve',
-  CANCEL: 'cancel'
+  CANCEL: 'cancel',
 } as const;

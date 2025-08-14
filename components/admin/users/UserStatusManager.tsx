@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,18 +6,18 @@ import {
   Modal,
   TouchableOpacity,
   Alert,
-} from "react-native";
-import { Shield, X, CheckCircle, AlertCircle, Ban } from "lucide-react-native";
-import { colors } from "@/constants/adminColors";
-import { UserProfile } from "@/types/userManagement";
-import Button from "@/components/admin/Button";
+} from 'react-native';
+import { Shield, X, CheckCircle, AlertCircle, Ban } from 'lucide-react-native';
+import { colors } from '@/constants/adminColors';
+import { UserProfile } from '@/types/userManagement';
+import Button from '@/components/admin/Button';
 
 interface UserStatusManagerProps {
   user: UserProfile;
   visible: boolean;
   onClose: () => void;
   onStatusUpdate: (
-    status: "active" | "inactive" | "suspended"
+    status: 'active' | 'inactive' | 'suspended'
   ) => Promise<void>;
 }
 
@@ -31,11 +31,11 @@ export default function UserStatusManager({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "active":
+      case 'active':
         return <CheckCircle size={24} color={colors.success} />;
-      case "suspended":
+      case 'suspended':
         return <AlertCircle size={24} color={colors.warning} />;
-      case "inactive":
+      case 'inactive':
         return <Ban size={24} color={colors.error} />;
       default:
         return <Shield size={24} color={colors.textSecondary} />;
@@ -44,11 +44,11 @@ export default function UserStatusManager({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active":
+      case 'active':
         return colors.success;
-      case "suspended":
+      case 'suspended':
         return colors.warning;
-      case "inactive":
+      case 'inactive':
         return colors.error;
       default:
         return colors.textSecondary;
@@ -56,7 +56,7 @@ export default function UserStatusManager({
   };
 
   const handleStatusChange = async (
-    newStatus: "active" | "inactive" | "suspended"
+    newStatus: 'active' | 'inactive' | 'suspended'
   ) => {
     if (newStatus === user.status) {
       onClose();
@@ -68,7 +68,7 @@ export default function UserStatusManager({
       await onStatusUpdate(newStatus);
       onClose();
     } catch (error) {
-      Alert.alert("Error", "Failed to update user status");
+      Alert.alert('Error', 'Failed to update user status');
     } finally {
       setUpdating(false);
     }
@@ -76,23 +76,23 @@ export default function UserStatusManager({
 
   const statusOptions = [
     {
-      status: "active" as const,
-      title: "Activate User",
-      description: "User can access all features",
+      status: 'active' as const,
+      title: 'Activate User',
+      description: 'User can access all features',
       icon: <CheckCircle size={20} color={colors.success} />,
       color: colors.success,
     },
     {
-      status: "suspended" as const,
-      title: "Suspend User",
-      description: "Temporarily restrict access",
+      status: 'suspended' as const,
+      title: 'Suspend User',
+      description: 'Temporarily restrict access',
       icon: <AlertCircle size={20} color={colors.warning} />,
       color: colors.warning,
     },
     {
-      status: "inactive" as const,
-      title: "Deactivate User",
-      description: "Permanently block access",
+      status: 'inactive' as const,
+      title: 'Deactivate User',
+      description: 'Permanently block access',
       icon: <Ban size={20} color={colors.error} />,
       color: colors.error,
     },
@@ -101,7 +101,7 @@ export default function UserStatusManager({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType='slide'
       transparent={true}
       onRequestClose={onClose}
     >
@@ -136,7 +136,7 @@ export default function UserStatusManager({
           </View>
 
           <View style={styles.options}>
-            {statusOptions.map((option) => (
+            {statusOptions.map(option => (
               <TouchableOpacity
                 key={option.status}
                 style={[
@@ -164,8 +164,8 @@ export default function UserStatusManager({
 
           <View style={styles.footer}>
             <Button
-              title="Cancel"
-              variant="outline"
+              title='Cancel'
+              variant='outline'
               onPress={onClose}
               disabled={updating}
             />
@@ -179,33 +179,33 @@ export default function UserStatusManager({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   modal: {
     backgroundColor: colors.card,
     borderRadius: 16,
     padding: 24,
-    width: "100%",
+    width: '100%',
     maxWidth: 400,
-    maxHeight: "80%",
+    maxHeight: '80%',
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 24,
   },
   headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   title: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
   },
   closeButton: {
@@ -216,23 +216,23 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
   },
   currentStatus: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   statusLabel: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   options: {
     gap: 12,
@@ -259,8 +259,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
   },
   optionContent: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   optionIcon: {
@@ -268,15 +268,15 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.card,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   optionText: {
     flex: 1,
   },
   optionTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 4,
   },
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   footer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
 });

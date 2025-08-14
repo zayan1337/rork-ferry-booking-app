@@ -529,4 +529,4 @@
 //         color: colors.text,
 //         flex: 1,
 //     },
-// }); 
+// });

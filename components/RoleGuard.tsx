@@ -1,7 +1,7 @@
-import React from "react";
-import { useAuthStore } from "@/store/authStore";
-import { UserRole } from "@/types/auth";
-import AuthLoadingScreen from "./AuthLoadingScreen";
+import React from 'react';
+import { useAuthStore } from '@/store/authStore';
+import { UserRole } from '@/types/auth';
+import AuthLoadingScreen from './AuthLoadingScreen';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -17,12 +17,12 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
       <AuthLoadingScreen
         message={
           !isRehydrated
-            ? "Loading app data..."
+            ? 'Loading app data...'
             : isLoading
-            ? "Verifying access..."
-            : !isAuthenticated
-            ? "Redirecting to login..."
-            : "Loading your profile..."
+              ? 'Verifying access...'
+              : !isAuthenticated
+                ? 'Redirecting to login...'
+                : 'Loading your profile...'
         }
       />
     );
@@ -40,7 +40,7 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
       return () => clearTimeout(timer);
     }, []);
 
-    return <AuthLoadingScreen message="Verifying permissions..." />;
+    return <AuthLoadingScreen message='Verifying permissions...' />;
   }
 
   // User is authenticated and has proper role

@@ -6,9 +6,9 @@ interface UseRefreshControlOptions {
   cooldownMs?: number;
 }
 
-export function useRefreshControl({ 
-  onRefresh, 
-  cooldownMs = 1000 
+export function useRefreshControl({
+  onRefresh,
+  cooldownMs = 1000,
 }: UseRefreshControlOptions) {
   const [state, setState] = useState<RefreshControlState>({
     isRefreshing: false,
@@ -18,14 +18,17 @@ export function useRefreshControl({
   const handleRefresh = useCallback(async () => {
     // Prevent rapid successive refreshes
     if (state.isRefreshing) return;
-    
+
     const now = new Date();
-    if (state.lastRefresh && now.getTime() - state.lastRefresh.getTime() < cooldownMs) {
+    if (
+      state.lastRefresh &&
+      now.getTime() - state.lastRefresh.getTime() < cooldownMs
+    ) {
       return;
     }
 
     setState(prev => ({ ...prev, isRefreshing: true }));
-    
+
     try {
       await onRefresh();
     } catch (error) {
@@ -43,4 +46,4 @@ export function useRefreshControl({
     onRefresh: handleRefresh,
     lastRefresh: state.lastRefresh,
   };
-} 
+}

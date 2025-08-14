@@ -6,19 +6,31 @@ import Colors from '@/constants/colors';
 
 const AgentPolicyCard: React.FC = () => {
   return (
-    <Card variant="elevated" style={styles.policyCard}>
+    <Card variant='elevated' style={styles.policyCard}>
       <View style={styles.policyHeader}>
-        <AlertTriangle size={24} color={Colors.warning} style={styles.policyIcon} />
+        <AlertTriangle
+          size={24}
+          color={Colors.warning}
+          style={styles.policyIcon}
+        />
         <Text style={styles.policyTitle}>Agent Cancellation Authority</Text>
       </View>
       <Text style={styles.policyText}>
         As an agent, you have the authority to:
       </Text>
       <View style={styles.policyList}>
-        <Text style={styles.policyItem}>• Offer up to 100% refund for valid reasons</Text>
-        <Text style={styles.policyItem}>• Process immediate refunds through agent credit</Text>
-        <Text style={styles.policyItem}>• Waive standard cancellation policies for client satisfaction</Text>
-        <Text style={styles.policyItem}>• Document special circumstances in notes</Text>
+        <Text style={styles.policyItem}>
+          • Offer up to 100% refund for valid reasons
+        </Text>
+        <Text style={styles.policyItem}>
+          • Process immediate refunds through agent credit
+        </Text>
+        <Text style={styles.policyItem}>
+          • Waive standard cancellation policies for client satisfaction
+        </Text>
+        <Text style={styles.policyItem}>
+          • Document special circumstances in notes
+        </Text>
       </View>
     </Card>
   );
@@ -59,4 +71,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AgentPolicyCard; 
+export default AgentPolicyCard;

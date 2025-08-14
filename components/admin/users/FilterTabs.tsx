@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from "react";
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -6,16 +6,16 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
-} from "react-native";
-import { colors } from "@/constants/adminColors";
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
 
 type FilterRole =
-  | "all"
-  | "admin"
-  | "agent"
-  | "customer"
-  | "passenger"
-  | "captain";
+  | 'all'
+  | 'admin'
+  | 'agent'
+  | 'customer'
+  | 'passenger'
+  | 'captain';
 
 interface FilterTabsProps {
   filterRole: FilterRole;
@@ -23,7 +23,7 @@ interface FilterTabsProps {
   getCount: (role: FilterRole) => number;
 }
 
-const { width: screenWidth } = Dimensions.get("window");
+const { width: screenWidth } = Dimensions.get('window');
 
 const FilterTabs: React.FC<FilterTabsProps> = ({
   filterRole,
@@ -35,12 +35,12 @@ const FilterTabs: React.FC<FilterTabsProps> = ({
   const [isUserScrolling, setIsUserScrolling] = useState(false);
 
   const roles: FilterRole[] = [
-    "all",
-    "admin",
-    "agent",
-    "customer",
-    "captain",
-    "passenger",
+    'all',
+    'admin',
+    'agent',
+    'customer',
+    'captain',
+    'passenger',
   ];
 
   // Optimized scroll to active tab - only when filterRole changes and user isn't manually scrolling
@@ -48,7 +48,7 @@ const FilterTabs: React.FC<FilterTabsProps> = ({
     (immediate = false) => {
       if (isUserScrolling) return;
 
-      const tabIndex = roles.findIndex((role) => role === filterRole);
+      const tabIndex = roles.findIndex(role => role === filterRole);
       if (tabIndex === -1 || !tabScrollRef.current) return;
 
       const tabWidth = 100; // Approximate tab width
@@ -91,8 +91,8 @@ const FilterTabs: React.FC<FilterTabsProps> = ({
         contentContainerStyle={styles.tabScrollContainer}
         style={styles.tabScrollView}
         bounces={false}
-        decelerationRate="fast"
-        onScroll={(event) => {
+        decelerationRate='fast'
+        onScroll={event => {
           setCurrentScrollX(event.nativeEvent.contentOffset.x);
         }}
         onScrollBeginDrag={() => setIsUserScrolling(true)}
@@ -101,7 +101,7 @@ const FilterTabs: React.FC<FilterTabsProps> = ({
         }}
         scrollEventThrottle={16}
       >
-        {roles.map((role) => (
+        {roles.map(role => (
           <TouchableOpacity
             key={role}
             style={[
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabScrollContainer: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingHorizontal: 16,
     minWidth: screenWidth,
   },
@@ -159,41 +159,41 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
     marginHorizontal: 3,
-    position: "relative",
+    position: 'relative',
     minWidth: 80,
     height: 48,
-    justifyContent: "center",
+    justifyContent: 'center',
   },
   filterTabActive: {
-    backgroundColor: colors.primary + "15",
+    backgroundColor: colors.primary + '15',
     transform: [{ scale: 1.05 }],
   },
   filterTabText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.textSecondary,
     marginBottom: 2,
-    textAlign: "center",
+    textAlign: 'center',
   },
   filterTabTextActive: {
     color: colors.primary,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   filterTabCount: {
     fontSize: 10,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
   },
   filterTabCountActive: {
     color: colors.primary,
   },
   tabIndicator: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 0,
-    width: "70%",
+    width: '70%',
     height: 2,
     backgroundColor: colors.primary,
     borderRadius: 1,

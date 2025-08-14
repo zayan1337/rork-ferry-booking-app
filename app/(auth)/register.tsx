@@ -7,7 +7,7 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  BackHandler
+  BackHandler,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
@@ -42,14 +42,21 @@ export default function RegisterScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [countdown, setCountdown] = useState(10);
 
-  const { signUp, isAuthenticated, isLoading, error, clearError, setPreventRedirect } = useAuthStore();
+  const {
+    signUp,
+    isAuthenticated,
+    isLoading,
+    error,
+    clearError,
+    setPreventRedirect,
+  } = useAuthStore();
 
   // Handle countdown timer when success is shown
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
     if (showSuccess && countdown > 0) {
       timer = setInterval(() => {
-        setCountdown((prev) => prev - 1);
+        setCountdown(prev => prev - 1);
       }, 1000);
     } else if (showSuccess && countdown === 0 && !isNavigating) {
       setIsNavigating(true);
@@ -75,7 +82,10 @@ export default function RegisterScreen() {
     };
   }, [setPreventRedirect]);
 
-  const updateFormData = (field: keyof typeof formData, value: string | null) => {
+  const updateFormData = (
+    field: keyof typeof formData,
+    value: string | null
+  ) => {
     setFormData(prev => ({ ...prev, [field]: value }));
 
     // Clear error for this field
@@ -170,13 +180,12 @@ export default function RegisterScreen() {
         full_name: formData.fullname,
         mobile_number: formData.phone,
         date_of_birth: formData.dateofbirth || '',
-        accepted_terms: termsAccepted
+        accepted_terms: termsAccepted,
       });
 
       // Show success message
       setShowSuccess(true);
       setCountdown(10);
-
     } catch (err) {
       // Reset states if registration fails
       setPreventRedirect(false);
@@ -204,9 +213,9 @@ export default function RegisterScreen() {
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps='handled'
       >
-        <Card variant="elevated" style={styles.card}>
+        <Card variant='elevated' style={styles.card}>
           <Text style={styles.title}>Create Account</Text>
 
           {error && (
@@ -216,41 +225,41 @@ export default function RegisterScreen() {
           )}
 
           <Input
-            label="Full Name"
-            placeholder="Enter your full name"
+            label='Full Name'
+            placeholder='Enter your full name'
             value={formData.fullname}
-            onChangeText={(text) => updateFormData('fullname', text)}
+            onChangeText={text => updateFormData('fullname', text)}
             error={errors.fullname}
             disabled={isLoading || isNavigating || showSuccess}
             required
           />
 
           <Input
-            label="Mobile Number"
-            placeholder="+9607XXXXXXX"
+            label='Mobile Number'
+            placeholder='+9607XXXXXXX'
             value={formData.phone}
-            onChangeText={(text) => updateFormData('phone', text)}
-            keyboardType="phone-pad"
+            onChangeText={text => updateFormData('phone', text)}
+            keyboardType='phone-pad'
             error={errors.phone}
             disabled={isLoading || isNavigating || showSuccess}
             required
           />
 
           <Input
-            label="Email Address"
-            placeholder="your.email@example.com"
+            label='Email Address'
+            placeholder='your.email@example.com'
             value={formData.email}
-            onChangeText={(text) => updateFormData('email', text)}
-            keyboardType="email-address"
+            onChangeText={text => updateFormData('email', text)}
+            keyboardType='email-address'
             error={errors.email}
             disabled={isLoading || isNavigating || showSuccess}
             required
           />
 
           <DateSelector
-            label="Date of Birth"
+            label='Date of Birth'
             value={formData.dateofbirth}
-            onChange={(date) => updateFormData('dateofbirth', date)}
+            onChange={date => updateFormData('dateofbirth', date)}
             maxDate={new Date().toISOString().split('T')[0]}
             error={errors.dateofbirth}
             isDateOfBirth={true}
@@ -258,10 +267,10 @@ export default function RegisterScreen() {
           />
 
           <Input
-            label="Password"
-            placeholder="Create a password"
+            label='Password'
+            placeholder='Create a password'
             value={formData.password}
-            onChangeText={(text) => updateFormData('password', text)}
+            onChangeText={text => updateFormData('password', text)}
             secureTextEntry
             error={errors.password}
             disabled={isLoading || isNavigating || showSuccess}
@@ -269,10 +278,10 @@ export default function RegisterScreen() {
           />
 
           <Input
-            label="Confirm Password"
-            placeholder="Confirm your password"
+            label='Confirm Password'
+            placeholder='Confirm your password'
             value={formData.confirmPassword}
-            onChangeText={(text) => updateFormData('confirmPassword', text)}
+            onChangeText={text => updateFormData('confirmPassword', text)}
             secureTextEntry
             error={errors.confirmPassword}
             disabled={isLoading || isNavigating || showSuccess}
@@ -288,10 +297,12 @@ export default function RegisterScreen() {
               }}
               disabled={isLoading || isNavigating || showSuccess}
             >
-              <View style={[
-                styles.checkboxInner,
-                termsAccepted && styles.checkboxChecked
-              ]} />
+              <View
+                style={[
+                  styles.checkboxInner,
+                  termsAccepted && styles.checkboxChecked,
+                ]}
+              />
             </TouchableOpacity>
             <Text style={styles.termsText}>
               I accept the{' '}
@@ -304,7 +315,7 @@ export default function RegisterScreen() {
           ) : null}
 
           <Button
-            title="Create Account"
+            title='Create Account'
             onPress={handleRegister}
             loading={isLoading}
             disabled={isLoading || isNavigating || showSuccess}
@@ -315,9 +326,12 @@ export default function RegisterScreen() {
           {/* Success Message - Shows under the form */}
           {showSuccess && (
             <View style={styles.successContainer}>
-              <Text style={styles.successTitle}>Registration Successful! ✅</Text>
+              <Text style={styles.successTitle}>
+                Registration Successful! ✅
+              </Text>
               <Text style={styles.successText}>
-                Confirmation mail sent to {formData.email}. Please check your email and confirm your account.
+                Confirmation mail sent to {formData.email}. Please check your
+                email and confirm your account.
               </Text>
               <Text style={styles.countdownText}>
                 Redirecting to login page in {countdown} seconds...
@@ -327,7 +341,7 @@ export default function RegisterScreen() {
                 onPress={handleSkipCountdown}
                 disabled={isNavigating}
                 fullWidth
-                variant="secondary"
+                variant='secondary'
                 style={styles.skipButton}
               />
             </View>
@@ -339,7 +353,14 @@ export default function RegisterScreen() {
               disabled={isLoading || isNavigating || showSuccess}
               onPress={() => router.push('/')}
             >
-              <Text style={[styles.loginLink, (showSuccess || isLoading) && styles.disabledLink]}>Login</Text>
+              <Text
+                style={[
+                  styles.loginLink,
+                  (showSuccess || isLoading) && styles.disabledLink,
+                ]}
+              >
+                Login
+              </Text>
             </TouchableOpacity>
           </View>
         </Card>

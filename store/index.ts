@@ -45,7 +45,7 @@ export { useFaqStore } from './faqStore';
 /**
  * Main agent store - Coordinating facade over all agent functionality
  * Use this as the primary interface for agent operations
- * 
+ *
  * Features:
  * - Agent authentication and profile management
  * - Client management and search
@@ -138,7 +138,7 @@ export { useContentStore } from './admin/contentStore';
 /**
  * @deprecated Use individual stores instead
  * This provides a migration path for existing components
- * 
+ *
  * Recommended migration:
  * - Replace `useBookingStore_DEPRECATED()` with specific store hooks
  * - Use `useBookingStore()` for booking form state
@@ -149,23 +149,25 @@ export { useContentStore } from './admin/contentStore';
  * - Use `useBookingOperationsStore()` for booking operations
  */
 export const useBookingStore_DEPRECATED = () => {
-    console.warn('useBookingStore_DEPRECATED is deprecated. Please use individual stores: useBookingStore, useRouteStore, useSeatStore, etc.');
+  console.warn(
+    'useBookingStore_DEPRECATED is deprecated. Please use individual stores: useBookingStore, useRouteStore, useSeatStore, etc.'
+  );
 
-    // Return a combined interface for backward compatibility
-    // This is a simplified version - full implementation would merge all stores
-    const bookingStore = useBookingStore();
-    const routeStore = useRouteStore();
-    const seatStore = useSeatStore();
-    const userBookingsStore = useUserBookingsStore();
-    const ticketStore = useTicketStore();
-    const bookingOperationsStore = useBookingOperationsStore();
+  // Return a combined interface for backward compatibility
+  // This is a simplified version - full implementation would merge all stores
+  const bookingStore = useBookingStore();
+  const routeStore = useRouteStore();
+  const seatStore = useSeatStore();
+  const userBookingsStore = useUserBookingsStore();
+  const ticketStore = useTicketStore();
+  const bookingOperationsStore = useBookingOperationsStore();
 
-    return {
-        ...bookingStore,
-        ...routeStore,
-        ...seatStore,
-        ...userBookingsStore,
-        ...ticketStore,
-        ...bookingOperationsStore,
-    };
-}; 
+  return {
+    ...bookingStore,
+    ...routeStore,
+    ...seatStore,
+    ...userBookingsStore,
+    ...ticketStore,
+    ...bookingOperationsStore,
+  };
+};

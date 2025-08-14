@@ -8,15 +8,16 @@ interface ClientDetailsHeaderProps {
 
 const ClientDetailsHeader: React.FC<ClientDetailsHeaderProps> = ({ name }) => {
   const getInitials = (name: string) => {
-    return name.split(" ").map(n => n[0]).join("");
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('');
   };
 
   return (
     <View style={styles.header}>
       <View style={styles.avatarContainer}>
-        <Text style={styles.avatarText}>
-          {getInitials(name)}
-        </Text>
+        <Text style={styles.avatarText}>{getInitials(name)}</Text>
       </View>
       <Text style={styles.name}>{name}</Text>
     </View>
@@ -25,7 +26,7 @@ const ClientDetailsHeader: React.FC<ClientDetailsHeaderProps> = ({ name }) => {
 
 const styles = StyleSheet.create({
   header: {
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 24,
   },
   avatarContainer: {
@@ -33,20 +34,20 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: Colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 16,
   },
   avatarText: {
     fontSize: 32,
-    fontWeight: "bold",
-    color: "white",
+    fontWeight: 'bold',
+    color: 'white',
   },
   name: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: Colors.text,
   },
 });
 
-export default ClientDetailsHeader; 
+export default ClientDetailsHeader;

@@ -11,22 +11,22 @@ interface SeatSelectionStepProps {
   availableReturnSeats: Seat[] | null;
   selectedSeats: Seat[];
   selectedReturnSeats: Seat[];
-  
+
   // Seat selection handlers
   onSeatToggle: (seat: Seat, isReturn?: boolean) => void;
-  
+
   // Trip type
   tripType: 'one_way' | 'round_trip' | null;
-  
+
   // Loading state
   isLoading: boolean;
-  
+
   // Fare calculation
   totalFare: number;
   discountRate?: number;
   discountedFare?: number;
   agent: any;
-  
+
   // Validation
   errors: {
     seats?: string;
@@ -64,7 +64,7 @@ const SeatSelectionStep: React.FC<SeatSelectionStepProps> = ({
         <SeatSelector
           seats={availableSeats}
           selectedSeats={selectedSeats}
-          onSeatToggle={(seat) => handleSeatToggle(seat, false)}
+          onSeatToggle={seat => handleSeatToggle(seat, false)}
           isLoading={isLoading}
         />
       ) : (
@@ -79,28 +79,26 @@ const SeatSelectionStep: React.FC<SeatSelectionStepProps> = ({
             <SeatSelector
               seats={availableReturnSeats}
               selectedSeats={selectedReturnSeats}
-              onSeatToggle={(seat) => handleSeatToggle(seat, true)}
+              onSeatToggle={seat => handleSeatToggle(seat, true)}
               isLoading={isLoading}
             />
           ) : (
-            <Text style={styles.loadingText}>Loading available return seats...</Text>
+            <Text style={styles.loadingText}>
+              Loading available return seats...
+            </Text>
           )}
         </>
       )}
 
       {/* Validation Error */}
-      {errors.seats && (
-        <Text style={styles.errorText}>{errors.seats}</Text>
-      )}
+      {errors.seats && <Text style={styles.errorText}>{errors.seats}</Text>}
 
       {/* Fare Summary */}
       {selectedSeats.length > 0 && (
         <View style={styles.fareContainer}>
           <View style={styles.fareRow}>
             <Text style={styles.fareLabel}>Total Fare:</Text>
-            <Text style={styles.fareValue}>
-              {formatCurrency(totalFare)}
-            </Text>
+            <Text style={styles.fareValue}>{formatCurrency(totalFare)}</Text>
           </View>
 
           {/* Agent Discount */}
@@ -208,4 +206,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SeatSelectionStep; 
+export default SeatSelectionStep;

@@ -83,7 +83,7 @@ export const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'MVR',
-    minimumFractionDigits: 2
+    minimumFractionDigits: 2,
   }).format(amount);
 };
 
@@ -94,7 +94,7 @@ export const formatDate = (date: string): string => {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
   });
 };
 
@@ -107,7 +107,7 @@ export const formatDateTime = (date: string): string => {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 };
 
@@ -119,11 +119,14 @@ export const calculateUserAge = (dateOfBirth: string): number => {
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
-  
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < birthDate.getDate())
+  ) {
     age--;
   }
-  
+
   return age;
 };
 
@@ -146,13 +149,17 @@ export const isValidPhoneNumber = (phone: string): boolean => {
 /**
  * Gets user activity level based on last login and bookings
  */
-export const getUserActivityLevel = (user: UserProfile): 'high' | 'medium' | 'low' => {
+export const getUserActivityLevel = (
+  user: UserProfile
+): 'high' | 'medium' | 'low' => {
   if (!user.last_login) return 'low';
-  
+
   const lastLogin = new Date(user.last_login);
   const now = new Date();
-  const daysSinceLastLogin = Math.floor((now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24));
-  
+  const daysSinceLastLogin = Math.floor(
+    (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
   if (daysSinceLastLogin <= 7) return 'high';
   if (daysSinceLastLogin <= 30) return 'medium';
   return 'low';
@@ -161,7 +168,9 @@ export const getUserActivityLevel = (user: UserProfile): 'high' | 'medium' | 'lo
 /**
  * Gets user activity level color
  */
-export const getUserActivityColor = (level: 'high' | 'medium' | 'low'): string => {
+export const getUserActivityColor = (
+  level: 'high' | 'medium' | 'low'
+): string => {
   switch (level) {
     case 'high':
       return '#10B981'; // green
@@ -186,23 +195,28 @@ export const formatUserName = (user: UserProfile): string => {
  */
 export const getUserInitials = (user: UserProfile): string => {
   if (!user.name) return user.email?.charAt(0).toUpperCase() || 'U';
-  
+
   const names = user.name.split(' ');
   if (names.length === 1) return names[0].charAt(0).toUpperCase();
-  
+
   return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
 };
 
 /**
  * Checks if user has recent activity
  */
-export const hasRecentActivity = (user: UserProfile, days: number = 30): boolean => {
+export const hasRecentActivity = (
+  user: UserProfile,
+  days: number = 30
+): boolean => {
   if (!user.last_login) return false;
-  
+
   const lastLogin = new Date(user.last_login);
   const now = new Date();
-  const daysSinceLastLogin = Math.floor((now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24));
-  
+  const daysSinceLastLogin = Math.floor(
+    (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
   return daysSinceLastLogin <= days;
 };
 
@@ -211,32 +225,34 @@ export const hasRecentActivity = (user: UserProfile, days: number = 30): boolean
  */
 export const getUserEngagementScore = (user: UserProfile): number => {
   let score = 0;
-  
+
   // Base score for having an account
   score += 10;
-  
+
   // Points for recent activity
   if (hasRecentActivity(user, 7)) score += 30;
   else if (hasRecentActivity(user, 30)) score += 20;
   else if (hasRecentActivity(user, 90)) score += 10;
-  
+
   // Points for bookings
   if (user.total_bookings) {
     score += Math.min(user.total_bookings * 5, 50); // Max 50 points for bookings
   }
-  
+
   // Points for spending
   if (user.total_spent) {
     score += Math.min(user.total_spent / 100, 20); // Max 20 points for spending
   }
-  
+
   return Math.min(score, 100); // Cap at 100
 };
 
 /**
  * Gets user engagement level
  */
-export const getUserEngagementLevel = (score: number): 'high' | 'medium' | 'low' => {
+export const getUserEngagementLevel = (
+  score: number
+): 'high' | 'medium' | 'low' => {
   if (score >= 70) return 'high';
   if (score >= 40) return 'medium';
   return 'low';
@@ -270,20 +286,22 @@ export const formatActivityLevel = (level: number) => {
 export const formatEngagementScore = (score: number) => {
   const percentage = `${Math.round(score)}%`;
   let color = '#EF4444'; // red
-  
+
   if (score >= 70) {
     color = '#10B981'; // green
   } else if (score >= 40) {
     color = '#F59E0B'; // yellow
   }
-  
+
   return { percentage, color };
 };
 
 /**
  * Calculates user age from UserProfile
  */
-export const calculateUserAgeFromProfile = (user: UserProfile): number | null => {
+export const calculateUserAgeFromProfile = (
+  user: UserProfile
+): number | null => {
   if (!user.date_of_birth) return null;
   return calculateUserAge(user.date_of_birth);
 };

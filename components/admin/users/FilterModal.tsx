@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   Text,
@@ -6,20 +6,20 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-} from "react-native";
-import { X, Check } from "lucide-react-native";
-import { colors } from "@/constants/adminColors";
-import Button from "@/components/admin/Button";
+} from 'react-native';
+import { X, Check } from 'lucide-react-native';
+import { colors } from '@/constants/adminColors';
+import Button from '@/components/admin/Button';
 
-type FilterStatus = "all" | "active" | "inactive" | "suspended";
+type FilterStatus = 'all' | 'active' | 'inactive' | 'suspended';
 type SortField =
-  | "name"
-  | "email"
-  | "role"
-  | "status"
-  | "created_at"
-  | "last_login";
-type SortOrder = "asc" | "desc";
+  | 'name'
+  | 'email'
+  | 'role'
+  | 'status'
+  | 'created_at'
+  | 'last_login';
+type SortOrder = 'asc' | 'desc';
 
 interface FilterModalProps {
   visible: boolean;
@@ -43,10 +43,10 @@ const FilterModal: React.FC<FilterModalProps> = ({
   onClearAll,
 }) => {
   const statusOptions = [
-    { key: "all" as const, label: "All Status" },
-    { key: "active" as const, label: "Active" },
-    { key: "inactive" as const, label: "Inactive" },
-    { key: "suspended" as const, label: "Suspended" },
+    { key: 'all' as const, label: 'All Status' },
+    { key: 'active' as const, label: 'Active' },
+    { key: 'inactive' as const, label: 'Inactive' },
+    { key: 'suspended' as const, label: 'Suspended' },
   ];
 
   const sortOptions: Array<{
@@ -54,19 +54,19 @@ const FilterModal: React.FC<FilterModalProps> = ({
     label: string;
     order: SortOrder;
   }> = [
-    { key: "created_at", label: "Date (Newest)", order: "desc" },
-    { key: "created_at", label: "Date (Oldest)", order: "asc" },
-    { key: "name", label: "Name (A-Z)", order: "asc" },
-    { key: "name", label: "Name (Z-A)", order: "desc" },
-    { key: "role", label: "Role (A-Z)", order: "asc" },
-    { key: "status", label: "Status (A-Z)", order: "asc" },
+    { key: 'created_at', label: 'Date (Newest)', order: 'desc' },
+    { key: 'created_at', label: 'Date (Oldest)', order: 'asc' },
+    { key: 'name', label: 'Name (A-Z)', order: 'asc' },
+    { key: 'name', label: 'Name (Z-A)', order: 'desc' },
+    { key: 'role', label: 'Role (A-Z)', order: 'asc' },
+    { key: 'status', label: 'Status (A-Z)', order: 'asc' },
   ];
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType='slide'
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
@@ -84,7 +84,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
           >
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Status</Text>
-              {statusOptions.map((option) => (
+              {statusOptions.map(option => (
                 <TouchableOpacity
                   key={option.key}
                   style={[
@@ -111,7 +111,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
 
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Sort by</Text>
-              {sortOptions.map((option) => (
+              {sortOptions.map(option => (
                 <TouchableOpacity
                   key={`${option.key}_${option.order}`}
                   style={[
@@ -141,8 +141,8 @@ const FilterModal: React.FC<FilterModalProps> = ({
           </ScrollView>
 
           <View style={styles.modalActions}>
-            <Button title="Clear All" variant="ghost" onPress={onClearAll} />
-            <Button title="Apply" variant="primary" onPress={onClose} />
+            <Button title='Clear All' variant='ghost' onPress={onClearAll} />
+            <Button title='Apply' variant='primary' onPress={onClose} />
           </View>
         </View>
       </View>
@@ -153,28 +153,28 @@ const FilterModal: React.FC<FilterModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   filterModal: {
     backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: "85%",
+    maxHeight: '85%',
     minHeight: 400,
   },
   modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border + "20",
+    borderBottomColor: colors.border + '20',
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
   },
   modalContent: {
@@ -187,21 +187,21 @@ const styles = StyleSheet.create({
   },
   filterSectionTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
   },
   filterOption: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
     marginBottom: 4,
   },
   filterOptionSelected: {
-    backgroundColor: colors.primary + "10",
+    backgroundColor: colors.primary + '10',
   },
   filterOptionText: {
     fontSize: 14,
@@ -209,15 +209,15 @@ const styles = StyleSheet.create({
   },
   filterOptionTextSelected: {
     color: colors.primary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   modalActions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
     padding: 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border + "20",
+    borderTopColor: colors.border + '20',
   },
 });
 

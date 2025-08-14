@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-} from "react-native";
-import { colors } from "@/constants/adminColors";
-import { Plus, Minus, Settings, AlertCircle } from "lucide-react-native";
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { Plus, Minus, Settings, AlertCircle } from 'lucide-react-native';
 
 interface SeatLayoutConfig {
   rows: number;
@@ -39,7 +39,7 @@ export default function SeatLayoutConfig({
   const columnsInputRef = useRef<TextInput>(null);
   const updateConfig = (updates: Partial<SeatLayoutConfig>) => {
     // Only update if there are actual changes
-    const hasChanges = Object.keys(updates).some((key) => {
+    const hasChanges = Object.keys(updates).some(key => {
       const currentValue = config[key as keyof SeatLayoutConfig];
       const newValue = updates[key as keyof SeatLayoutConfig];
 
@@ -74,13 +74,13 @@ export default function SeatLayoutConfig({
 
   const removeAisle = (aislePosition: number) => {
     updateConfig({
-      aisles: config.aisles.filter((a) => a !== aislePosition),
+      aisles: config.aisles.filter(a => a !== aislePosition),
     });
   };
 
   const removeRowAisle = (aislePosition: number) => {
     updateConfig({
-      rowAisles: config.rowAisles.filter((a) => a !== aislePosition),
+      rowAisles: config.rowAisles.filter(a => a !== aislePosition),
     });
   };
 
@@ -114,7 +114,7 @@ export default function SeatLayoutConfig({
     const isPremium = config.premium_rows.includes(rowNumber);
     updateConfig({
       premium_rows: isPremium
-        ? config.premium_rows.filter((r) => r !== rowNumber)
+        ? config.premium_rows.filter(r => r !== rowNumber)
         : [...config.premium_rows, rowNumber].sort((a, b) => a - b),
     });
   };
@@ -211,7 +211,7 @@ export default function SeatLayoutConfig({
                 onChangeText={setTempRows}
                 onBlur={handleRowsSubmit}
                 onSubmitEditing={handleRowsSubmit}
-                keyboardType="numeric"
+                keyboardType='numeric'
                 selectTextOnFocus
                 maxLength={3}
               />
@@ -251,7 +251,7 @@ export default function SeatLayoutConfig({
                 onChangeText={setTempColumns}
                 onBlur={handleColumnsSubmit}
                 onSubmitEditing={handleColumnsSubmit}
-                keyboardType="numeric"
+                keyboardType='numeric'
                 selectTextOnFocus
                 maxLength={3}
               />
@@ -319,7 +319,7 @@ export default function SeatLayoutConfig({
                 {Array.from(
                   { length: config.columns - 1 },
                   (_, i) => i + 1
-                ).map((col) => {
+                ).map(col => {
                   const nextCol = col + 1;
                   const isAisle = config.aisles.includes(col);
                   return (
@@ -356,7 +356,7 @@ export default function SeatLayoutConfig({
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.aisleSelector}>
                 {Array.from({ length: config.rows - 1 }, (_, i) => i + 1).map(
-                  (row) => {
+                  row => {
                     const nextRow = row + 1;
                     const isAisle = config.rowAisles.includes(row);
                     return (
@@ -400,30 +400,28 @@ export default function SeatLayoutConfig({
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.rowSelector}>
-              {Array.from({ length: config.rows }, (_, i) => i + 1).map(
-                (row) => {
-                  const isPremium = config.premium_rows.includes(row);
-                  return (
-                    <TouchableOpacity
-                      key={row}
+              {Array.from({ length: config.rows }, (_, i) => i + 1).map(row => {
+                const isPremium = config.premium_rows.includes(row);
+                return (
+                  <TouchableOpacity
+                    key={row}
+                    style={[
+                      styles.rowButton,
+                      isPremium && styles.premiumRowButton,
+                    ]}
+                    onPress={() => togglePremiumRow(row)}
+                  >
+                    <Text
                       style={[
-                        styles.rowButton,
-                        isPremium && styles.premiumRowButton,
+                        styles.rowButtonText,
+                        isPremium && styles.premiumRowButtonText,
                       ]}
-                      onPress={() => togglePremiumRow(row)}
                     >
-                      <Text
-                        style={[
-                          styles.rowButtonText,
-                          isPremium && styles.premiumRowButtonText,
-                        ]}
-                      >
-                        Row {row}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }
-              )}
+                      Row {row}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </ScrollView>
         </View>
@@ -530,13 +528,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginLeft: 8,
   },
@@ -548,7 +546,7 @@ const styles = StyleSheet.create({
   },
   capacityLabel: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 4,
   },
@@ -561,7 +559,7 @@ const styles = StyleSheet.create({
   },
   configLabel: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
   },
@@ -571,8 +569,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   numberInput: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 12,
   },
   inputLabel: {
@@ -585,33 +583,33 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 16,
     backgroundColor: colors.backgroundSecondary,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginHorizontal: 8,
   },
   numberValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     minWidth: 30,
-    textAlign: "center",
+    textAlign: 'center',
   },
   numberValueContainer: {
     minWidth: 30,
     height: 40,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     marginHorizontal: 8,
   },
   numberInputField: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     minWidth: 30,
     height: 40,
-    textAlign: "center",
+    textAlign: 'center',
     backgroundColor: colors.white,
     borderRadius: 8,
     borderWidth: 1,
@@ -628,59 +626,59 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   warningContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginTop: 8,
   },
   warningText: {
     fontSize: 12,
     color: colors.danger,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   infoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginTop: 8,
   },
   infoText: {
     fontSize: 12,
     color: colors.warning,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   successContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginTop: 8,
   },
   successText: {
     fontSize: 12,
     color: colors.success,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   currentAisles: {
     marginBottom: 16,
   },
   currentAislesLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
   },
   aisleList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   aisleItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.primary + "20",
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '20',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -690,38 +688,38 @@ const styles = StyleSheet.create({
   aisleItemText: {
     fontSize: 12,
     color: colors.primary,
-    fontWeight: "500",
+    fontWeight: '500',
     marginRight: 4,
   },
   removeAisleButton: {
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: colors.danger + "20",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: colors.danger + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   noAislesText: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   addAisleSection: {
     marginBottom: 12,
   },
   addAisleLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
   },
   aisleSelector: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
     paddingRight: 16,
-    overflow: "hidden", // Prevent content from overflowing
+    overflow: 'hidden', // Prevent content from overflowing
   },
   aisleButton: {
     paddingHorizontal: 12,
@@ -738,16 +736,16 @@ const styles = StyleSheet.create({
   },
   aisleButtonText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.text,
   },
   aisleButtonTextActive: {
     color: colors.white,
   },
   addAisleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 12,
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
@@ -758,14 +756,14 @@ const styles = StyleSheet.create({
   addAisleButtonText: {
     fontSize: 14,
     color: colors.primary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   rowSelector: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     paddingRight: 16,
-    overflow: "hidden", // Prevent content from overflowing
+    overflow: 'hidden', // Prevent content from overflowing
   },
   rowButton: {
     paddingHorizontal: 12,
@@ -783,7 +781,7 @@ const styles = StyleSheet.create({
   rowButtonText: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   premiumRowButtonText: {
     color: colors.white,
@@ -802,10 +800,10 @@ const styles = StyleSheet.create({
     minWidth: 330,
   },
   previewRow: {
-    flexDirection: "row",
-    justifyContent: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
     marginBottom: 4,
-    alignItems: "center",
+    alignItems: 'center',
   },
   previewSeat: {
     width: 12,
@@ -828,18 +826,18 @@ const styles = StyleSheet.create({
   previewNote: {
     fontSize: 12,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: 8,
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   previewContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
   },
   previewInfo: {
     marginTop: 12,
-    alignItems: "center",
+    alignItems: 'center',
   },
   previewAisleGap: {
     width: 8,
@@ -850,20 +848,20 @@ const styles = StyleSheet.create({
   },
   previewRowAisleGap: {
     height: 8,
-    backgroundColor: "transparent",
+    backgroundColor: 'transparent',
     marginVertical: 2,
     borderRadius: 2,
-    alignSelf: "stretch",
-    width: "100%",
+    alignSelf: 'stretch',
+    width: '100%',
   },
   previewAisleText: {
     fontSize: 8,
     color: colors.warning,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   previewLegend: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginBottom: 16,
     padding: 12,
@@ -871,8 +869,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   legendBox: {
@@ -884,14 +882,14 @@ const styles = StyleSheet.create({
     width: 20,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "transparent",
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: colors.warningLight,
-    borderStyle: "dashed",
+    borderStyle: 'dashed',
   },
   legendText: {
     fontSize: 12,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
 });

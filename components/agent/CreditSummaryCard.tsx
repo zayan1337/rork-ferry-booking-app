@@ -1,8 +1,23 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ViewStyle } from 'react-native';
-import { CreditCard, RefreshCw, AlertTriangle, TrendingUp } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  ViewStyle,
+} from 'react-native';
+import {
+  CreditCard,
+  RefreshCw,
+  AlertTriangle,
+  TrendingUp,
+} from 'lucide-react-native';
 import { Agent, CreditSummary } from '@/types/agent';
-import { formatCurrency, calculateCreditSummary } from '@/utils/agentFormatters';
+import {
+  formatCurrency,
+  calculateCreditSummary,
+} from '@/utils/agentFormatters';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 
@@ -20,7 +35,7 @@ export default function CreditSummaryCard({
   agent,
   transactions = [],
   onRequestCredit,
-  style
+  style,
 }: CreditSummaryCardProps) {
   if (!agent) {
     return null;
@@ -45,11 +60,19 @@ export default function CreditSummaryCard({
   };
 
   return (
-    <Card variant="elevated" style={StyleSheet.flatten([styles.container, style])}>
+    <Card
+      variant='elevated'
+      style={StyleSheet.flatten([styles.container, style])}
+    >
       {/* Header Section */}
       <View style={styles.headerSection}>
         <View style={styles.balanceContainer}>
-          <View style={[styles.iconContainer, { backgroundColor: `${Colors.primary}15` }]}>
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: `${Colors.primary}15` },
+            ]}
+          >
             <CreditCard size={24} color={Colors.primary} />
           </View>
           <View style={styles.balanceTextContainer}>
@@ -58,11 +81,15 @@ export default function CreditSummaryCard({
               {formatCurrency(summary.creditBalance)}
             </Text>
             <View style={styles.statusContainer}>
-              <View style={[
-                styles.statusIndicator,
-                { backgroundColor: getCreditStatusColor() }
-              ]} />
-              <Text style={[styles.statusText, { color: getCreditStatusColor() }]}>
+              <View
+                style={[
+                  styles.statusIndicator,
+                  { backgroundColor: getCreditStatusColor() },
+                ]}
+              />
+              <Text
+                style={[styles.statusText, { color: getCreditStatusColor() }]}
+              >
                 {getCreditStatusText()}
               </Text>
             </View>
@@ -87,14 +114,15 @@ export default function CreditSummaryCard({
                 styles.progressFill,
                 {
                   width: `${Math.min(100, summary.creditUtilization)}%`,
-                  backgroundColor: getCreditStatusColor()
-                }
+                  backgroundColor: getCreditStatusColor(),
+                },
               ]}
             />
           </View>
           <View style={styles.progressLabels}>
             <Text style={styles.progressCurrentLabel}>
-              {formatCurrency(summary.creditCeiling - summary.creditBalance)} used
+              {formatCurrency(summary.creditCeiling - summary.creditBalance)}{' '}
+              used
             </Text>
             <Text style={styles.progressMaxLabel}>
               of {formatCurrency(summary.creditCeiling)}
@@ -138,7 +166,9 @@ export default function CreditSummaryCard({
 
           <View style={styles.quickStat}>
             <Text style={styles.quickStatValue}>
-              {formatCurrency(summary.totalCreditAdded - summary.totalCreditUsed)}
+              {formatCurrency(
+                summary.totalCreditAdded - summary.totalCreditUsed
+              )}
             </Text>
             <Text style={styles.quickStatLabel}>Net Change</Text>
           </View>
@@ -150,13 +180,15 @@ export default function CreditSummaryCard({
         <TouchableOpacity
           style={[
             styles.requestButton,
-            summary.creditUtilization > 70 && styles.urgentRequestButton
+            summary.creditUtilization > 70 && styles.urgentRequestButton,
           ]}
           onPress={onRequestCredit}
         >
-          <RefreshCw size={16} color="white" />
+          <RefreshCw size={16} color='white' />
           <Text style={styles.requestText}>
-            {summary.creditUtilization > 70 ? 'Request Credit Now' : 'Request More Credit'}
+            {summary.creditUtilization > 70
+              ? 'Request Credit Now'
+              : 'Request More Credit'}
           </Text>
         </TouchableOpacity>
       )}
@@ -329,4 +361,4 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
   },
-}); 
+});
