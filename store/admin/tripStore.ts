@@ -68,6 +68,7 @@ const processTripData = (trip: any): Trip => ({
     computed_status: trip.computed_status || trip.status || 'scheduled',
     base_fare: trip.base_fare || 0,
     confirmed_bookings: trip.confirmed_bookings || trip.bookings || 0,
+    total_revenue: trip.trip_revenue || trip.total_revenue || 0,
 });
 
 const validateTripFormData = (data: Partial<TripFormData>): ValidationResult => {
@@ -140,7 +141,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
             const { data, error } = await supabase
                 .from('operations_trips_view')
                 .select('*')
-                .order('departure_time', { ascending: true });
+                .order('departure_time', { ascending: false });
 
             if (error) throw error;
 

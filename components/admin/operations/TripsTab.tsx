@@ -99,19 +99,30 @@ export default function TripsTab({
         (trip) =>
           trip.route_name?.toLowerCase().includes(query.toLowerCase()) ||
           trip.vessel_name?.toLowerCase().includes(query.toLowerCase()) ||
-          trip.travel_date?.toLowerCase().includes(query.toLowerCase())
+          trip.travel_date?.toLowerCase().includes(query.toLowerCase()) ||
+          trip.from_island_name?.toLowerCase().includes(query.toLowerCase()) ||
+          trip.to_island_name?.toLowerCase().includes(query.toLowerCase())
       );
     }
 
     return filtered;
   }, [filteredTrips, searchQuery, tripSearchQuery]);
 
-  // Limit trips to 4 for display
   const displayTrips = useMemo(() => {
     return filteredTripsData
       .filter(
         (trip, index, self) => index === self.findIndex((t) => t.id === trip.id)
       )
+      .sort((a, b) => {
+        // Sort by travel date (most recent first)
+        const dateA = new Date(a.travel_date);
+        const dateB = new Date(b.travel_date);
+        if (dateA.getTime() !== dateB.getTime()) {
+          return dateB.getTime() - dateA.getTime();
+        }
+        // If same date, sort by departure time
+        return a.departure_time.localeCompare(b.departure_time);
+      })
       .slice(0, 4);
   }, [filteredTripsData]);
 
@@ -178,6 +189,28 @@ export default function TripsTab({
         "Access Denied",
         "You don't have permission to create trips."
       );
+    }
+  };
+
+  // Helper function to map computed_status to TripItem status
+  const mapTripStatus = (computedStatus: string) => {
+    switch (computedStatus) {
+      case "scheduled":
+        return "scheduled";
+      case "boarding":
+        return "boarding";
+      case "departed":
+        return "departed";
+      case "arrived":
+        return "arrived";
+      case "completed":
+        return "arrived"; // Map completed to arrived for display
+      case "cancelled":
+        return "cancelled";
+      case "delayed":
+        return "delayed";
+      default:
+        return "scheduled";
     }
   };
 
@@ -252,29 +285,30 @@ export default function TripsTab({
           displayTrips.map((trip: any, index: number) => (
             <TripItem
               key={`trip-${trip.id}-${index}`}
-              trip={
-                {
-                  ...trip,
-                  routeId: trip.route_id,
-                  vesselId: trip.vessel_id,
-                  date: trip.travel_date,
-                  departureTime: trip.departure_time,
-                  routeName: trip.route_name || "Unknown Route",
-                  vesselName: trip.vessel_name || "Unknown Vessel",
-                  status:
-                    trip.computed_status === "boarding" ||
-                    trip.computed_status === "departed"
-                      ? "in-progress"
-                      : trip.computed_status === "arrived" ||
-                        trip.computed_status === "completed"
-                      ? "completed"
-                      : trip.computed_status === "delayed"
-                      ? "scheduled"
-                      : (trip.computed_status as any),
-                  bookings: trip.confirmed_bookings || 0,
-                } as any
-              }
-              onPress={() => handleTripPress(trip.id)}
+              trip={{
+                id: trip.id,
+                travel_date: trip.travel_date,
+                departure_time: trip.departure_time,
+                arrival_time: trip.arrival_time,
+                status: mapTripStatus(trip.computed_status || trip.status),
+                route_name: trip.route_name,
+                vessel_name: trip.vessel_name,
+                from_island_name: trip.from_island_name,
+                to_island_name: trip.to_island_name,
+                available_seats: trip.available_seats || trip.capacity || 0,
+                booked_seats: trip.booked_seats || 0,
+                capacity: trip.capacity || trip.seating_capacity,
+                occupancy_rate: trip.occupancy_rate || 0,
+                fare_multiplier: trip.fare_multiplier || 1.0,
+                base_fare: trip.base_fare || 0,
+                confirmed_bookings:
+                  trip.confirmed_bookings || trip.bookings || 0,
+                total_revenue: trip.total_revenue || 0,
+                is_active: trip.is_active,
+                delay_reason: trip.delay_reason,
+                weather_conditions: trip.weather_conditions,
+              }}
+              onPress={handleTripPress}
             />
           ))
         ) : (
@@ -284,7 +318,7 @@ export default function TripsTab({
             <Text style={styles.emptyStateText}>
               {searchQuery || tripSearchQuery
                 ? "Try adjusting your search terms"
-                : "No trips scheduled for today"}
+                : "No trips scheduled"}
             </Text>
           </View>
         )}

@@ -42,7 +42,13 @@ import {
 
 const { width: screenWidth } = Dimensions.get("window");
 
-type FilterRole = "all" | "admin" | "agent" | "customer" | "passenger";
+type FilterRole =
+  | "all"
+  | "admin"
+  | "agent"
+  | "customer"
+  | "passenger"
+  | "captain";
 type FilterStatus = "all" | "active" | "inactive" | "suspended";
 type SortOrder =
   | "name_asc"

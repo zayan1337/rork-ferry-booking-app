@@ -1024,6 +1024,7 @@ export interface Trip extends BaseEntity, ActivatableEntity {
     computed_status?: string;
     base_fare?: number;
     confirmed_bookings?: number;
+    total_revenue?: number;
 }
 
 export interface TripFormData {
