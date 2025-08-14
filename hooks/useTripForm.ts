@@ -1,11 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Trip,
-  TripFormData,
-  TripValidationErrors,
-  Route,
-  Vessel,
-} from '@/types/operations';
+import { Trip, TripFormData, TripValidationErrors } from '@/types/operations';
 import {
   validateTripForm,
   validateTripConflicts,

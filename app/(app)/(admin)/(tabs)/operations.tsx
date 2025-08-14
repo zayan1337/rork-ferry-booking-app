@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { Stack } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { useAdminStore } from '@/store/admin/adminStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 // UPDATED: Use hooks from the hooks index
 import {

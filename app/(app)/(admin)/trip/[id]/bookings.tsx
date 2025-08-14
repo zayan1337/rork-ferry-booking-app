@@ -22,7 +22,6 @@ import {
   ArrowLeft,
   Search,
   CreditCard,
-  User,
   Phone,
   Mail,
   Calendar,
@@ -35,8 +34,6 @@ import {
   Filter,
   Download,
   MoreHorizontal,
-  Edit,
-  Trash,
   RefreshCw,
 } from 'lucide-react-native';
 
@@ -283,7 +280,7 @@ export default function TripBookingsPage() {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: statusInfo.color + '20' },
+                { backgroundColor: `${statusInfo.color}20` },
               ]}
             >
               <StatusIcon size={12} color={statusInfo.color} />
@@ -607,7 +604,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border + '30',
+    borderTopColor: `${colors.border}30`,
   },
   revenueValue: {
     fontSize: 24,

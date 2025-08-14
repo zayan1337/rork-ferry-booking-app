@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../../utils/supabase';
 import {
   Agent,
   AgentStats,
@@ -14,8 +13,6 @@ import { useAgentClientsStore } from './agentClientsStore';
 import { useAgentBookingsStore } from './agentBookingsStore';
 import { useAgentStatsStore } from './agentStatsStore';
 import { useAgentCreditStore } from './agentCreditStore';
-import { getActiveBookings, getInactiveBookings } from '@/utils/bookingUtils';
-import { parseBookingQrCode } from '@/utils/qrCodeUtils';
 
 /**
  * Main agent store state interface

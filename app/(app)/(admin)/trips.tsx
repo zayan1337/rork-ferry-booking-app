@@ -8,7 +8,6 @@ import {
   Alert,
   RefreshControl,
   Dimensions,
-  Modal,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -22,26 +21,19 @@ import {
   filterTripsByStatus,
   sortTrips,
   calculateTripStats,
-  formatCurrency,
-  formatPercentage,
 } from '@/utils/admin/tripUtils';
 import {
   ArrowLeft,
   Plus,
-  Navigation,
-  Search,
   Filter,
   SortAsc,
   SortDesc,
   Activity,
-  TrendingUp,
   DollarSign,
   Calendar,
   AlertTriangle,
-  Clock,
   Users,
   CalendarRange,
-  Ship,
 } from 'lucide-react-native';
 
 import Button from '@/components/admin/Button';

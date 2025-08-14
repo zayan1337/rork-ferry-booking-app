@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     borderWidth: 1,
-    borderColor: colors.border + '20',
+    borderColor: `${colors.border}20`,
   },
   header: {
     flexDirection: 'row',
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.border + '30',
+    borderTopColor: `${colors.border}30`,
   },
   amount: {
     fontWeight: '700',

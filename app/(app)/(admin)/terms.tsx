@@ -18,13 +18,10 @@ import {
   ArrowLeft,
   Plus,
   FileText,
-  Search,
   Filter,
   SortAsc,
   SortDesc,
   Activity,
-  TrendingUp,
-  CheckCircle,
   Hash,
 } from 'lucide-react-native';
 

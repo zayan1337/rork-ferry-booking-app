@@ -22,7 +22,6 @@ import {
   Calendar,
   Hash,
   FileText,
-  Tag,
   Activity,
   MessageSquare,
 } from 'lucide-react-native';

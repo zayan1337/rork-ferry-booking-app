@@ -313,7 +313,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 
     try {
       // Try to fetch from all_users_view (includes both user_profiles and passengers)
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('all_users_view')
         .select('*')
         .eq('id', id)

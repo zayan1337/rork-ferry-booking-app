@@ -11,6 +11,22 @@ interface RoleGuardProps {
 export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
   const { isAuthenticated, isLoading, user, isRehydrated } = useAuthStore();
 
+  // Check if user role is allowed - if not, show unauthorized message
+  const isUnauthorized =
+    !user?.profile?.role || !allowedRoles.includes(user?.profile?.role || '');
+
+  // Add a small delay to prevent immediate redirect and allow state to stabilize
+  React.useEffect(() => {
+    if (isUnauthorized) {
+      const timer = setTimeout(() => {
+        // Force a re-check of authentication state
+        useAuthStore.getState().checkAuth();
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isUnauthorized]);
+
   // Show loading while checking authentication or user profile
   if (!isRehydrated || isLoading || !isAuthenticated || !user?.profile) {
     return (
@@ -28,18 +44,7 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     );
   }
 
-  // Check if user role is allowed - if not, show unauthorized message
-  if (!user.profile?.role || !allowedRoles.includes(user.profile.role)) {
-    // Add a small delay to prevent immediate redirect and allow state to stabilize
-    React.useEffect(() => {
-      const timer = setTimeout(() => {
-        // Force a re-check of authentication state
-        useAuthStore.getState().checkAuth();
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    }, []);
-
+  if (isUnauthorized) {
     return <AuthLoadingScreen message='Verifying permissions...' />;
   }
 

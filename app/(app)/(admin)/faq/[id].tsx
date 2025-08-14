@@ -20,11 +20,8 @@ import {
   Trash2,
   HelpCircle,
   Calendar,
-  User,
-  MessageSquare,
   FileText,
   Tag,
-  Activity,
   Clock,
   Hash,
   Copy,
@@ -245,7 +242,7 @@ export default function FAQDetailScreen() {
             <View
               style={[
                 styles.faqIcon,
-                { backgroundColor: categoryColor + '15' },
+                { backgroundColor: `${categoryColor}15` },
               ]}
             >
               <HelpCircle size={24} color={categoryColor} />
@@ -256,7 +253,7 @@ export default function FAQDetailScreen() {
                 <View
                   style={[
                     styles.categoryBadge,
-                    { backgroundColor: categoryColor + '15' },
+                    { backgroundColor: `${categoryColor}15` },
                   ]}
                 >
                   <Tag size={12} color={categoryColor} />
@@ -418,7 +415,7 @@ export default function FAQDetailScreen() {
               <View
                 style={[
                   styles.categoryIcon,
-                  { backgroundColor: categoryColor + '15' },
+                  { backgroundColor: `${categoryColor}15` },
                 ]}
               >
                 <Tag size={20} color={categoryColor} />

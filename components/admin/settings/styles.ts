@@ -40,7 +40,7 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   tabActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
   tabText: {
     fontSize: 11,
@@ -108,7 +108,7 @@ export const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -192,7 +192,7 @@ export const styles = StyleSheet.create({
   roleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -209,7 +209,7 @@ export const styles = StyleSheet.create({
   permissionCount: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.warning + '15',
+    backgroundColor: `${colors.warning}15`,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -223,12 +223,12 @@ export const styles = StyleSheet.create({
   },
 
   superAdminNote: {
-    backgroundColor: colors.warning + '08',
+    backgroundColor: `${colors.warning}08`,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.warning + '20',
+    borderColor: `${colors.warning}20`,
     marginTop: 8,
   },
 
@@ -252,7 +252,7 @@ export const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -321,7 +321,7 @@ export const styles = StyleSheet.create({
   permissionCountBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -337,7 +337,7 @@ export const styles = StyleSheet.create({
   systemRoleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.info + '15',
+    backgroundColor: `${colors.info}15`,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
@@ -357,7 +357,7 @@ export const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -376,7 +376,7 @@ export const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -499,7 +499,7 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   permissionNavTabActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
   permissionNavTabText: {
     fontSize: 14,
@@ -531,7 +531,7 @@ export const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
     borderWidth: 1,
-    borderColor: colors.border + '20',
+    borderColor: `${colors.border}20`,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -607,7 +607,7 @@ export const styles = StyleSheet.create({
   userActionButton: {
     padding: 6,
     borderRadius: 6,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
   userRoleContainer: {
     marginTop: 8,
@@ -649,7 +649,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
   },
   viewAllButtonText: {
     fontSize: 11,
@@ -685,7 +685,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: colors.textSecondary + '20',
+    backgroundColor: `${colors.textSecondary}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -698,7 +698,7 @@ export const styles = StyleSheet.create({
   // User footer styles
   enhancedUserFooter: {
     borderTopWidth: 1,
-    borderTopColor: colors.border + '20',
+    borderTopColor: `${colors.border}20`,
     paddingTop: 12,
   },
   userMetrics: {
@@ -729,7 +729,7 @@ export const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
   },
   roleHeader: {
     flexDirection: 'row',
@@ -766,7 +766,7 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   enhancedSystemRoleBadge: {
-    backgroundColor: colors.warning + '20',
+    backgroundColor: `${colors.warning}20`,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -781,7 +781,7 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
   },
 
   // Role permissions styles
@@ -807,7 +807,7 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
     gap: 6,
   },
   rolePermissionText: {
@@ -826,7 +826,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: colors.border + '20',
+    borderTopColor: `${colors.border}20`,
     paddingTop: 16,
   },
   roleUsageText: {
@@ -840,7 +840,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
   },
   viewRoleButtonText: {
     fontSize: 11,
@@ -862,7 +862,7 @@ export const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
   },
   permissionCategoryHeader: {
     flexDirection: 'row',
@@ -873,7 +873,7 @@ export const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -910,7 +910,7 @@ export const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
   },
   permissionDetailHeader: {
     flexDirection: 'row',
@@ -926,7 +926,7 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
     gap: 4,
   },
   detailPermissionLevelText: {
@@ -947,7 +947,7 @@ export const styles = StyleSheet.create({
   },
   permissionUsage: {
     borderTopWidth: 1,
-    borderTopColor: colors.border + '20',
+    borderTopColor: `${colors.border}20`,
     paddingTop: 8,
   },
   permissionUsageText: {
@@ -968,7 +968,7 @@ export const styles = StyleSheet.create({
   deleteAlertButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: colors.danger + '20',
+    backgroundColor: `${colors.danger}20`,
   },
 
   // Activity styles
@@ -987,7 +987,7 @@ export const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1115,7 +1115,7 @@ export const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1233,7 +1233,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border + '30',
+    borderBottomColor: `${colors.border}30`,
     gap: 12,
   },
   securityLabel: {
@@ -1282,13 +1282,13 @@ export const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
   },
   actionCardIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -1346,7 +1346,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border + '30',
+    borderBottomColor: `${colors.border}30`,
   },
   settingLabel: {
     fontSize: 14,
@@ -1382,11 +1382,11 @@ export const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
   },
   roleTemplateItemActive: {
     borderColor: colors.primary,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
   },
   roleTemplateIcon: {
     width: 40,
@@ -1427,7 +1427,7 @@ export const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.border + '20',
+    borderColor: `${colors.border}20`,
   },
   categorySectionHeader: {
     flexDirection: 'row',
@@ -1438,7 +1438,7 @@ export const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1473,7 +1473,7 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: colors.border + '20',
+    borderColor: `${colors.border}20`,
   },
   permissionCheckboxContainer: {
     flexDirection: 'row',
@@ -1519,11 +1519,11 @@ export const styles = StyleSheet.create({
 
   // Enhanced permission summary styles
   enhancedPermissionSummary: {
-    backgroundColor: colors.primary + '05',
+    backgroundColor: `${colors.primary}05`,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.primary + '20',
+    borderColor: `${colors.primary}20`,
   },
   summaryHeader: {
     flexDirection: 'row',
@@ -1596,9 +1596,9 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     borderWidth: 1,
-    borderColor: colors.primary + '30',
+    borderColor: `${colors.primary}30`,
   },
   selectAllButtonText: {
     fontSize: 11,
@@ -1610,7 +1610,7 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
   },
   summaryTitle: {
     fontSize: 14,

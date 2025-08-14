@@ -277,7 +277,7 @@ export const useAgentClientsStore = create<AgentClientsState>((set, get) => ({
         .insert({
           agent_id: agentId,
           full_name: clientData.name.trim(),
-          email: email,
+          email,
           mobile_number: clientData.phone.trim(),
           id_number: clientData.idNumber?.trim() || null,
         })

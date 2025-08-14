@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   },
   sectionIcon: {
     padding: 8,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 12,
   },
   sectionTitle: {
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tabToggleActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
   tabToggleText: {
     fontSize: 14,
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 8,
     gap: 8,
     minWidth: 200,
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: colors.textSecondary + '10',
+    backgroundColor: `${colors.textSecondary}10`,
     borderRadius: 24,
   },
   emptyStateTitle: {
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: colors.warning + '10',
+    backgroundColor: `${colors.warning}10`,
     borderRadius: 24,
   },
   noPermissionTitle: {
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: colors.error + '10',
+    backgroundColor: `${colors.error}10`,
     borderRadius: 24,
   },
   errorTitle: {

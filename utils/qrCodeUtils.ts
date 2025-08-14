@@ -140,7 +140,7 @@ export const generateUnifiedQrCode = (
       seats: selectedSeats.map(seat => seat.number),
       totalFare: booking.total_fare,
       timestamp: new Date().toISOString(),
-      type: type,
+      type,
       // Additional data for different booking types
       ...additionalData,
     };
@@ -286,7 +286,7 @@ export const generateAgentQrCodeData = (
         booking.clientName || booking.client?.name || 'Unknown Client',
       agentId: agent.id,
       agentName: agent.name || agent.email,
-      type: type,
+      type,
     };
 
     return JSON.stringify(qrCodeData);

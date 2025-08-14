@@ -7,7 +7,11 @@ This project uses ESLint and Prettier for code quality and consistent formatting
 ### Linting
 
 - `yarn lint` - Check for linting errors and warnings
-- `yarn lint:fix` - Automatically fix linting errors that can be auto-fixed
+- `yarn lint:fix` - Automatically fix linting errors that can be auto-fixed, including:
+  - **Removing unused imports** - Automatically removes unused import statements
+  - **Removing unused variables** - Removes variables that are declared but never used
+  - **Fixing formatting issues** - Applies Prettier formatting rules
+  - **Fixing auto-fixable ESLint rules** - Resolves issues that can be automatically corrected
 
 ### Formatting
 
@@ -29,6 +33,8 @@ The ESLint configuration includes:
 - **React rules** - React and React Hooks best practices
 - **React Native rules** - Mobile-specific linting rules
 - **Prettier integration** - Prevents conflicts between ESLint and Prettier
+- **Unused imports detection** - Automatically removes unused imports and variables
+- **Enhanced TypeScript rules** - Strict typing with auto-fixable unused variable detection
 
 ### Prettier Configuration (`.prettierrc`)
 

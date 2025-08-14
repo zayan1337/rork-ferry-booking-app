@@ -21,20 +21,15 @@ import {
   searchVessels,
   filterVessels,
   sortVessels,
-  calculateVesselStats,
-  formatCurrency,
-  formatPercentage,
 } from '@/utils/admin/vesselUtils';
 import {
   ArrowLeft,
   Plus,
   Ship,
-  Search,
   Filter,
   SortAsc,
   SortDesc,
   Activity,
-  TrendingUp,
   DollarSign,
   Users,
   AlertTriangle,
@@ -215,7 +210,7 @@ export default function VesselsScreen() {
               {stats &&
               stats.totalTrips30d &&
               typeof stats.totalTrips30d === 'number'
-                ? Math.round(stats.totalTrips30d / 1000) + 'K'
+                ? `${Math.round(stats.totalTrips30d / 1000)}K`
                 : '0K'}
             </Text>
             <Text style={styles.quickStatLabel}>Trips</Text>
@@ -233,7 +228,7 @@ export default function VesselsScreen() {
               {stats &&
               stats.totalRevenue30d &&
               typeof stats.totalRevenue30d === 'number'
-                ? Math.round(stats.totalRevenue30d / 1000) + 'K'
+                ? `${Math.round(stats.totalRevenue30d / 1000)}K`
                 : '0K'}
             </Text>
             <Text style={styles.quickStatLabel}>Revenue</Text>

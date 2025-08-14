@@ -1,5 +1,3 @@
-import type { Route, Trip, Passenger, Booking, Island, Seat } from './index';
-
 // Quick booking types
 export interface QuickBookingState {
   selectedFromIsland: string;

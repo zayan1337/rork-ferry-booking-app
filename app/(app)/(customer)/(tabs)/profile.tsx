@@ -16,10 +16,8 @@ import {
   Calendar,
   Lock,
   Bell,
-  LogOut,
   ChevronRight,
 } from 'lucide-react-native';
-import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';

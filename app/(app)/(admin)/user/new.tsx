@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { ArrowLeft, AlertCircle, Plus, User } from 'lucide-react-native';
+import { ArrowLeft, AlertCircle } from 'lucide-react-native';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 // UPDATED: Use new user management hook and types
 import { useUserManagement } from '@/hooks/useUserManagement';

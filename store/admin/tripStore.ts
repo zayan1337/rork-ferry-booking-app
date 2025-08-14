@@ -7,20 +7,10 @@ import {
   filterTrips,
   sortTrips,
   calculateTripStats,
-  getTripPerformanceRating,
-  getTripPerformanceColor,
-  formatCurrency,
-  formatPercentage,
-  getOccupancyLevel,
-  getStatusColor,
-  tripToFormData,
-  createEmptyTripForm,
-  isTripTimeConflict,
   generateTripsForSchedule,
   detectTripConflicts,
   validateTripGenerationRequest,
   type TripGenerationRequest,
-  type GeneratedTrip,
 } from '@/utils/admin/tripUtils';
 
 type Trip = AdminManagement.Trip;
@@ -766,7 +756,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     }
 
     // Get vessel capacity from vessels data
-    let vessels = get().vessels || [];
+    const vessels = get().vessels || [];
 
     // If vessels not loaded, we'll use a default capacity for preview
     // (in a real implementation, you might want to fetch vessels here too)

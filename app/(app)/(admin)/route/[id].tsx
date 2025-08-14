@@ -25,7 +25,6 @@ import {
   DollarSign,
   Calendar,
   Users,
-  AlertTriangle,
   TrendingUp,
   Activity,
   Navigation,
@@ -39,8 +38,6 @@ import {
   Info,
 } from 'lucide-react-native';
 import Button from '@/components/admin/Button';
-import StatusBadge from '@/components/admin/StatusBadge';
-import StatCard from '@/components/admin/StatCard';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -1114,7 +1111,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.info + '20',
+    backgroundColor: `${colors.info}20`,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,

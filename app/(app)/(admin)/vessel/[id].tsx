@@ -3,10 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Alert,
-  RefreshControl,
   Dimensions,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -14,54 +12,7 @@ import { colors } from '@/constants/adminColors';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { AdminManagement } from '@/types';
-import {
-  ArrowLeft,
-  Edit,
-  Trash2,
-  Ship,
-  Users,
-  TrendingUp,
-  Activity,
-  DollarSign,
-  Calendar,
-  AlertTriangle,
-  Settings,
-  MoreVertical,
-  Anchor,
-  Gauge,
-  Wrench,
-  Fuel,
-  BarChart3,
-  Clock,
-  Target,
-  Ruler,
-  MapPin,
-  Phone,
-  Mail,
-  FileText,
-  Shield,
-  Award,
-  Zap,
-  Thermometer,
-  Droplets,
-  Navigation,
-  Compass,
-  LifeBuoy,
-  Radio,
-  Satellite,
-  Wifi,
-  Battery,
-  Signal,
-  Eye,
-  EyeOff,
-  Grid3X3,
-  Layout,
-  UserCheck,
-  Crown,
-  Info,
-  Plane,
-  Star,
-} from 'lucide-react-native';
+import { ArrowLeft, Edit, Trash2, AlertTriangle } from 'lucide-react-native';
 
 // Components
 import Button from '@/components/admin/Button';
@@ -454,7 +405,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   deleteActionButton: {
-    backgroundColor: colors.error + '10',
+    backgroundColor: `${colors.error}10`,
   },
   loadingContainer: {
     flex: 1,
@@ -765,7 +716,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.info + '20',
+    backgroundColor: `${colors.info}20`,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,

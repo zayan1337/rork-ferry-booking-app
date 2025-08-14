@@ -7,9 +7,8 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  BackHandler,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Input from '@/components/Input';

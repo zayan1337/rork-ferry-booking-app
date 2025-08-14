@@ -157,7 +157,7 @@ export default function RouteItem({
                     <View
                       style={[
                         styles.statIcon,
-                        { backgroundColor: colors.primary + '15' },
+                        { backgroundColor: `${colors.primary}15` },
                       ]}
                     >
                       <BarChart3 size={12} color={colors.primary} />
@@ -177,7 +177,7 @@ export default function RouteItem({
                     <View
                       style={[
                         styles.statIcon,
-                        { backgroundColor: colors.info + '15' },
+                        { backgroundColor: `${colors.info}15` },
                       ]}
                     >
                       <Users size={12} color={colors.info} />
@@ -197,7 +197,7 @@ export default function RouteItem({
                     <View
                       style={[
                         styles.statIcon,
-                        { backgroundColor: colors.success + '15' },
+                        { backgroundColor: `${colors.success}15` },
                       ]}
                     >
                       <TrendingUp size={12} color={colors.success} />
@@ -220,8 +220,7 @@ export default function RouteItem({
                       style={[
                         styles.statIcon,
                         {
-                          backgroundColor:
-                            getOccupancyColor(route.avg_occupancy_30d) + '15',
+                          backgroundColor: `${getOccupancyColor(route.avg_occupancy_30d)}15`,
                         },
                       ]}
                     >

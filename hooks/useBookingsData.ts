@@ -1,11 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAdminStore } from '@/store/admin/adminStore';
-import {
-  FilterStatus,
-  SortOrder,
-  BookingsFilterState,
-} from '@/types/admin/dashboard';
-import { Booking } from '@/types/admin';
+import { FilterStatus, BookingsFilterState } from '@/types/admin/dashboard';
 
 export const useBookingsData = () => {
   const {
@@ -26,7 +21,7 @@ export const useBookingsData = () => {
 
   // Enhanced filtering and sorting
   const filteredAndSortedBookings = useMemo(() => {
-    let filtered = bookings.filter(booking => {
+    const filtered = bookings.filter(booking => {
       // Text search
       const searchMatch =
         filterState.searchQuery === '' ||

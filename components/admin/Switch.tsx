@@ -29,7 +29,7 @@ export default function Switch({
         disabled={disabled}
         trackColor={{
           false: colors.border,
-          true: colors.primary + '40',
+          true: `${colors.primary}40`,
         }}
         thumbColor={value ? colors.primary : colors.card}
         ios_backgroundColor={colors.border}

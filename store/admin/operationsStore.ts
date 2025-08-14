@@ -15,7 +15,6 @@ import {
   fetchVessel,
   fetchIslands,
   fetchIsland,
-  fetchTodaySchedule,
   createRoute,
   createTrip,
   createVessel,

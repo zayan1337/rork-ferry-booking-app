@@ -116,7 +116,7 @@ export const createFallbackAgent = (authUser: any): Agent => {
     id: authUser.id,
     name: authUser.profile?.full_name || 'Agent',
     email: authUser.email || '',
-    agentId: 'TRA-' + authUser.id.slice(-4),
+    agentId: `TRA-${authUser.id.slice(-4)}`,
     creditCeiling: authUser.profile?.credit_ceiling || 10000,
     creditBalance: authUser.profile?.credit_balance || 0,
     discountRate: authUser.profile?.agent_discount || 12,

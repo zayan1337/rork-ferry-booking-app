@@ -9,12 +9,10 @@ import {
   Users,
   MapPin,
   CreditCard,
-  Phone,
   Mail,
   Edit3,
   Trash2,
   CheckCircle,
-  XCircle,
   RefreshCw,
 } from 'lucide-react-native';
 import Button from '@/components/admin/Button';

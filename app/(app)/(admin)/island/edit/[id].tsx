@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { ArrowLeft, Edit, AlertCircle, RotateCcw } from 'lucide-react-native';
+import { ArrowLeft, AlertCircle, RotateCcw } from 'lucide-react-native';
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from '@/types';
 // UPDATED: Replace old store with new implementation

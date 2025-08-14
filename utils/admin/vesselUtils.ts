@@ -123,8 +123,8 @@ export const sortVessels = (
     .sort((a, b) => {
       if (!a || !b) return 0;
 
-      let aValue: any = a[sortBy as keyof Vessel];
-      let bValue: any = b[sortBy as keyof Vessel];
+      const aValue: any = a[sortBy as keyof Vessel];
+      const bValue: any = b[sortBy as keyof Vessel];
 
       // Handle numeric values
       if (typeof aValue === 'number' && typeof bValue === 'number') {
@@ -390,13 +390,13 @@ export const calculateSeatLayoutStats = (seats: Seat[]): SeatLayoutStats => {
   const aisleSeats = seats.filter(seat => seat.is_aisle).length;
 
   return {
-    totalSeats: totalSeats,
-    activeSeats: activeSeats,
-    disabledSeats: disabledSeats,
-    premiumSeats: premiumSeats,
-    crewSeats: crewSeats,
-    windowSeats: windowSeats,
-    aisleSeats: aisleSeats,
+    totalSeats,
+    activeSeats,
+    disabledSeats,
+    premiumSeats,
+    crewSeats,
+    windowSeats,
+    aisleSeats,
     removedSeats: 0, // No removed seats in new implementation
     utilizationRate: totalSeats > 0 ? (activeSeats / totalSeats) * 100 : 0,
     revenuePotential: seats.reduce(
@@ -563,8 +563,8 @@ export const generateFloorLayout = (
   let columns: number;
   let aisles: number[];
   let premiumRows: number[];
-  let crewSeats: string[] = [];
-  let disabledSeats: string[] = [];
+  const crewSeats: string[] = [];
+  const disabledSeats: string[] = [];
 
   // Calculate optimal layout based on capacity and type
   switch (layoutType) {

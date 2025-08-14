@@ -1,10 +1,5 @@
 import { Dimensions } from 'react-native';
-import {
-  TermsAndConditions,
-  Promotion,
-  PromotionFormData,
-  TermsFormData,
-} from '@/types/content';
+import { TermsAndConditions, Promotion } from '@/types/content';
 
 const { width: screenWidth } = Dimensions.get('window');
 

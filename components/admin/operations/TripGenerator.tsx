@@ -9,7 +9,6 @@ import {
   Modal,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import { AdminManagement } from '@/types';
 import { useTripManagement } from '@/hooks/useTripManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
@@ -39,7 +38,6 @@ import {
   Info,
   Activity,
   Trash2,
-  Edit3,
 } from 'lucide-react-native';
 
 // Components
@@ -1008,7 +1006,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
   },
@@ -1016,7 +1014,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1035,7 +1033,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: colors.info + '10',
+    backgroundColor: `${colors.info}10`,
     borderLeftWidth: 3,
     borderLeftColor: colors.info,
   },
@@ -1043,7 +1041,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.info + '20',
+    backgroundColor: `${colors.info}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1067,7 +1065,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.primary + '30',
+    borderColor: `${colors.primary}30`,
   },
   quickActionText: {
     fontSize: 13,
@@ -1206,7 +1204,7 @@ const styles = StyleSheet.create({
   },
   customTimeSlotChip: {
     backgroundColor: colors.warningLight,
-    borderColor: colors.warning + '50',
+    borderColor: `${colors.warning}50`,
   },
   timeSlotText: {
     fontSize: 13,
@@ -1221,7 +1219,7 @@ const styles = StyleSheet.create({
   },
   // Summary
   summaryCard: {
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 12,
     padding: 16,
     borderLeftWidth: 4,
@@ -1258,7 +1256,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.error + '20',
+    backgroundColor: `${colors.error}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1289,7 +1287,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.success + '20',
+    backgroundColor: `${colors.success}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },

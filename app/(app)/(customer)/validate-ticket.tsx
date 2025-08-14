@@ -11,12 +11,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Search, CheckCircle, XCircle, Camera, X } from 'lucide-react-native';
-import {
-  CameraView,
-  Camera as ExpoCamera,
-  useCameraPermissions,
-} from 'expo-camera';
+import { CheckCircle, XCircle, X } from 'lucide-react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTicketStore } from '@/store/ticketStore';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';

@@ -21,22 +21,17 @@ import {
   searchRoutes,
   filterRoutesByStatus,
   sortRoutes,
-  calculateRouteStats,
-  formatCurrency,
-  formatPercentage,
 } from '@/utils/admin/routeUtils';
 import {
   ArrowLeft,
   Plus,
   Navigation,
-  Search,
   Filter,
   SortAsc,
   SortDesc,
   Activity,
   TrendingUp,
   DollarSign,
-  MapPin,
   AlertTriangle,
 } from 'lucide-react-native';
 

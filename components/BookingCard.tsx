@@ -1,12 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import {
-  ChevronRight,
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
-} from 'lucide-react-native';
+import { ChevronRight, Calendar, Clock, Users } from 'lucide-react-native';
 import type { Booking } from '@/types';
 import Colors from '@/constants/colors';
 import Card from './Card';

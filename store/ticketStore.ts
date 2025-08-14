@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../utils/supabase';
 import type { TicketStoreState } from '@/types/booking';
-import type { Booking, Route, BookingStatus } from '@/types';
+import type { Booking, BookingStatus } from '@/types';
 
 interface TicketStoreActions {
   validateTicket: (bookingNumber: string) => Promise<{
@@ -238,7 +238,7 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
       }
 
       // STEP 5: Get client information based on booking type
-      let bookingType: 'customer' | 'agent' = ticketData.agent_id
+      const bookingType: 'customer' | 'agent' = ticketData.agent_id
         ? 'agent'
         : 'customer';
       let clientName = 'Unknown';
@@ -331,7 +331,7 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
         passengers,
         seats,
         totalFare: ticketData.total_fare || 0,
-        qrCodeUrl: qrCodeUrl,
+        qrCodeUrl,
         checkInStatus: ticketData.check_in_status || false,
         vessel: {
           id: '',
@@ -339,7 +339,7 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
         },
         createdAt: new Date().toISOString(),
         updatedAt: '',
-        bookingType: bookingType,
+        bookingType,
         clientName,
         clientEmail,
         clientPhone,

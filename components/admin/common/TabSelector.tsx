@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pillTabActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
 
   // Cards variant (like SectionSelector)
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   cardTabActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
 
   // Underline variant

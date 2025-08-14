@@ -17,15 +17,12 @@ import { Promotion } from '@/types/content';
 import {
   Percent,
   Plus,
-  Search,
   Filter,
   SortAsc,
   SortDesc,
   CheckCircle,
   XCircle,
   Clock,
-  Activity,
-  TrendingUp,
   ArrowLeft,
 } from 'lucide-react-native';
 

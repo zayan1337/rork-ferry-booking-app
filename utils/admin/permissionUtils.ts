@@ -493,7 +493,7 @@ export const getPermissionDependents = (
 export const groupPermissionsByCategory = (
   permissions: Permission[],
   categories: PermissionCategory[]
-): Array<PermissionCategory & { permissions: Permission[] }> => {
+): (PermissionCategory & { permissions: Permission[] })[] => {
   return categories.map(category => ({
     ...category,
     permissions: permissions.filter(p => p.category_id === category.id),

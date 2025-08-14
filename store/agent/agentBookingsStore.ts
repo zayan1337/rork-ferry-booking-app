@@ -321,9 +321,9 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
           departureTime: booking.trip?.departure_time || '',
           returnDate: undefined, // Handle return trips separately if needed
           passengerCount: passengers.length,
-          passengers: passengers,
-          vessel: vessel,
-          route: route,
+          passengers,
+          vessel,
+          route,
           seats: passengers
             .map((passenger: any) => passenger.seat)
             .filter(Boolean),
@@ -334,8 +334,8 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
           updatedAt: booking.updated_at,
           paymentMethod: (booking.payment_method_type ||
             'gateway') as Booking['paymentMethod'],
-          payment: payment,
-          commission: commission,
+          payment,
+          commission,
           userId: clientInfo.userId,
           agentClientId: clientInfo.agentClientId,
           clientHasAccount: clientInfo.hasAccount,
@@ -1206,7 +1206,7 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
       const { error: updateError } = await supabase
         .from('bookings')
         .update({
-          status: status,
+          status,
           updated_at: new Date().toISOString(),
         })
         .eq('id', bookingId);

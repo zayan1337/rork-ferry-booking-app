@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
     borderWidth: 1,
-    borderColor: colors.border + '20',
+    borderColor: `${colors.border}20`,
   },
   welcomeHeader: {
     flexDirection: 'row',
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   notificationBadge: {
     position: 'relative',
     padding: 12,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 12,
   },
   badgeCount: {
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   activityIndicator: {
     padding: 12,
-    backgroundColor: colors.success + '15',
+    backgroundColor: `${colors.success}15`,
     borderRadius: 12,
   },
   welcomeStats: {
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: colors.border + '20',
+    borderTopColor: `${colors.border}20`,
   },
   welcomeStatItem: {
     alignItems: 'center',
@@ -268,6 +268,6 @@ const styles = StyleSheet.create({
   welcomeStatDivider: {
     width: 1,
     height: 40,
-    backgroundColor: colors.border + '30',
+    backgroundColor: `${colors.border}30`,
   },
 });

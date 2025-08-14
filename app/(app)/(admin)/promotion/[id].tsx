@@ -32,14 +32,11 @@ import {
   Activity,
   RotateCcw,
   Tag,
-  TrendingUp,
-  Settings,
 } from 'lucide-react-native';
 
 // Components
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
-import StatCard from '@/components/admin/StatCard';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -556,7 +553,7 @@ export default function PromotionDetailScreen() {
             <View
               style={[
                 styles.promotionIcon,
-                { backgroundColor: discountColor + '15' },
+                { backgroundColor: `${discountColor}15` },
               ]}
             >
               <Percent size={24} color={discountColor} />
@@ -604,7 +601,7 @@ export default function PromotionDetailScreen() {
           <View
             style={[
               styles.discountCard,
-              { backgroundColor: discountColor + '15' },
+              { backgroundColor: `${discountColor}15` },
             ]}
           >
             <View style={styles.discountIcon}>
@@ -715,7 +712,7 @@ export default function PromotionDetailScreen() {
                 <View
                   style={[
                     styles.infoIcon,
-                    { backgroundColor: discountColor + '15' },
+                    { backgroundColor: `${discountColor}15` },
                   ]}
                 >
                   <Percent size={20} color={discountColor} />

@@ -49,11 +49,11 @@ const FilterModal: React.FC<FilterModalProps> = ({
     { key: 'suspended' as const, label: 'Suspended' },
   ];
 
-  const sortOptions: Array<{
+  const sortOptions: {
     key: SortField;
     label: string;
     order: SortOrder;
-  }> = [
+  }[] = [
     { key: 'created_at', label: 'Date (Newest)', order: 'desc' },
     { key: 'created_at', label: 'Date (Oldest)', order: 'asc' },
     { key: 'name', label: 'Name (A-Z)', order: 'asc' },
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border + '20',
+    borderBottomColor: `${colors.border}20`,
   },
   modalTitle: {
     fontSize: 18,
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   filterOptionSelected: {
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
   },
   filterOptionText: {
     fontSize: 14,
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border + '20',
+    borderTopColor: `${colors.border}20`,
   },
 });
 

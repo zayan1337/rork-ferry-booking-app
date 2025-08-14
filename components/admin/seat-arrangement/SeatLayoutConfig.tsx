@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
   aisleItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: colors.danger + '20',
+    backgroundColor: `${colors.danger}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },

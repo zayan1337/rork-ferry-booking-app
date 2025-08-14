@@ -13,7 +13,7 @@ import { colors } from '@/constants/adminColors';
 import { useZoneStore } from '@/store/admin/zoneStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { AdminManagement } from '@/types';
-import { Plus, Globe, AlertTriangle, Eye } from 'lucide-react-native';
+import { Plus, Globe, AlertTriangle } from 'lucide-react-native';
 
 // Components
 import Button from '@/components/admin/Button';
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   sectionIcon: {
     padding: 8,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 12,
   },
   sectionTitle: {
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 8,
     gap: 8,
     minWidth: 200,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: colors.textSecondary + '10',
+    backgroundColor: `${colors.textSecondary}10`,
     borderRadius: 24,
   },
   emptyStateTitle: {
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: colors.warning + '10',
+    backgroundColor: `${colors.warning}10`,
     borderRadius: 24,
   },
   noPermissionTitle: {

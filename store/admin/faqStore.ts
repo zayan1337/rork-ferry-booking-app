@@ -7,15 +7,7 @@ import {
   FAQCategoryFormData,
   FAQStats,
   FAQFilters,
-  FAQWithDetails,
-  FAQCategoryWithStats,
 } from '@/types/admin/management';
-import {
-  DatabaseFAQ,
-  DatabaseFAQCategory,
-  FAQManagementView,
-  FAQCategoryManagementView,
-} from '@/types/database';
 
 interface FAQLoadingStates {
   faqs: boolean;

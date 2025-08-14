@@ -5,38 +5,21 @@ import React, {
   useRef,
   useMemo,
 } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-} from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminManagement } from '@/types';
 import Button from '@/components/admin/Button';
 import SeatGrid from './SeatGrid';
 import SeatLayoutConfig from './SeatLayoutConfig';
 import SeatEditModal from './SeatEditModal';
-import {
-  generateFerrySeatLayout,
-  generateSeatsForFloor,
-  calculateOptimalLayout,
-  validateFerryLayout,
-  calculateOptimalRowColumnRatio,
-} from '@/utils/admin/vesselUtils';
+import { calculateOptimalRowColumnRatio } from '@/utils/admin/vesselUtils';
 import {
   Grid3X3,
   Settings,
   Save,
   RotateCcw,
-  Plus,
   Trash2,
   Eye,
-  EyeOff,
-  Layers,
   Ship,
   Users,
   Zap,
@@ -1662,54 +1645,54 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  controls: {
-    padding: 16,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  controlRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    gap: 8,
-  },
-  inputGroup: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  numberInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  numberButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  numberInputField: {
-    flex: 1,
-    height: 40,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    textAlign: 'center',
-    backgroundColor: colors.backgroundSecondary,
-  },
+  // controls: {
+  //   padding: 16,
+  //   backgroundColor: colors.card,
+  //   borderBottomWidth: 1,
+  //   borderBottomColor: colors.border,
+  // },
+  // controlRow: {
+  //   flexDirection: 'row',
+  //   justifyContent: 'space-between',
+  //   marginBottom: 12,
+  //   gap: 8,
+  // },
+  // inputGroup: {
+  //   flex: 1,
+  //   alignItems: 'center',
+  // },
+  // inputLabel: {
+  //   fontSize: 14,
+  //   fontWeight: '600',
+  //   color: colors.text,
+  //   marginBottom: 8,
+  // },
+  // numberInput: {
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   backgroundColor: colors.backgroundSecondary,
+  //   borderRadius: 8,
+  //   borderWidth: 1,
+  //   borderColor: colors.border,
+  //   overflow: 'hidden',
+  // },
+  // numberButton: {
+  //   width: 40,
+  //   height: 40,
+  //   justifyContent: 'center',
+  //   alignItems: 'center',
+  //   backgroundColor: colors.background,
+  // },
+  // numberInputField: {
+  //   flex: 1,
+  //   height: 40,
+  //   paddingHorizontal: 12,
+  //   fontSize: 16,
+  //   fontWeight: '600',
+  //   color: colors.text,
+  //   textAlign: 'center',
+  //   backgroundColor: colors.backgroundSecondary,
+  // },
   toggleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1751,10 +1734,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     gap: 12,
   },
-  footerRight: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  // footerRight: {
+  //   flexDirection: 'row',
+  //   gap: 12,
+  // },
   controlsSection: {
     backgroundColor: colors.card,
     borderRadius: 12,

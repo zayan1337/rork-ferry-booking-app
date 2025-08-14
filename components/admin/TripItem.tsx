@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import {
   Navigation,
-  MapPin,
   Clock,
   DollarSign,
   Activity,
@@ -15,7 +14,6 @@ import {
 } from 'lucide-react-native';
 
 // Components
-import StatusBadge from '@/components/admin/StatusBadge';
 
 type TripStatus =
   | 'scheduled'
@@ -392,7 +390,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fareMultiplier: {
-    backgroundColor: colors.warning + '20',
+    backgroundColor: `${colors.warning}20`,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,

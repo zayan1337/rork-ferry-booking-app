@@ -1,8 +1,5 @@
 import { supabase } from './supabase';
 import {
-  DatabaseRoute,
-  DatabaseTrip,
-  DatabaseVessel,
   DatabaseIsland,
   OperationsRoute,
   OperationsTrip,

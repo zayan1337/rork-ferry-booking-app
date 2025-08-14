@@ -1,12 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
@@ -311,13 +304,13 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   statusActive: {
-    backgroundColor: colors.success + '20',
+    backgroundColor: `${colors.success}20`,
   },
   statusInactive: {
-    backgroundColor: colors.textSecondary + '20',
+    backgroundColor: `${colors.textSecondary}20`,
   },
   statusMaintenance: {
-    backgroundColor: colors.warning + '20',
+    backgroundColor: `${colors.warning}20`,
   },
   statusText: {
     fontSize: 12,
@@ -337,7 +330,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 16,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 8,
     gap: 8,
   },

@@ -8,9 +8,7 @@ import {
 } from 'react-native';
 import {
   Calendar,
-  MapPin,
   User,
-  DollarSign,
   CreditCard,
   Ship,
   Clock,

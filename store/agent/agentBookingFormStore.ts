@@ -585,7 +585,7 @@ export const useAgentBookingFormStore = create<
             number: seat.seat_number,
             rowNumber: seat.row_number,
             isWindow: seat.is_window,
-            isAisle: isAisle,
+            isAisle,
             isAvailable: true,
             isSelected: false,
             // Enhanced properties

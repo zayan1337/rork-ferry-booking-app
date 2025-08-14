@@ -11,7 +11,7 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminStore } from '@/store/admin/adminStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -29,7 +29,6 @@ import {
   Edit,
   Trash2,
 } from 'lucide-react-native';
-import StatCard from '@/components/admin/StatCard';
 import SectionHeader from '@/components/admin/SectionHeader';
 import Button from '@/components/admin/Button';
 import SearchBar from '@/components/admin/SearchBar';
@@ -347,14 +346,14 @@ export default function CommunicationsScreen() {
                         {
                           backgroundColor:
                             notification.type === 'emergency'
-                              ? colors.danger + '20'
+                              ? `${colors.danger}20`
                               : notification.type === 'maintenance'
-                                ? colors.warning + '20'
+                                ? `${colors.warning}20`
                                 : notification.type === 'booking'
                                   ? '#34C759' + '20'
                                   : notification.type === 'payment'
                                     ? '#FF9500' + '20'
-                                    : colors.primary + '20',
+                                    : `${colors.primary}20`,
                         },
                       ]}
                     >
@@ -396,10 +395,10 @@ export default function CommunicationsScreen() {
                           {
                             backgroundColor:
                               notification.type === 'emergency'
-                                ? colors.danger + '20'
+                                ? `${colors.danger}20`
                                 : notification.type === 'maintenance'
-                                  ? colors.warning + '20'
-                                  : colors.primary + '20',
+                                  ? `${colors.warning}20`
+                                  : `${colors.primary}20`,
                           },
                         ]}
                       >
@@ -429,7 +428,7 @@ export default function CommunicationsScreen() {
                           backgroundColor:
                             deliveryStatus === 'delivered'
                               ? '#34C759' + '20'
-                              : colors.danger + '20',
+                              : `${colors.danger}20`,
                         },
                       ]}
                     >
@@ -665,10 +664,10 @@ export default function CommunicationsScreen() {
                             message.status === 'sent'
                               ? '#34C759' + '20'
                               : message.status === 'sending'
-                                ? colors.warning + '20'
+                                ? `${colors.warning}20`
                                 : message.status === 'failed'
-                                  ? colors.danger + '20'
-                                  : colors.textSecondary + '20',
+                                  ? `${colors.danger}20`
+                                  : `${colors.textSecondary}20`,
                         },
                       ]}
                     >
@@ -993,12 +992,12 @@ export default function CommunicationsScreen() {
                           {
                             backgroundColor:
                               template.priority === 'critical'
-                                ? colors.danger + '20'
+                                ? `${colors.danger}20`
                                 : template.priority === 'high'
-                                  ? colors.warning + '20'
+                                  ? `${colors.warning}20`
                                   : template.priority === 'medium'
-                                    ? colors.primary + '20'
-                                    : colors.textSecondary + '20',
+                                    ? `${colors.primary}20`
+                                    : `${colors.textSecondary}20`,
                           },
                         ]}
                       >
@@ -1026,14 +1025,14 @@ export default function CommunicationsScreen() {
                           {
                             backgroundColor:
                               template.category === 'emergency'
-                                ? colors.danger + '20'
+                                ? `${colors.danger}20`
                                 : template.category === 'operations'
-                                  ? colors.warning + '20'
+                                  ? `${colors.warning}20`
                                   : template.category === 'booking'
                                     ? '#34C759' + '20'
                                     : template.category === 'payment'
                                       ? '#FF9500' + '20'
-                                      : colors.primary + '20',
+                                      : `${colors.primary}20`,
                           },
                         ]}
                       >
@@ -1429,7 +1428,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sectionButtonActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
   sectionButtonText: {
     fontSize: 14,
@@ -1557,7 +1556,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: colors.border + '50',
+    borderColor: `${colors.border}50`,
   },
   metricItem: {
     flexDirection: 'row',
@@ -1740,7 +1739,7 @@ const styles = StyleSheet.create({
   targetingTag: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     borderRadius: 12,
   },
   targetingTagText: {
@@ -1770,7 +1769,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginVertical: 8,
     borderTopWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
   },
   engagementItem: {
     flexDirection: 'row',
@@ -1894,7 +1893,7 @@ const styles = StyleSheet.create({
   variableTag: {
     paddingHorizontal: 6,
     paddingVertical: 3,
-    backgroundColor: colors.textSecondary + '15',
+    backgroundColor: `${colors.textSecondary}15`,
     borderRadius: 4,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1917,7 +1916,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
   },
   templateStatItem: {
     flexDirection: 'row',
@@ -1961,7 +1960,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   filterTagActive: {
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     borderColor: colors.primary,
   },
   filterTagText: {
@@ -2049,7 +2048,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   radioOptionSelected: {
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     borderColor: colors.primary,
   },
   radioText: {

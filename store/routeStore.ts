@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../utils/supabase';
 import type { RouteStoreState, TripStoreState, Trip } from '@/types/booking';
-import type { Route, Island } from '@/types';
+import type { Route } from '@/types';
 
 interface RouteStoreActions {
   fetchRoutes: () => Promise<void>;

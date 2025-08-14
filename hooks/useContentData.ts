@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useContentStore } from '@/store/admin/contentStore';
-import { TermsAndConditions, Promotion } from '@/types/content';
 
 export const useContentData = () => {
   const {

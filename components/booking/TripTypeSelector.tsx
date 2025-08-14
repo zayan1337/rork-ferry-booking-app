@@ -7,7 +7,7 @@ type TripType = 'one_way' | 'round_trip';
 interface TripTypeSelectorProps {
   value: TripType | null;
   onChange: (tripType: TripType) => void;
-  options?: Array<{ value: TripType; label: string }>;
+  options?: { value: TripType; label: string }[];
   error?: string;
 }
 

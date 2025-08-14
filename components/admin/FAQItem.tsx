@@ -11,7 +11,6 @@ import { FAQ } from '@/types/admin/management';
 import {
   HelpCircle,
   Calendar,
-  User,
   Edit,
   Trash2,
   MoreHorizontal,
@@ -84,7 +83,7 @@ const FAQItem: React.FC<FAQItemProps> = ({
 
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + '...';
+    return `${text.slice(0, maxLength)}...`;
   };
 
   const categoryColor = getCategoryColor(faq.category?.name);
@@ -102,7 +101,7 @@ const FAQItem: React.FC<FAQItemProps> = ({
             <View
               style={[
                 styles.iconContainer,
-                { backgroundColor: categoryColor + '15' },
+                { backgroundColor: `${categoryColor}15` },
               ]}
             >
               <HelpCircle size={20} color={categoryColor} />
@@ -115,7 +114,7 @@ const FAQItem: React.FC<FAQItemProps> = ({
                 <View
                   style={[
                     styles.categoryBadge,
-                    { backgroundColor: categoryColor + '15' },
+                    { backgroundColor: `${categoryColor}15` },
                   ]}
                 >
                   <Tag size={12} color={categoryColor} />
@@ -234,7 +233,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.background + '20',
+    borderColor: `${colors.background}20`,
   },
   containerTablet: {
     marginHorizontal: 24,

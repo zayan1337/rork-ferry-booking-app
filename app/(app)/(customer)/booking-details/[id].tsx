@@ -1,22 +1,7 @@
 import React, { useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import {
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
-  Share2,
-  Edit,
-  XCircle,
-} from 'lucide-react-native';
+import { Calendar, Clock, MapPin, Users } from 'lucide-react-native';
 import { useUserBookingsStore } from '@/store/userBookingsStore';
 import { useBookingEligibility } from '@/hooks/useBookingEligibility';
 import Colors from '@/constants/colors';

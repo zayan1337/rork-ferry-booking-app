@@ -10,14 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import {
-  Plus,
-  Search,
-  Filter,
-  SortAsc,
-  Calendar,
-  TrendingUp,
-} from 'lucide-react-native';
+import { Plus, Search, SortAsc, Calendar } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import AgentBookingCard from '@/components/AgentBookingCard';
@@ -64,7 +57,7 @@ export default function AgentBookingsScreen() {
   const filteredAndSortedBookings = useMemo(() => {
     if (!bookings) return [];
 
-    let filtered = bookings.filter(booking => {
+    const filtered = bookings.filter(booking => {
       // Filter by status or upcoming
       if (activeTab === 'upcoming') {
         // Show only future departures that are confirmed or pending

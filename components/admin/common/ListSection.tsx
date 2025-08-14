@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 0,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border + '40',
+    borderBottomColor: `${colors.border}40`,
     marginBottom: 16,
   },
   filterInfoText: {
@@ -215,11 +215,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 16,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 8,
     gap: 8,
     borderWidth: 1,
-    borderColor: colors.primary + '20',
+    borderColor: `${colors.primary}20`,
   },
   viewAllText: {
     fontSize: 14,

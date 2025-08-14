@@ -17,10 +17,7 @@ import {
   X,
   Calendar,
   Clock,
-  AlertTriangle,
   CheckCircle,
-  Edit,
-  Trash2,
   RefreshCw,
   DollarSign,
 } from 'lucide-react-native';

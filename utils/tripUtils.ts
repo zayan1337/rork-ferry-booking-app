@@ -4,7 +4,6 @@ import {
   TripValidationErrors,
   TripFilters,
   Route,
-  Vessel,
 } from '@/types/operations';
 
 /**
@@ -270,8 +269,8 @@ export const getTripPerformanceMetrics = (trip: Trip, route: Route) => {
 
   return {
     occupancyRate: occupancy,
-    revenue: revenue,
-    isOnTime: isOnTime,
+    revenue,
+    isOnTime,
     profitability:
       occupancy >= 60
         ? 'profitable'

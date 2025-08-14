@@ -15,7 +15,6 @@ import {
   BarChart,
   UserX,
   AlertTriangle,
-  Calendar,
   TrendingUp,
   Star,
   Clock,

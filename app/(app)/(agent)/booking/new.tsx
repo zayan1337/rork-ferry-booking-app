@@ -1,39 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ViewStyle,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import {
-  ArrowRight,
-  Calendar,
-  MapPin,
-  Users,
-  CreditCard,
-  Check,
-  User,
-  Mail,
-  Phone,
-  DollarSign,
-  Search,
-  UserPlus,
-} from 'lucide-react-native';
+
 import { useAgentStore } from '@/store/agent/agentStore';
 import { useAgentBookingFormStore } from '@/store/agent/agentBookingFormStore';
 import { useRouteStore, useTripStore } from '@/store';
 import type { AgentClient } from '@/types/agent';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
-import Input from '@/components/Input';
 import Button from '@/components/Button';
-import Dropdown from '@/components/Dropdown';
-import SeatSelector from '@/components/SeatSelector';
-import DatePicker from '@/components/DatePicker';
 
 import { Passenger } from '@/types';
 import {
@@ -45,12 +20,7 @@ import {
   PassengerDetailsStep,
   PaymentStep,
 } from '@/components/booking';
-import { useBookingFormValidation } from '@/hooks/useBookingFormValidation';
-import { useBookingClientSearch } from '@/hooks/useBookingClientSearch';
-import {
-  generateBookingSuccessMessage,
-  validateBookingStep,
-} from '@/utils/bookingFormUtils';
+import { validateBookingStep } from '@/utils/bookingFormUtils';
 
 const BOOKING_STEPS = [
   { id: 1, label: 'Route', description: 'Select route & date' },

@@ -13,7 +13,6 @@ import {
   SkeletonDashboardHeader,
   SkeletonAgentInfo,
   SkeletonStatsContainer,
-  SkeletonStat,
 } from './dashboard';
 import Colors from '@/constants/colors';
 

@@ -10,7 +10,6 @@ import { colors } from '@/constants/adminColors';
 import { TripForm } from '@/components/admin/operations';
 import { AdminManagement } from '@/types';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
-import RoleGuard from '@/components/RoleGuard';
 import { ArrowLeft } from 'lucide-react-native';
 
 type TripFormData = AdminManagement.TripFormData;

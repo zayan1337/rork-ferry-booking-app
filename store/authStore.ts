@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { User } from '@supabase/supabase-js';
 import { supabase } from '../utils/supabase';
 import type { UserProfile, RegisterData, AuthUser } from '@/types/auth';
 
@@ -146,7 +145,7 @@ export const useAuthStore = create<AuthState>()(
 
           if (profileError)
             throw new Error(
-              'Failed to fetch user profile: ' + profileError.message
+              `Failed to fetch user profile: ${profileError.message}`
             );
           if (!profile) throw new Error('User profile not found');
 
@@ -208,7 +207,7 @@ export const useAuthStore = create<AuthState>()(
 
           if (profileError)
             throw new Error(
-              'Failed to fetch user profile: ' + profileError.message
+              `Failed to fetch user profile: ${profileError.message}`
             );
 
           set({

@@ -38,20 +38,7 @@ export default function AgentCancelBookingScreen() {
   // Ensure id is a string
   const bookingId = Array.isArray(id) ? id[0] : id;
 
-  // Early return if no booking ID
-  if (!bookingId) {
-    return (
-      <View style={styles.notFoundContainer}>
-        <Text style={styles.notFoundText}>Invalid booking ID</Text>
-        <Button
-          title='Go Back'
-          onPress={() => router.back()}
-          style={styles.notFoundButton}
-        />
-      </View>
-    );
-  }
-
+  // All hooks must be called before any early returns
   const scrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [activeInput, setActiveInput] = useState<string | null>(null);
@@ -101,6 +88,20 @@ export default function AgentCancelBookingScreen() {
       keyboardDidHideListener?.remove();
     };
   }, [activeInput]);
+
+  // Early return if no booking ID
+  if (!bookingId) {
+    return (
+      <View style={styles.notFoundContainer}>
+        <Text style={styles.notFoundText}>Invalid booking ID</Text>
+        <Button
+          title='Go Back'
+          onPress={() => router.back()}
+          style={styles.notFoundButton}
+        />
+      </View>
+    );
+  }
 
   const scrollToInput = (inputKey: string) => {
     setTimeout(() => {
@@ -204,7 +205,7 @@ export default function AgentCancelBookingScreen() {
       toLocation = safeBooking.destination;
     }
 
-    return fromLocation + ' → ' + toLocation;
+    return `${fromLocation} → ${toLocation}`;
   };
 
   const getDateDisplay = () => {
@@ -223,10 +224,9 @@ export default function AgentCancelBookingScreen() {
       return;
     }
 
-    const confirmMessage =
-      'Are you sure you want to cancel this booking? ' +
-      String(refundPercentage) +
-      '% refund will be processed.';
+    const confirmMessage = `Are you sure you want to cancel this booking? ${String(
+      refundPercentage
+    )}% refund will be processed.`;
 
     Alert.alert('Confirm Cancellation', confirmMessage, [
       {
@@ -258,14 +258,12 @@ export default function AgentCancelBookingScreen() {
             const refundMethodDisplay = refundMethod.replace('_', ' ');
 
             const successMessage =
-              'Booking has been cancelled successfully. ' +
-              'Cancellation number: ' +
-              String(cancellationNumber) +
-              '. ' +
-              formatCurrency(calculatedRefundAmount) +
-              ' will be refunded via ' +
-              refundMethodDisplay +
-              '.';
+              `Booking has been cancelled successfully. ` +
+              `Cancellation number: ${String(
+                cancellationNumber
+              )}. ${formatCurrency(
+                calculatedRefundAmount
+              )} will be refunded via ${refundMethodDisplay}.`;
 
             Alert.alert('Booking Cancelled', successMessage, [
               {
@@ -275,9 +273,9 @@ export default function AgentCancelBookingScreen() {
             ]);
           } catch (error) {
             console.error('Cancellation error:', error);
-            const errorMessage =
-              'There was an error cancelling the booking: ' +
-              (error instanceof Error ? error.message : 'Unknown error');
+            const errorMessage = `There was an error cancelling the booking: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`;
 
             Alert.alert('Cancellation Failed', errorMessage);
           } finally {

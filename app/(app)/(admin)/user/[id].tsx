@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   Alert,
-  ActivityIndicator,
   ScrollView,
   RefreshControl,
   Dimensions,
@@ -31,8 +30,6 @@ import {
 import { supabase } from '@/utils/supabase';
 
 import Button from '@/components/admin/Button';
-import StatusBadge from '@/components/admin/StatusBadge';
-import StatCard from '@/components/admin/StatCard';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import {
   UserDetailsHeader,
@@ -598,8 +595,8 @@ export default function UserDetailsPage() {
                             backgroundColor:
                               passengerTripData.bookings[0].total_fare
                                 ?.status === 'confirmed'
-                                ? colors.success + '20'
-                                : colors.warning + '20',
+                                ? `${colors.success}20`
+                                : `${colors.warning}20`,
                           },
                         ]}
                       >

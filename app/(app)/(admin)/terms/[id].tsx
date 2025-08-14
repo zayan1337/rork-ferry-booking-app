@@ -24,18 +24,14 @@ import {
   Clock,
   Activity,
   Hash,
-  Settings,
-  Info,
   Eye,
   Type,
   AlertCircle,
   CheckCircle,
   XCircle,
-  Copy,
   Share2,
   RotateCcw,
   FileEdit,
-  TrendingUp,
 } from 'lucide-react-native';
 
 // Components
@@ -466,7 +462,7 @@ export default function TermDetailScreen() {
             <View
               style={[
                 styles.termsIcon,
-                { backgroundColor: versionColor + '15' },
+                { backgroundColor: `${versionColor}15` },
               ]}
             >
               <FileText size={24} color={versionColor} />
@@ -515,7 +511,7 @@ export default function TermDetailScreen() {
           <View
             style={[
               styles.versionCard,
-              { backgroundColor: versionColor + '15' },
+              { backgroundColor: `${versionColor}15` },
             ]}
           >
             <View style={styles.versionIcon}>
@@ -540,7 +536,7 @@ export default function TermDetailScreen() {
                 <View
                   style={[
                     styles.statCardIcon,
-                    { backgroundColor: versionColor + '15' },
+                    { backgroundColor: `${versionColor}15` },
                   ]}
                 >
                   <Hash size={20} color={versionColor} />
@@ -627,7 +623,7 @@ export default function TermDetailScreen() {
                 <View
                   style={[
                     styles.infoIcon,
-                    { backgroundColor: versionColor + '15' },
+                    { backgroundColor: `${versionColor}15` },
                   ]}
                 >
                   <Hash size={20} color={versionColor} />

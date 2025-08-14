@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Calendar, Clock, MapPin, Users } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { Booking } from '@/types';
 import { TicketCardProps } from '@/types/components';
 import Colors from '@/constants/colors';
 import Card from './Card';

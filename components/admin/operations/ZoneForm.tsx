@@ -3,19 +3,13 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminManagement } from '@/types';
 import { useZoneManagement } from '@/hooks/useZoneManagement';
-
-type Zone = AdminManagement.Zone;
-type ZoneFormData = AdminManagement.ZoneFormData;
 import {
   Globe,
-  MapPin,
-  CheckCircle,
   AlertCircle,
   Save,
   RotateCcw,
   Info,
   Hash,
-  FileText,
   Settings,
   Activity,
 } from 'lucide-react-native';
@@ -25,6 +19,9 @@ import TextInput from '@/components/admin/TextInput';
 import Button from '@/components/admin/Button';
 import Switch from '@/components/admin/Switch';
 import Dropdown from '@/components/admin/Dropdown';
+
+type Zone = AdminManagement.Zone;
+type ZoneFormData = AdminManagement.ZoneFormData;
 
 interface ZoneFormProps {
   initialData?: Zone;
@@ -559,7 +556,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.info + '20',
+    backgroundColor: `${colors.info}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -586,7 +583,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.info + '20',
+    backgroundColor: `${colors.info}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -615,7 +612,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.error + '20',
+    backgroundColor: `${colors.error}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -644,7 +641,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.warning + '20',
+    backgroundColor: `${colors.warning}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },

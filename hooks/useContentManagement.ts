@@ -1,11 +1,6 @@
 import { useMemo } from 'react';
 import { useContentStore } from '@/store/admin/contentStore';
-import {
-  TermsAndConditions,
-  Promotion,
-  TermsFormData,
-  PromotionFormData,
-} from '@/types/content';
+import { PromotionFormData } from '@/types/content';
 import { validateTermsData, validatePromotionData } from '@/utils/contentUtils';
 
 // Stats interfaces

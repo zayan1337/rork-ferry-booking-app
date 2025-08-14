@@ -10,11 +10,10 @@ import {
   FlatList,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import { Trip, Schedule, Route, Vessel } from '@/types/operations';
+import { Trip, Route, Vessel } from '@/types/operations';
 import {
   formatTripTime,
   detectTripConflicts,
-  generateOptimalSchedule,
   calculateOccupancy,
 } from '@/utils/tripUtils';
 import { formatCurrency } from '@/utils/routeUtils';
@@ -24,23 +23,14 @@ import EmptyState from '@/components/admin/EmptyState';
 import TripItem from '@/components/admin/TripItem';
 import {
   Calendar,
-  Clock,
-  Ship,
-  Users,
   Plus,
-  Filter,
   AlertTriangle,
   CheckCircle,
-  BarChart3,
-  Settings,
-  RefreshCw,
   Download,
   Upload,
   Zap,
   Grid,
   List,
-  MapPin,
-  Activity,
 } from 'lucide-react-native';
 
 interface ScheduleManagerProps {
@@ -612,7 +602,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   viewButtonActive: {
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -628,9 +618,9 @@ const styles = StyleSheet.create({
   conflictsAlert: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.warning + '10',
+    backgroundColor: `${colors.warning}10`,
     borderWidth: 1,
-    borderColor: colors.warning + '30',
+    borderColor: `${colors.warning}30`,
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 12,
@@ -657,7 +647,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 12,
@@ -725,7 +715,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
   },
   dayWithTrips: {
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
   },
   today: {
     backgroundColor: colors.primary,

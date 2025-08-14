@@ -1,15 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import {
-  Percent,
-  Calendar,
-  Tag,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Users,
-  Activity,
-} from 'lucide-react-native';
+import { Percent, Calendar, Tag, Users } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { Promotion } from '@/types/content';
 
@@ -129,7 +120,7 @@ export default function PromotionItem({
             <View
               style={[
                 styles.discountBadge,
-                { backgroundColor: discountColor + '15' },
+                { backgroundColor: `${discountColor}15` },
               ]}
             >
               <Tag size={12} color={discountColor} />
@@ -186,7 +177,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 16,
     borderWidth: 1,
-    borderColor: colors.primary + '20',
+    borderColor: `${colors.primary}20`,
   },
   content: {
     flex: 1,

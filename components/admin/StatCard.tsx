@@ -148,7 +148,7 @@ export default function StatCard({
             <View
               style={[
                 styles.trendContainer,
-                { backgroundColor: getTrendColor() + '15' },
+                { backgroundColor: `${getTrendColor()}15` },
               ]}
             >
               {normalizedTrend === 'up' ? (
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
     justifyContent: 'space-between',
   },
   header: {

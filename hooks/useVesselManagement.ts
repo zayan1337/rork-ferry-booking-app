@@ -302,7 +302,7 @@ export const useVesselManagement = (
 
     // Actions
     loadAll: fetchAll,
-    fetchById: fetchById,
+    fetchById,
     getById: (id: string) => getVesselById(id),
     create: async (data: VesselFormData) => {
       await create(data);

@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { TermsAndConditions, TermsFormData } from '@/types/content';
 import { useContentManagement } from '@/hooks/useContentManagement';
@@ -17,9 +10,7 @@ import {
   AlertCircle,
   Type,
   MessageSquare,
-  Calendar,
   Hash,
-  Activity,
   Info,
   Settings,
   RotateCcw,
@@ -150,7 +141,7 @@ const TermsForm: React.FC<TermsFormProps> = ({
         version: formData.version.trim(),
         effective_date: formData.effective_date.includes('T')
           ? formData.effective_date
-          : formData.effective_date + 'T00:00:00Z',
+          : `${formData.effective_date}T00:00:00Z`,
       };
 
       if (isEditing && terms) {
@@ -526,7 +517,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.error + '20',
+    backgroundColor: `${colors.error}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -635,7 +626,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.success + '20',
+    backgroundColor: `${colors.success}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -660,7 +651,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.info + '20',
+    backgroundColor: `${colors.info}20`,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,

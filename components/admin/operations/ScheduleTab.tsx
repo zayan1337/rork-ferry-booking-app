@@ -1,13 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  RefreshControl,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useOperationsStore } from '@/store/admin/operationsStore';
@@ -15,7 +7,7 @@ import { useTripManagement } from '@/hooks/useTripManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
-import { Eye, AlertTriangle, Calendar, Filter, X } from 'lucide-react-native';
+import { AlertTriangle, Calendar, Filter, X } from 'lucide-react-native';
 
 // Components
 import SectionHeader from '@/components/admin/SectionHeader';
@@ -586,7 +578,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 16,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 8,
     gap: 8,
   },

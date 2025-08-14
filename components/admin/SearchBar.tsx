@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     minHeight: 48,
     borderWidth: 1,
-    borderColor: colors.border + '40',
+    borderColor: `${colors.border}40`,
   },
   icon: {
     marginRight: 8,

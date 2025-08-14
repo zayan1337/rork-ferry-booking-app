@@ -442,7 +442,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           rowNumber: Number(vesselSeat.row_number || 0),
           isWindow: Boolean(vesselSeat.is_window),
           isAisle: Boolean(vesselSeat.is_aisle),
-          isAvailable: isAvailable,
+          isAvailable,
           isSelected: false,
         };
       });

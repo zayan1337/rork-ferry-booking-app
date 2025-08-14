@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -20,18 +19,14 @@ import {
   CheckCircle,
   XCircle,
   TrendingUp,
-  TrendingDown,
-  Clock,
   AlertCircle,
   Activity,
   Settings,
-  Search,
   FileText,
   UserPlus,
   ArrowUp,
   ArrowDown,
   MapPin,
-  Bell,
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -86,7 +81,7 @@ const TrendIndicator = ({
     <View
       style={[
         styles.trendIndicator,
-        { backgroundColor: isUp ? Colors.success + '20' : Colors.error + '20' },
+        { backgroundColor: isUp ? `${Colors.success}20` : `${Colors.error}20` },
       ]}
     >
       {isUp ? (
@@ -142,7 +137,7 @@ const CreditOverviewCard = ({
           <View
             style={[
               styles.creditBadge,
-              { backgroundColor: Colors.error + '20' },
+              { backgroundColor: `${Colors.error}20` },
             ]}
           >
             <AlertCircle size={14} color={Colors.error} />
@@ -155,7 +150,7 @@ const CreditOverviewCard = ({
           <View
             style={[
               styles.creditBadge,
-              { backgroundColor: Colors.warning + '20' },
+              { backgroundColor: `${Colors.warning}20` },
             ]}
           >
             <AlertCircle size={14} color={Colors.warning} />
@@ -375,7 +370,7 @@ const UpcomingDeparturesCard = ({
               <View
                 style={[
                   styles.upcomingStatus,
-                  { backgroundColor: statusInfo.color + '20' },
+                  { backgroundColor: `${statusInfo.color}20` },
                 ]}
               >
                 <Text
@@ -882,7 +877,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   creditWarning: {
-    backgroundColor: Colors.warning + '10',
+    backgroundColor: `${Colors.warning}10`,
     padding: 8,
     borderRadius: 8,
     marginBottom: 8,

@@ -1,8 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, Dimensions } from 'react-native';
 import {
-  ArrowUp,
-  ArrowDown,
   Calendar,
   FileText,
   Clock,

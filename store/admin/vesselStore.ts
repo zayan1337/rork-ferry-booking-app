@@ -6,8 +6,6 @@ import {
   calculateOptimalLayout,
   generateSeatsForFloor,
   validateFerryLayout,
-  calculateOptimalRowColumnRatio,
-  generateDefaultSeatLayoutConfig,
 } from '@/utils/admin/vesselUtils';
 
 type Vessel = AdminManagement.Vessel;
@@ -256,7 +254,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>(
           next_departure: stats.next_departure || null,
           // Include seat layout data
           seatLayout: layout,
-          seats: seats,
+          seats,
           // Add additional fields that might be expected
           trips_today: 0,
           trips_7d: 0,
@@ -436,7 +434,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>(
         // Use the database function to generate default seats
         const { error } = await supabase.rpc('generate_default_vessel_seats', {
           vessel_id_param: vesselId,
-          capacity: capacity,
+          capacity,
           vessel_type: vesselType,
         });
 

@@ -3,8 +3,6 @@ import {
   UserFormData,
   UserValidationErrors,
   UserFilters,
-  Permission,
-  Role,
   UserActivity,
   UserSession,
 } from '@/types/userManagement';

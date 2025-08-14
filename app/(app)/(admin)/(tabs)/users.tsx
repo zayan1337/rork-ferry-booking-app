@@ -293,7 +293,7 @@ export default function UsersScreen() {
 
   // Helper function to get current filter/sort display text
   const getCurrentFilterText = () => {
-    let filterText = [];
+    const filterText = [];
 
     if (filterRole !== 'all') {
       filterText.push(
@@ -429,14 +429,14 @@ export default function UsersScreen() {
                 onSearchChange={setSearchQuery}
                 onFilterPress={() => setShowFilterModal(true)}
                 onSortPress={() => {
-                  const sortFields: Array<
+                  const sortFields: (
                     | 'name'
                     | 'email'
                     | 'role'
                     | 'status'
                     | 'created_at'
                     | 'last_login'
-                  > = [
+                  )[] = [
                     'created_at',
                     'name',
                     'email',
@@ -568,14 +568,14 @@ export default function UsersScreen() {
                 onSearchChange={setSearchQuery}
                 onFilterPress={() => setShowFilterModal(true)}
                 onSortPress={() => {
-                  const sortFields: Array<
+                  const sortFields: (
                     | 'name'
                     | 'email'
                     | 'role'
                     | 'status'
                     | 'created_at'
                     | 'last_login'
-                  > = [
+                  )[] = [
                     'created_at',
                     'name',
                     'email',
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
     borderWidth: 1,
-    borderColor: colors.border + '60',
+    borderColor: `${colors.border}60`,
   },
   userItemWrapper: {
     flexDirection: 'row',
@@ -673,7 +673,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: colors.primary + '40',
+    borderColor: `${colors.primary}40`,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',

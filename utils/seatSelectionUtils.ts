@@ -103,17 +103,17 @@ export const validateSeatSelection = (
  * Update passengers array based on seat count
  */
 export const updatePassengersForSeats = (
-  currentPassengers: Array<{
+  currentPassengers: {
     fullName: string;
     idNumber?: string;
     specialAssistance?: string;
-  }>,
+  }[],
   seatCount: number
-): Array<{
+): {
   fullName: string;
   idNumber?: string;
   specialAssistance?: string;
-}> => {
+}[] => {
   const newPassengers = [];
 
   for (let i = 0; i < seatCount; i++) {

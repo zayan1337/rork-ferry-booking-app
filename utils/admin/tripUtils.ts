@@ -728,7 +728,7 @@ export const getBestPerformingTime = (trips: Trip[]): string => {
     {};
 
   trips.forEach(trip => {
-    const timeSlot = trip.departure_time.substring(0, 2) + ':00';
+    const timeSlot = `${trip.departure_time.substring(0, 2)}:00`;
     if (!timeSlots[timeSlot]) {
       timeSlots[timeSlot] = { count: 0, totalOccupancy: 0 };
     }

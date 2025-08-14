@@ -8,7 +8,6 @@ import {
   Dimensions,
   Alert,
   RefreshControl,
-  FlatList,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -25,7 +24,6 @@ import {
   AlertTriangle,
   Download,
   Filter,
-  Search,
   Calendar,
   Clock,
   Users,
@@ -417,8 +415,8 @@ export default function FinanceScreen() {
                             styles.walletAvatar,
                             {
                               backgroundColor: wallet.is_active
-                                ? colors.primary + '20'
-                                : colors.textSecondary + '20',
+                                ? `${colors.primary}20`
+                                : `${colors.textSecondary}20`,
                             },
                           ]}
                         >
@@ -645,7 +643,7 @@ export default function FinanceScreen() {
             <View
               style={[
                 styles.statIcon,
-                { backgroundColor: colors.success + '15' },
+                { backgroundColor: `${colors.success}15` },
               ]}
             >
               <ArrowUpRight size={20} color={colors.success} />
@@ -671,7 +669,7 @@ export default function FinanceScreen() {
             <View
               style={[
                 styles.statIcon,
-                { backgroundColor: colors.danger + '15' },
+                { backgroundColor: `${colors.danger}15` },
               ]}
             >
               <ArrowDownLeft size={20} color={colors.danger} />
@@ -833,7 +831,7 @@ export default function FinanceScreen() {
             <View
               style={[
                 styles.statIcon,
-                { backgroundColor: colors.success + '15' },
+                { backgroundColor: `${colors.success}15` },
               ]}
             >
               <TrendingUp size={20} color={colors.success} />
@@ -858,7 +856,7 @@ export default function FinanceScreen() {
             <View
               style={[
                 styles.statIcon,
-                { backgroundColor: colors.warning + '15' },
+                { backgroundColor: `${colors.warning}15` },
               ]}
             >
               <Clock size={20} color={colors.warning} />
@@ -881,7 +879,7 @@ export default function FinanceScreen() {
             <View
               style={[
                 styles.statIcon,
-                { backgroundColor: colors.danger + '15' },
+                { backgroundColor: `${colors.danger}15` },
               ]}
             >
               <TrendingDown size={20} color={colors.danger} />
@@ -1062,7 +1060,7 @@ export default function FinanceScreen() {
                         <View
                           style={[
                             styles.enhancedPaymentTypeIcon,
-                            { backgroundColor: transaction.iconColor + '20' },
+                            { backgroundColor: `${transaction.iconColor}20` },
                           ]}
                         >
                           <transaction.icon
@@ -1362,7 +1360,7 @@ export default function FinanceScreen() {
                 <View
                   style={[
                     styles.actionIcon,
-                    { backgroundColor: colors.primary + '15' },
+                    { backgroundColor: `${colors.primary}15` },
                   ]}
                 >
                   <Download size={24} color={colors.primary} />
@@ -1529,7 +1527,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sectionButtonActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
   sectionButtonText: {
     fontSize: 14,
@@ -1576,7 +1574,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   filterChipActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     borderColor: colors.primary,
   },
   filterChipText: {
@@ -1665,7 +1663,7 @@ const styles = StyleSheet.create({
   addCreditButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
   viewButton: {
     padding: 8,
@@ -1678,10 +1676,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   statusActive: {
-    backgroundColor: colors.success + '20',
+    backgroundColor: `${colors.success}20`,
   },
   statusInactive: {
-    backgroundColor: colors.textSecondary + '20',
+    backgroundColor: `${colors.textSecondary}20`,
   },
   statusText: {
     fontSize: 12,
@@ -1754,10 +1752,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   creditIndicator: {
-    backgroundColor: colors.success + '20',
+    backgroundColor: `${colors.success}20`,
   },
   debitIndicator: {
-    backgroundColor: colors.danger + '20',
+    backgroundColor: `${colors.danger}20`,
   },
   transactionInfo: {
     flex: 1,
@@ -1808,7 +1806,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     borderRadius: 6,
   },
   filterButtonText: {
@@ -1996,13 +1994,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   paymentCompleted: {
-    backgroundColor: colors.success + '20',
+    backgroundColor: `${colors.success}20`,
   },
   paymentPending: {
-    backgroundColor: colors.warning + '20',
+    backgroundColor: `${colors.warning}20`,
   },
   paymentFailed: {
-    backgroundColor: colors.danger + '20',
+    backgroundColor: `${colors.danger}20`,
   },
   paymentStatusText: {
     fontSize: 10,
@@ -2053,7 +2051,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2141,7 +2139,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -2167,7 +2165,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 16,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 8,
     gap: 8,
   },
@@ -2255,7 +2253,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2334,7 +2332,7 @@ const styles = StyleSheet.create({
   actionButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
   actionButtonSecondary: {
     padding: 8,
@@ -2476,7 +2474,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 16,
   },
   viewAllTransactionsText: {
@@ -2704,7 +2702,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 16,
   },
   viewDetailsText: {
@@ -2720,10 +2718,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     marginTop: 16,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.primary + '30',
+    borderColor: `${colors.primary}30`,
   },
   loadMoreText: {
     fontSize: 14,
@@ -2925,7 +2923,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     borderRadius: 20,
   },
   walletActionText: {

@@ -17,7 +17,7 @@ interface UnitInputProps {
   error?: string;
   required?: boolean;
   description?: string;
-  units: Array<{ label: string; value: string; suffix: string }>;
+  units: { label: string; value: string; suffix: string }[];
   defaultUnit?: string;
   placeholder?: string;
   keyboardType?: 'numeric' | 'default';

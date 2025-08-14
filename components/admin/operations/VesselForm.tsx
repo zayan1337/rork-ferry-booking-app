@@ -9,33 +9,19 @@ import Switch from '@/components/admin/Switch';
 import DatePicker from '@/components/admin/DatePicker';
 import SeatArrangementManager from '../seat-arrangement/SeatArrangementManager';
 import { useVesselStore } from '@/store/admin/vesselStore';
-import {
-  calculateOptimalRowColumnRatio,
-  generateDefaultSeatLayoutConfig,
-} from '@/utils/admin/vesselUtils';
+import { calculateOptimalRowColumnRatio } from '@/utils/admin/vesselUtils';
 import {
   Ship,
   Users,
   Settings,
   Save,
   RotateCcw,
-  Calendar,
-  Gauge,
-  Fuel,
   FileText,
-  Phone,
-  UserCheck,
-  Anchor,
   Shield,
-  Award,
   Grid3X3,
-  Eye,
-  EyeOff,
   Info,
-  MapPin,
   Activity,
   AlertCircle,
-  Zap,
   Layout,
   Smartphone,
 } from 'lucide-react-native';
@@ -825,7 +811,7 @@ export default function VesselForm({
             <View
               style={[
                 styles.statusIcon,
-                { backgroundColor: getStatusColor(formData.status) + '20' },
+                { backgroundColor: `${getStatusColor(formData.status)}20` },
               ]}
             >
               <AlertCircle size={16} color={getStatusColor(formData.status)} />
@@ -1258,7 +1244,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.error + '20',
+    backgroundColor: `${colors.error}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },

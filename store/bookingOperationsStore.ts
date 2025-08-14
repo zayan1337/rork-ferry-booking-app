@@ -227,7 +227,7 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
         // Return the departure booking (main booking) with return booking info if applicable
         return {
           ...departureBooking,
-          returnBooking: returnBooking,
+          returnBooking,
         };
       } catch (error) {
         console.error('Error confirming booking:', error);

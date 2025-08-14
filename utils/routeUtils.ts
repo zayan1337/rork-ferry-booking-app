@@ -264,7 +264,7 @@ export const getRoutePerformanceMetrics = (route: Route) => {
     bookingsPerTrip: trips > 0 ? bookings / trips : 0,
     revenuePerTrip: trips > 0 ? revenue / trips : 0,
     occupancyRate: occupancy,
-    cancellationRate: cancellationRate,
+    cancellationRate,
     efficiency:
       occupancy > 0 ? (100 - cancellationRate) * (occupancy / 100) : 0,
   };

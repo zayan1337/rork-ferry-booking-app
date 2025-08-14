@@ -1,18 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, TouchableOpacity, Text, Alert } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import {
-  Download,
-  Clock,
-  X,
-  CheckCircle,
-  Edit,
-  Trash,
-  Calendar,
-  Users,
-  RefreshCw,
-} from 'lucide-react-native';
-import Button from '@/components/admin/Button';
+import { Download, Clock, X, CheckCircle, Calendar } from 'lucide-react-native';
 
 export interface BulkAction {
   key: string;
@@ -171,12 +160,12 @@ export default function TripBulkActions({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.primary + '30',
+    borderColor: `${colors.primary}30`,
   },
   content: {
     gap: 12,
@@ -200,7 +189,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
   },
   selectAllText: {
     fontSize: 14,
@@ -211,7 +200,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: colors.textSecondary + '20',
+    backgroundColor: `${colors.textSecondary}20`,
   },
   clearText: {
     fontSize: 14,
@@ -240,8 +229,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   dangerButton: {
-    backgroundColor: colors.danger + '10',
-    borderColor: colors.danger + '40',
+    backgroundColor: `${colors.danger}10`,
+    borderColor: `${colors.danger}40`,
   },
   actionButtonText: {
     fontSize: 14,

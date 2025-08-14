@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,17 +13,13 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import StatCard from '@/components/admin/StatCard';
 import {
   TrendingUp,
-  TrendingDown,
   DollarSign,
   Users,
-  Clock,
-  Star,
   AlertTriangle,
   CheckCircle,
   BarChart3,
   PieChart,
   Activity,
-  Calendar,
   MapPin,
   Ship,
   Target,
@@ -272,7 +268,7 @@ export default function TripAnalytics({
                 <View
                   style={[
                     styles.insightIcon,
-                    { backgroundColor: insight.color + '20' },
+                    { backgroundColor: `${insight.color}20` },
                   ]}
                 >
                   {insight.icon}

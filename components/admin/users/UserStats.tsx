@@ -1,14 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import {
-  BarChart,
-  Activity,
-  Users,
-  User,
-  Crown,
-  UserCheck,
-} from 'lucide-react-native';
+import { Activity, Users, User, Crown, UserCheck } from 'lucide-react-native';
 import SectionHeader from '@/components/admin/SectionHeader';
 import StatusBadge from '@/components/admin/StatusBadge';
 
@@ -125,7 +118,7 @@ export default function UserStats({ stats, isTablet = false }: UserStatsProps) {
               <View
                 style={[
                   styles.roleIcon,
-                  { backgroundColor: item.color + '20' },
+                  { backgroundColor: `${item.color}20` },
                 ]}
               >
                 {getRoleIcon(item.role)}

@@ -1,5 +1,4 @@
 import { Dimensions } from 'react-native';
-import { QuickAction } from '@/types/admin/dashboard';
 
 const { width: screenWidth } = Dimensions.get('window');
 

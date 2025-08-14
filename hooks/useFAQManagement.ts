@@ -20,8 +20,6 @@ import {
   getNextFaqOrderIndex,
   getNextCategoryOrderIndex,
   groupFaqsByCategory,
-  normalizeFaqData,
-  normalizeCategoryData,
   getAvailableCategoryOrderPositions,
   getAvailableFaqOrderPositions,
   validateCategoryOrderIndex,
@@ -50,10 +48,11 @@ interface UseFAQManagementReturn {
   currentCategory: FAQCategory | null;
   filteredFaqs: FAQ[];
   sortedCategories: FAQCategory[];
-  categoriesWithCounts: Array<
-    FAQCategory & { faq_count: number; active_faq_count: number }
-  >;
-  groupedFaqs: Array<{ category: FAQCategory; faqs: FAQ[] }>;
+  categoriesWithCounts: (FAQCategory & {
+    faq_count: number;
+    active_faq_count: number;
+  })[];
+  groupedFaqs: { category: FAQCategory; faqs: FAQ[] }[];
 
   // Loading states
   loading: {

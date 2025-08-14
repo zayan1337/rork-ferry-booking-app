@@ -6,17 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ViewStyle,
 } from 'react-native';
 import { router } from 'expo-router';
-import {
-  ArrowRight,
-  Calendar,
-  MapPin,
-  Users,
-  CreditCard,
-  Check,
-} from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import {
   useBookingStore,
   useRouteStore,
@@ -31,14 +23,12 @@ import DatePicker from '@/components/DatePicker';
 import Dropdown from '@/components/Dropdown';
 import SeatSelector from '@/components/SeatSelector';
 import Input from '@/components/Input';
-import type { Seat, SupabaseSeat } from '@/types';
+import type { Seat } from '@/types';
 import {
   toggleSeatSelection,
   updatePassengersForSeats,
 } from '@/utils/seatSelectionUtils';
-import { useBookingForm } from '@/hooks/useBookingForm';
 import {
-  transformSeatsData,
   createRouteLabel,
   formatTime,
   createEmptyFormErrors,

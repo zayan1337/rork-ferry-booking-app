@@ -5,14 +5,12 @@ import { Promotion } from '@/types/content';
 import { useContentManagement } from '@/hooks/useContentManagement';
 import {
   Percent,
-  CheckCircle,
   AlertCircle,
   Save,
   RotateCcw,
   Info,
   Settings,
   Calendar,
-  Users,
   Target,
 } from 'lucide-react-native';
 
@@ -527,7 +525,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.error + '20',
+    backgroundColor: `${colors.error}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -556,7 +554,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.warning + '20',
+    backgroundColor: `${colors.warning}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -93,24 +93,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   primaryBar: {
-    backgroundColor: colors.primary + '10',
-    borderColor: colors.primary + '30',
+    backgroundColor: `${colors.primary}10`,
+    borderColor: `${colors.primary}30`,
   },
   warningBar: {
-    backgroundColor: colors.warning + '10',
-    borderColor: colors.warning + '30',
+    backgroundColor: `${colors.warning}10`,
+    borderColor: `${colors.warning}30`,
   },
   dangerBar: {
-    backgroundColor: colors.danger + '10',
-    borderColor: colors.danger + '30',
+    backgroundColor: `${colors.danger}10`,
+    borderColor: `${colors.danger}30`,
   },
   successBar: {
-    backgroundColor: colors.success + '10',
-    borderColor: colors.success + '30',
+    backgroundColor: `${colors.success}10`,
+    borderColor: `${colors.success}30`,
   },
   infoBar: {
-    backgroundColor: colors.secondary + '10',
-    borderColor: colors.secondary + '30',
+    backgroundColor: `${colors.secondary}10`,
+    borderColor: `${colors.secondary}30`,
   },
   actionBarText: {
     fontSize: 14,

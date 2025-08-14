@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,18 +19,13 @@ import {
   ArrowLeft,
   Plus,
   HelpCircle,
-  Search,
   Filter,
   SortAsc,
   SortDesc,
   Activity,
   TrendingUp,
-  Grid3x3,
-  List,
-  MoreHorizontal,
   Folder,
   MessageSquare,
-  Settings,
 } from 'lucide-react-native';
 
 // Components
@@ -39,7 +34,6 @@ import SearchBar from '@/components/admin/SearchBar';
 import FAQItem from '@/components/admin/FAQItem';
 import FAQCategoryItem from '@/components/admin/FAQCategoryItem';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
-import StatCard from '@/components/admin/StatCard';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -1131,7 +1125,7 @@ const styles = StyleSheet.create({
   },
   itemSeparator: {
     height: 1,
-    backgroundColor: colors.background + '40',
+    backgroundColor: `${colors.background}40`,
     marginHorizontal: 16,
   },
   emptyState: {

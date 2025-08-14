@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
-  Dimensions,
 } from 'react-native';
 import {
   Stack,
@@ -17,11 +16,7 @@ import {
   useFocusEffect,
 } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import {
-  TripDetails,
-  TripForm,
-  TripAnalytics,
-} from '@/components/admin/operations';
+import { TripForm } from '@/components/admin/operations';
 import { OperationsTrip } from '@/types/database';
 import { Trip, TripFormData } from '@/types/operations';
 import { useOperationsStore } from '@/store/admin/operationsStore';
@@ -33,15 +28,12 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { formatTripStatus, getTripOccupancy } from '@/utils/tripUtils';
 import {
   BarChart3,
-  Info,
   Edit,
   Trash,
   Users,
   MapPin,
   Clock,
-  Share,
   ArrowLeft,
-  MoreHorizontal,
   RefreshCw,
   Calendar,
   Ship,
@@ -121,7 +113,7 @@ export default function TripDetailsPage() {
       }
 
       // First try to get from tripStore (which has the most up-to-date data after cancel)
-      let tripData = await tripStore.fetchById(id);
+      const tripData = await tripStore.fetchById(id);
 
       if (tripData) {
         // Use the trip data directly with type assertion (both types are compatible in practice)
@@ -454,7 +446,7 @@ export default function TripDetailsPage() {
                 <View
                   style={[
                     styles.statusBadge,
-                    { backgroundColor: tripInfo.status.color + '20' },
+                    { backgroundColor: `${tripInfo.status.color}20` },
                   ]}
                 >
                   <Text
@@ -883,7 +875,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border + '30',
+    borderTopColor: `${colors.border}30`,
   },
   metric: {
     alignItems: 'center',
@@ -920,7 +912,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   dangerButton: {
-    backgroundColor: colors.danger + '10',
+    backgroundColor: `${colors.danger}10`,
   },
   actionButtonText: {
     fontSize: 14,
@@ -1056,7 +1048,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   dangerIconContainer: {
-    backgroundColor: colors.danger + '20',
+    backgroundColor: `${colors.danger}20`,
   },
   managementActionTitle: {
     fontSize: 16,
@@ -1072,15 +1064,15 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   dangerAction: {
-    backgroundColor: colors.danger + '10',
+    backgroundColor: `${colors.danger}10`,
   },
   deleteAction: {
-    backgroundColor: colors.danger + '15',
+    backgroundColor: `${colors.danger}15`,
     borderWidth: 1,
-    borderColor: colors.danger + '30',
+    borderColor: `${colors.danger}30`,
   },
   deleteIconContainer: {
-    backgroundColor: colors.danger + '25',
+    backgroundColor: `${colors.danger}25`,
   },
   deleteActionTitle: {
     color: colors.danger,
@@ -1106,7 +1098,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionMenuItemDanger: {
-    backgroundColor: colors.danger + '20',
+    backgroundColor: `${colors.danger}20`,
   },
   actionMenuText: {
     fontSize: 16,

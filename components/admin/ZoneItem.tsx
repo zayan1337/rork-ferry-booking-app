@@ -4,7 +4,6 @@ import { colors } from '@/constants/adminColors';
 import { Zone } from '@/types/admin/management';
 import {
   MapPin,
-  Activity,
   Clock,
   MoreVertical,
   Globe,

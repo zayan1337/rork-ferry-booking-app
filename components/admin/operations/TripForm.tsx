@@ -16,7 +16,6 @@ import {
   Info,
   Activity,
   Settings,
-  DollarSign,
 } from 'lucide-react-native';
 
 // Components
@@ -502,7 +501,7 @@ export default function TripForm({
               style={[
                 styles.statusDescription,
                 {
-                  backgroundColor: getStatusColor(formData.status) + '10',
+                  backgroundColor: `${getStatusColor(formData.status)}10`,
                   borderLeftColor: getStatusColor(formData.status),
                 },
               ]}
@@ -511,7 +510,7 @@ export default function TripForm({
                 style={[
                   styles.statusDescriptionIcon,
                   {
-                    backgroundColor: getStatusColor(formData.status) + '20',
+                    backgroundColor: `${getStatusColor(formData.status)}20`,
                   },
                 ]}
               >
@@ -776,7 +775,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
   },
@@ -784,7 +783,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -833,7 +832,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.error + '20',
+    backgroundColor: `${colors.error}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -862,7 +861,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.warning + '20',
+    backgroundColor: `${colors.warning}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },

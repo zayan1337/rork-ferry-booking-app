@@ -11,14 +11,11 @@ import {
 import { colors } from '@/constants/adminColors';
 import {
   Shield,
-  AlertTriangle,
   User,
   MessageSquare,
   HelpCircle,
   ArrowRight,
   Crown,
-  CheckCircle,
-  Star,
   Phone,
   Mail,
   ExternalLink,
@@ -219,7 +216,7 @@ export default function NoPermissionsWelcome({
                 <View
                   style={[
                     styles.permissionIcon,
-                    { backgroundColor: suggestion.color + '15' },
+                    { backgroundColor: `${suggestion.color}15` },
                   ]}
                 >
                   <Shield size={16} color={suggestion.color} />
@@ -340,13 +337,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     borderWidth: 1,
-    borderColor: colors.border + '70',
+    borderColor: `${colors.border}70`,
   },
   iconContainer: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -369,13 +366,13 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.warning + '15',
+    backgroundColor: `${colors.warning}15`,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: colors.warning + '30',
+    borderColor: `${colors.warning}30`,
   },
   badgeText: {
     fontSize: 12,
@@ -394,7 +391,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     borderWidth: 1,
-    borderColor: colors.border + '80',
+    borderColor: `${colors.border}80`,
   },
   userHeader: {
     flexDirection: 'row',
@@ -404,7 +401,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -470,7 +467,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     borderWidth: 1,
-    borderColor: colors.border + '80',
+    borderColor: `${colors.border}80`,
   },
   permissionIcon: {
     width: 32,
@@ -507,12 +504,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   helpCard: {
-    backgroundColor: colors.warning + '08',
+    backgroundColor: `${colors.warning}08`,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: colors.warning + '20',
+    borderColor: `${colors.warning}20`,
   },
   helpHeader: {
     flexDirection: 'row',
@@ -536,7 +533,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border + '20',
+    borderColor: `${colors.border}20`,
   },
   helpOptionText: {
     flex: 1,
@@ -548,7 +545,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border + '20',
+    borderTopColor: `${colors.border}20`,
   },
   footerText: {
     fontSize: 13,

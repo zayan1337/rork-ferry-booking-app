@@ -1,6 +1,6 @@
 // Import hooks for internal use
 import { useBookingStore } from './bookingStore';
-import { useRouteStore, useTripStore } from './routeStore';
+import { useRouteStore } from './routeStore';
 import { useSeatStore } from './seatStore';
 import { useBookingOperationsStore } from './bookingOperationsStore';
 import { useUserBookingsStore } from './userBookingsStore';

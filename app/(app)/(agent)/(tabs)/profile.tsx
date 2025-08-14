@@ -34,7 +34,6 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import StatCard from '@/components/StatCard';
-import { AgentInfoCard } from '@/components/agent';
 import { CreditSummaryCard } from '@/components/agent';
 import { SkeletonAgentInfoSection } from '@/components/skeleton';
 

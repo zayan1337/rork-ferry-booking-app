@@ -1,7 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import {
-  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -20,13 +19,11 @@ import {
   CreditCard,
   Settings,
   Ship,
-  MapPin,
   Users,
   User,
   LogOut,
   DollarSign,
   MessageSquare,
-  Activity,
 } from 'lucide-react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -285,12 +282,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconContainerFocused: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
   header: {
     backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border + '30',
+    borderBottomColor: `${colors.border}30`,
     elevation: 0,
     shadowOpacity: 0,
   },
@@ -315,7 +312,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
     borderWidth: 1,
-    borderColor: colors.border + '60',
+    borderColor: `${colors.border}60`,
   },
   noPermissionsContainer: {
     flex: 1,

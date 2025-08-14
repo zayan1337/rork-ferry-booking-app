@@ -15,7 +15,6 @@ import {
   Calendar,
   Clock,
   Users,
-  MapPin,
   CreditCard,
   Save,
   X,

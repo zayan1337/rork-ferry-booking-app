@@ -173,7 +173,7 @@ export default function BookingsScreen() {
 
   // Helper function to get current filter/sort display text
   const getCurrentFilterText = () => {
-    let filterText = [];
+    const filterText = [];
 
     if (filterState.filterStatus !== 'all') {
       filterText.push(
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
     borderWidth: 1,
-    borderColor: colors.border + '60',
+    borderColor: `${colors.border}60`,
   },
 
   searchContainer: {
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border + '40',
+    borderBottomColor: `${colors.border}40`,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: colors.primary + '40',
+    borderColor: `${colors.primary}40`,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: colors.primary + '40',
+    borderColor: `${colors.primary}40`,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   checkboxPartial: {
-    backgroundColor: colors.primary + '40',
+    backgroundColor: `${colors.primary}40`,
     borderColor: colors.primary,
   },
   partialCheckmark: {
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   filterOptionSelected: {
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
   },
   filterOptionText: {
     fontSize: 14,

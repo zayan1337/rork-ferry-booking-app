@@ -110,7 +110,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
       await get().createSeatReservationsForTrip(tripId);
 
       // Get seat reservations with seat details for this trip
-      let { data: seatReservations, error } = await supabase
+      const { data: seatReservations, error } = await supabase
         .from('seat_reservations')
         .select(
           `
@@ -162,7 +162,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
             number: seat.seat_number,
             rowNumber: seat.row_number,
             isWindow: seat.is_window,
-            isAisle: isAisle,
+            isAisle,
             isAvailable: true,
             isSelected: false,
             // Enhanced properties
@@ -243,8 +243,8 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
           number: vesselSeat.seat_number,
           rowNumber: vesselSeat.row_number,
           isWindow: vesselSeat.is_window,
-          isAisle: isAisle,
-          isAvailable: isAvailable,
+          isAisle,
+          isAvailable,
           isSelected: false,
           // Enhanced properties
           seatType: vesselSeat.seat_type || 'standard',
@@ -324,7 +324,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
           number: seat.seat_number,
           rowNumber: seat.row_number,
           isWindow: seat.is_window,
-          isAisle: isAisle,
+          isAisle,
           isAvailable: true,
           isSelected: false,
           // Enhanced properties

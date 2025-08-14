@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: colors.background + '20',
+    borderBottomColor: `${colors.background}20`,
     elevation: 4,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
     height: 48,
   },
   tabActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     transform: [{ scale: 1.05 }],
   },
   tabIconContainer: {

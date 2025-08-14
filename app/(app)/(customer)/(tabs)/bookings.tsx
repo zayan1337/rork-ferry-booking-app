@@ -8,7 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Search, Filter } from 'lucide-react-native';
+import { Search } from 'lucide-react-native';
 import { useUserBookingsStore } from '@/store/userBookingsStore';
 import type { Booking, BookingStatus } from '@/types';
 import Colors from '@/constants/colors';

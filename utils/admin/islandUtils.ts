@@ -242,14 +242,14 @@ export const calculateIslandStats = (islands: Island[]): IslandStats => {
 export const getZoneStatistics = (
   islands: Island[],
   zones: any[]
-): Array<{
+): {
   zone: string;
   zoneId: string;
   totalIslands: number;
   activeIslands: number;
   totalRoutes: number;
   activeRoutes: number;
-}> => {
+}[] => {
   const zoneStats = new Map();
 
   // Initialize with all zones

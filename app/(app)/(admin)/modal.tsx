@@ -22,8 +22,6 @@ import {
   LogOut,
   X,
   Phone,
-  Calendar,
-  MapPin,
   Activity,
 } from 'lucide-react-native';
 import Button from '@/components/admin/Button';

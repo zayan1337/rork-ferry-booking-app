@@ -4,7 +4,7 @@ import Dropdown from '@/components/Dropdown';
 import { formatCurrency } from '@/utils/agentFormatters';
 import { AGENT_PAYMENT_OPTIONS } from '@/utils/bookingFormUtils';
 import Colors from '@/constants/colors';
-import type { AgentClient, Route, Trip } from '@/types/agent';
+import type { AgentClient, Route } from '@/types/agent';
 import type { Seat, Passenger } from '@/types';
 
 interface PaymentStepProps {

@@ -131,10 +131,10 @@ export interface ExportOptions {
 export interface ImportResult {
   success: number;
   failed: number;
-  errors: Array<{
+  errors: {
     row: number;
     error: string;
-  }>;
+  }[];
 }
 
 // ============================================================================
@@ -186,8 +186,8 @@ export interface BulkOperation {
 export interface BulkOperationResult {
   success: number;
   failed: number;
-  errors: Array<{
+  errors: {
     id: string;
     error: string;
-  }>;
+  }[];
 }

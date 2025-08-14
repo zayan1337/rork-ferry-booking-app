@@ -98,7 +98,7 @@ export default function IslandItem({ island, onPress }: IslandItemProps) {
             <View
               style={[
                 styles.zoneBadge,
-                { backgroundColor: getZoneColor(island.zone) + '15' },
+                { backgroundColor: `${getZoneColor(island.zone)}15` },
               ]}
             >
               <Activity size={12} color={getZoneColor(island.zone)} />
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 16,
     borderWidth: 1,
-    borderColor: colors.primary + '20',
+    borderColor: `${colors.primary}20`,
   },
   content: {
     flex: 1,

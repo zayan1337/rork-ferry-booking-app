@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { ArrowLeft, AlertCircle, Save, RotateCcw } from 'lucide-react-native';
+import { ArrowLeft, AlertCircle } from 'lucide-react-native';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { useVesselStore } from '@/store/admin/vesselStore';
 import { AdminManagement } from '@/types';

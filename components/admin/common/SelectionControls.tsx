@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   checkbox: {
     borderWidth: 2,
-    borderColor: colors.primary + '40',
+    borderColor: `${colors.primary}40`,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   checkboxPartial: {
-    backgroundColor: colors.primary + '40',
+    backgroundColor: `${colors.primary}40`,
     borderColor: colors.primary,
   },
   partialCheckmark: {
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   selectionSummary: {
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 6,
     marginBottom: 12,
   },

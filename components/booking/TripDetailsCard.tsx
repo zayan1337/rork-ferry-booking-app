@@ -8,8 +8,6 @@ import {
   CheckCircle,
 } from 'lucide-react-native';
 import Card from '@/components/Card';
-import { formatCurrency } from '@/utils/agentFormatters';
-import { formatBookingDate } from '@/utils/agentFormatters';
 import Colors from '@/constants/colors';
 
 interface TripDetailsCardProps {

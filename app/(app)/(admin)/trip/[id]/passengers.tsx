@@ -27,7 +27,6 @@ import {
   CheckCircle,
   AlertTriangle,
   Download,
-  Share,
 } from 'lucide-react-native';
 
 interface Passenger {
@@ -200,7 +199,7 @@ export default function TripPassengersPage() {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: statusInfo.color + '20' },
+                { backgroundColor: `${statusInfo.color}20` },
               ]}
             >
               <StatusIcon size={12} color={statusInfo.color} />

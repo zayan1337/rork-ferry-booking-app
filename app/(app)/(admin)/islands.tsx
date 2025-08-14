@@ -23,22 +23,17 @@ import {
   filterIslandsByStatus,
   filterIslandsByZone,
   sortIslands,
-  calculateIslandStats,
   getZoneStatistics,
 } from '@/utils/admin/islandUtils';
 import {
   ArrowLeft,
   Plus,
   MapPin,
-  Search,
   Filter,
   SortAsc,
   SortDesc,
   Activity,
   TrendingUp,
-  Grid3x3,
-  List,
-  MoreHorizontal,
 } from 'lucide-react-native';
 
 // Components

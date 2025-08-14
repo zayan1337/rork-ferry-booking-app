@@ -135,7 +135,7 @@ export interface Booking {
   departureTime?: string;
   returnDate?: string;
   passengerCount: number;
-  passengers?: Array<{
+  passengers?: {
     id: string;
     fullName: string;
     contactNumber: string;
@@ -147,7 +147,7 @@ export interface Booking {
       isWindow: boolean;
       isAisle: boolean;
     } | null;
-  }>;
+  }[];
   vessel?: {
     id: string;
     name: string;
@@ -166,13 +166,13 @@ export interface Booking {
     };
     baseFare: number;
   } | null;
-  seats?: Array<{
+  seats?: {
     id: string;
     number: string;
     rowNumber: number;
     isWindow: boolean;
     isAisle: boolean;
-  }>;
+  }[];
   totalAmount: number;
   discountedAmount: number;
   status: 'confirmed' | 'completed' | 'cancelled' | 'pending' | 'modified';

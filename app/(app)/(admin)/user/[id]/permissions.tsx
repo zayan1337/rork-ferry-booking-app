@@ -9,7 +9,6 @@ import {
   Dimensions,
   Alert,
   Modal,
-  Switch,
   ActivityIndicator,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -17,12 +16,9 @@ import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { usePermissionStore } from '@/store/admin/permissionStore';
 import { useAuthStore } from '@/store/authStore';
-import { supabase } from '@/utils/supabase';
 import {
   Shield,
-  Users,
   Settings,
-  Search,
   Filter,
   Save,
   X,
@@ -42,8 +38,6 @@ import {
   ArrowLeft,
   Crown,
   User,
-  Clock,
-  Calendar,
 } from 'lucide-react-native';
 import Button from '@/components/admin/Button';
 import SearchBar from '@/components/admin/SearchBar';
@@ -989,10 +983,9 @@ export default function UserPermissionsScreen() {
                                       style={[
                                         styles.levelBadge,
                                         {
-                                          backgroundColor:
-                                            getPermissionLevelColor(
-                                              permission.level
-                                            ) + '20',
+                                          backgroundColor: `${getPermissionLevelColor(
+                                            permission.level
+                                          )}20`,
                                         },
                                       ]}
                                     >
@@ -1075,7 +1068,7 @@ export default function UserPermissionsScreen() {
                   <View
                     style={[
                       styles.templateIcon,
-                      { backgroundColor: colors.primary + '20' },
+                      { backgroundColor: `${colors.primary}20` },
                     ]}
                   >
                     <Shield size={20} color={colors.primary} />
@@ -1220,11 +1213,11 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 6,
-    backgroundColor: colors.success + '20',
+    backgroundColor: `${colors.success}20`,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.success + '30',
+    borderColor: `${colors.success}30`,
   },
 
   // Modern user info card styles
@@ -1239,7 +1232,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
     overflow: 'hidden',
   },
   userInfoHeader: {
@@ -1298,7 +1291,7 @@ const styles = StyleSheet.create({
   roleTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1313,12 +1306,12 @@ const styles = StyleSheet.create({
   superAdminBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.warning + '15',
+    backgroundColor: `${colors.warning}15`,
     paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.warning + '20',
+    borderTopColor: `${colors.warning}20`,
   },
   superAdminBannerText: {
     fontSize: 14,
@@ -1345,7 +1338,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
-    borderColor: colors.border + '20',
+    borderColor: `${colors.border}20`,
   },
   statValue: {
     fontSize: 24,
@@ -1377,7 +1370,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
-    borderColor: colors.border + '20',
+    borderColor: `${colors.border}20`,
   },
   actionBarLeft: {
     flexDirection: 'row',
@@ -1399,7 +1392,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   outlineButtonActive: {
-    backgroundColor: colors.primary + '08',
+    backgroundColor: `${colors.primary}08`,
   },
   outlineButtonText: {
     fontSize: 12,
@@ -1445,7 +1438,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   categoryTabActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
   },
   categoryTabText: {
     fontSize: 11,
@@ -1474,7 +1467,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     borderWidth: 1,
-    borderColor: colors.border + '20',
+    borderColor: `${colors.border}20`,
     overflow: 'hidden',
   },
   categoryHeader: {
@@ -1482,7 +1475,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 24,
-    backgroundColor: colors.background + '40',
+    backgroundColor: `${colors.background}40`,
   },
   categoryHeaderLeft: {
     flexDirection: 'row',
@@ -1493,12 +1486,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
     borderWidth: 2,
-    borderColor: colors.primary + '30',
+    borderColor: `${colors.primary}30`,
   },
   categoryHeaderInfo: {
     flex: 1,
@@ -1534,7 +1527,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
     overflow: 'hidden',
   },
   permissionItem: {
@@ -1542,8 +1535,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   permissionItemSelected: {
-    backgroundColor: colors.primary + '08',
-    borderColor: colors.primary + '30',
+    backgroundColor: `${colors.primary}08`,
+    borderColor: `${colors.primary}30`,
   },
   permissionLeft: {
     flexDirection: 'row',
@@ -1578,7 +1571,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.danger + '20',
+    backgroundColor: `${colors.danger}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1604,11 +1597,11 @@ const styles = StyleSheet.create({
   dependencyInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.warning + '10',
+    backgroundColor: `${colors.warning}10`,
     padding: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: colors.warning + '30',
+    borderColor: `${colors.warning}30`,
     marginTop: 8,
     gap: 6,
   },
@@ -1663,7 +1656,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
   },
   templateIcon: {
     width: 40,
@@ -1717,7 +1710,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.border + '30',
+    borderColor: `${colors.border}30`,
     gap: 16,
   },
   bulkActionContent: {

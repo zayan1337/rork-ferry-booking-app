@@ -11,12 +11,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import {
-  useUserBookingsStore,
-  useRouteStore,
-  useTripStore,
-  useSeatStore,
-} from '@/store';
+import { useUserBookingsStore, useTripStore, useSeatStore } from '@/store';
 import { supabase } from '@/utils/supabase';
 import { useKeyboardHandler } from '@/hooks/useKeyboardHandler';
 import { useFormValidation } from '@/hooks/useFormValidation';
@@ -28,7 +23,6 @@ import Button from '@/components/Button';
 import DatePicker from '@/components/DatePicker';
 import SeatSelector from '@/components/SeatSelector';
 import { processPayment, calculateFareDifference } from '@/utils/paymentUtils';
-import { formatSimpleDate } from '@/utils/dateUtils';
 import type { Seat } from '@/types';
 import type {
   PaymentMethod,

@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: colors.primary + '40',
+    borderColor: `${colors.primary}40`,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',

@@ -11,10 +11,8 @@ import { TermsAndConditions } from '@/types/content';
 import {
   FileText,
   Calendar,
-  User,
   Edit,
   Trash2,
-  MoreHorizontal,
   Tag,
   Clock,
   CheckCircle,
@@ -74,7 +72,7 @@ const TermsItem: React.FC<TermsItemProps> = ({
 
   const truncateContent = (content: string, maxLength: number = 150) => {
     if (content.length <= maxLength) return content;
-    return content.substring(0, maxLength) + '...';
+    return `${content.substring(0, maxLength)}...`;
   };
 
   const getWordCount = (content: string) => {
@@ -215,7 +213,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,

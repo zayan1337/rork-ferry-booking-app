@@ -8,11 +8,7 @@ import {
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import {
-  ArrowLeft,
-  AlertCircle,
-  Route as RouteIcon,
-} from 'lucide-react-native';
+import { ArrowLeft, AlertCircle } from 'lucide-react-native';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 // UPDATED: Use new route management hook and types
 import { useRouteManagement } from '@/hooks/useRouteManagement';

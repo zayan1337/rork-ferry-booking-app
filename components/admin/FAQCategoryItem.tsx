@@ -96,7 +96,7 @@ const FAQCategoryItem: React.FC<FAQCategoryItemProps> = ({
             <View
               style={[
                 styles.iconContainer,
-                { backgroundColor: categoryColor + '15' },
+                { backgroundColor: `${categoryColor}15` },
               ]}
             >
               <Folder size={20} color={categoryColor} />
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.background + '20',
+    borderColor: `${colors.background}20`,
   },
   containerTablet: {
     marginHorizontal: 24,

@@ -12,11 +12,8 @@ import {
   Users,
   Shield,
   Key,
-  Plus,
   Edit,
   Eye,
-  Clock,
-  Calendar,
   Trash2,
   AlertTriangle,
   Settings,
@@ -382,7 +379,7 @@ export default function PermissionsTab() {
                     style={[
                       styles.roleIcon,
                       {
-                        backgroundColor: getTemplateColor(template.name) + '20',
+                        backgroundColor: `${getTemplateColor(template.name)}20`,
                       },
                     ]}
                   >

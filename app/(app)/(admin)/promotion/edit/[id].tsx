@@ -65,10 +65,10 @@ export default function EditPromotionScreen() {
         // Ensure proper date formatting - only add time if not already present
         start_date: formData.start_date.includes('T')
           ? formData.start_date
-          : formData.start_date + 'T00:00:00Z',
+          : `${formData.start_date}T00:00:00Z`,
         end_date: formData.end_date.includes('T')
           ? formData.end_date
-          : formData.end_date + 'T23:59:59Z',
+          : `${formData.end_date}T23:59:59Z`,
       };
 
       await updatePromotion(promotion.id, promotionData);

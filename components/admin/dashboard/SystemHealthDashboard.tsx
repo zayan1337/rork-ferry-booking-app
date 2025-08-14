@@ -20,7 +20,7 @@ export default function SystemHealthDashboard({
           <View
             style={[
               styles.healthIcon,
-              { backgroundColor: colors.success + '20' },
+              { backgroundColor: `${colors.success}20` },
             ]}
           >
             <Database size={16} color={colors.success} />
@@ -37,7 +37,7 @@ export default function SystemHealthDashboard({
           <View
             style={[
               styles.healthIcon,
-              { backgroundColor: colors.primary + '20' },
+              { backgroundColor: `${colors.primary}20` },
             ]}
           >
             <Wifi size={16} color={colors.primary} />
@@ -52,7 +52,7 @@ export default function SystemHealthDashboard({
           <View
             style={[
               styles.healthIcon,
-              { backgroundColor: colors.warning + '20' },
+              { backgroundColor: `${colors.warning}20` },
             ]}
           >
             <Activity size={16} color={colors.warning} />
@@ -67,7 +67,7 @@ export default function SystemHealthDashboard({
           <View
             style={[
               styles.healthIcon,
-              { backgroundColor: colors.secondary + '20' },
+              { backgroundColor: `${colors.secondary}20` },
             ]}
           >
             <Clock size={16} color={colors.secondary} />

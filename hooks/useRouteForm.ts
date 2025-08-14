@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { RouteFormData, RouteValidationErrors } from '@/types/operations';
-import { DatabaseIsland, OperationsRoute } from '@/types/database';
+import { OperationsRoute } from '@/types/database';
 import { validateRouteForm } from '@/utils/routeUtils';
 import { useOperationsStore } from '@/store/admin/operationsStore';
 

@@ -13,12 +13,8 @@ import {
   SortDesc,
   ArrowUpDown,
   Calendar,
-  Clock,
-  Users,
-  MapPin,
   X,
 } from 'lucide-react-native';
-import Button from '@/components/admin/Button';
 import { SearchFilterBar } from '@/components/admin/common';
 
 export interface TripFiltersState {
@@ -378,7 +374,7 @@ const styles = StyleSheet.create({
   },
   advancedFilters: {
     borderTopWidth: 1,
-    borderTopColor: colors.border + '40',
+    borderTopColor: `${colors.border}40`,
     paddingTop: 16,
     marginTop: 8,
   },
@@ -430,7 +426,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sortButtonActive: {
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     borderColor: colors.primary,
   },
   sortButtonText: {

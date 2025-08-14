@@ -6,7 +6,6 @@ import {
   Text,
   View,
   TextInput,
-  Platform,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -16,7 +15,6 @@ import {
   Calendar,
   Clock,
   Users,
-  MapPin,
   CreditCard,
   Save,
   X,

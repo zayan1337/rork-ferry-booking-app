@@ -4,13 +4,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import { FAQ, FAQCategory, FAQFormData } from '@/types/admin/management';
-import { useFAQManagementStore } from '@/store/admin/faqStore';
+import { FAQ, FAQFormData } from '@/types/admin/management';
 import { useFAQManagement } from '@/hooks/useFAQManagement';
 import {
   HelpCircle,
@@ -18,10 +16,7 @@ import {
   X,
   AlertCircle,
   FileText,
-  MessageSquare,
   Folder,
-  Hash,
-  ToggleLeft,
   Info,
   Settings,
   RotateCcw,
@@ -589,7 +584,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.primary + '20',
+    backgroundColor: `${colors.primary}20`,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -635,7 +630,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.error + '20',
+    backgroundColor: `${colors.error}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -673,7 +668,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.warning + '20',
+    backgroundColor: `${colors.warning}20`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -697,7 +692,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.info + '20',
+    backgroundColor: `${colors.info}20`,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,

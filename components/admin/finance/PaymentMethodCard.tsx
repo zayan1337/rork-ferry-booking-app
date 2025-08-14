@@ -23,7 +23,7 @@ export default function PaymentMethodCard({
     <View style={[styles.card, isTablet && styles.cardTablet]}>
       <View>
         <View style={styles.cardHeader}>
-          <View style={[styles.cardIcon, { backgroundColor: color + '20' }]}>
+          <View style={[styles.cardIcon, { backgroundColor: `${color}20` }]}>
             {icon}
           </View>
           <Text style={styles.cardTitle}>{title}</Text>

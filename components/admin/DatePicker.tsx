@@ -39,7 +39,7 @@ export default function DatePicker({
   const [isVisible, setIsVisible] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(
-    value ? new Date(value + 'T00:00:00') : null
+    value ? new Date(`${value}T00:00:00`) : null
   );
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -109,7 +109,7 @@ export default function DatePicker({
   };
 
   const handleCancel = () => {
-    setSelectedDate(value ? new Date(value + 'T00:00:00') : null);
+    setSelectedDate(value ? new Date(`${value}T00:00:00`) : null);
     setIsVisible(false);
   };
 
@@ -128,7 +128,7 @@ export default function DatePicker({
   };
 
   const formatDisplayDate = (dateString: string) => {
-    const date = new Date(dateString + 'T00:00:00');
+    const date = new Date(`${dateString}T00:00:00`);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',

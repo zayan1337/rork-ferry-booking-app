@@ -115,7 +115,7 @@ export default function UserInfoSection({ user }: UserInfoSectionProps) {
             <View
               style={[
                 styles.infoIcon,
-                { backgroundColor: getRoleColor(user.role) + '20' },
+                { backgroundColor: `${getRoleColor(user.role)}20` },
               ]}
             >
               {getRoleIcon(user.role)}

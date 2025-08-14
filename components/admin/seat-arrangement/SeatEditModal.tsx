@@ -25,7 +25,6 @@ import {
   DollarSign,
   Square,
   ArrowRight,
-  Star,
 } from 'lucide-react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -266,7 +265,7 @@ export default function SeatEditModal({
               <View
                 style={[
                   styles.seatTypeIcon,
-                  { backgroundColor: currentTypeData.color + '20' },
+                  { backgroundColor: `${currentTypeData.color}20` },
                 ]}
               >
                 <currentTypeData.icon size={24} color={currentTypeData.color} />
@@ -734,7 +733,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   selectionOptionSelected: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     borderColor: colors.primary,
     borderWidth: 2,
   },
@@ -882,7 +881,7 @@ const styles = StyleSheet.create({
     minWidth: 80,
   },
   quickOptionSelected: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     borderColor: colors.primary,
   },
   quickOptionText: {
@@ -918,7 +917,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   classButtonSelected: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     borderColor: colors.primary,
   },
   classButtonText: {
@@ -951,7 +950,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   propertyCardActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: `${colors.primary}15`,
     borderColor: colors.primary,
   },
   propertyIcon: {

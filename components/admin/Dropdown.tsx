@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   selectedOption: {
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
   },
   optionText: {
     fontSize: 16,

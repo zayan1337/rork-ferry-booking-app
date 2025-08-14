@@ -1,13 +1,8 @@
 import { useState, useMemo } from 'react';
 import {
   AdminUser,
-  PermissionCategory,
-  RoleTemplate,
-  SystemSettings,
-  SettingsStats,
   PermissionView,
   SettingsTab,
-  Permission,
   NewRole,
 } from '@/types/settings';
 

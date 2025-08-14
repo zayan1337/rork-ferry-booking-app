@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
-import { useBookingStore, useRouteStore, useUserBookingsStore } from '@/store';
+import { useRouteStore, useUserBookingsStore } from '@/store';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';

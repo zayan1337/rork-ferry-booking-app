@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { ArrowLeft, AlertCircle, Edit, Ship } from 'lucide-react-native';
+import { ArrowLeft, AlertCircle } from 'lucide-react-native';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 // UPDATED: Use vessel store directly for fetchVesselDetails
 import { useVesselStore } from '@/store/admin/vesselStore';

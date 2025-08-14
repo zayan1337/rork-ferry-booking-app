@@ -14,7 +14,6 @@ import { colors } from '@/constants/adminColors';
 import { useIslandDetails } from '@/hooks/useIslandManagement';
 import { useOperationsStore } from '@/store/admin/operationsStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
-import { AdminManagement } from '@/types';
 import {
   ArrowLeft,
   Edit,
@@ -24,20 +23,15 @@ import {
   AlertCircle,
   Activity,
   Route as RouteIcon,
-  Ship,
-  Users,
   TrendingUp,
   BarChart3,
   Settings,
-  Clock,
   Info,
 } from 'lucide-react-native';
 
 // Components
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
-import StatusBadge from '@/components/admin/StatusBadge';
-import StatCard from '@/components/admin/StatCard';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -365,7 +359,7 @@ export default function IslandDetailScreen() {
             <View
               style={[
                 styles.islandIcon,
-                { backgroundColor: getZoneColor(island.zone) + '15' },
+                { backgroundColor: `${getZoneColor(island.zone)}15` },
               ]}
             >
               <MapPin size={24} color={getZoneColor(island.zone)} />
@@ -508,7 +502,7 @@ export default function IslandDetailScreen() {
                 <View
                   style={[
                     styles.infoIcon,
-                    { backgroundColor: getZoneColor(island.zone) + '15' },
+                    { backgroundColor: `${getZoneColor(island.zone)}15` },
                   ]}
                 >
                   <Activity size={20} color={getZoneColor(island.zone)} />
@@ -961,7 +955,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.info + '20',
+    backgroundColor: `${colors.info}20`,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,

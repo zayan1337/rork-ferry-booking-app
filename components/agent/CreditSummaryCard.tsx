@@ -7,13 +7,8 @@ import {
   Dimensions,
   ViewStyle,
 } from 'react-native';
-import {
-  CreditCard,
-  RefreshCw,
-  AlertTriangle,
-  TrendingUp,
-} from 'lucide-react-native';
-import { Agent, CreditSummary } from '@/types/agent';
+import { CreditCard, RefreshCw, AlertTriangle } from 'lucide-react-native';
+import { Agent } from '@/types/agent';
 import {
   formatCurrency,
   calculateCreditSummary,

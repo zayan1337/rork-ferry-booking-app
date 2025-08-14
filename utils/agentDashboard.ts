@@ -1,5 +1,5 @@
 import { AgentDashboardStats } from '@/types/agent';
-import { getInactiveBookings, getActiveBookings } from './bookingUtils';
+import { getInactiveBookings } from './bookingUtils';
 
 /**
  * Process and combine dashboard stats from different sources
