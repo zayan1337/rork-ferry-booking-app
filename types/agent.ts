@@ -204,17 +204,6 @@ export interface Client {
   agentClientId?: string; // The agent_clients record ID
 }
 
-export interface CreditTransaction {
-  id: string;
-  date: string;
-  amount: number;
-  type: 'refill' | 'deduction';
-  bookingId?: string;
-  bookingNumber?: string;
-  description?: string;
-  balance: number;
-}
-
 // Dashboard related types
 export interface AgentDashboardStats {
   totalBookings: number;
@@ -241,6 +230,9 @@ export interface CreditTransaction {
   description?: string;
   createdAt: string;
   bookingId?: string;
+  bookingNumber?: string;
+  date: string;
+  balance: number;
 }
 
 export interface CreditSummary {

@@ -369,7 +369,7 @@ export const useAdminStore = create<AdminState>()(
             {
               ...booking,
               id: `b${Date.now()}`,
-              createdAt: new Date().toISOString(),
+              created_at: new Date().toISOString(),
             },
             ...state.bookings,
           ],

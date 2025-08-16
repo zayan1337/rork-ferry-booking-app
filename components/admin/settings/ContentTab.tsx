@@ -440,11 +440,6 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
   },
-  emptyContentContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-  },
   noPermissionContainer: {
     flex: 1,
     alignItems: 'center',
@@ -518,9 +513,6 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 14,
     color: colors.textSecondary,
-  },
-  itemSeparator: {
-    height: 12,
   },
   tabToggleContainer: {
     flexDirection: 'row',

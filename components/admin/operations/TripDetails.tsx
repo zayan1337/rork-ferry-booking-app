@@ -533,53 +533,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statsGridTablet: {
-    gap: 16,
-  },
-  statusSection: {
-    gap: 16,
-  },
-  statusItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  statusIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: `${colors.primary}10`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusContent: {
-    flex: 1,
-  },
-  statusLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  statusValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  statusDescription: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  notes: {
-    fontSize: 16,
-    color: colors.text,
-    lineHeight: 24,
-  },
   weatherContainer: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
@@ -590,18 +543,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 4,
   },
-  weatherImpact: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-  },
   actionContainer: {
     flexDirection: 'row',
     gap: 12,
     marginTop: 8,
-  },
-  actionButton: {
-    flex: 1,
   },
   warningContainer: {
     flexDirection: 'row',
@@ -617,22 +562,6 @@ const styles = StyleSheet.create({
   warningText: {
     fontSize: 14,
     color: colors.danger,
-    flex: 1,
-  },
-  infoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: `${colors.success}10`,
-    borderWidth: 1,
-    borderColor: `${colors.success}30`,
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-  },
-  infoText: {
-    fontSize: 14,
-    color: colors.success,
     flex: 1,
   },
   notesContainer: {

@@ -10,7 +10,7 @@ import { colors } from '@/constants/adminColors';
 import { AdminManagement } from '@/types';
 import {
   Ship,
-  Route,
+  Route as RouteIcon,
   Plus,
   AlertCircle,
   Calendar,
@@ -154,7 +154,7 @@ export default function TripInsights({
           {insights.routesWithoutTrips.length > 0 && (
             <View style={styles.insightCard}>
               <View style={styles.insightHeader}>
-                <Route size={16} color={colors.warning} />
+                <RouteIcon size={16} color={colors.warning} />
                 <Text style={styles.insightTitle}>Routes Need Trips</Text>
               </View>
               <Text style={styles.insightCount}>

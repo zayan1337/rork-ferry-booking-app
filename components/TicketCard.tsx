@@ -152,11 +152,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  qrCode: {
-    width: 150,
-    height: 150,
-    backgroundColor: '#fff',
-  },
   qrPlaceholder: {
     width: 150,
     height: 150,

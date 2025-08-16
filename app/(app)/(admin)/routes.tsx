@@ -525,10 +525,7 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: -8,
   },
-  headerActionButton: {
-    padding: 8,
-    marginRight: -8,
-  },
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

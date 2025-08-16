@@ -891,37 +891,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
   },
-  actionsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.card,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 8,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  dangerButton: {
-    backgroundColor: `${colors.danger}10`,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  dangerButtonText: {
-    color: colors.danger,
-  },
   analyticsCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
@@ -1078,35 +1047,6 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontWeight: '700',
   },
-  actionMenu: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 15,
-    margin: 16,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  actionMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 12,
-  },
-  actionMenuItemDanger: {
-    backgroundColor: `${colors.danger}20`,
-  },
-  actionMenuText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  actionMenuTextDanger: {
-    color: colors.danger,
-  },
   actionMenuOverlay: {
     position: 'absolute',
     top: 0,
@@ -1127,33 +1067,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  comingSoon: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  comingSoonTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginTop: 15,
-  },
-  comingSoonText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 5,
-    marginBottom: 20,
-  },
-  viewButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 8,
-  },
-  viewButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });

@@ -1128,17 +1128,6 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'center',
   },
-  timeInput: {
-    flex: 1,
-    height: 44,
-    paddingHorizontal: 16,
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    fontSize: 16,
-    color: colors.text,
-  },
   addTimeButton: {
     width: 44,
     height: 44,

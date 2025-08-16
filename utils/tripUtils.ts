@@ -98,6 +98,51 @@ export const minutesToTime = (minutes: number): string => {
 };
 
 /**
+ * Formats trip time for display
+ */
+export const formatTripTime = (time: string): string => {
+  return new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+/**
+ * Detects conflicts between trips
+ */
+export const detectTripConflicts = (trips: Trip[]): Trip[] => {
+  const conflicts: Trip[] = [];
+
+  for (let i = 0; i < trips.length; i++) {
+    for (let j = i + 1; j < trips.length; j++) {
+      const trip1 = trips[i];
+      const trip2 = trips[j];
+
+      // Check if same vessel on same date
+      if (
+        trip1.vessel_id === trip2.vessel_id &&
+        trip1.travel_date === trip2.travel_date
+      ) {
+        conflicts.push(trip1, trip2);
+      }
+    }
+  }
+
+  return conflicts;
+};
+
+/**
+ * Calculates occupancy percentage
+ */
+export const calculateOccupancy = (
+  bookings: number,
+  capacity: number
+): number => {
+  if (capacity === 0) return 0;
+  return Math.round((bookings / capacity) * 100);
+};
+
+/**
  * Calculates estimated arrival time based on departure time and route duration
  */
 export const calculateEstimatedArrivalTime = (

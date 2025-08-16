@@ -1,8 +1,5 @@
 export * from './supabase';
 export * from './dateUtils';
-export * from './currencyUtils';
-export * from './bookingUtils';
-export * from './customerUtils';
 export * from './faqUtils';
 export * from './paymentUtils';
 export * from './qrCodeUtils';
@@ -46,5 +43,4 @@ export * from './tripUtils';
 export * from './islandUtils';
 
 // User management utilities
-export * from './userManagementUtils';
 export * from './admin/userManagementUtils';

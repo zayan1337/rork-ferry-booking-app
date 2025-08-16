@@ -162,6 +162,8 @@ const SearchHeader = React.memo(
   }
 );
 
+SearchHeader.displayName = 'SearchHeader';
+
 export default function AgentCreditScreen() {
   const {
     agent,
@@ -236,9 +238,13 @@ export default function AgentCreditScreen() {
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
         case 'oldest':
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
+          return (
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
         case 'amount_high':
           return b.amount - a.amount;
         case 'amount_low':
@@ -282,7 +288,8 @@ export default function AgentCreditScreen() {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     return (
-      creditTransactions?.filter(t => new Date(t.date) >= sevenDaysAgo) || []
+      creditTransactions?.filter(t => new Date(t.createdAt) >= sevenDaysAgo) ||
+      []
     );
   }, [creditTransactions]);
 

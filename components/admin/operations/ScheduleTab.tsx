@@ -499,13 +499,6 @@ const styles = StyleSheet.create({
   filterItem: {
     flex: 1,
   },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-
   header: {
     paddingTop: 16,
   },

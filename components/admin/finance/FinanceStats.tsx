@@ -39,7 +39,7 @@ export default function FinanceStats({
       subtitle: `${todayTransactions} transactions`,
       icon: <TrendingUp size={isTablet ? 20 : 18} color='#34C759' />,
       color: '#34C759',
-      trend: revenueChangePercentage >= 0 ? 'up' : 'down',
+      trend: revenueChangePercentage >= 0 ? ('up' as const) : ('down' as const),
       trendValue: `${Math.abs(revenueChangePercentage)}%`,
     },
     {

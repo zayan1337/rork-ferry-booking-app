@@ -70,6 +70,8 @@ const FAQItem = React.memo<FAQItemProps>(
   }
 );
 
+FAQItem.displayName = 'FAQItem';
+
 // Category Chip Component
 interface CategoryChipProps {
   category: any;
@@ -94,6 +96,8 @@ const CategoryChip = React.memo<CategoryChipProps>(
     </TouchableOpacity>
   )
 );
+
+CategoryChip.displayName = 'CategoryChip';
 
 export default function SupportScreen() {
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);

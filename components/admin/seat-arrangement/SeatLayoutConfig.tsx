@@ -10,7 +10,7 @@ import {
 import { colors } from '@/constants/adminColors';
 import { Plus, Minus, Settings, AlertCircle } from 'lucide-react-native';
 
-interface SeatLayoutConfig {
+interface SeatLayoutConfigData {
   rows: number;
   columns: number;
   aisles: number[];
@@ -21,8 +21,8 @@ interface SeatLayoutConfig {
 }
 
 interface SeatLayoutConfigProps {
-  config: SeatLayoutConfig;
-  onConfigChange: (config: SeatLayoutConfig) => void;
+  config: SeatLayoutConfigData;
+  onConfigChange: (config: SeatLayoutConfigData) => void;
   maxCapacity?: number;
 }
 
@@ -37,11 +37,11 @@ export default function SeatLayoutConfig({
   const [tempColumns, setTempColumns] = useState(config.columns.toString());
   const rowsInputRef = useRef<TextInput>(null);
   const columnsInputRef = useRef<TextInput>(null);
-  const updateConfig = (updates: Partial<SeatLayoutConfig>) => {
+  const updateConfig = (updates: Partial<SeatLayoutConfigData>) => {
     // Only update if there are actual changes
     const hasChanges = Object.keys(updates).some(key => {
-      const currentValue = config[key as keyof SeatLayoutConfig];
-      const newValue = updates[key as keyof SeatLayoutConfig];
+      const currentValue = config[key as keyof SeatLayoutConfigData];
+      const newValue = updates[key as keyof SeatLayoutConfigData];
 
       if (Array.isArray(currentValue) && Array.isArray(newValue)) {
         return JSON.stringify(currentValue) !== JSON.stringify(newValue);
@@ -661,49 +661,6 @@ const styles = StyleSheet.create({
     color: colors.success,
     fontWeight: '500',
   },
-  currentAisles: {
-    marginBottom: 16,
-  },
-  currentAislesLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  aisleList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  aisleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: `${colors.primary}20`,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  aisleItemText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '500',
-    marginRight: 4,
-  },
-  removeAisleButton: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: `${colors.danger}20`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noAislesText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-  },
   addAisleSection: {
     marginBottom: 12,
   },
@@ -742,22 +699,6 @@ const styles = StyleSheet.create({
   aisleButtonTextActive: {
     color: colors.white,
   },
-  addAisleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 8,
-  },
-  addAisleButtonText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '500',
-  },
   rowSelector: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -786,13 +727,6 @@ const styles = StyleSheet.create({
   premiumRowButtonText: {
     color: colors.white,
   },
-  aisleRowButton: {
-    backgroundColor: colors.warning,
-    borderColor: colors.warning,
-  },
-  aisleRowButtonText: {
-    color: colors.white,
-  },
   preview: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
@@ -812,16 +746,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
     marginHorizontal: 1,
   },
-  previewAisle: {
-    backgroundColor: colors.border,
-    width: 16,
-  },
   previewPremium: {
     backgroundColor: colors.primary,
-  },
-  previewRowAisle: {
-    backgroundColor: colors.warning,
-    width: 16,
   },
   previewNote: {
     fontSize: 12,
@@ -854,11 +780,6 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     width: '100%',
   },
-  previewAisleText: {
-    fontSize: 8,
-    color: colors.warning,
-    fontWeight: '600',
-  },
   previewLegend: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -877,15 +798,6 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 2,
-  },
-  legendBoxRowAisle: {
-    width: 20,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.warningLight,
-    borderStyle: 'dashed',
   },
   legendText: {
     fontSize: 12,

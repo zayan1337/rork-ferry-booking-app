@@ -48,7 +48,7 @@ export default function CommunicationStats({
       title: 'Total Notifications',
       value: totalNotifications.toString(),
       subtitle: `${unreadNotifications} unread, ${weeklyNotifications} this week`,
-      trend: weeklyNotifications > 0 ? 'up' : undefined,
+      trend: weeklyNotifications > 0 ? ('up' as const) : undefined,
       trendValue: weeklyNotifications > 0 ? `+${weeklyNotifications}` : '0',
       icon: <Bell size={isTablet ? 20 : 18} color={colors.primary} />,
     },
@@ -56,7 +56,7 @@ export default function CommunicationStats({
       title: 'Bulk Campaigns',
       value: bulkMessages.toString(),
       subtitle: `${activeBulkMessages} active, ${drafts} drafts`,
-      trend: activeBulkMessages > 0 ? 'up' : undefined,
+      trend: activeBulkMessages > 0 ? ('up' as const) : undefined,
       trendValue: activeBulkMessages > 0 ? `+${activeBulkMessages}` : '0',
       icon: (
         <MessageSquare size={isTablet ? 20 : 18} color={colors.secondary} />
@@ -68,7 +68,11 @@ export default function CommunicationStats({
       value: `${deliveryRate}%`,
       subtitle: `${deliveredMessages} delivered, ${failedMessages} failed`,
       trend:
-        deliveryRate >= 90 ? 'up' : deliveryRate >= 70 ? undefined : 'down',
+        deliveryRate >= 90
+          ? ('up' as const)
+          : deliveryRate >= 70
+            ? undefined
+            : ('down' as const),
       trendValue:
         deliveryRate >= 90 ? '+5%' : deliveryRate >= 70 ? '+2%' : '-3%',
       icon: <CheckCircle size={isTablet ? 20 : 18} color='#34C759' />,
@@ -78,7 +82,7 @@ export default function CommunicationStats({
       title: 'Emergency Alerts',
       value: emergencyNotifications.toString(),
       subtitle: `${emergencyNotifications > 0 ? 'Active alerts' : 'No active alerts'}`,
-      trend: emergencyNotifications > 0 ? 'up' : undefined,
+      trend: emergencyNotifications > 0 ? ('up' as const) : undefined,
       trendValue:
         emergencyNotifications > 0 ? `+${emergencyNotifications}` : '0',
       icon: <AlertTriangle size={isTablet ? 20 : 18} color='#FF3B30' />,
@@ -88,7 +92,7 @@ export default function CommunicationStats({
       title: 'Response Time',
       value: averageResponseTime,
       subtitle: 'average customer response',
-      trend: 'down',
+      trend: 'down' as const,
       trendValue: '-0.5 min',
       icon: <Clock size={isTablet ? 20 : 18} color='#FF9500' />,
       color: '#FF9500',
@@ -97,7 +101,7 @@ export default function CommunicationStats({
       title: 'Engagement Rate',
       value: engagementRate,
       subtitle: 'message open and interaction rate',
-      trend: 'up',
+      trend: 'up' as const,
       trendValue: '+4%',
       icon: <Eye size={isTablet ? 20 : 18} color='#5856D6' />,
       color: '#5856D6',

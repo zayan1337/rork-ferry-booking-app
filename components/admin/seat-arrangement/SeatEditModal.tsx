@@ -678,9 +678,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     letterSpacing: 0.3,
   },
-  infoGrid: {
-    gap: 16,
-  },
   infoItem: {
     gap: 10,
   },
@@ -748,9 +745,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '700',
   },
-  featuresContainer: {
-    gap: 18,
-  },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -777,19 +771,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 18,
   },
-  priceContainer: {
-    gap: 12,
-  },
-  priceField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   priceLabel: {
     flex: 1,
     fontSize: 14,
@@ -800,12 +781,6 @@ const styles = StyleSheet.create({
     width: 80,
     textAlign: 'center',
     backgroundColor: colors.background,
-  },
-  priceDescription: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
   footer: {
     padding: 24,

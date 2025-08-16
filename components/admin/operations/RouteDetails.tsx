@@ -465,9 +465,6 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 8,
   },
-  actionButton: {
-    flex: 1,
-  },
   warningContainer: {
     flexDirection: 'row',
     alignItems: 'center',

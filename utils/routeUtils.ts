@@ -98,9 +98,20 @@ export const formatRouteDuration = (duration: string): string => {
     return `${hours}h`;
   } else if (minutes > 0) {
     return `${minutes}m`;
-  } else {
-    return duration;
   }
+
+  return '0m';
+};
+
+/**
+ * Formats currency for display
+ */
+export const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'MVR',
+    minimumFractionDigits: 2,
+  }).format(amount);
 };
 
 /**

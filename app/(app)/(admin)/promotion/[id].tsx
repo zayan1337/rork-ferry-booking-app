@@ -1355,9 +1355,6 @@ const styles = StyleSheet.create({
     gap: 16,
     marginTop: 8,
   },
-  actionButton: {
-    marginBottom: 8,
-  },
   deleteButton: {
     borderColor: colors.error,
   },

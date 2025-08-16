@@ -289,11 +289,6 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: 16,
   },
-  legend: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
   legendContainer: {
     marginBottom: 16,
   },
@@ -347,12 +342,6 @@ const styles = StyleSheet.create({
   },
   row: {
     marginBottom: 10,
-  },
-  rowLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: 6,
   },
   seats: {
     flexDirection: 'row',
@@ -445,44 +434,19 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginTop: 16,
   },
-  aisle: {
-    width: 30,
-    height: seatSize,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 8,
-  },
-  aisleIndicator: {
-    width: 2,
-    height: seatSize - 10,
-    backgroundColor: Colors.border,
-    borderRadius: 1,
-  },
   windowIndicator: {
     width: 20,
     height: 2,
     backgroundColor: Colors.primary,
     marginTop: 2,
   },
-  aisleIndicatorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-    marginTop: 4,
-    marginLeft: 4,
-  },
+
   seatsGrid: {
     flexDirection: 'column',
   },
   horizontalScrollContent: {
     paddingVertical: 16,
     paddingHorizontal: 8,
-  },
-  legendBoxText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.text,
   },
 });
 

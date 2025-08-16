@@ -352,10 +352,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 8,
   },
-  sectionHeaderButton: {
-    flexShrink: 0,
-    maxWidth: '40%',
-  },
   sectionHeaderActions: {
     flexDirection: 'row',
     gap: 8,

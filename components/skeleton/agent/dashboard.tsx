@@ -674,23 +674,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  transactionInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  transactionDateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  transactionBookingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  transactionAmountContainer: {
-    alignItems: 'flex-end',
-  },
   transactionMainContent: {
     flex: 1,
     marginLeft: 12,

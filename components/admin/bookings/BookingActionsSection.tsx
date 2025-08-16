@@ -1,0 +1,379 @@
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { AdminBooking, BookingStatus } from '@/types/admin/management';
+import StatusBadge from '@/components/admin/StatusBadge';
+import {
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Eye,
+  User,
+  CreditCard,
+  Clock,
+  FileText,
+  Printer,
+  MessageSquare,
+  Receipt,
+} from 'lucide-react-native';
+
+interface BookingActionsSectionProps {
+  booking: AdminBooking;
+  onStatusUpdate?: (status: BookingStatus) => Promise<void>;
+  onPaymentStatusUpdate?: (status: string) => Promise<void>;
+  onViewCustomer?: () => void;
+  canUpdateBookings?: boolean;
+  loading?: boolean;
+}
+
+export default function BookingActionsSection({
+  booking,
+  onStatusUpdate,
+  onPaymentStatusUpdate,
+  onViewCustomer,
+  canUpdateBookings = false,
+  loading = false,
+}: BookingActionsSectionProps) {
+  const handleStatusUpdate = async (newStatus: BookingStatus) => {
+    if (!onStatusUpdate) return;
+
+    try {
+      await onStatusUpdate(newStatus);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update booking status');
+    }
+  };
+
+  const handlePaymentStatusUpdate = async (newStatus: string) => {
+    if (!onPaymentStatusUpdate) return;
+
+    try {
+      await onPaymentStatusUpdate(newStatus);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update payment status');
+    }
+  };
+
+  const getStatusActions = () => {
+    const actions = [];
+
+    // Status update actions based on current status
+    switch (booking.status) {
+      case 'reserved':
+        actions.push(
+          <TouchableOpacity
+            key='confirm'
+            style={[styles.actionButton, styles.primaryAction]}
+            onPress={() => handleStatusUpdate('confirmed')}
+            disabled={loading || !canUpdateBookings}
+          >
+            <CheckCircle size={18} color='#FFFFFF' />
+            <Text style={styles.actionButtonText}>Confirm Booking</Text>
+          </TouchableOpacity>
+        );
+        break;
+      case 'pending_payment':
+        actions.push(
+          <TouchableOpacity
+            key='confirm'
+            style={[styles.actionButton, styles.primaryAction]}
+            onPress={() => handleStatusUpdate('confirmed')}
+            disabled={loading || !canUpdateBookings}
+          >
+            <CheckCircle size={18} color='#FFFFFF' />
+            <Text style={styles.actionButtonText}>Confirm Payment</Text>
+          </TouchableOpacity>
+        );
+        break;
+      case 'confirmed':
+        actions.push(
+          <TouchableOpacity
+            key='checkin'
+            style={[styles.actionButton, styles.primaryAction]}
+            onPress={() => handleStatusUpdate('checked_in')}
+            disabled={loading || !canUpdateBookings}
+          >
+            <Eye size={18} color='#FFFFFF' />
+            <Text style={styles.actionButtonText}>Check In</Text>
+          </TouchableOpacity>
+        );
+        break;
+      case 'checked_in':
+        actions.push(
+          <TouchableOpacity
+            key='complete'
+            style={[styles.actionButton, styles.primaryAction]}
+            onPress={() => handleStatusUpdate('completed')}
+            disabled={loading || !canUpdateBookings}
+          >
+            <CheckCircle size={18} color='#FFFFFF' />
+            <Text style={styles.actionButtonText}>Mark Complete</Text>
+          </TouchableOpacity>
+        );
+        break;
+    }
+
+    // Cancel action for active bookings
+    if (['reserved', 'pending_payment', 'confirmed'].includes(booking.status)) {
+      actions.push(
+        <TouchableOpacity
+          key='cancel'
+          style={[styles.actionButton, styles.dangerAction]}
+          onPress={() => handleStatusUpdate('cancelled')}
+          disabled={loading || !canUpdateBookings}
+        >
+          <XCircle size={18} color='#FFFFFF' />
+          <Text style={styles.actionButtonText}>Cancel Booking</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return actions;
+  };
+
+  const getPaymentActions = () => {
+    if (!booking.payment_status) return [];
+
+    const actions = [];
+
+    switch (booking.payment_status) {
+      case 'pending':
+        actions.push(
+          <TouchableOpacity
+            key='mark-paid'
+            style={[styles.actionButton, styles.primaryAction]}
+            onPress={() => handlePaymentStatusUpdate('completed')}
+            disabled={loading || !canUpdateBookings}
+          >
+            <CheckCircle size={18} color='#FFFFFF' />
+            <Text style={styles.actionButtonText}>Mark as Paid</Text>
+          </TouchableOpacity>
+        );
+        break;
+      case 'completed':
+        actions.push(
+          <TouchableOpacity
+            key='refund'
+            style={[styles.actionButton, styles.outlineAction]}
+            onPress={() => handlePaymentStatusUpdate('refunded')}
+            disabled={loading || !canUpdateBookings}
+          >
+            <RefreshCw size={18} color={colors.primary} />
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>
+              Process Refund
+            </Text>
+          </TouchableOpacity>
+        );
+        break;
+    }
+
+    return actions;
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.sectionTitle}>Booking Management</Text>
+
+      {/* Status Management */}
+      <View style={styles.actionGroup}>
+        <View style={styles.groupHeader}>
+          <Clock size={20} color={colors.primary} />
+          <Text style={styles.groupTitle}>Booking Status</Text>
+        </View>
+        <View style={styles.statusDisplay}>
+          {/* <StatusBadge status={booking.status} /> */}
+          <Text style={styles.statusText}>
+            Current status: {booking.status.replace('_', ' ')}
+          </Text>
+        </View>
+
+        {canUpdateBookings && (
+          <View style={styles.actionButtons}>{getStatusActions()}</View>
+        )}
+      </View>
+
+      {/* Payment Management */}
+      {booking.payment_status && (
+        <View style={styles.actionGroup}>
+          <View style={styles.groupHeader}>
+            <CreditCard size={20} color={colors.primary} />
+            <Text style={styles.groupTitle}>Payment Status</Text>
+          </View>
+          <View style={styles.statusDisplay}>
+            <StatusBadge
+              status={booking.payment_status as any}
+              variant='payment'
+            />
+            <Text style={styles.statusText}>
+              Payment: {booking.payment_status}
+            </Text>
+          </View>
+
+          {canUpdateBookings && (
+            <View style={styles.actionButtons}>{getPaymentActions()}</View>
+          )}
+        </View>
+      )}
+
+      {/* Customer Actions */}
+      <View style={styles.actionGroup}>
+        <View style={styles.groupHeader}>
+          <User size={20} color={colors.primary} />
+          <Text style={styles.groupTitle}>Customer Actions</Text>
+        </View>
+        <View style={styles.actionButtons}>
+          {onViewCustomer && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.outlineAction]}
+              onPress={onViewCustomer}
+            >
+              <User size={18} color={colors.primary} />
+              <Text
+                style={[styles.actionButtonText, { color: colors.primary }]}
+              >
+                View Customer
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.outlineAction]}
+            onPress={() =>
+              Alert.alert(
+                'Feature Coming Soon',
+                'Contact customer functionality will be available soon.'
+              )
+            }
+          >
+            <MessageSquare size={18} color={colors.primary} />
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>
+              Contact Customer
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Document Actions */}
+      <View style={styles.actionGroup}>
+        <View style={styles.groupHeader}>
+          <FileText size={20} color={colors.primary} />
+          <Text style={styles.groupTitle}>Documents & Reports</Text>
+        </View>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.outlineAction]}
+            onPress={() =>
+              Alert.alert(
+                'Feature Coming Soon',
+                'Print ticket functionality will be available soon.'
+              )
+            }
+          >
+            <Printer size={18} color={colors.primary} />
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>
+              Print Ticket
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.outlineAction]}
+            onPress={() =>
+              Alert.alert(
+                'Feature Coming Soon',
+                'Generate receipt functionality will be available soon.'
+              )
+            }
+          >
+            <Receipt size={18} color={colors.primary} />
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>
+              Generate Receipt
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 20,
+  },
+  actionGroup: {
+    marginBottom: 24,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
+  groupTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  statusDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  actionButtons: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+    minHeight: 44,
+    flex: 1,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  primaryAction: {
+    backgroundColor: colors.primary,
+  },
+  dangerAction: {
+    backgroundColor: colors.danger,
+  },
+  outlineAction: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+});

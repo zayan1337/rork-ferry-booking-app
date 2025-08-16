@@ -159,6 +159,13 @@ export const useAdminPermissions = () => {
       PERMISSION_RESOURCES.BOOKINGS,
       PERMISSION_ACTIONS.EXPORT
     );
+  const canDeleteBookings = () =>
+    hasPermissionCheck(
+      PERMISSION_RESOURCES.BOOKINGS,
+      PERMISSION_ACTIONS.DELETE
+    );
+  const canManageBookings = () =>
+    canCreateBookings() || canUpdateBookings() || canDeleteBookings();
 
   // Operations permissions (Routes, Trips, Vessels)
   const canViewRoutes = () =>
@@ -461,6 +468,8 @@ export const useAdminPermissions = () => {
     canUpdateBookings,
     canCancelBookings,
     canExportBookings,
+    canDeleteBookings,
+    canManageBookings,
 
     // Operations
     canViewRoutes,

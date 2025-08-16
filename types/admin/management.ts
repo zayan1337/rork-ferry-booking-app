@@ -1626,3 +1626,106 @@ export interface BaseListProps<T> {
   onItemDelete?: (id: string) => void;
   onAdd?: () => void;
 }
+
+// Admin Booking Types
+export interface AdminBooking {
+  id: string;
+  booking_number: string;
+  user_id: string;
+  trip_id: string;
+  is_round_trip: boolean;
+  return_booking_id?: string;
+  status: BookingStatus;
+  total_fare: number;
+  qr_code_url?: string;
+  check_in_status: boolean;
+  agent_id?: string;
+  agent_client_id?: string;
+  payment_method_type?: string;
+  round_trip_group_id?: string;
+  created_at: string;
+  updated_at: string;
+
+  // Joined data from admin_bookings_view
+  user_name?: string;
+  user_email?: string;
+  user_mobile?: string;
+  trip_travel_date?: string;
+  trip_departure_time?: string;
+  trip_base_fare?: number;
+  vessel_name?: string;
+  vessel_capacity?: number;
+  route_name?: string;
+  from_island_name?: string;
+  to_island_name?: string;
+  agent_name?: string;
+  agent_email?: string;
+  passenger_count?: number;
+  payment_status?: string;
+  payment_amount?: number;
+  payment_method?: string;
+}
+
+export type BookingStatus =
+  | 'reserved'
+  | 'pending_payment'
+  | 'confirmed'
+  | 'checked_in'
+  | 'completed'
+  | 'cancelled';
+
+export interface AdminBookingStats {
+  total_bookings: number;
+  today_bookings: number;
+  today_bookings_change: string;
+  today_revenue: number;
+  today_revenue_change: string;
+  total_revenue: number;
+  confirmed_count: number;
+  confirmed_rate: string;
+  reserved_count: number;
+  cancelled_count: number;
+  completed_count: number;
+  pending_payment_count: number;
+  checked_in_count: number;
+}
+
+export interface AdminBookingFilters {
+  searchQuery: string;
+  filterStatus: BookingStatus | 'all';
+  filterAgent: string | 'all';
+  filterRoute: string | 'all';
+  filterDateRange: {
+    start: string | null;
+    end: string | null;
+  };
+  sortBy:
+    | 'created_at'
+    | 'total_fare'
+    | 'user_name'
+    | 'route_name'
+    | 'trip_travel_date';
+  sortOrder: 'asc' | 'desc';
+  selectedBookings: string[];
+}
+
+export interface AdminBookingFormData {
+  user_id: string;
+  trip_id: string;
+  is_round_trip: boolean;
+  return_booking_id?: string;
+  total_fare: number;
+  agent_id?: string;
+  agent_client_id?: string;
+  payment_method_type?: string;
+  passengers: AdminPassenger[];
+}
+
+export interface AdminPassenger {
+  id?: string;
+  booking_id?: string;
+  seat_id?: string;
+  passenger_name: string;
+  passenger_contact_number: string;
+  special_assistance_request?: string;
+}

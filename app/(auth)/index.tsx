@@ -280,15 +280,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  demoContainer: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  demoText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-  },
   forgotPasswordContainer: {
     alignSelf: 'flex-end',
     marginTop: 4,

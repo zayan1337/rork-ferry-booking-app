@@ -1,324 +1,938 @@
-import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { colors } from '@/constants/adminColors';
-import { useAdminStore } from '@/store/admin/adminStore';
+import React, { useEffect, useState } from 'react';
 import {
-  Calendar,
-  Clock,
-  Users,
-  MapPin,
-  CreditCard,
-  Mail,
-  Edit3,
-  Trash2,
-  CheckCircle,
+  View,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  RefreshControl,
+  Dimensions,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import {
+  Stack,
+  router,
+  useLocalSearchParams,
+  useFocusEffect,
+} from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { AdminBooking, BookingStatus } from '@/types/admin/management';
+import { useAdminBookingStore } from '@/store/admin/bookingStore';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import {
+  BookingActionsSection,
+  BookingQRCode,
+  BookingTripDetails,
+  BookingPaymentDetails,
+  BookingPassengerDetails,
+} from '@/components/admin/bookings';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Edit,
   RefreshCw,
+  Users,
+  CreditCard,
+  Calendar,
+  MapPin,
+  Clock,
+  User,
+  Phone,
+  Mail,
 } from 'lucide-react-native';
-import Button from '@/components/admin/Button';
-import StatusBadge from '@/components/admin/StatusBadge';
+import {
+  formatDateTime,
+  formatCurrency,
+} from '@/utils/admin/bookingManagementUtils';
 
-export default function BookingDetailsScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { bookings, users, updateBooking, deleteBooking } = useAdminStore();
-  const [loading, setLoading] = useState(false);
+const { width: screenWidth } = Dimensions.get('window');
 
-  const booking = bookings?.find(b => b.id === id);
-  const customer = users?.find(u => u.id === booking?.customerId);
+export default function BookingDetailsPage() {
+  const { id } = useLocalSearchParams();
+  const {
+    fetchBooking,
+    updateBooking,
+    loading: storeLoading,
+    error: storeError,
+  } = useAdminBookingStore();
+  const { canViewBookings, canUpdateBookings } = useAdminPermissions();
 
-  if (!booking) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Booking not found</Text>
-        <Button
-          title='Go Back'
-          onPress={() => router.back()}
-          variant='primary'
-        />
-      </View>
-    );
-  }
+  const [booking, setBooking] = useState<AdminBooking | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
-  const handleStatusUpdate = async (newStatus: typeof booking.status) => {
-    setLoading(true);
+  // Auto-refresh when page is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      loadBooking();
+    }, [])
+  );
+
+  useEffect(() => {
+    loadBooking();
+  }, [id]);
+
+  const loadBooking = async (showRefreshIndicator = false) => {
     try {
-      updateBooking(booking.id, { status: newStatus });
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (showRefreshIndicator) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      if (!id || typeof id !== 'string') {
+        setError('Invalid booking ID');
+        return;
+      }
+
+      const fetchedBooking = await fetchBooking(id);
+
+      if (fetchedBooking) {
+        setBooking(fetchedBooking);
+      } else {
+        setError(`Booking with ID "${id}" not found`);
+      }
+    } catch (err) {
+      setError('Failed to load booking details');
+      console.error('Error loading booking:', err);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
-  const handlePaymentStatusUpdate = async (
-    newStatus: typeof booking.paymentStatus
-  ) => {
-    setLoading(true);
+  const handleRefresh = async () => {
+    if (!id || typeof id !== 'string') return;
+    await loadBooking(true);
+  };
+
+  const handleStatusUpdate = async (newStatus: BookingStatus) => {
+    if (!booking) return;
+
+    setUpdating(true);
     try {
-      updateBooking(booking.id, { paymentStatus: newStatus });
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await updateBooking(booking.id, { status: newStatus });
+      // Refresh the booking data
+      const updatedBooking = await fetchBooking(booking.id);
+      if (updatedBooking) {
+        setBooking(updatedBooking);
+      }
+      Alert.alert('Success', 'Booking status updated successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update booking status');
     } finally {
-      setLoading(false);
+      setUpdating(false);
+    }
+  };
+
+  const handlePaymentStatusUpdate = async (newStatus: string) => {
+    if (!booking) return;
+
+    setUpdating(true);
+    try {
+      await updateBooking(booking.id, { payment_status: newStatus });
+      // Refresh the booking data
+      const updatedBooking = await fetchBooking(booking.id);
+      if (updatedBooking) {
+        setBooking(updatedBooking);
+      }
+      Alert.alert('Success', 'Payment status updated successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update payment status');
+    } finally {
+      setUpdating(false);
     }
   };
 
   const handleEdit = () => {
-    router.push(`/booking/${booking.id}/edit` as any);
+    if (!booking) return;
+    router.push(`../booking/${booking.id}/edit` as any);
   };
 
-  const handleDelete = () => {
+  const handleViewCustomer = () => {
+    if (!booking?.user_id) return;
+    router.push(`../user/${booking.user_id}` as any);
+  };
+
+  const handleShareQR = () => {
     Alert.alert(
-      'Delete Booking',
-      'Are you sure you want to delete this booking? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            deleteBooking(booking.id);
-            router.back();
-          },
-        },
-      ]
+      'Share QR Code',
+      'QR code sharing functionality will be implemented here.'
     );
   };
 
+  const handleDownloadQR = () => {
+    Alert.alert(
+      'Download QR Code',
+      'QR code download functionality will be implemented here.'
+    );
+  };
+
+  const getBookingStatusInfo = (booking: AdminBooking) => {
+    const status = booking.status;
+    const paymentStatus = booking.payment_status;
+    const passengerCount = booking.passenger_count || 1;
+    const totalFare = booking.total_fare || 0;
+    const baseFare = booking.trip_base_fare || 0;
+
+    // Calculate actual payment amount
+    let paymentAmount = 0;
+
+    // Use the payment amount from the database view (which now properly aggregates payments)
+    if (
+      booking.payment_amount !== null &&
+      booking.payment_amount !== undefined
+    ) {
+      paymentAmount = booking.payment_amount;
+    } else {
+      // Fallback: If no payment amount in database, infer based on status
+      switch (booking.status) {
+        case 'confirmed':
+        case 'checked_in':
+        case 'completed':
+          // For confirmed bookings without payment records, assume they paid the total fare
+          paymentAmount = totalFare;
+          break;
+        case 'pending_payment':
+          paymentAmount = 0; // No payment yet
+          break;
+        case 'cancelled':
+          paymentAmount = 0; // No payment for cancelled bookings
+          break;
+        default:
+          paymentAmount = 0;
+      }
+    }
+
+    // Calculate discount (difference between total fare and what was actually paid)
+    const discount = Math.max(0, totalFare - paymentAmount);
+
+    // Calculate any additional charges (if payment amount is more than total fare)
+    const additionalCharges = Math.max(0, paymentAmount - totalFare);
+
+    // For debugging - let's log the values
+    console.log('Payment Debug:', {
+      bookingId: booking.id,
+      totalFare,
+      baseFare,
+      paymentAmount,
+      discount,
+      paymentStatus: booking.payment_status,
+      bookingStatus: booking.status,
+      rawPaymentAmount: booking.payment_amount,
+      hasDiscount: discount > 0,
+      hasAdditionalCharges: additionalCharges > 0,
+    });
+
+    return {
+      status,
+      paymentStatus,
+      passengerCount,
+      totalFare,
+      baseFare,
+      paymentAmount,
+      discount,
+      additionalCharges,
+      isAgentBooking: !!booking.agent_id,
+    };
+  };
+
+  // Helper function to determine payment status
+  const getPaymentStatus = (booking: AdminBooking) => {
+    // If there's a specific payment status from the payments table, use it
+    if (booking.payment_status) {
+      return booking.payment_status;
+    }
+
+    // Otherwise, infer from booking status
+    switch (booking.status) {
+      case 'confirmed':
+      case 'checked_in':
+      case 'completed':
+        return 'completed';
+      case 'pending_payment':
+        return 'pending';
+      case 'cancelled':
+        return 'refunded';
+      default:
+        return 'pending';
+    }
+  };
+
+  // Helper function to determine payment amount
+  const getPaymentAmount = (booking: AdminBooking) => {
+    // If there's a specific payment amount from the payments table, use it
+    if (booking.payment_amount && booking.payment_amount > 0) {
+      return booking.payment_amount;
+    }
+
+    // Otherwise, infer from booking status
+    switch (booking.status) {
+      case 'confirmed':
+      case 'checked_in':
+      case 'completed':
+        return booking.total_fare; // Assume full payment for confirmed bookings
+      case 'pending_payment':
+        return 0; // No payment yet
+      case 'cancelled':
+        return 0; // No payment for cancelled bookings
+      default:
+        return 0;
+    }
+  };
+
+  if (!canViewBookings()) {
+    return (
+      <View style={styles.noPermissionContainer}>
+        <Stack.Screen
+          options={{
+            title: 'Access Denied',
+            headerShown: true,
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+              >
+                <ArrowLeft size={24} color={colors.primary} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+        <AlertTriangle size={48} color={colors.warning} />
+        <Text style={styles.noPermissionText}>
+          You don't have permission to view booking details.
+        </Text>
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Stack.Screen
+          options={{
+            title: 'Loading...',
+            headerShown: true,
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+              >
+                <ArrowLeft size={24} color={colors.primary} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+        <ActivityIndicator size='large' color={colors.primary} />
+        <Text style={styles.loadingText}>Loading booking details...</Text>
+      </View>
+    );
+  }
+
+  if (error || !booking) {
+    return (
+      <View style={styles.errorContainer}>
+        <Stack.Screen
+          options={{
+            title: 'Booking Not Found',
+            headerShown: true,
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+              >
+                <ArrowLeft size={24} color={colors.primary} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+        <Text style={styles.errorTitle}>Booking Not Found</Text>
+        <Text style={styles.errorMessage}>
+          {error ||
+            'The requested booking could not be found. It may have been cancelled or removed.'}
+        </Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => loadBooking()}
+        >
+          <RefreshCw size={16} color='#FFFFFF' />
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const bookingInfo = getBookingStatusInfo(booking);
+  const paymentStatus = getPaymentStatus(booking);
+  const paymentAmount = getPaymentAmount(booking);
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
+    <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: `Booking #${booking.id}`,
-          headerRight: () => (
-            <View style={styles.headerActions}>
-              <Button
-                title='Edit'
-                variant='outline'
-                size='small'
-                icon={<Edit3 size={16} color={colors.primary} />}
-                onPress={handleEdit}
-              />
-            </View>
+          title: `Booking #${booking.booking_number}`,
+          headerShown: true,
+          presentation: 'card',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <ArrowLeft size={24} color={colors.primary} />
+            </TouchableOpacity>
           ),
+          headerRight: () =>
+            canUpdateBookings() ? (
+              <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
+                <Edit size={20} color={colors.primary} />
+              </TouchableOpacity>
+            ) : null,
         }}
       />
 
-      {/* Booking Status Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Booking Status</Text>
-          <View style={styles.statusContainer}>
-            <StatusBadge status={booking.status as any} />
-            <StatusBadge
-              status={booking.paymentStatus as any}
-              size='small'
-              variant='payment'
-            />
-          </View>
-        </View>
-
-        <View style={styles.statusActions}>
-          <Button
-            title='Confirm'
-            variant='primary'
-            size='small'
-            disabled={booking.status === 'confirmed' || loading}
-            loading={loading}
-            onPress={() => handleStatusUpdate('confirmed')}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
-          <Button
-            title='Cancel'
-            variant='danger'
-            size='small'
-            disabled={booking.status === 'cancelled' || loading}
-            onPress={() => handleStatusUpdate('cancelled')}
-          />
-        </View>
-      </View>
-
-      {/* Trip Details Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Trip Details</Text>
-
-        <View style={styles.detailRow}>
-          <MapPin size={20} color={colors.primary} />
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Route</Text>
-            <Text style={styles.detailValue}>{booking.routeName}</Text>
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Booking Overview Card */}
+        <View style={styles.overviewCard}>
+          {/* Header */}
+          <View style={styles.overviewHeader}>
+            <View style={styles.overviewHeaderLeft}>
+              <Text style={styles.bookingId}>
+                Booking #{booking.booking_number}
+              </Text>
+              <View style={styles.routeInfo}>
+                <MapPin size={16} color={colors.primary} />
+                <Text style={styles.routeName}>
+                  {booking.from_island_name || 'Unknown'} →{' '}
+                  {booking.to_island_name || 'Unknown'}
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.detailRow}>
-          <Calendar size={20} color={colors.primary} />
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Date</Text>
-            <Text style={styles.detailValue}>{booking.date}</Text>
-          </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Clock size={20} color={colors.primary} />
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Departure Time</Text>
-            <Text style={styles.detailValue}>{booking.departureTime}</Text>
-          </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Users size={20} color={colors.primary} />
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Passengers</Text>
-            <Text style={styles.detailValue}>{booking.passengers}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Customer Details Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Customer Information</Text>
-
-        <View style={styles.detailRow}>
-          <Users size={20} color={colors.primary} />
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Name</Text>
-            <Text style={styles.detailValue}>{booking.customerName}</Text>
-          </View>
-        </View>
-
-        {customer && (
-          <>
+          {/* Details Grid */}
+          <View style={styles.detailsGrid}>
             <View style={styles.detailRow}>
-              <Mail size={20} color={colors.primary} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Email</Text>
-                <Text style={styles.detailValue}>{customer.email}</Text>
+              <View style={styles.detailItem}>
+                <Calendar size={16} color={colors.textSecondary} />
+                <Text style={styles.detailText}>
+                  {
+                    formatDateTime(
+                      booking.trip_travel_date || booking.created_at
+                    ).split(' ')[0]
+                  }
+                </Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Clock size={16} color={colors.textSecondary} />
+                <Text style={styles.detailText}>
+                  {booking.trip_departure_time || 'N/A'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.statusContainer}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: `${getStatusColor(booking.status)}20` },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: getStatusColor(booking.status) },
+                  ]}
+                >
+                  {booking.status.replace('_', ' ').toUpperCase()}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: `${getPaymentStatusColor(paymentStatus)}20`,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: getPaymentStatusColor(paymentStatus) },
+                  ]}
+                >
+                  {paymentStatus.toUpperCase()}
+                </Text>
               </View>
             </View>
 
             <View style={styles.detailRow}>
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Customer Status</Text>
-                <StatusBadge status={customer.status as any} size='small' />
+              <View style={styles.detailItem}>
+                <Users size={16} color={colors.textSecondary} />
+                <Text style={styles.detailText}>
+                  {bookingInfo.passengerCount} passenger(s)
+                </Text>
+              </View>
+              <View style={styles.detailItem}>
+                <CreditCard size={16} color={colors.textSecondary} />
+                <Text style={styles.detailText}>
+                  {formatCurrency(bookingInfo.totalFare)}
+                </Text>
               </View>
             </View>
-          </>
-        )}
+          </View>
 
-        <Button
-          title='View Customer Profile'
-          variant='outline'
-          size='small'
-          onPress={() => router.push(`/user/${booking.customerId}` as any)}
+          {/* Metrics */}
+          <View style={styles.metricsContainer}>
+            <View style={styles.metric}>
+              <Text style={styles.metricValue}>
+                {formatCurrency(booking.trip_base_fare || 0)}
+              </Text>
+              <Text style={styles.metricLabel}>Total Fare</Text>
+            </View>
+            <View style={styles.metric}>
+              <Text style={styles.metricValue}>
+                {formatCurrency(bookingInfo.paymentAmount)}
+              </Text>
+              <Text style={styles.metricLabel}>Paid Amount</Text>
+            </View>
+            {bookingInfo.discount > 0 && (
+              <View style={styles.metric}>
+                <Text style={[styles.metricValue, { color: colors.success }]}>
+                  -{formatCurrency(bookingInfo.discount)}
+                </Text>
+                <Text style={styles.metricLabel}>Discount</Text>
+              </View>
+            )}
+            {bookingInfo.additionalCharges > 0 && (
+              <View style={styles.metric}>
+                <Text style={[styles.metricValue, { color: colors.warning }]}>
+                  +{formatCurrency(bookingInfo.additionalCharges)}
+                </Text>
+                <Text style={styles.metricLabel}>Additional Charges</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Quick Stats Cards */}
+        {/* <View style={styles.quickStatsContainer}>
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <DollarSign size={20} color={colors.success} />
+            </View>
+            <View style={styles.statContent}>
+              <Text style={styles.statValue}>
+                {formatCurrency(bookingInfo.paymentAmount)}
+              </Text>
+              <Text style={styles.statLabel}>Revenue</Text>
+            </View>
+            <View style={styles.statTrend}>
+              <TrendingUp size={16} color={colors.success} />
+              <Text style={styles.statTrendText}>+8%</Text>
+            </View>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <Users size={20} color={colors.primary} />
+            </View>
+            <View style={styles.statContent}>
+              <Text style={styles.statValue}>{bookingInfo.passengerCount}</Text>
+              <Text style={styles.statLabel}>Passengers</Text>
+            </View>
+            <View style={styles.statTrend}>
+              <Percent size={16} color={colors.primary} />
+              <Text style={styles.statTrendText}>100%</Text>
+            </View>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <CheckCircle size={20} color={colors.warning} />
+            </View>
+            <View style={styles.statContent}>
+              <Text style={styles.statValue}>
+                {booking.status === 'confirmed'
+                  ? 'Confirmed'
+                  : booking.status.replace('_', ' ')}
+              </Text>
+              <Text style={styles.statLabel}>Status</Text>
+            </View>
+            <View style={styles.statTrend}>
+              <Calendar size={16} color={colors.textSecondary} />
+              <Text style={styles.statTrendText}>Today</Text>
+            </View>
+          </View>
+        </View> */}
+
+        {/* Customer Information */}
+        <View style={styles.customerCard}>
+          <View style={styles.cardHeader}>
+            <User size={20} color={colors.primary} />
+            <Text style={styles.cardTitle}>Customer Information</Text>
+          </View>
+          <View style={styles.customerInfo}>
+            <Text style={styles.customerName}>
+              {booking.user_name || 'Customer Name'}
+            </Text>
+            <View style={styles.contactInfo}>
+              {booking.user_email && (
+                <View style={styles.contactRow}>
+                  <Mail size={14} color={colors.textSecondary} />
+                  <Text style={styles.contactText}>{booking.user_email}</Text>
+                </View>
+              )}
+              {booking.user_mobile && (
+                <View style={styles.contactRow}>
+                  <Phone size={14} color={colors.textSecondary} />
+                  <Text style={styles.contactText}>{booking.user_mobile}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+        {/* QR Code Section */}
+        <BookingQRCode
+          booking={booking}
+          onShare={handleShareQR}
+          onDownload={handleDownloadQR}
         />
-      </View>
 
-      {/* Payment Details Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Payment Information</Text>
+        {/* Trip Details Section */}
+        <BookingTripDetails booking={booking} />
 
-        <View style={styles.detailRow}>
-          <CreditCard size={20} color={colors.primary} />
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Total Amount</Text>
-            <Text style={styles.amountValue}>${booking.totalAmount}</Text>
+        {/* Payment Details Section */}
+        <BookingPaymentDetails booking={booking} />
+
+        {/* Passenger Details Section */}
+        <BookingPassengerDetails booking={booking} />
+
+        {/* Booking Actions Section */}
+        <BookingActionsSection
+          booking={booking}
+          onStatusUpdate={handleStatusUpdate}
+          onPaymentStatusUpdate={handlePaymentStatusUpdate}
+          onViewCustomer={handleViewCustomer}
+          canUpdateBookings={canUpdateBookings()}
+          loading={updating}
+        />
+
+        {/* Additional booking information */}
+        <View style={styles.infoCard}>
+          <Text style={styles.sectionTitle}>Booking Information</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Booking ID:</Text>
+            <Text style={styles.infoValue}>#{booking.id}</Text>
           </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Payment Status</Text>
-            <StatusBadge
-              status={booking.paymentStatus as any}
-              variant='payment'
-            />
-          </View>
-        </View>
-
-        <View style={styles.paymentActions}>
-          <Button
-            title='Mark as Completed'
-            variant='primary'
-            size='small'
-            disabled={booking.paymentStatus === 'completed' || loading}
-            icon={<CheckCircle size={16} color='#FFFFFF' />}
-            onPress={() => handlePaymentStatusUpdate('completed')}
-          />
-          <Button
-            title='Refund'
-            variant='outline'
-            size='small'
-            disabled={booking.paymentStatus === 'refunded' || loading}
-            icon={<RefreshCw size={16} color={colors.primary} />}
-            onPress={() => handlePaymentStatusUpdate('refunded')}
-          />
-        </View>
-      </View>
-
-      {/* Booking Metadata */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Booking Information</Text>
-
-        <View style={styles.detailRow}>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Booking ID</Text>
-            <Text style={styles.detailValue}>#{booking.id}</Text>
-          </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Created At</Text>
-            <Text style={styles.detailValue}>
-              {new Date(booking.created_at).toLocaleDateString()}{' '}
-              {new Date(booking.created_at).toLocaleTimeString()}
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Created:</Text>
+            <Text style={styles.infoValue}>
+              {formatDateTime(booking.created_at)}
             </Text>
           </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Last Updated:</Text>
+            <Text style={styles.infoValue}>
+              {booking.updated_at
+                ? formatDateTime(booking.updated_at)
+                : formatDateTime(booking.created_at)}
+            </Text>
+          </View>
+          {booking.agent_id && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Agent:</Text>
+              <Text style={styles.infoValue}>
+                {booking.agent_name || 'N/A'}
+              </Text>
+            </View>
+          )}
         </View>
-      </View>
-
-      {/* Actions */}
-      <View style={styles.actionsContainer}>
-        <Button
-          title='Delete Booking'
-          variant='danger'
-          icon={<Trash2 size={18} color='#FFFFFF' />}
-          onPress={handleDelete}
-          fullWidth
-        />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
+
+// Helper functions for status colors
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'confirmed':
+      return colors.success;
+    case 'cancelled':
+      return colors.danger;
+    case 'completed':
+      return colors.info;
+    case 'pending_payment':
+      return colors.warning;
+    default:
+      return colors.textSecondary;
+  }
+};
+
+const getPaymentStatusColor = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return colors.success;
+    case 'pending':
+      return colors.warning;
+    case 'failed':
+      return colors.danger;
+    case 'refunded':
+      return colors.info;
+    default:
+      return colors.textSecondary;
+  }
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
   },
+  content: {
+    flex: 1,
+  },
   contentContainer: {
     padding: 16,
-    paddingBottom: 32,
+    gap: 16,
+  },
+  noPermissionContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 64,
+    gap: 16,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  noPermissionText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 250,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+    backgroundColor: colors.backgroundSecondary,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    backgroundColor: colors.backgroundSecondary,
+    padding: 20,
+    gap: 16,
   },
-  errorText: {
-    fontSize: 18,
-    color: colors.textSecondary,
-    marginBottom: 24,
+  backButton: {
+    padding: 8,
+  },
+  editButton: {
+    padding: 8,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
     textAlign: 'center',
   },
-  headerActions: {
-    marginRight: 16,
+  errorMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
   },
-  card: {
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    gap: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  overviewCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  overviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  overviewHeaderLeft: {
+    // flex: 1,
+  },
+  bookingId: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  routeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  routeName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    // flex: 1,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statusBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  detailsGrid: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  detailItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  metricsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: `${colors.border}30`,
+  },
+  metric: {
+    alignItems: 'center',
+  },
+  metricValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  metricLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  customerCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  customerInfo: {
+    marginLeft: 28,
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  contactInfo: {
+    gap: 6,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  contactText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  infoCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
@@ -328,56 +942,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 1,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  statusActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  detailContent: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  detailValue: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  amountValue: {
-    fontSize: 18,
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  paymentActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  actionsContainer: {
-    marginTop: 16,
   },
 });

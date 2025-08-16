@@ -690,9 +690,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  deleteActionButton: {
-    backgroundColor: colors.errorLight,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -708,9 +705,6 @@ const styles = StyleSheet.create({
   actionsContainer: {
     gap: 16,
     marginTop: 8,
-  },
-  deleteButton: {
-    borderColor: colors.error,
   },
   // Trip Details Styles
   tripDetailsCard: {

@@ -111,9 +111,37 @@ select
     where
       passengers.booking_id = b.id
   ) as passenger_count,
-  p.status as payment_status,
-  p.amount as payment_amount,
-  p.payment_method
+  -- Get the most recent payment status
+  COALESCE(
+    (SELECT p.status::text
+     FROM payments p
+     WHERE p.booking_id = b.id
+     ORDER BY p.created_at DESC
+     LIMIT 1),
+    CASE
+      WHEN b.status IN ('confirmed', 'checked_in', 'completed') THEN 'completed'
+      WHEN b.status = 'pending_payment' THEN 'pending'
+      WHEN b.status = 'cancelled' THEN 'refunded'
+      ELSE 'pending'
+    END
+  ) as payment_status,
+  -- Get the total amount paid (sum of all completed payments)
+  COALESCE(
+    (SELECT SUM(p.amount)
+     FROM payments p
+     WHERE p.booking_id = b.id
+     AND p.status = 'completed'),
+    0
+  ) as payment_amount,
+  -- Get the most recent payment method
+  COALESCE(
+    (SELECT p.payment_method::text
+     FROM payments p
+     WHERE p.booking_id = b.id
+     ORDER BY p.created_at DESC
+     LIMIT 1),
+    b.payment_method_type
+  ) as payment_method
 from
   bookings b
   left join user_profiles up on b.user_id = up.id
@@ -122,8 +150,7 @@ from
   left join routes r on t.route_id = r.id
   left join islands i1 on r.from_island_id = i1.id
   left join islands i2 on r.to_island_id = i2.id
-  left join user_profiles agent on b.agent_id = agent.id
-  left join payments p on b.id = p.booking_id;
+  left join user_profiles agent on b.agent_id = agent.id;
 
 
 create table public.admin_cache_stats (

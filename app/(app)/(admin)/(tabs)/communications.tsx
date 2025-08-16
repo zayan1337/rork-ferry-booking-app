@@ -1396,15 +1396,6 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
   },
-  statsContainer: {
-    marginBottom: 24,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
   sectionSelector: {
     flexDirection: 'row',
     backgroundColor: colors.card,
@@ -1441,9 +1432,6 @@ const styles = StyleSheet.create({
   },
   sectionContent: {
     flex: 1,
-  },
-  sectionHeader: {
-    marginBottom: 16,
   },
   headerActions: {
     flexDirection: 'row',
@@ -1659,18 +1647,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  bulkMessageFilters: {
-    marginBottom: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
   compactFilters: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1820,14 +1796,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 2,
   },
-  bulkMessageDate: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  bulkMessageSender: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
   templateItem: {
     backgroundColor: colors.card,
     padding: 16,
@@ -1927,51 +1895,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     fontWeight: '500',
-  },
-  templateFilters: {
-    marginBottom: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  filterTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  filterTag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterTagActive: {
-    backgroundColor: `${colors.primary}20`,
-    borderColor: colors.primary,
-  },
-  filterTagText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    textTransform: 'capitalize',
-  },
-  filterTagTextActive: {
-    color: colors.primary,
-    fontWeight: '600',
   },
   templateContent: {
     fontSize: 14,
@@ -2079,46 +2002,5 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     maxWidth: 250,
-  },
-  loadMoreContainer: {
-    marginTop: 16,
-    paddingHorizontal: 16,
-  },
-  summaryContainer: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  summaryGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  summaryItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  summaryValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    textAlign: 'center',
   },
 });

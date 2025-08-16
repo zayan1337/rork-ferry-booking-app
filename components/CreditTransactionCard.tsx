@@ -117,7 +117,7 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
                 <View style={styles.dateTimeContainer}>
                   <Calendar size={12} color={Colors.subtext} />
                   <Text style={styles.date}>
-                    {formatDate(transaction.date)}
+                    {formatDate(transaction.createdAt)}
                   </Text>
                   <Clock
                     size={12}
@@ -125,7 +125,7 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
                     style={styles.timeIcon}
                   />
                   <Text style={styles.time}>
-                    {formatTime(transaction.date)}
+                    {formatTime(transaction.createdAt)}
                   </Text>
                 </View>
 
@@ -174,7 +174,7 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
       prevProps.transaction.amount === nextProps.transaction.amount &&
       prevProps.transaction.balance === nextProps.transaction.balance &&
       prevProps.transaction.type === nextProps.transaction.type &&
-      prevProps.transaction.date === nextProps.transaction.date
+      prevProps.transaction.createdAt === nextProps.transaction.createdAt
     );
   }
 );
@@ -187,9 +187,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: Colors.border,
     overflow: 'hidden',
-  },
-  cardTablet: {
-    marginHorizontal: 8,
   },
   header: {
     flexDirection: 'row',

@@ -117,7 +117,6 @@ export type Booking = {
 };
 
 // Base exports without conflicts
-export * from './database';
 export * from './store';
 export * from './customer';
 export * from './components';

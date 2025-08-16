@@ -266,9 +266,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
-  itemSeparator: {
-    height: 12,
-  },
   footerContainer: {
     paddingVertical: 24,
   },

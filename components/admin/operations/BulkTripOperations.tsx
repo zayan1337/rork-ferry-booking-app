@@ -37,6 +37,16 @@ interface BulkOperation {
   requiresInput: boolean;
 }
 
+interface OperationData {
+  reason?: string;
+  delayMinutes?: string;
+  delayReason?: string;
+  newTime?: string;
+  rescheduleReason?: string;
+  fareMultiplier?: string;
+  status?: string;
+}
+
 export default function BulkTripOperations({
   selectedTrips,
   onClose,
@@ -44,7 +54,7 @@ export default function BulkTripOperations({
   visible,
 }: BulkTripOperationsProps) {
   const [selectedOperation, setSelectedOperation] = useState<string>('');
-  const [operationData, setOperationData] = useState<any>({});
+  const [operationData, setOperationData] = useState<OperationData>({});
   const [isProcessing, setIsProcessing] = useState(false);
 
   const operations: BulkOperation[] = [
@@ -274,7 +284,7 @@ export default function BulkTripOperations({
               onChangeText={text =>
                 setOperationData(prev => ({ ...prev, fareMultiplier: text }))
               }
-              keyboardType='decimal-pad'
+              keyboardType='numeric'
             />
             <Text style={styles.formHelper}>
               1.0 = Normal fare, 1.5 = 50% increase, 0.8 = 20% discount
@@ -289,7 +299,7 @@ export default function BulkTripOperations({
             <Dropdown
               placeholder='Select new status...'
               value={operationData.status || ''}
-              onValueChange={value =>
+              onChange={(value: string) =>
                 setOperationData(prev => ({ ...prev, status: value }))
               }
               items={statusOptions}
