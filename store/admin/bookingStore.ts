@@ -123,25 +123,7 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
     }
 
     try {
-      // First, let's test if we can connect to the database and get any bookings
-      const { count: totalBookings, error: countError } = await supabase
-        .from('bookings')
-        .select('*', { count: 'exact', head: true });
-
-      // If there are no bookings at all, return early
-      if (totalBookings === 0) {
-        set({
-          bookings: [],
-          totalItems: 0,
-          hasMore: false,
-          currentPage: 1,
-          loading: false,
-          hasFetched: true,
-        });
-        return;
-      }
-
-      // Try to fetch from admin_bookings_view first, fallback to bookings table
+      // Use the admin_bookings_view which has all the necessary joins
       let query = supabase
         .from('admin_bookings_view')
         .select('*', { count: 'exact' });
@@ -188,142 +170,63 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
       const to = from + itemsPerPage - 1;
       query = query.range(from, to);
 
-      let { data, error, count } = await query;
-
-      // If admin_bookings_view doesn't exist, fallback to bookings table
-      if (
-        error &&
-        error.message?.includes('relation "admin_bookings_view" does not exist')
-      ) {
-        // Fallback query to bookings table with basic joins
-        const fallbackQuery = supabase.from('bookings').select(
-          `
-            *,
-            user_profiles!bookings_user_id_fkey (
-              full_name,
-              email,
-              mobile
-            ),
-            trips!bookings_trip_id_fkey (
-              travel_date,
-              departure_time,
-              base_fare,
-              vessels (
-                name,
-                capacity
-              ),
-              routes (
-                name,
-                from_island:islands!routes_from_island_id_fkey (name),
-                to_island:islands!routes_to_island_id_fkey (name)
-              )
-            ),
-            agent_profiles!bookings_agent_id_fkey (
-              full_name,
-              email
-            ),
-            passengers (count)
-          `,
-          { count: 'exact' }
-        );
-
-        // Apply basic filters for fallback
-        if (filters.searchQuery) {
-          fallbackQuery.or(
-            `user_profiles.full_name.ilike.%${filters.searchQuery}%,` +
-              `user_profiles.email.ilike.%${filters.searchQuery}%,` +
-              `booking_number.ilike.%${filters.searchQuery}%`
-          );
-        }
-
-        if (filters.filterStatus !== 'all') {
-          fallbackQuery.eq('status', filters.filterStatus);
-        }
-
-        // Apply sorting and pagination
-        const sortColumn =
-          filters.sortBy === 'created_at' ? 'created_at' : filters.sortBy;
-        fallbackQuery.order(sortColumn, {
-          ascending: filters.sortOrder === 'asc',
-        });
-        const fallbackFrom = refresh
-          ? 0
-          : (get().currentPage - 1) * itemsPerPage;
-        const fallbackTo = fallbackFrom + itemsPerPage - 1;
-        fallbackQuery.range(fallbackFrom, fallbackTo);
-
-        const fallbackResult = await fallbackQuery;
-        data = fallbackResult.data;
-        error = fallbackResult.error;
-        count = fallbackResult.count;
-
-        // Transform the data to match AdminBooking interface
-        if (data) {
-          data = data.map((booking: any) => ({
-            id: booking.id,
-            booking_number: booking.booking_number,
-            user_id: booking.user_id,
-            trip_id: booking.trip_id,
-            is_round_trip: booking.is_round_trip,
-            return_booking_id: booking.return_booking_id,
-            status: booking.status,
-            total_fare: booking.total_fare,
-            qr_code_url: booking.qr_code_url,
-            check_in_status: booking.check_in_status,
-            agent_id: booking.agent_id,
-            agent_client_id: booking.agent_client_id,
-            payment_method_type: booking.payment_method_type,
-            round_trip_group_id: booking.round_trip_group_id,
-            created_at: booking.created_at,
-            updated_at: booking.updated_at,
-            // Joined data
-            user_name: booking.user_profiles?.full_name,
-            user_email: booking.user_profiles?.email,
-            user_mobile: booking.user_profiles?.mobile,
-            trip_travel_date: booking.trips?.travel_date,
-            trip_departure_time: booking.trips?.departure_time,
-            trip_base_fare: booking.trips?.base_fare,
-            vessel_name: booking.trips?.vessels?.name,
-            vessel_capacity: booking.trips?.vessels?.capacity,
-            route_name: booking.trips?.routes?.name,
-            from_island_name: booking.trips?.routes?.from_island?.name,
-            to_island_name: booking.trips?.routes?.to_island?.name,
-            agent_name: booking.agent_profiles?.full_name,
-            agent_email: booking.agent_profiles?.email,
-            passenger_count: booking.passengers?.[0]?.count || 0,
-            payment_status: booking.payment_status,
-            payment_amount: booking.payment_amount,
-            payment_method: booking.payment_method,
-          }));
-        }
-      }
+      const { data, error, count } = await query;
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('Error fetching bookings:', error);
         throw error;
       }
 
-      const bookings = data || [];
-      const totalItems = count || 0;
-      const hasMore = from + bookings.length < totalItems;
+      // Transform the data to match AdminBooking interface
+      const transformedBookings: AdminBooking[] = (data || []).map(
+        (booking: any) => ({
+          id: booking.id,
+          booking_number: booking.booking_number,
+          user_id: booking.user_id,
+          trip_id: booking.trip_id,
+          is_round_trip: booking.is_round_trip,
+          return_booking_id: booking.return_booking_id,
+          status: booking.status,
+          total_fare: booking.total_fare,
+          qr_code_url: booking.qr_code_url,
+          check_in_status: booking.check_in_status,
+          agent_id: booking.agent_id,
+          agent_client_id: booking.agent_client_id,
+          payment_method_type: booking.payment_method_type,
+          round_trip_group_id: booking.round_trip_group_id,
+          created_at: booking.created_at,
+          updated_at: booking.updated_at,
+          // Data from the view
+          user_name: booking.user_name,
+          user_email: booking.user_email,
+          user_mobile: booking.user_mobile,
+          trip_travel_date: booking.trip_travel_date,
+          trip_departure_time: booking.trip_departure_time,
+          trip_base_fare: booking.trip_base_fare,
+          vessel_name: booking.vessel_name,
+          vessel_capacity: booking.vessel_capacity,
+          route_name: booking.route_name,
+          from_island_name: booking.from_island_name,
+          to_island_name: booking.to_island_name,
+          agent_name: booking.agent_name,
+          agent_email: booking.agent_email,
+          passenger_count: booking.passenger_count || 0,
+          payment_status: booking.payment_status,
+          payment_amount: booking.payment_amount,
+          payment_method: booking.payment_method,
+        })
+      );
 
-      // Debug: Check for duplicate IDs in the fetched data
-      const bookingIds = bookings.map(b => b.id);
-      const uniqueIds = new Set(bookingIds);
-      if (bookingIds.length !== uniqueIds.size) {
-        console.warn(
-          'Duplicate booking IDs detected in fetched data:',
-          bookingIds.filter((id, index) => bookingIds.indexOf(id) !== index)
-        );
-      }
+      const totalItems = count || 0;
+      const hasMore = from + transformedBookings.length < totalItems;
 
       set({
         bookings: refresh
-          ? bookings
+          ? transformedBookings
           : (() => {
               const existingBookings = get().bookings;
               const existingIds = new Set(existingBookings.map(b => b.id));
-              const newBookings = bookings.filter(
+              const newBookings = transformedBookings.filter(
                 newBooking => !existingIds.has(newBooking.id)
               );
               return [...existingBookings, ...newBookings];
@@ -349,87 +252,81 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
     set({ statsLoading: true });
 
     try {
-      // First, let's check if there are any bookings at all
-      const { count: totalBookings } = await supabase
+      // Get all bookings to calculate stats
+      const { data: allBookings, error: bookingsError } = await supabase
         .from('bookings')
-        .select('*', { count: 'exact', head: true });
+        .select('status, total_fare, created_at')
+        .order('created_at', { ascending: false });
 
-      // Try to fetch from admin_dashboard_stats view
-      const { data, error } = await supabase
-        .from('admin_dashboard_stats')
-        .select('*')
-        .single();
-
-      if (error) {
-        // Calculate stats manually from bookings table
-        const today = new Date().toISOString().split('T')[0];
-        const { count: todayBookings } = await supabase
-          .from('bookings')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', today);
-
-        const { data: statusCounts } = await supabase
-          .from('bookings')
-          .select('status, total_fare, created_at');
-
-        const confirmedCount =
-          statusCounts?.filter(b => b.status === 'confirmed').length || 0;
-        const cancelledCount =
-          statusCounts?.filter(b => b.status === 'cancelled').length || 0;
-        const pendingPaymentCount =
-          statusCounts?.filter(b => b.status === 'pending_payment').length || 0;
-        const totalRevenue =
-          statusCounts?.reduce((sum, b) => sum + (b.total_fare || 0), 0) || 0;
-        const todayRevenue =
-          statusCounts
-            ?.filter(b => b.created_at?.startsWith(today))
-            .reduce((sum, b) => sum + (b.total_fare || 0), 0) || 0;
-
-        const stats: AdminBookingStats = {
-          total_bookings: totalBookings || 0,
-          today_bookings: todayBookings || 0,
-          today_bookings_change: '0',
-          today_revenue: todayRevenue,
-          today_revenue_change: '0',
-          total_revenue: totalRevenue,
-          confirmed_count: confirmedCount,
-          confirmed_rate:
-            (totalBookings || 0) > 0
-              ? ((confirmedCount / (totalBookings || 0)) * 100).toFixed(1)
-              : '0',
-          reserved_count:
-            statusCounts?.filter(b => b.status === 'reserved').length || 0,
-          cancelled_count: cancelledCount,
-          completed_count:
-            statusCounts?.filter(b => b.status === 'completed').length || 0,
-          pending_payment_count: pendingPaymentCount,
-          checked_in_count:
-            statusCounts?.filter(b => b.status === 'checked_in').length || 0,
-        };
-
-        set({ stats, statsLoading: false });
-      } else if (data) {
-        const stats: AdminBookingStats = {
-          total_bookings: data.total_bookings || 0,
-          today_bookings: data.today_bookings || 0,
-          today_bookings_change: '0',
-          today_revenue: Number(data.today_revenue) || 0,
-          today_revenue_change: '0',
-          total_revenue: Number(data.total_revenue) || 0,
-          confirmed_count: data.confirmed_count || 0,
-          confirmed_rate:
-            data.total_bookings > 0
-              ? ((data.confirmed_count / data.total_bookings) * 100).toFixed(1)
-              : '0',
-          reserved_count: data.reserved_count || 0,
-          cancelled_count: data.cancelled_count || 0,
-          completed_count: data.completed_count || 0,
-          pending_payment_count: data.pending_payment_count || 0,
-          checked_in_count: data.checked_in_count || 0,
-        };
-
-        set({ stats, statsLoading: false });
+      if (bookingsError) {
+        console.error('Error fetching bookings for stats:', bookingsError);
+        throw bookingsError;
       }
+
+      const bookings = allBookings || [];
+
+      // Calculate today's date
+      const today = new Date().toISOString().split('T')[0];
+
+      // Calculate statistics
+      const totalBookings = bookings.length;
+      const todayBookings = bookings.filter(b =>
+        b.created_at?.startsWith(today)
+      ).length;
+      const totalRevenue = bookings.reduce(
+        (sum, b) => sum + (b.total_fare || 0),
+        0
+      );
+      const todayRevenue = bookings
+        .filter(b => b.created_at?.startsWith(today))
+        .reduce((sum, b) => sum + (b.total_fare || 0), 0);
+
+      // Count by status
+      const statusCounts = {
+        confirmed: 0,
+        reserved: 0,
+        pending_payment: 0,
+        cancelled: 0,
+        completed: 0,
+        checked_in: 0,
+      };
+
+      bookings.forEach(booking => {
+        if (
+          statusCounts[booking.status as keyof typeof statusCounts] !==
+          undefined
+        ) {
+          statusCounts[booking.status as keyof typeof statusCounts]++;
+        }
+      });
+
+      const confirmedCount = statusCounts.confirmed;
+      const confirmedRate =
+        totalBookings > 0
+          ? ((confirmedCount / totalBookings) * 100).toFixed(1)
+          : '0';
+
+      // Calculate change percentages (simplified - you can enhance this)
+      const todayBookingsChange = '0'; // TODO: Calculate actual change
+      const todayRevenueChange = '0'; // TODO: Calculate actual change
+
+      const stats: AdminBookingStats = {
+        total_bookings: totalBookings,
+        today_bookings: todayBookings,
+        today_bookings_change: todayBookingsChange,
+        today_revenue: todayRevenue,
+        today_revenue_change: todayRevenueChange,
+        total_revenue: totalRevenue,
+        confirmed_count: confirmedCount,
+        confirmed_rate: confirmedRate,
+        reserved_count: statusCounts.reserved,
+        cancelled_count: statusCounts.cancelled,
+        completed_count: statusCounts.completed,
+        pending_payment_count: statusCounts.pending_payment,
+        checked_in_count: statusCounts.checked_in,
+      };
+
+      set({ stats, statsLoading: false });
     } catch (error) {
       console.error('Error fetching booking stats:', error);
       set({ statsLoading: false });
@@ -458,10 +355,21 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
     set({ updating: true, error: null });
 
     try {
+      // Get current authenticated admin user
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error('Admin must be authenticated to create booking');
+      }
+
+      // Create the booking first
       const { data: booking, error } = await supabase
         .from('bookings')
         .insert({
-          user_id: data.user_id,
+          user_id: data.user_id, // Use the selected customer's user ID
           trip_id: data.trip_id,
           is_round_trip: data.is_round_trip,
           return_booking_id: data.return_booking_id,
@@ -469,11 +377,26 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
           agent_id: data.agent_id,
           agent_client_id: data.agent_client_id,
           payment_method_type: data.payment_method_type,
+          status: 'confirmed', // Admin bookings are confirmed by default
+          check_in_status: false,
         })
-        .select('id')
+        .select('id, booking_number')
         .single();
 
       if (error) throw error;
+
+      // Generate QR code URL using the auto-generated booking number
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${booking.booking_number}`)}`;
+
+      // Update booking with QR code URL
+      const { error: qrUpdateError } = await supabase
+        .from('bookings')
+        .update({ qr_code_url: qrCodeUrl })
+        .eq('id', booking.id);
+
+      if (qrUpdateError) {
+        console.error('Failed to update QR code URL:', qrUpdateError);
+      }
 
       // Create passengers if provided
       if (data.passengers.length > 0 && booking) {
@@ -482,6 +405,7 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
           passenger_name: passenger.passenger_name,
           passenger_contact_number: passenger.passenger_contact_number,
           special_assistance_request: passenger.special_assistance_request,
+          seat_id: passenger.seat_id || null,
         }));
 
         const { error: passengerError } = await supabase
@@ -489,6 +413,41 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
           .insert(passengers);
 
         if (passengerError) throw passengerError;
+      }
+
+      // Reserve seats if seat_ids are provided
+      if (data.passengers.length > 0 && booking) {
+        const seatReservations = data.passengers
+          .filter(passenger => passenger.seat_id)
+          .map(passenger => ({
+            trip_id: data.trip_id,
+            seat_id: passenger.seat_id!,
+            booking_id: booking.id,
+            is_available: false,
+            is_reserved: false,
+          }));
+
+        if (seatReservations.length > 0) {
+          const { error: seatError } = await supabase
+            .from('seat_reservations')
+            .upsert(seatReservations, { onConflict: 'trip_id,seat_id' });
+
+          if (seatError) {
+            console.warn('Failed to reserve seats:', seatError);
+          }
+        }
+      }
+
+      // Create payment record
+      const { error: paymentError } = await supabase.from('payments').insert({
+        booking_id: booking.id,
+        payment_method: data.payment_method_type as any,
+        amount: data.total_fare,
+        status: 'completed', // Admin bookings are paid by default
+      });
+
+      if (paymentError) {
+        console.warn('Failed to create payment record:', paymentError);
       }
 
       set({ updating: false });
@@ -668,24 +627,9 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
   },
 
   getStatusCount: (status: BookingStatus | 'all') => {
-    const { stats } = get();
-    if (status === 'all') return stats.total_bookings || 0;
+    const { bookings } = get();
+    if (status === 'all') return bookings.length;
 
-    switch (status) {
-      case 'reserved':
-        return stats.reserved_count || 0;
-      case 'pending_payment':
-        return stats.pending_payment_count || 0;
-      case 'confirmed':
-        return stats.confirmed_count || 0;
-      case 'checked_in':
-        return stats.checked_in_count || 0;
-      case 'completed':
-        return stats.completed_count || 0;
-      case 'cancelled':
-        return stats.cancelled_count || 0;
-      default:
-        return 0;
-    }
+    return bookings.filter(booking => booking.status === status).length;
   },
 }));

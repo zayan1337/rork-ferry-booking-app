@@ -182,6 +182,164 @@ export default function BookingsScreen() {
     );
   }
 
+  const renderHeader = () => (
+    <Stack.Screen
+      options={{
+        title: 'Bookings',
+        headerRight: () => (
+          <View style={styles.headerActions}>
+            {canExportReports() && (
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={handleExport}
+                accessibilityRole='button'
+                accessibilityLabel='Export'
+              >
+                <Download size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+            {canCreateBookings() && (
+              <Button
+                title={isSmallScreen ? 'New' : 'New Booking'}
+                variant='primary'
+                size={isTablet ? 'medium' : 'small'}
+                icon={<Plus size={isTablet ? 18 : 16} color='#FFFFFF' />}
+                onPress={handleNewBooking}
+              />
+            )}
+          </View>
+        ),
+      }}
+    />
+  );
+
+  const renderBookingsList = () => (
+    <>
+      {/* Enhanced Search and Filter */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchWrapper}>
+          <SearchBar
+            value={filters.searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder='Search by customer, route, booking ID, or email...'
+          />
+        </View>
+        <Button
+          title=''
+          variant='outline'
+          size={isTablet ? 'large' : 'medium'}
+          icon={<Filter size={isTablet ? 20 : 18} color={colors.primary} />}
+          onPress={() => setShowFilterModal(true)}
+        />
+        <Button
+          title=''
+          variant='outline'
+          size={isTablet ? 'large' : 'medium'}
+          icon={
+            <ArrowUpDown size={isTablet ? 20 : 18} color={colors.primary} />
+          }
+          onPress={() => {
+            const sortFields: (
+              | 'created_at'
+              | 'total_fare'
+              | 'user_name'
+              | 'route_name'
+              | 'trip_travel_date'
+            )[] = [
+              'created_at',
+              'total_fare',
+              'user_name',
+              'route_name',
+              'trip_travel_date',
+            ];
+            const currentIndex = sortFields.indexOf(filters.sortBy);
+            const nextIndex = (currentIndex + 1) % sortFields.length;
+            setSortBy(sortFields[nextIndex]);
+          }}
+        />
+      </View>
+
+      {/* Filter Tabs */}
+      <FilterTabs
+        activeFilter={filters.filterStatus}
+        onFilterChange={filter => setFilters({ filterStatus: filter })}
+        getStatusCount={getStatusCount}
+      />
+
+      {/* Bulk Actions Bar */}
+      <BulkActionsBar
+        selectedCount={filters.selectedBookings.length}
+        onConfirm={() => handleBulkStatusUpdate('confirmed')}
+        onCancel={() => handleBulkStatusUpdate('cancelled')}
+        onClear={clearSelection}
+        canUpdateBookings={canUpdateBookings()}
+      />
+
+      {/* Bookings List Header */}
+      <View style={styles.section}>
+        <View style={styles.bookingsHeader}>
+          <SectionHeader
+            title={filters.searchQuery ? 'Search Results' : 'All Bookings'}
+            subtitle={`${totalItems} ${totalItems === 1 ? 'booking' : 'bookings'} found`}
+            size={isTablet ? 'large' : 'medium'}
+          />
+        </View>
+
+        {/* Compact Filter Status */}
+        {(hasActiveFilters() || bookings.length > 0) && (
+          <View style={styles.compactFilterStatus}>
+            <Text style={styles.compactFilterText}>
+              {getCurrentFilterText().filters}
+            </Text>
+            <View style={styles.filterStatusDivider}>
+              <Text style={styles.compactFilterText}>
+                {getCurrentFilterText().sort}
+              </Text>
+              {hasActiveFilters() && (
+                <TouchableOpacity
+                  style={styles.clearFiltersButton}
+                  onPress={clearFilters}
+                  accessibilityRole='button'
+                  accessibilityLabel='Clear all filters'
+                >
+                  <X size={14} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Select All Section */}
+        {canUpdateBookings() && bookings.length > 0 && (
+          <TouchableOpacity
+            style={styles.selectAllButton}
+            onPress={selectAllBookings}
+            accessibilityRole='button'
+            accessibilityLabel={
+              isAllSelected ? 'Deselect all bookings' : 'Select all bookings'
+            }
+          >
+            <View
+              style={[
+                styles.selectAllCheckboxLarge,
+                isAllSelected && styles.checkboxSelected,
+                isPartiallySelected && styles.checkboxPartial,
+              ]}
+            >
+              {isAllSelected && <Check size={14} color='white' />}
+              {isPartiallySelected && !isAllSelected && (
+                <View style={styles.partialCheckmark} />
+              )}
+            </View>
+            <Text style={styles.selectAllTextLarge}>
+              {isAllSelected ? 'Deselect All' : 'Select All'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </>
+  );
+
   return (
     <>
       {activeTab === 'overview' ? (
@@ -201,241 +359,19 @@ export default function BookingsScreen() {
           }
           showsVerticalScrollIndicator={false}
         >
-          <Stack.Screen
-            options={{
-              title: 'Bookings',
-              headerRight: () => (
-                <View style={styles.headerActions}>
-                  {canExportReports() && (
-                    <TouchableOpacity
-                      style={styles.headerButton}
-                      onPress={handleExport}
-                      accessibilityRole='button'
-                      accessibilityLabel='Export'
-                    >
-                      <Download size={18} color={colors.primary} />
-                    </TouchableOpacity>
-                  )}
-                  {canCreateBookings() && (
-                    <Button
-                      title={isSmallScreen ? 'New' : 'New Booking'}
-                      variant='primary'
-                      size={isTablet ? 'medium' : 'small'}
-                      icon={<Plus size={isTablet ? 18 : 16} color='#FFFFFF' />}
-                      onPress={handleNewBooking}
-                    />
-                  )}
-                </View>
-              ),
-            }}
-          />
+          {renderHeader()}
 
           <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-          {activeTab === 'overview' ? (
-            statsLoading ? (
-              <View style={styles.loadingContainer}>
-                <LoadingSpinner size='large' />
-                <Text style={styles.loadingText}>
-                  Loading booking statistics...
-                </Text>
-              </View>
-            ) : (
-              <BookingsStats stats={stats} isTablet={isTablet} />
-            )
+          {statsLoading ? (
+            <View style={styles.loadingContainer}>
+              <LoadingSpinner size='large' />
+              <Text style={styles.loadingText}>
+                Loading booking statistics...
+              </Text>
+            </View>
           ) : (
-            <>
-              {/* Enhanced Search and Filter */}
-              <View style={styles.searchContainer}>
-                <View style={styles.searchWrapper}>
-                  <SearchBar
-                    value={filters.searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder='Search by customer, route, booking ID, or email...'
-                  />
-                </View>
-                <Button
-                  title=''
-                  variant='outline'
-                  size={isTablet ? 'large' : 'medium'}
-                  icon={
-                    <Filter size={isTablet ? 20 : 18} color={colors.primary} />
-                  }
-                  onPress={() => setShowFilterModal(true)}
-                />
-                <Button
-                  title=''
-                  variant='outline'
-                  size={isTablet ? 'large' : 'medium'}
-                  icon={
-                    <ArrowUpDown
-                      size={isTablet ? 20 : 18}
-                      color={colors.primary}
-                    />
-                  }
-                  onPress={() => {
-                    const sortFields: (
-                      | 'created_at'
-                      | 'total_fare'
-                      | 'user_name'
-                      | 'route_name'
-                      | 'trip_travel_date'
-                    )[] = [
-                      'created_at',
-                      'total_fare',
-                      'user_name',
-                      'route_name',
-                      'trip_travel_date',
-                    ];
-                    const currentIndex = sortFields.indexOf(filters.sortBy);
-                    const nextIndex = (currentIndex + 1) % sortFields.length;
-                    setSortBy(sortFields[nextIndex]);
-                  }}
-                />
-              </View>
-
-              {/* Filter Tabs */}
-              <FilterTabs
-                activeFilter={filters.filterStatus}
-                onFilterChange={filter => setFilters({ filterStatus: filter })}
-                getStatusCount={getStatusCount}
-              />
-
-              {/* Bulk Actions Bar */}
-              <BulkActionsBar
-                selectedCount={filters.selectedBookings.length}
-                onConfirm={() => handleBulkStatusUpdate('confirmed')}
-                onCancel={() => handleBulkStatusUpdate('cancelled')}
-                onClear={clearSelection}
-                canUpdateBookings={canUpdateBookings()}
-              />
-
-              {/* Bookings List Header */}
-              <View style={styles.section}>
-                <View style={styles.bookingsHeader}>
-                  <SectionHeader
-                    title={
-                      filters.searchQuery ? 'Search Results' : 'All Bookings'
-                    }
-                    subtitle={`${totalItems} ${totalItems === 1 ? 'booking' : 'bookings'} found`}
-                    size={isTablet ? 'large' : 'medium'}
-                  />
-                </View>
-
-                {/* Compact Filter Status */}
-                {(hasActiveFilters() || bookings.length > 0) && (
-                  <View style={styles.compactFilterStatus}>
-                    <Text style={styles.compactFilterText}>
-                      {getCurrentFilterText().filters}
-                    </Text>
-                    <View style={styles.filterStatusDivider}>
-                      <Text style={styles.compactFilterText}>
-                        {getCurrentFilterText().sort}
-                      </Text>
-                      {hasActiveFilters() && (
-                        <TouchableOpacity
-                          style={styles.clearFiltersButton}
-                          onPress={clearFilters}
-                          accessibilityRole='button'
-                          accessibilityLabel='Clear all filters'
-                        >
-                          <X size={14} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                )}
-
-                {/* Select All Section */}
-                {canUpdateBookings() && bookings.length > 0 && (
-                  <TouchableOpacity
-                    style={styles.selectAllButton}
-                    onPress={selectAllBookings}
-                    accessibilityRole='button'
-                    accessibilityLabel={
-                      isAllSelected
-                        ? 'Deselect all bookings'
-                        : 'Select all bookings'
-                    }
-                  >
-                    <View
-                      style={[
-                        styles.selectAllCheckboxLarge,
-                        isAllSelected && styles.checkboxSelected,
-                        isPartiallySelected && styles.checkboxPartial,
-                      ]}
-                    >
-                      {isAllSelected && <Check size={14} color='white' />}
-                      {isPartiallySelected && !isAllSelected && (
-                        <View style={styles.partialCheckmark} />
-                      )}
-                    </View>
-                    <Text style={styles.selectAllTextLarge}>
-                      {isAllSelected ? 'Deselect All' : 'Select All'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Bookings List */}
-              <View style={styles.bookingsList}>
-                {bookings.map(booking => (
-                  <View
-                    key={`${booking.id}-${bookings.indexOf(booking)}`}
-                    style={styles.bookingItemWrapper}
-                  >
-                    {canUpdateBookings() && (
-                      <TouchableOpacity
-                        style={styles.selectionCheckbox}
-                        onPress={() => toggleBookingSelection(booking.id)}
-                      >
-                        <View
-                          style={[
-                            styles.checkbox,
-                            filters.selectedBookings.includes(booking.id) &&
-                              styles.checkboxSelected,
-                          ]}
-                        >
-                          {filters.selectedBookings.includes(booking.id) && (
-                            <Check size={14} color='white' />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    )}
-                    <View style={styles.bookingItemContent}>
-                      <AdminBookingItem
-                        booking={booking}
-                        onPress={handleBookingPress}
-                        compact={!isTablet}
-                      />
-                    </View>
-                  </View>
-                ))}
-              </View>
-
-              {/* Loading State */}
-              {/* {(loading || !hasFetched) && bookings.length === 0 && (
-                <View style={styles.loadingContainer}>
-                  <LoadingSpinner size='large' />
-                  <Text style={styles.loadingText}>Loading bookings...</Text>
-                </View>
-              )} */}
-
-              {/* Empty State */}
-              {bookings.length === 0 && !loading && hasFetched && (
-                <View style={styles.emptyState}>
-                  <EmptyState
-                    icon={<Eye size={48} color={colors.textSecondary} />}
-                    title='No bookings found'
-                    message={
-                      filters.searchQuery
-                        ? 'Try adjusting your search criteria'
-                        : 'No bookings match the current filters'
-                    }
-                  />
-                </View>
-              )}
-            </>
+            <BookingsStats stats={stats} isTablet={isTablet} />
           )}
         </ScrollView>
       ) : (
@@ -477,170 +413,9 @@ export default function BookingsScreen() {
           )}
           ListHeaderComponent={() => (
             <>
-              <Stack.Screen
-                options={{
-                  title: 'Bookings',
-                  headerRight: () => (
-                    <View style={styles.headerActions}>
-                      {canExportReports() && (
-                        <TouchableOpacity
-                          style={styles.headerButton}
-                          onPress={handleExport}
-                          accessibilityRole='button'
-                          accessibilityLabel='Export'
-                        >
-                          <Download size={18} color={colors.primary} />
-                        </TouchableOpacity>
-                      )}
-                      {canCreateBookings() && (
-                        <Button
-                          title={isSmallScreen ? 'New' : 'New Booking'}
-                          variant='primary'
-                          size={isTablet ? 'medium' : 'small'}
-                          icon={
-                            <Plus size={isTablet ? 18 : 16} color='#FFFFFF' />
-                          }
-                          onPress={handleNewBooking}
-                        />
-                      )}
-                    </View>
-                  ),
-                }}
-              />
-
+              {renderHeader()}
               <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-
-              {/* Enhanced Search and Filter */}
-              <View style={styles.searchContainer}>
-                <View style={styles.searchWrapper}>
-                  <SearchBar
-                    value={filters.searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder='Search by customer, route, booking ID, or email...'
-                  />
-                </View>
-                <Button
-                  title=''
-                  variant='outline'
-                  size={isTablet ? 'large' : 'medium'}
-                  icon={
-                    <Filter size={isTablet ? 20 : 18} color={colors.primary} />
-                  }
-                  onPress={() => setShowFilterModal(true)}
-                />
-                <Button
-                  title=''
-                  variant='outline'
-                  size={isTablet ? 'large' : 'medium'}
-                  icon={
-                    <ArrowUpDown
-                      size={isTablet ? 20 : 18}
-                      color={colors.primary}
-                    />
-                  }
-                  onPress={() => {
-                    const sortFields: (
-                      | 'created_at'
-                      | 'total_fare'
-                      | 'user_name'
-                      | 'route_name'
-                      | 'trip_travel_date'
-                    )[] = [
-                      'created_at',
-                      'total_fare',
-                      'user_name',
-                      'route_name',
-                      'trip_travel_date',
-                    ];
-                    const currentIndex = sortFields.indexOf(filters.sortBy);
-                    const nextIndex = (currentIndex + 1) % sortFields.length;
-                    setSortBy(sortFields[nextIndex]);
-                  }}
-                />
-              </View>
-
-              {/* Filter Tabs */}
-              <FilterTabs
-                activeFilter={filters.filterStatus}
-                onFilterChange={filter => setFilters({ filterStatus: filter })}
-                getStatusCount={getStatusCount}
-              />
-
-              {/* Bulk Actions Bar */}
-              <BulkActionsBar
-                selectedCount={filters.selectedBookings.length}
-                onConfirm={() => handleBulkStatusUpdate('confirmed')}
-                onCancel={() => handleBulkStatusUpdate('cancelled')}
-                onClear={clearSelection}
-                canUpdateBookings={canUpdateBookings()}
-              />
-
-              {/* Bookings List Header */}
-              <View style={styles.section}>
-                <View style={styles.bookingsHeader}>
-                  <SectionHeader
-                    title={
-                      filters.searchQuery ? 'Search Results' : 'All Bookings'
-                    }
-                    subtitle={`${totalItems} ${totalItems === 1 ? 'booking' : 'bookings'} found`}
-                    size={isTablet ? 'large' : 'medium'}
-                  />
-                </View>
-
-                {/* Compact Filter Status */}
-                {(hasActiveFilters() || bookings.length > 0) && (
-                  <View style={styles.compactFilterStatus}>
-                    <Text style={styles.compactFilterText}>
-                      {getCurrentFilterText().filters}
-                    </Text>
-                    <View style={styles.filterStatusDivider}>
-                      <Text style={styles.compactFilterText}>
-                        {getCurrentFilterText().sort}
-                      </Text>
-                      {hasActiveFilters() && (
-                        <TouchableOpacity
-                          style={styles.clearFiltersButton}
-                          onPress={clearFilters}
-                          accessibilityRole='button'
-                          accessibilityLabel='Clear all filters'
-                        >
-                          <X size={14} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                )}
-
-                {/* Select All Section */}
-                {canUpdateBookings() && bookings.length > 0 && (
-                  <TouchableOpacity
-                    style={styles.selectAllButton}
-                    onPress={selectAllBookings}
-                    accessibilityRole='button'
-                    accessibilityLabel={
-                      isAllSelected
-                        ? 'Deselect all bookings'
-                        : 'Select all bookings'
-                    }
-                  >
-                    <View
-                      style={[
-                        styles.selectAllCheckboxLarge,
-                        isAllSelected && styles.checkboxSelected,
-                        isPartiallySelected && styles.checkboxPartial,
-                      ]}
-                    >
-                      {isAllSelected && <Check size={14} color='white' />}
-                      {isPartiallySelected && !isAllSelected && (
-                        <View style={styles.partialCheckmark} />
-                      )}
-                    </View>
-                    <Text style={styles.selectAllTextLarge}>
-                      {isAllSelected ? 'Deselect All' : 'Select All'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+              {renderBookingsList()}
             </>
           )}
           ListEmptyComponent={() => {
@@ -826,10 +601,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.primary,
-  },
-  bookingsList: {
-    gap: 12,
-    marginTop: 16,
   },
   bookingItemWrapper: {
     flexDirection: 'row',

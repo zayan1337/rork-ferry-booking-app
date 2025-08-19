@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert, Text } from 'react-native';
+import { View, StyleSheet, Alert, Text, TouchableOpacity } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { AdminBookingFormData } from '@/types/admin/management';
 import { useAdminBookingStore } from '@/store/admin/bookingStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { BookingForm } from '@/components/admin/bookings';
+import { ArrowLeft } from 'lucide-react-native';
 
 export default function NewBookingPage() {
   const { createBooking } = useAdminBookingStore();
@@ -44,7 +45,15 @@ export default function NewBookingPage() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'New Booking',
+          title: 'Create Booking',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <ArrowLeft size={24} color={colors.primary} />
+            </TouchableOpacity>
+          ),
         }}
       />
 
@@ -62,6 +71,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
   },
   noPermissionContainer: {
     flex: 1,

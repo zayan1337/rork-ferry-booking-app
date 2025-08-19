@@ -121,8 +121,12 @@ export default function BookingDetailsPage() {
       if (updatedBooking) {
         setBooking(updatedBooking);
       }
-      Alert.alert('Success', 'Booking status updated successfully');
+      Alert.alert(
+        'Success',
+        `Booking status updated to ${newStatus.replace('_', ' ')}`
+      );
     } catch (error) {
+      console.error('Error updating booking status:', error);
       Alert.alert('Error', 'Failed to update booking status');
     } finally {
       setUpdating(false);
@@ -150,7 +154,7 @@ export default function BookingDetailsPage() {
 
   const handleEdit = () => {
     if (!booking) return;
-    router.push(`../booking/${booking.id}/edit` as any);
+    router.push(`../booking/${booking.id}/modify` as any);
   };
 
   const handleViewCustomer = () => {
@@ -213,20 +217,6 @@ export default function BookingDetailsPage() {
 
     // Calculate any additional charges (if payment amount is more than total fare)
     const additionalCharges = Math.max(0, paymentAmount - totalFare);
-
-    // For debugging - let's log the values
-    console.log('Payment Debug:', {
-      bookingId: booking.id,
-      totalFare,
-      baseFare,
-      paymentAmount,
-      discount,
-      paymentStatus: booking.payment_status,
-      bookingStatus: booking.status,
-      rawPaymentAmount: booking.payment_amount,
-      hasDiscount: discount > 0,
-      hasAdditionalCharges: additionalCharges > 0,
-    });
 
     return {
       status,
@@ -500,7 +490,9 @@ export default function BookingDetailsPage() {
           <View style={styles.metricsContainer}>
             <View style={styles.metric}>
               <Text style={styles.metricValue}>
-                {formatCurrency(booking.trip_base_fare || 0)}
+                {formatCurrency(
+                  booking.total_fare || booking.trip_base_fare || 0
+                )}
               </Text>
               <Text style={styles.metricLabel}>Total Fare</Text>
             </View>

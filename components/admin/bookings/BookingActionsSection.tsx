@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking, BookingStatus } from '@/types/admin/management';
 import StatusBadge from '@/components/admin/StatusBadge';
 import {
   CheckCircle,
-  XCircle,
   RefreshCw,
   Eye,
   User,
@@ -15,6 +15,8 @@ import {
   Printer,
   MessageSquare,
   Receipt,
+  Edit,
+  Trash2,
 } from 'lucide-react-native';
 
 interface BookingActionsSectionProps {
@@ -111,21 +113,6 @@ export default function BookingActionsSection({
           </TouchableOpacity>
         );
         break;
-    }
-
-    // Cancel action for active bookings
-    if (['reserved', 'pending_payment', 'confirmed'].includes(booking.status)) {
-      actions.push(
-        <TouchableOpacity
-          key='cancel'
-          style={[styles.actionButton, styles.dangerAction]}
-          onPress={() => handleStatusUpdate('cancelled')}
-          disabled={loading || !canUpdateBookings}
-        >
-          <XCircle size={18} color='#FFFFFF' />
-          <Text style={styles.actionButtonText}>Cancel Booking</Text>
-        </TouchableOpacity>
-      );
     }
 
     return actions;
@@ -251,6 +238,44 @@ export default function BookingActionsSection({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Booking Management Actions */}
+      {['reserved', 'pending_payment', 'confirmed'].includes(
+        booking.status
+      ) && (
+        <View style={styles.actionGroup}>
+          <View style={styles.groupHeader}>
+            <Edit size={20} color={colors.primary} />
+            <Text style={styles.groupTitle}>Booking Management</Text>
+          </View>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.outlineAction]}
+              onPress={() =>
+                router.push(`/(admin)/booking/${booking.id}/modify` as any)
+              }
+              disabled={!canUpdateBookings}
+            >
+              <Edit size={18} color={colors.primary} />
+              <Text
+                style={[styles.actionButtonText, { color: colors.primary }]}
+              >
+                Modify Booking
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.dangerAction]}
+              onPress={() =>
+                router.push(`/(admin)/booking/${booking.id}/cancel` as any)
+              }
+              disabled={!canUpdateBookings}
+            >
+              <Trash2 size={18} color='#FFFFFF' />
+              <Text style={styles.actionButtonText}>Cancel Booking</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Document Actions */}
       <View style={styles.actionGroup}>

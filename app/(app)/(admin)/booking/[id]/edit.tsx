@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert, Text } from 'react-native';
+import { View, StyleSheet, Alert, Text, TouchableOpacity } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { AdminBooking, AdminBookingFormData } from '@/types/admin/management';
+import {
+  AdminBooking,
+  AdminBookingFormData,
+  AdminPassenger,
+} from '@/types/admin/management';
 import { useAdminBookingStore } from '@/store/admin/bookingStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { BookingForm } from '@/components/admin/bookings';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import EmptyState from '@/components/admin/EmptyState';
-import { AlertTriangle } from 'lucide-react-native';
+import { AlertTriangle, ArrowLeft } from 'lucide-react-native';
+import { supabase } from '@/utils/supabase';
 
 export default function EditBookingPage() {
   const { id } = useLocalSearchParams();
@@ -24,6 +29,7 @@ export default function EditBookingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [passengers, setPassengers] = useState<AdminPassenger[]>([]);
 
   useEffect(() => {
     const loadBooking = async () => {
@@ -40,6 +46,29 @@ export default function EditBookingPage() {
 
         if (fetchedBooking) {
           setBooking(fetchedBooking);
+          try {
+            const { data: pax, error: paxErr } = await supabase
+              .from('passengers')
+              .select(
+                'id, booking_id, seat_id, passenger_name, passenger_contact_number, special_assistance_request'
+              )
+              .eq('booking_id', fetchedBooking.id);
+            if (!paxErr && pax) {
+              setPassengers(
+                pax.map(p => ({
+                  id: p.id,
+                  booking_id: p.booking_id,
+                  seat_id: p.seat_id || undefined,
+                  passenger_name: p.passenger_name,
+                  passenger_contact_number: p.passenger_contact_number,
+                  special_assistance_request:
+                    p.special_assistance_request || undefined,
+                }))
+              );
+            }
+          } catch (e) {
+            // Ignore passenger fetch errors in UI
+          }
         } else {
           setError(`Booking with ID "${id}" not found`);
         }
@@ -122,8 +151,7 @@ export default function EditBookingPage() {
     trip_id: booking.trip_id,
     is_round_trip: booking.is_round_trip,
     total_fare: booking.total_fare,
-    // Add passenger data if available
-    passengers: [], // This would need to be populated from passenger data
+    passengers: passengers,
   };
 
   return (
@@ -131,6 +159,14 @@ export default function EditBookingPage() {
       <Stack.Screen
         options={{
           title: `Edit Booking #${booking.booking_number}`,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <ArrowLeft size={24} color={colors.primary} />
+            </TouchableOpacity>
+          ),
         }}
       />
 
@@ -149,6 +185,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
   },
   noPermissionContainer: {
     flex: 1,
