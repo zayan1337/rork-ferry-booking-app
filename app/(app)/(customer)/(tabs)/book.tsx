@@ -658,7 +658,13 @@ export default function BookScreen() {
 
             {currentBooking.route && currentBooking.departureDate && (
               <>
-                {trips.length > 0 ? (
+                {tripLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>
+                      Loading available trips...
+                    </Text>
+                  </View>
+                ) : trips.length > 0 ? (
                   <Dropdown
                     label='Select Departure Time'
                     items={trips.map(trip => ({
@@ -722,7 +728,13 @@ export default function BookScreen() {
               currentBooking.returnRoute &&
               currentBooking.returnDate && (
                 <>
-                  {returnTrips.length > 0 ? (
+                  {tripLoading ? (
+                    <View style={styles.loadingContainer}>
+                      <Text style={styles.loadingText}>
+                        Loading available return trips...
+                      </Text>
+                    </View>
+                  ) : returnTrips.length > 0 ? (
                     <Dropdown
                       label='Select Return Time'
                       items={returnTrips.map(trip => ({
@@ -1262,5 +1274,19 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontSize: 14,
     marginBottom: 16,
+  },
+  loadingContainer: {
+    padding: 16,
+    backgroundColor: Colors.highlight,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginVertical: 8,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
 });
