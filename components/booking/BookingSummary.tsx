@@ -25,11 +25,14 @@ interface BookingSummaryProps {
 
 const BookingSummary: React.FC<BookingSummaryProps> = ({
   summary,
-  title = "Booking Summary",
+  title = 'Booking Summary',
   style,
 }) => {
   return (
-    <Card variant="elevated" style={StyleSheet.flatten([styles.container, style])}>
+    <Card
+      variant='elevated'
+      style={StyleSheet.flatten([styles.container, style])}
+    >
       <Text style={styles.title}>{title}</Text>
 
       <View style={styles.row}>
@@ -141,4 +144,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BookingSummary; 
+export default BookingSummary;

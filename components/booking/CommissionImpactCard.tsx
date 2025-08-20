@@ -15,13 +15,14 @@ const CommissionImpactCard: React.FC<CommissionImpactCardProps> = ({
   if (!commission || commission <= 0) return null;
 
   return (
-    <Card variant="elevated" style={styles.commissionCard}>
+    <Card variant='elevated' style={styles.commissionCard}>
       <View style={styles.commissionHeader}>
         <DollarSign size={20} color={Colors.warning} />
         <Text style={styles.commissionTitle}>Commission Impact</Text>
       </View>
       <Text style={styles.commissionText}>
-        Your commission of {formatCurrency(commission)} will be deducted from your account.
+        Your commission of {formatCurrency(commission)} will be deducted from
+        your account.
       </Text>
     </Card>
   );
@@ -51,4 +52,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CommissionImpactCard; 
+export default CommissionImpactCard;

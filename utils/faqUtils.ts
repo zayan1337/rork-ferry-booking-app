@@ -1,5 +1,10 @@
 import type { DBFaq, DBFaqCategory } from '@/types/database';
-import { FAQ, FAQCategory, FAQStats, FAQFilters } from '@/types/admin/management';
+import {
+  FAQ,
+  FAQCategory,
+  FAQStats,
+  FAQFilters,
+} from '@/types/admin/management';
 
 /**
  * Organize FAQs by category for easier rendering
@@ -8,13 +13,14 @@ export const organizeFaqsByCategory = (
   faqs: DBFaq[],
   categories: DBFaqCategory[]
 ): Record<string, { category: DBFaqCategory; faqs: DBFaq[] }> => {
-  const organized: Record<string, { category: DBFaqCategory; faqs: DBFaq[] }> = {};
+  const organized: Record<string, { category: DBFaqCategory; faqs: DBFaq[] }> =
+    {};
 
   // Initialize categories
   categories.forEach(category => {
     organized[category.id] = {
       category,
-      faqs: []
+      faqs: [],
     };
   });
 
@@ -35,16 +41,20 @@ export const searchFaqs = (faqs: DBFaq[], query: string): DBFaq[] => {
   if (!query.trim()) return faqs;
 
   const searchTerm = query.toLowerCase();
-  return faqs.filter(faq =>
-    faq.question.toLowerCase().includes(searchTerm) ||
-    faq.answer.toLowerCase().includes(searchTerm)
+  return faqs.filter(
+    faq =>
+      faq.question.toLowerCase().includes(searchTerm) ||
+      faq.answer.toLowerCase().includes(searchTerm)
   );
 };
 
 /**
  * Filter FAQs by category
  */
-export const filterFaqsByCategory = (faqs: FAQ[], categoryId: string): FAQ[] => {
+export const filterFaqsByCategory = (
+  faqs: FAQ[],
+  categoryId: string
+): FAQ[] => {
   return faqs.filter(faq => faq.category_id === categoryId);
 };
 
@@ -85,8 +95,8 @@ export const sortFaqs = (
         bValue = new Date(b.created_at).getTime();
         break;
       case 'updated_at':
-        aValue = new Date(a.updated_at).getTime();
-        bValue = new Date(b.updated_at).getTime();
+        aValue = new Date(a.updated_at || a.created_at).getTime();
+        bValue = new Date(b.updated_at || b.created_at).getTime();
         break;
       default:
         aValue = a.question.toLowerCase();
@@ -138,7 +148,10 @@ export const sortFaqCategories = (
 /**
  * Calculate FAQ statistics
  */
-export const calculateFaqStats = (faqs: FAQ[], categories: FAQCategory[]): FAQStats => {
+export const calculateFaqStats = (
+  faqs: FAQ[],
+  categories: FAQCategory[]
+): FAQStats => {
   const stats: FAQStats = {
     total: faqs.length,
     active: faqs.filter(faq => faq.is_active).length,
@@ -162,8 +175,8 @@ export const calculateFaqStats = (faqs: FAQ[], categories: FAQCategory[]): FAQSt
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  stats.recentlyUpdated = faqs.filter(faq =>
-    new Date(faq.updated_at) > sevenDaysAgo
+  stats.recentlyUpdated = faqs.filter(
+    faq => new Date(faq.updated_at || faq.created_at) > sevenDaysAgo
   ).length;
 
   return stats;
@@ -172,7 +185,10 @@ export const calculateFaqStats = (faqs: FAQ[], categories: FAQCategory[]): FAQSt
 /**
  * Calculate category statistics
  */
-export const calculateCategoryStats = (categories: FAQCategory[], faqs: FAQ[]) => {
+export const calculateCategoryStats = (
+  categories: FAQCategory[],
+  faqs: FAQ[]
+) => {
   const categoriesWithFaqs = categories.filter(cat =>
     faqs.some(faq => faq.category_id === cat.id)
   ).length;
@@ -182,31 +198,38 @@ export const calculateCategoryStats = (categories: FAQCategory[], faqs: FAQ[]) =
     active: categories.filter(cat => cat.is_active).length,
     inactive: categories.filter(cat => !cat.is_active).length,
     withFaqs: categoriesWithFaqs,
-    averageFaqsPerCategory: categories.length > 0
-      ? Math.round(faqs.length / categories.length * 10) / 10
-      : 0,
+    averageFaqsPerCategory:
+      categories.length > 0
+        ? Math.round((faqs.length / categories.length) * 10) / 10
+        : 0,
   };
 };
 
 /**
  * Get FAQs with enhanced category information
  */
-export const getFaqsWithCategoryInfo = (faqs: FAQ[], categories: FAQCategory[]): FAQ[] => {
+export const getFaqsWithCategoryInfo = (
+  faqs: FAQ[],
+  categories: FAQCategory[]
+): FAQ[] => {
   return faqs.map(faq => ({
     ...faq,
-    category: categories.find(cat => cat.id === faq.category_id)
+    category: categories.find(cat => cat.id === faq.category_id),
   }));
 };
 
 /**
  * Get category with FAQ count
  */
-export const getCategoriesWithFaqCount = (categories: FAQCategory[], faqs: FAQ[]) => {
+export const getCategoriesWithFaqCount = (
+  categories: FAQCategory[],
+  faqs: FAQ[]
+) => {
   return categories.map(category => ({
     ...category,
     faq_count: faqs.filter(faq => faq.category_id === category.id).length,
-    active_faq_count: faqs.filter(faq =>
-      faq.category_id === category.id && faq.is_active
+    active_faq_count: faqs.filter(
+      faq => faq.category_id === category.id && faq.is_active
     ).length,
   }));
 };
@@ -230,10 +253,11 @@ export const filterFaqs = (faqs: FAQ[], filters: FAQFilters): FAQ[] => {
   // Filter by search query
   if (filters.search?.trim()) {
     const searchTerm = filters.search.toLowerCase();
-    filtered = filtered.filter(faq =>
-      faq.question.toLowerCase().includes(searchTerm) ||
-      faq.answer.toLowerCase().includes(searchTerm) ||
-      faq.category?.name?.toLowerCase().includes(searchTerm)
+    filtered = filtered.filter(
+      faq =>
+        faq.question.toLowerCase().includes(searchTerm) ||
+        faq.answer.toLowerCase().includes(searchTerm) ||
+        faq.category?.name?.toLowerCase().includes(searchTerm)
     );
   }
 
@@ -272,7 +296,7 @@ export const validateFaqData = (data: {
 
   return {
     isValid: Object.keys(errors).length === 0,
-    errors
+    errors,
   };
 };
 
@@ -299,24 +323,26 @@ export const validateCategoryData = (data: {
 
   return {
     isValid: Object.keys(errors).length === 0,
-    errors
+    errors,
   };
 };
 
 /**
  * Format FAQ for display
  */
-export const formatFaqForDisplay = (faq: DBFaq): {
+export const formatFaqForDisplay = (
+  faq: DBFaq
+): {
   id: string;
   question: string;
   answer: string;
-  category?: string
+  category?: string;
 } => {
   return {
     id: faq.id,
     question: faq.question,
     answer: faq.answer,
-    category: faq.category?.name
+    category: faq.category?.name,
   };
 };
 
@@ -330,7 +356,10 @@ export const getFaqById = (faqs: FAQ[], id: string): FAQ | null => {
 /**
  * Get category by ID with error handling
  */
-export const getCategoryById = (categories: FAQCategory[], id: string): FAQCategory | null => {
+export const getCategoryById = (
+  categories: FAQCategory[],
+  id: string
+): FAQCategory | null => {
   return categories.find(category => category.id === id) || null;
 };
 
@@ -344,7 +373,10 @@ export const canDeleteCategory = (categoryId: string, faqs: FAQ[]): boolean => {
 /**
  * Get next order index for FAQ
  */
-export const getNextFaqOrderIndex = (faqs: FAQ[], categoryId?: string): number => {
+export const getNextFaqOrderIndex = (
+  faqs: FAQ[],
+  categoryId?: string
+): number => {
   const relevantFaqs = categoryId
     ? faqs.filter(faq => faq.category_id === categoryId)
     : faqs;
@@ -358,7 +390,9 @@ export const getNextFaqOrderIndex = (faqs: FAQ[], categoryId?: string): number =
 /**
  * Get next order index for category
  */
-export const getNextCategoryOrderIndex = (categories: FAQCategory[]): number => {
+export const getNextCategoryOrderIndex = (
+  categories: FAQCategory[]
+): number => {
   if (categories.length === 0) return 0;
 
   const maxOrder = Math.max(...categories.map(cat => cat.order_index));
@@ -368,23 +402,27 @@ export const getNextCategoryOrderIndex = (categories: FAQCategory[]): number => 
 /**
  * Get available order positions for FAQ categories
  */
-export const getAvailableCategoryOrderPositions = (categories: FAQCategory[]): { label: string; value: number }[] => {
+export const getAvailableCategoryOrderPositions = (
+  categories: FAQCategory[]
+): { label: string; value: number }[] => {
   const positions = [];
 
   // Sort categories by their current order
-  const sortedCategories = [...categories].sort((a, b) => a.order_index - b.order_index);
+  const sortedCategories = [...categories].sort(
+    (a, b) => a.order_index - b.order_index
+  );
 
   // Add "First position" option
   positions.push({
-    label: "1. First position",
-    value: 0
+    label: '1. First position',
+    value: 0,
   });
 
   // Add positions after each existing category
   sortedCategories.forEach((category, index) => {
     positions.push({
       label: `${index + 2}. After "${category.name}"`,
-      value: index + 1
+      value: index + 1,
     });
   });
 
@@ -394,27 +432,31 @@ export const getAvailableCategoryOrderPositions = (categories: FAQCategory[]): {
 /**
  * Get available order positions for FAQs within a category
  */
-export const getAvailableFaqOrderPositions = (faqs: FAQ[], categoryId: string): { label: string; value: number }[] => {
+export const getAvailableFaqOrderPositions = (
+  faqs: FAQ[],
+  categoryId: string
+): { label: string; value: number }[] => {
   const categoryFaqs = faqs.filter(faq => faq.category_id === categoryId);
   const positions = [];
 
   // Add position at the beginning
   positions.push({
-    label: "1. First position",
-    value: 0
+    label: '1. First position',
+    value: 0,
   });
 
   // Sort FAQs by their current order and add positions after each
   const sortedFaqs = categoryFaqs.sort((a, b) => a.order_index - b.order_index);
 
   sortedFaqs.forEach((faq, index) => {
-    const truncatedQuestion = faq.question.length > 50
-      ? `${faq.question.substring(0, 50)}...`
-      : faq.question;
+    const truncatedQuestion =
+      faq.question.length > 50
+        ? `${faq.question.substring(0, 50)}...`
+        : faq.question;
 
     positions.push({
       label: `${index + 2}. After "${truncatedQuestion}"`,
-      value: index + 1
+      value: index + 1,
     });
   });
 
@@ -437,12 +479,16 @@ export const validateCategoryOrderIndex = (
     ? categories.filter(cat => cat.id !== excludeId)
     : categories;
 
-  const maxOrder = filteredCategories.length > 0
-    ? Math.max(...filteredCategories.map(cat => cat.order_index))
-    : -1;
+  const maxOrder =
+    filteredCategories.length > 0
+      ? Math.max(...filteredCategories.map(cat => cat.order_index))
+      : -1;
 
   if (orderIndex > maxOrder + 1) {
-    return { isValid: false, error: `Order index cannot be greater than ${maxOrder + 2}` };
+    return {
+      isValid: false,
+      error: `Order index cannot be greater than ${maxOrder + 2}`,
+    };
   }
 
   return { isValid: true };
@@ -463,14 +509,18 @@ export const validateFaqOrderIndex = (
 
   const categoryFaqs = faqs
     .filter(faq => faq.category_id === categoryId)
-    .filter(faq => excludeId ? faq.id !== excludeId : true);
+    .filter(faq => (excludeId ? faq.id !== excludeId : true));
 
-  const maxOrder = categoryFaqs.length > 0
-    ? Math.max(...categoryFaqs.map(faq => faq.order_index))
-    : -1;
+  const maxOrder =
+    categoryFaqs.length > 0
+      ? Math.max(...categoryFaqs.map(faq => faq.order_index))
+      : -1;
 
   if (orderIndex > maxOrder + 1) {
-    return { isValid: false, error: `Order index cannot be greater than ${maxOrder + 2}` };
+    return {
+      isValid: false,
+      error: `Order index cannot be greater than ${maxOrder + 2}`,
+    };
   }
 
   return { isValid: true };
@@ -479,14 +529,19 @@ export const validateFaqOrderIndex = (
 /**
  * Get suggested order index for new category
  */
-export const getSuggestedCategoryOrderIndex = (categories: FAQCategory[]): number => {
+export const getSuggestedCategoryOrderIndex = (
+  categories: FAQCategory[]
+): number => {
   return getNextCategoryOrderIndex(categories);
 };
 
 /**
  * Get suggested order index for new FAQ
  */
-export const getSuggestedFaqOrderIndex = (faqs: FAQ[], categoryId: string): number => {
+export const getSuggestedFaqOrderIndex = (
+  faqs: FAQ[],
+  categoryId: string
+): number => {
   return getNextFaqOrderIndex(faqs, categoryId);
 };
 
@@ -514,7 +569,7 @@ export const reorderCategoriesLocally = (
   // Add the moved category with new order index
   const updatedCategories = [
     ...adjustedCategories,
-    { ...movedCategory, order_index: newOrderIndex }
+    { ...movedCategory, order_index: newOrderIndex },
   ];
 
   return updatedCategories.sort((a, b) => a.order_index - b.order_index);
@@ -531,11 +586,11 @@ export const reorderFaqsLocally = (
   const movedFaq = faqs.find(faq => faq.id === movedFaqId);
   if (!movedFaq) return faqs;
 
-  const categoryFaqs = faqs.filter(faq =>
-    faq.category_id === movedFaq.category_id && faq.id !== movedFaqId
+  const categoryFaqs = faqs.filter(
+    faq => faq.category_id === movedFaq.category_id && faq.id !== movedFaqId
   );
-  const otherFaqs = faqs.filter(faq =>
-    faq.category_id !== movedFaq.category_id
+  const otherFaqs = faqs.filter(
+    faq => faq.category_id !== movedFaq.category_id
   );
 
   // Adjust order indices for FAQs in the same category
@@ -550,7 +605,7 @@ export const reorderFaqsLocally = (
   const updatedFaqs = [
     ...otherFaqs,
     ...adjustedCategoryFaqs,
-    { ...movedFaq, order_index: newOrderIndex }
+    { ...movedFaq, order_index: newOrderIndex },
   ];
 
   return updatedFaqs;
@@ -614,7 +669,7 @@ export const exportFaqsToJson = (faqs: FAQ[]): string => {
     isActive: faq.is_active,
     orderIndex: faq.order_index,
     createdAt: faq.created_at,
-    updatedAt: faq.updated_at
+    updatedAt: faq.updated_at,
   }));
 
   return JSON.stringify(exportData, null, 2);
@@ -630,12 +685,12 @@ export const groupFaqsByCategory = (faqs: FAQ[], categories: FAQCategory[]) => {
       category,
       faqs: faqs
         .filter(faq => faq.category_id === category.id)
-        .sort((a, b) => a.order_index - b.order_index)
+        .sort((a, b) => a.order_index - b.order_index),
     }));
 
   // Add uncategorized FAQs if any
-  const uncategorizedFaqs = faqs.filter(faq =>
-    !categories.some(cat => cat.id === faq.category_id)
+  const uncategorizedFaqs = faqs.filter(
+    faq => !categories.some(cat => cat.id === faq.category_id)
   );
 
   if (uncategorizedFaqs.length > 0) {
@@ -649,9 +704,11 @@ export const groupFaqsByCategory = (faqs: FAQ[], categories: FAQCategory[]) => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
-      faqs: uncategorizedFaqs.sort((a, b) => a.order_index - b.order_index)
+      faqs: uncategorizedFaqs.sort((a, b) => a.order_index - b.order_index),
     });
   }
 
-  return grouped.sort((a, b) => a.category.order_index - b.category.order_index);
-}; 
+  return grouped.sort(
+    (a, b) => a.category.order_index - b.category.order_index
+  );
+};

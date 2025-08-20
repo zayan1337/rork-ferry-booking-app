@@ -29,4 +29,4 @@ export interface RegisterData {
   email_address: string;
   password: string;
   accepted_terms: boolean;
-} 
+}

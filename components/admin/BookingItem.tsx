@@ -1,9 +1,15 @@
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View, Dimensions } from "react-native";
-import { colors } from "@/constants/adminColors";
-import { Calendar, Clock, Users, MapPin } from "lucide-react-native";
-import StatusBadge from "./StatusBadge";
-import { Booking } from "@/types/admin";
+import React from 'react';
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Dimensions,
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { Calendar, Clock, Users, MapPin } from 'lucide-react-native';
+import StatusBadge from './StatusBadge';
+import { Booking } from '@/types/admin';
 
 interface BookingItemProps {
   booking: Booking;
@@ -13,8 +19,11 @@ interface BookingItemProps {
 
 const { width: screenWidth } = Dimensions.get('window');
 
-export default function BookingItem({ booking, onPress, compact = false }: BookingItemProps) {
-
+export default function BookingItem({
+  booking,
+  onPress,
+  compact = false,
+}: BookingItemProps) {
   const isSmallScreen = screenWidth < 480;
   const scale = isSmallScreen ? 0.9 : 1;
 
@@ -59,7 +68,10 @@ export default function BookingItem({ booking, onPress, compact = false }: Booki
       return date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
-        year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+        year:
+          date.getFullYear() !== new Date().getFullYear()
+            ? 'numeric'
+            : undefined,
       });
     } catch {
       return dateString;
@@ -72,12 +84,12 @@ export default function BookingItem({ booking, onPress, compact = false }: Booki
         styles.container,
         {
           padding: sizeStyles.padding,
-          borderRadius: sizeStyles.borderRadius
-        }
+          borderRadius: sizeStyles.borderRadius,
+        },
       ]}
       onPress={onPress}
       activeOpacity={0.7}
-      accessibilityRole="button"
+      accessibilityRole='button'
       accessibilityLabel={`Booking ${booking.id} for ${booking.customerName}`}
     >
       {/* Header */}
@@ -88,25 +100,43 @@ export default function BookingItem({ booking, onPress, compact = false }: Booki
           </Text>
           {!compact && (
             <View style={styles.routeContainer}>
-              <MapPin size={sizeStyles.iconSize - 2} color={colors.textSecondary} />
-              <Text style={[styles.routeName, { fontSize: sizeStyles.titleSize }]} numberOfLines={1}>
+              <MapPin
+                size={sizeStyles.iconSize - 2}
+                color={colors.textSecondary}
+              />
+              <Text
+                style={[styles.routeName, { fontSize: sizeStyles.titleSize }]}
+                numberOfLines={1}
+              >
                 {booking.routeName}
               </Text>
             </View>
           )}
         </View>
-        <StatusBadge status={booking.status} size={compact ? "small" : "medium"} />
+        <StatusBadge
+          status={booking.status}
+          size={compact ? 'small' : 'medium'}
+        />
       </View>
 
       {/* Route name for compact layout */}
       {compact && (
-        <Text style={[styles.routeName, { fontSize: sizeStyles.titleSize, marginBottom: 8 }]} numberOfLines={1}>
+        <Text
+          style={[
+            styles.routeName,
+            { fontSize: sizeStyles.titleSize, marginBottom: 8 },
+          ]}
+          numberOfLines={1}
+        >
           {booking.routeName}
         </Text>
       )}
 
       {/* Customer name */}
-      <Text style={[styles.customerName, { fontSize: sizeStyles.subtitleSize }]} numberOfLines={1}>
+      <Text
+        style={[styles.customerName, { fontSize: sizeStyles.subtitleSize }]}
+        numberOfLines={1}
+      >
         {booking.customerName}
       </Text>
 
@@ -114,22 +144,29 @@ export default function BookingItem({ booking, onPress, compact = false }: Booki
       <View style={[styles.detailsGrid, { marginTop: compact ? 8 : 12 }]}>
         <View style={styles.detailItem}>
           <Calendar size={sizeStyles.iconSize} color={colors.textSecondary} />
-          <Text style={[styles.detailText, { fontSize: sizeStyles.detailSize }]}>
+          <Text
+            style={[styles.detailText, { fontSize: sizeStyles.detailSize }]}
+          >
             {formatDate(booking.date)}
           </Text>
         </View>
 
         <View style={styles.detailItem}>
           <Clock size={sizeStyles.iconSize} color={colors.textSecondary} />
-          <Text style={[styles.detailText, { fontSize: sizeStyles.detailSize }]}>
+          <Text
+            style={[styles.detailText, { fontSize: sizeStyles.detailSize }]}
+          >
             {booking.departureTime}
           </Text>
         </View>
 
         <View style={styles.detailItem}>
           <Users size={sizeStyles.iconSize} color={colors.textSecondary} />
-          <Text style={[styles.detailText, { fontSize: sizeStyles.detailSize }]}>
-            {booking.passengers} {booking.passengers === 1 ? 'passenger' : 'passengers'}
+          <Text
+            style={[styles.detailText, { fontSize: sizeStyles.detailSize }]}
+          >
+            {booking.passengers}{' '}
+            {booking.passengers === 1 ? 'passenger' : 'passengers'}
           </Text>
         </View>
       </View>
@@ -138,8 +175,8 @@ export default function BookingItem({ booking, onPress, compact = false }: Booki
       <View style={[styles.footer, { marginTop: compact ? 8 : 12 }]}>
         <StatusBadge
           status={booking.paymentStatus}
-          size="small"
-          variant="payment"
+          size='small'
+          variant='payment'
         />
         <Text style={[styles.amount, { fontSize: sizeStyles.amountSize }]}>
           {formatAmount(booking.totalAmount)}
@@ -159,12 +196,12 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     borderWidth: 1,
-    borderColor: colors.border + "20",
+    borderColor: `${colors.border}20`,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   headerLeft: {
@@ -173,52 +210,52 @@ const styles = StyleSheet.create({
   },
   id: {
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 4,
   },
   routeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
   routeName: {
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginLeft: 6,
     flex: 1,
   },
   customerName: {
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
     marginBottom: 4,
   },
   detailsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     rowGap: 8,
     columnGap: 16,
   },
   detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    minWidth: "45%",
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: '45%',
   },
   detailText: {
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
     marginLeft: 6,
     flex: 1,
   },
   footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.border + "30",
+    borderTopColor: `${colors.border}30`,
   },
   amount: {
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.primary,
   },
 });

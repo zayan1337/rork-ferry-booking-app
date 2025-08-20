@@ -7,7 +7,7 @@ type TripType = 'one_way' | 'round_trip';
 interface TripTypeSelectorProps {
   value: TripType | null;
   onChange: (tripType: TripType) => void;
-  options?: Array<{ value: TripType; label: string }>;
+  options?: { value: TripType; label: string }[];
   error?: string;
 }
 
@@ -25,7 +25,7 @@ const TripTypeSelector: React.FC<TripTypeSelectorProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.buttonContainer}>
-        {options.map((option) => (
+        {options.map(option => (
           <TouchableOpacity
             key={option.value}
             style={[
@@ -38,7 +38,7 @@ const TripTypeSelector: React.FC<TripTypeSelectorProps> = ({
             <Text
               style={[
                 styles.buttonText,
-                value === option.value && styles.buttonTextActive
+                value === option.value && styles.buttonTextActive,
               ]}
             >
               {option.label}
@@ -46,9 +46,7 @@ const TripTypeSelector: React.FC<TripTypeSelectorProps> = ({
           </TouchableOpacity>
         ))}
       </View>
-      {error && (
-        <Text style={styles.errorText}>{error}</Text>
-      )}
+      {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 };
@@ -90,4 +88,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TripTypeSelector; 
+export default TripTypeSelector;

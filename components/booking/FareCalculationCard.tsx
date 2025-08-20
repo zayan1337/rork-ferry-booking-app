@@ -41,7 +41,7 @@ const FareCalculationCard: React.FC<FareCalculationCardProps> = ({
   };
 
   return (
-    <Card variant="elevated" style={styles.fareCalculationCard}>
+    <Card variant='elevated' style={styles.fareCalculationCard}>
       <View style={styles.fareHeader}>
         <DollarSign size={20} color={Colors.primary} />
         <Text style={styles.fareTitle}>Fare Calculation</Text>
@@ -67,7 +67,9 @@ const FareCalculationCard: React.FC<FareCalculationCardProps> = ({
       {agentDiscountRate > 0 && (
         <>
           <View style={styles.discountRow}>
-            <Text style={styles.discountLabel}>Agent Discount ({agentDiscountRate}%):</Text>
+            <Text style={styles.discountLabel}>
+              Agent Discount ({agentDiscountRate}%):
+            </Text>
             <Text style={styles.discountSavings}>
               -{formatCurrency(newBookingFare * (agentDiscountRate / 100))}
             </Text>
@@ -85,23 +87,26 @@ const FareCalculationCard: React.FC<FareCalculationCardProps> = ({
       {/* Payment Difference */}
       <View style={styles.dividerLine} />
       <View style={styles.discountRow}>
-        <Text style={[styles.discountLabel, { fontSize: 16, fontWeight: '600' }]}>
+        <Text
+          style={[styles.discountLabel, { fontSize: 16, fontWeight: '600' }]}
+        >
           Payment Difference:
         </Text>
-        <Text style={[
-          styles.fareAmount,
-          {
-            fontSize: 18,
-            color: getPaymentDifferenceColor()
-          }
-        ]}>
-          {fareDifference > 0 ? '+' : ''}{formatCurrency(fareDifference)}
+        <Text
+          style={[
+            styles.fareAmount,
+            {
+              fontSize: 18,
+              color: getPaymentDifferenceColor(),
+            },
+          ]}
+        >
+          {fareDifference > 0 ? '+' : ''}
+          {formatCurrency(fareDifference)}
         </Text>
       </View>
 
-      <Text style={styles.fareDescription}>
-        {getPaymentDifferenceText()}
-      </Text>
+      <Text style={styles.fareDescription}>{getPaymentDifferenceText()}</Text>
     </Card>
   );
 };
@@ -163,4 +168,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default FareCalculationCard; 
+export default FareCalculationCard;

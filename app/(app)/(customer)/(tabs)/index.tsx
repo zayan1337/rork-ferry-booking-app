@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
-  Modal
+  Modal,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import {
@@ -18,16 +18,21 @@ import {
   Ticket,
   Clock,
   LifeBuoy,
-  X
+  X,
 } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
-import { useBookingStore, useRouteStore, useUserBookingsStore } from '@/store';
+import { useRouteStore, useUserBookingsStore } from '@/store';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import { useQuickBooking } from '@/hooks/useQuickBooking';
 import { useModalState } from '@/hooks/useModalState';
-import { generateDateOptions, formatDisplayDate, getUniqueIslandNames, filterRoutesByDepartureIsland } from '@/utils/customerUtils';
+import {
+  generateDateOptions,
+  formatDisplayDate,
+  getUniqueIslandNames,
+  filterRoutesByDepartureIsland,
+} from '@/utils/customerUtils';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
@@ -39,33 +44,25 @@ export default function HomeScreen() {
   const {
     availableRoutes,
     fetchAvailableRoutes,
-    isLoading: routeLoading
+    isLoading: routeLoading,
   } = useRouteStore();
 
   // User bookings management
   const {
     bookings,
     fetchUserBookings,
-    isLoading: bookingsLoading
+    isLoading: bookingsLoading,
   } = useUserBookingsStore();
 
   // Combined loading state
   const isLoading = routeLoading || bookingsLoading;
 
   // Quick booking functionality
-  const {
-    quickBookingState,
-    updateField,
-    resetForm,
-    validateAndStartBooking,
-  } = useQuickBooking();
+  const { quickBookingState, updateField, resetForm, validateAndStartBooking } =
+    useQuickBooking();
 
   // Modal state management
-  const {
-    modalStates,
-    openModal,
-    closeModal,
-  } = useModalState();
+  const { modalStates, openModal, closeModal } = useModalState();
 
   useEffect(() => {
     // Fetch user bookings when component mounts
@@ -101,27 +98,37 @@ export default function HomeScreen() {
   };
 
   // Get unique island names for selection, filtered based on current selection and available routes
-  const fromIslands = useMemo(() =>
-    getUniqueIslandNames(availableRoutes, 'from'),
+  const fromIslands = useMemo(
+    () => getUniqueIslandNames(availableRoutes, 'from'),
     [availableRoutes]
   );
 
   // Only show destination islands that have actual routes from the selected departure island
-  const toIslands = useMemo(() =>
-    quickBookingState.selectedFromIsland
-      ? getUniqueIslandNames(filterRoutesByDepartureIsland(availableRoutes, quickBookingState.selectedFromIsland), 'to')
-      : [],
+  const toIslands = useMemo(
+    () =>
+      quickBookingState.selectedFromIsland
+        ? getUniqueIslandNames(
+            filterRoutesByDepartureIsland(
+              availableRoutes,
+              quickBookingState.selectedFromIsland
+            ),
+            'to'
+          )
+        : [],
     [availableRoutes, quickBookingState.selectedFromIsland]
   );
 
   // Get upcoming bookings (confirmed status and future date)
   const upcomingBookings = bookings
-    .filter(booking =>
-      booking.status === 'confirmed' &&
-      new Date(booking.departureDate) >= new Date()
+    .filter(
+      booking =>
+        booking.status === 'confirmed' &&
+        new Date(booking.departureDate) >= new Date()
     )
-    .sort((a, b) =>
-      new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime()
+    .sort(
+      (a, b) =>
+        new Date(a.departureDate).getTime() -
+        new Date(b.departureDate).getTime()
     )
     .slice(0, 2); // Show only the next 2 upcoming bookings
 
@@ -149,7 +156,7 @@ export default function HomeScreen() {
       </View>
 
       {/* Quick Booking Card */}
-      <Card variant="elevated" style={styles.quickBookingCard}>
+      <Card variant='elevated' style={styles.quickBookingCard}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>Book a Ferry</Text>
         </View>
@@ -164,11 +171,14 @@ export default function HomeScreen() {
             </View>
             <View style={styles.formField}>
               <Text style={styles.formLabel}>From</Text>
-              <Text style={[
-                styles.formPlaceholder,
-                quickBookingState.selectedFromIsland && styles.formValue
-              ]}>
-                {quickBookingState.selectedFromIsland || 'Select departure island'}
+              <Text
+                style={[
+                  styles.formPlaceholder,
+                  quickBookingState.selectedFromIsland && styles.formValue,
+                ]}
+              >
+                {quickBookingState.selectedFromIsland ||
+                  'Select departure island'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -192,11 +202,16 @@ export default function HomeScreen() {
             </View>
             <View style={styles.formField}>
               <Text style={styles.formLabel}>To</Text>
-              <Text style={[
-                styles.formPlaceholder,
-                quickBookingState.selectedToIsland && styles.formValue
-              ]}>
-                {quickBookingState.selectedToIsland || (quickBookingState.selectedFromIsland ? 'Select destination island' : 'Select departure island first')}
+              <Text
+                style={[
+                  styles.formPlaceholder,
+                  quickBookingState.selectedToIsland && styles.formValue,
+                ]}
+              >
+                {quickBookingState.selectedToIsland ||
+                  (quickBookingState.selectedFromIsland
+                    ? 'Select destination island'
+                    : 'Select departure island first')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -212,14 +227,15 @@ export default function HomeScreen() {
             </View>
             <View style={styles.formField}>
               <Text style={styles.formLabel}>Date</Text>
-              <Text style={[
-                styles.formPlaceholder,
-                quickBookingState.selectedDate && styles.formValue
-              ]}>
+              <Text
+                style={[
+                  styles.formPlaceholder,
+                  quickBookingState.selectedDate && styles.formValue,
+                ]}
+              >
                 {quickBookingState.selectedDate
                   ? formatDisplayDate(quickBookingState.selectedDate)
-                  : 'Select travel date'
-                }
+                  : 'Select travel date'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -228,12 +244,14 @@ export default function HomeScreen() {
         {/* Error message display */}
         {quickBookingState.errorMessage ? (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{quickBookingState.errorMessage}</Text>
+            <Text style={styles.errorText}>
+              {quickBookingState.errorMessage}
+            </Text>
           </View>
         ) : null}
 
         <Button
-          title="Start Booking"
+          title='Start Booking'
           onPress={handleStartBooking}
           style={styles.bookButton}
         />
@@ -242,8 +260,8 @@ export default function HomeScreen() {
       {/* From Island Selection Modal */}
       <Modal
         visible={modalStates.showFromModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
+        animationType='slide'
+        presentationStyle='pageSheet'
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -262,7 +280,8 @@ export default function HomeScreen() {
                 key={island}
                 style={[
                   styles.islandOption,
-                  quickBookingState.selectedFromIsland === island && styles.islandOptionSelected
+                  quickBookingState.selectedFromIsland === island &&
+                    styles.islandOptionSelected,
                 ]}
                 onPress={() => {
                   updateField('selectedFromIsland', island);
@@ -279,8 +298,8 @@ export default function HomeScreen() {
       {/* To Island Selection Modal */}
       <Modal
         visible={modalStates.showToModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
+        animationType='slide'
+        presentationStyle='pageSheet'
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -299,7 +318,8 @@ export default function HomeScreen() {
                 key={island}
                 style={[
                   styles.islandOption,
-                  quickBookingState.selectedToIsland === island && styles.islandOptionSelected
+                  quickBookingState.selectedToIsland === island &&
+                    styles.islandOptionSelected,
                 ]}
                 onPress={() => {
                   updateField('selectedToIsland', island);
@@ -316,8 +336,8 @@ export default function HomeScreen() {
       {/* Date Selection Modal */}
       <Modal
         visible={modalStates.showDateModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
+        animationType='slide'
+        presentationStyle='pageSheet'
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -331,12 +351,13 @@ export default function HomeScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
-            {generateDateOptions().map((date) => (
+            {generateDateOptions().map(date => (
               <TouchableOpacity
                 key={date.dateString}
                 style={[
                   styles.dateOption,
-                  quickBookingState.selectedDate === date.dateString && styles.dateOptionSelected
+                  quickBookingState.selectedDate === date.dateString &&
+                    styles.dateOptionSelected,
                 ]}
                 onPress={() => {
                   updateField('selectedDate', date.dateString);
@@ -374,50 +395,73 @@ export default function HomeScreen() {
             onPress={() => handleViewBooking(booking.id)}
             activeOpacity={0.7}
           >
-            <Card variant="elevated" style={styles.tripCard}>
+            <Card variant='elevated' style={styles.tripCard}>
               <View style={styles.tripHeader}>
                 <View style={styles.tripRoute}>
-                  <Text style={styles.tripLocation}>{booking.route.fromIsland.name}</Text>
+                  <Text style={styles.tripLocation}>
+                    {booking.route.fromIsland.name}
+                  </Text>
                   <View style={styles.tripArrow}>
                     <View style={styles.tripLine} />
                     <ArrowRight size={16} color={Colors.primary} />
                     <View style={styles.tripLine} />
                   </View>
-                  <Text style={styles.tripLocation}>{booking.route.toIsland.name}</Text>
+                  <Text style={styles.tripLocation}>
+                    {booking.route.toIsland.name}
+                  </Text>
                 </View>
                 <View style={styles.tripBadge}>
-                  <Text style={styles.tripBadgeText}>#{booking.bookingNumber}</Text>
+                  <Text style={styles.tripBadgeText}>
+                    #{booking.bookingNumber}
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.tripDetails}>
                 <View style={styles.tripDetail}>
-                  <Calendar size={16} color={Colors.textSecondary} style={styles.tripIcon} />
+                  <Calendar
+                    size={16}
+                    color={Colors.textSecondary}
+                    style={styles.tripIcon}
+                  />
                   <Text style={styles.tripText}>
-                    {new Date(booking.departureDate).toLocaleDateString('en-US', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric'
-                    })}
+                    {new Date(booking.departureDate).toLocaleDateString(
+                      'en-US',
+                      {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      }
+                    )}
                   </Text>
                 </View>
 
                 <View style={styles.tripDetail}>
-                  <Clock size={16} color={Colors.textSecondary} style={styles.tripIcon} />
+                  <Clock
+                    size={16}
+                    color={Colors.textSecondary}
+                    style={styles.tripIcon}
+                  />
                   <Text style={styles.tripText}>{booking.departureTime}</Text>
                 </View>
 
                 <View style={styles.tripDetail}>
-                  <Ticket size={16} color={Colors.textSecondary} style={styles.tripIcon} />
-                  <Text style={styles.tripText}>{booking.passengers.length} passenger(s)</Text>
+                  <Ticket
+                    size={16}
+                    color={Colors.textSecondary}
+                    style={styles.tripIcon}
+                  />
+                  <Text style={styles.tripText}>
+                    {booking.passengers.length} passenger(s)
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.tripFooter}>
                 <Button
-                  title="View Ticket"
-                  variant="outline"
-                  size="small"
+                  title='View Ticket'
+                  variant='outline'
+                  size='small'
                   onPress={() => handleViewBooking(booking.id)}
                 />
               </View>
@@ -425,12 +469,12 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ))
       ) : (
-        <Card variant="outlined" style={styles.emptyCard}>
+        <Card variant='outlined' style={styles.emptyCard}>
           <Text style={styles.emptyText}>No upcoming trips</Text>
           <Button
-            title="Book Now"
-            variant="primary"
-            size="small"
+            title='Book Now'
+            variant='primary'
+            size='small'
             onPress={handleBookNowClick}
             style={styles.emptyButton}
           />
@@ -447,7 +491,9 @@ export default function HomeScreen() {
           style={styles.quickActionCard}
           onPress={() => router.push('/validate-ticket')}
         >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#e3f2fd' }]}>
+          <View
+            style={[styles.quickActionIcon, { backgroundColor: '#e3f2fd' }]}
+          >
             <Ticket size={24} color={Colors.primary} />
           </View>
           <Text style={styles.quickActionText}>Validate Ticket</Text>
@@ -457,8 +503,10 @@ export default function HomeScreen() {
           style={styles.quickActionCard}
           onPress={() => router.push('/bookings')}
         >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#e8f5e9' }]}>
-            <Clock size={24} color="#2ecc71" />
+          <View
+            style={[styles.quickActionIcon, { backgroundColor: '#e8f5e9' }]}
+          >
+            <Clock size={24} color='#2ecc71' />
           </View>
           <Text style={styles.quickActionText}>My Bookings</Text>
         </TouchableOpacity>
@@ -467,19 +515,23 @@ export default function HomeScreen() {
           style={styles.quickActionCard}
           onPress={() => router.push('/support')}
         >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#fff3e0' }]}>
-            <LifeBuoy size={24} color="#f39c12" />
+          <View
+            style={[styles.quickActionIcon, { backgroundColor: '#fff3e0' }]}
+          >
+            <LifeBuoy size={24} color='#f39c12' />
           </View>
           <Text style={styles.quickActionText}>Support</Text>
         </TouchableOpacity>
       </View>
 
       {/* Featured Image */}
-      <Card variant="elevated" style={styles.featuredCard}>
+      <Card variant='elevated' style={styles.featuredCard}>
         <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1586500036706-41963de24d8b?q=80&w=1000&auto=format&fit=crop' }}
+          source={{
+            uri: 'https://images.unsplash.com/photo-1586500036706-41963de24d8b?q=80&w=1000&auto=format&fit=crop',
+          }}
           style={styles.featuredImage}
-          resizeMode="cover"
+          resizeMode='cover'
         />
         <View style={styles.featuredContent}>
           <Text style={styles.featuredTitle}>Explore the Islands</Text>
@@ -487,8 +539,8 @@ export default function HomeScreen() {
             Discover the beauty of Maldivian islands with our ferry services
           </Text>
           <Button
-            title="Book Now"
-            size="small"
+            title='Book Now'
+            size='small'
             onPress={handleBookNowClick}
             style={styles.featuredButton}
           />
@@ -811,7 +863,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 8,
     padding: 12,
-    backgroundColor: "#ffebee",
+    backgroundColor: '#ffebee',
     borderRadius: 8,
   },
   errorText: {

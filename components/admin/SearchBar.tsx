@@ -1,7 +1,7 @@
-import React from "react";
-import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
-import { colors } from "@/constants/adminColors";
-import { Search, X } from "lucide-react-native";
+import React from 'react';
+import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { Search, X } from 'lucide-react-native';
 
 interface SearchBarProps {
   value: string;
@@ -14,7 +14,7 @@ interface SearchBarProps {
 export default function SearchBar({
   value,
   onChangeText,
-  placeholder = "Search...",
+  placeholder = 'Search...',
   onClear,
   style,
 }: SearchBarProps) {
@@ -31,7 +31,7 @@ export default function SearchBar({
       {value.length > 0 && (
         <TouchableOpacity
           onPress={() => {
-            onChangeText("");
+            onChangeText('');
             onClear && onClear();
           }}
           style={styles.clearButton}
@@ -45,21 +45,21 @@ export default function SearchBar({
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     paddingHorizontal: 12,
     minHeight: 48,
     borderWidth: 1,
-    borderColor: colors.border + "40",
+    borderColor: `${colors.border}40`,
   },
   icon: {
     marginRight: 8,
   },
   input: {
     flex: 1,
-    height: "100%",
+    height: '100%',
     fontSize: 16,
     color: colors.text,
     paddingVertical: 12,

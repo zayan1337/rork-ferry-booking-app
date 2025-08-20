@@ -23,12 +23,12 @@ export const toggleSeatSelection = (
 ): Seat[] => {
   try {
     const { onSeatsChange, onError, maxSeats } = callbacks;
-    
+
     // Check if seat is already selected
     const isSelected = currentSelectedSeats.some(s => s.id === seat.id);
-    
+
     let newSelectedSeats: Seat[];
-    
+
     if (isSelected) {
       // Remove seat from selection
       newSelectedSeats = currentSelectedSeats.filter(s => s.id !== seat.id);
@@ -38,13 +38,16 @@ export const toggleSeatSelection = (
         onError?.(`You can only select up to ${maxSeats} seats`);
         return currentSelectedSeats;
       }
-      
-      newSelectedSeats = [...currentSelectedSeats, { ...seat, isSelected: true }];
+
+      newSelectedSeats = [
+        ...currentSelectedSeats,
+        { ...seat, isSelected: true },
+      ];
     }
-    
+
     // Call the callback to update parent state
     onSeatsChange(newSelectedSeats, isReturn);
-    
+
     return newSelectedSeats;
   } catch (error) {
     console.error('Error in seat selection:', error);
@@ -65,25 +68,34 @@ export const validateSeatSelection = (
   if (selectedSeats.length === 0) {
     return { isValid: false, error: 'Please select at least one seat' };
   }
-  
+
   if (selectedSeats.length !== passengerCount) {
-    return { isValid: false, error: `Please select exactly ${passengerCount} seat(s)` };
+    return {
+      isValid: false,
+      error: `Please select exactly ${passengerCount} seat(s)`,
+    };
   }
-  
+
   if (isRoundTrip) {
     if (returnSelectedSeats.length === 0) {
       return { isValid: false, error: 'Please select return seats' };
     }
-    
+
     if (returnSelectedSeats.length !== passengerCount) {
-      return { isValid: false, error: `Please select exactly ${passengerCount} return seat(s)` };
+      return {
+        isValid: false,
+        error: `Please select exactly ${passengerCount} return seat(s)`,
+      };
     }
-    
+
     if (selectedSeats.length !== returnSelectedSeats.length) {
-      return { isValid: false, error: 'Number of departure and return seats must match' };
+      return {
+        isValid: false,
+        error: 'Number of departure and return seats must match',
+      };
     }
   }
-  
+
   return { isValid: true };
 };
 
@@ -91,11 +103,19 @@ export const validateSeatSelection = (
  * Update passengers array based on seat count
  */
 export const updatePassengersForSeats = (
-  currentPassengers: Array<{ fullName: string; idNumber?: string; specialAssistance?: string }>,
+  currentPassengers: {
+    fullName: string;
+    idNumber?: string;
+    specialAssistance?: string;
+  }[],
   seatCount: number
-): Array<{ fullName: string; idNumber?: string; specialAssistance?: string }> => {
+): {
+  fullName: string;
+  idNumber?: string;
+  specialAssistance?: string;
+}[] => {
   const newPassengers = [];
-  
+
   for (let i = 0; i < seatCount; i++) {
     newPassengers.push({
       fullName: currentPassengers[i]?.fullName || '',
@@ -103,6 +123,6 @@ export const updatePassengersForSeats = (
       specialAssistance: currentPassengers[i]?.specialAssistance || '',
     });
   }
-  
+
   return newPassengers;
-}; 
+};

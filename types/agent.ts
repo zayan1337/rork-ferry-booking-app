@@ -103,7 +103,10 @@ export interface AgentBookingState {
   agent: Agent | null;
 
   // Callback for when booking is created
-  onBookingCreated?: (bookingId: string, returnBookingId?: string | null) => Promise<void>;
+  onBookingCreated?: (
+    bookingId: string,
+    returnBookingId?: string | null
+  ) => Promise<void>;
 }
 
 export interface AgentState {
@@ -132,7 +135,7 @@ export interface Booking {
   departureTime?: string;
   returnDate?: string;
   passengerCount: number;
-  passengers?: Array<{
+  passengers?: {
     id: string;
     fullName: string;
     contactNumber: string;
@@ -144,7 +147,7 @@ export interface Booking {
       isWindow: boolean;
       isAisle: boolean;
     } | null;
-  }>;
+  }[];
   vessel?: {
     id: string;
     name: string;
@@ -163,19 +166,19 @@ export interface Booking {
     };
     baseFare: number;
   } | null;
-  seats?: Array<{
+  seats?: {
     id: string;
     number: string;
     rowNumber: number;
     isWindow: boolean;
     isAisle: boolean;
-  }>;
+  }[];
   totalAmount: number;
   discountedAmount: number;
-  status: "confirmed" | "completed" | "cancelled" | "pending" | "modified";
+  status: 'confirmed' | 'completed' | 'cancelled' | 'pending' | 'modified';
   bookingDate: string;
   updatedAt?: string;
-  paymentMethod: "credit" | "gateway" | "free";
+  paymentMethod: 'credit' | 'gateway' | 'free';
   payment?: {
     method: string;
     status: string;
@@ -199,17 +202,6 @@ export interface Client {
   bookingsCount: number;
   hasAccount?: boolean; // Whether the client has a user account
   agentClientId?: string; // The agent_clients record ID
-}
-
-export interface CreditTransaction {
-  id: string;
-  date: string;
-  amount: number;
-  type: "refill" | "deduction";
-  bookingId?: string;
-  bookingNumber?: string;
-  description?: string;
-  balance: number;
 }
 
 // Dashboard related types
@@ -238,6 +230,9 @@ export interface CreditTransaction {
   description?: string;
   createdAt: string;
   bookingId?: string;
+  bookingNumber?: string;
+  date: string;
+  balance: number;
 }
 
 export interface CreditSummary {
@@ -326,4 +321,4 @@ export interface AgentDisplayOptions {
   showDiscount: boolean;
   showCreditBalance: boolean;
   compactView: boolean;
-} 
+}

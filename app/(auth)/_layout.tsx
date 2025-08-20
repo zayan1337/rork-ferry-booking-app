@@ -1,5 +1,5 @@
-import { Stack } from "expo-router";
-import Colors from "@/constants/colors";
+import { Stack } from 'expo-router';
+import Colors from '@/constants/colors';
 
 export default function AuthLayout() {
   return (
@@ -16,16 +16,16 @@ export default function AuthLayout() {
       }}
     >
       <Stack.Screen
-        name="index"
+        name='index'
         options={{
-          title: "Login",
+          title: 'Login',
           headerShown: false,
         }}
       />
       <Stack.Screen
-        name="register"
+        name='register'
         options={{
-          title: "Create Account",
+          title: 'Create Account',
         }}
       />
     </Stack>

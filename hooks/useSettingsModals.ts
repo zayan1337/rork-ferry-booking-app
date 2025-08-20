@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState } from 'react';
 
 export function useSettingsModals() {
-    const [showSystemModal, setShowSystemModal] = useState(false);
+  const [showSystemModal, setShowSystemModal] = useState(false);
 
-    return {
-        showSystemModal,
-        setShowSystemModal,
-    };
-} 
+  return {
+    showSystemModal,
+    setShowSystemModal,
+  };
+}

@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import { StatusBar } from "expo-status-bar";
-import Colors from "@/constants/colors";
-import { useAuthStore } from "../store/authStore";
+import React, { useEffect, useState } from 'react';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useAuthStore } from '../store/authStore';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -36,7 +35,8 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const { checkAuth, isAuthenticated, isLoading, user, error, isRehydrated } = useAuthStore();
+  const { checkAuth, isAuthenticated, isLoading, user, error, isRehydrated } =
+    useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
@@ -61,21 +61,22 @@ function RootLayoutNav() {
   }
 
   // Determine if user has valid profile after authentication
-  const hasValidProfile = isAuthenticated && user?.profile && user.profile.is_active;
+  const hasValidProfile =
+    isAuthenticated && user?.profile && user.profile.is_active;
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style='dark' />
       <Stack
         screenOptions={{
           headerShown: false,
           gestureEnabled: false,
-          animationTypeForReplace: 'push'
+          animationTypeForReplace: 'push',
         }}
-        initialRouteName={hasValidProfile ? "(app)" : "(auth)"}
+        initialRouteName={hasValidProfile ? '(app)' : '(auth)'}
       >
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(app)" />
+        <Stack.Screen name='(auth)' />
+        <Stack.Screen name='(app)' />
       </Stack>
     </>
   );

@@ -24,20 +24,17 @@ import type { BankDetails } from '@/types/pages/booking';
 
 export default function CancelBookingScreen() {
   const { id } = useLocalSearchParams();
-  const { bookings, cancelBooking, fetchUserBookings, isLoading } = useUserBookingsStore();
+  const { bookings, cancelBooking, fetchUserBookings, isLoading } =
+    useUserBookingsStore();
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const {
-    keyboardHeight,
-    handleInputFocus,
-    setInputRef,
-  } = useKeyboardHandler({ scrollViewRef });
+  const { keyboardHeight, handleInputFocus, setInputRef } = useKeyboardHandler({
+    scrollViewRef,
+  });
 
-  const {
-    errors,
-    validateCancellationForm,
-    clearError,
-  } = useFormValidation({ validateBankDetails: true });
+  const { errors, validateCancellationForm, clearError } = useFormValidation({
+    validateBankDetails: true,
+  });
 
   const [reason, setReason] = useState('');
   const [bankDetails, setBankDetails] = useState<BankDetails>({
@@ -54,10 +51,11 @@ export default function CancelBookingScreen() {
   }, [fetchUserBookings, bookings.length]);
 
   // Find the booking by id with proper type handling
-  const booking = bookings.find((b: any) => {
-    // Handle both string and number IDs
-    return String(b.id) === String(id);
-  }) ?? null;
+  const booking =
+    bookings.find((b: any) => {
+      // Handle both string and number IDs
+      return String(b.id) === String(id);
+    }) ?? null;
 
   // Use booking eligibility hook
   const { isCancellable, message } = useBookingEligibility({ booking });
@@ -67,7 +65,7 @@ export default function CancelBookingScreen() {
       <View style={styles.notFoundContainer}>
         <Text style={styles.notFoundText}>Booking not found</Text>
         <Button
-          title="Go Back"
+          title='Go Back'
           onPress={() => router.back()}
           style={styles.notFoundButton}
         />
@@ -90,7 +88,10 @@ export default function CancelBookingScreen() {
 
   const handleCancel = async () => {
     if (!isCancellable) {
-      Alert.alert("Cannot Cancel", message || "This booking cannot be cancelled");
+      Alert.alert(
+        'Cannot Cancel',
+        message || 'This booking cannot be cancelled'
+      );
       return;
     }
 
@@ -102,25 +103,25 @@ export default function CancelBookingScreen() {
       await cancelBooking(booking.id, reason, bankDetails);
 
       Alert.alert(
-        "Booking Cancelled",
-        "Your booking has been cancelled successfully. A refund of 50% will be processed within 72 hours.",
+        'Booking Cancelled',
+        'Your booking has been cancelled successfully. A refund of 50% will be processed within 72 hours.',
         [
           {
-            text: "OK",
-            onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings')
-          }
+            text: 'OK',
+            onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings'),
+          },
         ]
       );
     } catch (error) {
       Alert.alert(
-        "Cancellation Failed",
-        "There was an error cancelling your booking. Please try again."
+        'Cancellation Failed',
+        'There was an error cancelling your booking. Please try again.'
       );
     }
   };
 
   const renderBookingDetails = () => (
-    <Card variant="elevated" style={styles.bookingCard}>
+    <Card variant='elevated' style={styles.bookingCard}>
       <Text style={styles.cardTitle}>Booking Details</Text>
 
       <View style={styles.detailRow}>
@@ -144,7 +145,9 @@ export default function CancelBookingScreen() {
 
       <View style={styles.detailRow}>
         <Text style={styles.detailLabel}>Total Fare:</Text>
-        <Text style={styles.detailValue}>MVR {booking.totalFare.toFixed(2)}</Text>
+        <Text style={styles.detailValue}>
+          MVR {booking.totalFare.toFixed(2)}
+        </Text>
       </View>
 
       <View style={styles.refundRow}>
@@ -155,15 +158,13 @@ export default function CancelBookingScreen() {
   );
 
   const renderCancellationForm = () => (
-    <Card variant="elevated" style={styles.formCard}>
+    <Card variant='elevated' style={styles.formCard}>
       <Text style={styles.cardTitle}>Cancellation Reason</Text>
 
-      <View
-        ref={(ref) => setInputRef('reason', ref)}
-      >
+      <View ref={ref => setInputRef('reason', ref)}>
         <Input
-          label="Reason for Cancellation"
-          placeholder="Please provide a reason for cancellation"
+          label='Reason for Cancellation'
+          placeholder='Please provide a reason for cancellation'
           value={reason}
           onChangeText={handleReasonChange}
           onFocus={() => handleInputFocus('reason')}
@@ -176,42 +177,36 @@ export default function CancelBookingScreen() {
 
       <Text style={styles.cardTitle}>Refund Bank Details</Text>
 
-      <View
-        ref={(ref) => setInputRef('accountNumber', ref)}
-      >
+      <View ref={ref => setInputRef('accountNumber', ref)}>
         <Input
-          label="Account Number"
-          placeholder="Enter your bank account number"
+          label='Account Number'
+          placeholder='Enter your bank account number'
           value={bankDetails.accountNumber}
-          onChangeText={(text) => handleInputChange('accountNumber', text)}
+          onChangeText={text => handleInputChange('accountNumber', text)}
           onFocus={() => handleInputFocus('accountNumber')}
           error={errors.accountNumber}
           required
         />
       </View>
 
-      <View
-        ref={(ref) => setInputRef('accountName', ref)}
-      >
+      <View ref={ref => setInputRef('accountName', ref)}>
         <Input
-          label="Account Holder Name"
-          placeholder="Enter account holder name"
+          label='Account Holder Name'
+          placeholder='Enter account holder name'
           value={bankDetails.accountName}
-          onChangeText={(text) => handleInputChange('accountName', text)}
+          onChangeText={text => handleInputChange('accountName', text)}
           onFocus={() => handleInputFocus('accountName')}
           error={errors.accountName}
           required
         />
       </View>
 
-      <View
-        ref={(ref) => setInputRef('bankName', ref)}
-      >
+      <View ref={ref => setInputRef('bankName', ref)}>
         <Input
-          label="Bank Name"
-          placeholder="Enter bank name"
+          label='Bank Name'
+          placeholder='Enter bank name'
           value={bankDetails.bankName}
-          onChangeText={(text) => handleInputChange('bankName', text)}
+          onChangeText={text => handleInputChange('bankName', text)}
           onFocus={() => handleInputFocus('bankName')}
           error={errors.bankName}
           required
@@ -221,17 +216,25 @@ export default function CancelBookingScreen() {
   );
 
   const renderWarningCard = () => (
-    <Card variant="elevated" style={styles.warningCard}>
+    <Card variant='elevated' style={styles.warningCard}>
       <View style={styles.warningHeader}>
-        <AlertTriangle size={24} color={Colors.warning} style={styles.warningIcon} />
+        <AlertTriangle
+          size={24}
+          color={Colors.warning}
+          style={styles.warningIcon}
+        />
         <Text style={styles.warningTitle}>Cancellation Policy</Text>
       </View>
       <Text style={styles.warningText}>
         You are about to cancel your booking. Please note that:
       </Text>
       <View style={styles.policyList}>
-        <Text style={styles.policyItem}>• Only 50% of the fare will be refunded</Text>
-        <Text style={styles.policyItem}>• Refund will be processed within 72 hours</Text>
+        <Text style={styles.policyItem}>
+          • Only 50% of the fare will be refunded
+        </Text>
+        <Text style={styles.policyItem}>
+          • Refund will be processed within 72 hours
+        </Text>
         <Text style={styles.policyItem}>• This action cannot be undone</Text>
       </View>
     </Card>
@@ -249,7 +252,7 @@ export default function CancelBookingScreen() {
         style={styles.scrollView}
         contentContainerStyle={[styles.contentContainer, { flexGrow: 1 }]}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps='handled'
       >
         {renderWarningCard()}
         {renderBookingDetails()}
@@ -257,14 +260,14 @@ export default function CancelBookingScreen() {
 
         <View style={styles.buttonContainer}>
           <Button
-            title="Go Back"
+            title='Go Back'
             onPress={() => router.back()}
-            variant="outline"
+            variant='outline'
             style={styles.backButton}
           />
 
           <Button
-            title="Confirm Cancellation"
+            title='Confirm Cancellation'
             onPress={handleCancel}
             loading={isLoading}
             disabled={isLoading || !isCancellable}

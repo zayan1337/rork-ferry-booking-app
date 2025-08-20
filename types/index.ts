@@ -1,5 +1,5 @@
 // ============================================================================
-// MANAGEMENT TYPES - Consistent types for admin management  
+// MANAGEMENT TYPES - Consistent types for admin management
 // ============================================================================
 // Import admin management types to avoid conflicts with legacy types
 import * as AdminManagement from './admin/management';
@@ -20,8 +20,8 @@ export type User = {
 export interface Island {
   id: string;
   name: string;
-  zone: 'A' | 'B';  // Legacy field - will be removed after migration
-  zone_id?: string;  // New field - references zones table
+  zone: 'A' | 'B'; // Legacy field - will be removed after migration
+  zone_id?: string; // New field - references zones table
 }
 
 export interface Route {
@@ -40,6 +40,14 @@ export interface Seat {
   isAisle: boolean;
   isAvailable: boolean;
   isSelected?: boolean;
+  // Enhanced seat properties
+  seatType?: 'standard' | 'premium' | 'crew' | 'disabled';
+  seatClass?: 'economy' | 'business' | 'first';
+  isDisabled?: boolean;
+  isPremium?: boolean;
+  priceMultiplier?: number;
+  positionX?: number;
+  positionY?: number;
 }
 
 export interface Passenger {
@@ -49,11 +57,29 @@ export interface Passenger {
   specialAssistance?: string;
 }
 
-export type BookingStatus = 'reserved' | 'pending_payment' | 'confirmed' | 'checked_in' | 'completed' | 'modified' | 'cancelled';
+export type BookingStatus =
+  | 'reserved'
+  | 'pending_payment'
+  | 'confirmed'
+  | 'checked_in'
+  | 'completed'
+  | 'modified'
+  | 'cancelled';
 
-export type PaymentMethod = 'bank_transfer' | 'bml' | 'mib' | 'ooredoo_m_faisa' | 'fahipay' | 'wallet';
+export type PaymentMethod =
+  | 'bank_transfer'
+  | 'bml'
+  | 'mib'
+  | 'ooredoo_m_faisa'
+  | 'fahipay'
+  | 'wallet';
 
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'partially_refunded';
+export type PaymentStatus =
+  | 'pending'
+  | 'completed'
+  | 'failed'
+  | 'refunded'
+  | 'partially_refunded';
 
 export type Booking = {
   id: string;
@@ -91,12 +117,11 @@ export type Booking = {
 };
 
 // Base exports without conflicts
-export * from './database';
 export * from './store';
 export * from './customer';
 export * from './components';
 
-// Admin types with explicit re-exports to avoid conflicts  
+// Admin types with explicit re-exports to avoid conflicts
 export type {
   Trip as AdminTrip,
   Vessel as AdminVessel,
@@ -105,30 +130,27 @@ export type {
   Booking as AdminBooking,
   DashboardStats,
   ActivityLog,
-  WalletTransaction
+  WalletTransaction,
 } from './admin';
 
 // Auth types with explicit re-exports to avoid conflicts
 export type {
   UserProfile as AuthUserProfile,
-  UserRole as AuthUserRole
+  UserRole as AuthUserRole,
 } from './auth';
 
 // Agent types
 export * from './agent';
 
 // Booking types with explicit re-exports to avoid conflicts
-export type {
-  Trip as BookingTrip,
-  Vessel as BookingVessel
-} from './booking';
+export type { Trip as BookingTrip, Vessel as BookingVessel } from './booking';
 
 // Settings types with explicit re-exports to avoid conflicts - only export what exists
 export type {
   Permission as SettingsPermission,
   SystemSettings as SettingsSystemSettings,
   SettingsStats,
-  SettingsActions
+  SettingsActions,
 } from './settings';
 
 // Operations types with aliases for conflicting names - only export what exists
@@ -144,11 +166,11 @@ export type {
   TripValidationErrors,
   RouteStats,
   VesselStats,
-  TripStats
+  TripStats,
 } from './operations';
 
 // Export the Route status type as RouteStatus
-export type RouteStatus = "active" | "inactive" | "maintenance";
+export type RouteStatus = 'active' | 'inactive' | 'maintenance';
 
 // User management types with aliases for conflicting names - only export what exists
 export type {
@@ -159,7 +181,7 @@ export type {
   UserValidationErrors,
   UserStats,
   UserActivity as UserManagementActivity,
-  UserSession
+  UserSession,
 } from './userManagement';
 
 // New dashboard, bookings, and operations types

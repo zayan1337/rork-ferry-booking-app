@@ -1,41 +1,16 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ViewStyle
-} from "react-native";
-import { useRouter, useLocalSearchParams, Stack } from "expo-router";
-import {
-  ArrowRight,
-  Calendar,
-  MapPin,
-  Users,
-  CreditCard,
-  Check,
-  User,
-  Mail,
-  Phone,
-  DollarSign,
-  Search,
-  UserPlus
-} from "lucide-react-native";
-import { useAgentStore } from "@/store/agent/agentStore";
-import { useAgentBookingFormStore } from "@/store/agent/agentBookingFormStore";
-import { useRouteStore, useTripStore } from "@/store";
-import type { AgentClient } from "@/types/agent";
-import Colors from "@/constants/colors";
-import Card from "@/components/Card";
-import Input from "@/components/Input";
-import Button from "@/components/Button";
-import Dropdown from "@/components/Dropdown";
-import SeatSelector from "@/components/SeatSelector";
-import DatePicker from "@/components/DatePicker";
-import GenerateTripsButton from "@/components/GenerateTripsButton";
-import { Passenger } from "@/types";
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+
+import { useAgentStore } from '@/store/agent/agentStore';
+import { useAgentBookingFormStore } from '@/store/agent/agentBookingFormStore';
+import { useRouteStore, useTripStore } from '@/store';
+import type { AgentClient } from '@/types/agent';
+import Colors from '@/constants/colors';
+import Card from '@/components/Card';
+import Button from '@/components/Button';
+
+import { Passenger } from '@/types';
 import {
   BookingProgressStepper,
   RouteAndDateStep,
@@ -44,18 +19,16 @@ import {
   SeatSelectionStep,
   PassengerDetailsStep,
   PaymentStep,
-} from "@/components/booking";
-import { useBookingFormValidation } from "@/hooks/useBookingFormValidation";
-import { useBookingClientSearch } from "@/hooks/useBookingClientSearch";
-import { generateBookingSuccessMessage, validateBookingStep } from "@/utils/bookingFormUtils";
+} from '@/components/booking';
+import { validateBookingStep } from '@/utils/bookingFormUtils';
 
 const BOOKING_STEPS = [
-  { id: 1, label: "Route", description: "Select route & date" },
-  { id: 2, label: "Trip", description: "Choose departure & return trips" },
-  { id: 3, label: "Client", description: "Select or add client" },
-  { id: 4, label: "Seats", description: "Choose seats" },
-  { id: 5, label: "Details", description: "Passenger information" },
-  { id: 6, label: "Payment", description: "Payment & confirmation" },
+  { id: 1, label: 'Route', description: 'Select route & date' },
+  { id: 2, label: 'Trip', description: 'Choose departure & return trips' },
+  { id: 3, label: 'Client', description: 'Select or add client' },
+  { id: 4, label: 'Seats', description: 'Choose seats' },
+  { id: 5, label: 'Details', description: 'Passenger information' },
+  { id: 6, label: 'Payment', description: 'Payment & confirmation' },
 ];
 
 export default function AgentNewBookingScreen() {
@@ -63,8 +36,8 @@ export default function AgentNewBookingScreen() {
   const { clientId } = useLocalSearchParams<{ clientId?: string }>();
 
   // Stores
-  const agent = useAgentStore((state) => state.agent);
-  const clients = useAgentStore((state) => state.clients);
+  const agent = useAgentStore(state => state.agent);
+  const clients = useAgentStore(state => state.clients);
 
   // Route management
   const {
@@ -119,6 +92,7 @@ export default function AgentNewBookingScreen() {
     setError,
     setAgent,
     setOnBookingCreated,
+    validateAgentAccess,
   } = useAgentBookingFormStore();
 
   // Local form state
@@ -205,7 +179,11 @@ export default function AgentNewBookingScreen() {
   useEffect(() => {
     // Fetch return trips when return route and date are selected
     if (currentBooking.returnRoute && currentBooking.returnDate) {
-      fetchTrips(currentBooking.returnRoute.id, currentBooking.returnDate, true);
+      fetchTrips(
+        currentBooking.returnRoute.id,
+        currentBooking.returnDate,
+        true
+      );
     }
   }, [currentBooking.returnRoute, currentBooking.returnDate, fetchTrips]);
 
@@ -225,11 +203,14 @@ export default function AgentNewBookingScreen() {
   // Auto-generate passengers array when seats are selected
   useEffect(() => {
     if (currentBooking.selectedSeats.length > 0) {
-      const newPassengers: Passenger[] = currentBooking.selectedSeats.map((_, index) => ({
-        fullName: currentBooking.passengers[index]?.fullName || '',
-        idNumber: currentBooking.passengers[index]?.idNumber || '',
-        specialAssistance: currentBooking.passengers[index]?.specialAssistance || '',
-      }));
+      const newPassengers: Passenger[] = currentBooking.selectedSeats.map(
+        (_, index) => ({
+          fullName: currentBooking.passengers[index]?.fullName || '',
+          idNumber: currentBooking.passengers[index]?.idNumber || '',
+          specialAssistance:
+            currentBooking.passengers[index]?.specialAssistance || '',
+        })
+      );
       updatePassengers(newPassengers);
     } else if (currentBooking.selectedSeats.length === 0) {
       // Clear passengers when no seats selected
@@ -318,7 +299,8 @@ export default function AgentNewBookingScreen() {
   };
 
   const handleClientSearch = async (query: string) => {
-    if (query.length >= 3) { // Start searching after 3 characters
+    if (query.length >= 3) {
+      // Start searching after 3 characters
       await searchClients(query);
     } else {
       clearClientSearch();
@@ -389,45 +371,50 @@ export default function AgentNewBookingScreen() {
         });
 
         // Create success message
-        let successMessage = `Your ${currentBooking.tripType === 'round_trip' ? 'round trip' : 'one way'} booking has been confirmed with QR codes generated.`;
+        let successMessage = `Your ${
+          currentBooking.tripType === 'round_trip' ? 'round trip' : 'one way'
+        } booking has been confirmed with QR codes generated.`;
         if (typeof result === 'string') {
           // Legacy single booking ID
           successMessage += `\n\nBooking ID: ${result}`;
         } else if (result && typeof result === 'object') {
           // New format with departure and return booking IDs
-          const bookingResult = result as { bookingId: string; returnBookingId?: string };
+          const bookingResult = result as {
+            bookingId: string;
+            returnBookingId?: string;
+          };
           successMessage += `\n\nDeparture Booking ID: ${bookingResult.bookingId}`;
           if (bookingResult.returnBookingId) {
             successMessage += `\nReturn Booking ID: ${bookingResult.returnBookingId}`;
           }
         }
 
-        Alert.alert(
-          "Booking Created",
-          successMessage,
-          [
-            {
-              text: "View Bookings",
-              onPress: () => {
-                // Trigger refresh immediately before navigation
-                useAgentStore.getState().refreshBookingsData().then(() => {
-                  router.push("/(app)/(agent)/(tabs)/bookings");
+        Alert.alert('Booking Created', successMessage, [
+          {
+            text: 'View Bookings',
+            onPress: () => {
+              // Trigger refresh immediately before navigation
+              useAgentStore
+                .getState()
+                .refreshBookingsData()
+                .then(() => {
+                  router.push('/(app)/(agent)/(tabs)/bookings');
                 });
-              }
             },
-            {
-              text: "New Booking",
-              onPress: () => {
-                // Stay on the same page, everything is already reset
-              }
-            }
-          ]
-        );
+          },
+          {
+            text: 'New Booking',
+            onPress: () => {
+              // Stay on the same page, everything is already reset
+            },
+          },
+        ]);
       } catch (error) {
         console.error('Booking creation failed:', error);
         Alert.alert(
-          "Booking Failed",
-          (error as any)?.message || "The booking could not be created. Please try again.",
+          'Booking Failed',
+          (error as any)?.message ||
+            'The booking could not be created. Please try again.'
         );
       }
     }
@@ -439,17 +426,23 @@ export default function AgentNewBookingScreen() {
 
   // Format route options for dropdown
   const routeOptions = (availableRoutes || []).map(route => ({
-    label: `${route.fromIsland?.name || 'Unknown'} → ${route.toIsland?.name || 'Unknown'}`,
-    value: route.id
+    label: `${route.fromIsland?.name || 'Unknown'} → ${
+      route.toIsland?.name || 'Unknown'
+    }`,
+    value: route.id,
   }));
 
   const tripOptions = (trips || []).map(trip => ({
-    label: `${String(trip.departure_time || '').slice(0, 5)} - ${trip.vessel_name || 'Unknown'} (${String(trip.available_seats || 0)} seats)`,
+    label: `${String(trip.departure_time || '').slice(0, 5)} - ${
+      trip.vessel_name || 'Unknown'
+    } (${String(trip.available_seats || 0)} seats)`,
     value: trip.id,
   }));
 
   const returnTripOptions = (returnTrips || []).map(trip => ({
-    label: `${String(trip.departure_time || '').slice(0, 5)} - ${trip.vessel_name || 'Unknown'} (${String(trip.available_seats || 0)} seats)`,
+    label: `${String(trip.departure_time || '').slice(0, 5)} - ${
+      trip.vessel_name || 'Unknown'
+    } (${String(trip.available_seats || 0)} seats)`,
     value: trip.id,
   }));
 
@@ -468,23 +461,27 @@ export default function AgentNewBookingScreen() {
           <RouteAndDateStep
             tripType={currentBooking.tripType}
             onTripTypeChange={setTripType}
-            availableRoutes={(availableRoutes || []).map(route => ({
-              ...route,
-              name: `${route.fromIsland?.name || 'Unknown'} to ${route.toIsland?.name || 'Unknown'}`,
-              origin: route.fromIsland?.name || 'Unknown',
-              destination: route.toIsland?.name || 'Unknown',
-              from_island_id: route.fromIsland?.id || '',
-              to_island_id: route.toIsland?.id || '',
-              from_island: route.fromIsland,
-              to_island: route.toIsland,
-              distance: '0 km',
-              duration: route.duration || '0h 0m',
-              base_fare: route.baseFare,
-              status: 'active' as const,
-              description: '',
-              created_at: '',
-              updated_at: ''
-            })) as any}
+            availableRoutes={
+              (availableRoutes || []).map(route => ({
+                ...route,
+                name: `${route.fromIsland?.name || 'Unknown'} to ${
+                  route.toIsland?.name || 'Unknown'
+                }`,
+                origin: route.fromIsland?.name || 'Unknown',
+                destination: route.toIsland?.name || 'Unknown',
+                from_island_id: route.fromIsland?.id || '',
+                to_island_id: route.toIsland?.id || '',
+                from_island: route.fromIsland,
+                to_island: route.toIsland,
+                distance: '0 km',
+                duration: route.duration || '0h 0m',
+                base_fare: route.baseFare,
+                status: 'active' as const,
+                description: '',
+                created_at: '',
+                updated_at: '',
+              })) as any
+            }
             selectedRoute={currentBooking.route}
             selectedReturnRoute={currentBooking.returnRoute}
             onRouteChange={setRoute as any}
@@ -494,40 +491,40 @@ export default function AgentNewBookingScreen() {
             onDepartureDateChange={setDepartureDate}
             onReturnDateChange={setReturnDate}
             errors={errors}
-            clearError={(field) => setErrors({ ...errors, [field]: '' })}
+            clearError={field => setErrors({ ...errors, [field]: '' })}
           />
         );
 
       case 2:
         return (
           <TripSelectionStep
-            trips={(trips || []).map(trip => ({
-              ...trip,
-              estimated_duration: '00:00',
-              status: 'scheduled' as const,
-              booked_seats: 0,
-              fare_multiplier: 1,
-              created_at: '',
-              updated_at: ''
-            })) as any}
-            returnTrips={(returnTrips || []).map(trip => ({
-              ...trip,
-              estimated_duration: '00:00',
-              status: 'scheduled' as const,
-              booked_seats: 0,
-              fare_multiplier: 1,
-              created_at: '',
-              updated_at: ''
-            })) as any}
+            trips={
+              (trips || []).map(trip => ({
+                ...trip,
+                estimated_duration: '00:00',
+                status: 'scheduled' as const,
+                booked_seats: 0,
+                fare_multiplier: 1,
+                created_at: '',
+                updated_at: '',
+              })) as any
+            }
+            returnTrips={
+              (returnTrips || []).map(trip => ({
+                ...trip,
+                estimated_duration: '00:00',
+                status: 'scheduled' as const,
+                booked_seats: 0,
+                fare_multiplier: 1,
+                created_at: '',
+                updated_at: '',
+              })) as any
+            }
             selectedTrip={currentBooking.trip}
             selectedReturnTrip={currentBooking.returnTrip}
             onTripChange={setTrip}
             onReturnTripChange={setReturnTrip}
             isLoading={tripLoading}
-            onTripsGenerated={() => {
-              // Refresh trips after generation
-              fetchTrips(currentBooking.route!.id, currentBooking.departureDate!, false);
-            }}
             routeId={currentBooking.route?.id || null}
             returnRouteId={currentBooking.returnRoute?.id || null}
             departureDate={currentBooking.departureDate}
@@ -606,7 +603,9 @@ export default function AgentNewBookingScreen() {
             discountedFare={currentBooking.discountedFare}
             agent={storeAgent}
             paymentMethod={currentBooking.paymentMethod}
-            onPaymentMethodChange={(method) => setPaymentMethod(method as 'credit' | 'gateway' | 'free')}
+            onPaymentMethodChange={method =>
+              setPaymentMethod(method as 'credit' | 'gateway' | 'free')
+            }
             termsAccepted={termsAccepted}
             onTermsToggle={() => setTermsAccepted(!termsAccepted)}
             errors={errors}
@@ -624,7 +623,7 @@ export default function AgentNewBookingScreen() {
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
-      <Stack.Screen options={{ title: "New Agent Booking" }} />
+      <Stack.Screen options={{ title: 'New Agent Booking' }} />
 
       {/* Progress Stepper */}
       <View style={styles.progressContainer}>
@@ -634,7 +633,7 @@ export default function AgentNewBookingScreen() {
         />
       </View>
 
-      <Card variant="elevated" style={styles.bookingCard}>
+      <Card variant='elevated' style={styles.bookingCard}>
         {error && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
@@ -648,22 +647,26 @@ export default function AgentNewBookingScreen() {
         <View style={styles.buttonContainer}>
           {currentStep > 1 && (
             <Button
-              title="Back"
+              title='Back'
               onPress={handleBack}
-              variant="outline"
+              variant='outline'
               style={styles.navigationButton}
             />
           )}
 
           {currentStep < 6 ? (
             <Button
-              title="Next"
+              title='Next'
               onPress={handleNext}
-              style={currentStep === 1 ? styles.singleButton : styles.navigationButton}
+              style={
+                currentStep === 1
+                  ? styles.singleButton
+                  : styles.navigationButton
+              }
             />
           ) : (
             <Button
-              title="Confirm Booking"
+              title='Confirm Booking'
               onPress={handleCreateBooking}
               loading={combinedLoading}
               disabled={combinedLoading}

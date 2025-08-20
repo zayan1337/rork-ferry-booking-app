@@ -5,10 +5,10 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  RefreshControl
+  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Search, Filter } from 'lucide-react-native';
+import { Search } from 'lucide-react-native';
 import { useUserBookingsStore } from '@/store/userBookingsStore';
 import type { Booking, BookingStatus } from '@/types';
 import Colors from '@/constants/colors';
@@ -18,7 +18,9 @@ import Input from '@/components/Input';
 export default function BookingsScreen() {
   const { bookings, fetchUserBookings, isLoading } = useUserBookingsStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>(
+    'all'
+  );
 
   useEffect(() => {
     fetchUserBookings();
@@ -37,26 +39,35 @@ export default function BookingsScreen() {
     const matchesSearch =
       searchQuery === '' ||
       booking.bookingNumber.includes(searchQuery) ||
-      booking.route.fromIsland.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.route.toIsland.name.toLowerCase().includes(searchQuery.toLowerCase());
+      booking.route.fromIsland.name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      booking.route.toIsland.name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
+    const matchesStatus =
+      statusFilter === 'all' || booking.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
 
   // Sort bookings by date (newest first)
-  const sortedBookings = [...filteredBookings].sort((a, b) =>
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  const sortedBookings = [...filteredBookings].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Search size={20} color={Colors.textSecondary} style={styles.searchIcon} />
+          <Search
+            size={20}
+            color={Colors.textSecondary}
+            style={styles.searchIcon}
+          />
           <Input
-            placeholder="Search by booking number or route"
+            placeholder='Search by booking number or route'
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchInput}
@@ -71,14 +82,14 @@ export default function BookingsScreen() {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              statusFilter === 'all' && styles.filterButtonActive
+              statusFilter === 'all' && styles.filterButtonActive,
             ]}
             onPress={() => setStatusFilter('all')}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                statusFilter === 'all' && styles.filterButtonTextActive
+                statusFilter === 'all' && styles.filterButtonTextActive,
               ]}
             >
               All
@@ -88,14 +99,14 @@ export default function BookingsScreen() {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              statusFilter === 'confirmed' && styles.filterButtonActive
+              statusFilter === 'confirmed' && styles.filterButtonActive,
             ]}
             onPress={() => setStatusFilter('confirmed')}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                statusFilter === 'confirmed' && styles.filterButtonTextActive
+                statusFilter === 'confirmed' && styles.filterButtonTextActive,
               ]}
             >
               Confirmed
@@ -105,14 +116,14 @@ export default function BookingsScreen() {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              statusFilter === 'completed' && styles.filterButtonActive
+              statusFilter === 'completed' && styles.filterButtonActive,
             ]}
             onPress={() => setStatusFilter('completed')}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                statusFilter === 'completed' && styles.filterButtonTextActive
+                statusFilter === 'completed' && styles.filterButtonTextActive,
               ]}
             >
               Completed
@@ -122,14 +133,14 @@ export default function BookingsScreen() {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              statusFilter === 'cancelled' && styles.filterButtonActive
+              statusFilter === 'cancelled' && styles.filterButtonActive,
             ]}
             onPress={() => setStatusFilter('cancelled')}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                statusFilter === 'cancelled' && styles.filterButtonTextActive
+                statusFilter === 'cancelled' && styles.filterButtonTextActive,
               ]}
             >
               Cancelled
@@ -140,7 +151,7 @@ export default function BookingsScreen() {
 
       <FlatList
         data={sortedBookings}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         renderItem={({ item }) => (
           <BookingCard booking={item} onPress={() => handleViewBooking(item)} />
         )}
@@ -153,7 +164,7 @@ export default function BookingsScreen() {
             <Text style={styles.emptyTitle}>No bookings found</Text>
             <Text style={styles.emptyText}>
               {searchQuery || statusFilter !== 'all'
-                ? "Try changing your search or filter criteria"
+                ? 'Try changing your search or filter criteria'
                 : "You haven't made any bookings yet"}
             </Text>
           </View>

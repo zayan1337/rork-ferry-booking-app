@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Dropdown from '@/components/Dropdown';
-import GenerateTripsButton from '@/components/GenerateTripsButton';
+
 import { formatTripOptions } from '@/utils/bookingFormUtils';
 import Colors from '@/constants/colors';
 import type { Trip } from '@/types/agent';
@@ -14,26 +14,23 @@ interface TripSelectionStepProps {
   selectedReturnTrip: Trip | null;
   onTripChange: (trip: Trip) => void;
   onReturnTripChange: (trip: Trip) => void;
-  
+
   // Loading states
   isLoading: boolean;
-  
-  // Trip generation
-  onTripsGenerated: () => void;
-  
+
   // Form data for trip generation
   routeId: string | null;
   returnRouteId: string | null;
   departureDate: string | null;
   returnDate: string | null;
   tripType: 'one_way' | 'round_trip' | null;
-  
+
   // Validation errors
   errors: {
     trip?: string;
     returnTrip?: string;
   };
-  
+
   // Error clearing functions
   clearError: (field: string) => void;
 }
@@ -46,7 +43,6 @@ const TripSelectionStep: React.FC<TripSelectionStepProps> = ({
   onTripChange,
   onReturnTripChange,
   isLoading,
-  onTripsGenerated,
   routeId,
   returnRouteId,
   departureDate,
@@ -80,11 +76,15 @@ const TripSelectionStep: React.FC<TripSelectionStepProps> = ({
 
       {/* Departure Trip Selection */}
       <Dropdown
-        label="Select Departure Trip"
+        label='Select Departure Trip'
         items={tripOptions}
         value={selectedTrip?.id || ''}
         onChange={handleTripSelect}
-        placeholder={tripOptions.length === 0 ? "No departure trips available" : "Select departure trip"}
+        placeholder={
+          tripOptions.length === 0
+            ? 'No departure trips available'
+            : 'Select departure trip'
+        }
         error={errors.trip}
         required
         disabled={tripOptions.length === 0}
@@ -93,16 +93,13 @@ const TripSelectionStep: React.FC<TripSelectionStepProps> = ({
       {tripOptions.length === 0 && routeId && departureDate && !isLoading && (
         <View style={styles.noTripsContainer}>
           <Text style={styles.noTripsText}>
-            No trips available for this route on {new Date(departureDate).toLocaleDateString()}.
+            No trips available for this route on{' '}
+            {new Date(departureDate).toLocaleDateString()}.
           </Text>
           <Text style={styles.noTripsSubtext}>
-            Please try a different date or generate trips for this route.
+            Please try a different date or contact the administrator to schedule
+            trips for this route.
           </Text>
-          <GenerateTripsButton
-            routeId={routeId}
-            date={departureDate}
-            onTripsGenerated={onTripsGenerated}
-          />
         </View>
       )}
 
@@ -114,31 +111,35 @@ const TripSelectionStep: React.FC<TripSelectionStepProps> = ({
       {tripType === 'round_trip' && (
         <>
           <Dropdown
-            label="Select Return Trip"
+            label='Select Return Trip'
             items={returnTripOptions}
             value={selectedReturnTrip?.id || ''}
             onChange={handleReturnTripSelect}
-            placeholder={returnTripOptions.length === 0 ? "No return trips available" : "Select return trip"}
+            placeholder={
+              returnTripOptions.length === 0
+                ? 'No return trips available'
+                : 'Select return trip'
+            }
             error={errors.returnTrip}
             required
             disabled={returnTripOptions.length === 0}
           />
 
-          {returnTripOptions.length === 0 && returnRouteId && returnDate && !isLoading && (
-            <View style={styles.noTripsContainer}>
-              <Text style={styles.noTripsText}>
-                No return trips available for this route on {new Date(returnDate).toLocaleDateString()}.
-              </Text>
-              <Text style={styles.noTripsSubtext}>
-                Please try a different return date or generate trips for this route.
-              </Text>
-              <GenerateTripsButton
-                routeId={returnRouteId}
-                date={returnDate}
-                onTripsGenerated={onTripsGenerated}
-              />
-            </View>
-          )}
+          {returnTripOptions.length === 0 &&
+            returnRouteId &&
+            returnDate &&
+            !isLoading && (
+              <View style={styles.noTripsContainer}>
+                <Text style={styles.noTripsText}>
+                  No return trips available for this route on{' '}
+                  {new Date(returnDate).toLocaleDateString()}.
+                </Text>
+                <Text style={styles.noTripsSubtext}>
+                  Please try a different return date or contact the
+                  administrator to schedule trips for this route.
+                </Text>
+              </View>
+            )}
 
           {isLoading && returnRouteId && returnDate && (
             <Text style={styles.loadingText}>Loading return trips...</Text>
@@ -176,7 +177,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#856404',
     lineHeight: 16,
-    marginBottom: 12,
   },
   loadingText: {
     fontSize: 14,
@@ -187,4 +187,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TripSelectionStep; 
+export default TripSelectionStep;

@@ -31,14 +31,22 @@ export { useSettingsModals } from './useSettingsModals';
 
 // Operations Management Hooks
 export { useRouteForm } from './useRouteForm';
-export { useVesselForm } from './useVesselForm';
 export { useTripForm } from './useTripForm';
+export { useTripManagement } from './useTripManagement';
+export { useRouteManagement } from './useRouteManagement';
+export { useVesselManagement } from './useVesselManagement';
 
 // User Management Hooks
 export { useUserForm } from './useUserForm';
+export { useUserManagement } from './useUserManagement';
 
 // Consistent Management Hooks
 export { useFAQManagement } from './useFAQManagement';
 export { useZoneManagement } from './useZoneManagement';
-export { useIslandManagement, useIslandsByZone, useIslandStats, useIslandDetails } from './useIslandManagement';
-export { useContentManagement } from './useContentManagement'; 
+export {
+  useIslandManagement,
+  useIslandsByZone,
+  useIslandStats,
+  useIslandDetails,
+} from './useIslandManagement';
+export { useContentManagement } from './useContentManagement';

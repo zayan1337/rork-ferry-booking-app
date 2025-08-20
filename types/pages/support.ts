@@ -16,4 +16,4 @@ export interface ContactFormErrors {
   email?: string;
   subject?: string;
   message?: string;
-} 
+}

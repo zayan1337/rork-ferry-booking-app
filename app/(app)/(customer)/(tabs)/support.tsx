@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import {
   Phone,
@@ -20,7 +20,7 @@ import {
   HelpCircle,
   AlertCircle,
   Search,
-  X
+  X,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
@@ -40,31 +40,37 @@ interface FAQItemProps {
   searchQuery: string;
 }
 
-const FAQItem = React.memo<FAQItemProps>(({ faq, isExpanded, onToggle, searchQuery }) => {
-  return (
-    <TouchableOpacity
-      style={styles.faqItem}
-      onPress={onToggle}
-      activeOpacity={0.7}
-    >
-      <View style={styles.faqHeader}>
-        <View style={styles.faqQuestion}>
-          <HelpCircle size={16} color={Colors.primary} style={styles.faqIcon} />
-          <Text style={styles.faqQuestionText}>{faq.question}</Text>
+const FAQItem = React.memo<FAQItemProps>(
+  ({ faq, isExpanded, onToggle, searchQuery }) => {
+    return (
+      <TouchableOpacity
+        style={styles.faqItem}
+        onPress={onToggle}
+        activeOpacity={0.7}
+      >
+        <View style={styles.faqHeader}>
+          <View style={styles.faqQuestion}>
+            <HelpCircle
+              size={16}
+              color={Colors.primary}
+              style={styles.faqIcon}
+            />
+            <Text style={styles.faqQuestionText}>{faq.question}</Text>
+          </View>
+          {isExpanded ? (
+            <ChevronUp size={20} color={Colors.textSecondary} />
+          ) : (
+            <ChevronDown size={20} color={Colors.textSecondary} />
+          )}
         </View>
-        {isExpanded ? (
-          <ChevronUp size={20} color={Colors.textSecondary} />
-        ) : (
-          <ChevronDown size={20} color={Colors.textSecondary} />
-        )}
-      </View>
 
-      {isExpanded && (
-        <Text style={styles.faqAnswer}>{faq.answer}</Text>
-      )}
-    </TouchableOpacity>
-  );
-});
+        {isExpanded && <Text style={styles.faqAnswer}>{faq.answer}</Text>}
+      </TouchableOpacity>
+    );
+  }
+);
+
+FAQItem.displayName = 'FAQItem';
 
 // Category Chip Component
 interface CategoryChipProps {
@@ -73,22 +79,25 @@ interface CategoryChipProps {
   onPress: () => void;
 }
 
-const CategoryChip = React.memo<CategoryChipProps>(({ category, isSelected, onPress }) => (
-  <TouchableOpacity
-    style={[
-      styles.categoryChip,
-      isSelected && styles.categoryChipActive
-    ]}
-    onPress={onPress}
-  >
-    <Text style={[
-      styles.categoryChipText,
-      isSelected && styles.categoryChipTextActive
-    ]}>
-      {category?.name || 'All'}
-    </Text>
-  </TouchableOpacity>
-));
+const CategoryChip = React.memo<CategoryChipProps>(
+  ({ category, isSelected, onPress }) => (
+    <TouchableOpacity
+      style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.categoryChipText,
+          isSelected && styles.categoryChipTextActive,
+        ]}
+      >
+        {category?.name || 'All'}
+      </Text>
+    </TouchableOpacity>
+  )
+);
+
+CategoryChip.displayName = 'CategoryChip';
 
 export default function SupportScreen() {
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
@@ -106,18 +115,21 @@ export default function SupportScreen() {
     isLoadingFaqs,
     faqsError,
     fetchFaqsWithCategories,
-    clearErrors
+    clearErrors,
   } = useFaqStore();
 
   // Fallback to static FAQs if database fetch fails
-  const displayFaqs = faqs.length > 0 ? faqs : FAQS.map((faq, index) => ({
-    id: `static-${index}`,
-    category_id: 'general',
-    question: faq.question,
-    answer: faq.answer,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }));
+  const displayFaqs =
+    faqs.length > 0
+      ? faqs
+      : FAQS.map((faq, index) => ({
+          id: `static-${index}`,
+          category_id: 'general',
+          question: faq.question,
+          answer: faq.answer,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }));
 
   // Filter and search FAQs with memoization for performance
   const filteredFaqs = useMemo(() => {
@@ -131,9 +143,10 @@ export default function SupportScreen() {
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(faq =>
-        faq.question.toLowerCase().includes(query) ||
-        faq.answer.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        faq =>
+          faq.question.toLowerCase().includes(query) ||
+          faq.answer.toLowerCase().includes(query)
       );
     }
 
@@ -145,13 +158,16 @@ export default function SupportScreen() {
     fetchFaqsWithCategories();
   }, [fetchFaqsWithCategories]);
 
-  const toggleFaq = useCallback((faqId: string) => {
-    if (expandedFaq === faqId) {
-      setExpandedFaq(null);
-    } else {
-      setExpandedFaq(faqId);
-    }
-  }, [expandedFaq]);
+  const toggleFaq = useCallback(
+    (faqId: string) => {
+      if (expandedFaq === faqId) {
+        setExpandedFaq(null);
+      } else {
+        setExpandedFaq(faqId);
+      }
+    },
+    [expandedFaq]
+  );
 
   const clearSearch = useCallback(() => {
     setSearchQuery('');
@@ -190,8 +206,6 @@ export default function SupportScreen() {
     await submitForm();
   };
 
-
-
   return (
     <ScrollView
       style={styles.container}
@@ -210,46 +224,45 @@ export default function SupportScreen() {
       {/* Contact Options */}
       <Text style={styles.sectionTitle}>Contact Us</Text>
       <View style={styles.contactOptions}>
-        <TouchableOpacity
-          style={styles.contactOption}
-          onPress={handleCall}
-        >
+        <TouchableOpacity style={styles.contactOption} onPress={handleCall}>
           <View style={[styles.contactIcon, { backgroundColor: '#e3f2fd' }]}>
             <Phone size={24} color={Colors.primary} />
           </View>
           <Text style={styles.contactLabel}>Call</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.contactOption}
-          onPress={handleEmail}
-        >
+        <TouchableOpacity style={styles.contactOption} onPress={handleEmail}>
           <View style={[styles.contactIcon, { backgroundColor: '#e8f5e9' }]}>
-            <Mail size={24} color="#2ecc71" />
+            <Mail size={24} color='#2ecc71' />
           </View>
           <Text style={styles.contactLabel}>Email</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.contactOption}
-          onPress={handleChat}
-        >
+        <TouchableOpacity style={styles.contactOption} onPress={handleChat}>
           <View style={[styles.contactIcon, { backgroundColor: '#fff3e0' }]}>
-            <MessageCircle size={24} color="#f39c12" />
+            <MessageCircle size={24} color='#f39c12' />
           </View>
           <Text style={styles.contactLabel}>Chat</Text>
         </TouchableOpacity>
       </View>
 
       {/* Contact Details */}
-      <Card variant="elevated" style={styles.contactCard}>
+      <Card variant='elevated' style={styles.contactCard}>
         <View style={styles.contactDetail}>
-          <Phone size={16} color={Colors.primary} style={styles.contactDetailIcon} />
+          <Phone
+            size={16}
+            color={Colors.primary}
+            style={styles.contactDetailIcon}
+          />
           <Text style={styles.contactDetailText}>{CONTACT_INFO.PHONE}</Text>
         </View>
 
         <View style={styles.contactDetail}>
-          <Mail size={16} color={Colors.primary} style={styles.contactDetailIcon} />
+          <Mail
+            size={16}
+            color={Colors.primary}
+            style={styles.contactDetailIcon}
+          />
           <Text style={styles.contactDetailText}>{CONTACT_INFO.EMAIL}</Text>
         </View>
 
@@ -264,16 +277,23 @@ export default function SupportScreen() {
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Search size={20} color={Colors.textSecondary} style={styles.searchIcon} />
+          <Search
+            size={20}
+            color={Colors.textSecondary}
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search FAQs..."
+            placeholder='Search FAQs...'
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor={Colors.textSecondary}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={clearSearch} style={styles.clearSearchButton}>
+            <TouchableOpacity
+              onPress={clearSearch}
+              style={styles.clearSearchButton}
+            >
               <X size={16} color={Colors.textSecondary} />
             </TouchableOpacity>
           )}
@@ -294,7 +314,7 @@ export default function SupportScreen() {
               onPress={() => handleCategoryFilter(null)}
             />
 
-            {categories.map((category) => (
+            {categories.map(category => (
               <CategoryChip
                 key={category.id}
                 category={category}
@@ -306,7 +326,10 @@ export default function SupportScreen() {
 
           {/* Clear filters button */}
           {(selectedCategory || searchQuery) && (
-            <TouchableOpacity onPress={clearFilters} style={styles.clearFiltersButton}>
+            <TouchableOpacity
+              onPress={clearFilters}
+              style={styles.clearFiltersButton}
+            >
               <Text style={styles.clearFiltersText}>Clear All Filters</Text>
             </TouchableOpacity>
           )}
@@ -315,9 +338,9 @@ export default function SupportScreen() {
 
       {/* Error message */}
       {faqsError && (
-        <Card variant="elevated" style={styles.errorCard}>
+        <Card variant='elevated' style={styles.errorCard}>
           <View style={styles.errorContent}>
-            <AlertCircle size={20} color="#e74c3c" />
+            <AlertCircle size={20} color='#e74c3c' />
             <Text style={styles.errorText}>
               Unable to load FAQs. Showing default questions.
             </Text>
@@ -331,7 +354,7 @@ export default function SupportScreen() {
       {/* Loading indicator */}
       {isLoadingFaqs && faqs.length === 0 && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={Colors.primary} />
+          <ActivityIndicator size='small' color={Colors.primary} />
           <Text style={styles.loadingText}>Loading FAQs...</Text>
         </View>
       )}
@@ -342,8 +365,11 @@ export default function SupportScreen() {
           <View style={styles.noFaqsContainer}>
             <HelpCircle size={48} color={Colors.textSecondary} />
             <Text style={styles.noFaqsText}>
-              {searchQuery ? 'No FAQs match your search' :
-                selectedCategory ? 'No FAQs found in this category' : 'No FAQs available'}
+              {searchQuery
+                ? 'No FAQs match your search'
+                : selectedCategory
+                  ? 'No FAQs found in this category'
+                  : 'No FAQs available'}
             </Text>
           </View>
         ) : (
@@ -352,7 +378,7 @@ export default function SupportScreen() {
             showsVerticalScrollIndicator={true}
             nestedScrollEnabled={true}
           >
-            {filteredFaqs.map((item) => (
+            {filteredFaqs.map(item => (
               <FAQItem
                 key={item.id}
                 faq={item}
@@ -367,36 +393,36 @@ export default function SupportScreen() {
 
       {/* Contact Form */}
       <Text style={styles.sectionTitle}>Send Us a Message</Text>
-      <Card variant="elevated" style={styles.formCard}>
+      <Card variant='elevated' style={styles.formCard}>
         <Input
-          label="Name"
-          placeholder="Enter your name"
+          label='Name'
+          placeholder='Enter your name'
           value={formState.contactName}
-          onChangeText={(text) => updateField('contactName', text)}
+          onChangeText={text => updateField('contactName', text)}
           required
         />
 
         <Input
-          label="Email"
-          placeholder="Enter your email"
+          label='Email'
+          placeholder='Enter your email'
           value={formState.contactEmail}
-          onChangeText={(text) => updateField('contactEmail', text)}
-          keyboardType="email-address"
+          onChangeText={text => updateField('contactEmail', text)}
+          keyboardType='email-address'
           required
         />
 
         <Input
-          label="Message"
-          placeholder="How can we help you?"
+          label='Message'
+          placeholder='How can we help you?'
           value={formState.contactMessage}
-          onChangeText={(text) => updateField('contactMessage', text)}
+          onChangeText={text => updateField('contactMessage', text)}
           multiline
           numberOfLines={4}
           required
         />
 
         <Button
-          title="Send Message"
+          title='Send Message'
           onPress={handleSubmitMessage}
           loading={formState.isSubmitting}
           disabled={formState.isSubmitting}
@@ -642,4 +668,4 @@ const styles = StyleSheet.create({
   submitButton: {
     marginTop: 8,
   },
-}); 
+});

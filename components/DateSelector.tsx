@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  FlatList,
+  Platform,
+} from 'react-native';
 import { ChevronDown, Calendar } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { DateSelectorProps } from '@/types/components';
@@ -16,29 +24,39 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'year' | 'month' | 'day'>(isDateOfBirth ? 'year' : 'day');
-  
+  const [viewMode, setViewMode] = useState<'year' | 'month' | 'day'>(
+    isDateOfBirth ? 'year' : 'day'
+  );
+
   // Generate dates based on context (future dates for regular, past dates for DOB)
   const generateDates = () => {
     if (isDateOfBirth) {
       // For DOB, we're in day view and have selected year and month
-      if (viewMode === 'day' && selectedYear !== null && selectedMonth !== null) {
-        const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      if (
+        viewMode === 'day' &&
+        selectedYear !== null &&
+        selectedMonth !== null
+      ) {
+        const daysInMonth = new Date(
+          selectedYear,
+          selectedMonth + 1,
+          0
+        ).getDate();
         const days = [];
-        
+
         for (let i = 1; i <= daysInMonth; i++) {
           const date = new Date(selectedYear, selectedMonth, i);
-          
+
           // Check if date is within allowed range
           const dateString = formatDate(date);
           const isAfterMin = !minDate || dateString >= minDate;
           const isBeforeMax = !maxDate || dateString <= maxDate;
-          
+
           if (isAfterMin && isBeforeMax) {
             days.push(date);
           }
         }
-        
+
         return days;
       }
       return [];
@@ -48,51 +66,58 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
       const today = new Date();
       const min = minDate ? new Date(minDate) : today;
       const max = maxDate ? new Date(maxDate) : new Date(today);
-      
+
       if (!maxDate) {
         max.setDate(today.getDate() + 30);
       }
-      
-      for (let date = new Date(min); date <= max; date.setDate(date.getDate() + 1)) {
+
+      for (
+        let date = new Date(min);
+        date <= max;
+        date.setDate(date.getDate() + 1)
+      ) {
         dates.push(new Date(date));
       }
-      
+
       return dates;
     }
   };
-  
+
   // Generate years for DOB selector (100 years back from max date)
   const generateYears = () => {
     const years = [];
-    const endYear = maxDate ? new Date(maxDate).getFullYear() : new Date().getFullYear();
+    const endYear = maxDate
+      ? new Date(maxDate).getFullYear()
+      : new Date().getFullYear();
     const startYear = endYear - 100; // 100 years back
-    
+
     for (let year = endYear; year >= startYear; year--) {
       years.push(year);
     }
-    
+
     return years;
   };
-  
+
   // Generate months for the selected year
   const generateMonths = () => {
     if (selectedYear === null) return [];
-    
+
     const months = [];
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
-    
+
     // If selected year is current year, only show months up to current month
-    const monthLimit = (selectedYear === currentYear && isDateOfBirth) ? currentMonth : 11;
-    
+    const monthLimit =
+      selectedYear === currentYear && isDateOfBirth ? currentMonth : 11;
+
     for (let month = 0; month <= monthLimit; month++) {
       months.push(month);
     }
-    
+
     return months;
   };
-  
+
   const formatDate = (date: Date) => {
     // Adjust the date to handle timezone offset
     const year = date.getFullYear();
@@ -100,7 +125,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
-  
+
   const formatDisplayDate = (dateString: string) => {
     // Create date object by parsing the date string parts to avoid timezone issues
     const [year, month, day] = dateString.split('-').map(Number);
@@ -111,21 +136,23 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
       year: 'numeric',
     });
   };
-  
+
   const getMonthName = (month: number) => {
-    return new Date(2000, month, 1).toLocaleDateString('en-US', { month: 'long' });
+    return new Date(2000, month, 1).toLocaleDateString('en-US', {
+      month: 'long',
+    });
   };
-  
+
   const handleSelectYear = (year: number) => {
     setSelectedYear(year);
     setViewMode('month');
   };
-  
+
   const handleSelectMonth = (month: number) => {
     setSelectedMonth(month);
     setViewMode('day');
   };
-  
+
   const handleSelectDay = (date: Date) => {
     onChange(formatDate(date));
     setModalVisible(false);
@@ -134,7 +161,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
       setViewMode('year');
     }
   };
-  
+
   const handleOpenModal = () => {
     // If DOB and we have a value, parse it to set initial year/month
     if (isDateOfBirth && value) {
@@ -146,10 +173,10 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
       // Reset to year view if no value
       setViewMode('year');
     }
-    
+
     setModalVisible(true);
   };
-  
+
   const handleBack = () => {
     if (viewMode === 'day') {
       setViewMode('month');
@@ -157,15 +184,15 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
       setViewMode('year');
     }
   };
-  
+
   const renderModalContent = () => {
     if (isDateOfBirth) {
       if (viewMode === 'year') {
         return (
           <FlatList
-            key="yearGrid"
+            key='yearGrid'
             data={generateYears()}
-            keyExtractor={(item) => item.toString()}
+            keyExtractor={item => item.toString()}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.yearItem}
@@ -181,9 +208,9 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
       } else if (viewMode === 'month') {
         return (
           <FlatList
-            key="monthGrid"
+            key='monthGrid'
             data={generateMonths()}
-            keyExtractor={(item) => item.toString()}
+            keyExtractor={item => item.toString()}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.monthItem}
@@ -198,42 +225,45 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
         );
       }
     }
-    
+
     // Default day view for both DOB and regular
     return (
       <FlatList
-        key="dayGrid"
+        key='dayGrid'
         data={generateDates()}
-        keyExtractor={(item) => formatDate(item)}
+        keyExtractor={item => formatDate(item)}
         renderItem={({ item }) => {
           const dateString = formatDate(item);
           const isSelected = value === dateString;
-          
+
           return (
             <TouchableOpacity
-              style={[
-                styles.dateItem,
-                isSelected && styles.selectedItem,
-              ]}
+              style={[styles.dateItem, isSelected && styles.selectedItem]}
               onPress={() => handleSelectDay(item)}
             >
-              <Text style={[
-                styles.dayName,
-                isSelected && styles.selectedItemText,
-              ]}>
+              <Text
+                style={[styles.dayName, isSelected && styles.selectedItemText]}
+              >
                 {item.toLocaleDateString('en-US', { weekday: 'short' })}
               </Text>
-              <Text style={[
-                styles.dayNumber,
-                isSelected && styles.selectedItemText,
-              ]}>
+              <Text
+                style={[
+                  styles.dayNumber,
+                  isSelected && styles.selectedItemText,
+                ]}
+              >
                 {item.getDate()}
               </Text>
-              <Text style={[
-                styles.monthYear,
-                isSelected && styles.selectedItemText,
-              ]}>
-                {item.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              <Text
+                style={[
+                  styles.monthYear,
+                  isSelected && styles.selectedItemText,
+                ]}
+              >
+                {item.toLocaleDateString('en-US', {
+                  month: 'short',
+                  year: 'numeric',
+                })}
               </Text>
             </TouchableOpacity>
           );
@@ -242,46 +272,50 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
       />
     );
   };
-  
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      
+
       <TouchableOpacity
-        style={[
-          styles.selector,
-          error && styles.selectorError
-        ]}
+        style={[styles.selector, error && styles.selectorError]}
         onPress={handleOpenModal}
       >
         <View style={styles.selectorContent}>
-          <Calendar size={20} color={colors.textSecondary} style={styles.calendarIcon} />
+          <Calendar
+            size={20}
+            color={colors.textSecondary}
+            style={styles.calendarIcon}
+          />
           <Text style={value ? styles.selectedText : styles.placeholderText}>
             {value ? formatDisplayDate(value) : 'Select a date'}
           </Text>
         </View>
         <ChevronDown size={20} color={colors.textSecondary} />
       </TouchableOpacity>
-      
+
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      
+
       <Modal
         visible={modalVisible}
         transparent={true}
-        animationType="slide"
+        animationType='slide'
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               {isDateOfBirth && viewMode !== 'year' ? (
-                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+                <TouchableOpacity
+                  onPress={handleBack}
+                  style={styles.backButton}
+                >
                   <Text style={styles.backButtonText}>Back</Text>
                 </TouchableOpacity>
               ) : (
                 <View style={styles.placeholder} />
               )}
-              
+
               <Text style={styles.modalTitle}>
                 {isDateOfBirth
                   ? viewMode === 'year'
@@ -291,15 +325,17 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
                       : 'Select Day'
                   : 'Select a Date'}
               </Text>
-              
-              <TouchableOpacity onPress={() => {
-                setModalVisible(false);
-                if (isDateOfBirth) setViewMode('year');
-              }}>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setModalVisible(false);
+                  if (isDateOfBirth) setViewMode('year');
+                }}
+              >
                 <Text style={styles.closeButton}>Close</Text>
               </TouchableOpacity>
             </View>
-            
+
             {renderModalContent()}
           </View>
         </View>

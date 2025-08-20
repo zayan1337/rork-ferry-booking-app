@@ -52,25 +52,31 @@ export const useBookingClientSearch = ({
     setLocalSearchQuery(text);
   }, []);
 
-  const handleSelectExistingClient = useCallback((client: AgentClient) => {
-    onClientSelect(client);
-    clearClientSearch();
-    setLocalSearchQuery('');
-    setShowAddNewClientForm(false);
-  }, [onClientSelect, clearClientSearch]);
+  const handleSelectExistingClient = useCallback(
+    (client: AgentClient) => {
+      onClientSelect(client);
+      clearClientSearch();
+      setLocalSearchQuery('');
+      setShowAddNewClientForm(false);
+    },
+    [onClientSelect, clearClientSearch]
+  );
 
   const handleShowAddNewClient = useCallback(() => {
     setShowAddNewClientForm(true);
     clearClientSearch();
-    
+
     // Pre-fill with search query if it looks like an email or phone
     const prefilledForm = prefillClientFormFromQuery(localSearchQuery);
     setClientForm(prev => ({ ...prev, ...prefilledForm }));
   }, [localSearchQuery, clearClientSearch]);
 
-  const handleClientFormChange = useCallback((field: keyof ClientFormData, value: string) => {
-    setClientForm(prev => ({ ...prev, [field]: value }));
-  }, []);
+  const handleClientFormChange = useCallback(
+    (field: keyof ClientFormData, value: string) => {
+      setClientForm(prev => ({ ...prev, [field]: value }));
+    },
+    []
+  );
 
   const handleSaveClient = useCallback(() => {
     if (!clientForm.name || !clientForm.email || !clientForm.phone) {
@@ -98,11 +104,11 @@ export const useBookingClientSearch = ({
     localSearchQuery,
     showAddNewClientForm,
     clientForm,
-    
+
     // Search results
     clientSearchResults,
     isSearching,
-    
+
     // Actions
     handleSearchInputChange,
     handleSelectExistingClient,
@@ -111,9 +117,9 @@ export const useBookingClientSearch = ({
     handleSaveClient,
     handleBackToSearch,
     clearSearch,
-    
+
     // State setters (for external control)
     setShowAddNewClientForm,
     setClientForm,
   };
-}; 
+};

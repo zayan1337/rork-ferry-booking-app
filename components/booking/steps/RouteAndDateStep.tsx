@@ -98,18 +98,18 @@ const RouteAndDateStep: React.FC<RouteAndDateStepProps> = ({
       />
 
       <Dropdown
-        label="Departure Route"
+        label='Departure Route'
         items={routeOptions}
         value={selectedRoute?.id || ''}
         onChange={handleRouteSelect}
-        placeholder="Select departure route"
+        placeholder='Select departure route'
         error={errors.route}
         searchable
         required
       />
 
       <DatePicker
-        label="Departure Date"
+        label='Departure Date'
         value={departureDate}
         onChange={handleDepartureDateChange}
         minDate={new Date().toISOString().split('T')[0]}
@@ -120,18 +120,18 @@ const RouteAndDateStep: React.FC<RouteAndDateStepProps> = ({
       {tripType === 'round_trip' && (
         <>
           <Dropdown
-            label="Return Route"
+            label='Return Route'
             items={routeOptions}
             value={selectedReturnRoute?.id || ''}
             onChange={handleReturnRouteSelect}
-            placeholder="Select return route"
+            placeholder='Select return route'
             error={errors.returnRoute}
             searchable
             required
           />
 
           <DatePicker
-            label="Return Date"
+            label='Return Date'
             value={returnDate}
             onChange={handleReturnDateChange}
             minDate={departureDate || new Date().toISOString().split('T')[0]}
@@ -181,4 +181,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RouteAndDateStep; 
+export default RouteAndDateStep;

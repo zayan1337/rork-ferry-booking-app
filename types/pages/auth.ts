@@ -25,4 +25,4 @@ export interface AuthFormErrors {
   mobileNumber?: string;
   dateOfBirth?: string;
   username?: string;
-} 
+}

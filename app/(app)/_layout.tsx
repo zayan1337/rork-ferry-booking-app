@@ -1,29 +1,43 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import AuthLoadingScreen from '@/components/AuthLoadingScreen';
 
 export default function AppLayout() {
-  const { isAuthenticated, isLoading, user, isRehydrated } = useAuthStore();
+  const { isAuthenticated, isLoading, user, isRehydrated, preventRedirect } =
+    useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
     // If user is not authenticated and we're not loading, redirect to auth
-    if (!isAuthenticated && !isLoading && isRehydrated) {
-      router.replace('/(auth)' as any);
+    // But only if preventRedirect is false
+    if (!isAuthenticated && !isLoading && isRehydrated && !preventRedirect) {
+      // Use setTimeout to ensure the navigation stack is ready
+      setTimeout(() => {
+        try {
+          router.replace('/(auth)' as any);
+        } catch (error) {
+          console.log('Navigation error during logout:', error);
+          // Fallback: try to navigate to auth screen
+          router.push('/(auth)' as any);
+        }
+      }, 100);
     }
-  }, [isAuthenticated, isLoading, router, isRehydrated]);
+  }, [isAuthenticated, isLoading, router, isRehydrated, preventRedirect]);
 
   // Show loading while waiting for auth data to load
-  if (!isRehydrated || !isAuthenticated || isLoading || !user?.profile) {
+  if (!isRehydrated || !isAuthenticated || isLoading) {
     return (
       <AuthLoadingScreen
         message={
-          !isRehydrated ? "Loading app data..." :
-            !isAuthenticated ? "Redirecting to login..." :
-              isLoading ? "Loading your account..." :
-                "Setting up your profile..."
+          !isRehydrated
+            ? 'Loading app data...'
+            : !isAuthenticated
+              ? 'Redirecting to login...'
+              : isLoading
+                ? 'Loading your account...'
+                : 'Setting up your profile...'
         }
       />
     );
@@ -32,18 +46,18 @@ export default function AppLayout() {
   // Determine initial route based on user role
   const getInitialRouteName = () => {
     if (!user?.profile) {
-      return "(customer)";
+      return '(customer)';
     }
 
     switch (user.profile.role) {
       case 'admin':
       case 'captain':
-        return "(admin)";
+        return '(admin)';
       case 'agent':
-        return "(agent)";
+        return '(agent)';
       case 'customer':
       default:
-        return "(customer)";
+        return '(customer)';
     }
   };
 
@@ -60,9 +74,9 @@ export default function AppLayout() {
       }}
       initialRouteName={getInitialRouteName()}
     >
-      <Stack.Screen name="(customer)" options={{ headerShown: false }} />
-      <Stack.Screen name="(agent)" options={{ headerShown: false }} />
-      <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+      <Stack.Screen name='(customer)' options={{ headerShown: false }} />
+      <Stack.Screen name='(agent)' options={{ headerShown: false }} />
+      <Stack.Screen name='(admin)' options={{ headerShown: false }} />
     </Stack>
   );
 }

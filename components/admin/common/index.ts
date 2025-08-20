@@ -5,11 +5,11 @@ export { default as ActionBar } from './ActionBar';
 export { default as ListSection } from './ListSection';
 export { default as SearchFilterBar } from './SearchFilterBar';
 export {
-    SelectionCheckbox,
-    SelectAllControl,
-    SelectionSummary
+  SelectionCheckbox,
+  SelectAllControl,
+  SelectionSummary,
 } from './SelectionControls';
 
 // Export types for better TypeScript support
 export type { TabOption } from './TabSelector';
-export type { ActionBarAction } from './ActionBar'; 
+export type { ActionBarAction } from './ActionBar';

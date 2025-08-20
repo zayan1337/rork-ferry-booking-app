@@ -71,4 +71,4 @@ export interface BookingEligibility {
   isCancellable: boolean;
   message?: string;
   hoursUntilDeparture: number;
-} 
+}

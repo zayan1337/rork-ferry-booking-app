@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,12 @@ import {
   Alert,
   RefreshControl,
   Dimensions,
-} from "react-native";
-import { Stack, useLocalSearchParams, router } from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { useIslandDetails } from "@/hooks/useIslandManagement";
-import { useOperationsStore } from "@/store/admin/operationsStore";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { AdminManagement } from "@/types";
+} from 'react-native';
+import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { useIslandDetails } from '@/hooks/useIslandManagement';
+import { useOperationsStore } from '@/store/admin/operationsStore';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import {
   ArrowLeft,
   Edit,
@@ -24,26 +23,22 @@ import {
   AlertCircle,
   Activity,
   Route as RouteIcon,
-  Ship,
-  Users,
   TrendingUp,
   BarChart3,
   Settings,
-  Clock,
   Info,
-} from "lucide-react-native";
+} from 'lucide-react-native';
 
 // Components
-import Button from "@/components/admin/Button";
-import LoadingSpinner from "@/components/admin/LoadingSpinner";
-import StatusBadge from "@/components/admin/StatusBadge";
-import StatCard from "@/components/admin/StatCard";
+import Button from '@/components/admin/Button';
+import LoadingSpinner from '@/components/admin/LoadingSpinner';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function IslandDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { canUpdateIslands, canDeleteIslands, canViewRoutes, canViewIslands } = useAdminPermissions();
+  const { canUpdateIslands, canDeleteIslands, canViewRoutes, canViewIslands } =
+    useAdminPermissions();
 
   // Use new island details hook
   const {
@@ -51,7 +46,7 @@ export default function IslandDetailScreen() {
     islandWithDetails,
     loading: islandLoading,
     error,
-    loadIsland
+    loadIsland,
   } = useIslandDetails(id!);
 
   // Keep operations store for route statistics (until routes are migrated)
@@ -72,8 +67,8 @@ export default function IslandDetailScreen() {
       // Also fetch routes to calculate statistics
       await fetchRoutes();
     } catch (error) {
-      console.error("Error loading island:", error);
-      Alert.alert("Error", "Failed to load island details");
+      console.error('Error loading island:', error);
+      Alert.alert('Error', 'Failed to load island details');
     } finally {
       setLoading(false);
     }
@@ -87,7 +82,10 @@ export default function IslandDetailScreen() {
 
   const handleEdit = () => {
     if (!canUpdateIslands()) {
-      Alert.alert("Access Denied", "You don't have permission to edit islands.");
+      Alert.alert(
+        'Access Denied',
+        "You don't have permission to edit islands."
+      );
       return;
     }
     router.push(`../island/edit/${id}` as any);
@@ -95,34 +93,40 @@ export default function IslandDetailScreen() {
 
   const handleDelete = () => {
     if (!canDeleteIslands()) {
-      Alert.alert("Access Denied", "You don't have permission to delete islands.");
+      Alert.alert(
+        'Access Denied',
+        "You don't have permission to delete islands."
+      );
       return;
     }
 
     Alert.alert(
-      "Delete Island",
+      'Delete Island',
       `Are you sure you want to delete "${island?.name}"? This action cannot be undone and will affect all routes using this island.`,
       [
         {
-          text: "Cancel",
-          style: "cancel",
+          text: 'Cancel',
+          style: 'cancel',
         },
         {
-          text: "Delete",
-          style: "destructive",
+          text: 'Delete',
+          style: 'destructive',
           onPress: async () => {
             setDeleting(true);
             try {
               const success = await removeIsland(id);
               if (success) {
-                Alert.alert("Success", "Island deleted successfully");
+                Alert.alert('Success', 'Island deleted successfully');
                 router.back();
               } else {
-                Alert.alert("Error", "Failed to delete island");
+                Alert.alert('Error', 'Failed to delete island');
               }
             } catch (error) {
-              console.error("Error deleting island:", error);
-              Alert.alert("Error", "Failed to delete island. There may be active routes using this island.");
+              console.error('Error deleting island:', error);
+              Alert.alert(
+                'Error',
+                'Failed to delete island. There may be active routes using this island.'
+              );
             } finally {
               setDeleting(false);
             }
@@ -170,7 +174,9 @@ export default function IslandDetailScreen() {
   const islandStats = React.useMemo(() => {
     if (!island || !routes) return null;
 
-    const fromRoutes = routes.filter(route => route.from_island_id === island.id);
+    const fromRoutes = routes.filter(
+      route => route.from_island_id === island.id
+    );
     const toRoutes = routes.filter(route => route.to_island_id === island.id);
     const totalRoutes = [...fromRoutes, ...toRoutes];
     const activeRoutes = totalRoutes.filter(route => route.status === 'active');
@@ -197,7 +203,7 @@ export default function IslandDetailScreen() {
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     }).format(date);
   };
 
@@ -210,7 +216,7 @@ export default function IslandDetailScreen() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Access Denied",
+            title: 'Access Denied',
             headerLeft: () => (
               <TouchableOpacity
                 onPress={() => router.back()}
@@ -230,8 +236,8 @@ export default function IslandDetailScreen() {
             You don't have permission to view island details.
           </Text>
           <Button
-            title="Go Back"
-            variant="primary"
+            title='Go Back'
+            variant='primary'
             onPress={() => router.back()}
           />
         </View>
@@ -244,7 +250,7 @@ export default function IslandDetailScreen() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Loading...",
+            title: 'Loading...',
             headerLeft: () => (
               <TouchableOpacity
                 onPress={() => router.back()}
@@ -268,7 +274,7 @@ export default function IslandDetailScreen() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: "Island Not Found",
+            title: 'Island Not Found',
             headerLeft: () => (
               <TouchableOpacity
                 onPress={() => router.back()}
@@ -288,8 +294,8 @@ export default function IslandDetailScreen() {
             The island you're looking for doesn't exist or has been removed.
           </Text>
           <Button
-            title="Go Back"
-            variant="primary"
+            title='Go Back'
+            variant='primary'
             onPress={() => router.back()}
           />
         </View>
@@ -350,31 +356,53 @@ export default function IslandDetailScreen() {
         {/* Island Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={[styles.islandIcon, { backgroundColor: getZoneColor(island.zone) + '15' }]}>
+            <View
+              style={[
+                styles.islandIcon,
+                { backgroundColor: `${getZoneColor(island.zone)}15` },
+              ]}
+            >
               <MapPin size={24} color={getZoneColor(island.zone)} />
             </View>
             <View style={styles.headerContent}>
               <Text style={styles.islandName}>{island.name}</Text>
               <View style={styles.islandLocation}>
                 <Activity size={16} color={getZoneColor(island.zone)} />
-                <Text style={[styles.zoneText, { color: getZoneColor(island.zone) }]}>
+                <Text
+                  style={[
+                    styles.zoneText,
+                    { color: getZoneColor(island.zone) },
+                  ]}
+                >
                   {getZoneLabel(island.zone)}
                 </Text>
               </View>
             </View>
           </View>
-          <View style={[
-            styles.statusBadge,
-            island.is_active ? styles.statusActive : styles.statusInactive
-          ]}>
-            <View style={[
-              styles.statusDot,
-              { backgroundColor: island.is_active ? colors.success : colors.textSecondary }
-            ]} />
-            <Text style={[
-              styles.statusText,
-              island.is_active ? styles.statusTextActive : styles.statusTextInactive
-            ]}>
+          <View
+            style={[
+              styles.statusBadge,
+              island.is_active ? styles.statusActive : styles.statusInactive,
+            ]}
+          >
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor: island.is_active
+                    ? colors.success
+                    : colors.textSecondary,
+                },
+              ]}
+            />
+            <Text
+              style={[
+                styles.statusText,
+                island.is_active
+                  ? styles.statusTextActive
+                  : styles.statusTextInactive,
+              ]}
+            >
               {island.is_active ? 'Active' : 'Inactive'}
             </Text>
           </View>
@@ -390,17 +418,26 @@ export default function IslandDetailScreen() {
                     <RouteIcon size={20} color={colors.primary} />
                   </View>
                   <View style={styles.statCardContent}>
-                    <Text style={styles.statCardValue}>{islandStats.totalRoutes}</Text>
+                    <Text style={styles.statCardValue}>
+                      {islandStats.totalRoutes}
+                    </Text>
                     <Text style={styles.statCardLabel}>Total Routes</Text>
                   </View>
                 </View>
 
                 <View style={styles.statCard}>
-                  <View style={[styles.statCardIcon, { backgroundColor: colors.successLight }]}>
+                  <View
+                    style={[
+                      styles.statCardIcon,
+                      { backgroundColor: colors.successLight },
+                    ]}
+                  >
                     <Activity size={20} color={colors.success} />
                   </View>
                   <View style={styles.statCardContent}>
-                    <Text style={styles.statCardValue}>{islandStats.activeRoutes}</Text>
+                    <Text style={styles.statCardValue}>
+                      {islandStats.activeRoutes}
+                    </Text>
                     <Text style={styles.statCardLabel}>Active Routes</Text>
                   </View>
                 </View>
@@ -408,21 +445,35 @@ export default function IslandDetailScreen() {
 
               <View style={styles.statsRow}>
                 <View style={styles.statCard}>
-                  <View style={[styles.statCardIcon, { backgroundColor: colors.infoLight }]}>
+                  <View
+                    style={[
+                      styles.statCardIcon,
+                      { backgroundColor: colors.infoLight },
+                    ]}
+                  >
                     <TrendingUp size={20} color={colors.info} />
                   </View>
                   <View style={styles.statCardContent}>
-                    <Text style={styles.statCardValue}>{islandStats.fromRoutes}</Text>
+                    <Text style={styles.statCardValue}>
+                      {islandStats.fromRoutes}
+                    </Text>
                     <Text style={styles.statCardLabel}>Departure Routes</Text>
                   </View>
                 </View>
 
                 <View style={styles.statCard}>
-                  <View style={[styles.statCardIcon, { backgroundColor: colors.warningLight }]}>
+                  <View
+                    style={[
+                      styles.statCardIcon,
+                      { backgroundColor: colors.warningLight },
+                    ]}
+                  >
                     <BarChart3 size={20} color={colors.warning} />
                   </View>
                   <View style={styles.statCardContent}>
-                    <Text style={styles.statCardValue}>{islandStats.toRoutes}</Text>
+                    <Text style={styles.statCardValue}>
+                      {islandStats.toRoutes}
+                    </Text>
                     <Text style={styles.statCardLabel}>Arrival Routes</Text>
                   </View>
                 </View>
@@ -448,12 +499,22 @@ export default function IslandDetailScreen() {
               </View>
 
               <View style={styles.infoItem}>
-                <View style={[styles.infoIcon, { backgroundColor: getZoneColor(island.zone) + '15' }]}>
+                <View
+                  style={[
+                    styles.infoIcon,
+                    { backgroundColor: `${getZoneColor(island.zone)}15` },
+                  ]}
+                >
                   <Activity size={20} color={getZoneColor(island.zone)} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Zone</Text>
-                  <Text style={[styles.infoValue, { color: getZoneColor(island.zone) }]}>
+                  <Text
+                    style={[
+                      styles.infoValue,
+                      { color: getZoneColor(island.zone) },
+                    ]}
+                  >
                     {getZoneLabel(island.zone)}
                   </Text>
                 </View>
@@ -462,18 +523,35 @@ export default function IslandDetailScreen() {
 
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
-                <View style={[
-                  styles.infoIcon,
-                  { backgroundColor: island.is_active ? colors.successLight : colors.backgroundTertiary }
-                ]}>
-                  <Settings size={20} color={island.is_active ? colors.success : colors.textSecondary} />
+                <View
+                  style={[
+                    styles.infoIcon,
+                    {
+                      backgroundColor: island.is_active
+                        ? colors.successLight
+                        : colors.backgroundTertiary,
+                    },
+                  ]}
+                >
+                  <Settings
+                    size={20}
+                    color={
+                      island.is_active ? colors.success : colors.textSecondary
+                    }
+                  />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Status</Text>
-                  <Text style={[
-                    styles.infoValue,
-                    { color: island.is_active ? colors.success : colors.textSecondary }
-                  ]}>
+                  <Text
+                    style={[
+                      styles.infoValue,
+                      {
+                        color: island.is_active
+                          ? colors.success
+                          : colors.textSecondary,
+                      },
+                    ]}
+                  >
                     {island.is_active ? 'Active' : 'Inactive'}
                   </Text>
                 </View>
@@ -505,15 +583,19 @@ export default function IslandDetailScreen() {
                   <Info size={20} color={colors.info} />
                 </View>
                 <Text style={styles.routesDescription}>
-                  This island is connected to {islandStats.totalRoutes} route{islandStats.totalRoutes !== 1 ? 's' : ''},
-                  with {islandStats.fromRoutes} departure route{islandStats.fromRoutes !== 1 ? 's' : ''} and {islandStats.toRoutes} arrival route{islandStats.toRoutes !== 1 ? 's' : ''}.
+                  This island is connected to {islandStats.totalRoutes} route
+                  {islandStats.totalRoutes !== 1 ? 's' : ''}, with{' '}
+                  {islandStats.fromRoutes} departure route
+                  {islandStats.fromRoutes !== 1 ? 's' : ''} and{' '}
+                  {islandStats.toRoutes} arrival route
+                  {islandStats.toRoutes !== 1 ? 's' : ''}.
                 </Text>
               </View>
 
               {islandStats.totalRoutes > 0 && canViewRoutes() && (
                 <Button
-                  title="View All Routes"
-                  variant="outline"
+                  title='View All Routes'
+                  variant='outline'
                   onPress={handleViewRoutes}
                   icon={<RouteIcon size={16} color={colors.primary} />}
                 />
@@ -529,7 +611,9 @@ export default function IslandDetailScreen() {
           <View style={styles.systemInfo}>
             <View style={styles.systemRow}>
               <Text style={styles.systemLabel}>Island ID</Text>
-              <Text style={styles.systemValue} selectable>{island.id}</Text>
+              <Text style={styles.systemValue} selectable>
+                {island.id}
+              </Text>
             </View>
 
             <View style={styles.systemRow}>
@@ -545,17 +629,17 @@ export default function IslandDetailScreen() {
         <View style={styles.actionsContainer}>
           {canUpdateIslands() && (
             <Button
-              title="Edit Island"
+              title='Edit Island'
               onPress={handleEdit}
-              variant="primary"
+              variant='primary'
               icon={<Edit size={20} color={colors.white} />}
             />
           )}
           {canDeleteIslands() && (
             <Button
-              title="Delete Island"
+              title='Delete Island'
               onPress={handleDelete}
-              variant="outline"
+              variant='outline'
               loading={deleting}
               style={styles.deleteButton}
               icon={<Trash2 size={20} color={colors.error} />}
@@ -582,8 +666,8 @@ const styles = StyleSheet.create({
   },
   noPermissionContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
     gap: 20,
   },
@@ -592,40 +676,40 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: colors.warningLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   noPermissionTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 8,
   },
   noPermissionText: {
     fontSize: 16,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 280,
     lineHeight: 22,
     marginBottom: 20,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 16,
   },
   loadingText: {
     fontSize: 16,
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
     gap: 20,
   },
@@ -634,21 +718,21 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: colors.warningLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   errorTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 8,
   },
   errorText: {
     fontSize: 15,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 300,
     lineHeight: 22,
     marginBottom: 20,
@@ -658,7 +742,7 @@ const styles = StyleSheet.create({
     marginLeft: -8,
   },
   headerActions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
   },
   headerActionButton: {
@@ -675,9 +759,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.errorLight,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: colors.card,
     padding: 24,
     borderRadius: 16,
@@ -689,16 +773,16 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
   islandIcon: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 16,
   },
   headerContent: {
@@ -706,24 +790,24 @@ const styles = StyleSheet.create({
   },
   islandName: {
     fontSize: 24,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 6,
     lineHeight: 30,
   },
   islandLocation: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   zoneText: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: '600',
     letterSpacing: 0.1,
   },
   statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
@@ -742,7 +826,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   statusTextActive: {
@@ -758,13 +842,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statsRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   statCard: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.card,
     padding: 16,
     borderRadius: 12,
@@ -780,15 +864,15 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statCardContent: {
     flex: 1,
   },
   statCardValue: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     lineHeight: 22,
     marginBottom: 2,
@@ -796,8 +880,8 @@ const styles = StyleSheet.create({
   statCardLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "600",
-    textTransform: "uppercase",
+    fontWeight: '600',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   section: {
@@ -813,7 +897,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 20,
     lineHeight: 24,
@@ -822,13 +906,13 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   infoRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 16,
   },
   infoItem: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   infoIcon: {
@@ -836,8 +920,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoContent: {
     flex: 1,
@@ -845,14 +929,14 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 12,
     color: colors.textTertiary,
-    textTransform: "uppercase",
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 4,
   },
   infoValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     lineHeight: 20,
   },
@@ -860,8 +944,8 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   summaryCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: colors.infoLight,
     padding: 16,
     borderRadius: 12,
@@ -871,9 +955,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.info + '20',
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: `${colors.info}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 2,
   },
   routesDescription: {
@@ -881,15 +965,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.info,
     lineHeight: 20,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   systemInfo: {
     gap: 16,
   },
   systemRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
@@ -897,15 +981,15 @@ const styles = StyleSheet.create({
   systemLabel: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: '600',
     flex: 1,
   },
   systemValue: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
     flex: 2,
-    textAlign: "right",
+    textAlign: 'right',
     lineHeight: 18,
   },
   actionsContainer: {
@@ -915,4 +999,4 @@ const styles = StyleSheet.create({
   deleteButton: {
     borderColor: colors.error,
   },
-}); 
+});

@@ -15,20 +15,18 @@ export default function AgentStatsCard({ stats, style }: AgentStatsCardProps) {
         <Text style={styles.statValue}>{stats.totalClients}</Text>
         <Text style={styles.statLabel}>Total Clients</Text>
       </View>
-      
+
       <View style={styles.statDivider} />
-      
+
       <View style={styles.statItem}>
         <Text style={styles.statValue}>{stats.filteredClients}</Text>
         <Text style={styles.statLabel}>Showing</Text>
       </View>
-      
+
       <View style={styles.statDivider} />
-      
+
       <View style={styles.statItem}>
-        <Text style={styles.statValue}>
-          {stats.averageBookings.toFixed(1)}
-        </Text>
+        <Text style={styles.statValue}>{stats.averageBookings.toFixed(1)}</Text>
         <Text style={styles.statLabel}>Avg. Bookings</Text>
       </View>
     </View>
@@ -70,4 +68,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
     marginHorizontal: 8,
   },
-}); 
+});

@@ -17,4 +17,4 @@ export interface ProfileFormErrors {
   mobileNumber?: string;
   dateOfBirth?: string;
   username?: string;
-} 
+}

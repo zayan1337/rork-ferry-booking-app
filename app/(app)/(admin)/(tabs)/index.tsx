@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -6,39 +6,34 @@ import {
   View,
   TouchableOpacity,
   RefreshControl,
-  Alert
-} from "react-native";
-import { colors } from "@/constants/adminColors";
+  Alert,
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { AlertTriangle, Eye, Activity } from 'lucide-react-native';
+import { Stack, router } from 'expo-router';
+import { useAdminStore } from '@/store/admin/adminStore';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import {
-  AlertTriangle,
-  Eye,
-  Activity,
-} from "lucide-react-native";
-import { Stack, router } from "expo-router";
-import { useAdminStore } from "@/store/admin/adminStore";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
-import { useDashboardData } from "@/hooks/useDashboardData";
-import { getResponsiveDimensions, getResponsivePadding } from "@/utils/dashboardUtils";
+  getResponsiveDimensions,
+  getResponsivePadding,
+} from '@/utils/dashboardUtils';
 
 // Dashboard Components
-import WelcomeCard from "@/components/admin/dashboard/WelcomeCard";
-import DashboardStats from "@/components/admin/dashboard/DashboardStats";
-import SystemHealthDashboard from "@/components/admin/dashboard/SystemHealthDashboard";
-import QuickActions from "@/components/admin/dashboard/QuickActions";
+import WelcomeCard from '@/components/admin/dashboard/WelcomeCard';
+import DashboardStats from '@/components/admin/dashboard/DashboardStats';
+import SystemHealthDashboard from '@/components/admin/dashboard/SystemHealthDashboard';
+import QuickActions from '@/components/admin/dashboard/QuickActions';
 
 // Existing Components
-import SectionHeader from "@/components/admin/SectionHeader";
-import AlertItem from "@/components/admin/AlertItem";
-import BookingItem from "@/components/admin/BookingItem";
-import Button from "@/components/admin/Button";
+import SectionHeader from '@/components/admin/SectionHeader';
+import AlertItem from '@/components/admin/AlertItem';
+import BookingItem from '@/components/admin/BookingItem';
+import Button from '@/components/admin/Button';
 
 export default function DashboardScreen() {
-  const {
-    dashboardStats,
-    markAlertAsRead,
-    markAllAlertsAsRead,
-    refreshData
-  } = useAdminStore();
+  const { dashboardStats, markAlertAsRead, markAllAlertsAsRead, refreshData } =
+    useAdminStore();
 
   const {
     canViewDashboard,
@@ -49,7 +44,7 @@ export default function DashboardScreen() {
     canViewUsers,
     canViewWallets,
     canViewNotifications,
-    canViewActivityLogs
+    canViewActivityLogs,
   } = useAdminPermissions();
 
   const {
@@ -87,32 +82,35 @@ export default function DashboardScreen() {
     switch (action) {
       case 'new_booking':
         if (canViewBookings()) {
-          router.push("../booking/new" as any);
+          router.push('../booking/new' as any);
         } else {
-          Alert.alert("Access Denied", "You don't have permission to create bookings.");
+          Alert.alert(
+            'Access Denied',
+            "You don't have permission to create bookings."
+          );
         }
         break;
       case 'view_bookings':
         if (canViewBookings()) {
-          router.push("./bookings" as any);
+          router.push('./bookings' as any);
         }
         break;
       case 'operations':
-        router.push("./operations" as any);
+        router.push('./operations' as any);
         break;
       case 'users':
         if (canViewUsers()) {
-          router.push("./users" as any);
+          router.push('./users' as any);
         }
         break;
       case 'finance':
         if (canViewWallets()) {
-          router.push("./finance" as any);
+          router.push('./finance' as any);
         }
         break;
       case 'communications':
         if (canViewNotifications()) {
-          router.push("./communications" as any);
+          router.push('./communications' as any);
         }
         break;
       default:
@@ -121,7 +119,7 @@ export default function DashboardScreen() {
   };
 
   const handleProfilePress = () => {
-    router.push("../modal");
+    router.push('../modal');
   };
 
   if (!canViewDashboard()) {
@@ -151,7 +149,7 @@ export default function DashboardScreen() {
     >
       <Stack.Screen
         options={{
-          title: "Dashboard",
+          title: 'Dashboard',
         }}
       />
 
@@ -171,11 +169,12 @@ export default function DashboardScreen() {
       {criticalAlerts > 0 && (
         <TouchableOpacity
           style={styles.criticalAlertBanner}
-          onPress={() => router.push("./settings" as any)}
+          onPress={() => router.push('./settings' as any)}
         >
           <AlertTriangle size={20} color={colors.danger} />
           <Text style={styles.criticalAlertText}>
-            {criticalAlerts} critical alert{criticalAlerts > 1 ? 's' : ''} require attention
+            {criticalAlerts} critical alert{criticalAlerts > 1 ? 's' : ''}{' '}
+            require attention
           </Text>
           <Eye size={16} color={colors.danger} />
         </TouchableOpacity>
@@ -209,24 +208,24 @@ export default function DashboardScreen() {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderContent}>
               <SectionHeader
-                title="System Alerts"
+                title='System Alerts'
                 subtitle={`${alerts.filter(a => !a.read).length} unread alerts`}
               />
             </View>
             {alerts.filter(a => !a.read).length > 0 && (
               <View style={styles.sectionHeaderButton}>
                 <Button
-                  title="Mark All Read"
+                  title='Mark All Read'
                   onPress={markAllAlertsAsRead}
-                  size="small"
-                  variant="outline"
+                  size='small'
+                  variant='outline'
                 />
               </View>
             )}
           </View>
 
           <View style={styles.alertsList}>
-            {alerts.slice(0, 3).map((alert) => (
+            {alerts.slice(0, 3).map(alert => (
               <AlertItem
                 key={alert.id}
                 alert={alert}
@@ -238,7 +237,7 @@ export default function DashboardScreen() {
           {alerts.length > 3 && (
             <TouchableOpacity
               style={styles.viewAllButton}
-              onPress={() => router.push("./settings" as any)}
+              onPress={() => router.push('./settings' as any)}
             >
               <Text style={styles.viewAllText}>View All Alerts</Text>
               <Eye size={16} color={colors.primary} />
@@ -253,8 +252,8 @@ export default function DashboardScreen() {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderContent}>
               <SectionHeader
-                title="Recent Bookings"
-                subtitle="Latest booking activity"
+                title='Recent Bookings'
+                subtitle='Latest booking activity'
               />
             </View>
             <View style={styles.sectionHeaderButton}>
@@ -269,7 +268,7 @@ export default function DashboardScreen() {
           </View>
 
           <View style={styles.bookingsList}>
-            {bookings.slice(0, 5).map((booking) => (
+            {bookings.slice(0, 5).map(booking => (
               <BookingItem
                 key={booking.id}
                 booking={booking}
@@ -287,14 +286,14 @@ export default function DashboardScreen() {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderContent}>
               <SectionHeader
-                title="Recent Activity"
-                subtitle="System activity logs"
+                title='Recent Activity'
+                subtitle='System activity logs'
               />
             </View>
           </View>
 
           <View style={styles.activityList}>
-            {activityLogs.slice(0, 5).map((log) => (
+            {activityLogs.slice(0, 5).map(log => (
               <View key={log.id} style={styles.activityItem}>
                 <View style={styles.activityIcon}>
                   <Activity size={16} color={colors.primary} />
@@ -327,11 +326,11 @@ const styles = StyleSheet.create({
 
   // Original styles for other sections with better alignment
   criticalAlertBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.danger + "10",
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${colors.danger}10`,
     borderWidth: 1,
-    borderColor: colors.danger + "30",
+    borderColor: `${colors.danger}30`,
     padding: 16,
     borderRadius: 12,
     marginBottom: 24,
@@ -340,7 +339,7 @@ const styles = StyleSheet.create({
   criticalAlertText: {
     flex: 1,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.danger,
   },
   alertsSection: {
@@ -350,30 +349,30 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   viewAllButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 16,
-    backgroundColor: colors.primary + "10",
+    backgroundColor: `${colors.primary}10`,
     borderRadius: 8,
     gap: 8,
     borderWidth: 1,
-    borderColor: colors.primary + "20",
+    borderColor: `${colors.primary}20`,
   },
   viewAllText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.primary,
   },
   recentBookingsSection: {
     marginBottom: 24,
   },
   sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
     minHeight: 44,
   },
@@ -383,22 +382,22 @@ const styles = StyleSheet.create({
   },
   sectionHeaderButton: {
     flexShrink: 0,
-    maxWidth: "40%",
+    maxWidth: '40%',
   },
   viewAllLink: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: colors.primary + "08",
+    backgroundColor: `${colors.primary}08`,
     borderWidth: 1,
-    borderColor: colors.primary + "20",
+    borderColor: `${colors.primary}20`,
   },
   viewAllLinkText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.primary,
   },
   bookingsList: {
@@ -412,8 +411,8 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   activityItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.card,
     padding: 12,
     borderRadius: 8,
@@ -423,16 +422,16 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary + "20",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: `${colors.primary}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   activityContent: {
     flex: 1,
   },
   activityAction: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.text,
     marginBottom: 2,
   },
@@ -448,19 +447,19 @@ const styles = StyleSheet.create({
   activityTime: {
     fontSize: 10,
     color: colors.textSecondary,
-    textAlign: "right",
+    textAlign: 'right',
   },
   noPermissionContainer: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 64,
     gap: 16,
   },
   noPermissionText: {
     fontSize: 16,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     maxWidth: 250,
   },
 });

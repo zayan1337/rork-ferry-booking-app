@@ -1,90 +1,234 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirm Your Email</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f7f7f7;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f7f7f7; padding: 40px 20px;">
-    <tr>
-      <td>
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-          <!-- Logo Section -->
-          <tr>
-            <td style="text-align: center; padding: 30px 30px 20px;">
-              <img src="https://images.unsplash.com/photo-1534008897995-27a23e859048?q=80&w=1000&auto=format&fit=crop" alt="Ferry Booking Logo" style="width: 100px; height: 100px; border-radius: 10px;">
-            </td>
-          </tr>
-          
-          <!-- Header Section -->
-          <tr>
-            <td style="text-align: center; padding: 0 30px 20px;">
-              <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #1a73e8;">Welcome to Ferry Booking!</h1>
-            </td>
-          </tr>
-          
-          <!-- Content Section -->
-          <tr>
-            <td style="padding: 0 30px 30px;">
-              <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.5; color: #333333;">
-                Hello Sir,
-              </p>
-              <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.5; color: #333333;">
-                Thank you for signing up with Ferry Booking! To complete your registration and start booking your ferry trips, please verify your email address by clicking the button below:
-              </p>
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0;">
-                <tr>
-                  <td style="text-align: center;">
-                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; background-color: #1a73e8; color: #ffffff; text-decoration: none; padding: 14px 30px; border-radius: 4px; font-weight: 500; font-size: 16px;">Verify Email Address</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin: 0 0 20px; font-size: 14px; line-height: 1.5; color: #666666; font-style: italic;">
-                This verification link will expire in 60 seconds for security reasons.
-              </p>
-              <p style="margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: #666666;">
-                If you're having trouble with the button above, copy and paste the URL below into your web browser:
-              </p>
-              <p style="margin: 0 0 20px; font-size: 14px; line-height: 1.5; color: #666666; word-break: break-all;">
-                {{ .ConfirmationURL }}
-              </p>
-              <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #666666;">
-                If you didn't create an account with Ferry Booking, you can safely ignore this email.
-              </p>
-            </td>
-          </tr>
-          
-          <!-- What's Next Section -->
-          <tr>
-            <td style="padding: 0 30px 30px;">
-              <h2 style="margin: 0 0 15px; font-size: 18px; font-weight: 600; color: #1a73e8;">What's Next?</h2>
-              <p style="margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: #333333;">
-                Once your email is verified, you can:
-              </p>
-              <ul style="margin: 0 0 20px; padding-left: 20px; color: #333333;">
-                <li style="margin-bottom: 8px; font-size: 14px;">Browse available ferry routes</li>
-                <li style="margin-bottom: 8px; font-size: 14px;">Book tickets for your journey</li>
-                <li style="margin-bottom: 8px; font-size: 14px;">Manage your bookings</li>
-                <li style="margin-bottom: 0; font-size: 14px;">Access exclusive deals and offers</li>
-              </ul>
-            </td>
-          </tr>
-          
-          <!-- Footer Section -->
-          <tr>
-            <td style="text-align: center; padding: 30px; border-top: 1px solid #eeeeee;">
-              <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
-                This email was sent by Ferry Booking. Please do not reply to this email.
-              </p>
-              <p style="margin: 0; font-size: 14px; color: #666666;">
-                &copy; 2025 Ferry Booking. All rights reserved.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html> 
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirm Your Email</title>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      font-family:
+        -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+        sans-serif;
+      background-color: #f7f7f7;
+    "
+  >
+    <table
+      role="presentation"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      width="100%"
+      style="background-color: #f7f7f7; padding: 40px 20px"
+    >
+      <tr>
+        <td>
+          <table
+            role="presentation"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            width="100%"
+            style="
+              max-width: 600px;
+              margin: 0 auto;
+              background-color: #ffffff;
+              border-radius: 8px;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            "
+          >
+            <!-- Logo Section -->
+            <tr>
+              <td style="text-align: center; padding: 30px 30px 20px">
+                <img
+                  src="https://images.unsplash.com/photo-1534008897995-27a23e859048?q=80&w=1000&auto=format&fit=crop"
+                  alt="Ferry Booking Logo"
+                  style="width: 100px; height: 100px; border-radius: 10px"
+                />
+              </td>
+            </tr>
+
+            <!-- Header Section -->
+            <tr>
+              <td style="text-align: center; padding: 0 30px 20px">
+                <h1
+                  style="
+                    margin: 0;
+                    font-size: 24px;
+                    font-weight: 600;
+                    color: #1a73e8;
+                  "
+                >
+                  Welcome to Ferry Booking!
+                </h1>
+              </td>
+            </tr>
+
+            <!-- Content Section -->
+            <tr>
+              <td style="padding: 0 30px 30px">
+                <p
+                  style="
+                    margin: 0 0 20px;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333333;
+                  "
+                >
+                  Hello Sir,
+                </p>
+                <p
+                  style="
+                    margin: 0 0 20px;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333333;
+                  "
+                >
+                  Thank you for signing up with Ferry Booking! To complete your
+                  registration and start booking your ferry trips, please verify
+                  your email address by clicking the button below:
+                </p>
+                <table
+                  role="presentation"
+                  cellspacing="0"
+                  cellpadding="0"
+                  border="0"
+                  width="100%"
+                  style="margin: 30px 0"
+                >
+                  <tr>
+                    <td style="text-align: center">
+                      <a
+                        href="{{ .ConfirmationURL }}"
+                        style="
+                          display: inline-block;
+                          background-color: #1a73e8;
+                          color: #ffffff;
+                          text-decoration: none;
+                          padding: 14px 30px;
+                          border-radius: 4px;
+                          font-weight: 500;
+                          font-size: 16px;
+                        "
+                        >Verify Email Address</a
+                      >
+                    </td>
+                  </tr>
+                </table>
+                <p
+                  style="
+                    margin: 0 0 20px;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    color: #666666;
+                    font-style: italic;
+                  "
+                >
+                  This verification link will expire in 60 seconds for security
+                  reasons.
+                </p>
+                <p
+                  style="
+                    margin: 0 0 10px;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    color: #666666;
+                  "
+                >
+                  If you're having trouble with the button above, copy and paste
+                  the URL below into your web browser:
+                </p>
+                <p
+                  style="
+                    margin: 0 0 20px;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    color: #666666;
+                    word-break: break-all;
+                  "
+                >
+                  {{ .ConfirmationURL }}
+                </p>
+                <p
+                  style="
+                    margin: 0;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    color: #666666;
+                  "
+                >
+                  If you didn't create an account with Ferry Booking, you can
+                  safely ignore this email.
+                </p>
+              </td>
+            </tr>
+
+            <!-- What's Next Section -->
+            <tr>
+              <td style="padding: 0 30px 30px">
+                <h2
+                  style="
+                    margin: 0 0 15px;
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: #1a73e8;
+                  "
+                >
+                  What's Next?
+                </h2>
+                <p
+                  style="
+                    margin: 0 0 12px;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    color: #333333;
+                  "
+                >
+                  Once your email is verified, you can:
+                </p>
+                <ul
+                  style="margin: 0 0 20px; padding-left: 20px; color: #333333"
+                >
+                  <li style="margin-bottom: 8px; font-size: 14px">
+                    Browse available ferry routes
+                  </li>
+                  <li style="margin-bottom: 8px; font-size: 14px">
+                    Book tickets for your journey
+                  </li>
+                  <li style="margin-bottom: 8px; font-size: 14px">
+                    Manage your bookings
+                  </li>
+                  <li style="margin-bottom: 0; font-size: 14px">
+                    Access exclusive deals and offers
+                  </li>
+                </ul>
+              </td>
+            </tr>
+
+            <!-- Footer Section -->
+            <tr>
+              <td
+                style="
+                  text-align: center;
+                  padding: 30px;
+                  border-top: 1px solid #eeeeee;
+                "
+              >
+                <p style="margin: 0 0 10px; font-size: 14px; color: #666666">
+                  This email was sent by Ferry Booking. Please do not reply to
+                  this email.
+                </p>
+                <p style="margin: 0; font-size: 14px; color: #666666">
+                  &copy; 2025 Ferry Booking. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

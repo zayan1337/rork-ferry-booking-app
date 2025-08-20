@@ -45,7 +45,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   const title = isRefund ? 'Refund Method' : 'Payment Method';
 
   return (
-    <Card variant="elevated" style={styles.paymentMethodCard}>
+    <Card variant='elevated' style={styles.paymentMethodCard}>
       <View style={styles.paymentMethodContainer}>
         <Text style={styles.paymentMethodTitle}>{title}</Text>
 
@@ -54,14 +54,18 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           <TouchableOpacity
             style={[
               styles.paymentOption,
-              selectedPaymentMethod === 'agent_credit' && styles.paymentOptionSelected
+              selectedPaymentMethod === 'agent_credit' &&
+                styles.paymentOptionSelected,
             ]}
             onPress={() => onPaymentMethodChange('agent_credit')}
           >
-            <Text style={[
-              styles.paymentOptionText,
-              selectedPaymentMethod === 'agent_credit' && styles.paymentOptionTextSelected
-            ]}>
+            <Text
+              style={[
+                styles.paymentOptionText,
+                selectedPaymentMethod === 'agent_credit' &&
+                  styles.paymentOptionTextSelected,
+              ]}
+            >
               💳 Agent Credit
             </Text>
           </TouchableOpacity>
@@ -70,14 +74,18 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           <TouchableOpacity
             style={[
               styles.paymentOption,
-              selectedPaymentMethod === 'bank_transfer' && styles.paymentOptionSelected
+              selectedPaymentMethod === 'bank_transfer' &&
+                styles.paymentOptionSelected,
             ]}
             onPress={() => onPaymentMethodChange('bank_transfer')}
           >
-            <Text style={[
-              styles.paymentOptionText,
-              selectedPaymentMethod === 'bank_transfer' && styles.paymentOptionTextSelected
-            ]}>
+            <Text
+              style={[
+                styles.paymentOptionText,
+                selectedPaymentMethod === 'bank_transfer' &&
+                  styles.paymentOptionTextSelected,
+              ]}
+            >
               🏦 Bank Transfer
             </Text>
           </TouchableOpacity>
@@ -91,13 +99,20 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             Bank Account Details {isRefund ? 'for Refund' : 'for Payment'}
           </Text>
 
-          <View ref={(ref) => { if (inputRefs) inputRefs.current.accountNumber = ref; }}>
+          <View
+            ref={ref => {
+              if (inputRefs) inputRefs.current.accountNumber = ref;
+            }}
+          >
             <Input
-              label="Account Number"
+              label='Account Number'
               placeholder="Enter client's bank account number"
               value={bankAccountDetails.accountNumber}
-              onChangeText={(text) => {
-                onBankDetailsChange({ ...bankAccountDetails, accountNumber: text });
+              onChangeText={text => {
+                onBankDetailsChange({
+                  ...bankAccountDetails,
+                  accountNumber: text,
+                });
                 if (errors.accountNumber) onErrorClear('accountNumber');
               }}
               onFocus={() => onFocus?.('accountNumber')}
@@ -106,13 +121,20 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             />
           </View>
 
-          <View ref={(ref) => { if (inputRefs) inputRefs.current.accountName = ref; }}>
+          <View
+            ref={ref => {
+              if (inputRefs) inputRefs.current.accountName = ref;
+            }}
+          >
             <Input
-              label="Account Holder Name"
-              placeholder="Enter account holder name"
+              label='Account Holder Name'
+              placeholder='Enter account holder name'
               value={bankAccountDetails.accountName}
-              onChangeText={(text) => {
-                onBankDetailsChange({ ...bankAccountDetails, accountName: text });
+              onChangeText={text => {
+                onBankDetailsChange({
+                  ...bankAccountDetails,
+                  accountName: text,
+                });
                 if (errors.accountName) onErrorClear('accountName');
               }}
               onFocus={() => onFocus?.('accountName')}
@@ -121,12 +143,16 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             />
           </View>
 
-          <View ref={(ref) => { if (inputRefs) inputRefs.current.bankName = ref; }}>
+          <View
+            ref={ref => {
+              if (inputRefs) inputRefs.current.bankName = ref;
+            }}
+          >
             <Input
-              label="Bank Name"
-              placeholder="Enter bank name"
+              label='Bank Name'
+              placeholder='Enter bank name'
               value={bankAccountDetails.bankName}
-              onChangeText={(text) => {
+              onChangeText={text => {
                 onBankDetailsChange({ ...bankAccountDetails, bankName: text });
                 if (errors.bankName) onErrorClear('bankName');
               }}
@@ -140,9 +166,8 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
 
       <Text style={styles.fareNote}>
         {isRefund
-          ? "Refund will be processed within 72 hours"
-          : "Additional payment will be required from client"
-        }
+          ? 'Refund will be processed within 72 hours'
+          : 'Additional payment will be required from client'}
       </Text>
     </Card>
   );
@@ -206,4 +231,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PaymentMethodSelector; 
+export default PaymentMethodSelector;

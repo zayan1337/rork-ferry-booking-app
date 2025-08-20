@@ -16,9 +16,7 @@ const ClientFormHeader: React.FC<ClientFormHeaderProps> = ({
 }) => {
   return (
     <View style={styles.header}>
-      <View style={styles.iconContainer}>
-        {icon}
-      </View>
+      <View style={styles.iconContainer}>{icon}</View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
     </View>
@@ -54,4 +52,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ClientFormHeader; 
+export default ClientFormHeader;

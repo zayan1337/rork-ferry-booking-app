@@ -4,10 +4,8 @@ import {
   TextInput,
   Text,
   StyleSheet,
-  ViewStyle,
-  TextStyle,
   TouchableOpacity,
-  Platform
+  Platform,
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
 import Colors from '@/constants/colors';
@@ -46,24 +44,22 @@ const Input: React.FC<InputProps> = ({
         </Text>
       )}
 
-      <View style={[
-        styles.inputContainer,
-        error ? styles.inputError : null,
-        disabled ? styles.inputDisabled : null,
-        multiline ? styles.inputMultiline : null
-      ]}>
-        {leftIcon && (
-          <View style={styles.leftIconContainer}>
-            {leftIcon}
-          </View>
-        )}
+      <View
+        style={[
+          styles.inputContainer,
+          error ? styles.inputError : null,
+          disabled ? styles.inputDisabled : null,
+          multiline ? styles.inputMultiline : null,
+        ]}
+      >
+        {leftIcon && <View style={styles.leftIconContainer}>{leftIcon}</View>}
 
         <TextInput
           style={[
             styles.input,
             leftIcon ? styles.inputWithLeftIcon : null,
             multiline ? styles.textMultiline : null,
-            inputStyle
+            inputStyle,
           ]}
           placeholder={placeholder}
           value={value}

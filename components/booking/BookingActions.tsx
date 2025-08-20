@@ -39,7 +39,8 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   const checkTimeRestriction = (callback: () => void) => {
     const departure = new Date(departureDate);
     const now = new Date();
-    const hoursDifference = (departure.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const hoursDifference =
+      (departure.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     if (hoursDifference < 72) {
       return false;
@@ -54,36 +55,44 @@ const BookingActions: React.FC<BookingActionsProps> = ({
     }
 
     const canModify = checkTimeRestriction(() => {});
-    
+
     const showTicketSelection = () => {
       if (tripType === 'round_trip' && returnDate) {
         Alert.alert(
-          "Select Ticket to Modify",
-          "Which ticket would you like to modify?",
+          'Select Ticket to Modify',
+          'Which ticket would you like to modify?',
           [
-            { text: "Cancel", style: "cancel" },
+            { text: 'Cancel', style: 'cancel' },
             {
-              text: "Departure Ticket",
-              onPress: () => router.push(`/(agent)/agent-modify-booking/${bookingId}?ticketType=departure` as any)
+              text: 'Departure Ticket',
+              onPress: () =>
+                router.push(
+                  `/(agent)/agent-modify-booking/${bookingId}?ticketType=departure` as any
+                ),
             },
             {
-              text: "Return Ticket",
-              onPress: () => router.push(`/(agent)/agent-modify-booking/${bookingId}?ticketType=return` as any)
-            }
+              text: 'Return Ticket',
+              onPress: () =>
+                router.push(
+                  `/(agent)/agent-modify-booking/${bookingId}?ticketType=return` as any
+                ),
+            },
           ]
         );
       } else {
-        router.push(`/(agent)/agent-modify-booking/${bookingId}?ticketType=departure` as any);
+        router.push(
+          `/(agent)/agent-modify-booking/${bookingId}?ticketType=departure` as any
+        );
       }
     };
 
     if (!canModify) {
       Alert.alert(
-        "Cannot Modify",
-        "Bookings can only be modified at least 72 hours before departure. As an agent, you can override this policy if needed.",
+        'Cannot Modify',
+        'Bookings can only be modified at least 72 hours before departure. As an agent, you can override this policy if needed.',
         [
-          { text: "Cancel", style: "cancel" },
-          { text: "Override & Modify", onPress: showTicketSelection }
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Override & Modify', onPress: showTicketSelection },
         ]
       );
       return;
@@ -102,14 +111,15 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 
     if (!canCancel) {
       Alert.alert(
-        "Cancel Booking",
-        "Standard policy requires 72 hours notice for cancellation. As an agent, you can override this policy and process the cancellation with appropriate refund terms.",
+        'Cancel Booking',
+        'Standard policy requires 72 hours notice for cancellation. As an agent, you can override this policy and process the cancellation with appropriate refund terms.',
         [
-          { text: "Go Back", style: "cancel" },
+          { text: 'Go Back', style: 'cancel' },
           {
-            text: "Process Cancellation",
-            onPress: () => router.push(`/(agent)/agent-cancel-booking/${bookingId}` as any)
-          }
+            text: 'Process Cancellation',
+            onPress: () =>
+              router.push(`/(agent)/agent-cancel-booking/${bookingId}` as any),
+          },
         ]
       );
       return;
@@ -120,14 +130,14 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 
   const handleMarkCompleted = () => {
     Alert.alert(
-      "Mark as Completed",
-      "Are you sure you want to mark this booking as completed?",
+      'Mark as Completed',
+      'Are you sure you want to mark this booking as completed?',
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Confirm",
-          onPress: () => onUpdateStatus?.("completed")
-        }
+          text: 'Confirm',
+          onPress: () => onUpdateStatus?.('completed'),
+        },
       ]
     );
   };
@@ -135,18 +145,18 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   return (
     <View style={styles.actionButtons}>
       <Button
-        title="Share Ticket"
+        title='Share Ticket'
         onPress={onShare}
-        variant="outline"
+        variant='outline'
         style={styles.actionButton}
         textStyle={styles.actionButtonText}
       />
 
       {isModifiable() && (
         <Button
-          title="Modify Booking"
+          title='Modify Booking'
           onPress={handleModifyBooking}
-          variant="outline"
+          variant='outline'
           style={styles.actionButton}
           textStyle={styles.modifyButtonText}
         />
@@ -154,20 +164,20 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 
       {isCancellable() && (
         <Button
-          title="Cancel Booking"
+          title='Cancel Booking'
           onPress={handleCancelBooking}
-          variant="outline"
+          variant='outline'
           style={styles.actionButton}
           textStyle={styles.cancelButtonText}
           loading={loading}
         />
       )}
 
-      {status === "confirmed" && onUpdateStatus && (
+      {status === 'confirmed' && onUpdateStatus && (
         <Button
-          title="Mark as Completed"
+          title='Mark as Completed'
           onPress={handleMarkCompleted}
-          variant="secondary"
+          variant='secondary'
           style={styles.actionButton}
         />
       )}
@@ -193,4 +203,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BookingActions; 
+export default BookingActions;

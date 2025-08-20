@@ -1,7 +1,7 @@
-import React from "react";
-import { StyleSheet, Text, View, Dimensions } from "react-native";
-import { colors } from "@/constants/adminColors";
-import { TrendingUp, TrendingDown } from "lucide-react-native";
+import React from 'react';
+import { StyleSheet, Text, View, Dimensions } from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { TrendingUp, TrendingDown } from 'lucide-react-native';
 
 interface StatCardProps {
   title: string;
@@ -9,9 +9,9 @@ interface StatCardProps {
   subtitle?: string;
   icon?: React.ReactNode;
   color?: string;
-  size?: "small" | "medium" | "large";
+  size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
-  trend?: "up" | "down" | "neutral" | string; // Allow string values
+  trend?: 'up' | 'down' | 'neutral' | string; // Allow string values
   trendValue?: string;
 }
 
@@ -23,14 +23,13 @@ export default function StatCard({
   subtitle,
   icon,
   color = colors.primary,
-  size = "medium",
+  size = 'medium',
   fullWidth = false,
   trend,
-  trendValue
+  trendValue,
 }: StatCardProps) {
-
   const getCardWidth = () => {
-    if (fullWidth) return "100%";
+    if (fullWidth) return '100%';
 
     // Calculate responsive width based on screen size
     const padding = 32; // Total horizontal padding
@@ -50,7 +49,7 @@ export default function StatCard({
 
   const getSizeStyles = () => {
     switch (size) {
-      case "small":
+      case 'small':
         return {
           padding: 12,
           minHeight: 80,
@@ -59,7 +58,7 @@ export default function StatCard({
           subtitleSize: 10,
           trendSize: 10,
         };
-      case "large":
+      case 'large':
         return {
           padding: 20,
           minHeight: 140,
@@ -80,19 +79,19 @@ export default function StatCard({
     }
   };
 
-  const getNormalizedTrend = (): "up" | "down" | "neutral" => {
-    if (!trend) return "neutral";
-    if (trend === "up" || trend === "+" || trend.includes("+")) return "up";
-    if (trend === "down" || trend === "-" || trend.includes("-")) return "down";
-    return "neutral";
+  const getNormalizedTrend = (): 'up' | 'down' | 'neutral' => {
+    if (!trend) return 'neutral';
+    if (trend === 'up' || trend === '+' || trend.includes('+')) return 'up';
+    if (trend === 'down' || trend === '-' || trend.includes('-')) return 'down';
+    return 'neutral';
   };
 
   const getTrendColor = () => {
     const normalizedTrend = getNormalizedTrend();
     switch (normalizedTrend) {
-      case "up":
+      case 'up':
         return colors.success;
-      case "down":
+      case 'down':
         return colors.danger;
       default:
         return colors.textSecondary;
@@ -103,20 +102,27 @@ export default function StatCard({
   const normalizedTrend = getNormalizedTrend();
 
   return (
-    <View style={[
-      styles.container,
-      {
-        width: getCardWidth(),
-        padding: sizeStyles.padding,
-        minHeight: sizeStyles.minHeight
-      }
-    ]}>
+    <View
+      style={[
+        styles.container,
+        {
+          width: getCardWidth(),
+          padding: sizeStyles.padding,
+          minHeight: sizeStyles.minHeight,
+        },
+      ]}
+    >
       <View style={styles.header}>
-        <Text style={[styles.title, { fontSize: sizeStyles.titleSize }]} numberOfLines={2}>
+        <Text
+          style={[styles.title, { fontSize: sizeStyles.titleSize }]}
+          numberOfLines={2}
+        >
           {title}
         </Text>
         {icon && (
-          <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
+          <View
+            style={[styles.iconContainer, { backgroundColor: `${color}15` }]}
+          >
             {icon}
           </View>
         )}
@@ -130,8 +136,8 @@ export default function StatCard({
               {
                 color,
                 fontSize: sizeStyles.valueSize,
-                lineHeight: sizeStyles.valueSize * 1.2
-              }
+                lineHeight: sizeStyles.valueSize * 1.2,
+              },
             ]}
             numberOfLines={1}
             adjustsFontSizeToFit
@@ -139,13 +145,32 @@ export default function StatCard({
             {value}
           </Text>
           {trend && trendValue && (
-            <View style={[styles.trendContainer, { backgroundColor: getTrendColor() + "15" }]}>
-              {normalizedTrend === "up" ? (
-                <TrendingUp size={sizeStyles.trendSize} color={getTrendColor()} />
-              ) : normalizedTrend === "down" ? (
-                <TrendingDown size={sizeStyles.trendSize} color={getTrendColor()} />
+            <View
+              style={[
+                styles.trendContainer,
+                { backgroundColor: `${getTrendColor()}15` },
+              ]}
+            >
+              {normalizedTrend === 'up' ? (
+                <TrendingUp
+                  size={sizeStyles.trendSize}
+                  color={getTrendColor()}
+                />
+              ) : normalizedTrend === 'down' ? (
+                <TrendingDown
+                  size={sizeStyles.trendSize}
+                  color={getTrendColor()}
+                />
               ) : null}
-              <Text style={[styles.trendText, { fontSize: sizeStyles.trendSize - 1, color: getTrendColor() }]}>
+              <Text
+                style={[
+                  styles.trendText,
+                  {
+                    fontSize: sizeStyles.trendSize - 1,
+                    color: getTrendColor(),
+                  },
+                ]}
+              >
                 {trendValue}
               </Text>
             </View>
@@ -153,7 +178,10 @@ export default function StatCard({
         </View>
 
         {subtitle && (
-          <Text style={[styles.subtitle, { fontSize: sizeStyles.subtitleSize }]} numberOfLines={2}>
+          <Text
+            style={[styles.subtitle, { fontSize: sizeStyles.subtitleSize }]}
+            numberOfLines={2}
+          >
             {subtitle}
           </Text>
         )}
@@ -172,46 +200,46 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
     borderWidth: 1,
-    borderColor: colors.border + "30",
-    justifyContent: "space-between",
+    borderColor: `${colors.border}30`,
+    justifyContent: 'space-between',
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   iconContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginLeft: 8,
   },
   title: {
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: '600',
     flex: 1,
     lineHeight: 16,
   },
   content: {
     flex: 1,
-    justifyContent: "flex-end",
+    justifyContent: 'flex-end',
   },
   valueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
   value: {
-    fontWeight: "700",
+    fontWeight: '700',
     flex: 1,
   },
   trendContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
@@ -219,11 +247,11 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   trendText: {
-    fontWeight: "600",
+    fontWeight: '600',
   },
   subtitle: {
     color: colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: '500',
     lineHeight: 14,
   },
 });

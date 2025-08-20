@@ -8,10 +8,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
-  BackHandler
+  BackHandler,
 } from 'react-native';
-import { Link, router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Input from '@/components/Input';
@@ -29,7 +28,8 @@ export default function LoginScreen() {
     password: '',
   });
 
-  const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+  const { login, isAuthenticated, isLoading, error, clearError } =
+    useAuthStore();
   const [isNavigating, setIsNavigating] = useState(false);
 
   // Reset navigation state when component mounts
@@ -48,12 +48,15 @@ export default function LoginScreen() {
 
   // Prevent going back if authenticated
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isAuthenticated || isNavigating) {
-        return true; // Prevent going back
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (isAuthenticated || isNavigating) {
+          return true; // Prevent going back
+        }
+        return false;
       }
-      return false;
-    });
+    );
 
     return () => backHandler.remove();
   }, [isAuthenticated, isNavigating]);
@@ -131,18 +134,20 @@ export default function LoginScreen() {
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps='handled'
       >
         <View style={styles.logoContainer}>
           <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1534008897995-27a23e859048?q=80&w=1000&auto=format&fit=crop' }}
+            source={{
+              uri: 'https://images.unsplash.com/photo-1534008897995-27a23e859048?q=80&w=1000&auto=format&fit=crop',
+            }}
             style={styles.logo}
           />
           <Text style={styles.appName}>Ferry Booking</Text>
           <Text style={styles.tagline}>Your gateway to island adventures</Text>
         </View>
 
-        <Card variant="elevated" style={styles.card}>
+        <Card variant='elevated' style={styles.card}>
           <Text style={styles.title}>Welcome Back</Text>
 
           {error && (
@@ -152,22 +157,22 @@ export default function LoginScreen() {
           )}
 
           <Input
-            label="Email"
-            placeholder="Enter your email"
+            label='Email'
+            placeholder='Enter your email'
             value={formData.username}
-            onChangeText={(text) => updateFormData('username', text)}
+            onChangeText={text => updateFormData('username', text)}
             error={errors.username}
-            autoCapitalize="none"
-            keyboardType="email-address"
+            autoCapitalize='none'
+            keyboardType='email-address'
             disabled={isLoading || isNavigating}
             required
           />
 
           <Input
-            label="Password"
-            placeholder="Enter your password"
+            label='Password'
+            placeholder='Enter your password'
             value={formData.password}
-            onChangeText={(text) => updateFormData('password', text)}
+            onChangeText={text => updateFormData('password', text)}
             secureTextEntry
             error={errors.password}
             disabled={isLoading || isNavigating}
@@ -183,7 +188,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <Button
-            title="Login"
+            title='Login'
             onPress={handleLogin}
             loading={isLoading || isNavigating}
             disabled={isLoading || isNavigating}
@@ -274,15 +279,6 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 16,
     fontWeight: '600',
-  },
-  demoContainer: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  demoText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
   },
   forgotPasswordContainer: {
     alignSelf: 'flex-end',

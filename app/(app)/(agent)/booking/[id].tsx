@@ -1,13 +1,7 @@
-import React, { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  ScrollView,
-  Alert,
-} from "react-native";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { useAgentStore } from "@/store/agent/agentStore";
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useAgentStore } from '@/store/agent/agentStore';
 import {
   BookingDetailsHeader,
   TripDetailsCard,
@@ -16,11 +10,11 @@ import {
   PaymentDetailsCard,
   BookingActions,
   BookingPoliciesCard,
-} from "@/components/booking";
-import TicketCard from "@/components/TicketCard";
-import Button from "@/components/Button";
-import { shareBookingTicket } from "@/utils/bookingDetailsUtils";
-import Colors from "@/constants/colors";
+} from '@/components/booking';
+import TicketCard from '@/components/TicketCard';
+import Button from '@/components/Button';
+import { shareBookingTicket } from '@/utils/bookingDetailsUtils';
+import Colors from '@/constants/colors';
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -36,7 +30,7 @@ export default function BookingDetailsScreen() {
       <View style={styles.notFoundContainer}>
         <Text style={styles.notFoundText}>Booking not found</Text>
         <Button
-          title="Go Back"
+          title='Go Back'
           onPress={() => router.back()}
           style={styles.notFoundButton}
         />
@@ -52,7 +46,7 @@ export default function BookingDetailsScreen() {
     try {
       setLoading(true);
       await updateBookingStatus(booking.id, status as any);
-      Alert.alert("Success", `Booking marked as ${status}`);
+      Alert.alert('Success', `Booking marked as ${status}`);
     } catch (error) {
       console.error('Error updating booking status:', error);
       Alert.alert('Error', 'Failed to update booking status');
@@ -69,20 +63,30 @@ export default function BookingDetailsScreen() {
     bookingNumber: String(booking.bookingNumber || booking.id || 'N/A'),
     tripType: String(booking.tripType || 'one_way'),
     departureTime: String(booking.departureTime || '00:00'),
-    route: booking.route || ({
-      id: 'unknown',
-      fromIsland: { id: 'from', name: String(booking.origin || 'Unknown'), zone: 'A' },
-      toIsland: { id: 'to', name: String(booking.destination || 'Unknown'), zone: 'A' },
-      baseFare: Number(booking.totalAmount) || 0
-    } as any),
-    seats: Array.isArray(booking.seats) ? booking.seats : []
+    route:
+      booking.route ||
+      ({
+        id: 'unknown',
+        fromIsland: {
+          id: 'from',
+          name: String(booking.origin || 'Unknown'),
+          zone: 'A',
+        },
+        toIsland: {
+          id: 'to',
+          name: String(booking.destination || 'Unknown'),
+          zone: 'A',
+        },
+        baseFare: Number(booking.totalAmount) || 0,
+      } as any),
+    seats: Array.isArray(booking.seats) ? booking.seats : [],
   };
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: "Booking Details",
+          title: 'Booking Details',
         }}
       />
       <ScrollView
@@ -108,7 +112,9 @@ export default function BookingDetailsScreen() {
           route={booking.route || undefined}
           origin={booking.origin}
           destination={booking.destination}
-          passengerCount={booking.passengers?.length || booking.passengerCount || 0}
+          passengerCount={
+            booking.passengers?.length || booking.passengerCount || 0
+          }
           vessel={booking.vessel || undefined}
           status={booking.status}
         />
@@ -131,10 +137,16 @@ export default function BookingDetailsScreen() {
         {/* Payment Details */}
         <PaymentDetailsCard
           totalAmount={Number(booking.totalAmount) || 0}
-          discountedAmount={booking.discountedAmount ? Number(booking.discountedAmount) : undefined}
+          discountedAmount={
+            booking.discountedAmount
+              ? Number(booking.discountedAmount)
+              : undefined
+          }
           paymentMethod={booking.paymentMethod}
           payment={booking.payment || undefined}
-          commission={booking.commission ? Number(booking.commission) : undefined}
+          commission={
+            booking.commission ? Number(booking.commission) : undefined
+          }
         />
 
         {/* Booking Policies */}
@@ -152,7 +164,9 @@ export default function BookingDetailsScreen() {
           onUpdateStatus={handleUpdateStatus}
         />
 
-        <Text style={styles.bookingId}>Booking ID: {String(booking.id || 'N/A')}</Text>
+        <Text style={styles.bookingId}>
+          Booking ID: {String(booking.id || 'N/A')}
+        </Text>
       </ScrollView>
     </>
   );

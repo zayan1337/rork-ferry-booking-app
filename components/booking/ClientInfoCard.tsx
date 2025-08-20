@@ -22,7 +22,7 @@ const ClientInfoCard: React.FC<ClientInfoCardProps> = ({
   clients = [],
 }) => {
   return (
-    <Card variant="elevated" style={styles.clientCard}>
+    <Card variant='elevated' style={styles.clientCard}>
       <Text style={styles.cardTitle}>Client Information</Text>
 
       <View style={styles.detailRow}>
@@ -104,4 +104,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ClientInfoCard; 
+export default ClientInfoCard;

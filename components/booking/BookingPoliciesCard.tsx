@@ -5,7 +5,7 @@ import Colors from '@/constants/colors';
 
 const BookingPoliciesCard: React.FC = () => {
   return (
-    <Card variant="elevated" style={styles.policyCard}>
+    <Card variant='elevated' style={styles.policyCard}>
       <Text style={styles.cardTitle}>Booking Policies</Text>
 
       <View style={styles.policyItem}>
@@ -74,4 +74,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BookingPoliciesCard; 
+export default BookingPoliciesCard;

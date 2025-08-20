@@ -1,6 +1,6 @@
-import React from "react";
-import { Stack } from "expo-router";
-import { colors } from "@/constants/adminColors";
+import React from 'react';
+import { Stack } from 'expo-router';
+import { colors } from '@/constants/adminColors';
 import RoleGuard from '@/components/RoleGuard';
 
 export default function AdminLayout() {
@@ -13,77 +13,74 @@ export default function AdminLayout() {
           },
           headerTintColor: colors.text,
           headerTitleStyle: {
-            fontWeight: "600",
+            fontWeight: '600',
             fontSize: 18,
           },
           headerShadowVisible: false,
         }}
       >
+        <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
         <Stack.Screen
-          name="(tabs)"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="booking/[id]"
+          name='booking/[id]'
           options={{
-            title: "Booking Details",
-            presentation: "card",
+            title: 'Booking Details',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="booking/new"
+          name='booking/new'
           options={{
-            title: "New Booking",
-            presentation: "card",
+            title: 'New Booking',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="vessel/[id]"
+          name='vessel/[id]'
           options={{
-            title: "Vessel Details",
-            presentation: "card",
+            title: 'Vessel Details',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="vessel/new"
+          name='vessel/new'
           options={{
-            title: "New Vessel",
-            presentation: "card",
+            title: 'New Vessel',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="user/[id]"
+          name='user/[id]'
           options={{
-            title: "User Details",
-            presentation: "card",
+            title: 'User Details',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="user/new"
+          name='user/new'
           options={{
-            title: "New User",
-            presentation: "card",
+            title: 'New User',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="trips/[id]"
+          name='trip/[id]'
           options={{
-            title: "Trip Details",
-            presentation: "card",
+            title: 'Trip Details',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="trips/new"
+          name='trip/new'
           options={{
-            title: "New Trip",
-            presentation: "card",
+            title: 'New Trip',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="reports/[type]"
+          name='reports/[type]'
           options={{
-            title: "Report Details",
-            presentation: "card",
+            title: 'Report Details',
+            presentation: 'card',
           }}
         />
       </Stack>

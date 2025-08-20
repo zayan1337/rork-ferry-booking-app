@@ -1,5 +1,5 @@
-import React from "react";
-import { Stack } from "expo-router";
+import React from 'react';
+import { Stack } from 'expo-router';
 import Colors from '@/constants/colors';
 import RoleGuard from '@/components/RoleGuard';
 
@@ -17,33 +17,33 @@ export default function CustomerLayout() {
           },
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
         <Stack.Screen
-          name="booking-details/[id]"
+          name='booking-details/[id]'
           options={{
-            title: "Booking Details",
-            presentation: "card",
+            title: 'Booking Details',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="modify-booking/[id]"
+          name='modify-booking/[id]'
           options={{
-            title: "Modify Booking",
-            presentation: "card",
+            title: 'Modify Booking',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="cancel-booking/[id]"
+          name='cancel-booking/[id]'
           options={{
-            title: "Cancel Booking",
-            presentation: "card",
+            title: 'Cancel Booking',
+            presentation: 'card',
           }}
         />
         <Stack.Screen
-          name="validate-ticket"
+          name='validate-ticket'
           options={{
-            title: "Validate Ticket",
-            presentation: "modal",
+            title: 'Validate Ticket',
+            presentation: 'modal',
           }}
         />
       </Stack>

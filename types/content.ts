@@ -3,29 +3,29 @@
 // ============================================================================
 
 export interface TermsAndConditions {
-    id: string;
-    title: string;
-    content: string;
-    version: string;
-    effective_date: string;
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
+  id: string;
+  title: string;
+  content: string;
+  version: string;
+  effective_date: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface TermsFormData {
-    title: string;
-    content: string;
-    version: string;
-    effective_date: string;
-    is_active: boolean;
+  title: string;
+  content: string;
+  version: string;
+  effective_date: string;
+  is_active: boolean;
 }
 
 export interface TermsWithDetails extends TermsAndConditions {
-    created_by?: string;
-    updated_by?: string;
-    word_count?: number;
-    is_current?: boolean;
+  created_by?: string;
+  updated_by?: string;
+  word_count?: number;
+  is_current?: boolean;
 }
 
 // ============================================================================
@@ -33,34 +33,34 @@ export interface TermsWithDetails extends TermsAndConditions {
 // ============================================================================
 
 export interface Promotion {
-    id: string;
-    name: string;
-    description?: string;
-    discount_percentage: number;
-    start_date: string;
-    end_date: string;
-    is_first_time_booking_only: boolean;
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
+  id: string;
+  name: string;
+  description?: string;
+  discount_percentage: number;
+  start_date: string;
+  end_date: string;
+  is_first_time_booking_only: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PromotionFormData {
-    name: string;
-    description?: string;
-    discount_percentage: number;
-    start_date: string;
-    end_date: string;
-    is_first_time_booking_only: boolean;
-    is_active: boolean;
+  name: string;
+  description?: string;
+  discount_percentage: number;
+  start_date: string;
+  end_date: string;
+  is_first_time_booking_only: boolean;
+  is_active: boolean;
 }
 
 export interface PromotionStats {
-    total: number;
-    active: number;
-    expired: number;
-    upcoming: number;
-    averageDiscount: number;
+  total: number;
+  active: number;
+  expired: number;
+  upcoming: number;
+  averageDiscount: number;
 }
 
 // ============================================================================
@@ -68,24 +68,24 @@ export interface PromotionStats {
 // ============================================================================
 
 export interface ContentFilters {
-    terms: {
-        version?: string;
-        is_active?: boolean;
-        effective_date_from?: string;
-        effective_date_to?: string;
+  terms: {
+    version?: string;
+    is_active?: boolean;
+    effective_date_from?: string;
+    effective_date_to?: string;
+  };
+  promotions: {
+    is_active?: boolean;
+    is_first_time_booking_only?: boolean;
+    discount_range?: {
+      min: number;
+      max: number;
     };
-    promotions: {
-        is_active?: boolean;
-        is_first_time_booking_only?: boolean;
-        discount_range?: {
-            min: number;
-            max: number;
-        };
-        date_range?: {
-            start: string;
-            end: string;
-        };
+    date_range?: {
+      start: string;
+      end: string;
     };
+  };
 }
 
 // ============================================================================
@@ -93,11 +93,11 @@ export interface ContentFilters {
 // ============================================================================
 
 export interface ContentStats {
-    totalTerms: number;
-    activeTerms: number;
-    totalPromotions: number;
-    activePromotions: number;
-    currentTermsVersion: string;
+  totalTerms: number;
+  activeTerms: number;
+  totalPromotions: number;
+  activePromotions: number;
+  currentTermsVersion: string;
 }
 
 // ============================================================================
@@ -105,13 +105,13 @@ export interface ContentStats {
 // ============================================================================
 
 export interface ValidationError {
-    field: string;
-    message: string;
+  field: string;
+  message: string;
 }
 
 export interface FormValidationResult {
-    isValid: boolean;
-    errors: ValidationError[];
+  isValid: boolean;
+  errors: ValidationError[];
 }
 
 // ============================================================================
@@ -119,22 +119,22 @@ export interface FormValidationResult {
 // ============================================================================
 
 export interface ExportOptions {
-    format: 'json' | 'csv' | 'xlsx';
-    includeInactive?: boolean;
-    dateRange?: {
-        from: string;
-        to: string;
-    };
-    fields?: string[];
+  format: 'json' | 'csv' | 'xlsx';
+  includeInactive?: boolean;
+  dateRange?: {
+    from: string;
+    to: string;
+  };
+  fields?: string[];
 }
 
 export interface ImportResult {
-    success: number;
-    failed: number;
-    errors: Array<{
-        row: number;
-        error: string;
-    }>;
+  success: number;
+  failed: number;
+  errors: {
+    row: number;
+    error: string;
+  }[];
 }
 
 // ============================================================================
@@ -142,19 +142,19 @@ export interface ImportResult {
 // ============================================================================
 
 export interface ContentItem {
-    id: string;
-    title?: string;
-    name?: string;
-    is_active: boolean;
-    created_at: string;
-    updated_at?: string;
+  id: string;
+  title?: string;
+  name?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface ContentItemWithActions extends ContentItem {
-    canEdit: boolean;
-    canDelete: boolean;
-    canDuplicate: boolean;
-    canActivate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canDuplicate: boolean;
+  canActivate: boolean;
 }
 
 // ============================================================================
@@ -162,14 +162,14 @@ export interface ContentItemWithActions extends ContentItem {
 // ============================================================================
 
 export type ContentAction =
-    | 'create'
-    | 'update'
-    | 'delete'
-    | 'activate'
-    | 'deactivate'
-    | 'duplicate'
-    | 'export'
-    | 'import';
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'activate'
+  | 'deactivate'
+  | 'duplicate'
+  | 'export'
+  | 'import';
 
 export type ContentType = 'terms' | 'promotions';
 
@@ -178,17 +178,16 @@ export type ContentType = 'terms' | 'promotions';
 // ============================================================================
 
 export interface BulkOperation {
-    action: ContentAction;
-    itemIds: string[];
-    options?: Record<string, any>;
+  action: ContentAction;
+  itemIds: string[];
+  options?: Record<string, any>;
 }
 
 export interface BulkOperationResult {
-    success: number;
-    failed: number;
-    errors: Array<{
-        id: string;
-        error: string;
-    }>;
+  success: number;
+  failed: number;
+  errors: {
+    id: string;
+    error: string;
+  }[];
 }
-

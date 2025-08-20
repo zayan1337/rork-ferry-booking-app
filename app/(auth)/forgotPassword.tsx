@@ -8,9 +8,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  BackHandler
+  BackHandler,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Input from '@/components/Input';
@@ -27,12 +27,15 @@ export default function ForgotPasswordScreen() {
 
   // Prevent going back if navigating
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isNavigating) {
-        return true; // Prevent going back
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (isNavigating) {
+          return true; // Prevent going back
+        }
+        return false;
       }
-      return false;
-    });
+    );
 
     return () => {
       backHandler.remove();
@@ -118,18 +121,20 @@ export default function ForgotPasswordScreen() {
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps='handled'
       >
         <View style={styles.logoContainer}>
           <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1534008897995-27a23e859048?q=80&w=1000&auto=format&fit=crop' }}
+            source={{
+              uri: 'https://images.unsplash.com/photo-1534008897995-27a23e859048?q=80&w=1000&auto=format&fit=crop',
+            }}
             style={styles.logo}
           />
           <Text style={styles.appName}>Ferry Booking</Text>
           <Text style={styles.tagline}>Your gateway to island adventures</Text>
         </View>
 
-        <Card variant="elevated" style={styles.card}>
+        <Card variant='elevated' style={styles.card}>
           <Text style={styles.title}>Reset Password</Text>
 
           {error && !isSuccess && (
@@ -145,7 +150,9 @@ export default function ForgotPasswordScreen() {
               <Text style={styles.successIcon}>✓</Text>
               <Text style={styles.successTitle}>Check Your Email</Text>
               <Text style={styles.successText}>
-                We've sent password reset instructions to your email address. Please check your inbox and follow the instructions to reset your password.
+                We've sent password reset instructions to your email address.
+                Please check your inbox and follow the instructions to reset
+                your password.
               </Text>
               <Text style={styles.successNote}>
                 You will be redirected to the login page in 5 seconds...
@@ -168,26 +175,27 @@ export default function ForgotPasswordScreen() {
           ) : (
             <>
               <Text style={styles.description}>
-                Enter your email address and we'll send you instructions to reset your password.
+                Enter your email address and we'll send you instructions to
+                reset your password.
               </Text>
 
               <Input
-                label="Email Address"
-                placeholder="Enter your email address"
+                label='Email Address'
+                placeholder='Enter your email address'
                 value={email}
-                onChangeText={(text) => {
+                onChangeText={text => {
                   setEmail(text);
                   if (emailError) setEmailError('');
                 }}
                 error={emailError}
-                keyboardType="email-address"
-                autoCapitalize="none"
+                keyboardType='email-address'
+                autoCapitalize='none'
                 disabled={isLoading || isNavigating}
                 required
               />
 
               <Button
-                title="Reset Password"
+                title='Reset Password'
                 onPress={handleResetPassword}
                 loading={isLoading || isNavigating}
                 disabled={isLoading || isNavigating}

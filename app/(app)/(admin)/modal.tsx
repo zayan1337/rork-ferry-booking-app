@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
-} from "react-native";
-import { Stack, router } from "expo-router";
-import { colors } from "@/constants/adminColors";
-import { useAuthStore } from "@/store/authStore";
+} from 'react-native';
+import { Stack, router } from 'expo-router';
+import { colors } from '@/constants/adminColors';
+import { useAuthStore } from '@/store/authStore';
 import {
   User,
   Mail,
@@ -22,11 +22,9 @@ import {
   LogOut,
   X,
   Phone,
-  Calendar,
-  MapPin,
-  Activity
-} from "lucide-react-native";
-import Button from "@/components/admin/Button";
+  Activity,
+} from 'lucide-react-native';
+import Button from '@/components/admin/Button';
 
 export default function AdminProfileModal() {
   const { user, signOut } = useAuthStore();
@@ -39,71 +37,76 @@ export default function AdminProfileModal() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await signOut();
-              router.dismissAll();
-            } catch (error) {
-              console.error("Logout error:", error);
-            }
-          },
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut();
+            // Navigation will be handled by the app layout
+          } catch (error) {
+            console.error('Logout error:', error);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const getInitials = (name: string) => {
     return name
       ? name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-      : "AD";
+          .split(' ')
+          .map(n => n[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2)
+      : 'AD';
   };
 
   const adminProfile = user?.profile;
-  const adminName = adminProfile?.full_name || (user?.email ? user.email.split("@")[0] : "") || "Admin";
-  const adminEmail = user?.email || "";
-  const adminRole = adminProfile?.role || "admin";
+  const adminName =
+    adminProfile?.full_name ||
+    (user?.email ? user.email.split('@')[0] : '') ||
+    'Admin';
+  const adminEmail = user?.email || '';
+  const adminRole = adminProfile?.role || 'admin';
 
   const quickActions = [
     {
-      id: "notifications",
-      title: "Notifications",
-      description: "Manage alerts and notifications",
+      id: 'notifications',
+      title: 'Notifications',
+      description: 'Manage alerts and notifications',
       icon: <Bell size={20} color={colors.warning} />,
-      onPress: () => {/* Navigate to notifications */ },
+      onPress: () => {
+        /* Navigate to notifications */
+      },
     },
     {
-      id: "security",
-      title: "Security Settings",
-      description: "Password and security",
+      id: 'security',
+      title: 'Security Settings',
+      description: 'Password and security',
       icon: <Lock size={20} color={colors.danger} />,
-      onPress: () => {/* Navigate to security */ },
+      onPress: () => {
+        /* Navigate to security */
+      },
     },
     {
-      id: "system",
-      title: "System Settings",
-      description: "App configuration",
+      id: 'system',
+      title: 'System Settings',
+      description: 'App configuration',
       icon: <Settings size={20} color={colors.textSecondary} />,
-      onPress: () => {/* Navigate to system settings */ },
+      onPress: () => {
+        /* Navigate to system settings */
+      },
     },
     {
-      id: "reports",
-      title: "Export Reports",
-      description: "Download system reports",
+      id: 'reports',
+      title: 'Export Reports',
+      description: 'Download system reports',
       icon: <FileText size={20} color={colors.primary} />,
-      onPress: () => router.push("../reports/export"),
+      onPress: () => router.push('../reports/export'),
     },
   ];
 
@@ -122,8 +125,8 @@ export default function AdminProfileModal() {
     >
       <Stack.Screen
         options={{
-          title: "Admin Profile",
-          presentation: "modal",
+          title: 'Admin Profile',
+          presentation: 'modal',
           headerRight: () => (
             <TouchableOpacity onPress={() => router.back()}>
               <X size={24} color={colors.text} />
@@ -136,14 +139,19 @@ export default function AdminProfileModal() {
       <View style={styles.profileCard}>
         <View style={styles.avatarContainer}>
           <Text style={styles.avatarText}>{getInitials(adminName)}</Text>
-          <View style={[styles.statusIndicator, { backgroundColor: colors.success }]} />
+          <View
+            style={[
+              styles.statusIndicator,
+              { backgroundColor: colors.success },
+            ]}
+          />
         </View>
 
         <View style={styles.profileInfo}>
           <Text style={styles.name}>{adminName}</Text>
           <Text style={styles.email}>{adminEmail}</Text>
           <View style={styles.roleBadge}>
-            <Shield size={14} color="white" />
+            <Shield size={14} color='white' />
             <Text style={styles.roleText}>{adminRole.toUpperCase()}</Text>
           </View>
         </View>
@@ -157,7 +165,9 @@ export default function AdminProfileModal() {
             <User size={20} color={colors.primary} />
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Full Name</Text>
-              <Text style={styles.detailValue}>{adminProfile?.full_name || adminName}</Text>
+              <Text style={styles.detailValue}>
+                {adminProfile?.full_name || adminName}
+              </Text>
             </View>
           </View>
 
@@ -174,7 +184,7 @@ export default function AdminProfileModal() {
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Phone Number</Text>
               <Text style={styles.detailValue}>
-                {adminProfile?.mobile_number || "Not provided"}
+                {adminProfile?.mobile_number || 'Not provided'}
               </Text>
             </View>
           </View>
@@ -184,7 +194,7 @@ export default function AdminProfileModal() {
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Role & Permissions</Text>
               <Text style={styles.detailValue}>
-                {adminRole === "admin" ? "Full Admin Access" : "Captain Access"}
+                {adminRole === 'admin' ? 'Full Admin Access' : 'Captain Access'}
               </Text>
             </View>
           </View>
@@ -204,19 +214,19 @@ export default function AdminProfileModal() {
       {/* Quick Actions */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Settings & Tools</Text>
-        {quickActions.map((action) => (
+        {quickActions.map(action => (
           <TouchableOpacity
             key={action.id}
             style={styles.actionCard}
             onPress={action.onPress}
           >
             <View style={styles.actionContent}>
-              <View style={styles.actionIconContainer}>
-                {action.icon}
-              </View>
+              <View style={styles.actionIconContainer}>{action.icon}</View>
               <View style={styles.actionText}>
                 <Text style={styles.actionTitle}>{action.title}</Text>
-                <Text style={styles.actionDescription}>{action.description}</Text>
+                <Text style={styles.actionDescription}>
+                  {action.description}
+                </Text>
               </View>
               <Text style={styles.arrowText}>→</Text>
             </View>
@@ -250,9 +260,9 @@ export default function AdminProfileModal() {
       {/* Logout Button */}
       <View style={styles.logoutContainer}>
         <Button
-          title="Logout"
-          variant="danger"
-          icon={<LogOut size={20} color="white" />}
+          title='Logout'
+          variant='danger'
+          icon={<LogOut size={20} color='white' />}
           onPress={handleLogout}
           fullWidth
         />
@@ -275,8 +285,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 24,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -284,22 +294,22 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   avatarContainer: {
-    position: "relative",
+    position: 'relative',
     width: 70,
     height: 70,
     borderRadius: 35,
     backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 16,
   },
   avatarText: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
+    fontWeight: 'bold',
+    color: 'white',
   },
   statusIndicator: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 2,
     right: 2,
     width: 16,
@@ -313,7 +323,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
   },
@@ -323,33 +333,33 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   roleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.primary,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    alignSelf: "flex-start",
+    alignSelf: 'flex-start',
     gap: 4,
   },
   roleText: {
-    color: "white",
+    color: 'white',
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
   },
   detailsCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
-    overflow: "hidden",
+    overflow: 'hidden',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -357,8 +367,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -375,7 +385,7 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 16,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   actionCard: {
     backgroundColor: colors.card,
@@ -388,8 +398,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   actionContent: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
   },
   actionIconContainer: {
@@ -397,8 +407,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.backgroundSecondary,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   actionText: {
@@ -406,7 +416,7 @@ const styles = StyleSheet.create({
   },
   actionTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 2,
   },
@@ -417,7 +427,7 @@ const styles = StyleSheet.create({
   arrowText: {
     fontSize: 18,
     color: colors.textSecondary,
-    fontWeight: "300",
+    fontWeight: '300',
   },
   systemCard: {
     backgroundColor: colors.card,
@@ -430,9 +440,9 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   systemItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 8,
   },
   systemLabel: {
@@ -441,7 +451,7 @@ const styles = StyleSheet.create({
   },
   systemValue: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
     color: colors.text,
   },
   logoutContainer: {

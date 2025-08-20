@@ -53,7 +53,7 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
   };
 
   return (
-    <Card variant="elevated" style={styles.paymentCard}>
+    <Card variant='elevated' style={styles.paymentCard}>
       <Text style={styles.cardTitle}>Payment Details</Text>
 
       <View style={styles.paymentRow}>
@@ -66,7 +66,11 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
           <View style={styles.paymentRow}>
             <Text style={styles.paymentLabel}>Agent Discount</Text>
             <Text style={[styles.paymentValue, { color: Colors.warning }]}>
-              {((totalAmount - discountedAmount!) / totalAmount * 100).toFixed(1)}%
+              {(
+                ((totalAmount - discountedAmount!) / totalAmount) *
+                100
+              ).toFixed(1)}
+              %
             </Text>
           </View>
           <View style={styles.paymentRow}>
@@ -77,7 +81,12 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
           </View>
           <View style={styles.paymentRow}>
             <Text style={styles.paymentLabel}>Final Amount</Text>
-            <Text style={[styles.paymentValue, { color: Colors.primary, fontWeight: '700' }]}>
+            <Text
+              style={[
+                styles.paymentValue,
+                { color: Colors.primary, fontWeight: '700' },
+              ]}
+            >
               {formatCurrency(discountedAmount!)}
             </Text>
           </View>
@@ -94,7 +103,9 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
       {payment && (
         <View style={styles.paymentRow}>
           <Text style={styles.paymentLabel}>Payment Status</Text>
-          <Text style={[styles.paymentValue, getPaymentStatusStyle(payment.status)]}>
+          <Text
+            style={[styles.paymentValue, getPaymentStatusStyle(payment.status)]}
+          >
             {(payment.status || 'UNKNOWN').toUpperCase()}
           </Text>
         </View>
@@ -103,7 +114,12 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
       {commission && commission > 0 && (
         <View style={styles.paymentRow}>
           <Text style={styles.paymentLabel}>Agent Commission</Text>
-          <Text style={[styles.paymentValue, { color: Colors.secondary, fontWeight: '700' }]}>
+          <Text
+            style={[
+              styles.paymentValue,
+              { color: Colors.secondary, fontWeight: '700' },
+            ]}
+          >
             {formatCurrency(commission)}
           </Text>
         </View>
@@ -112,8 +128,17 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
       <View style={styles.divider} />
 
       <View style={styles.paymentRow}>
-        <Text style={[styles.paymentLabel, { fontSize: 16, fontWeight: '600' }]}>Total Paid</Text>
-        <Text style={[styles.paymentValue, { fontSize: 18, fontWeight: '700', color: Colors.primary }]}>
+        <Text
+          style={[styles.paymentLabel, { fontSize: 16, fontWeight: '600' }]}
+        >
+          Total Paid
+        </Text>
+        <Text
+          style={[
+            styles.paymentValue,
+            { fontSize: 18, fontWeight: '700', color: Colors.primary },
+          ]}
+        >
           {formatCurrency(finalAmount)}
         </Text>
       </View>
@@ -161,4 +186,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PaymentDetailsCard; 
+export default PaymentDetailsCard;

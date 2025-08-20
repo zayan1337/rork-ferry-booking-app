@@ -1,18 +1,27 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList, RefreshControl, Dimensions } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { Plus, Search, Filter, SortAsc, Calendar, TrendingUp } from "lucide-react-native";
+import React, { useEffect, useState, useMemo } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  FlatList,
+  RefreshControl,
+  Dimensions,
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Plus, Search, SortAsc, Calendar } from 'lucide-react-native';
 
-import Colors from "@/constants/colors";
-import AgentBookingCard from "@/components/AgentBookingCard";
-import Button from "@/components/Button";
-import Input from "@/components/Input";
-import { SkeletonBookingsList } from "@/components/skeleton";
+import Colors from '@/constants/colors';
+import AgentBookingCard from '@/components/AgentBookingCard';
+import Button from '@/components/Button';
+import Input from '@/components/Input';
+import { SkeletonBookingsList } from '@/components/skeleton';
 
-import type { Booking } from "@/types/agent";
-import { useAgentData } from "@/hooks/useAgentData";
-import { useRefreshControl } from "@/hooks/useRefreshControl";
-import { formatCurrency } from "@/utils/agentFormatters";
+import type { Booking } from '@/types/agent';
+import { useAgentData } from '@/hooks/useAgentData';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
+import { formatCurrency } from '@/utils/agentFormatters';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth > 768;
@@ -20,28 +29,23 @@ const isTablet = screenWidth > 768;
 export default function AgentBookingsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const {
-    agent,
-    bookings,
-    isLoadingBookings,
-    error,
-    refreshBookings
-  } = useAgentData();
+  const { agent, bookings, isLoadingBookings, error, refreshBookings } =
+    useAgentData();
 
-  const [activeTab, setActiveTab] = useState<"all" | "confirmed" | "completed" | "cancelled" | "upcoming">(
-    (params.filter as any) || "all"
-  );
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"date" | "amount" | "status" | "upcoming">(
-    (params.sortBy as any) || "date"
-  );
+  const [activeTab, setActiveTab] = useState<
+    'all' | 'confirmed' | 'completed' | 'cancelled' | 'upcoming'
+  >((params.filter as any) || 'all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<
+    'date' | 'amount' | 'status' | 'upcoming'
+  >((params.sortBy as any) || 'date');
 
   const { isRefreshing, onRefresh } = useRefreshControl({
     onRefresh: async () => {
       if (agent?.id) {
         await refreshBookings();
       }
-    }
+    },
   });
 
   useEffect(() => {
@@ -53,14 +57,17 @@ export default function AgentBookingsScreen() {
   const filteredAndSortedBookings = useMemo(() => {
     if (!bookings) return [];
 
-    let filtered = bookings.filter((booking) => {
+    const filtered = bookings.filter(booking => {
       // Filter by status or upcoming
-      if (activeTab === "upcoming") {
+      if (activeTab === 'upcoming') {
         // Show only future departures that are confirmed or pending
         const departureDate = new Date(booking.departureDate);
         const now = new Date();
-        return departureDate > now && (booking.status === "confirmed" || booking.status === "pending");
-      } else if (activeTab !== "all" && booking.status !== activeTab) {
+        return (
+          departureDate > now &&
+          (booking.status === 'confirmed' || booking.status === 'pending')
+        );
+      } else if (activeTab !== 'all' && booking.status !== activeTab) {
         return false;
       }
 
@@ -82,16 +89,22 @@ export default function AgentBookingsScreen() {
     // Sort bookings
     filtered.sort((a, b) => {
       switch (sortBy) {
-        case "upcoming":
+        case 'upcoming':
           // Sort by departure date (soonest first) for upcoming bookings
-          return new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime();
-        case "amount":
+          return (
+            new Date(a.departureDate).getTime() -
+            new Date(b.departureDate).getTime()
+          );
+        case 'amount':
           return b.discountedAmount - a.discountedAmount;
-        case "status":
+        case 'status':
           return a.status.localeCompare(b.status);
-        case "date":
+        case 'date':
         default:
-          return new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime();
+          return (
+            new Date(b.bookingDate).getTime() -
+            new Date(a.bookingDate).getTime()
+          );
       }
     });
 
@@ -103,18 +116,27 @@ export default function AgentBookingsScreen() {
     if (!bookings) return { total: 0, revenue: 0, commission: 0 };
 
     const filteredBookings = bookings.filter(booking => {
-      if (activeTab === "upcoming") {
+      if (activeTab === 'upcoming') {
         const departureDate = new Date(booking.departureDate);
         const now = new Date();
-        return departureDate > now && (booking.status === "confirmed" || booking.status === "pending");
+        return (
+          departureDate > now &&
+          (booking.status === 'confirmed' || booking.status === 'pending')
+        );
       }
-      return activeTab === "all" || booking.status === activeTab;
+      return activeTab === 'all' || booking.status === activeTab;
     });
 
     return {
       total: filteredBookings.length,
-      revenue: filteredBookings.reduce((sum, booking) => sum + booking.discountedAmount, 0),
-      commission: filteredBookings.reduce((sum, booking) => sum + (booking.commission || 0), 0)
+      revenue: filteredBookings.reduce(
+        (sum, booking) => sum + booking.discountedAmount,
+        0
+      ),
+      commission: filteredBookings.reduce(
+        (sum, booking) => sum + (booking.commission || 0),
+        0
+      ),
     };
   }, [bookings, activeTab]);
 
@@ -123,36 +145,54 @@ export default function AgentBookingsScreen() {
   };
 
   const handleNewBooking = () => {
-    router.push("../booking/new" as any);
+    router.push('../booking/new' as any);
   };
 
   const handleSortChange = () => {
-    const sortOptions = ["date", "amount", "status", "upcoming"] as const;
+    const sortOptions = ['date', 'amount', 'status', 'upcoming'] as const;
     const currentIndex = sortOptions.indexOf(sortBy);
     const nextIndex = (currentIndex + 1) % sortOptions.length;
     setSortBy(sortOptions[nextIndex]);
   };
 
   // Stable renderItem function for better FlatList performance
-  const renderBookingItem = React.useCallback(({ item }: { item: Booking }) => (
-    <AgentBookingCard
-      booking={item}
-      onPress={handleBookingPress}
-    />
-  ), [handleBookingPress]);
+  const renderBookingItem = React.useCallback(
+    ({ item }: { item: Booking }) => (
+      <AgentBookingCard booking={item} onPress={handleBookingPress} />
+    ),
+    [handleBookingPress]
+  );
 
   const tabs = [
-    { key: "all", label: "All", count: bookings?.length || 0 },
+    { key: 'all', label: 'All', count: bookings?.length || 0 },
     {
-      key: "upcoming", label: "Upcoming", count: bookings?.filter(b => {
-        const departureDate = new Date(b.departureDate);
-        const now = new Date();
-        return departureDate > now && (b.status === "confirmed" || b.status === "pending");
-      }).length || 0
+      key: 'upcoming',
+      label: 'Upcoming',
+      count:
+        bookings?.filter(b => {
+          const departureDate = new Date(b.departureDate);
+          const now = new Date();
+          return (
+            departureDate > now &&
+            (b.status === 'confirmed' || b.status === 'pending')
+          );
+        }).length || 0,
     },
-    { key: "confirmed", label: "Confirmed", count: bookings?.filter(b => b.status === "confirmed").length || 0 },
-    { key: "completed", label: "Completed", count: bookings?.filter(b => b.status === "completed").length || 0 },
-    { key: "cancelled", label: "Cancelled", count: bookings?.filter(b => b.status === "cancelled").length || 0 },
+    {
+      key: 'confirmed',
+      label: 'Confirmed',
+      count: bookings?.filter(b => b.status === 'confirmed').length || 0,
+    },
+    {
+      key: 'completed',
+      label: 'Completed',
+      count: bookings?.filter(b => b.status === 'completed').length || 0,
+    },
+    {
+      key: 'cancelled',
+      label: 'Cancelled',
+      count: bookings?.filter(b => b.status === 'cancelled').length || 0,
+    },
   ];
 
   if (error) {
@@ -160,9 +200,9 @@ export default function AgentBookingsScreen() {
       <View style={styles.loadingContainer}>
         <Text style={styles.errorText}>Error: {error}</Text>
         <Button
-          title="Retry"
+          title='Retry'
           onPress={() => refreshBookings()}
-          variant="primary"
+          variant='primary'
           style={styles.retryButton}
         />
       </View>
@@ -178,11 +218,15 @@ export default function AgentBookingsScreen() {
             <Input
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search bookings, clients, routes..."
+              placeholder='Search bookings, clients, routes...'
               style={styles.searchInput}
               inputStyle={styles.searchInputText}
             />
-            <Search size={20} color={Colors.subtext} style={styles.searchIcon} />
+            <Search
+              size={20}
+              color={Colors.subtext}
+              style={styles.searchIcon}
+            />
           </View>
           <TouchableOpacity
             style={styles.sortButton}
@@ -194,7 +238,7 @@ export default function AgentBookingsScreen() {
             style={styles.newBookingButton}
             onPress={handleNewBooking}
           >
-            <Plus size={20} color="white" />
+            <Plus size={20} color='white' />
           </TouchableOpacity>
         </View>
 
@@ -206,12 +250,16 @@ export default function AgentBookingsScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{formatCurrency(bookingStats.revenue)}</Text>
+            <Text style={styles.statValue}>
+              {formatCurrency(bookingStats.revenue)}
+            </Text>
             <Text style={styles.statLabel}>Revenue</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{formatCurrency(bookingStats.commission)}</Text>
+            <Text style={styles.statValue}>
+              {formatCurrency(bookingStats.commission)}
+            </Text>
             <Text style={styles.statLabel}>Commission</Text>
           </View>
         </View>
@@ -224,13 +272,10 @@ export default function AgentBookingsScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabsContent}
         >
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <TouchableOpacity
               key={tab.key}
-              style={[
-                styles.tab,
-                activeTab === tab.key && styles.activeTab,
-              ]}
+              style={[styles.tab, activeTab === tab.key && styles.activeTab]}
               onPress={() => setActiveTab(tab.key as any)}
             >
               <Text
@@ -241,14 +286,18 @@ export default function AgentBookingsScreen() {
               >
                 {tab.label}
               </Text>
-              <View style={[
-                styles.tabBadge,
-                activeTab === tab.key && styles.activeTabBadge,
-              ]}>
-                <Text style={[
-                  styles.tabBadgeText,
-                  activeTab === tab.key && styles.activeTabBadgeText,
-                ]}>
+              <View
+                style={[
+                  styles.tabBadge,
+                  activeTab === tab.key && styles.activeTabBadge,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabBadgeText,
+                    activeTab === tab.key && styles.activeTabBadgeText,
+                  ]}
+                >
                   {tab.count}
                 </Text>
               </View>
@@ -259,7 +308,14 @@ export default function AgentBookingsScreen() {
         {/* Sort indicator */}
         <View style={styles.sortIndicator}>
           <Text style={styles.sortText}>
-            Sort: {sortBy === "date" ? "Date" : sortBy === "amount" ? "Amount" : sortBy === "status" ? "Status" : "Upcoming"}
+            Sort:{' '}
+            {sortBy === 'date'
+              ? 'Date'
+              : sortBy === 'amount'
+                ? 'Amount'
+                : sortBy === 'status'
+                  ? 'Status'
+                  : 'Upcoming'}
           </Text>
         </View>
       </View>
@@ -270,7 +326,7 @@ export default function AgentBookingsScreen() {
       ) : filteredAndSortedBookings.length > 0 ? (
         <FlatList
           data={filteredAndSortedBookings}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           renderItem={renderBookingItem}
           contentContainerStyle={styles.bookingsList}
           refreshControl={
@@ -281,9 +337,11 @@ export default function AgentBookingsScreen() {
               tintColor={Colors.primary}
             />
           }
-          getItemLayout={(data, index) => (
-            { length: 180, offset: 180 * index, index }
-          )}
+          getItemLayout={(data, index) => ({
+            length: 180,
+            offset: 180 * index,
+            index,
+          })}
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
           windowSize={10}
@@ -295,19 +353,18 @@ export default function AgentBookingsScreen() {
             <Calendar size={48} color={Colors.inactive} />
           </View>
           <Text style={styles.emptyTitle}>
-            {searchQuery ? "No matching bookings" : "No bookings found"}
+            {searchQuery ? 'No matching bookings' : 'No bookings found'}
           </Text>
           <Text style={styles.emptySubtitle}>
             {searchQuery
-              ? "Try adjusting your search terms or filters"
-              : "Create your first booking to get started"
-            }
+              ? 'Try adjusting your search terms or filters'
+              : 'Create your first booking to get started'}
           </Text>
           {!searchQuery && (
             <Button
-              title="Create a Booking"
+              title='Create a Booking'
               onPress={handleNewBooking}
-              variant="primary"
+              variant='primary'
               style={styles.emptyButton}
             />
           )}
@@ -331,13 +388,13 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
   searchContainer: {
     flex: 1,
-    position: "relative",
+    position: 'relative',
   },
   searchInput: {
     marginBottom: 0,
@@ -347,7 +404,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   searchIcon: {
-    position: "absolute",
+    position: 'absolute',
     left: 12,
     top: 10,
   },
@@ -356,8 +413,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginHorizontal: 8,
   },
   newBookingButton: {
@@ -365,32 +422,32 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
     paddingVertical: 12,
     backgroundColor: Colors.surface,
     borderRadius: 8,
     marginBottom: 4,
   },
   statItem: {
-    alignItems: "center",
+    alignItems: 'center',
     flex: 1,
   },
   statValue: {
     fontSize: isTablet ? 18 : 16,
-    fontWeight: "700",
+    fontWeight: '700',
     color: Colors.primary,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
     color: Colors.subtext,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   statDivider: {
     width: 1,
@@ -407,8 +464,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   tab: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginRight: 8,
@@ -423,11 +480,11 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: Colors.text,
-    fontWeight: "600",
+    fontWeight: '600',
     marginRight: 6,
   },
   activeTabText: {
-    color: "white",
+    color: 'white',
   },
   tabBadge: {
     backgroundColor: Colors.border,
@@ -435,18 +492,18 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 10,
     minWidth: 20,
-    alignItems: "center",
+    alignItems: 'center',
   },
   activeTabBadge: {
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   tabBadgeText: {
     fontSize: 10,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.subtext,
   },
   activeTabBadgeText: {
-    color: "white",
+    color: 'white',
   },
   sortIndicator: {
     paddingHorizontal: 16,
@@ -455,7 +512,7 @@ const styles = StyleSheet.create({
   sortText: {
     fontSize: 12,
     color: Colors.subtext,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   bookingsList: {
     padding: 16,
@@ -463,8 +520,8 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 32,
   },
   emptyIcon: {
@@ -472,16 +529,16 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: isTablet ? 20 : 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
     marginBottom: 8,
-    textAlign: "center",
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
     color: Colors.subtext,
     marginBottom: 24,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 20,
   },
   emptyButton: {

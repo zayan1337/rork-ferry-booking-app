@@ -26,4 +26,4 @@ Seats: ${booking.seats.map(seat => seat.number).join(', ')}`;
     console.error('Error sharing ticket:', error);
     Alert.alert('Error', 'Could not share the ticket');
   }
-}; 
+};
