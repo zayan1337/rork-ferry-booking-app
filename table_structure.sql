@@ -72,7 +72,6 @@ from
   activity_logs al
   left join user_profiles up on al.user_id = up.id;
 
-
 create view public.admin_bookings_view as
 select
   b.id,
@@ -111,36 +110,67 @@ select
     where
       passengers.booking_id = b.id
   ) as passenger_count,
-  -- Get the most recent payment status
   COALESCE(
-    (SELECT p.status::text
-     FROM payments p
-     WHERE p.booking_id = b.id
-     ORDER BY p.created_at DESC
-     LIMIT 1),
-    CASE
-      WHEN b.status IN ('confirmed', 'checked_in', 'completed') THEN 'completed'
-      WHEN b.status = 'pending_payment' THEN 'pending'
-      WHEN b.status = 'cancelled' THEN 'refunded'
-      ELSE 'pending'
-    END
+    (
+      select
+        p.status::text as status
+      from
+        payments p
+      where
+        p.booking_id = b.id
+      order by
+        p.created_at desc
+      limit
+        1
+    ),
+    case
+      when b.status = any (
+        array[
+          'confirmed'::booking_status,
+          'checked_in'::booking_status,
+          'completed'::booking_status
+        ]
+      ) then 'completed'::text
+      when b.status = 'pending_payment'::booking_status then 'pending'::text
+      when b.status = 'cancelled'::booking_status then 'refunded'::text
+      else 'pending'::text
+    end
   ) as payment_status,
-  -- Get the total amount paid (sum of all completed payments)
   COALESCE(
-    (SELECT SUM(p.amount)
-     FROM payments p
-     WHERE p.booking_id = b.id
-     AND p.status = 'completed'),
-    0
+    (
+      select
+        sum(p.amount) as sum
+      from
+        payments p
+      where
+        p.booking_id = b.id
+        and p.status = 'completed'::payment_status
+    ),
+    case
+      when b.status = any (
+        array[
+          'confirmed'::booking_status,
+          'checked_in'::booking_status,
+          'completed'::booking_status
+        ]
+      ) then b.total_fare
+      else 0::numeric
+    end
   ) as payment_amount,
-  -- Get the most recent payment method
   COALESCE(
-    (SELECT p.payment_method::text
-     FROM payments p
-     WHERE p.booking_id = b.id
-     ORDER BY p.created_at DESC
-     LIMIT 1),
-    b.payment_method_type
+    (
+      select
+        p.payment_method::text as payment_method
+      from
+        payments p
+      where
+        p.booking_id = b.id
+      order by
+        p.created_at desc
+      limit
+        1
+    ),
+    b.payment_method_type::text
   ) as payment_method
 from
   bookings b
@@ -151,7 +181,6 @@ from
   left join islands i1 on r.from_island_id = i1.id
   left join islands i2 on r.to_island_id = i2.id
   left join user_profiles agent on b.agent_id = agent.id;
-
 
 create table public.admin_cache_stats (
   cache_key character varying(100) not null,
@@ -223,6 +252,18 @@ select
     where
       status = 'cancelled'::booking_status
   ) as cancelled_count,
+  count(*) filter (
+    where
+      status = 'reserved'::booking_status
+  ) as reserved_count,
+  count(*) filter (
+    where
+      status = 'checked_in'::booking_status
+  ) as checked_in_count,
+  count(*) filter (
+    where
+      status = 'completed'::booking_status
+  ) as completed_count,
   CURRENT_TIMESTAMP as calculated_at
 from
   bookings b;
@@ -367,7 +408,6 @@ select
       join vessels v on trip_stats.vessel_id = v.id
   ) as avg_occupancy_7d;
 
-
 create table public.admin_report_queue (
   id uuid not null default gen_random_uuid (),
   report_type character varying(100) not null,
@@ -389,7 +429,6 @@ create table public.admin_report_queue (
 create index IF not exists idx_admin_report_queue_status on public.admin_report_queue using btree (status, priority, created_at) TABLESPACE pg_default;
 
 create index IF not exists idx_admin_report_queue_user on public.admin_report_queue using btree (requested_by, created_at) TABLESPACE pg_default;
-
 
 create table public.admin_settings (
   id uuid not null default gen_random_uuid (),
@@ -527,79 +566,55 @@ order by
 create view public.admin_users_view as
 select
   up.id,
-  up.email,
   up.full_name,
+  up.email,
   up.mobile_number,
-  up.date_of_birth,
   up.role,
-  up.is_active,
-  up.is_super_admin,
+  up.status,
+  up.status_reason,
+  up.status_updated_at,
+  up.status_updated_by,
+  up.date_of_birth,
   up.created_at,
-  up.updated_at,
+  up.last_login,
   COALESCE(user_stats.total_bookings, 0::bigint) as total_bookings,
-  COALESCE(user_stats.confirmed_bookings, 0::bigint) as confirmed_bookings,
-  COALESCE(user_stats.cancelled_bookings, 0::bigint) as cancelled_bookings,
   COALESCE(user_stats.total_spent, 0::numeric) as total_spent,
-  user_stats.last_booking_date,
-  case
-    when up.role = 'agent'::user_role then COALESCE(agent_stats.agent_bookings, 0::bigint)
-    else 0::bigint
-  end as agent_bookings,
-  case
-    when up.role = 'agent'::user_role then COALESCE(agent_stats.agent_revenue, 0::numeric)
-    else 0::numeric
-  end as agent_revenue,
-  case
-    when user_stats.last_booking_date >= (CURRENT_DATE - '30 days'::interval) then true
-    else false
-  end as is_recently_active
+  COALESCE(user_stats.total_trips, 0::bigint) as total_trips,
+  COALESCE(user_stats.average_rating, 0::numeric) as average_rating,
+  COALESCE(up.credit_balance, 0::numeric) as wallet_balance,
+  COALESCE(user_stats.credit_score, 0) as credit_score,
+  COALESCE(user_stats.loyalty_points, 0) as loyalty_points
 from
   user_profiles up
   left join (
     select
-      bookings.user_id,
+      b.user_id,
       count(*) as total_bookings,
-      count(
-        case
-          when bookings.status = 'confirmed'::booking_status then 1
-          else null::integer
-        end
-      ) as confirmed_bookings,
-      count(
-        case
-          when bookings.status = 'cancelled'::booking_status then 1
-          else null::integer
-        end
-      ) as cancelled_bookings,
       sum(
         case
-          when bookings.status = 'confirmed'::booking_status then bookings.total_fare
+          when b.status = 'confirmed'::booking_status then b.total_fare
           else 0::numeric
         end
       ) as total_spent,
-      max(bookings.created_at) as last_booking_date
+      count(distinct t.id) as total_trips,
+      4.5 as average_rating,
+      750 as credit_score,
+      100 as loyalty_points
     from
-      bookings
+      bookings b
+      left join trips t on b.trip_id = t.id
     group by
-      bookings.user_id
+      b.user_id
   ) user_stats on up.id = user_stats.user_id
-  left join (
-    select
-      bookings.agent_id,
-      count(*) as agent_bookings,
-      sum(
-        case
-          when bookings.status = 'confirmed'::booking_status then bookings.total_fare
-          else 0::numeric
-        end
-      ) as agent_revenue
-    from
-      bookings
-    where
-      bookings.agent_id is not null
-    group by
-      bookings.agent_id
-  ) agent_stats on up.id = agent_stats.agent_id;
+where
+  up.role = any (
+    array[
+      'admin'::user_role,
+      'agent'::user_role,
+      'customer'::user_role,
+      'captain'::user_role
+    ]
+  );
 
 create table public.agent_clients (
   id uuid not null default gen_random_uuid (),
@@ -693,7 +708,6 @@ create table public.agent_rates (
   constraint agent_rates_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
 
-
 create view public.agent_statistics as
 with
   booking_stats as (
@@ -749,6 +763,101 @@ from
   left join booking_stats bs on up.id = bs.agent_id
 where
   up.role = 'agent'::user_role;
+
+create view public.all_users_view as
+select
+  up.id,
+  up.full_name,
+  up.email,
+  up.mobile_number,
+  up.role::text as role,
+  up.status,
+  up.status_reason,
+  up.status_updated_at,
+  up.status_updated_by,
+  up.date_of_birth,
+  up.created_at,
+  up.last_login,
+  COALESCE(user_stats.total_bookings, 0::bigint) as total_bookings,
+  COALESCE(user_stats.total_spent, 0::numeric) as total_spent,
+  COALESCE(user_stats.total_trips, 0::bigint) as total_trips,
+  COALESCE(user_stats.average_rating, 0::numeric) as average_rating,
+  COALESCE(up.credit_balance, 0::numeric) as wallet_balance,
+  COALESCE(user_stats.credit_score, 0) as credit_score,
+  COALESCE(user_stats.loyalty_points, 0) as loyalty_points
+from
+  user_profiles up
+  left join (
+    select
+      b.user_id,
+      count(*) as total_bookings,
+      sum(
+        case
+          when b.status = 'confirmed'::booking_status then b.total_fare
+          else 0::numeric
+        end
+      ) as total_spent,
+      count(distinct t.id) as total_trips,
+      4.5 as average_rating,
+      750 as credit_score,
+      100 as loyalty_points
+    from
+      bookings b
+      left join trips t on b.trip_id = t.id
+    group by
+      b.user_id
+  ) user_stats on up.id = user_stats.user_id
+where
+  up.role = any (
+    array[
+      'admin'::user_role,
+      'agent'::user_role,
+      'customer'::user_role,
+      'captain'::user_role
+    ]
+  )
+union all
+select
+  p.id,
+  p.passenger_name as full_name,
+  null::character varying as email,
+  p.passenger_contact_number as mobile_number,
+  'passenger'::text as role,
+  p.status,
+  p.status_reason,
+  p.status_updated_at,
+  p.status_updated_by,
+  null::date as date_of_birth,
+  p.created_at,
+  null::timestamp with time zone as last_login,
+  COALESCE(passenger_stats.total_bookings, 1::bigint) as total_bookings,
+  COALESCE(passenger_stats.total_spent, 0::numeric) as total_spent,
+  COALESCE(passenger_stats.total_trips, 1::bigint) as total_trips,
+  0 as average_rating,
+  0 as wallet_balance,
+  0 as credit_score,
+  0 as loyalty_points
+from
+  passengers p
+  left join (
+    select
+      p2.id as passenger_id,
+      count(b.id) as total_bookings,
+      sum(
+        case
+          when b.status = 'confirmed'::booking_status then b.total_fare
+          else 0::numeric
+        end
+      ) as total_spent,
+      count(distinct t.id) as total_trips
+    from
+      passengers p2
+      left join bookings b on p2.booking_id = b.id
+      left join trips t on b.trip_id = t.id
+    group by
+      p2.id
+  ) passenger_stats on p.id = passenger_stats.passenger_id;
+
 
 create table public.bookings (
   id uuid not null default gen_random_uuid (),
@@ -887,6 +996,7 @@ create table public.cancellations (
   constraint cancellations_booking_id_fkey foreign KEY (booking_id) references bookings (id)
 ) TABLESPACE pg_default;
 
+
 create table public.check_ins (
   id uuid not null default gen_random_uuid (),
   booking_id uuid not null,
@@ -1014,6 +1124,7 @@ select
   ) as recent_translations,
   CURRENT_TIMESTAMP as last_updated;
 
+
 create view public.content_management_summary as
 select
   'terms'::text as content_type,
@@ -1064,6 +1175,7 @@ select
   count(distinct translations.language_code) as version_count
 from
   translations;
+
 
 create view public.enhanced_operations_stats_view as
 select
@@ -1252,6 +1364,7 @@ create trigger trigger_reorder_faq_categories_update BEFORE
 update OF order_index on faq_categories for EACH row when (old.order_index is distinct from new.order_index)
 execute FUNCTION reorder_faq_categories_on_insert ();
 
+
 create view public.faq_categories_with_stats as
 select
   fc.id,
@@ -1324,6 +1437,7 @@ category_id on faqs for EACH row when (
 )
 execute FUNCTION reorder_faqs_on_insert ();
 
+
 create view public.faqs_with_category as
 select
   f.id,
@@ -1343,6 +1457,7 @@ order by
   fc.order_index,
   f.order_index,
   f.created_at;
+
 
 create table public.islands (
   id uuid not null default gen_random_uuid (),
@@ -1370,6 +1485,7 @@ or DELETE
 or
 update on islands for EACH row
 execute FUNCTION notify_zone_stats_change ();
+
 
 create view public.islands_with_zones as
 select
@@ -1404,7 +1520,6 @@ create table public.manifest_passengers (
 
 create index IF not exists idx_manifest_passengers_manifest_id on public.manifest_passengers using btree (manifest_id) TABLESPACE pg_default;
 
-
 create table public.manifest_shares (
   id uuid not null default gen_random_uuid (),
   manifest_id uuid not null,
@@ -1433,7 +1548,6 @@ create table public.mass_messages (
   constraint mass_messages_trip_id_fkey foreign KEY (trip_id) references trips (id)
 ) TABLESPACE pg_default;
 
-
 create table public.modifications (
   id uuid not null default gen_random_uuid (),
   old_booking_id uuid not null,
@@ -1448,7 +1562,6 @@ create table public.modifications (
   constraint modifications_new_booking_id_fkey foreign KEY (new_booking_id) references bookings (id),
   constraint modifications_old_booking_id_fkey foreign KEY (old_booking_id) references bookings (id)
 ) TABLESPACE pg_default;
-
 
 create view public.operations_routes_view as
 select
@@ -1859,6 +1972,7 @@ from
 order by
   v.name;
 
+
 create table public.passenger_manifests (
   id uuid not null default gen_random_uuid (),
   trip_id uuid not null,
@@ -1881,10 +1995,29 @@ create table public.passengers (
   passenger_contact_number character varying(20) not null,
   special_assistance_request text null,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  status character varying(20) null default 'active'::character varying,
+  status_reason text null,
+  status_updated_at timestamp with time zone null default now(),
+  status_updated_by uuid null,
   constraint passengers_pkey primary key (id),
   constraint unique_booking_seat unique (booking_id, seat_id),
   constraint passengers_booking_id_fkey foreign KEY (booking_id) references bookings (id),
-  constraint passengers_seat_id_fkey foreign KEY (seat_id) references seats (id) on update CASCADE on delete set null
+  constraint passengers_seat_id_fkey foreign KEY (seat_id) references seats (id) on update CASCADE on delete set null,
+  constraint passengers_status_updated_by_fkey foreign KEY (status_updated_by) references user_profiles (id),
+  constraint passengers_status_check check (
+    (
+      (status)::text = any (
+        (
+          array[
+            'active'::character varying,
+            'inactive'::character varying,
+            'suspended'::character varying,
+            'blocked'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_passengers_booking_id on public.passengers using btree (booking_id) TABLESPACE pg_default;
@@ -1895,6 +2028,10 @@ create trigger trg_update_trip_available_seats_passengers
 after INSERT
 or DELETE on passengers for EACH row
 execute FUNCTION update_trip_available_seats ();
+
+create trigger update_passengers_status_timestamp BEFORE
+update on passengers for EACH row
+execute FUNCTION update_status_timestamp ();
 
 create table public.payments (
   id uuid not null default gen_random_uuid (),
@@ -1942,6 +2079,7 @@ create index IF not exists idx_permission_audit_user on public.permission_audit_
 create index IF not exists idx_permission_audit_entity on public.permission_audit_logs using btree (entity_type, entity_id) TABLESPACE pg_default;
 
 create index IF not exists idx_permission_audit_performed_by on public.permission_audit_logs using btree (performed_by, created_at) TABLESPACE pg_default;
+
 
 create table public.permission_categories (
   id uuid not null default gen_random_uuid (),
@@ -2037,7 +2175,6 @@ create trigger update_permissions_updated_at BEFORE
 update on permissions for EACH row
 execute FUNCTION update_updated_at_column ();
 
-
 create view public.permissions_with_category as
 select
   p.id,
@@ -2061,6 +2198,7 @@ where
 order by
   pc.order_index,
   p.name;
+
 
 create table public.promotion_routes (
   id uuid not null default gen_random_uuid (),
@@ -2116,6 +2254,7 @@ or
 update on promotions for EACH row
 execute FUNCTION validate_promotion_dates ();
 
+
 create view public.promotions_with_status as
 select
   id,
@@ -2157,6 +2296,7 @@ from
 order by
   start_date desc,
   created_at desc;
+
 
 create view public.recent_activity_view as
 select
@@ -2276,6 +2416,7 @@ create trigger update_role_templates_updated_at BEFORE
 update on role_templates for EACH row
 execute FUNCTION update_updated_at_column ();
 
+
 create view public.role_templates_with_stats as
 select
   rt.id,
@@ -2307,6 +2448,7 @@ order by
   rt.is_system_role desc,
   rt.name;
 
+
 create view public.round_trip_bookings as
 select
   departure.id as departure_booking_id,
@@ -2328,6 +2470,7 @@ from
   left join bookings return_booking on departure.return_booking_id = return_booking.id
 where
   departure.is_round_trip = true;
+
 
 create view public.round_trip_bookings_grouped as
 select
@@ -2371,6 +2514,7 @@ where
 group by
   round_trip_group_id,
   user_id;
+
 
 create table public.route_activity_logs (
   id uuid not null default gen_random_uuid (),
@@ -2664,7 +2808,6 @@ from
     group by
       t.route_id
   ) month_stats on r.id = month_stats.route_id;
-
 create table public.routes (
   id uuid not null default gen_random_uuid (),
   from_island_id uuid not null,
@@ -2871,7 +3014,6 @@ or
 update on seat_reservations for EACH row
 execute FUNCTION update_trip_available_seats ();
 
-
 create table public.seats (
   id uuid not null default gen_random_uuid (),
   vessel_id uuid not null,
@@ -2960,6 +3102,7 @@ create trigger seats_updated_at_trigger BEFORE
 update on seats for EACH row
 execute FUNCTION update_updated_at_column ();
 
+
 create table public.system_health_metrics (
   id uuid not null default gen_random_uuid (),
   metric_name character varying(100) not null,
@@ -2976,6 +3119,24 @@ create table public.system_health_metrics (
 create index IF not exists idx_system_health_name_time on public.system_health_metrics using btree (metric_name, recorded_at) TABLESPACE pg_default;
 
 create index IF not exists idx_system_health_recorded_at on public.system_health_metrics using btree (recorded_at) TABLESPACE pg_default;
+
+create table public.system_health_metrics (
+  id uuid not null default gen_random_uuid (),
+  metric_name character varying(100) not null,
+  metric_value numeric not null,
+  metric_type character varying(50) not null,
+  unit character varying(20) null,
+  tags jsonb null,
+  threshold_warning numeric null,
+  threshold_critical numeric null,
+  recorded_at timestamp with time zone null default CURRENT_TIMESTAMP,
+  constraint system_health_metrics_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_system_health_name_time on public.system_health_metrics using btree (metric_name, recorded_at) TABLESPACE pg_default;
+
+create index IF not exists idx_system_health_recorded_at on public.system_health_metrics using btree (recorded_at) TABLESPACE pg_default;
+
 
 create table public.terms_and_conditions (
   id uuid not null default gen_random_uuid (),
@@ -3284,7 +3445,6 @@ order by
   r.id,
   t.travel_date;
 
-
 create table public.trips (
   id uuid not null default gen_random_uuid (),
   route_id uuid not null,
@@ -3346,7 +3506,6 @@ or DELETE
 or
 update on trips for EACH row
 execute FUNCTION enhanced_audit_trigger ();
-
 
 create view public.trips_with_available_seats as
 select
@@ -3463,8 +3622,13 @@ create table public.user_profiles (
   email character varying(255) null,
   is_super_admin boolean not null default false,
   last_login timestamp with time zone null,
+  status character varying(20) null default 'active'::character varying,
+  status_reason text null,
+  status_updated_at timestamp with time zone null default now(),
+  status_updated_by uuid null,
   constraint user_profiles_pkey primary key (id),
   constraint user_profiles_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE,
+  constraint user_profiles_status_updated_by_fkey foreign KEY (status_updated_by) references user_profiles (id),
   constraint chk_agent_discount_range check (
     (
       (agent_discount is null)
@@ -3478,6 +3642,20 @@ create table public.user_profiles (
     (
       (credit_balance is null)
       or (credit_balance >= (0)::numeric)
+    )
+  ),
+  constraint user_profiles_status_check check (
+    (
+      (status)::text = any (
+        (
+          array[
+            'active'::character varying,
+            'inactive'::character varying,
+            'suspended'::character varying,
+            'blocked'::character varying
+          ]
+        )::text[]
+      )
     )
   ),
   constraint chk_credit_ceiling_valid check (
@@ -3528,6 +3706,10 @@ execute FUNCTION enhanced_audit_trigger ();
 create trigger trg_update_user_profile_timestamp BEFORE
 update on user_profiles for EACH row
 execute FUNCTION update_user_profile_timestamp ();
+
+create trigger update_user_profiles_status_timestamp BEFORE
+update on user_profiles for EACH row
+execute FUNCTION update_status_timestamp ();
 
 create view public.vessel_details_view as
 select
@@ -3613,6 +3795,7 @@ from
 group by
   vessel_id;
 
+
 create table public.vessel_tracking (
   id uuid not null default gen_random_uuid (),
   vessel_id uuid not null,
@@ -3625,6 +3808,7 @@ create table public.vessel_tracking (
   constraint vessel_tracking_pkey primary key (id),
   constraint vessel_tracking_vessel_id_fkey foreign KEY (vessel_id) references vessels (id)
 ) TABLESPACE pg_default;
+
 
 create view public.vessel_utilization_view as
 select
@@ -3819,7 +4003,6 @@ create table public.wallets (
   constraint wallets_user_id_key unique (user_id),
   constraint wallets_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
-
 
 create table public.zone_activity_logs (
   id uuid not null default gen_random_uuid (),
@@ -4108,3 +4291,4 @@ from
 order by
   z.order_index,
   z.name;
+
