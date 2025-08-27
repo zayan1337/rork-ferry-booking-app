@@ -33,6 +33,7 @@ import {
   formatTime,
   createEmptyFormErrors,
 } from '@/utils/customerUtils';
+import MibPaymentWebView from '@/components/MibPaymentWebView';
 import {
   BOOKING_STEPS,
   STEP_LABELS,
@@ -55,6 +56,12 @@ export default function BookScreen() {
   >([]);
 
   const [errors, setErrors] = useState(createEmptyFormErrors());
+
+  // MIB Payment WebView state
+  const [showMibPayment, setShowMibPayment] = useState(false);
+  const [currentBookingId, setCurrentBookingId] = useState('');
+  const [mibSessionData, setMibSessionData] = useState<any>(null);
+  const [mibBookingDetails, setMibBookingDetails] = useState<any>(null);
 
   // Core booking state
   const {
@@ -163,9 +170,7 @@ export default function BookScreen() {
           await fetchAvailableSeats(currentBooking.trip.id, false);
           // Subscribe to real-time updates for this trip
           subscribeSeatUpdates(currentBooking.trip.id, false);
-        } catch (error) {
-          console.error('Error fetching seats for trip:', error);
-        }
+        } catch (error) {}
       }
     };
 
@@ -176,9 +181,7 @@ export default function BookScreen() {
           await fetchAvailableSeats(currentBooking.returnTrip.id, true);
           // Subscribe to real-time updates for return trip
           subscribeSeatUpdates(currentBooking.returnTrip.id, true);
-        } catch (error) {
-          console.error('Error fetching seats for return trip:', error);
-        }
+        } catch (error) {}
       }
     };
 
@@ -374,36 +377,77 @@ export default function BookScreen() {
       try {
         const bookingResult = await createCustomerBooking(paymentMethod);
 
-        // Reset the booking state after successful booking
-        resetCurrentBooking();
-        setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
-        setPaymentMethod('');
-        setTermsAccepted(false);
-        setLocalSelectedSeats([]);
-        setLocalReturnSelectedSeats([]);
-        setErrors(createEmptyFormErrors());
+        // Handle MIB payment differently
+        if (paymentMethod === 'mib') {
+          console.log(
+            '💳 MIB payment method selected - preparing payment modal',
+            {
+              bookingResult,
+              paymentMethod,
+              timestamp: new Date().toISOString(),
+            }
+          );
 
-        // Create success message based on booking type
-        let successMessage = `Your ${
-          currentBooking.tripType === TRIP_TYPES.ROUND_TRIP
-            ? 'round trip'
-            : 'one way'
-        } booking has been confirmed.`;
-        successMessage += `\n\nDeparture Booking ID: ${bookingResult.bookingId}`;
+          // Prepare booking details for the payment modal
+          const bookingDetails = {
+            bookingNumber: bookingResult.booking_number,
+            route: `${currentBooking.route?.fromIsland?.name || 'N/A'} → ${currentBooking.route?.toIsland?.name || 'N/A'}`,
+            travelDate:
+              currentBooking.departureDate || new Date().toISOString(),
+            amount: currentBooking.totalFare,
+            currency: 'MVR',
+            passengerCount: localSelectedSeats.length,
+          };
 
-        if (bookingResult.returnBookingId) {
-          successMessage += `\nReturn Booking ID: ${bookingResult.returnBookingId}`;
+          console.log('📋 MIB booking details prepared:', {
+            bookingDetails,
+            bookingId: bookingResult.bookingId,
+          });
+
+          // Show modal immediately with booking details
+          setCurrentBookingId(bookingResult.bookingId);
+          setMibBookingDetails(bookingDetails);
+          setShowMibPayment(true);
+
+          console.log('🎭 MIB payment modal opened');
+          // Note: MIB session will be created when user clicks "Proceed to Payment" in the modal
+        } else {
+          console.log('💰 Non-MIB payment method selected:', paymentMethod);
+          // For other payment methods, show success message
+          resetCurrentBooking();
+          setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+          setPaymentMethod('');
+          setTermsAccepted(false);
+          setLocalSelectedSeats([]);
+          setLocalReturnSelectedSeats([]);
+          setErrors(createEmptyFormErrors());
+
+          // Create success message based on booking type
+          let successMessage = `Your ${
+            currentBooking.tripType === TRIP_TYPES.ROUND_TRIP
+              ? 'round trip'
+              : 'one way'
+          } booking has been confirmed.`;
+          successMessage += `\n\nDeparture Booking ID: ${bookingResult.bookingId}`;
+          successMessage += `\nBooking Number: ${bookingResult.booking_number}`;
+
+          if (bookingResult.returnBookingId) {
+            successMessage += `\nReturn Booking ID: ${bookingResult.returnBookingId}`;
+            if (bookingResult.return_booking_number) {
+              successMessage += `\nReturn Booking Number: ${bookingResult.return_booking_number}`;
+            }
+          }
+
+          Alert.alert('Booking Confirmed', successMessage, [
+            {
+              text: 'View Tickets',
+              onPress: () =>
+                router.push({
+                  pathname: '/(app)/(customer)/(tabs)/bookings',
+                }),
+            },
+          ]);
         }
-
-        Alert.alert('Booking Confirmed', successMessage, [
-          {
-            text: 'View Tickets',
-            onPress: () =>
-              router.push({
-                pathname: '/(app)/(customer)/(tabs)/bookings',
-              }),
-          },
-        ]);
       } catch (error: any) {
         const errorMessage =
           error?.message ||
@@ -415,12 +459,7 @@ export default function BookScreen() {
         if (currentBooking.trip?.id) {
           try {
             await refreshAvailableSeatsSilently(currentBooking.trip.id, false);
-          } catch (refreshError) {
-            console.error(
-              'Error refreshing departure seats after booking error:',
-              refreshError
-            );
-          }
+          } catch (refreshError) {}
         }
 
         if (currentBooking.returnTrip?.id) {
@@ -429,12 +468,7 @@ export default function BookScreen() {
               currentBooking.returnTrip.id,
               true
             );
-          } catch (refreshError) {
-            console.error(
-              'Error refreshing return seats after booking error:',
-              refreshError
-            );
-          }
+          } catch (refreshError) {}
         }
       }
     }
@@ -1035,6 +1069,104 @@ export default function BookScreen() {
           )}
         </View>
       </Card>
+
+      {/* MIB Payment WebView */}
+      {showMibPayment && mibBookingDetails && currentBookingId && (
+        <MibPaymentWebView
+          visible={showMibPayment}
+          bookingDetails={mibBookingDetails}
+          bookingId={currentBookingId}
+          sessionData={mibSessionData}
+          onClose={() => {
+            setShowMibPayment(false);
+            setCurrentBookingId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+          }}
+          onSuccess={result => {
+            console.log('🎉 MIB Payment SUCCESS callback received:', {
+              result,
+              currentBookingId,
+              timestamp: new Date().toISOString(),
+            });
+
+            // Close the modal first
+            setShowMibPayment(false);
+            setCurrentBookingId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+
+            // Reset booking state after successful payment
+            resetCurrentBooking();
+            setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+            setPaymentMethod('');
+            setTermsAccepted(false);
+            setLocalSelectedSeats([]);
+            setLocalReturnSelectedSeats([]);
+            setErrors(createEmptyFormErrors());
+
+            console.log('🧹 Booking state reset after successful payment');
+
+            // Navigate to payment success page with details
+            console.log('🚀 Navigating to payment success page with SUCCESS');
+            router.push({
+              pathname: '/(app)/(customer)/payment-success',
+              params: {
+                bookingId: currentBookingId,
+                result: 'SUCCESS',
+                sessionId: result.sessionId,
+              },
+            });
+          }}
+          onFailure={error => {
+            console.log('💥 MIB Payment FAILURE callback received:', {
+              error,
+              currentBookingId,
+              timestamp: new Date().toISOString(),
+            });
+
+            // Close the modal first
+            setShowMibPayment(false);
+            setCurrentBookingId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+
+            console.log('🚀 Navigating to payment success page with FAILURE');
+
+            // Navigate to payment success page with failure status
+            router.push({
+              pathname: '/(app)/(customer)/payment-success',
+              params: {
+                bookingId: currentBookingId,
+                result: 'FAILURE',
+              },
+            });
+          }}
+          onCancel={() => {
+            console.log('❌ MIB Payment CANCELLED callback received:', {
+              currentBookingId,
+              timestamp: new Date().toISOString(),
+            });
+
+            // Close the modal first
+            setShowMibPayment(false);
+            setCurrentBookingId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+
+            console.log('🚀 Navigating to payment success page with CANCELLED');
+
+            // Navigate to payment success page with cancelled status
+            router.push({
+              pathname: '/(app)/(customer)/payment-success',
+              params: {
+                bookingId: currentBookingId,
+                result: 'CANCELLED',
+              },
+            });
+          }}
+        />
+      )}
     </ScrollView>
   );
 }

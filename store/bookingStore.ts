@@ -51,9 +51,12 @@ interface BookingStoreActions {
 
   // Booking validation and creation
   validateCurrentStep: () => string | null;
-  createCustomerBooking: (
-    paymentMethod: string
-  ) => Promise<{ bookingId: string; returnBookingId: string | null }>;
+  createCustomerBooking: (paymentMethod: string) => Promise<{
+    bookingId: string;
+    returnBookingId: string | null;
+    booking_number: string;
+    return_booking_number?: string | null;
+  }>;
 }
 
 interface ExtendedBookingStoreState extends BookingStoreState {
@@ -633,7 +636,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert(bookingData)
-        .select()
+        .select('id, booking_number, status')
         .single();
 
       if (bookingError) {
@@ -688,45 +691,92 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         throw new Error(`Failed to reserve seats: ${seatError.message}`);
       }
 
-      // Create payment record
-      const { error: paymentError } = await supabase.from('payments').insert({
-        booking_id: booking.id,
-        payment_method: paymentMethod as PaymentMethod,
-        amount: selectedSeats.length * (route.baseFare || 0),
-        status: 'completed', // Mark as completed for immediate confirmation
-      });
+      // Handle payment based on method
+      if (paymentMethod === 'mib') {
+        // For MIB, create pending payment record and process payment
+        const { error: paymentError } = await supabase.from('payments').insert({
+          booking_id: booking.id,
+          payment_method: paymentMethod as PaymentMethod,
+          amount: selectedSeats.length * (route.baseFare || 0),
+          currency: 'MVR',
+          status: 'pending', // Start with pending for MIB
+        });
 
-      if (paymentError) {
-        console.warn('Failed to create payment record:', paymentError);
-      }
+        if (paymentError) {
+          console.warn('Failed to create payment record:', paymentError);
+        }
 
-      // Update booking status to confirmed after successful payment
-      const { error: statusUpdateError } = await supabase
-        .from('bookings')
-        .update({ status: 'confirmed' })
-        .eq('id', booking.id);
+        // Update booking status to pending_payment for MIB
+        const { error: statusUpdateError } = await supabase
+          .from('bookings')
+          .update({
+            status: 'pending_payment',
+            payment_method_type: 'mib',
+          })
+          .eq('id', booking.id);
 
-      if (statusUpdateError) {
-        // Check if this is the trigger function error
-        if (
-          statusUpdateError.message?.includes(
-            'trigger functions can only be called as triggers'
-          )
-        ) {
+        if (statusUpdateError) {
           console.warn(
-            'Trigger function warning (non-critical):',
-            statusUpdateError.message
-          );
-          // This is a warning, not an error - booking is still confirmed
-        } else {
-          console.warn(
-            'Failed to update booking status to confirmed:',
+            'Failed to update booking status to pending_payment:',
             statusUpdateError
           );
+        }
+
+        console.log('MIB booking created successfully with ID:', booking.id);
+
+        // Small delay to ensure database transaction is committed
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Return booking ID and booking number for MIB payment processing
+        set({ isLoading: false });
+        return {
+          bookingId: booking.id,
+          returnBookingId: null,
+          booking_number: booking.booking_number,
+        };
+      } else {
+        // For other payment methods, mark as completed immediately
+        const { error: paymentError } = await supabase.from('payments').insert({
+          booking_id: booking.id,
+          payment_method: paymentMethod as PaymentMethod,
+          amount: selectedSeats.length * (route.baseFare || 0),
+          currency: 'MVR',
+          status: 'completed', // Mark as completed for immediate confirmation
+        });
+
+        if (paymentError) {
+          console.warn('Failed to create payment record:', paymentError);
+        }
+
+        // Update booking status to confirmed after successful payment
+        const { error: statusUpdateError } = await supabase
+          .from('bookings')
+          .update({ status: 'confirmed' })
+          .eq('id', booking.id);
+
+        if (statusUpdateError) {
+          // Check if this is the trigger function error
+          if (
+            statusUpdateError.message?.includes(
+              'trigger functions can only be called as triggers'
+            )
+          ) {
+            console.warn(
+              'Trigger function warning (non-critical):',
+              statusUpdateError.message
+            );
+            // This is a warning, not an error - booking is still confirmed
+          } else {
+            console.warn(
+              'Failed to update booking status to confirmed:',
+              statusUpdateError
+            );
+          }
         }
       }
 
       let returnBookingId = null;
+      let returnBookingNumber = null;
 
       // Handle return trip if round trip
       if (
@@ -749,7 +799,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           await supabase
             .from('bookings')
             .insert(returnBookingData)
-            .select()
+            .select('id, booking_number, status')
             .single();
 
         if (returnBookingError) {
@@ -757,6 +807,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           // Don't fail the main booking for return trip issues
         } else {
           returnBookingId = returnBooking.id;
+          returnBookingNumber = returnBooking.booking_number;
 
           // Generate return QR code URL
           const returnQrCodeUrl = generateBookingQrCodeUrl(returnBooking);
@@ -808,7 +859,8 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
               booking_id: returnBooking.id,
               payment_method: paymentMethod as PaymentMethod,
               amount: returnSelectedSeats.length * (returnRoute.baseFare || 0),
-              status: 'completed', // Mark as completed for immediate confirmation
+              currency: 'MVR',
+              status: paymentMethod === 'mib' ? 'pending' : 'completed', // Pending for MIB, completed for others
             });
 
           if (returnPaymentError) {
@@ -847,7 +899,12 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       }
 
       set({ isLoading: false });
-      return { bookingId: booking.id, returnBookingId };
+      return {
+        bookingId: booking.id,
+        returnBookingId,
+        booking_number: booking.booking_number,
+        return_booking_number: returnBookingNumber,
+      };
     } catch (error: any) {
       console.error('Error creating customer booking:', error);
       set({
