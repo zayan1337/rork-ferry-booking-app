@@ -375,14 +375,22 @@ export const useAdminPermissions = () => {
 
   // Check if admin has any permissions at all
   const hasAnyPermissions = (): boolean => {
+    // If not authenticated or no user profile, return false
+    if (!isAuthenticated || !user?.profile?.id) {
+      return false;
+    }
+
+    // If permission data is still loading, return true to prevent premature "no permissions" screen
+    if (loading.fetchAll || permissions.length === 0) {
+      return true;
+    }
+
     // Super admins always have access
     if (isSuperAdmin) return true;
 
     // Check if user has any direct permissions
-    if (user?.profile?.id) {
-      const userPerms = getUserPermissions(user.profile.id);
-      if (userPerms.length > 0) return true;
-    }
+    const userPerms = getUserPermissions(user.profile.id);
+    if (userPerms.length > 0) return true;
 
     // Check if any tab access functions return true
     return (

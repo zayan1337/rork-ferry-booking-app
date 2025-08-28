@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../store/authStore';
 import * as Linking from 'expo-linking';
+import CustomSplashScreen from '../components/SplashScreen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -17,7 +18,6 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (error) {
-      console.error(error);
       throw error;
     }
   }, [error]);
@@ -59,34 +59,14 @@ function RootLayoutNav() {
   // Handle deep linking for payment success
   useEffect(() => {
     const handleDeepLink = (url: string) => {
-      console.log('🔗 Deep link received:', {
-        url,
-        timestamp: new Date().toISOString(),
-      });
-
       if (url.includes('rork-ferry://payment-success')) {
-        console.log('💳 Payment success deep link detected');
-
         try {
           const urlObj = new URL(url);
           const bookingId = urlObj.searchParams.get('bookingId');
           const result = urlObj.searchParams.get('result');
           const sessionId = urlObj.searchParams.get('session.id');
-          const allParams = Object.fromEntries(urlObj.searchParams.entries());
-
-          console.log('📋 Deep link parameters extracted:', {
-            bookingId,
-            result,
-            sessionId,
-            allParams,
-            url,
-          });
 
           if (bookingId && result) {
-            console.log(
-              '✅ Valid payment deep link - navigating to payment success page'
-            );
-
             // Navigate to payment success page
             router.push({
               pathname: '/(app)/(customer)/payment-success',
@@ -96,55 +76,48 @@ function RootLayoutNav() {
                 sessionId: sessionId || '',
               },
             });
-          } else {
-            console.error(
-              '❌ Invalid payment deep link - missing required parameters:',
-              {
-                hasBookingId: !!bookingId,
-                hasResult: !!result,
-                url,
-              }
-            );
           }
         } catch (error) {
+          // Error handling payment deep link
           console.error('❌ Error handling payment deep link:', {
             error: error instanceof Error ? error.message : 'Unknown error',
             stack: error instanceof Error ? error.stack : undefined,
             url,
           });
         }
-      } else {
-        console.log('🔗 Non-payment deep link received:', url);
       }
     };
-
-    console.log('🚀 Setting up deep link handlers...');
 
     // Handle initial URL if app was opened via deep link
     Linking.getInitialURL().then(url => {
       if (url) {
-        console.log('📱 App opened with initial deep link:', url);
         handleDeepLink(url);
-      } else {
-        console.log('📱 App opened without deep link');
       }
     });
 
     // Listen for incoming links when app is already running
     const subscription = Linking.addEventListener('url', ({ url }) => {
-      console.log('📲 Deep link received while app running:', url);
       handleDeepLink(url);
     });
 
     return () => {
-      console.log('🧹 Cleaning up deep link listeners');
       subscription?.remove();
     };
   }, []);
 
-  // Show loading screen while checking authentication or rehydrating
+  // Show custom splash screen while checking authentication or rehydrating
   if (!isRehydrated || !authChecked || isLoading) {
-    return null; // Keep splash screen visible
+    return (
+      <CustomSplashScreen
+        message={
+          !isRehydrated
+            ? 'Initializing app...'
+            : !authChecked
+              ? 'Checking authentication...'
+              : 'Loading your account...'
+        }
+      />
+    );
   }
 
   // Determine if user has valid profile after authentication

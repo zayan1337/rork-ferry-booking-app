@@ -51,8 +51,9 @@ export default function AppLayout() {
 
     switch (user.profile.role) {
       case 'admin':
-      case 'captain':
         return '(admin)';
+      case 'captain':
+        return '(captain)';
       case 'agent':
         return '(agent)';
       case 'customer':
@@ -77,6 +78,7 @@ export default function AppLayout() {
       <Stack.Screen name='(customer)' options={{ headerShown: false }} />
       <Stack.Screen name='(agent)' options={{ headerShown: false }} />
       <Stack.Screen name='(admin)' options={{ headerShown: false }} />
+      <Stack.Screen name='(captain)' options={{ headerShown: false }} />
     </Stack>
   );
 }
