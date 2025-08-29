@@ -106,7 +106,7 @@ export default function SplashScreen({
 
         <View style={styles.titleContainer}>
           <Text style={styles.appTitle}>Ferry Booking</Text>
-          <Text style={styles.appSubtitle}>Rork Ferry Services</Text>
+          <Text style={styles.appSubtitle}>Ferry Services</Text>
         </View>
 
         {showMessage && (
@@ -117,7 +117,7 @@ export default function SplashScreen({
       </Animated.View>
 
       <View style={styles.bottomBranding}>
-        <Text style={styles.brandingText}>Powered by Rork Technologies</Text>
+        <Text style={styles.brandingText}>Powered by FI-ES Systems</Text>
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>v1.0.0</Text>
         </View>
