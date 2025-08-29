@@ -483,6 +483,45 @@ export const manuallyUpdatePaymentStatus = async (
 };
 
 /**
+ * Restore original seat reservations for a booking (used when modification payment fails)
+ * @param originalBookingId - The original booking ID to restore seats for
+ */
+export const restoreOriginalSeatReservations = async (
+  originalBookingId: string
+): Promise<void> => {
+  try {
+    // The original seat reservations should still be intact since we didn't release them
+    // We just need to ensure they are properly set to the original booking
+    const { error: restoreError } = await supabase
+      .from('seat_reservations')
+      .update({
+        is_available: false,
+        booking_id: originalBookingId,
+        is_reserved: false, // Not temporarily reserved, permanently booked
+        reservation_expiry: null,
+      })
+      .eq('booking_id', originalBookingId);
+
+    if (restoreError) {
+      console.error(
+        'Error restoring original seat reservations:',
+        restoreError
+      );
+      throw new Error(
+        `Failed to restore original seat reservations: ${restoreError.message}`
+      );
+    }
+
+    console.log(
+      `Successfully restored seat reservations for original booking ${originalBookingId}`
+    );
+  } catch (error) {
+    console.error('Error in restoreOriginalSeatReservations:', error);
+    throw error;
+  }
+};
+
+/**
  * Release seats for a booking by making them available again
  * @param bookingId - The booking ID to release seats for
  */
@@ -590,6 +629,328 @@ export const cancelBookingOnPaymentFailure = async (
     );
   } catch (error) {
     console.error('Error in cancelBookingOnPaymentFailure:', error);
+    throw error;
+  }
+};
+
+/**
+ * Cancel only the new booking during modification when payment fails/is cancelled
+ * This preserves the original booking and only cancels the new one
+ * @param newBookingId - The new booking ID to cancel
+ * @param originalBookingId - The original booking ID to preserve
+ * @param reason - Reason for cancellation
+ */
+export const cancelModificationBookingOnPaymentFailure = async (
+  newBookingId: string,
+  originalBookingId: string,
+  reason: string = 'Modification payment failed'
+): Promise<void> => {
+  try {
+    // 1. Update new booking status to cancelled
+    const { error: newBookingUpdateError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', newBookingId);
+
+    if (newBookingUpdateError) {
+      console.error(
+        'Error updating new booking status:',
+        newBookingUpdateError
+      );
+      throw new Error(
+        `Failed to update new booking status: ${newBookingUpdateError.message}`
+      );
+    }
+
+    // 2. Release seat reservations for the new booking
+    await releaseSeatReservations(newBookingId);
+
+    // 3. Restore original seat reservations since payment failed
+    try {
+      await restoreOriginalSeatReservations(originalBookingId);
+    } catch (restoreError) {
+      console.warn(
+        'Failed to restore original seat reservations (non-critical):',
+        restoreError
+      );
+    }
+
+    // 4. Update modification record payment details to reflect failure
+    // First get the current payment_details, then update the status
+    const { data: modificationData } = await supabase
+      .from('modifications')
+      .select('payment_details')
+      .eq('new_booking_id', newBookingId)
+      .single();
+
+    if (modificationData?.payment_details) {
+      const updatedPaymentDetails = {
+        ...modificationData.payment_details,
+        status: 'failed',
+      };
+
+      const { error: modificationUpdateError } = await supabase
+        .from('modifications')
+        .update({
+          payment_details: updatedPaymentDetails,
+        })
+        .eq('new_booking_id', newBookingId);
+
+      if (modificationUpdateError) {
+        console.warn(
+          'Error updating modification record (non-critical):',
+          modificationUpdateError
+        );
+      }
+    }
+
+    // 4. Update payment status to failed for the new booking
+    const { error: paymentUpdateError } = await supabase
+      .from('payments')
+      .update({
+        status: 'failed',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('booking_id', newBookingId);
+
+    if (paymentUpdateError) {
+      console.warn(
+        'Error updating payment status (non-critical):',
+        paymentUpdateError
+      );
+    }
+
+    console.log(
+      `Successfully cancelled new booking ${newBookingId} due to: ${reason}. Original booking ${originalBookingId} preserved.`
+    );
+  } catch (error) {
+    console.error('Error in cancelModificationBookingOnPaymentFailure:', error);
+    throw error;
+  }
+};
+
+/**
+ * Cancel only the new booking during modification when payment is cancelled
+ * This preserves the original booking and only cancels the new one
+ * @param newBookingId - The new booking ID to cancel
+ * @param originalBookingId - The original booking ID to preserve
+ * @param reason - Reason for cancellation
+ */
+export const cancelModificationBookingOnPaymentCancellation = async (
+  newBookingId: string,
+  originalBookingId: string,
+  reason: string = 'Modification payment cancelled by user'
+): Promise<void> => {
+  try {
+    // 1. Update new booking status to cancelled
+    const { error: newBookingUpdateError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', newBookingId);
+
+    if (newBookingUpdateError) {
+      console.error(
+        'Error updating new booking status:',
+        newBookingUpdateError
+      );
+      throw new Error(
+        `Failed to update new booking status: ${newBookingUpdateError.message}`
+      );
+    }
+
+    // 2. Release seat reservations for the new booking
+    await releaseSeatReservations(newBookingId);
+
+    // 3. Restore original seat reservations since payment was cancelled
+    try {
+      await restoreOriginalSeatReservations(originalBookingId);
+    } catch (restoreError) {
+      console.warn(
+        'Failed to restore original seat reservations (non-critical):',
+        restoreError
+      );
+    }
+
+    // 4. Update modification record payment details to reflect cancellation
+    // First get the current payment_details, then update the status
+    const { data: modificationData } = await supabase
+      .from('modifications')
+      .select('payment_details')
+      .eq('new_booking_id', newBookingId)
+      .single();
+
+    if (modificationData?.payment_details) {
+      const updatedPaymentDetails = {
+        ...modificationData.payment_details,
+        status: 'cancelled',
+      };
+
+      const { error: modificationUpdateError } = await supabase
+        .from('modifications')
+        .update({
+          payment_details: updatedPaymentDetails,
+        })
+        .eq('new_booking_id', newBookingId);
+
+      if (modificationUpdateError) {
+        console.warn(
+          'Error updating modification record (non-critical):',
+          modificationUpdateError
+        );
+      }
+    }
+
+    // 4. Update payment status to cancelled for the new booking
+    const { error: paymentUpdateError } = await supabase
+      .from('payments')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('booking_id', newBookingId);
+
+    if (paymentUpdateError) {
+      console.warn(
+        'Error updating payment status (non-critical):',
+        paymentUpdateError
+      );
+    }
+
+    console.log(
+      `Successfully cancelled new booking ${newBookingId} due to: ${reason}. Original booking ${originalBookingId} preserved.`
+    );
+  } catch (error) {
+    console.error(
+      'Error in cancelModificationBookingOnPaymentCancellation:',
+      error
+    );
+    throw error;
+  }
+};
+
+/**
+ * Complete modification after successful payment
+ * This updates the original booking status to 'modified' and confirms the new booking
+ * @param newBookingId - The new booking ID to confirm
+ * @param originalBookingId - The original booking ID to mark as modified
+ */
+export const completeModificationAfterPayment = async (
+  newBookingId: string,
+  originalBookingId: string
+): Promise<void> => {
+  try {
+    // 1. Update new booking status to confirmed
+    const { error: newBookingUpdateError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'confirmed',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', newBookingId);
+
+    if (newBookingUpdateError) {
+      console.error(
+        'Error updating new booking status:',
+        newBookingUpdateError
+      );
+      throw new Error(
+        `Failed to update new booking status: ${newBookingUpdateError.message}`
+      );
+    }
+
+    // 2. Update original booking status to modified
+    const { error: originalBookingUpdateError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'modified',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', originalBookingId);
+
+    if (originalBookingUpdateError) {
+      console.error(
+        'Error updating original booking status:',
+        originalBookingUpdateError
+      );
+      throw new Error(
+        `Failed to update original booking status: ${originalBookingUpdateError.message}`
+      );
+    }
+
+    // 3. NOW release original seat reservations since payment is successful
+    const { error: originalSeatReleaseError } = await supabase
+      .from('seat_reservations')
+      .update({
+        is_available: true,
+        booking_id: null,
+        is_reserved: false,
+        reservation_expiry: null,
+      })
+      .eq('booking_id', originalBookingId);
+
+    if (originalSeatReleaseError) {
+      console.warn(
+        'Error releasing original seat reservations (non-critical):',
+        originalSeatReleaseError
+      );
+    }
+
+    // 4. Update modification record payment details to reflect success
+    // First get the current payment_details, then update the status
+    const { data: modificationData } = await supabase
+      .from('modifications')
+      .select('payment_details')
+      .eq('new_booking_id', newBookingId)
+      .single();
+
+    if (modificationData?.payment_details) {
+      const updatedPaymentDetails = {
+        ...modificationData.payment_details,
+        status: 'completed',
+      };
+
+      const { error: modificationUpdateError } = await supabase
+        .from('modifications')
+        .update({
+          payment_details: updatedPaymentDetails,
+        })
+        .eq('new_booking_id', newBookingId);
+
+      if (modificationUpdateError) {
+        console.warn(
+          'Error updating modification record (non-critical):',
+          modificationUpdateError
+        );
+      }
+    }
+
+    // 5. Update payment status to completed for the new booking
+    const { error: paymentUpdateError } = await supabase
+      .from('payments')
+      .update({
+        status: 'completed',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('booking_id', newBookingId);
+
+    if (paymentUpdateError) {
+      console.warn(
+        'Error updating payment status (non-critical):',
+        paymentUpdateError
+      );
+    }
+
+    console.log(
+      `Successfully completed modification. New booking ${newBookingId} confirmed, original booking ${originalBookingId} marked as modified.`
+    );
+  } catch (error) {
+    console.error('Error in completeModificationAfterPayment:', error);
     throw error;
   }
 };

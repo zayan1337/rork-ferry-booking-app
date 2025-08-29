@@ -12,6 +12,9 @@ import {
   cancelBookingOnPaymentFailure,
   cancelBookingOnPaymentCancellation,
   releaseSeatReservations,
+  cancelModificationBookingOnPaymentFailure,
+  cancelModificationBookingOnPaymentCancellation,
+  completeModificationAfterPayment,
 } from '@/utils/paymentUtils';
 import { useBookingStore } from '@/store';
 import { BOOKING_STEPS } from '@/constants/customer';
@@ -51,6 +54,7 @@ export default function PaymentSuccessScreen() {
   const sessionId =
     (params['session.id'] as string) || (params.sessionId as string);
   const shouldResetBooking = params.resetBooking as string;
+  const isModification = params.isModification as string;
 
   useEffect(() => {
     handlePaymentResult();
@@ -90,6 +94,31 @@ export default function PaymentSuccessScreen() {
 
           if (result === 'SUCCESS') {
             setStatus('success');
+
+            // Handle modification completion
+            if (isModification === 'true') {
+              try {
+                // For modifications, complete the modification process
+                const { data: modificationData } = await supabase
+                  .from('modifications')
+                  .select('old_booking_id')
+                  .eq('new_booking_id', bookingId)
+                  .single();
+
+                if (modificationData?.old_booking_id) {
+                  await completeModificationAfterPayment(
+                    bookingId,
+                    modificationData.old_booking_id
+                  );
+                }
+              } catch (modificationError) {
+                console.warn(
+                  'Failed to complete modification process:',
+                  modificationError
+                );
+              }
+            }
+
             // Reset booking state only on successful payment
             if (shouldResetBooking === 'true') {
               resetCurrentBooking();
@@ -99,10 +128,34 @@ export default function PaymentSuccessScreen() {
             setStatus('cancelled');
             // Cancel booking and create cancellation record when payment is cancelled
             try {
-              await cancelBookingOnPaymentCancellation(
-                bookingId,
-                'Payment cancelled by user'
-              );
+              if (isModification === 'true') {
+                // For modifications, we need to get the original booking ID
+                // We'll extract it from the modification record
+                const { data: modificationData } = await supabase
+                  .from('modifications')
+                  .select('old_booking_id')
+                  .eq('new_booking_id', bookingId)
+                  .single();
+
+                if (modificationData?.old_booking_id) {
+                  await cancelModificationBookingOnPaymentCancellation(
+                    bookingId,
+                    modificationData.old_booking_id,
+                    'Modification payment cancelled by user'
+                  );
+                } else {
+                  // Fallback to regular cancellation
+                  await cancelBookingOnPaymentCancellation(
+                    bookingId,
+                    'Payment cancelled by user'
+                  );
+                }
+              } else {
+                await cancelBookingOnPaymentCancellation(
+                  bookingId,
+                  'Payment cancelled by user'
+                );
+              }
             } catch (cancelError) {
               console.warn(
                 'Failed to cancel booking on payment cancellation:',
@@ -122,7 +175,33 @@ export default function PaymentSuccessScreen() {
             setStatus('failed');
             // Cancel booking and release seats when payment fails
             try {
-              await cancelBookingOnPaymentFailure(bookingId, 'Payment failed');
+              if (isModification === 'true') {
+                // For modifications, we need to get the original booking ID
+                const { data: modificationData } = await supabase
+                  .from('modifications')
+                  .select('old_booking_id')
+                  .eq('new_booking_id', bookingId)
+                  .single();
+
+                if (modificationData?.old_booking_id) {
+                  await cancelModificationBookingOnPaymentFailure(
+                    bookingId,
+                    modificationData.old_booking_id,
+                    'Modification payment failed'
+                  );
+                } else {
+                  // Fallback to regular cancellation
+                  await cancelBookingOnPaymentFailure(
+                    bookingId,
+                    'Payment failed'
+                  );
+                }
+              } else {
+                await cancelBookingOnPaymentFailure(
+                  bookingId,
+                  'Payment failed'
+                );
+              }
             } catch (cancelError) {
               console.warn(
                 'Failed to cancel booking on payment failure:',
@@ -156,6 +235,31 @@ export default function PaymentSuccessScreen() {
               bookingStatus: 'confirmed',
             });
             setStatus('success');
+
+            // Handle modification completion
+            if (isModification === 'true') {
+              try {
+                // For modifications, complete the modification process
+                const { data: modificationData } = await supabase
+                  .from('modifications')
+                  .select('old_booking_id')
+                  .eq('new_booking_id', bookingId)
+                  .single();
+
+                if (modificationData?.old_booking_id) {
+                  await completeModificationAfterPayment(
+                    bookingId,
+                    modificationData.old_booking_id
+                  );
+                }
+              } catch (modificationError) {
+                console.warn(
+                  'Failed to complete modification process:',
+                  modificationError
+                );
+              }
+            }
+
             // Reset booking state only on successful payment
             if (shouldResetBooking === 'true') {
               resetCurrentBooking();
@@ -278,6 +382,31 @@ export default function PaymentSuccessScreen() {
 
         if (resultData.paymentStatus === 'completed') {
           setStatus('success');
+
+          // Handle modification completion
+          if (isModification === 'true') {
+            try {
+              // For modifications, complete the modification process
+              const { data: modificationData } = await supabase
+                .from('modifications')
+                .select('old_booking_id')
+                .eq('new_booking_id', bookingId)
+                .single();
+
+              if (modificationData?.old_booking_id) {
+                await completeModificationAfterPayment(
+                  bookingId,
+                  modificationData.old_booking_id
+                );
+              }
+            } catch (modificationError) {
+              console.warn(
+                'Failed to complete modification process:',
+                modificationError
+              );
+            }
+          }
+
           // Reset booking state only on successful payment
           if (shouldResetBooking === 'true') {
             resetCurrentBooking();
@@ -378,6 +507,31 @@ export default function PaymentSuccessScreen() {
 
       if (resultData.paymentStatus === 'completed') {
         setStatus('success');
+
+        // Handle modification completion
+        if (isModification === 'true') {
+          try {
+            // For modifications, complete the modification process
+            const { data: modificationData } = await supabase
+              .from('modifications')
+              .select('old_booking_id')
+              .eq('new_booking_id', bookingId)
+              .single();
+
+            if (modificationData?.old_booking_id) {
+              await completeModificationAfterPayment(
+                bookingId,
+                modificationData.old_booking_id
+              );
+            }
+          } catch (modificationError) {
+            console.warn(
+              'Failed to complete modification process:',
+              modificationError
+            );
+          }
+        }
+
         // Reset booking state only on successful payment
         if (shouldResetBooking === 'true') {
           resetCurrentBooking();
