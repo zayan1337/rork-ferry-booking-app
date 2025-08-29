@@ -11,7 +11,11 @@ import {
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import { X, ArrowLeft } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-import { createMibSession } from '@/utils/paymentUtils';
+import {
+  createMibSession,
+  releaseSeatReservations,
+  cancelBookingOnPaymentCancellation,
+} from '@/utils/paymentUtils';
 
 interface MibPaymentWebViewProps {
   visible: boolean;
@@ -67,7 +71,6 @@ export default function MibPaymentWebView({
       // Set a 5-minute timeout for payment completion
       paymentTimeoutRef.current = setTimeout(
         () => {
-          console.log('Payment timeout reached');
           onFailure('Payment timeout - please try again');
         },
         5 * 60 * 1000
@@ -95,49 +98,23 @@ export default function MibPaymentWebView({
       console.warn = (...args) => {
         const message = args.join(' ');
 
-        console.log('⚠️ Console.warn intercepted:', {
-          message,
-          containsPaymentSuccess: message.includes(
-            "Can't open url: rork-ferry://payment-success"
-          ),
-          timestamp: new Date().toISOString(),
-        });
-
         if (message.includes("Can't open url: rork-ferry://payment-success")) {
-          console.log(
-            '🔗 Deep link payment success URL detected in console.warn'
-          );
-
           try {
             // Extract the URL from the warning message
             const urlMatch = message.match(
               /rork-ferry:\/\/payment-success\?([^\s"']+)/
             );
 
-            console.log('🔍 URL extraction attempt:', {
-              urlMatch: urlMatch ? urlMatch[0] : null,
-              fullMessage: message,
-            });
-
             if (urlMatch) {
               const fullUrl = 'rork-ferry://payment-success?' + urlMatch[1];
-              console.log('🔗 Reconstructed deep link URL:', fullUrl);
 
               const url = new URL(fullUrl);
               const result = url.searchParams.get('result');
-              const bookingId = url.searchParams.get('bookingId');
+              const bookingIdFromUrl = url.searchParams.get('bookingId');
               const sessionId =
                 url.searchParams.get('session.id') ||
                 currentSessionData?.sessionId ||
                 url.searchParams.get('sessionVersion');
-
-              console.log('📋 Deep link parameters extracted:', {
-                result,
-                bookingId,
-                sessionId,
-                currentSessionId: currentSessionData?.sessionId,
-                allParams: Object.fromEntries(url.searchParams.entries()),
-              });
 
               // Clear any existing timeout
               if (paymentTimeoutRef.current) {
@@ -147,54 +124,27 @@ export default function MibPaymentWebView({
               const paymentResultData = {
                 result: result || 'UNKNOWN',
                 sessionId: sessionId,
-                bookingId: bookingId,
+                bookingId: bookingIdFromUrl || bookingId, // Use URL bookingId or fallback to prop
                 source: 'console_warn_deep_link',
                 timestamp: new Date().toISOString(),
                 originalMessage: message,
               };
 
-              console.log(
-                '📊 Payment Result from Deep Link:',
-                paymentResultData
-              );
-
               if (result === 'SUCCESS') {
-                console.log(
-                  '🎉 Payment SUCCESS detected via console.warn deep link'
-                );
                 onSuccess(paymentResultData);
               } else if (result === 'CANCELLED') {
-                console.log(
-                  '❌ Payment CANCELLED detected via console.warn deep link'
-                );
                 onCancel();
               } else if (result === 'FAILURE') {
-                console.log(
-                  '💥 Payment FAILURE detected via console.warn deep link'
-                );
                 onFailure('Payment failed');
-              } else {
-                console.log(
-                  '❓ Unknown payment result via console.warn deep link:',
-                  result
-                );
               }
             }
           } catch (error) {
-            console.error('❌ Error parsing deep link from console.warn:', {
-              error: error instanceof Error ? error.message : 'Unknown error',
-              message,
-              stack: error instanceof Error ? error.stack : undefined,
-            });
-
             // If we can't parse but we know it's a success, assume success
             if (message.includes('result=SUCCESS')) {
-              console.log(
-                '🎉 Fallback SUCCESS detection from console.warn message'
-              );
               onSuccess({
                 result: 'SUCCESS',
                 sessionId: currentSessionData?.sessionId,
+                bookingId: bookingId, // Use prop bookingId as fallback
                 source: 'console_warn_fallback',
                 timestamp: new Date().toISOString(),
                 originalMessage: message,
@@ -211,7 +161,14 @@ export default function MibPaymentWebView({
         console.warn = originalWarn;
       };
     }
-  }, [showPaymentPage, currentSessionData, onSuccess, onCancel, onFailure]);
+  }, [
+    showPaymentPage,
+    currentSessionData,
+    onSuccess,
+    onCancel,
+    onFailure,
+    bookingId,
+  ]);
 
   const createPaymentSummaryHTML = () => {
     const formatCurrency = (amount: number, currency: string = 'MVR') => {
@@ -501,19 +458,8 @@ export default function MibPaymentWebView({
   };
 
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
-    console.log('🌐 MIB WebView Navigation State Change:', {
-      url: navState.url,
-      title: navState.title,
-      loading: navState.loading,
-      canGoBack: navState.canGoBack,
-      canGoForward: navState.canGoForward,
-      timestamp: new Date().toISOString(),
-    });
-
     // Check for MIB gateway URLs with result parameters
     if (navState.url.includes('gateway.mastercard.com')) {
-      console.log('🏦 MIB Gateway URL detected:', navState.url);
-
       try {
         const url = new URL(navState.url);
         const result = url.searchParams.get('result');
@@ -522,21 +468,8 @@ export default function MibPaymentWebView({
         const orderId = url.searchParams.get('orderId');
         const transactionId = url.searchParams.get('transactionId');
 
-        console.log('💳 MIB Payment Response Parameters:', {
-          result,
-          sessionId,
-          resultIndicator,
-          orderId,
-          transactionId,
-          allParams: Object.fromEntries(url.searchParams.entries()),
-          currentSessionId: currentSessionData?.sessionId,
-          bookingId: bookingId,
-        });
-
         // Check for result parameters
         if (result) {
-          console.log(`✅ MIB Payment Result Found: ${result}`);
-
           // Clear any existing timeout
           if (paymentTimeoutRef.current) {
             clearTimeout(paymentTimeoutRef.current);
@@ -553,16 +486,11 @@ export default function MibPaymentWebView({
             timestamp: new Date().toISOString(),
           };
 
-          console.log('📊 Final Payment Result Data:', paymentResultData);
-
           if (result === 'SUCCESS') {
-            console.log('🎉 Payment SUCCESS - calling onSuccess callback');
             onSuccess(paymentResultData);
           } else if (result === 'CANCELLED') {
-            console.log('❌ Payment CANCELLED - calling onCancel callback');
             onCancel();
           } else if (result === 'FAILURE') {
-            console.log('💥 Payment FAILURE - calling onFailure callback');
             onFailure('Payment failed');
           }
           return;
@@ -570,8 +498,6 @@ export default function MibPaymentWebView({
 
         // Check for resultIndicator (alternative parameter name)
         if (resultIndicator) {
-          console.log(`🔍 MIB Result Indicator Found: ${resultIndicator}`);
-
           // Clear any existing timeout
           if (paymentTimeoutRef.current) {
             clearTimeout(paymentTimeoutRef.current);
@@ -587,42 +513,22 @@ export default function MibPaymentWebView({
             timestamp: new Date().toISOString(),
           };
 
-          console.log(
-            '📊 Final Payment Result Data (via resultIndicator):',
-            paymentResultData
-          );
-
           if (resultIndicator === 'SUCCESS') {
-            console.log(
-              '🎉 Payment SUCCESS (via resultIndicator) - calling onSuccess callback'
-            );
             onSuccess(paymentResultData);
           } else if (resultIndicator === 'CANCELLED') {
-            console.log(
-              '❌ Payment CANCELLED (via resultIndicator) - calling onCancel callback'
-            );
             onCancel();
           } else if (resultIndicator === 'FAILURE') {
-            console.log(
-              '💥 Payment FAILURE (via resultIndicator) - calling onFailure callback'
-            );
             onFailure('Payment failed');
           }
           return;
         }
       } catch (error) {
-        console.error('❌ Error processing MIB gateway URL:', {
-          error: error instanceof Error ? error.message : 'Unknown error',
-          url: navState.url,
-          stack: error instanceof Error ? error.stack : undefined,
-        });
+        // Silent error handling
       }
     }
 
     // Check for specific MIB completion pages
     if (navState.url.includes('gateway.mastercard.com/checkout/complete')) {
-      console.log('✅ MIB completion page detected');
-
       // Clear any existing timeout
       if (paymentTimeoutRef.current) {
         clearTimeout(paymentTimeoutRef.current);
@@ -658,29 +564,16 @@ export default function MibPaymentWebView({
     try {
       const data = JSON.parse(event.nativeEvent.data);
 
-      console.log('📨 WebView Message Received:', {
-        type: data.type,
-        data: data,
-        timestamp: new Date().toISOString(),
-      });
-
       switch (data.type) {
         case 'PROCEED_TO_PAYMENT':
-          console.log('▶️ Proceeding to MIB payment...');
           await handleProceedToPayment();
           break;
 
         case 'CANCEL_PAYMENT':
-          console.log('❌ Payment cancelled by user');
           onCancel();
           break;
 
         case 'PAYMENT_ERROR':
-          console.error('💥 Payment error received:', {
-            error: data.error,
-            timestamp: new Date().toISOString(),
-          });
-
           // Clear any existing timeout
           if (paymentTimeoutRef.current) {
             clearTimeout(paymentTimeoutRef.current);
@@ -689,13 +582,6 @@ export default function MibPaymentWebView({
           break;
 
         case 'PAYMENT_RESULT':
-          console.log('📊 Payment result received from WebView:', {
-            result: data.result,
-            sessionId: data.sessionId,
-            resultIndicator: data.resultIndicator,
-            timestamp: new Date().toISOString(),
-          });
-
           // Clear any existing timeout
           if (paymentTimeoutRef.current) {
             clearTimeout(paymentTimeoutRef.current);
@@ -710,26 +596,19 @@ export default function MibPaymentWebView({
           };
 
           if (data.result === 'SUCCESS') {
-            console.log('🎉 Payment SUCCESS from WebView message');
             onSuccess(paymentResultData);
           } else if (data.result === 'CANCELLED') {
-            console.log('❌ Payment CANCELLED from WebView message');
             onCancel();
           } else if (data.result === 'FAILURE') {
-            console.log('💥 Payment FAILURE from WebView message');
             onFailure('Payment failed');
           }
           break;
 
         default:
-          console.log('❓ Unknown WebView message type:', data.type);
+          break;
       }
     } catch (error) {
-      console.error('❌ Error processing WebView message:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        rawData: event.nativeEvent.data,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      // Silent error handling
     }
   };
 
@@ -840,7 +719,7 @@ export default function MibPaymentWebView({
   const handleClose = () => {
     Alert.alert(
       'Cancel Payment',
-      'Are you sure you want to cancel this payment?',
+      'Are you sure you want to cancel this payment? Your seats will be released.',
       [
         {
           text: 'Continue Payment',
@@ -849,7 +728,30 @@ export default function MibPaymentWebView({
         {
           text: 'Cancel Payment',
           style: 'destructive',
-          onPress: onCancel,
+          onPress: async () => {
+            // Cancel booking and create cancellation record when user cancels payment
+            try {
+              await cancelBookingOnPaymentCancellation(
+                bookingId,
+                'Payment cancelled by user'
+              );
+            } catch (error) {
+              console.warn(
+                'Failed to cancel booking on payment cancellation:',
+                error
+              );
+              // Fallback to just releasing seats
+              try {
+                await releaseSeatReservations(bookingId);
+              } catch (seatError) {
+                console.warn(
+                  'Failed to release seats on payment cancellation:',
+                  seatError
+                );
+              }
+            }
+            onCancel();
+          },
         },
       ]
     );

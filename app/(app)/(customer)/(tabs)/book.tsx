@@ -379,15 +379,6 @@ export default function BookScreen() {
 
         // Handle MIB payment differently
         if (paymentMethod === 'mib') {
-          console.log(
-            '💳 MIB payment method selected - preparing payment modal',
-            {
-              bookingResult,
-              paymentMethod,
-              timestamp: new Date().toISOString(),
-            }
-          );
-
           // Prepare booking details for the payment modal
           const bookingDetails = {
             bookingNumber: bookingResult.booking_number,
@@ -399,20 +390,13 @@ export default function BookScreen() {
             passengerCount: localSelectedSeats.length,
           };
 
-          console.log('📋 MIB booking details prepared:', {
-            bookingDetails,
-            bookingId: bookingResult.bookingId,
-          });
-
           // Show modal immediately with booking details
           setCurrentBookingId(bookingResult.bookingId);
           setMibBookingDetails(bookingDetails);
           setShowMibPayment(true);
 
-          console.log('🎭 MIB payment modal opened');
           // Note: MIB session will be created when user clicks "Proceed to Payment" in the modal
         } else {
-          console.log('💰 Non-MIB payment method selected:', paymentMethod);
           // For other payment methods, show success message
           resetCurrentBooking();
           setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
@@ -1084,84 +1068,57 @@ export default function BookScreen() {
             setMibBookingDetails(null);
           }}
           onSuccess={result => {
-            console.log('🎉 MIB Payment SUCCESS callback received:', {
-              result,
-              currentBookingId,
-              timestamp: new Date().toISOString(),
-            });
-
             // Close the modal first
             setShowMibPayment(false);
             setCurrentBookingId('');
             setMibSessionData(null);
             setMibBookingDetails(null);
 
-            // Reset booking state after successful payment
-            resetCurrentBooking();
-            setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
-            setPaymentMethod('');
-            setTermsAccepted(false);
-            setLocalSelectedSeats([]);
-            setLocalReturnSelectedSeats([]);
-            setErrors(createEmptyFormErrors());
-
-            console.log('🧹 Booking state reset after successful payment');
-
-            // Navigate to payment success page with details
-            console.log('🚀 Navigating to payment success page with SUCCESS');
+            // Navigate to payment success page immediately without resetting booking state
+            // The payment success page will handle the booking state reset
             router.push({
               pathname: '/(app)/(customer)/payment-success',
               params: {
                 bookingId: currentBookingId,
                 result: 'SUCCESS',
                 sessionId: result.sessionId,
+                resetBooking: 'true', // Flag to indicate booking should be reset
               },
             });
           }}
           onFailure={error => {
-            console.log('💥 MIB Payment FAILURE callback received:', {
-              error,
-              currentBookingId,
-              timestamp: new Date().toISOString(),
-            });
-
             // Close the modal first
             setShowMibPayment(false);
             setCurrentBookingId('');
             setMibSessionData(null);
             setMibBookingDetails(null);
 
-            console.log('🚀 Navigating to payment success page with FAILURE');
-
             // Navigate to payment success page with failure status
+            // Don't reset booking state so user can retry payment
             router.push({
               pathname: '/(app)/(customer)/payment-success',
               params: {
                 bookingId: currentBookingId,
                 result: 'FAILURE',
+                resetBooking: 'false', // Don't reset booking on failure
               },
             });
           }}
           onCancel={() => {
-            console.log('❌ MIB Payment CANCELLED callback received:', {
-              currentBookingId,
-              timestamp: new Date().toISOString(),
-            });
-
             // Close the modal first
             setShowMibPayment(false);
             setCurrentBookingId('');
             setMibSessionData(null);
             setMibBookingDetails(null);
 
-            console.log('🚀 Navigating to payment success page with CANCELLED');
-
             // Navigate to payment success page with cancelled status
+            // Don't reset booking state so user can retry payment
             router.push({
               pathname: '/(app)/(customer)/payment-success',
               params: {
                 bookingId: currentBookingId,
                 result: 'CANCELLED',
+                resetBooking: 'false', // Don't reset booking on cancellation
               },
             });
           }}

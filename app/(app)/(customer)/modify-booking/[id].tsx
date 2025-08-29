@@ -779,7 +779,7 @@ export default function ModifyBookingScreen() {
           />
 
           <Button
-            title='Confirm Modification'
+            title='Confirm'
             onPress={handleModify}
             loading={isLoading}
             disabled={isLoading}

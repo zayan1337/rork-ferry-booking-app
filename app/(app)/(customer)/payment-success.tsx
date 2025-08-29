@@ -9,7 +9,12 @@ import Button from '@/components/Button';
 import {
   processMibPaymentResult,
   checkMibPaymentStatus,
+  cancelBookingOnPaymentFailure,
+  cancelBookingOnPaymentCancellation,
+  releaseSeatReservations,
 } from '@/utils/paymentUtils';
+import { useBookingStore } from '@/store';
+import { BOOKING_STEPS } from '@/constants/customer';
 
 type PaymentStatus =
   | 'success'
@@ -37,10 +42,15 @@ export default function PaymentSuccessScreen() {
     null
   );
 
+  // Get booking store actions for resetting state
+  const { resetBooking: resetCurrentBooking, setCurrentStep } =
+    useBookingStore();
+
   const bookingId = params.bookingId as string;
   const result = params.result as string;
   const sessionId =
     (params['session.id'] as string) || (params.sessionId as string);
+  const shouldResetBooking = params.resetBooking as string;
 
   useEffect(() => {
     handlePaymentResult();
@@ -58,13 +68,6 @@ export default function PaymentSuccessScreen() {
 
       // Process the payment result
       if (result && (sessionId || bookingId)) {
-        console.log('🔄 Processing payment result with Edge Function...', {
-          result,
-          sessionId,
-          bookingId,
-          timestamp: new Date().toISOString(),
-        });
-
         try {
           const resultData = await processMibPaymentResult({
             sessionId,
@@ -72,19 +75,13 @@ export default function PaymentSuccessScreen() {
             bookingId, // Pass bookingId to help find the payment record
           });
 
-          console.log('📊 Payment result processed successfully:', {
-            resultData,
-            originalResult: result,
-            hasNote: !!resultData.note,
-          });
-
           // Create a proper payment result object
           const paymentResultObject = {
-            success: resultData.success || true,
+            success: true,
             status: result,
-            message: resultData.note || 'Payment processed successfully',
-            bookingId: resultData.bookingId || bookingId,
-            sessionId: resultData.sessionId || sessionId,
+            message: 'Payment processed successfully',
+            bookingId: bookingId,
+            sessionId: sessionId,
             paymentStatus: resultData.paymentStatus,
             bookingStatus: resultData.bookingStatus,
           };
@@ -92,54 +89,61 @@ export default function PaymentSuccessScreen() {
           setPaymentResult(paymentResultObject);
 
           if (result === 'SUCCESS') {
-            console.log('✅ Setting status to success');
             setStatus('success');
+            // Reset booking state only on successful payment
+            if (shouldResetBooking === 'true') {
+              resetCurrentBooking();
+              setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+            }
           } else if (result === 'CANCELLED') {
-            console.log('❌ Setting status to cancelled');
             setStatus('cancelled');
+            // Cancel booking and create cancellation record when payment is cancelled
+            try {
+              await cancelBookingOnPaymentCancellation(
+                bookingId,
+                'Payment cancelled by user'
+              );
+            } catch (cancelError) {
+              console.warn(
+                'Failed to cancel booking on payment cancellation:',
+                cancelError
+              );
+              // Fallback to just releasing seats
+              try {
+                await releaseSeatReservations(bookingId);
+              } catch (seatError) {
+                console.warn(
+                  'Failed to release seats on cancellation:',
+                  seatError
+                );
+              }
+            }
           } else if (result === 'FAILURE') {
-            console.log('💥 Setting status to failed');
             setStatus('failed');
+            // Cancel booking and release seats when payment fails
+            try {
+              await cancelBookingOnPaymentFailure(bookingId, 'Payment failed');
+            } catch (cancelError) {
+              console.warn(
+                'Failed to cancel booking on payment failure:',
+                cancelError
+              );
+            }
           } else {
-            console.log('⏳ Setting status to pending');
             setStatus('pending');
           }
         } catch (processError) {
-          console.error('❌ Edge Function failed to process payment result:', {
-            processError:
-              processError instanceof Error
-                ? processError.message
-                : 'Unknown error',
-            result,
-            sessionId,
-            bookingId,
-            stack:
-              processError instanceof Error ? processError.stack : undefined,
-          });
-
           // If Edge Function fails but we have a SUCCESS result from the URL,
           // we can still show success since we know the payment completed
           if (result === 'SUCCESS') {
-            console.log(
-              '🔄 Edge Function failed but result is SUCCESS - attempting manual update'
-            );
-
             // Manually update the payment and booking status in the database
             try {
               const { manuallyUpdatePaymentStatus } = await import(
                 '@/utils/paymentUtils'
               );
               await manuallyUpdatePaymentStatus(bookingId);
-
-              console.log('✅ Manual payment status update successful');
             } catch (updateError) {
-              console.error('❌ Failed to manually update payment status:', {
-                updateError:
-                  updateError instanceof Error
-                    ? updateError.message
-                    : 'Unknown error',
-                bookingId,
-              });
+              // Silent fallback
             }
 
             setPaymentResult({
@@ -152,33 +156,41 @@ export default function PaymentSuccessScreen() {
               bookingStatus: 'confirmed',
             });
             setStatus('success');
+            // Reset booking state only on successful payment
+            if (shouldResetBooking === 'true') {
+              resetCurrentBooking();
+              setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+            }
           } else if (result === 'CANCELLED') {
-            console.log(
-              '❌ Edge Function failed but result is CANCELLED - attempting manual update'
-            );
-
-            // Update payment status to cancelled
+            // Cancel booking and release seats when payment is cancelled
             try {
-              const { error: paymentUpdateError } = await supabase
-                .from('payments')
-                .update({ status: 'cancelled' })
-                .eq('booking_id', bookingId)
-                .eq('payment_method', 'mib');
-
-              const { error: bookingUpdateError } = await supabase
-                .from('bookings')
-                .update({ status: 'cancelled' })
-                .eq('id', bookingId);
-
-              console.log('✅ Manual cancellation update completed', {
-                paymentUpdateError,
-                bookingUpdateError,
-              });
-            } catch (updateError) {
-              console.error(
-                '❌ Failed to update cancelled status:',
-                updateError
+              await cancelBookingOnPaymentCancellation(
+                bookingId,
+                'Payment cancelled by user'
               );
+            } catch (cancelError) {
+              console.warn(
+                'Failed to cancel booking on payment cancellation:',
+                cancelError
+              );
+              // Fallback to manual update
+              try {
+                const { error: paymentUpdateError } = await supabase
+                  .from('payments')
+                  .update({ status: 'cancelled' })
+                  .eq('booking_id', bookingId)
+                  .eq('payment_method', 'mib');
+
+                const { error: bookingUpdateError } = await supabase
+                  .from('bookings')
+                  .update({ status: 'cancelled' })
+                  .eq('id', bookingId);
+
+                // Try to release seats manually
+                await releaseSeatReservations(bookingId);
+              } catch (updateError) {
+                // Silent fallback
+              }
             }
 
             setPaymentResult({
@@ -192,29 +204,32 @@ export default function PaymentSuccessScreen() {
             });
             setStatus('cancelled');
           } else if (result === 'FAILURE') {
-            console.log(
-              '💥 Edge Function failed but result is FAILURE - attempting manual update'
-            );
-
-            // Update payment status to failed
+            // Cancel booking and release seats when payment fails
             try {
-              const { error: paymentUpdateError } = await supabase
-                .from('payments')
-                .update({ status: 'failed' })
-                .eq('booking_id', bookingId)
-                .eq('payment_method', 'mib');
+              await cancelBookingOnPaymentFailure(bookingId, 'Payment failed');
+            } catch (cancelError) {
+              console.warn(
+                'Failed to cancel booking on payment failure:',
+                cancelError
+              );
+              // Fallback to manual update
+              try {
+                const { error: paymentUpdateError } = await supabase
+                  .from('payments')
+                  .update({ status: 'failed' })
+                  .eq('booking_id', bookingId)
+                  .eq('payment_method', 'mib');
 
-              const { error: bookingUpdateError } = await supabase
-                .from('bookings')
-                .update({ status: 'cancelled' })
-                .eq('id', bookingId);
+                const { error: bookingUpdateError } = await supabase
+                  .from('bookings')
+                  .update({ status: 'cancelled' })
+                  .eq('id', bookingId);
 
-              console.log('✅ Manual failure update completed', {
-                paymentUpdateError,
-                bookingUpdateError,
-              });
-            } catch (updateError) {
-              console.error('❌ Failed to update failed status:', updateError);
+                // Try to release seats manually
+                await releaseSeatReservations(bookingId);
+              } catch (updateError) {
+                // Silent fallback
+              }
             }
 
             setPaymentResult({
@@ -228,8 +243,6 @@ export default function PaymentSuccessScreen() {
             });
             setStatus('failed');
           } else {
-            console.log('❓ Edge Function failed with unknown result:', result);
-
             setPaymentResult({
               success: false,
               status: 'PENDING',
@@ -243,22 +256,7 @@ export default function PaymentSuccessScreen() {
           }
         }
       } else {
-        console.log(
-          '🔍 No result/sessionId provided - checking payment status from database...',
-          {
-            bookingId,
-            hasResult: !!result,
-            hasSessionId: !!sessionId,
-          }
-        );
-
         const resultData = await checkMibPaymentStatus(bookingId);
-
-        console.log('📊 Database Status Check Result:', {
-          resultData,
-          bookingId,
-          timestamp: new Date().toISOString(),
-        });
 
         // Create a proper payment result object for database results
         const paymentResultObject = {
@@ -279,24 +277,28 @@ export default function PaymentSuccessScreen() {
         setPaymentResult(paymentResultObject);
 
         if (resultData.paymentStatus === 'completed') {
-          console.log(
-            '✅ Database check shows payment completed - setting success'
-          );
           setStatus('success');
+          // Reset booking state only on successful payment
+          if (shouldResetBooking === 'true') {
+            resetCurrentBooking();
+            setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+          }
         } else if (resultData.paymentStatus === 'failed') {
-          console.log(
-            '💥 Database check shows payment failed - setting failed'
-          );
           setStatus('failed');
+          // Release seats when payment is failed (from database check)
+          try {
+            await releaseSeatReservations(bookingId);
+          } catch (seatError) {
+            console.warn(
+              'Failed to release seats on payment failure:',
+              seatError
+            );
+          }
         } else {
-          console.log(
-            '⏳ Database check shows payment pending - setting pending'
-          );
           setStatus('pending');
         }
       }
     } catch (error: any) {
-      console.error('Error handling payment result:', error);
       setError(error.message || 'Failed to process payment result');
       setStatus('failed');
     } finally {
@@ -351,6 +353,10 @@ export default function PaymentSuccessScreen() {
 
   const handleRetryPayment = () => {
     // Navigate back to booking page to retry payment
+    // Set the booking step to payment step if booking state wasn't reset
+    if (shouldResetBooking !== 'true') {
+      setCurrentStep(BOOKING_STEPS.PAYMENT);
+    }
     router.back();
   };
 
@@ -372,13 +378,26 @@ export default function PaymentSuccessScreen() {
 
       if (resultData.paymentStatus === 'completed') {
         setStatus('success');
+        // Reset booking state only on successful payment
+        if (shouldResetBooking === 'true') {
+          resetCurrentBooking();
+          setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+        }
       } else if (resultData.paymentStatus === 'failed') {
         setStatus('failed');
+        // Release seats when payment is failed (from manual status check)
+        try {
+          await releaseSeatReservations(bookingId);
+        } catch (seatError) {
+          console.warn(
+            'Failed to release seats on payment failure:',
+            seatError
+          );
+        }
       } else {
         setStatus('pending');
       }
     } catch (error: any) {
-      console.error('Error checking payment status:', error);
       setError(error.message || 'Failed to check payment status');
     } finally {
       setLoading(false);

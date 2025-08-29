@@ -32,15 +32,7 @@ serve(async (req: Request) => {
         ''
     );
 
-    console.log('🔧 Supabase client initialized:', {
-      hasUrl: !!Deno.env.get('SUPABASE_URL'),
-      hasServiceKey: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
-      hasAnonKey: !!Deno.env.get('SUPABASE_ANON_KEY'),
-      usingServiceRole: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
-    });
-
     const requestBody = await req.json();
-    console.log('MIB Payment Edge Function called with:', requestBody);
 
     const {
       action,
@@ -65,14 +57,6 @@ serve(async (req: Request) => {
           }
         );
 
-      case 'test-database':
-        return await testDatabase(supabase);
-
-      case 'test-mib-api':
-        return await testMibApi();
-      //  case 'create-session':
-      //     return await createSession();
-
       case 'create-session':
         return await createMibSession(
           supabase,
@@ -88,9 +72,6 @@ serve(async (req: Request) => {
 
       case 'process-payment-result':
         return await processPaymentResult(supabase, requestBody);
-
-      case 'verify-payment':
-        return await verifyPaymentWithMib(supabase, requestBody);
 
       default:
         return new Response(JSON.stringify({ error: 'Invalid action' }), {
@@ -115,49 +96,7 @@ serve(async (req: Request) => {
 });
 
 // Create a basic session (Step 1: Establish a Session)
-async function createSession() {
-  try {
-    const sessionRequest = {
-      session: {
-        authenticationLimit: 25,
-      },
-    };
 
-    const sessionResponse = await fetch(
-      `${MIB_BASE_URL}/merchant/${MERCHANT_ID}/session`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: AUTH_HEADER,
-        },
-        body: JSON.stringify(sessionRequest),
-      }
-    );
-
-    if (!sessionResponse.ok) {
-      const errorText = await sessionResponse.text();
-      console.error('MPGS Session API Error:', errorText);
-      throw new Error(
-        `Failed to create session: ${sessionResponse.status} ${sessionResponse.statusText}`
-      );
-    }
-
-    const sessionData = await sessionResponse.json();
-    console.log('Session created successfully:', sessionData.session.id);
-
-    return new Response(JSON.stringify(sessionData), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Error creating session:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-}
 async function createMibSession(
   supabase: any,
   bookingId: string,
@@ -167,15 +106,6 @@ async function createMibSession(
   cancelUrl: string
 ) {
   try {
-    console.log('🚀 MIB Session Creation Started:', {
-      bookingId,
-      amount,
-      currency,
-      returnUrl,
-      cancelUrl,
-      timestamp: new Date().toISOString(),
-    });
-
     // Get basic booking details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -183,47 +113,25 @@ async function createMibSession(
       .eq('id', bookingId)
       .maybeSingle();
 
-    console.log('📋 Booking lookup result:', {
-      booking,
-      bookingError,
-      bookingId,
-    });
-
     if (bookingError) {
-      console.error('❌ Database error fetching booking:', bookingError);
       throw new Error(`Database error: ${bookingError.message}`);
     }
 
     if (!booking) {
-      console.error('❌ Booking not found:', { bookingId });
       throw new Error(
         `Booking with ID ${bookingId} not found. Please ensure the booking was created successfully.`
       );
     }
 
-    console.log('✅ Booking found successfully:', {
-      bookingNumber: booking.booking_number,
-      status: booking.status,
-      tripId: booking.trip_id,
-    });
-
     // Try to get route description, but don't fail if it doesn't work
     let routeDescription = 'Ferry booking';
     try {
-      console.log('🔍 Fetching route description for trip:', booking.trip_id);
-
       // Get trip details
       const { data: trip, error: tripError } = await supabase
         .from('trips')
         .select('id, route_id')
         .eq('id', booking.trip_id)
         .maybeSingle();
-
-      console.log('🚢 Trip lookup result:', {
-        trip,
-        tripError,
-        tripId: booking.trip_id,
-      });
 
       if (!tripError && trip) {
         // Get route details using the routes_simple_view
@@ -233,34 +141,17 @@ async function createMibSession(
           .eq('id', trip.route_id)
           .maybeSingle();
 
-        console.log('🗺️ Route lookup result:', {
-          route,
-          routeError,
-          routeId: trip.route_id,
-        });
-
         if (!routeError && route) {
           routeDescription = `Ferry booking from ${route.from_island_name} to ${route.to_island_name}`;
-          console.log('✅ Route description created:', routeDescription);
-        } else {
-          console.log(
-            '⚠️ Could not fetch route details, using default description'
-          );
         }
-      } else {
-        console.log(
-          '⚠️ Could not fetch trip details, using default description'
-        );
       }
     } catch (routeError) {
-      console.log('⚠️ Route lookup failed (non-critical):', routeError);
+      // Route lookup failed - use default description
     }
 
     // Generate unique order ID
     const orderId =
       booking.booking_number || `order-${bookingId}-${Date.now()}`;
-
-    console.log('🆔 Order ID generated:', orderId);
 
     // Create MIB session using INITIATE_CHECKOUT operation
     const sessionRequest = {
@@ -283,13 +174,6 @@ async function createMibSession(
       },
     };
 
-    console.log('📤 MIB Session Request:', {
-      sessionRequest,
-      apiUrl: `${MIB_BASE_URL}/merchant/${MERCHANT_ID}/session`,
-      merchantId: MERCHANT_ID,
-      timestamp: new Date().toISOString(),
-    });
-
     const sessionResponse = await fetch(
       `${MIB_BASE_URL}/merchant/${MERCHANT_ID}/session`,
       {
@@ -302,22 +186,8 @@ async function createMibSession(
       }
     );
 
-    console.log('📥 MIB API Response Status:', {
-      status: sessionResponse.status,
-      statusText: sessionResponse.statusText,
-      ok: sessionResponse.ok,
-      headers: Object.fromEntries(sessionResponse.headers.entries()),
-    });
-
     if (!sessionResponse.ok) {
       const errorText = await sessionResponse.text();
-      console.error('❌ MIB API Error Response:', {
-        status: sessionResponse.status,
-        statusText: sessionResponse.statusText,
-        errorText: errorText,
-        requestBody: JSON.stringify(sessionRequest, null, 2),
-        timestamp: new Date().toISOString(),
-      });
       throw new Error(
         `Failed to create MIB session: ${sessionResponse.status} - ${errorText}`
       );
@@ -325,29 +195,12 @@ async function createMibSession(
 
     const sessionData = await sessionResponse.json();
 
-    console.log('📊 MIB Session Response Data:', {
-      sessionData,
-      hasSessionId: !!sessionData.session?.id,
-      hasSuccessIndicator: !!sessionData.successIndicator,
-      timestamp: new Date().toISOString(),
-    });
-
     const sessionId = sessionData.session?.id;
     const successIndicator = sessionData.successIndicator;
 
-    console.log('🔑 Session details extracted:', {
-      sessionId,
-      successIndicator,
-      hasSessionId: !!sessionId,
-      hasSuccessIndicator: !!successIndicator,
-    });
-
     if (!sessionId) {
-      console.error('❌ No session ID returned from MIB API');
       throw new Error('No session ID returned from MIB API');
     }
-
-    console.log('💾 Updating booking with MIB session details...');
 
     // Update booking with MIB session ID and success indicator
     const { error: updateError } = await supabase
@@ -359,14 +212,10 @@ async function createMibSession(
       .eq('id', bookingId);
 
     if (updateError) {
-      console.error('⚠️ Booking update error (non-critical):', updateError);
-    } else {
-      console.log('✅ Booking updated successfully');
+      // Booking update error - non-critical
     }
 
-    console.log('💳 Creating/updating payment record...');
-
-    // Create or update payment record with success indicator
+    // Create or update payment record with session ID
     const { error: paymentError } = await supabase.from('payments').upsert(
       {
         booking_id: bookingId,
@@ -374,9 +223,7 @@ async function createMibSession(
         amount: amount,
         currency: currency,
         status: 'pending',
-        receipt_number: sessionId,
-        // Store success indicator for later verification
-        transaction_reference: successIndicator || null,
+        session_id: sessionId, // Store session ID in the correct field
       },
       {
         onConflict: 'booking_id,payment_method',
@@ -384,9 +231,7 @@ async function createMibSession(
     );
 
     if (paymentError) {
-      console.error('⚠️ Payment record error (non-critical):', paymentError);
-    } else {
-      console.log('✅ Payment record created/updated successfully');
+      // Payment record error - non-critical
     }
 
     // The SDK will handle the redirect, but we still need the base URL for return handling
@@ -409,27 +254,10 @@ async function createMibSession(
       },
     };
 
-    console.log('📤 Final MIB Session Response:', {
-      responseData,
-      bookingId,
-      sessionId,
-      timestamp: new Date().toISOString(),
-    });
-
-    console.log('✅ MIB Session Creation Completed Successfully');
-
     return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('MIB Session Creation Error:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      bookingId,
-      amount,
-      currency,
-    });
-
     const errorResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -445,11 +273,6 @@ async function createMibSession(
 
 async function updatePaymentStatus(supabase: any, bookingId: string) {
   try {
-    console.log('🔄 Payment Status Update Started:', {
-      bookingId,
-      timestamp: new Date().toISOString(),
-    });
-
     // Get the latest payment for this booking
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
@@ -460,25 +283,18 @@ async function updatePaymentStatus(supabase: any, bookingId: string) {
       .limit(1)
       .single();
 
-    console.log('💳 Payment record lookup:', {
-      payment,
-      paymentError,
-      bookingId,
-    });
-
     if (paymentError || !payment) {
-      console.error('❌ Payment record not found:', paymentError);
       throw new Error('Payment record not found');
     }
 
-    console.log('🔍 Querying MIB for payment status...', {
-      sessionId: payment.receipt_number,
-      apiUrl: `${MIB_BASE_URL}/merchant/${MERCHANT_ID}/session/${payment.receipt_number}`,
-    });
-
     // Query MIB for payment status using session ID
+    const sessionIdToUse = payment.session_id || payment.receipt_number;
+    if (!sessionIdToUse) {
+      throw new Error('No session ID found in payment record');
+    }
+
     const statusResponse = await fetch(
-      `${MIB_BASE_URL}/merchant/${MERCHANT_ID}/session/${payment.receipt_number}`,
+      `${MIB_BASE_URL}/merchant/${MERCHANT_ID}/session/${sessionIdToUse}`,
       {
         method: 'GET',
         headers: {
@@ -487,38 +303,12 @@ async function updatePaymentStatus(supabase: any, bookingId: string) {
       }
     );
 
-    console.log('📥 MIB Status Response:', {
-      status: statusResponse.status,
-      statusText: statusResponse.statusText,
-      ok: statusResponse.ok,
-    });
-
     if (!statusResponse.ok) {
-      console.error('❌ Failed to get payment status from MIB:', {
-        status: statusResponse.status,
-        statusText: statusResponse.statusText,
-      });
       throw new Error(`Failed to get payment status: ${statusResponse.status}`);
     }
 
     const statusData = await statusResponse.json();
     const paymentStatus = statusData.result || 'pending';
-
-    console.log('📊 MIB Payment Status Data:', {
-      statusData,
-      paymentStatus,
-      sessionId: payment.receipt_number,
-    });
-
-    console.log('💾 Updating payment record...', {
-      newStatus:
-        paymentStatus === 'SUCCESS'
-          ? 'completed'
-          : paymentStatus === 'FAILURE'
-            ? 'failed'
-            : 'pending',
-      paymentId: payment.id,
-    });
 
     // Update payment record
     const { error: paymentUpdateError } = await supabase
@@ -535,46 +325,36 @@ async function updatePaymentStatus(supabase: any, bookingId: string) {
       .eq('id', payment.id);
 
     if (paymentUpdateError) {
-      console.error('❌ Failed to update payment:', paymentUpdateError);
-    } else {
-      console.log('✅ Payment record updated successfully');
+      // Payment update failed
     }
 
-    // Update booking status (avoid trigger function calls)
+    // Update booking status based on payment result
     if (paymentStatus === 'SUCCESS') {
-      console.log('✅ Payment SUCCESS - updating booking to confirmed');
-
       const { error: bookingUpdateError } = await supabase
         .from('bookings')
         .update({ status: 'confirmed' })
         .eq('id', bookingId);
 
       if (bookingUpdateError) {
-        console.error(
-          '❌ Failed to update booking to confirmed:',
+        console.warn(
+          'Failed to update booking status to confirmed:',
           bookingUpdateError
         );
-      } else {
-        console.log('✅ Booking status updated to confirmed');
+        // Don't throw error - payment was successful, booking status can be fixed later
       }
     } else if (paymentStatus === 'FAILURE') {
-      console.log('💥 Payment FAILURE - updating booking to cancelled');
-
       const { error: bookingUpdateError } = await supabase
         .from('bookings')
         .update({ status: 'cancelled' })
         .eq('id', bookingId);
 
       if (bookingUpdateError) {
-        console.error(
-          '❌ Failed to update booking to cancelled:',
+        console.warn(
+          'Failed to update booking status to cancelled:',
           bookingUpdateError
         );
-      } else {
-        console.log('✅ Booking status updated to cancelled');
+        // Don't throw error - payment failed, booking status can be fixed later
       }
-    } else {
-      console.log('⏳ Payment still pending - no booking status change');
     }
 
     const finalResponse = {
@@ -593,26 +373,10 @@ async function updatePaymentStatus(supabase: any, bookingId: string) {
             : 'pending_payment',
     };
 
-    console.log('📤 Payment Status Update Response:', {
-      finalResponse,
-      bookingId,
-      originalMibStatus: paymentStatus,
-      timestamp: new Date().toISOString(),
-    });
-
-    console.log('✅ Payment Status Update Completed Successfully');
-
     return new Response(JSON.stringify(finalResponse), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('❌ Payment status update error:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      bookingId,
-      timestamp: new Date().toISOString(),
-    });
-
     const errorResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -629,23 +393,20 @@ async function updatePaymentStatus(supabase: any, bookingId: string) {
 
 async function processPaymentResult(supabase: any, resultData: any) {
   try {
-    console.log('🔄 Processing Payment Result Started:', {
-      resultData,
-      timestamp: new Date().toISOString(),
-    });
-
     const { sessionId, result, transactionId, bookingId } = resultData;
+
+    // Validate required parameters
+    if (!result) {
+      throw new Error('Payment result is required');
+    }
+
+    if (!sessionId && !bookingId) {
+      throw new Error('Either sessionId or bookingId is required');
+    }
 
     // Find payment by session ID or booking ID
     let payment = null;
     let paymentError = null;
-
-    console.log('🔍 Looking for payment record...', {
-      bookingId,
-      sessionId,
-      hasBookingId: !!bookingId,
-      hasSessionId: !!sessionId,
-    });
 
     if (bookingId) {
       // Try to find payment by booking ID first (most reliable method)
@@ -659,23 +420,10 @@ async function processPaymentResult(supabase: any, resultData: any) {
           .limit(1)
           .maybeSingle(); // Use maybeSingle to avoid errors when no record found
 
-      console.log('💳 Payment lookup by booking ID:', {
-        bookingPayment,
-        bookingPaymentError,
-        bookingId,
-      });
-
       if (bookingPayment) {
         payment = bookingPayment;
-        console.log('✅ Payment found by booking ID');
       } else if (bookingPaymentError) {
-        console.log(
-          '⚠️ Error looking up payment by booking ID:',
-          bookingPaymentError
-        );
         paymentError = bookingPaymentError;
-      } else {
-        console.log('❌ No payment found by booking ID');
       }
     }
 
@@ -685,48 +433,23 @@ async function processPaymentResult(supabase: any, resultData: any) {
         await supabase
           .from('payments')
           .select('*')
-          .eq('receipt_number', sessionId)
+          .eq('session_id', sessionId)
           .eq('payment_method', 'mib')
           .maybeSingle();
 
-      console.log('💳 Payment lookup by session ID:', {
-        sessionPayment,
-        sessionPaymentError,
-        sessionId,
-      });
-
       if (sessionPayment) {
         payment = sessionPayment;
-        console.log('✅ Payment found by session ID');
       } else if (sessionPaymentError) {
-        console.log(
-          '⚠️ Error looking up payment by session ID:',
-          sessionPaymentError
-        );
         paymentError = sessionPaymentError;
-      } else {
-        console.log(
-          '❌ No payment found by session ID, will proceed with booking ID only'
-        );
       }
     }
 
     if (!payment) {
-      console.error('❌ Payment record not found:', {
-        paymentError,
-        bookingId,
-        sessionId,
-      });
-
       // If we have a booking ID but no payment record, we can still update the booking
       if (
         bookingId &&
         (result === 'SUCCESS' || result === 'FAILURE' || result === 'CANCELLED')
       ) {
-        console.log(
-          `🔄 No payment record found, but we have booking ID and ${result} result - updating booking directly`
-        );
-
         let bookingStatus = 'pending_payment';
         let paymentStatus = 'pending';
 
@@ -744,12 +467,7 @@ async function processPaymentResult(supabase: any, resultData: any) {
           .eq('id', bookingId);
 
         if (bookingUpdateError) {
-          console.error(
-            '❌ Failed to update booking directly:',
-            bookingUpdateError
-          );
-        } else {
-          console.log(`✅ Booking updated directly to ${bookingStatus}`);
+          // Booking update failed
         }
 
         const finalResponse = {
@@ -761,12 +479,6 @@ async function processPaymentResult(supabase: any, resultData: any) {
           note: 'Updated booking directly (no payment record found)',
         };
 
-        console.log('📤 Direct Booking Update Response:', {
-          finalResponse,
-          originalResult: result,
-          timestamp: new Date().toISOString(),
-        });
-
         return new Response(JSON.stringify(finalResponse), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -776,29 +488,6 @@ async function processPaymentResult(supabase: any, resultData: any) {
         'Payment record not found and cannot update booking directly'
       );
     }
-
-    console.log('✅ Payment record found:', {
-      paymentId: payment.id,
-      bookingId: payment.booking_id,
-      currentStatus: payment.status,
-      paymentMethod: payment.payment_method,
-      amount: payment.amount,
-      receiptNumber: payment.receipt_number,
-    });
-
-    // Test if we can read the booking record
-    console.log('🔍 Testing booking record access...');
-    const { data: testBooking, error: testBookingError } = await supabase
-      .from('bookings')
-      .select('id, status, booking_number, user_id')
-      .eq('id', payment.booking_id)
-      .single();
-
-    console.log('📋 Booking record test:', {
-      testBooking,
-      testBookingError,
-      bookingId: payment.booking_id,
-    });
 
     // Update payment record based on gateway response
     const paymentStatus =
@@ -810,38 +499,21 @@ async function processPaymentResult(supabase: any, resultData: any) {
             ? 'cancelled'
             : 'pending';
 
-    console.log('💾 Updating payment record...', {
-      paymentId: payment.id,
-      newStatus: paymentStatus,
-      result,
-    });
-
     const { data: paymentUpdateData, error: paymentUpdateError } =
       await supabase
         .from('payments')
         .update({
           status: paymentStatus,
           transaction_date: new Date().toISOString(),
-          receipt_number: transactionId || sessionId,
+          // Store transaction ID in receipt_number if available, keep session_id as is
+          ...(transactionId &&
+            transactionId.length <= 20 && { receipt_number: transactionId }),
         })
         .eq('id', payment.id)
         .select('*');
 
     if (paymentUpdateError) {
-      console.error('❌ Failed to update payment:', {
-        error: paymentUpdateError,
-        paymentId: payment.id,
-        newStatus: paymentStatus,
-        transactionId: transactionId,
-        sessionId: sessionId,
-      });
-    } else {
-      console.log('✅ Payment record updated successfully:', {
-        paymentUpdateData,
-        paymentId: payment.id,
-        oldStatus: payment.status,
-        newStatus: paymentStatus,
-      });
+      // Payment update failed
     }
 
     // Update booking status based on gateway response
@@ -849,7 +521,6 @@ async function processPaymentResult(supabase: any, resultData: any) {
 
     if (result === 'SUCCESS') {
       bookingStatus = 'confirmed';
-      console.log('✅ Payment SUCCESS - updating booking to confirmed');
 
       const { data: bookingUpdateData, error: bookingUpdateError } =
         await supabase
@@ -859,22 +530,14 @@ async function processPaymentResult(supabase: any, resultData: any) {
           .select('id, status, booking_number');
 
       if (bookingUpdateError) {
-        console.error('❌ Failed to update booking to confirmed:', {
-          error: bookingUpdateError,
-          bookingId: payment.booking_id,
-          paymentId: payment.id,
-        });
-      } else {
-        console.log('✅ Booking status updated to confirmed:', {
-          bookingUpdateData,
-          bookingId: payment.booking_id,
-          oldBookingStatus: 'pending_payment',
-          newBookingStatus: 'confirmed',
-        });
+        console.warn(
+          'Failed to update booking status to confirmed in processPaymentResult:',
+          bookingUpdateError
+        );
+        // Don't throw error - payment was successful, booking status can be fixed later
       }
     } else if (result === 'FAILURE' || result === 'CANCELLED') {
       bookingStatus = 'cancelled';
-      console.log(`💥 Payment ${result} - updating booking to cancelled`);
 
       const { data: bookingUpdateData, error: bookingUpdateError } =
         await supabase
@@ -884,48 +547,13 @@ async function processPaymentResult(supabase: any, resultData: any) {
           .select('id, status, booking_number');
 
       if (bookingUpdateError) {
-        console.error('❌ Failed to update booking to cancelled:', {
-          error: bookingUpdateError,
-          bookingId: payment.booking_id,
-          paymentId: payment.id,
-          result: result,
-        });
-      } else {
-        console.log('✅ Booking status updated to cancelled:', {
-          bookingUpdateData,
-          bookingId: payment.booking_id,
-          oldBookingStatus: 'pending_payment',
-          newBookingStatus: 'cancelled',
-          result: result,
-        });
+        console.warn(
+          'Failed to update booking status to cancelled in processPaymentResult:',
+          bookingUpdateError
+        );
+        // Don't throw error - payment failed, booking status can be fixed later
       }
-    } else {
-      console.log('⏳ Payment still pending - no booking status change');
     }
-
-    // Verify the updates by reading back the records
-    console.log('🔍 Verifying database updates...');
-
-    const { data: verifyPayment, error: verifyPaymentError } = await supabase
-      .from('payments')
-      .select('id, status, transaction_date')
-      .eq('id', payment.id)
-      .single();
-
-    const { data: verifyBooking, error: verifyBookingError } = await supabase
-      .from('bookings')
-      .select('id, status, booking_number')
-      .eq('id', payment.booking_id)
-      .single();
-
-    console.log('📊 Database Verification Results:', {
-      verifyPayment,
-      verifyPaymentError,
-      verifyBooking,
-      verifyBookingError,
-      expectedPaymentStatus: paymentStatus,
-      expectedBookingStatus: bookingStatus,
-    });
 
     const finalResponse = {
       success: true,
@@ -933,34 +561,12 @@ async function processPaymentResult(supabase: any, resultData: any) {
       bookingStatus,
       bookingId: payment.booking_id,
       sessionId: sessionId,
-      // Include verification data for debugging
-      verification: {
-        actualPaymentStatus: verifyPayment?.status,
-        actualBookingStatus: verifyBooking?.status,
-        paymentVerified: verifyPayment?.status === paymentStatus,
-        bookingVerified: verifyBooking?.status === bookingStatus,
-      },
     };
-
-    console.log('📤 Payment Result Processing Response:', {
-      finalResponse,
-      originalResult: result,
-      timestamp: new Date().toISOString(),
-    });
-
-    console.log('✅ Payment Result Processing Completed Successfully');
 
     return new Response(JSON.stringify(finalResponse), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('❌ Payment result processing error:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      resultData,
-      timestamp: new Date().toISOString(),
-    });
-
     const errorResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -972,210 +578,5 @@ async function processPaymentResult(supabase: any, resultData: any) {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  }
-}
-
-async function testDatabase(supabase: any) {
-  try {
-    // Test basic query
-    const { data: testData, error: testError } = await supabase
-      .from('bookings')
-      .select('id, booking_number')
-      .limit(1);
-
-    if (testError) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Database connectivity failed',
-          details: testError.message,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    // Test routes_simple_view
-    const { data: routesData, error: routesError } = await supabase
-      .from('routes_simple_view')
-      .select('id, from_island_name, to_island_name')
-      .limit(1);
-
-    if (routesError) {
-      console.warn('Routes view test failed:', routesError);
-    } else {
-      console.log(
-        'Routes view test successful, found routes:',
-        routesData?.length || 0
-      );
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Database connectivity test passed',
-        bookingsCount: testData?.length || 0,
-        routesCount: routesData?.length || 0,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'Database test failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  }
-}
-
-async function testMibApi() {
-  try {
-    // Test a simple GET request to the MIB API
-    const testResponse = await fetch(
-      `${MIB_BASE_URL}/merchant/${MERCHANT_ID}`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: AUTH_HEADER,
-        },
-      }
-    );
-
-    if (!testResponse.ok) {
-      const errorText = await testResponse.text();
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'MIB API connectivity failed',
-          status: testResponse.status,
-          details: errorText,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    const testData = await testResponse.json();
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'MIB API connectivity test passed',
-        response: testData,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'MIB API test failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  }
-}
-
-async function verifyPaymentWithMib(supabase: any, requestBody: any) {
-  try {
-    const { sessionId, resultIndicator, bookingId } = requestBody;
-
-    // Get payment record
-    const { data: payment, error: paymentError } = await supabase
-      .from('payments')
-      .select('*')
-      .eq('booking_id', bookingId)
-      .eq('payment_method', 'mib')
-      .single();
-
-    if (paymentError || !payment) {
-      throw new Error('Payment record not found');
-    }
-
-    // Query MIB API to get the actual transaction status
-    const statusResponse = await fetch(
-      `${MIB_BASE_URL}/merchant/${MERCHANT_ID}/session/${sessionId}`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: AUTH_HEADER,
-        },
-      }
-    );
-
-    if (!statusResponse.ok) {
-      throw new Error(
-        `Failed to verify payment status: ${statusResponse.status}`
-      );
-    }
-
-    const statusData = await statusResponse.json();
-
-    // Check if the result indicator matches what we stored
-    const storedSuccessIndicator = payment.transaction_reference;
-    const isValidPayment =
-      statusData.successIndicator === storedSuccessIndicator;
-
-    // Determine payment status based on MIB response
-    let paymentStatus = 'pending';
-    let bookingStatus = 'pending_payment';
-
-    if (statusData.result === 'SUCCESS' && isValidPayment) {
-      paymentStatus = 'completed';
-      bookingStatus = 'confirmed';
-    } else if (statusData.result === 'FAILURE') {
-      paymentStatus = 'failed';
-      bookingStatus = 'cancelled';
-    } else if (statusData.result === 'CANCELLED') {
-      paymentStatus = 'cancelled';
-      bookingStatus = 'cancelled';
-    }
-
-    // Update payment record
-    await supabase
-      .from('payments')
-      .update({
-        status: paymentStatus,
-        transaction_date: new Date().toISOString(),
-        // Store additional transaction details
-        transaction_reference:
-          statusData.successIndicator || storedSuccessIndicator,
-      })
-      .eq('id', payment.id);
-
-    // Update booking status
-    await supabase
-      .from('bookings')
-      .update({ status: bookingStatus })
-      .eq('id', bookingId);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        paymentStatus,
-        bookingStatus,
-        isValidPayment,
-        mibResult: statusData.result,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Payment verification error:', error);
-    throw error;
   }
 }

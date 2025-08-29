@@ -78,6 +78,7 @@ export type PaymentStatus =
   | 'pending'
   | 'completed'
   | 'failed'
+  | 'cancelled'
   | 'refunded'
   | 'partially_refunded';
 

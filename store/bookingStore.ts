@@ -72,7 +72,6 @@ const generateBookingQrCodeUrl = (booking: any) => {
     // Generate QR code URL using the auto-generated booking number
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${booking.booking_number}`)}`;
   } catch (error) {
-    console.error('Error generating QR code URL:', error);
     return '';
   }
 };
@@ -96,7 +95,6 @@ const updateBookingWithQrCode = async (
         .select('id, qr_code_url, booking_number');
 
       if (error) {
-        console.error(`QR code update attempt ${attempts} failed:`, error);
         if (attempts < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 500 * attempts));
         }
@@ -113,12 +111,10 @@ const updateBookingWithQrCode = async (
           .single();
 
         if (verifyError || !verifyData.qr_code_url) {
-          console.error('QR code verification failed:', verifyError);
           success = false;
         }
       }
     } catch (error) {
-      console.error(`QR code update exception attempt ${attempts}:`, error);
       if (attempts < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, 500 * attempts));
       }
@@ -280,18 +276,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       currentBooking.tripType
     );
 
-    // Only log warnings if we have some data but validation fails
-    if (
-      !fareCalculation.isValid &&
-      (currentBooking.selectedSeats.length > 0 ||
-        currentBooking.returnSelectedSeats.length > 0)
-    ) {
-      console.warn(
-        'Fare calculation validation failed:',
-        fareCalculation.errors
-      );
-    }
-
     set(state => ({
       currentBooking: {
         ...state.currentBooking,
@@ -385,7 +369,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       if (seatsError) throw seatsError;
 
       if (!allVesselSeats || allVesselSeats.length === 0) {
-        console.warn(`No seats found for vessel ${tripData.vessel_id}`);
         set(state => ({
           [isReturn ? 'availableReturnSeats' : 'availableSeats']: [],
         }));
@@ -455,7 +438,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         [isReturn ? 'availableReturnSeats' : 'availableSeats']: allSeats,
       }));
     } catch (error: any) {
-      console.error('Error fetching available seats:', error);
       setError('Failed to fetch seats. Please try again.');
     } finally {
       setLoading(false);
@@ -640,7 +622,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         .single();
 
       if (bookingError) {
-        console.error('Booking creation error:', bookingError);
         throw new Error(`Failed to create booking: ${bookingError.message}`);
       }
 
@@ -722,8 +703,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           );
         }
 
-        console.log('MIB booking created successfully with ID:', booking.id);
-
         // Small delay to ensure database transaction is committed
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -755,23 +734,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           .eq('id', booking.id);
 
         if (statusUpdateError) {
-          // Check if this is the trigger function error
-          if (
-            statusUpdateError.message?.includes(
-              'trigger functions can only be called as triggers'
-            )
-          ) {
-            console.warn(
-              'Trigger function warning (non-critical):',
-              statusUpdateError.message
-            );
-            // This is a warning, not an error - booking is still confirmed
-          } else {
-            console.warn(
-              'Failed to update booking status to confirmed:',
-              statusUpdateError
-            );
-          }
+          // Status update failed - may be trigger function warning (non-critical)
         }
       }
 
@@ -803,7 +766,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             .single();
 
         if (returnBookingError) {
-          console.error('Return booking creation error:', returnBookingError);
           // Don't fail the main booking for return trip issues
         } else {
           returnBookingId = returnBooking.id;
@@ -829,10 +791,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             .insert(returnPassengerInserts);
 
           if (returnPassengersError) {
-            console.warn(
-              'Failed to create return passengers:',
-              returnPassengersError
-            );
+            // Return passenger creation failed - non-critical
           }
 
           // Reserve return seats
@@ -849,7 +808,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             .upsert(returnSeatReservations, { onConflict: 'trip_id,seat_id' });
 
           if (returnSeatError) {
-            console.warn('Failed to reserve return seats:', returnSeatError);
+            // Return seat reservation failed - non-critical
           }
 
           // Create payment record for return trip
@@ -864,10 +823,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             });
 
           if (returnPaymentError) {
-            console.warn(
-              'Failed to create return payment record:',
-              returnPaymentError
-            );
+            // Return payment record creation failed - non-critical
           }
 
           // Update return booking status to confirmed after successful payment
@@ -877,23 +833,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             .eq('id', returnBooking.id);
 
           if (returnStatusUpdateError) {
-            // Check if this is the trigger function error
-            if (
-              returnStatusUpdateError.message?.includes(
-                'trigger functions can only be called as triggers'
-              )
-            ) {
-              console.warn(
-                'Trigger function warning (non-critical):',
-                returnStatusUpdateError.message
-              );
-              // This is a warning, not an error - booking is still confirmed
-            } else {
-              console.warn(
-                'Failed to update return booking status to confirmed:',
-                returnStatusUpdateError
-              );
-            }
+            // Return status update failed - may be trigger function warning (non-critical)
           }
         }
       }
@@ -906,7 +846,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         return_booking_number: returnBookingNumber,
       };
     } catch (error: any) {
-      console.error('Error creating customer booking:', error);
       set({
         error: error.message || 'Failed to create booking',
         isLoading: false,

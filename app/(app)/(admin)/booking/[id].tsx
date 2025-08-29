@@ -247,7 +247,7 @@ export default function BookingDetailsPage() {
       case 'pending_payment':
         return 'pending';
       case 'cancelled':
-        return 'refunded';
+        return 'cancelled'; // Changed from 'refunded' to 'cancelled' for payment cancellations
       default:
         return 'pending';
     }

@@ -1,7 +1,21 @@
 export * from './supabase';
 export * from './dateUtils';
 export * from './faqUtils';
-export * from './paymentUtils';
+export {
+  processPayment,
+  processMibPayment,
+  initiateMibPayment,
+  openMibPaymentPage,
+  cancelMibPayment,
+  checkMibPaymentStatus,
+  processMibPaymentResult,
+  calculateFareDifference,
+  calculateRefundAmount,
+  formatCurrency as paymentFormatCurrency,
+  formatPaymentMethod,
+  createMibSession,
+  manuallyUpdatePaymentStatus,
+} from './paymentUtils';
 export * from './qrCodeUtils';
 export * from './seatSelectionUtils';
 export * from './clientUtils';
