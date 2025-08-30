@@ -28,6 +28,19 @@ export default function AuthLayout() {
           title: 'Create Account',
         }}
       />
+      <Stack.Screen
+        name='terms-and-conditions'
+        options={{
+          title: 'Terms & Conditions',
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name='forgotPassword'
+        options={{
+          title: 'Reset Password',
+        }}
+      />
     </Stack>
   );
 }

@@ -38,6 +38,9 @@ export { useAuthStore } from './authStore';
 // FAQ management
 export { useFaqStore } from './faqStore';
 
+// Terms and Conditions management
+export { useTermsStore } from './termsStore';
+
 // ========================================
 // AGENT STORES - CLEANED AND OPTIMIZED
 // ========================================

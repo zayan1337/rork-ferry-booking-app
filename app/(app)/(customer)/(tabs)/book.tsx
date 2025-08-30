@@ -1011,7 +1011,12 @@ export default function BookScreen() {
               </TouchableOpacity>
               <Text style={styles.termsText}>
                 I accept the{' '}
-                <Text style={styles.termsLink}>Terms and Conditions</Text>
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => router.push('/(app)/terms-and-conditions')}
+                >
+                  Terms and Conditions
+                </Text>
               </Text>
             </View>
 

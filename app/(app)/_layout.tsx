@@ -79,6 +79,13 @@ export default function AppLayout() {
       <Stack.Screen name='(agent)' options={{ headerShown: false }} />
       <Stack.Screen name='(admin)' options={{ headerShown: false }} />
       <Stack.Screen name='(captain)' options={{ headerShown: false }} />
+      <Stack.Screen
+        name='terms-and-conditions'
+        options={{
+          title: 'Terms & Conditions',
+          headerShown: true,
+        }}
+      />
     </Stack>
   );
 }

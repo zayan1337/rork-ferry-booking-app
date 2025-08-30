@@ -6,7 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../store/authStore';
 import * as Linking from 'expo-linking';
-import CustomSplashScreen from '../components/SplashScreen';
+// import CustomSplashScreen from '../components/SplashScreen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -107,17 +107,7 @@ function RootLayoutNav() {
 
   // Show custom splash screen while checking authentication or rehydrating
   if (!isRehydrated || !authChecked || isLoading) {
-    return (
-      <CustomSplashScreen
-        message={
-          !isRehydrated
-            ? 'Initializing app...'
-            : !authChecked
-              ? 'Checking authentication...'
-              : 'Loading your account...'
-        }
-      />
-    );
+    return null; 
   }
 
   // Determine if user has valid profile after authentication
