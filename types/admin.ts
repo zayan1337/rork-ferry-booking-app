@@ -57,7 +57,7 @@ export type Booking = {
     | 'checked_in'
     | 'completed'
     | 'cancelled';
-  paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
+  paymentStatus: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded';
   passengers: number;
   totalAmount: number;
   agentId?: string;
@@ -160,7 +160,7 @@ export type PaymentReport = {
   user_name: string;
   amount: number;
   payment_method: 'gateway' | 'wallet' | 'bank_transfer' | 'cash';
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded';
   receipt_number?: string;
   transaction_date: string;
   created_at: string;
@@ -274,6 +274,9 @@ export type ActivityLog = {
   ip_address?: string;
   created_at: string;
 };
+
+// Re-export database types
+export * from './admin/database';
 
 // Enhanced Dashboard Stats
 export type DashboardStats = {

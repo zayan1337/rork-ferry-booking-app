@@ -78,6 +78,7 @@ export type PaymentStatus =
   | 'pending'
   | 'completed'
   | 'failed'
+  | 'cancelled'
   | 'refunded'
   | 'partially_refunded';
 
@@ -189,3 +190,6 @@ export * from './admin/dashboard';
 
 // Content management types
 export * from './content';
+
+// Terms and Conditions types - explicit re-export to avoid conflicts
+export type { TermsAndConditions as Terms, TermsStore } from './terms';

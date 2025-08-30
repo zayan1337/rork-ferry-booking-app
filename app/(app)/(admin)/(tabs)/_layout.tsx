@@ -14,6 +14,7 @@ import { usePermissionStore } from '@/store/admin/permissionStore';
 import { router } from 'expo-router';
 import NoPermissionsWelcome from '@/components/admin/NoPermissionsWelcome';
 import { useDashboardData } from '@/hooks/useDashboardData';
+import AuthLoadingScreen from '@/components/AuthLoadingScreen';
 import {
   Home,
   CreditCard,
@@ -47,8 +48,20 @@ export default function TabLayout() {
   } = useAdminPermissions();
 
   // Check if permission data is still loading
-  const { loading } = usePermissionStore();
+  const { loading, data: permissions, adminUsers } = usePermissionStore();
   const { adminName, adminRole } = useDashboardData();
+
+  // More robust loading check - ensure we have both permission data and admin user data
+  const isDataLoading =
+    loading.fetchAll || permissions.length === 0 || adminUsers.length === 0;
+
+  // Additional check to ensure user data is properly loaded
+  const currentAdminUser = user?.profile?.id
+    ? adminUsers.find(u => u.id === user.profile?.id)
+    : null;
+  const isUserDataLoaded = user?.profile?.id
+    ? currentAdminUser !== undefined
+    : true;
 
   const handleProfilePress = () => {
     router.push('../modal');
@@ -92,9 +105,20 @@ export default function TabLayout() {
     </View>
   );
 
-  // If admin has no permissions and data is loaded, show welcome message
-  // Wait for authentication and permission data to load before showing welcome screen
-  if (user?.profile?.id && !loading.fetchAll && !hasAnyPermissions()) {
+  // Show loading screen while data is being fetched
+  // Allow super admins to bypass loading if basic user data is available
+  const shouldShowLoading =
+    (isDataLoading || !isUserDataLoaded) && !isSuperAdmin;
+
+  if (shouldShowLoading) {
+    return <AuthLoadingScreen />;
+  }
+
+  // Only show no permissions screen if:
+  // 1. User is authenticated and has profile ID
+  // 2. All data is fully loaded (permissions, admin users, and user-specific data)
+  // 3. User actually has no permissions
+  if (user?.profile?.id && !hasAnyPermissions()) {
     return (
       <View style={styles.noPermissionsContainer}>
         <NoPermissionsWelcome

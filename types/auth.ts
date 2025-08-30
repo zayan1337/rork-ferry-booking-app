@@ -16,6 +16,7 @@ export interface UserProfile {
   is_super_admin?: boolean;
   created_at: string;
   updated_at: string;
+  email?: string;
 }
 
 export interface AuthUser extends User {

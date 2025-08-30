@@ -46,6 +46,7 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
       case 'pending':
         return styles.paymentPending;
       case 'failed':
+      case 'cancelled':
         return styles.paymentFailed;
       default:
         return {};

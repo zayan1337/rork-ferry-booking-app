@@ -22,6 +22,7 @@ import Input from '@/components/Input';
 import Button from '@/components/Button';
 import DatePicker from '@/components/DatePicker';
 import SeatSelector from '@/components/SeatSelector';
+import MibPaymentWebView from '@/components/MibPaymentWebView';
 import { processPayment, calculateFareDifference } from '@/utils/paymentUtils';
 import type { Seat } from '@/types';
 import type {
@@ -74,6 +75,12 @@ export default function ModifyBookingScreen() {
     accountName: '',
     bankName: '',
   });
+
+  // MIB Payment WebView state
+  const [showMibPayment, setShowMibPayment] = useState(false);
+  const [currentModificationId, setCurrentModificationId] = useState('');
+  const [mibSessionData, setMibSessionData] = useState<any>(null);
+  const [mibBookingDetails, setMibBookingDetails] = useState<any>(null);
 
   // Enhanced keyboard handling
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -337,32 +344,54 @@ export default function ModifyBookingScreen() {
         bankAccountDetails: fareDifference < 0 ? bankAccountDetails : null,
       };
 
-      await modifyBooking(booking.id, modificationData);
+      const modificationResult = await modifyBooking(
+        booking.id,
+        modificationData
+      );
 
       if (fareDifference > 0) {
         // Additional payment required
-        Alert.alert(
-          'Booking Modified',
-          `Your booking has been modified successfully. An additional payment of MVR ${fareDifference.toFixed(2)} is required.`,
-          [
-            {
-              text: 'Pay Later',
-              onPress: () =>
-                router.replace('/(app)/(customer)/(tabs)/bookings'),
-            },
-            {
-              text: 'Pay Now',
-              onPress: async () => {
-                await processPayment(
-                  selectedPaymentMethod,
-                  fareDifference,
-                  booking.id
-                );
-                router.replace('/(app)/(customer)/(tabs)/bookings');
+        if (selectedPaymentMethod === 'mib') {
+          // Handle MIB payment differently - show payment modal immediately
+          const bookingDetails = {
+            bookingNumber:
+              modificationResult.newBookingNumber || `MOD-${Date.now()}`,
+            route: `${booking.route.fromIsland.name} → ${booking.route.toIsland.name}`,
+            travelDate: selectedDate || booking.departureDate,
+            amount: fareDifference,
+            currency: 'MVR',
+            passengerCount: booking.passengers.length,
+          };
+
+          // Show modal immediately with booking details
+          setCurrentModificationId(modificationResult.newBookingId);
+          setMibBookingDetails(bookingDetails);
+          setShowMibPayment(true);
+        } else {
+          // For other payment methods, show the existing alert
+          Alert.alert(
+            'Booking Modified',
+            `Your booking has been modified successfully. An additional payment of MVR ${fareDifference.toFixed(2)} is required.`,
+            [
+              {
+                text: 'Pay Later',
+                onPress: () =>
+                  router.replace('/(app)/(customer)/(tabs)/bookings'),
               },
-            },
-          ]
-        );
+              {
+                text: 'Pay Now',
+                onPress: async () => {
+                  await processPayment(
+                    selectedPaymentMethod,
+                    fareDifference,
+                    modificationResult.newBookingId
+                  );
+                  router.replace('/(app)/(customer)/(tabs)/bookings');
+                },
+              },
+            ]
+          );
+        }
       } else if (fareDifference < 0) {
         // Refund scenario
         Alert.alert(
@@ -628,6 +657,27 @@ export default function ModifyBookingScreen() {
                 </Text>
 
                 <View style={styles.paymentOptions}>
+                  {fareDifference > 0 && (
+                    <TouchableOpacity
+                      style={[
+                        styles.paymentOption,
+                        selectedPaymentMethod === 'mib' &&
+                          styles.paymentOptionSelected,
+                      ]}
+                      onPress={() => setSelectedPaymentMethod('mib')}
+                    >
+                      <Text
+                        style={[
+                          styles.paymentOptionText,
+                          selectedPaymentMethod === 'mib' &&
+                            styles.paymentOptionTextSelected,
+                        ]}
+                      >
+                        MIB Payment
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
                   <TouchableOpacity
                     style={[
                       styles.paymentOption,
@@ -779,7 +829,7 @@ export default function ModifyBookingScreen() {
           />
 
           <Button
-            title='Confirm Modification'
+            title='Confirm'
             onPress={handleModify}
             loading={isLoading}
             disabled={isLoading}
@@ -787,6 +837,79 @@ export default function ModifyBookingScreen() {
           />
         </View>
       </ScrollView>
+
+      {/* MIB Payment WebView */}
+      {showMibPayment && mibBookingDetails && currentModificationId && (
+        <MibPaymentWebView
+          visible={showMibPayment}
+          bookingDetails={mibBookingDetails}
+          bookingId={currentModificationId}
+          sessionData={mibSessionData}
+          onClose={() => {
+            setShowMibPayment(false);
+            setCurrentModificationId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+          }}
+          onSuccess={result => {
+            // Close the modal first
+            setShowMibPayment(false);
+            setCurrentModificationId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+
+            // Navigate to payment success page with modification success
+            router.push({
+              pathname: '/(app)/(customer)/payment-success',
+              params: {
+                bookingId: currentModificationId,
+                result: 'SUCCESS',
+                sessionId: result.sessionId,
+                resetBooking: 'false', // Don't reset booking for modifications
+                isModification: 'true', // Flag to indicate this is a modification
+              },
+            });
+          }}
+          onFailure={error => {
+            // Close the modal first
+            setShowMibPayment(false);
+            setCurrentModificationId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+
+            // Navigate to payment success page with failure status
+            // The new booking will be cancelled, old booking remains unchanged
+            router.push({
+              pathname: '/(app)/(customer)/payment-success',
+              params: {
+                bookingId: currentModificationId,
+                result: 'FAILURE',
+                resetBooking: 'false',
+                isModification: 'true',
+              },
+            });
+          }}
+          onCancel={() => {
+            // Close the modal first
+            setShowMibPayment(false);
+            setCurrentModificationId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+
+            // Navigate to payment success page with cancelled status
+            // The new booking will be cancelled, old booking remains unchanged
+            router.push({
+              pathname: '/(app)/(customer)/payment-success',
+              params: {
+                bookingId: currentModificationId,
+                result: 'CANCELLED',
+                resetBooking: 'false',
+                isModification: 'true',
+              },
+            });
+          }}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }

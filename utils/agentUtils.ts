@@ -224,7 +224,7 @@ export const validateAgentCredit = (
   if (agent.creditBalance < requiredAmount) {
     return {
       isValid: false,
-      error: `Insufficient credit balance. Required: $${requiredAmount.toFixed(2)}, Available: $${agent.creditBalance.toFixed(2)}`,
+      error: `Insufficient credit balance. Required: MVR ${requiredAmount.toFixed(2)}, Available: MVR ${agent.creditBalance.toFixed(2)}`,
     };
   }
 

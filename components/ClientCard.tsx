@@ -85,7 +85,7 @@ const getActivityStatus = (
 
 // Helper function to format currency
 const formatCurrency = (amount: number = 0) => {
-  return `$${amount.toFixed(0)}`;
+  return `MVR ${amount.toFixed(0)}`;
 };
 
 // Helper function to format date

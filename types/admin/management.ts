@@ -210,6 +210,9 @@ export interface PermissionStoreState
   // Sort configuration
   sortBy: 'name' | 'level' | 'resource' | 'created_at';
   sortOrder: 'asc' | 'desc';
+
+  // Performance optimization
+  lastFetch: number | null;
 }
 
 export interface PermissionStoreActions

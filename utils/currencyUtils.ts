@@ -1,13 +1,13 @@
 /**
  * Format currency for display
  * @param amount - The amount to format
- * @param currency - Currency symbol (default: $)
+ * @param currency - Currency symbol (default: MVR)
  * @param locale - Locale for formatting (default: en-US)
  * @returns Formatted currency string
  */
 export const formatCurrency = (
   amount: number | undefined,
-  currency: string = '$',
+  currency: string = 'MVR',
   locale: string = 'en-US'
 ): string => {
   if (typeof amount !== 'number' || isNaN(amount)) {
@@ -30,12 +30,12 @@ export const formatMVR = (amount: number | undefined): string => {
 };
 
 /**
- * Format USD currency specifically
+ * Format USD currency specifically (now returns MVR)
  * @param amount - The amount to format
- * @returns Formatted USD currency string
+ * @returns Formatted MVR currency stringr
  */
 export const formatUSD = (amount: number | undefined): string => {
-  return formatCurrency(amount, '$');
+  return formatCurrency(amount, 'MVR');
 };
 
 /**

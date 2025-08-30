@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../store/authStore';
+import * as Linking from 'expo-linking';
+// import CustomSplashScreen from '../components/SplashScreen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -16,7 +18,6 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (error) {
-      console.error(error);
       throw error;
     }
   }, [error]);
@@ -55,9 +56,58 @@ function RootLayoutNav() {
     }
   }, [checkAuth, authChecked, isRehydrated]);
 
-  // Show loading screen while checking authentication or rehydrating
+  // Handle deep linking for payment success
+  useEffect(() => {
+    const handleDeepLink = (url: string) => {
+      if (url.includes('rork-ferry://payment-success')) {
+        try {
+          const urlObj = new URL(url);
+          const bookingId = urlObj.searchParams.get('bookingId');
+          const result = urlObj.searchParams.get('result');
+          const sessionId = urlObj.searchParams.get('session.id');
+
+          if (bookingId && result) {
+            // Navigate to payment success page
+            router.push({
+              pathname: '/(app)/(customer)/payment-success',
+              params: {
+                bookingId,
+                result,
+                sessionId: sessionId || '',
+              },
+            });
+          }
+        } catch (error) {
+          // Error handling payment deep link
+          console.error('❌ Error handling payment deep link:', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            url,
+          });
+        }
+      }
+    };
+
+    // Handle initial URL if app was opened via deep link
+    Linking.getInitialURL().then(url => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    // Listen for incoming links when app is already running
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  // Show custom splash screen while checking authentication or rehydrating
   if (!isRehydrated || !authChecked || isLoading) {
-    return null; // Keep splash screen visible
+    return null; 
   }
 
   // Determine if user has valid profile after authentication

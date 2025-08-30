@@ -51,9 +51,12 @@ interface BookingStoreActions {
 
   // Booking validation and creation
   validateCurrentStep: () => string | null;
-  createCustomerBooking: (
-    paymentMethod: string
-  ) => Promise<{ bookingId: string; returnBookingId: string | null }>;
+  createCustomerBooking: (paymentMethod: string) => Promise<{
+    bookingId: string;
+    returnBookingId: string | null;
+    booking_number: string;
+    return_booking_number?: string | null;
+  }>;
 }
 
 interface ExtendedBookingStoreState extends BookingStoreState {
@@ -69,7 +72,6 @@ const generateBookingQrCodeUrl = (booking: any) => {
     // Generate QR code URL using the auto-generated booking number
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${booking.booking_number}`)}`;
   } catch (error) {
-    console.error('Error generating QR code URL:', error);
     return '';
   }
 };
@@ -93,7 +95,6 @@ const updateBookingWithQrCode = async (
         .select('id, qr_code_url, booking_number');
 
       if (error) {
-        console.error(`QR code update attempt ${attempts} failed:`, error);
         if (attempts < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 500 * attempts));
         }
@@ -110,12 +111,10 @@ const updateBookingWithQrCode = async (
           .single();
 
         if (verifyError || !verifyData.qr_code_url) {
-          console.error('QR code verification failed:', verifyError);
           success = false;
         }
       }
     } catch (error) {
-      console.error(`QR code update exception attempt ${attempts}:`, error);
       if (attempts < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, 500 * attempts));
       }
@@ -277,18 +276,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       currentBooking.tripType
     );
 
-    // Only log warnings if we have some data but validation fails
-    if (
-      !fareCalculation.isValid &&
-      (currentBooking.selectedSeats.length > 0 ||
-        currentBooking.returnSelectedSeats.length > 0)
-    ) {
-      console.warn(
-        'Fare calculation validation failed:',
-        fareCalculation.errors
-      );
-    }
-
     set(state => ({
       currentBooking: {
         ...state.currentBooking,
@@ -382,7 +369,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       if (seatsError) throw seatsError;
 
       if (!allVesselSeats || allVesselSeats.length === 0) {
-        console.warn(`No seats found for vessel ${tripData.vessel_id}`);
         set(state => ({
           [isReturn ? 'availableReturnSeats' : 'availableSeats']: [],
         }));
@@ -452,7 +438,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         [isReturn ? 'availableReturnSeats' : 'availableSeats']: allSeats,
       }));
     } catch (error: any) {
-      console.error('Error fetching available seats:', error);
       setError('Failed to fetch seats. Please try again.');
     } finally {
       setLoading(false);
@@ -633,11 +618,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert(bookingData)
-        .select()
+        .select('id, booking_number, status')
         .single();
 
       if (bookingError) {
-        console.error('Booking creation error:', bookingError);
         throw new Error(`Failed to create booking: ${bookingError.message}`);
       }
 
@@ -688,45 +672,74 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         throw new Error(`Failed to reserve seats: ${seatError.message}`);
       }
 
-      // Create payment record
-      const { error: paymentError } = await supabase.from('payments').insert({
-        booking_id: booking.id,
-        payment_method: paymentMethod as PaymentMethod,
-        amount: selectedSeats.length * (route.baseFare || 0),
-        status: 'completed', // Mark as completed for immediate confirmation
-      });
+      // Handle payment based on method
+      if (paymentMethod === 'mib') {
+        // For MIB, create pending payment record and process payment
+        const { error: paymentError } = await supabase.from('payments').insert({
+          booking_id: booking.id,
+          payment_method: paymentMethod as PaymentMethod,
+          amount: selectedSeats.length * (route.baseFare || 0),
+          currency: 'MVR',
+          status: 'pending', // Start with pending for MIB
+        });
 
-      if (paymentError) {
-        console.warn('Failed to create payment record:', paymentError);
-      }
+        if (paymentError) {
+          console.warn('Failed to create payment record:', paymentError);
+        }
 
-      // Update booking status to confirmed after successful payment
-      const { error: statusUpdateError } = await supabase
-        .from('bookings')
-        .update({ status: 'confirmed' })
-        .eq('id', booking.id);
+        // Update booking status to pending_payment for MIB
+        const { error: statusUpdateError } = await supabase
+          .from('bookings')
+          .update({
+            status: 'pending_payment',
+            payment_method_type: 'mib',
+          })
+          .eq('id', booking.id);
 
-      if (statusUpdateError) {
-        // Check if this is the trigger function error
-        if (
-          statusUpdateError.message?.includes(
-            'trigger functions can only be called as triggers'
-          )
-        ) {
+        if (statusUpdateError) {
           console.warn(
-            'Trigger function warning (non-critical):',
-            statusUpdateError.message
-          );
-          // This is a warning, not an error - booking is still confirmed
-        } else {
-          console.warn(
-            'Failed to update booking status to confirmed:',
+            'Failed to update booking status to pending_payment:',
             statusUpdateError
           );
+        }
+
+        // Small delay to ensure database transaction is committed
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Return booking ID and booking number for MIB payment processing
+        set({ isLoading: false });
+        return {
+          bookingId: booking.id,
+          returnBookingId: null,
+          booking_number: booking.booking_number,
+        };
+      } else {
+        // For other payment methods, mark as completed immediately
+        const { error: paymentError } = await supabase.from('payments').insert({
+          booking_id: booking.id,
+          payment_method: paymentMethod as PaymentMethod,
+          amount: selectedSeats.length * (route.baseFare || 0),
+          currency: 'MVR',
+          status: 'completed', // Mark as completed for immediate confirmation
+        });
+
+        if (paymentError) {
+          console.warn('Failed to create payment record:', paymentError);
+        }
+
+        // Update booking status to confirmed after successful payment
+        const { error: statusUpdateError } = await supabase
+          .from('bookings')
+          .update({ status: 'confirmed' })
+          .eq('id', booking.id);
+
+        if (statusUpdateError) {
+          // Status update failed - may be trigger function warning (non-critical)
         }
       }
 
       let returnBookingId = null;
+      let returnBookingNumber = null;
 
       // Handle return trip if round trip
       if (
@@ -749,14 +762,14 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           await supabase
             .from('bookings')
             .insert(returnBookingData)
-            .select()
+            .select('id, booking_number, status')
             .single();
 
         if (returnBookingError) {
-          console.error('Return booking creation error:', returnBookingError);
           // Don't fail the main booking for return trip issues
         } else {
           returnBookingId = returnBooking.id;
+          returnBookingNumber = returnBooking.booking_number;
 
           // Generate return QR code URL
           const returnQrCodeUrl = generateBookingQrCodeUrl(returnBooking);
@@ -778,10 +791,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             .insert(returnPassengerInserts);
 
           if (returnPassengersError) {
-            console.warn(
-              'Failed to create return passengers:',
-              returnPassengersError
-            );
+            // Return passenger creation failed - non-critical
           }
 
           // Reserve return seats
@@ -798,7 +808,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             .upsert(returnSeatReservations, { onConflict: 'trip_id,seat_id' });
 
           if (returnSeatError) {
-            console.warn('Failed to reserve return seats:', returnSeatError);
+            // Return seat reservation failed - non-critical
           }
 
           // Create payment record for return trip
@@ -808,14 +818,12 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
               booking_id: returnBooking.id,
               payment_method: paymentMethod as PaymentMethod,
               amount: returnSelectedSeats.length * (returnRoute.baseFare || 0),
-              status: 'completed', // Mark as completed for immediate confirmation
+              currency: 'MVR',
+              status: paymentMethod === 'mib' ? 'pending' : 'completed', // Pending for MIB, completed for others
             });
 
           if (returnPaymentError) {
-            console.warn(
-              'Failed to create return payment record:',
-              returnPaymentError
-            );
+            // Return payment record creation failed - non-critical
           }
 
           // Update return booking status to confirmed after successful payment
@@ -825,31 +833,19 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             .eq('id', returnBooking.id);
 
           if (returnStatusUpdateError) {
-            // Check if this is the trigger function error
-            if (
-              returnStatusUpdateError.message?.includes(
-                'trigger functions can only be called as triggers'
-              )
-            ) {
-              console.warn(
-                'Trigger function warning (non-critical):',
-                returnStatusUpdateError.message
-              );
-              // This is a warning, not an error - booking is still confirmed
-            } else {
-              console.warn(
-                'Failed to update return booking status to confirmed:',
-                returnStatusUpdateError
-              );
-            }
+            // Return status update failed - may be trigger function warning (non-critical)
           }
         }
       }
 
       set({ isLoading: false });
-      return { bookingId: booking.id, returnBookingId };
+      return {
+        bookingId: booking.id,
+        returnBookingId,
+        booking_number: booking.booking_number,
+        return_booking_number: returnBookingNumber,
+      };
     } catch (error: any) {
-      console.error('Error creating customer booking:', error);
       set({
         error: error.message || 'Failed to create booking',
         isLoading: false,

@@ -366,7 +366,7 @@ export const useVesselManagement = (
           return '#6b7280';
       }
     },
-    formatCurrency: (amount: number) => `$${amount.toFixed(2)}`,
+    formatCurrency: (amount: number) => `MVR ${amount.toFixed(2)}`,
     formatPercentage: (value: number) => `${(value * 100).toFixed(1)}%`,
   };
 };

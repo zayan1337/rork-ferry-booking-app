@@ -49,6 +49,7 @@ export default function StatusBadge({
             text: '#F57C00',
           };
         case 'failed':
+        case 'cancelled':
         case 'refunded':
           return {
             bg: '#FFEBEE',

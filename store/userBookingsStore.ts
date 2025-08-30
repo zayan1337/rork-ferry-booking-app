@@ -14,7 +14,14 @@ interface UserBookingsStoreActions {
       bankName: string;
     }
   ) => Promise<void>;
-  modifyBooking: (bookingId: string, modifications: any) => Promise<void>;
+  modifyBooking: (
+    bookingId: string,
+    modifications: any
+  ) => Promise<{
+    newBookingId: string;
+    newBookingNumber: string;
+    originalBookingId: string;
+  }>;
   setError: (error: string | null) => void;
   setLoading: (isLoading: boolean) => void;
 }
@@ -307,17 +314,9 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
 
       if (qrUpdateError) throw qrUpdateError;
 
-      // 4. Release original seat reservations first
-      const { error: seatReleaseError } = await supabase
-        .from('seat_reservations')
-        .update({
-          is_available: true,
-          booking_id: null,
-          is_reserved: false,
-        })
-        .eq('booking_id', bookingId);
-
-      if (seatReleaseError) throw seatReleaseError;
+      // 4. DO NOT release original seat reservations yet - only after successful payment
+      // The original seat reservations will be released by completeModificationAfterPayment()
+      // when payment is successful
 
       // 5. Update seat reservations for new booking
       for (const seat of modifications.selectedSeats) {
@@ -390,18 +389,11 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
           .eq('id', newBookingData.id);
       }
 
-      // 8. Update original booking status to modified
-      const { error: originalBookingError } = await supabase
-        .from('bookings')
-        .update({
-          status: 'modified',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', bookingId);
+      // 8. DO NOT update original booking status yet - only after successful payment
+      // The original booking status will be updated by completeModificationAfterPayment()
+      // when payment is successful
 
-      if (originalBookingError) throw originalBookingError;
-
-      // 9. Insert modification record
+      // 9. Insert modification record (track status via booking status instead)
       const { error: modificationError } = await supabase
         .from('modifications')
         .insert({
@@ -417,7 +409,11 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
                   payment_method: modifications.paymentMethod,
                   status: 'pending',
                 }
-              : null,
+              : {
+                  amount: 0,
+                  payment_method: 'none',
+                  status: 'completed',
+                },
           refund_details:
             modifications.fareDifference < 0
               ? {
@@ -431,7 +427,49 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
 
       if (modificationError) throw modificationError;
 
+      // If no additional payment is required, complete the modification immediately
+      if (modifications.fareDifference <= 0) {
+        // Update original booking status to modified since no payment is needed
+        const { error: originalBookingError } = await supabase
+          .from('bookings')
+          .update({
+            status: 'modified',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', bookingId);
+
+        if (originalBookingError) {
+          console.warn(
+            'Failed to update original booking status:',
+            originalBookingError
+          );
+        }
+
+        // Update new booking status to confirmed
+        const { error: newBookingStatusError } = await supabase
+          .from('bookings')
+          .update({
+            status: 'confirmed',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', newBookingData.id);
+
+        if (newBookingStatusError) {
+          console.warn(
+            'Failed to update new booking status:',
+            newBookingStatusError
+          );
+        }
+      }
+
       await fetchUserBookings();
+
+      // Return the new booking information for MIB payment processing
+      return {
+        newBookingId: newBookingData.id,
+        newBookingNumber: newBookingData.booking_number,
+        originalBookingId: bookingId,
+      };
     } catch (error) {
       console.error('Error modifying booking:', error);
       setError('Failed to modify booking');
