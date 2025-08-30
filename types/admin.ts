@@ -275,6 +275,9 @@ export type ActivityLog = {
   created_at: string;
 };
 
+// Re-export database types
+export * from './admin/database';
+
 // Enhanced Dashboard Stats
 export type DashboardStats = {
   dailyBookings: {

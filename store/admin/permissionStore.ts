@@ -59,9 +59,27 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
   sortedPermissions: [],
   sortBy: 'name',
   sortOrder: 'asc',
+  lastFetch: null,
 
   // Following the existing pattern from island store
   fetchAll: async () => {
+    const currentState = get();
+
+    // Prevent multiple simultaneous fetches
+    if (currentState.loading.fetchAll) {
+      return;
+    }
+
+    // Skip fetch if data already exists and is recent (less than 5 minutes old)
+    const hasData =
+      currentState.data.length > 0 && currentState.adminUsers.length > 0;
+    const lastFetch = currentState.lastFetch;
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+
+    if (hasData && lastFetch && lastFetch > fiveMinutesAgo) {
+      return;
+    }
+
     set({ loading: { ...get().loading, fetchAll: true }, error: null });
     try {
       const [permissionsRes, categoriesRes, roleTemplatesRes, adminUsersRes] =
@@ -83,24 +101,58 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
           supabase.from('admin_users_only').select('*').order('full_name'),
         ]);
 
+      // Handle errors gracefully - if views don't exist, use fallback data
       if (permissionsRes.error) {
-        throw permissionsRes.error;
+        console.warn(
+          'Permission Store: permissions_with_category view not found, using fallback'
+        );
       }
       if (categoriesRes.error) {
-        throw categoriesRes.error;
+        console.warn(
+          'Permission Store: permission_categories_with_stats view not found, using fallback'
+        );
       }
       if (roleTemplatesRes.error) {
-        throw roleTemplatesRes.error;
+        console.warn(
+          'Permission Store: role_templates_with_stats view not found, using fallback'
+        );
       }
       if (adminUsersRes.error) {
-        throw adminUsersRes.error;
+        console.warn(
+          'Permission Store: admin_users_only view not found, using fallback'
+        );
+      }
+
+      // Create fallback admin user data if views don't exist
+      let adminUsers = adminUsersRes.data || [];
+
+      // If no admin users found from view, try to get from user_profiles directly
+      if (adminUsers.length === 0 && adminUsersRes.error) {
+        const { data: fallbackUsers, error: fallbackError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .in('role', ['admin', 'super_admin']);
+
+        if (!fallbackError && fallbackUsers) {
+          adminUsers = fallbackUsers.map(user => ({
+            ...user,
+            is_super_admin: user.role === 'super_admin' || user.is_super_admin,
+            direct_permissions: [],
+            active_permission_count: 0,
+          }));
+          console.log(
+            'Permission Store: Fallback users found:',
+            adminUsers.length
+          );
+        }
       }
 
       set({
         data: permissionsRes.data || [],
         categories: categoriesRes.data || [],
         roleTemplates: roleTemplatesRes.data || [],
-        adminUsers: adminUsersRes.data || [],
+        adminUsers,
+        lastFetch: Date.now(),
         loading: { ...get().loading, fetchAll: false },
       });
 

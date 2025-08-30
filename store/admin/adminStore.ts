@@ -2,14 +2,13 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
-  mockAlerts,
-  mockBookings,
-  mockUsers,
-  mockVessels,
-  mockRoutes,
-  mockTrips,
-  mockDashboardStats,
-} from '@/mocks/adminData';
+  fetchDashboardStats,
+  fetchActivityLogs,
+  fetchSystemAlerts,
+  fetchRecentBookings,
+  fetchRecentTrips,
+  refreshDashboardStats,
+} from '@/utils/admin/dashboardService';
 import {
   Alert,
   Booking,
@@ -154,7 +153,6 @@ interface AdminState {
   setLoading: (key: string, value: boolean) => void;
   setSearchQuery: (key: string, query: string) => void;
   setFilter: (key: string, filter: any) => void;
-  refreshData: () => Promise<void>;
 
   // UI state
   sidebarCollapsed: boolean;
@@ -180,6 +178,10 @@ interface AdminState {
   restoreDatabase: () => Promise<void>;
   exportActivityLogs: (logs: ActivityLog[]) => Promise<void>;
   exportSystemReport: (type: string) => Promise<void>;
+
+  // Real data fetching functions
+  fetchDashboardData: () => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 // Mock data for new entities
@@ -279,23 +281,23 @@ const mockActivityLogs: ActivityLog[] = [
 export const useAdminStore = create<AdminState>()(
   persist(
     (set, get) => ({
-      // Existing data
-      alerts: mockAlerts || [],
-      bookings: mockBookings || [],
-      users: mockUsers || [],
-      vessels: mockVessels || [],
-      routes: mockRoutes || [],
-      trips: mockTrips || [],
-      dashboardStats: mockDashboardStats || {
-        totalUsers: 0,
-        totalBookings: 0,
-        totalRevenue: 0,
-        completedTrips: 0,
-        pendingBookings: 0,
-        activeUsers: 0,
-        recentBookings: [],
-        userGrowth: 0,
-        revenueGrowth: 0,
+      // Existing data - Initialize with empty arrays, will be populated by fetchDashboardData
+      alerts: [],
+      bookings: [],
+      users: [],
+      vessels: [],
+      routes: [],
+      trips: [],
+      dashboardStats: {
+        dailyBookings: { count: 0, revenue: 0, change_percentage: 0 },
+        activeTrips: { count: 0, in_progress: 0, completed_today: 0 },
+        activeUsers: { total: 0, customers: 0, agents: 0, online_now: 0 },
+        paymentStatus: { completed: 0, pending: 0, failed: 0, total_value: 0 },
+        walletStats: {
+          total_balance: 0,
+          active_wallets: 0,
+          total_transactions_today: 0,
+        },
         systemHealth: {
           status: 'healthy',
           last_backup: '',
@@ -304,16 +306,16 @@ export const useAdminStore = create<AdminState>()(
         },
       },
 
-      // New data
-      wallets: mockWallets,
+      // New data - Initialize with empty arrays, will be populated by fetchDashboardData
+      wallets: [],
       walletTransactions: [],
       paymentReports: [],
-      notifications: mockNotifications,
-      bulkMessages: mockBulkMessages,
-      passengers: mockPassengers,
+      notifications: [],
+      bulkMessages: [],
+      passengers: [],
       passengerManifests: [],
-      reports: mockReports,
-      activityLogs: mockActivityLogs,
+      reports: [],
+      activityLogs: [],
       permissions: [],
 
       // Loading states
@@ -325,7 +327,7 @@ export const useAdminStore = create<AdminState>()(
       searchQueries: {},
       filters: {},
 
-      unreadAlertsCount: mockAlerts.filter(alert => !alert.read).length,
+      unreadAlertsCount: 0,
 
       // Alert management
       markAlertAsRead: id =>
@@ -832,13 +834,6 @@ export const useAdminStore = create<AdminState>()(
           filters: { ...state.filters, [key]: filter },
         })),
 
-      refreshData: async () => {
-        set({ loading: { ...get().loading, refresh: true } });
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        set({ loading: { ...get().loading, refresh: false } });
-      },
-
       // UI state
       sidebarCollapsed: false,
       toggleSidebar: () =>
@@ -918,6 +913,60 @@ export const useAdminStore = create<AdminState>()(
         // Simulate file saving
         await new Promise(resolve => setTimeout(resolve, 1000));
         console.log('System report exported successfully!');
+      },
+
+      // Real data fetching functions
+      fetchDashboardData: async () => {
+        const currentState = get();
+
+        // Prevent multiple simultaneous fetches
+        if (currentState.loading.dashboard) {
+          return;
+        }
+
+        try {
+          set(state => ({ loading: { ...state.loading, dashboard: true } }));
+
+          // Fetch dashboard stats
+          const dashboardStats = await fetchDashboardStats();
+
+          // Fetch alerts
+          const alerts = await fetchSystemAlerts();
+
+          // Fetch activity logs
+          const activityLogs = await fetchActivityLogs(10);
+
+          // Fetch recent bookings
+          const bookings = await fetchRecentBookings(20);
+
+          // Fetch recent trips
+          const trips = await fetchRecentTrips(20);
+
+          set(state => ({
+            dashboardStats,
+            alerts,
+            activityLogs,
+            bookings,
+            trips,
+            unreadAlertsCount: alerts.filter(alert => !alert.read).length,
+            loading: { ...state.loading, dashboard: false },
+          }));
+        } catch (error) {
+          console.error('Error fetching dashboard data:', error);
+          set(state => ({ loading: { ...state.loading, dashboard: false } }));
+        }
+      },
+
+      refreshData: async () => {
+        try {
+          // Refresh materialized view first
+          await refreshDashboardStats();
+
+          // Then fetch updated data
+          await get().fetchDashboardData();
+        } catch (error) {
+          console.error('Error refreshing data:', error);
+        }
       },
     }),
     {

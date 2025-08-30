@@ -56,6 +56,7 @@ export default function DashboardScreen() {
     bookings,
     trips,
     activityLogs,
+    isLoading,
   } = useDashboardData();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -140,7 +141,7 @@ export default function DashboardScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
-          refreshing={isRefreshing}
+          refreshing={isRefreshing || isLoading}
           onRefresh={handleRefresh}
           colors={[colors.primary]}
           tintColor={colors.primary}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useAdminStore } from '@/store/admin/adminStore';
 import { useAuthStore } from '@/store/authStore';
 import { DashboardStatsData } from '@/types/admin/dashboard';
@@ -15,37 +15,32 @@ export const useDashboardData = () => {
     notifications,
     activityLogs,
     dashboardStats,
+    fetchDashboardData,
+    loading,
   } = useAdminStore();
 
   const { user } = useAuthStore();
 
-  // Calculate real-time statistics
+  // Fetch dashboard data on mount
+  useEffect(() => {
+    fetchDashboardData();
+  }, []); // Empty dependency array to run only once
+
+  // Calculate real-time statistics from database data
   const stats: DashboardStatsData = useMemo(() => {
-    const todayBookings = bookings.filter(
-      b => new Date(b.created_at).toDateString() === new Date().toDateString()
-    ).length;
-
-    const activeTripsCount = trips.filter(
-      t =>
-        t.is_active && t.travel_date === new Date().toISOString().split('T')[0]
-    ).length;
-
-    const totalWalletBalance = wallets.reduce((sum, w) => sum + w.balance, 0);
-    const unreadNotifications = notifications.filter(n => !n.is_read).length;
-
     return {
-      todayBookings,
-      activeTripsCount,
-      totalWalletBalance,
-      unreadNotifications,
+      todayBookings: dashboardStats.dailyBookings?.count || 0,
+      activeTripsCount: dashboardStats.activeTrips?.count || 0,
+      totalWalletBalance: dashboardStats.walletStats?.total_balance || 0,
+      unreadNotifications: alerts.filter(a => !a.read).length,
       dailyBookingsRevenue: dashboardStats.dailyBookings?.revenue || 0,
-      activeUsersTotal: dashboardStats.activeUsers?.total || users.length,
+      activeUsersTotal: dashboardStats.activeUsers?.total || 0,
       onlineUsers: dashboardStats.activeUsers?.online_now || 0,
-      walletCount: dashboardStats.walletStats?.active_wallets || wallets.length,
+      walletCount: dashboardStats.walletStats?.active_wallets || 0,
       dailyBookingsChange: dashboardStats.dailyBookings?.change_percentage || 0,
-      dailyRevenueChange: 0, // Would need yesterday's data to calculate
+      dailyRevenueChange: 0, // Could be calculated from historical data if needed
     };
-  }, [bookings, trips, wallets, notifications, dashboardStats, users]);
+  }, [dashboardStats, alerts]);
 
   const adminProfile = user?.profile;
   const adminName =
@@ -77,5 +72,6 @@ export const useDashboardData = () => {
     trips,
     activityLogs,
     getInitials,
+    isLoading: loading.dashboard || false,
   };
 };

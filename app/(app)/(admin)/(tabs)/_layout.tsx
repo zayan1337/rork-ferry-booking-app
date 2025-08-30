@@ -106,7 +106,11 @@ export default function TabLayout() {
   );
 
   // Show loading screen while data is being fetched
-  if (isDataLoading || !isUserDataLoaded) {
+  // Allow super admins to bypass loading if basic user data is available
+  const shouldShowLoading =
+    (isDataLoading || !isUserDataLoaded) && !isSuperAdmin;
+
+  if (shouldShowLoading) {
     return <AuthLoadingScreen />;
   }
 

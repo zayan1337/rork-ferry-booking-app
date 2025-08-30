@@ -134,10 +134,12 @@ export const useAdminPermissions = () => {
 
   // Dashboard permissions
   const canViewDashboard = () =>
+    isSuperAdmin ||
     hasPermissionCheck(PERMISSION_RESOURCES.DASHBOARD, PERMISSION_ACTIONS.VIEW);
 
   // Booking permissions
   const canViewBookings = () =>
+    isSuperAdmin ||
     hasPermissionCheck(PERMISSION_RESOURCES.BOOKINGS, PERMISSION_ACTIONS.VIEW);
   const canCreateBookings = () =>
     hasPermissionCheck(
@@ -368,6 +370,7 @@ export const useAdminPermissions = () => {
   const canAccessCommunicationsTab = () =>
     canViewNotifications() || canViewBulkMessages();
   const canAccessSettingsTab = () =>
+    isSuperAdmin ||
     canViewSettings() ||
     canViewReports() ||
     canViewPermissions() ||
@@ -380,13 +383,13 @@ export const useAdminPermissions = () => {
       return false;
     }
 
+    // Super admins always have access (check this first)
+    if (isSuperAdmin) return true;
+
     // If permission data is still loading, return true to prevent premature "no permissions" screen
     if (loading.fetchAll || permissions.length === 0) {
       return true;
     }
-
-    // Super admins always have access
-    if (isSuperAdmin) return true;
 
     // Check if user has any direct permissions
     const userPerms = getUserPermissions(user.profile.id);
