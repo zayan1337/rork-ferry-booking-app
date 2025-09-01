@@ -99,17 +99,19 @@ export default function MibPaymentWebView({
         const message = args.join(' ');
 
         if (
-          message.includes("Can't open url: ferrybookingapp://payment-success")
+          message.includes(
+            `Can't open url: ${process.env.EXPO_PUBLIC_MIB_RETURN_URL}`
+          )
         ) {
           try {
             // Extract the URL from the warning message
             const urlMatch = message.match(
-              /ferrybookingapp:\/\/payment-success\?([^\s"']+)/
+              /crystaltransfervaavu:\/\/payment-success\?([^\s"']+)/
             );
 
             if (urlMatch) {
               const fullUrl =
-                'ferrybookingapp://payment-success?' + urlMatch[1];
+                `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?` + urlMatch[1];
 
               const url = new URL(fullUrl);
               const result = url.searchParams.get('result');
@@ -652,15 +654,16 @@ export default function MibPaymentWebView({
     // Check if the error is related to our payment success URL
     if (
       nativeEvent.description &&
-      nativeEvent.description.includes('ferrybookingapp://payment-success')
+      nativeEvent.description.includes(process.env.EXPO_PUBLIC_MIB_RETURN_URL)
     ) {
       try {
         // Extract the URL from the error description
         const urlMatch = nativeEvent.description.match(
-          /ferrybookingapp:\/\/payment-success\?([^\s"']+)/
+          /crystaltransfervaavu:\/\/payment-success\?([^\s"']+)/
         );
         if (urlMatch) {
-          const fullUrl = 'ferrybookingapp://payment-success?' + urlMatch[1];
+          const fullUrl =
+            `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?` + urlMatch[1];
           const url = new URL(fullUrl);
           const result = url.searchParams.get('result');
           const bookingId = url.searchParams.get('bookingId');
@@ -836,7 +839,7 @@ export default function MibPaymentWebView({
             // Allow navigation to MIB payment URLs
             if (
               request.url.includes('gateway.mastercard.com') ||
-              request.url.includes('ferrybookingapp://') ||
+              request.url.includes('crystaltransfervaavu://') ||
               request.url.includes('payment-success') ||
               request.url.startsWith('data:') ||
               request.url.startsWith('about:') ||

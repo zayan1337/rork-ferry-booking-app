@@ -305,7 +305,7 @@ export default function NoPermissionsWelcome({
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Ferry Booking System • Admin Panel
+            Crystal Transfer Vaavu • Admin Panel
           </Text>
         </View>
       </ScrollView>

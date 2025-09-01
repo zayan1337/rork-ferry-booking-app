@@ -9,7 +9,7 @@ import { formatBookingDate } from './dateUtils';
  */
 export const shareBookingTicket = async (booking: Booking): Promise<void> => {
   try {
-    const message = `Ferry Booking #${booking.bookingNumber}
+    const message = `Crystal Transfer Vaavu Booking #${booking.bookingNumber}
 
 From: ${booking.route.fromIsland.name}
 To: ${booking.route.toIsland.name}

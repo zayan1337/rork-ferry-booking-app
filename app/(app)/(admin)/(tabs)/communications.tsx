@@ -859,7 +859,7 @@ export default function CommunicationsScreen() {
         id: '2',
         name: 'Booking Confirmation',
         content:
-          'Your booking {booking_number} has been confirmed for {travel_date}. Thank you for choosing our ferry service.',
+          'Your booking {booking_number} has been confirmed for {travel_date}. Thank you for choosing Crystal Transfer Vaavu.',
         category: 'booking',
         usage_count: 238,
         last_used: '2024-01-16',

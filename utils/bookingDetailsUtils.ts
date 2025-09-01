@@ -35,7 +35,7 @@ export const getStatusColor = (status: string) => {
 export const shareBookingTicket = async (booking: any) => {
   try {
     const shareMessage =
-      `Ferry Booking #${booking.bookingNumber}\n` +
+      `Crystal Transfer Vaavu Booking #${booking.bookingNumber}\n` +
       `From: ${booking.route?.fromIsland?.name || booking.origin}\n` +
       `To: ${booking.route?.toIsland?.name || booking.destination}\n` +
       `Date: ${formatBookingDate(booking.departureDate)}\n` +

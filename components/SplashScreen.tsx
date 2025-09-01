@@ -105,8 +105,8 @@ export default function SplashScreen({
         </View>
 
         <View style={styles.titleContainer}>
-          <Text style={styles.appTitle}>Ferry Booking</Text>
           <Text style={styles.appSubtitle}>Ferry Services</Text>
+          <Text style={styles.appTitle}>Crystal Transfer Vaavu</Text>
         </View>
 
         {showMessage && (

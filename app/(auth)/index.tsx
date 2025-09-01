@@ -143,7 +143,7 @@ export default function LoginScreen() {
             }}
             style={styles.logo}
           />
-          <Text style={styles.appName}>Ferry Booking</Text>
+          <Text style={styles.appName}>Crystal Transfer Vaavu</Text>
           <Text style={styles.tagline}>Your gateway to island adventures</Text>
         </View>
 

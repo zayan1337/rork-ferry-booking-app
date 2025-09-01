@@ -1,4 +1,4 @@
-// Color palette for the ferry booking app
+// Color palette for the Crystal Transfer Vaavu app
 export default {
   primary: '#3498db', // Ocean blue - primary actions, buttons
   secondary: '#4ecdc4', // Teal - secondary elements, highlights

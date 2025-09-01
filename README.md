@@ -1,6 +1,6 @@
-# Ferry Booking App
+# Crystal Transfer Vaavu
 
-A comprehensive ferry booking application built with React Native, Expo, and Supabase.
+A comprehensive transfer booking application built with React Native, Expo, and Supabase.
 
 ## Features
 
@@ -47,8 +47,8 @@ The app integrates with MIB (Maldives Islamic Bank) payment gateway for secure p
 
 The app uses custom URL scheme for payment redirection:
 
-- Success: `ferrybookingapp://payment-success?bookingId={id}&result=SUCCESS`
-- Cancel: `ferrybookingapp://payment-success?bookingId={id}&result=CANCELLED`
+- Success: `crystaltransfervaavu://payment-success?bookingId={id}&result=SUCCESS`
+- Cancel: `crystaltransfervaavu://payment-success?bookingId={id}&result=CANCELLED`
 
 **Note**: If automatic redirection doesn't work, the payment modal includes a "Check Payment Status" button for manual verification.
 

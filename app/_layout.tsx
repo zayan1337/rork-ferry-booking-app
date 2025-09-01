@@ -59,7 +59,12 @@ function RootLayoutNav() {
   // Handle deep linking for payment success
   useEffect(() => {
     const handleDeepLink = (url: string) => {
-      if (url.includes('ferrybookingapp://payment-success')) {
+      if (
+        url.includes(
+          process.env.EXPO_PUBLIC_MIB_RETURN_URL ||
+            'crystaltransfervaavu://payment-success'
+        )
+      ) {
         try {
           const urlObj = new URL(url);
           const bookingId = urlObj.searchParams.get('bookingId');

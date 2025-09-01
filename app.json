@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Ferry Booking App",
-    "slug": "ferry-booking-app",
+    "name": "Crystal Transfer Vaavu",
+    "slug": "crystal-transfer-vaavu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ferrybookingapp",
+    "scheme": "crystaltransfervaavu",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.ferry-booking-app"
+      "bundleIdentifier": "app.rork.crystal-transfer-vaavu"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.fi-essystems.ferrybookingapp",
+      "package": "com.vaishnavvfies.crystaltransfervaavu",
       "versionCode": 1,
       "compileSdkVersion": 34,
       "targetSdkVersion": 34,

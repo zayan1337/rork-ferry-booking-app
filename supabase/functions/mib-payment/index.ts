@@ -15,7 +15,8 @@ const MERCHANT_ID = Deno.env.get('MIB_TEST_MERCHANT_ID') || 'TESTCRYSTALTRL';
 const AUTH_HEADER =
   Deno.env.get('MIB_TEST_AUTH_HEADER') ||
   'Basic bWVyY2hhbnQuVEVTVENSWVNUQUxUUkw6ZjAzYTlkZjY3OGU1OGU0MmNiYWM4YjJlNTg4MjgyNzc=';
-const merchantName = Deno.env.get('MIB_TEST_MERCHANT_NAME') || 'Ferry Booking';
+const merchantName =
+  Deno.env.get('MIB_TEST_MERCHANT_NAME') || 'Crystal Transfer Vaavu';
 
 serve(async (req: Request) => {
   // Handle CORS preflight requests

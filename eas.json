@@ -1,30 +1,30 @@
 {
-  "cli": {
-    "version": ">= 12.0.0"
-  },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
+    "cli": {
+        "version": ">= 12.0.0"
     },
-    "preview": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      }
+    "build": {
+        "development": {
+            "developmentClient": true,
+            "distribution": "internal"
+        },
+        "preview": {
+            "distribution": "internal",
+            "android": {
+                "buildType": "apk"
+            }
+        },
+        "production": {
+            "android": {
+                "buildType": "app-bundle"
+            }
+        }
     },
-    "production": {
-      "android": {
-        "buildType": "app-bundle"
-      }
+    "submit": {
+        "production": {
+            "android": {
+                "serviceAccountKeyPath": "./google-service-account.json",
+                "track": "internal"
+            }
+        }
     }
-  },
-  "submit": {
-    "production": {
-      "android": {
-        "serviceAccountKeyPath": "./google-service-account.json",
-        "track": "internal"
-      }
-    }
-  }
 }
