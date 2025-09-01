@@ -347,9 +347,6 @@ const styles = StyleSheet.create({
   retryButton: {
     minWidth: 120,
   },
-  backButton: {
-    minWidth: 100,
-  },
   introCard: {
     marginBottom: 20,
   },

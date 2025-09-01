@@ -85,8 +85,8 @@ export const processMibPayment = async (
     }
 
     // Create return URLs for payment success/failure
-    const returnUrl = `rork-ferry://payment-success?bookingId=${bookingId}&result=SUCCESS`;
-    const cancelUrl = `rork-ferry://payment-success?bookingId=${bookingId}&result=CANCELLED`;
+    const returnUrl = `ferrybookingapp://payment-success?bookingId=${bookingId}&result=SUCCESS`;
+    const cancelUrl = `ferrybookingapp://payment-success?bookingId=${bookingId}&result=CANCELLED`;
 
     // Call Supabase Edge Function to create MIB session
     const { data, error } = await supabase.functions.invoke('mib-payment', {
@@ -136,8 +136,8 @@ export const initiateMibPayment = async (
     }
 
     // Create return URLs for payment success/failure
-    const returnUrl = `rork-ferry://payment-success?bookingId=${bookingId}&result=SUCCESS`;
-    const cancelUrl = `rork-ferry://payment-success?bookingId=${bookingId}&result=CANCELLED`;
+    const returnUrl = `ferrybookingapp://payment-success?bookingId=${bookingId}&result=SUCCESS`;
+    const cancelUrl = `ferrybookingapp://payment-success?bookingId=${bookingId}&result=CANCELLED`;
 
     // Call Supabase Edge Function to create MIB session
     const { data, error } = await supabase.functions.invoke('mib-payment', {
@@ -381,8 +381,8 @@ export const createMibSession = async (bookingDetails: {
     }
 
     // Create return URLs for payment success/failure
-    const returnUrl = `rork-ferry://payment-success?bookingId=${bookingDetails.bookingId}&result=SUCCESS`;
-    const cancelUrl = `rork-ferry://payment-success?bookingId=${bookingDetails.bookingId}&result=CANCELLED`;
+    const returnUrl = `ferrybookingapp://payment-success?bookingId=${bookingDetails.bookingId}&result=SUCCESS`;
+    const cancelUrl = `ferrybookingapp://payment-success?bookingId=${bookingDetails.bookingId}&result=CANCELLED`;
 
     // Call Supabase Edge Function to create MIB session
     const { data, error } = await supabase.functions.invoke('mib-payment', {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Terms, TermsStore } from '@/types';
+import type { TermsStore } from '@/types';
 import { fetchActiveTerms } from '@/utils/termsService';
 
 export const useTermsStore = create<TermsStore>((set, get) => ({

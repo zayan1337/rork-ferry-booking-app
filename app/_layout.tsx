@@ -59,7 +59,7 @@ function RootLayoutNav() {
   // Handle deep linking for payment success
   useEffect(() => {
     const handleDeepLink = (url: string) => {
-      if (url.includes('rork-ferry://payment-success')) {
+      if (url.includes('ferrybookingapp://payment-success')) {
         try {
           const urlObj = new URL(url);
           const bookingId = urlObj.searchParams.get('bookingId');
@@ -107,7 +107,7 @@ function RootLayoutNav() {
 
   // Show custom splash screen while checking authentication or rehydrating
   if (!isRehydrated || !authChecked || isLoading) {
-    return null; 
+    return null;
   }
 
   // Determine if user has valid profile after authentication

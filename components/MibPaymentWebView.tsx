@@ -98,15 +98,18 @@ export default function MibPaymentWebView({
       console.warn = (...args) => {
         const message = args.join(' ');
 
-        if (message.includes("Can't open url: rork-ferry://payment-success")) {
+        if (
+          message.includes("Can't open url: ferrybookingapp://payment-success")
+        ) {
           try {
             // Extract the URL from the warning message
             const urlMatch = message.match(
-              /rork-ferry:\/\/payment-success\?([^\s"']+)/
+              /ferrybookingapp:\/\/payment-success\?([^\s"']+)/
             );
 
             if (urlMatch) {
-              const fullUrl = 'rork-ferry://payment-success?' + urlMatch[1];
+              const fullUrl =
+                'ferrybookingapp://payment-success?' + urlMatch[1];
 
               const url = new URL(fullUrl);
               const result = url.searchParams.get('result');
@@ -649,15 +652,15 @@ export default function MibPaymentWebView({
     // Check if the error is related to our payment success URL
     if (
       nativeEvent.description &&
-      nativeEvent.description.includes('rork-ferry://payment-success')
+      nativeEvent.description.includes('ferrybookingapp://payment-success')
     ) {
       try {
         // Extract the URL from the error description
         const urlMatch = nativeEvent.description.match(
-          /rork-ferry:\/\/payment-success\?([^\s"']+)/
+          /ferrybookingapp:\/\/payment-success\?([^\s"']+)/
         );
         if (urlMatch) {
-          const fullUrl = 'rork-ferry://payment-success?' + urlMatch[1];
+          const fullUrl = 'ferrybookingapp://payment-success?' + urlMatch[1];
           const url = new URL(fullUrl);
           const result = url.searchParams.get('result');
           const bookingId = url.searchParams.get('bookingId');
@@ -833,7 +836,7 @@ export default function MibPaymentWebView({
             // Allow navigation to MIB payment URLs
             if (
               request.url.includes('gateway.mastercard.com') ||
-              request.url.includes('rork-ferry://') ||
+              request.url.includes('ferrybookingapp://') ||
               request.url.includes('payment-success') ||
               request.url.startsWith('data:') ||
               request.url.startsWith('about:') ||

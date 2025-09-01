@@ -47,8 +47,8 @@ The app integrates with MIB (Maldives Islamic Bank) payment gateway for secure p
 
 The app uses custom URL scheme for payment redirection:
 
-- Success: `rork-ferry://payment-success?bookingId={id}&result=SUCCESS`
-- Cancel: `rork-ferry://payment-success?bookingId={id}&result=CANCELLED`
+- Success: `ferrybookingapp://payment-success?bookingId={id}&result=SUCCESS`
+- Cancel: `ferrybookingapp://payment-success?bookingId={id}&result=CANCELLED`
 
 **Note**: If automatic redirection doesn't work, the payment modal includes a "Check Payment Status" button for manual verification.
 

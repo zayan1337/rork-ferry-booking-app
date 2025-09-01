@@ -49,9 +49,7 @@ export const fetchAllTerms = async (): Promise<Terms[]> => {
  * @param id - The ID of the term to fetch
  * @returns Promise<Terms | null>
  */
-export const fetchTermById = async (
-  id: string
-): Promise<Terms | null> => {
+export const fetchTermById = async (id: string): Promise<Terms | null> => {
   try {
     const { data, error } = await supabase
       .from('terms_and_conditions')
@@ -77,27 +75,26 @@ export const fetchTermById = async (
  * Fetch the latest version of terms and conditions
  * @returns Promise<Terms | null>
  */
-export const fetchLatestTerms =
-  async (): Promise<Terms | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('terms_and_conditions')
-        .select('*')
-        .eq('is_active', true)
-        .order('effective_date', { ascending: false })
-        .limit(1)
-        .single();
+export const fetchLatestTerms = async (): Promise<Terms | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('terms_and_conditions')
+      .select('*')
+      .eq('is_active', true)
+      .order('effective_date', { ascending: false })
+      .limit(1)
+      .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No rows returned
-          return null;
-        }
-        throw new Error(`Failed to fetch latest terms: ${error.message}`);
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return null;
       }
-
-      return data;
-    } catch (error) {
-      throw error;
+      throw new Error(`Failed to fetch latest terms: ${error.message}`);
     }
-  };
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
