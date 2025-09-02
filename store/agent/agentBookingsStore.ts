@@ -189,12 +189,6 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                         email,
                         mobile_number,
                         client_id
-                    ),
-                    user_profiles(
-                        id,
-                        full_name,
-                        email,
-                        mobile_number
                     )
                 `
         )
@@ -204,6 +198,32 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
       if (allBookingsError) {
         console.error('Error fetching all agent bookings:', allBookingsError);
         throw allBookingsError;
+      }
+
+      // Get user profiles for bookings that have user_id but no agent_client_id
+      const userIds = (allAgentBookings || [])
+        .filter((booking: any) => booking.user_id && !booking.agent_client_id)
+        .map((booking: any) => booking.user_id);
+
+      let userProfiles: { [key: string]: any } = {};
+      if (userIds.length > 0) {
+        const { data: userProfilesData, error: userProfilesError } =
+          await supabase
+            .from('user_profiles')
+            .select('id, full_name, email, mobile_number')
+            .in('id', userIds);
+
+        if (userProfilesError) {
+          console.error('Error fetching user profiles:', userProfilesError);
+        } else {
+          userProfiles = (userProfilesData || []).reduce(
+            (acc: any, profile: any) => {
+              acc[profile.id] = profile;
+              return acc;
+            },
+            {}
+          );
+        }
       }
 
       const allBookings = (allAgentBookings || []).map((booking: any) => {
@@ -272,11 +292,12 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
 
         if (booking.user_id && !booking.agent_client_id) {
           // Booking for client WITH account (user_profiles only)
+          const userProfile = userProfiles[booking.user_id];
           clientInfo = {
             clientId: booking.user_id,
-            clientName: booking.user_profiles?.full_name || 'Unknown Client',
-            clientEmail: booking.user_profiles?.email || '',
-            clientPhone: booking.user_profiles?.mobile_number || '',
+            clientName: userProfile?.full_name || 'Unknown Client',
+            clientEmail: userProfile?.email || '',
+            clientPhone: userProfile?.mobile_number || '',
             hasAccount: true,
             userId: booking.user_id,
             agentClientId: undefined,

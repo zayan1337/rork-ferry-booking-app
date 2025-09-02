@@ -943,10 +943,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
                         booking_number,
                         status,
                         trip_id,
-                        user_profiles (
-                            email,
-                            mobile_number
-                        )
+                        user_id
                     ),
                     seats (
                         seat_number
@@ -956,7 +953,45 @@ export const useTripStore = create<TripStore>((set, get) => ({
         .eq('bookings.trip_id', tripId);
 
       if (error) throw error;
-      return data || [];
+
+      // Get unique user IDs from the bookings
+      const userIds = [
+        ...new Set(
+          (data || [])
+            .map((passenger: any) => passenger.bookings?.user_id)
+            .filter(Boolean)
+        ),
+      ];
+
+      // Fetch user profiles for these users
+      let userProfiles: { [key: string]: any } = {};
+      if (userIds.length > 0) {
+        const { data: userProfilesData, error: userProfilesError } =
+          await supabase
+            .from('user_profiles')
+            .select('id, full_name, email, mobile_number, role')
+            .in('id', userIds);
+
+        if (!userProfilesError && userProfilesData) {
+          userProfiles = userProfilesData.reduce((acc: any, profile: any) => {
+            acc[profile.id] = profile;
+            return acc;
+          }, {});
+        }
+      }
+
+      // Attach user profiles to the data
+      const enrichedData = (data || []).map((passenger: any) => ({
+        ...passenger,
+        bookings: {
+          ...passenger.bookings,
+          user_profiles: passenger.bookings?.user_id
+            ? userProfiles[passenger.bookings.user_id]
+            : null,
+        },
+      }));
+
+      return enrichedData;
     } catch (error) {
       console.error('Error fetching trip passengers:', error);
       return [];
@@ -975,12 +1010,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
                     total_fare,
                     payment_method_type,
                     created_at,
-                    user_profiles (
-                        full_name,
-                        email,
-                        mobile_number,
-                        role
-                    ),
+                    user_id,
                     passengers (
                         id,
                         passenger_name
@@ -990,7 +1020,38 @@ export const useTripStore = create<TripStore>((set, get) => ({
         .eq('trip_id', tripId);
 
       if (error) throw error;
-      return data || [];
+
+      // Get unique user IDs from the bookings
+      const userIds = [
+        ...new Set(
+          (data || []).map((booking: any) => booking.user_id).filter(Boolean)
+        ),
+      ];
+
+      // Fetch user profiles for these users
+      let userProfiles: { [key: string]: any } = {};
+      if (userIds.length > 0) {
+        const { data: userProfilesData, error: userProfilesError } =
+          await supabase
+            .from('user_profiles')
+            .select('id, full_name, email, mobile_number, role')
+            .in('id', userIds);
+
+        if (!userProfilesError && userProfilesData) {
+          userProfiles = userProfilesData.reduce((acc: any, profile: any) => {
+            acc[profile.id] = profile;
+            return acc;
+          }, {});
+        }
+      }
+
+      // Attach user profiles to the data
+      const enrichedData = (data || []).map((booking: any) => ({
+        ...booking,
+        user_profiles: booking.user_id ? userProfiles[booking.user_id] : null,
+      }));
+
+      return enrichedData;
     } catch (error) {
       console.error('Error fetching trip bookings:', error);
       return [];

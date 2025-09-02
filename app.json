@@ -2,7 +2,7 @@
   "expo": {
     "name": "Crystal Transfer Vaavu",
     "slug": "crystal-transfer-vaavu",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "crystaltransfervaavu",
@@ -22,45 +22,33 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.vaishnavvfies.crystaltransfervaavu",
-      "versionCode": 1,
-      "compileSdkVersion": 34,
-      "targetSdkVersion": 34,
+      "package": "com.fies.crystaltransfervaavu",
+      "versionCode": 3,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
-        "CAMERA",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "CAMERA"
       ]
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
-    "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "https://rork.com/"
-        }
-      ],
-      "expo-web-browser"
-    ],
     "experiments": {
       "typedRoutes": true
     },
-    "owner": "vaishnavvfies",
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": "1.0.2",
     "extra": {
       "router": {
         "origin": "https://rork.com/"
       },
       "eas": {
-        "projectId": "09b6989b-0d74-4e18-8c4a-37759820b504"
+        "projectId": "9cbb67bc-7155-4253-97e0-0c7138c03ad4"
       }
-    }
+    },
+    "owner": "vaishnavv"
   }
 }

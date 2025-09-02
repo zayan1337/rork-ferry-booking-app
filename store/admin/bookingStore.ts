@@ -32,7 +32,6 @@ interface AdminBookingState {
   // Actions
   fetchBookings: (refresh?: boolean) => Promise<void>;
   fetchStats: () => Promise<void>;
-  fetchStatsManually: () => Promise<void>;
   fetchBooking: (id: string) => Promise<AdminBooking | null>;
   createBooking: (data: AdminBookingFormData) => Promise<string>;
   updateBooking: (id: string, updates: Partial<AdminBooking>) => Promise<void>;
@@ -253,72 +252,6 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
     set({ statsLoading: true });
 
     try {
-      // Try to refresh the materialized view first (if user has permissions)
-      try {
-        await supabase.rpc('refresh_admin_dashboard_stats');
-      } catch (refreshError) {
-        console.warn('Could not refresh materialized view:', refreshError);
-        // Continue anyway - the view might still have recent data
-      }
-
-      // Use the admin_dashboard_stats materialized view for accurate and efficient stats
-      const { data: dashboardStats, error: statsError } = await supabase
-        .from('admin_dashboard_stats')
-        .select('*')
-        .single();
-
-      if (statsError) {
-        console.error('Error fetching dashboard stats:', statsError);
-        // Fallback to manual calculation if materialized view fails
-        return await get().fetchStatsManually();
-      }
-
-      if (!dashboardStats) {
-        console.warn(
-          'No dashboard stats available, falling back to manual calculation'
-        );
-        return await get().fetchStatsManually();
-      }
-
-      // Calculate confirmed rate
-      const confirmedRate =
-        dashboardStats.total_bookings > 0
-          ? (
-              (dashboardStats.confirmed_count / dashboardStats.total_bookings) *
-              100
-            ).toFixed(1)
-          : '0';
-
-      // Calculate change percentages (simplified - you can enhance this)
-      const todayBookingsChange = '0'; // TODO: Calculate actual change
-      const todayRevenueChange = '0'; // TODO: Calculate actual change
-
-      const stats: AdminBookingStats = {
-        total_bookings: dashboardStats.total_bookings || 0,
-        today_bookings: dashboardStats.today_bookings || 0,
-        today_bookings_change: todayBookingsChange,
-        today_revenue: dashboardStats.today_revenue || 0,
-        today_revenue_change: todayRevenueChange,
-        total_revenue: dashboardStats.total_revenue || 0,
-        confirmed_count: dashboardStats.confirmed_count || 0,
-        confirmed_rate: confirmedRate,
-        reserved_count: dashboardStats.reserved_count || 0,
-        cancelled_count: dashboardStats.cancelled_count || 0,
-        completed_count: dashboardStats.completed_count || 0,
-        pending_payment_count: dashboardStats.pending_payment_count || 0,
-        checked_in_count: dashboardStats.checked_in_count || 0,
-      };
-
-      set({ stats, statsLoading: false });
-    } catch (error) {
-      console.error('Error fetching booking stats:', error);
-      set({ statsLoading: false });
-    }
-  },
-
-  // Fallback method to manually calculate stats from bookings table
-  fetchStatsManually: async () => {
-    try {
       // Get all bookings to calculate stats
       const { data: allBookings, error: bookingsError } = await supabase
         .from('bookings')
@@ -326,10 +259,7 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
         .order('created_at', { ascending: false });
 
       if (bookingsError) {
-        console.error(
-          'Error fetching bookings for manual stats:',
-          bookingsError
-        );
+        console.error('Error fetching bookings for stats:', bookingsError);
         throw bookingsError;
       }
 
@@ -398,7 +328,7 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
 
       set({ stats, statsLoading: false });
     } catch (error) {
-      console.error('Error fetching manual booking stats:', error);
+      console.error('Error fetching booking stats:', error);
       set({ statsLoading: false });
     }
   },
@@ -698,10 +628,10 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
 
   getStatusCount: (status: BookingStatus | 'all') => {
     const { stats } = get();
-
+    
     if (status === 'all') return stats.total_bookings;
 
-    // Map status to stats properties
+    // Use stats counts instead of filtering paginated bookings
     switch (status) {
       case 'reserved':
         return stats.reserved_count;
