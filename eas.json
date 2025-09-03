@@ -24,6 +24,7 @@
             }
         },
         "production": {
+            "autoIncrement": true,
             "android": {
                 "buildType": "app-bundle"
             },
@@ -35,6 +36,11 @@
             "android": {
                 "serviceAccountKeyPath": "./google-service-account.json",
                 "track": "internal"
+            },
+            "ios": {
+                "appleId": "support@fi-es.com",
+                "ascAppId": "6751880862",
+                "appleTeamId": "HTUY2D4R72"
             }
         }
     }
