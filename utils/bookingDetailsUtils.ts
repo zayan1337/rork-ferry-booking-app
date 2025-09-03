@@ -1,4 +1,5 @@
 import { Share, Alert } from 'react-native';
+import Colors from '@/constants/colors';
 
 // Formatting utilities
 export const formatBookingDate = (dateString: string) => {
@@ -13,8 +14,6 @@ export const formatBookingDate = (dateString: string) => {
 
 // Status styling utilities
 export const getStatusColor = (status: string) => {
-  const Colors = require('@/constants/colors').default;
-
   switch (status) {
     case 'confirmed':
       return Colors.success;

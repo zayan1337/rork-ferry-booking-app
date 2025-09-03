@@ -628,7 +628,7 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
 
   getStatusCount: (status: BookingStatus | 'all') => {
     const { stats } = get();
-    
+
     if (status === 'all') return stats.total_bookings;
 
     // Use stats counts instead of filtering paginated bookings

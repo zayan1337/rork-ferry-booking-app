@@ -2,7 +2,7 @@
   "expo": {
     "name": "Crystal Transfer Vaavu",
     "slug": "crystal-transfer-vaavu",
-    "version": "1.0.2",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "crystaltransfervaavu",
@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.crystal-transfer-vaavu"
+      "bundleIdentifier": "app.fies.crystal-transfer-vaavu",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +26,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.fies.crystaltransfervaavu",
-      "versionCode": 3,
+      "versionCode": 1,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -40,15 +43,15 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "runtimeVersion": "1.0.2",
+    "runtimeVersion": "1.0.0",
     "extra": {
       "router": {
         "origin": "https://rork.com/"
       },
       "eas": {
-        "projectId": "9cbb67bc-7155-4253-97e0-0c7138c03ad4"
+        "projectId": "05b825f5-0542-410b-9f9b-5b63c4dc23ff"
       }
     },
-    "owner": "vaishnavv"
+    "owner": "fi-essystems"
   }
 }

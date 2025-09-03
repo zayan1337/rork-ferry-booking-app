@@ -17,4 +17,3 @@ export interface TermsStore {
   getActiveTerms: () => TermsAndConditions[];
   clearError: () => void;
 }
-
