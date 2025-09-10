@@ -69,5 +69,6 @@ module.exports = {
     '*.config.ts',
     'metro.config.js',
     'babel.config.js',
+    'supabase/functions/**/*',
   ],
 };

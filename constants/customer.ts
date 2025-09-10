@@ -26,11 +26,11 @@ export const TRIP_TYPES = {
 
 // Payment methods
 export const PAYMENT_OPTIONS = [
-  { label: 'Bank Transfer', value: 'bank_transfer' },
-  { label: 'BML', value: 'bml' },
+  // { label: 'Bank Transfer', value: 'bank_transfer' },
+  // { label: 'BML', value: 'bml' },
   { label: 'MIB', value: 'mib' },
-  { label: 'Ooredoo', value: 'ooredoo_m_faisa' },
-  { label: 'FahiPay', value: 'fahipay' },
+  // { label: 'Ooredoo', value: 'ooredoo_m_faisa' },
+  // { label: 'FahiPay', value: 'fahipay' },
 ] as const;
 
 // Date generation constants

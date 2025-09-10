@@ -9,14 +9,14 @@ const corsHeaders = {
 
 // MIB Configuration
 const MIB_BASE_URL =
-  Deno.env.get('MIB_TEST_API_URL') ||
-  'https://test-mib.mtf.gateway.mastercard.com/api/rest/version/100';
-const MERCHANT_ID = Deno.env.get('MIB_TEST_MERCHANT_ID') || 'TESTCRYSTALTRL';
+  Deno.env.get('MIB_PROD_API_URL') ||
+  'https://mib.gateway.mastercard.com/api/rest/version/100';
+const MERCHANT_ID = Deno.env.get('MIB_TEST_MERCHANT_ID') || 'CRYSTALTRF';
 const AUTH_HEADER =
-  Deno.env.get('MIB_TEST_AUTH_HEADER') ||
-  'Basic bWVyY2hhbnQuVEVTVENSWVNUQUxUUkw6ZjAzYTlkZjY3OGU1OGU0MmNiYWM4YjJlNTg4MjgyNzc=';
+  Deno.env.get('MIB_PROD_AUTH_HEADER') ||
+  'Basic bWVyY2hhbnQuQ1JZU1RBTFRSRjoyMTRmN2ZhNTgxMDZkZDcyNGM5MTA0YmRiNzc1OTBkMw==';
 const merchantName =
-  Deno.env.get('MIB_TEST_MERCHANT_NAME') || 'Crystal Transfer Vaavu';
+  Deno.env.get('MIB_MERCHANT_NAME') || 'Crystal Transfer Vaavu';
 
 serve(async (req: Request) => {
   // Handle CORS preflight requests
