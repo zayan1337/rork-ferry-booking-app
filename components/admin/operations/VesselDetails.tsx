@@ -449,6 +449,15 @@ export default function VesselDetails({
           </View>
           <View style={styles.headerContent}>
             <Text style={styles.vesselName}>{vessel.name}</Text>
+            {(vessel.make || vessel.model) && (
+              <View style={styles.vesselMakeModel}>
+                <Text style={styles.vesselMakeModelText}>
+                  {vessel.make && vessel.model
+                    ? `${vessel.make} ${vessel.model}`
+                    : vessel.make || vessel.model || ''}
+                </Text>
+              </View>
+            )}
             <View style={styles.vesselInfo}>
               <Anchor size={16} color={colors.textSecondary} />
               <Text style={styles.vesselDescription}>
@@ -1081,8 +1090,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 6,
+    marginBottom: 4,
     lineHeight: 30,
+  },
+  vesselMakeModel: {
+    marginBottom: 6,
+  },
+  vesselMakeModelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+    letterSpacing: 0.3,
   },
   vesselInfo: {
     flexDirection: 'row',

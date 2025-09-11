@@ -339,11 +339,10 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
     );
   }
 
-  // Loading state - show loading if both data sources are loading or empty
+  // Loading state - only show loading if we're actively loading and haven't received any data yet
   if (
-    (loading.schedule || tripLoading) &&
-    (!todaySchedule || todaySchedule.length === 0) &&
-    (!allTrips || allTrips.length === 0)
+    (loading.schedule && todaySchedule === undefined) ||
+    (tripLoading && allTrips === undefined)
   ) {
     return <LoadingSpinner />;
   }

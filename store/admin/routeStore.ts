@@ -71,6 +71,7 @@ interface RouteStoreActions
 
   // Statistics
   calculateStats: () => void;
+  updateStatsAfterCreate: (newRoute: Route) => void;
 
   // Utility
   getRouteById: (id: string) => Route | undefined;
@@ -383,24 +384,23 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
         throw new Error(Object.values(validation.errors)[0]);
       }
 
-      // Check for existing route with same island combination
+      // Check for existing route with same island combination (optimized query)
       const { data: existingRoute, error: checkError } = await supabase
         .from('routes')
-        .select('id, name')
+        .select('id')
         .eq('from_island_id', data.from_island_id)
         .eq('to_island_id', data.to_island_id)
-        .single();
+        .limit(1);
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError) {
         throw checkError;
       }
 
-      if (existingRoute) {
-        throw new Error(
-          `A route already exists between these islands. Route ID: ${existingRoute.id}`
-        );
+      if (existingRoute && existingRoute.length > 0) {
+        throw new Error('A route already exists between these islands.');
       }
 
+      // Create route and get stats in a single optimized query
       const { data: newRoute, error } = await supabase
         .from('routes')
         .insert([
@@ -421,23 +421,33 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
 
       if (error) throw error;
 
-      // Fetch from routes_stats_view to get statistics
-      const { data: routeWithStats, error: statsError } = await supabase
-        .from('routes_stats_view')
-        .select('*')
-        .eq('id', newRoute.id)
-        .single();
-
-      if (statsError) throw statsError;
-
-      const processedRoute = processRouteData(routeWithStats);
+      // Create a basic route object with default stats (no need for expensive stats view query)
+      const processedRoute = processRouteData({
+        ...newRoute,
+        // Set default stats for new route
+        total_trips_30d: 0,
+        total_bookings_30d: 0,
+        total_revenue_30d: 0,
+        average_occupancy_30d: 0,
+        cancellation_rate_30d: 0,
+        popularity_score: 0,
+        trips_today: 0,
+        trips_7d: 0,
+        bookings_today: 0,
+        bookings_7d: 0,
+        revenue_today: 0,
+        revenue_7d: 0,
+        on_time_performance_30d: 0,
+        avg_delay_minutes_30d: 0,
+      });
 
       set(state => ({
         data: [processedRoute, ...state.data],
         loading: { ...state.loading, creating: false },
       }));
 
-      get().calculateStats();
+      // Update stats efficiently without recalculating everything
+      get().updateStatsAfterCreate(processedRoute);
       return processedRoute;
     } catch (error) {
       console.error('Error creating route:', error);
@@ -490,16 +500,26 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
 
       if (error) throw error;
 
-      // Fetch from routes_stats_view to get updated statistics
-      const { data: routeWithStats, error: statsError } = await supabase
-        .from('routes_stats_view')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (statsError) throw statsError;
-
-      const processedRoute = processRouteData(routeWithStats);
+      // Get existing route data and merge with updates (avoid expensive stats view query)
+      const existingRoute = get().data.find(route => route.id === id);
+      const processedRoute = processRouteData({
+        ...updatedRoute,
+        // Preserve existing stats data
+        total_trips_30d: existingRoute?.total_trips_30d || 0,
+        total_bookings_30d: existingRoute?.total_bookings_30d || 0,
+        total_revenue_30d: existingRoute?.total_revenue_30d || 0,
+        average_occupancy_30d: existingRoute?.average_occupancy_30d || 0,
+        cancellation_rate_30d: existingRoute?.cancellation_rate_30d || 0,
+        popularity_score: existingRoute?.popularity_score || 0,
+        trips_today: existingRoute?.trips_today || 0,
+        trips_7d: existingRoute?.trips_7d || 0,
+        bookings_today: existingRoute?.bookings_today || 0,
+        bookings_7d: existingRoute?.bookings_7d || 0,
+        revenue_today: existingRoute?.revenue_today || 0,
+        revenue_7d: existingRoute?.revenue_7d || 0,
+        on_time_performance_30d: existingRoute?.on_time_performance_30d || 0,
+        avg_delay_minutes_30d: existingRoute?.avg_delay_minutes_30d || 0,
+      });
 
       set(state => ({
         data: state.data.map(route =>
@@ -879,6 +899,23 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
     }
 
     set({ stats });
+  },
+
+  // Optimized stats update for new route creation
+  updateStatsAfterCreate: (newRoute: Route) => {
+    const { stats } = get();
+
+    set({
+      stats: {
+        ...stats,
+        total: stats.total + 1,
+        active: newRoute.is_active ? stats.active + 1 : stats.active,
+        inactive: !newRoute.is_active ? stats.inactive + 1 : stats.inactive,
+        avgFare:
+          (stats.avgFare * stats.total + newRoute.base_fare) /
+          (stats.total + 1),
+      },
+    });
   },
 
   // ========================================================================

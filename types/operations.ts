@@ -41,6 +41,8 @@ export interface Route {
 export interface Vessel {
   id: string;
   name: string;
+  make?: string;
+  model?: string;
   registration_number: string;
   capacity: number;
   seating_capacity: number;

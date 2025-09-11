@@ -327,6 +327,14 @@ export const validateVesselData = (
     errors.captain_name = 'Captain name must be less than 100 characters';
   }
 
+  if (data.make && data.make.length > 100) {
+    errors.make = 'Make must be less than 100 characters';
+  }
+
+  if (data.model && data.model.length > 100) {
+    errors.model = 'Model must be less than 100 characters';
+  }
+
   return {
     isValid: Object.keys(errors).length === 0,
     errors,

@@ -92,6 +92,8 @@ export type Route = {
 export type Vessel = {
   id: string;
   name: string;
+  make?: string;
+  model?: string;
   capacity: number;
   seating_capacity: number;
   status: 'active' | 'maintenance' | 'inactive';

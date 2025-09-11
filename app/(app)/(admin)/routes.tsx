@@ -445,8 +445,8 @@ export default function RoutesScreen() {
         }}
       />
 
-      {/* UPDATED: Use loading state from new route hook */}
-      {loading.routes ? (
+      {/* UPDATED: Use loading state from new route hook - only show loading if actively loading and no data yet */}
+      {loading.routes && allRoutes === undefined ? (
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading routes...</Text>

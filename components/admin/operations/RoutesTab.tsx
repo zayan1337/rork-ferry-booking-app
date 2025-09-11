@@ -116,8 +116,8 @@ export default function RoutesTab({
     );
   }
 
-  // Loading state
-  if (routeLoading.routes && (!allRoutes || allRoutes.length === 0)) {
+  // Loading state - only show loading if we're actively loading and haven't received any data yet
+  if (routeLoading.routes && allRoutes === undefined) {
     return <LoadingSpinner />;
   }
 

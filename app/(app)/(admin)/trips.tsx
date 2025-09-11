@@ -704,7 +704,7 @@ export default function TripsScreen() {
         }}
       />
 
-      {loading.data ? (
+      {loading.data && allTrips === undefined ? (
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading trips...</Text>

@@ -219,8 +219,8 @@ export default function TripsTab({
     );
   }
 
-  // Loading state
-  if (loading.data && (!allTrips || allTrips.length === 0)) {
+  // Loading state - only show loading if we're actively loading and haven't received any data yet
+  if (loading.data && allTrips === undefined) {
     return <LoadingSpinner />;
   }
 

@@ -482,8 +482,8 @@ export default function VesselsScreen() {
         }}
       />
 
-      {/* UPDATED: Use loading state from new vessel hook */}
-      {loading?.fetchAll ? (
+      {/* UPDATED: Use loading state from new vessel hook - only show loading if actively loading and no data yet */}
+      {loading?.fetchAll && allVessels === undefined ? (
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading vessels...</Text>

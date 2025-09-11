@@ -43,6 +43,20 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
     setError(null);
 
     try {
+      // Get current authenticated user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw new Error(`Authentication error: ${userError.message}`);
+      }
+
+      if (!user?.id) {
+        throw new Error('No authenticated user found');
+      }
+
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(
@@ -99,78 +113,92 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
           updated_at
         `
         )
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (bookingsError) throw bookingsError;
 
-      const formattedBookings: Booking[] = bookingsData.map((booking: any) => {
-        // Format route data
-        const route: Route = {
-          id: booking.trip.route.id,
-          fromIsland: {
-            id: booking.trip.route.from_island.id,
-            name: booking.trip.route.from_island.name,
-            zone: booking.trip.route.from_island.zone,
-          },
-          toIsland: {
-            id: booking.trip.route.to_island.id,
-            name: booking.trip.route.to_island.name,
-            zone: booking.trip.route.to_island.zone,
-          },
-          baseFare: booking.trip.route.base_fare,
-          duration: '2h', // Default duration since it's not in the database
-        };
+      const formattedBookings: Booking[] = (bookingsData || []).map(
+        (booking: any) => {
+          // Validate required booking data
+          if (!booking?.trip?.route) {
+            throw new Error(
+              'Invalid booking data: missing trip or route information'
+            );
+          }
 
-        // Format passengers data with their seats
-        const passengers: Passenger[] = booking.passengers.map((p: any) => ({
-          id: p.id,
-          fullName: p.passenger_name,
-          idNumber: p.passenger_contact_number,
-          specialAssistance: p.special_assistance_request,
-        }));
+          // Format route data with null checks
+          const route: Route = {
+            id: booking.trip.route.id,
+            fromIsland: {
+              id: booking.trip.route.from_island?.id || '',
+              name: booking.trip.route.from_island?.name || 'Unknown',
+              zone: booking.trip.route.from_island?.zone || '',
+            },
+            toIsland: {
+              id: booking.trip.route.to_island?.id || '',
+              name: booking.trip.route.to_island?.name || 'Unknown',
+              zone: booking.trip.route.to_island?.zone || '',
+            },
+            baseFare: booking.trip.route.base_fare || 0,
+            duration: '2h', // Default duration since it's not in the database
+          };
 
-        // Format seats data
-        const seats: Seat[] = booking.passengers.map((p: any) => ({
-          id: p.seat.id,
-          number: p.seat.seat_number,
-          rowNumber: p.seat.row_number,
-          isWindow: p.seat.is_window,
-          isAisle: p.seat.is_aisle,
-          isAvailable: false,
-          isSelected: true,
-        }));
+          // Format passengers data with their seats (with null checks)
+          const passengers: Passenger[] = (booking.passengers || []).map(
+            (p: any) => ({
+              id: p?.id || '',
+              fullName: p?.passenger_name || '',
+              idNumber: p?.passenger_contact_number || '',
+              specialAssistance: p?.special_assistance_request || '',
+            })
+          );
 
-        // Get payment information
-        const payment = booking.payments?.[0]
-          ? {
-              method: booking.payments[0].payment_method,
-              status: booking.payments[0].status,
-            }
-          : undefined;
+          // Format seats data (with null checks)
+          const seats: Seat[] = (booking.passengers || [])
+            .filter((p: any) => p?.seat) // Only include passengers with valid seat data
+            .map((p: any) => ({
+              id: p.seat?.id || '',
+              number: p.seat?.seat_number || '',
+              rowNumber: p.seat?.row_number || 0,
+              isWindow: p.seat?.is_window || false,
+              isAisle: p.seat?.is_aisle || false,
+              isAvailable: false,
+              isSelected: true,
+            }));
 
-        // Format the booking
-        return {
-          id: booking.id,
-          bookingNumber: booking.booking_number,
-          tripType: booking.is_round_trip ? 'round_trip' : 'one_way',
-          departureDate: booking.trip.travel_date,
-          departureTime: booking.trip.departure_time,
-          route,
-          seats,
-          passengers,
-          totalFare: booking.total_fare,
-          status: booking.status,
-          qrCodeUrl: booking.qr_code_url,
-          checkInStatus: booking.check_in_status,
-          createdAt: booking.created_at,
-          updatedAt: booking.updated_at,
-          vessel: {
-            id: booking.trip.vessel.id,
-            name: booking.trip.vessel.name,
-          },
-          payment,
-        };
-      });
+          // Get payment information
+          const payment = booking.payments?.[0]
+            ? {
+                method: booking.payments[0].payment_method,
+                status: booking.payments[0].status,
+              }
+            : undefined;
+
+          // Format the booking (with null checks)
+          return {
+            id: booking?.id || '',
+            bookingNumber: booking?.booking_number || '',
+            tripType: booking?.is_round_trip ? 'round_trip' : 'one_way',
+            departureDate: booking?.trip?.travel_date || '',
+            departureTime: booking?.trip?.departure_time || '',
+            route,
+            seats,
+            passengers,
+            totalFare: booking?.total_fare || 0,
+            status: booking?.status || 'pending',
+            qrCodeUrl: booking?.qr_code_url || '',
+            checkInStatus: booking?.check_in_status || false,
+            createdAt: booking?.created_at || '',
+            updatedAt: booking?.updated_at || '',
+            vessel: {
+              id: booking?.trip?.vessel?.id || '',
+              name: booking?.trip?.vessel?.name || 'Unknown Vessel',
+            },
+            payment,
+          };
+        }
+      );
 
       set({ bookings: formattedBookings });
     } catch (error) {

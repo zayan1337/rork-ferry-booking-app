@@ -7,6 +7,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/constants/adminColors';
 import { useAuthStore } from '@/store/authStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -32,8 +33,7 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function TabLayout() {
   const isTablet = screenWidth >= 768;
   const isSmallScreen = screenWidth < 480;
-
-  const iconSize = isSmallScreen ? 18 : isTablet ? 22 : 20;
+  const insets = useSafeAreaInsets();
   const { user, signOut } = useAuthStore();
   const {
     canViewDashboard,
@@ -135,13 +135,20 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            paddingBottom: Math.max(insets.bottom, 6),
+            paddingTop: 6,
+          },
+        ],
         tabBarLabelStyle: styles.tabBarLabel,
         headerStyle: styles.header,
         headerTitleStyle: styles.headerTitle,
         headerShadowVisible: false,
         headerRight: renderHeaderRight,
         tabBarHideOnKeyboard: true,
+        tabBarItemStyle: styles.tabBarItem,
       }}
     >
       {/* Dashboard Tab */}
@@ -150,16 +157,7 @@ export default function TabLayout() {
         options={{
           title: 'Dashboard',
           href: canViewDashboard() ? undefined : null,
-          tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.iconContainer,
-                focused && styles.iconContainerFocused,
-              ]}
-            >
-              <Home size={iconSize} color={color} />
-            </View>
-          ),
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
 
@@ -169,15 +167,8 @@ export default function TabLayout() {
         options={{
           title: 'Bookings',
           href: canViewBookings() ? undefined : null,
-          tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.iconContainer,
-                focused && styles.iconContainerFocused,
-              ]}
-            >
-              <CreditCard size={iconSize} color={color} />
-            </View>
+          tabBarIcon: ({ color, size }) => (
+            <CreditCard size={size} color={color} />
           ),
         }}
       />
@@ -188,16 +179,7 @@ export default function TabLayout() {
         options={{
           title: isSmallScreen ? 'Ops' : 'Operations',
           href: canAccessOperationsTab() ? undefined : null,
-          tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.iconContainer,
-                focused && styles.iconContainerFocused,
-              ]}
-            >
-              <Ship size={iconSize} color={color} />
-            </View>
-          ),
+          tabBarIcon: ({ color, size }) => <Ship size={size} color={color} />,
         }}
       />
 
@@ -207,16 +189,7 @@ export default function TabLayout() {
         options={{
           title: 'Users',
           href: canAccessUsersTab() ? undefined : null,
-          tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.iconContainer,
-                focused && styles.iconContainerFocused,
-              ]}
-            >
-              <Users size={iconSize} color={color} />
-            </View>
-          ),
+          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
         }}
       />
 
@@ -226,15 +199,8 @@ export default function TabLayout() {
         options={{
           title: 'Finance',
           href: canAccessFinanceTab() ? undefined : null,
-          tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.iconContainer,
-                focused && styles.iconContainerFocused,
-              ]}
-            >
-              <DollarSign size={iconSize} color={color} />
-            </View>
+          tabBarIcon: ({ color, size }) => (
+            <DollarSign size={size} color={color} />
           ),
         }}
       />
@@ -245,15 +211,8 @@ export default function TabLayout() {
         options={{
           title: isSmallScreen ? 'Comms' : 'Communications',
           href: canAccessCommunicationsTab() ? undefined : null,
-          tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.iconContainer,
-                focused && styles.iconContainerFocused,
-              ]}
-            >
-              <MessageSquare size={iconSize} color={color} />
-            </View>
+          tabBarIcon: ({ color, size }) => (
+            <MessageSquare size={size} color={color} />
           ),
         }}
       />
@@ -264,15 +223,8 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           href: canAccessSettingsTab() ? undefined : null,
-          tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.iconContainer,
-                focused && styles.iconContainerFocused,
-              ]}
-            >
-              <Settings size={iconSize} color={color} />
-            </View>
+          tabBarIcon: ({ color, size }) => (
+            <Settings size={size} color={color} />
           ),
         }}
       />
@@ -284,29 +236,14 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: colors.card,
     borderTopColor: colors.border,
-    paddingTop: 8,
-    paddingHorizontal: 4,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 8,
+    borderTopWidth: 1,
+  },
+  tabBarItem: {
+    paddingVertical: 4,
   },
   tabBarLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  iconContainer: {
-    padding: 6,
-    borderRadius: 10,
-    minWidth: 30,
-    minHeight: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconContainerFocused: {
-    backgroundColor: `${colors.primary}15`,
+    fontSize: 11,
+    fontWeight: '500',
   },
   header: {
     backgroundColor: colors.background,

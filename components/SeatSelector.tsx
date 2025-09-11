@@ -339,13 +339,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 8,
     flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   row: {
     marginBottom: 10,
+    alignItems: 'center',
   },
   seats: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   seat: {
     width: seatSize,
@@ -443,10 +447,13 @@ const styles = StyleSheet.create({
 
   seatsGrid: {
     flexDirection: 'column',
+    alignItems: 'center',
   },
   horizontalScrollContent: {
     paddingVertical: 16,
     paddingHorizontal: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

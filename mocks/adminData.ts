@@ -221,6 +221,8 @@ export const mockVessels: Vessel[] = [
   {
     id: 'v1',
     name: 'Sea Voyager I',
+    make: 'Island Shipyard',
+    model: 'IS-150',
     registration_number: 'SV001',
     capacity: 150,
     seating_capacity: 150,
@@ -253,6 +255,8 @@ export const mockVessels: Vessel[] = [
   {
     id: 'v2',
     name: 'Ocean Explorer',
+    make: 'Marine Works',
+    model: 'MW-200',
     registration_number: 'OE002',
     capacity: 200,
     seating_capacity: 200,
@@ -285,6 +289,8 @@ export const mockVessels: Vessel[] = [
   {
     id: 'v3',
     name: 'Island Hopper',
+    make: 'Fast Craft Ltd',
+    model: 'FC-100',
     registration_number: 'IH003',
     capacity: 100,
     seating_capacity: 100,
@@ -313,10 +319,12 @@ export const mockVessels: Vessel[] = [
   },
   {
     id: 'v4',
-    name: 'Coastal Runner',
+    name: 'Crystal Wave',
+    make: 'Crystal Craft',
+    model: 'CC42',
     registration_number: 'CR004',
-    capacity: 120,
-    seating_capacity: 120,
+    capacity: 39,
+    seating_capacity: 39,
     crew_capacity: 7,
     vessel_type: 'catamaran',
     status: 'active',

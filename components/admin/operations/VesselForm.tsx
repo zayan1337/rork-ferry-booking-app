@@ -44,6 +44,8 @@ interface ValidationErrors {
   name?: string;
   seating_capacity?: string;
   vessel_type?: string;
+  make?: string;
+  model?: string;
   registration_number?: string;
   captain_name?: string;
   contact_number?: string;
@@ -71,6 +73,8 @@ export default function VesselForm({
     status: initialData?.status || 'active',
     is_active: initialData?.is_active ?? true,
     vessel_type: initialData?.vessel_type || 'passenger',
+    make: initialData?.make || '',
+    model: initialData?.model || '',
     registration_number: initialData?.registration_number || '',
     captain_name: initialData?.captain_name || '',
     contact_number: initialData?.contact_number || '',
@@ -329,6 +333,8 @@ export default function VesselForm({
         status: formData.status,
         is_active: formData.is_active,
         vessel_type: formData.vessel_type,
+        make: formData.make?.trim() || undefined,
+        model: formData.model?.trim() || undefined,
         registration_number: formData.registration_number?.trim() || undefined,
         captain_name: formData.captain_name?.trim() || undefined,
         contact_number: formData.contact_number?.trim() || undefined,
@@ -520,10 +526,36 @@ export default function VesselForm({
               onChangeText={text =>
                 setFormData(prev => ({ ...prev, name: text }))
               }
-              placeholder='Enter vessel name (e.g., MV Sea Explorer)'
+              placeholder='Enter vessel name (e.g., Crystal Wave)'
               error={validationErrors.name}
               required
             />
+          </View>
+
+          <View style={styles.formRow}>
+            <View style={styles.formHalf}>
+              <TextInput
+                label='Make'
+                value={formData.make}
+                onChangeText={text =>
+                  setFormData(prev => ({ ...prev, make: text }))
+                }
+                placeholder='Enter vessel make (e.g., Crystal Craft)'
+                error={validationErrors.make}
+              />
+            </View>
+
+            <View style={styles.formHalf}>
+              <TextInput
+                label='Model'
+                value={formData.model}
+                onChangeText={text =>
+                  setFormData(prev => ({ ...prev, model: text }))
+                }
+                placeholder='Enter vessel model (e.g., CC42)'
+                error={validationErrors.model}
+              />
+            </View>
           </View>
 
           <View style={styles.formGroup}>

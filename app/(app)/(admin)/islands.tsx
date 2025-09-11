@@ -454,7 +454,7 @@ export default function IslandsScreen() {
       />
 
       {/* UPDATED: Use loading state from new hook */}
-      {loading.islands ? (
+      {loading.islands && allIslands === undefined ? (
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading islands...</Text>

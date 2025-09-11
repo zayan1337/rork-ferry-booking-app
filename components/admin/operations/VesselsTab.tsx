@@ -131,8 +131,8 @@ export default function VesselsTab({
     );
   }
 
-  // Loading state
-  if (loading.vessels && (!filteredVessels || filteredVessels.length === 0)) {
+  // Loading state - only show loading if we're actively loading and haven't received any data yet
+  if (loading.vessels && allVessels === undefined) {
     return <LoadingSpinner />;
   }
 

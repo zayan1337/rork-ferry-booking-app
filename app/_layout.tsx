@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font';
 import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
 import * as Linking from 'expo-linking';
 // import CustomSplashScreen from '../components/SplashScreen';
@@ -120,7 +121,7 @@ function RootLayoutNav() {
     isAuthenticated && user?.profile && user.profile.is_active;
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style='dark' />
       <Stack
         screenOptions={{
@@ -133,6 +134,6 @@ function RootLayoutNav() {
         <Stack.Screen name='(auth)' />
         <Stack.Screen name='(app)' />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }

@@ -473,7 +473,7 @@ export default function TermsScreen() {
         }}
       />
 
-      {loading.terms ? (
+      {loading.terms && allTerms === undefined ? (
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>

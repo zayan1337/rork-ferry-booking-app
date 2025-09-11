@@ -22,6 +22,8 @@ export interface DatabaseTrip {
 export interface DatabaseVessel {
   id: string;
   name: string;
+  make?: string;
+  model?: string;
   seating_capacity: number;
   is_active: boolean;
   created_at: string;

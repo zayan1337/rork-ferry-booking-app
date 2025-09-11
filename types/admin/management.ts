@@ -690,6 +690,8 @@ export interface Vessel extends BaseEntity, ActivatableEntity, NamedEntity {
   status: 'active' | 'maintenance' | 'inactive';
 
   // Enhanced vessel details
+  make?: string;
+  model?: string;
   vessel_type: 'passenger' | 'cargo' | 'mixed' | 'luxury' | 'speedboat';
   registration_number?: string;
   captain_name?: string;
@@ -732,6 +734,8 @@ export interface VesselFormData {
   is_active: boolean;
 
   // Enhanced vessel details
+  make?: string;
+  model?: string;
   vessel_type: 'passenger' | 'cargo' | 'mixed' | 'luxury' | 'speedboat';
   registration_number?: string;
   captain_name?: string;
