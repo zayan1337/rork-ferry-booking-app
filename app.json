@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fies.crystaltransfervaavu",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -52,6 +52,6 @@
       }
     },
     "owner": "fi-essystems",
-    "plugins": ["expo-router"]
+    "plugins": ["expo-router", "expo-font", "expo-web-browser"]
   }
 }

@@ -85,8 +85,22 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
 
         if (departureBookingError) throw departureBookingError;
 
-        // Generate QR code URL using the auto-generated booking number
-        const departureQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${departureBooking.booking_number}`)}`;
+        // Generate comprehensive QR code data for departure
+        const departureQrData = {
+          bookingNumber: departureBooking.booking_number,
+          id: departureBooking.id,
+          from: currentBooking.route.fromIsland.name,
+          to: currentBooking.route.toIsland.name,
+          date: currentBooking.departureDate,
+          time: currentBooking.trip.departureTime,
+          passengers: currentBooking.passengers.length,
+          seats: currentBooking.selectedSeats
+            .map((s: any) => s.number)
+            .join(','),
+        };
+
+        // Generate QR code URL with comprehensive booking data
+        const departureQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(departureQrData))}`;
 
         // Update departure booking with QR code URL
         const { data: qrUpdateResult, error: qrUpdateError } = await supabase
@@ -96,10 +110,7 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
           .select('id, qr_code_url');
 
         if (qrUpdateError) {
-          console.error(
-            'Failed to update departure QR code URL:',
-            qrUpdateError
-          );
+          console.error('Failed to update departure QR code URL:', qrUpdateError);
         }
 
         // Create payment record for departure
@@ -169,8 +180,22 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
           if (returnBookingError) throw returnBookingError;
           returnBooking = returnBookingData;
 
-          // Generate QR code URL using the auto-generated booking number
-          const returnQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${returnBooking.booking_number}`)}`;
+          // Generate comprehensive QR code data for return
+          const returnQrData = {
+            bookingNumber: returnBooking.booking_number,
+            id: returnBooking.id,
+            from: currentBooking.returnRoute.fromIsland.name,
+            to: currentBooking.returnRoute.toIsland.name,
+            date: currentBooking.returnDate,
+            time: currentBooking.returnTrip.departureTime,
+            passengers: currentBooking.passengers.length,
+            seats: currentBooking.returnSelectedSeats
+              .map((s: any) => s.number)
+              .join(','),
+          };
+
+          // Generate QR code URL with comprehensive booking data
+          const returnQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(returnQrData))}`;
 
           // Update return booking with QR code URL
           const { data: returnQrUpdateResult, error: returnQrUpdateError } =
@@ -181,10 +206,7 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
               .select('id, qr_code_url');
 
           if (returnQrUpdateError) {
-            console.error(
-              'Failed to update return QR code URL:',
-              returnQrUpdateError
-            );
+            console.error('Failed to update return QR code URL:', returnQrUpdateError);
           }
 
           // Create payment record for return

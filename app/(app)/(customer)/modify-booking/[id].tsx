@@ -16,6 +16,11 @@ import { supabase } from '@/utils/supabase';
 import { useKeyboardHandler } from '@/hooks/useKeyboardHandler';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { useBookingEligibility } from '@/hooks/useBookingEligibility';
+import {
+  tempReserveSeat,
+  releaseTempSeatReservation,
+  cleanupUserTempReservations,
+} from '@/utils/realtimeSeatReservation';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
@@ -49,6 +54,11 @@ export default function ModifyBookingScreen() {
   const {
     availableSeats,
     fetchAvailableSeats,
+    fetchRealtimeSeatStatus,
+    subscribeSeatUpdates,
+    unsubscribeSeatUpdates,
+    cleanupAllSeatSubscriptions,
+    refreshAvailableSeatsSilently,
     isLoading: seatLoading,
   } = useSeatStore();
 
@@ -68,6 +78,8 @@ export default function ModifyBookingScreen() {
   const [tripSeatCounts, setTripSeatCounts] = useState<Record<string, number>>(
     {}
   );
+  const [loadingSeats, setLoadingSeats] = useState<Set<string>>(new Set());
+  const [seatErrors, setSeatErrors] = useState<Record<string, string>>({});
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>('wallet');
   const [bankAccountDetails, setBankAccountDetails] = useState<BankDetails>({
@@ -125,6 +137,80 @@ export default function ModifyBookingScreen() {
       keyboardDidHideListener?.remove();
     };
   }, [activeInput]);
+
+  // Cleanup all subscriptions and temporary reservations when component unmounts
+  useEffect(() => {
+    return () => {
+      cleanupAllSeatSubscriptions();
+      // Also cleanup any temporary reservations
+      if (selectedTrip?.id) {
+        cleanupUserTempReservations(selectedTrip.id).catch(() => {
+          // Silently handle cleanup errors
+        });
+      }
+    };
+  }, []);
+
+  // Periodic seat refresh as fallback for real-time updates
+  useEffect(() => {
+    if (selectedTrip?.id) {
+      const refreshInterval = setInterval(() => {
+        // Refresh seat availability without showing loading
+        refreshAvailableSeatsSilently(selectedTrip.id, false).catch(() => {
+          // Silently handle refresh errors
+        });
+      }, 30000); // Refresh every 30 seconds
+
+      return () => clearInterval(refreshInterval);
+    }
+  }, [selectedTrip?.id, refreshAvailableSeatsSilently]);
+
+  // Monitor seat availability changes and notify user
+  useEffect(() => {
+    if (selectedSeats.length > 0 && availableSeats.length > 0) {
+      const checkSeatAvailability = () => {
+        const unavailableSeats: string[] = [];
+
+        selectedSeats.forEach(selectedSeat => {
+          const currentSeat = availableSeats.find(
+            s => s.id === selectedSeat.id
+          );
+          if (
+            currentSeat &&
+            !currentSeat.isAvailable &&
+            !currentSeat.isCurrentUserReservation
+          ) {
+            unavailableSeats.push(currentSeat.number);
+          }
+        });
+
+        if (unavailableSeats.length > 0) {
+          Alert.alert(
+            'Seat Availability Changed',
+            `The following seats are no longer available: ${unavailableSeats.join(', ')}. Please select different seats.`,
+            [{ text: 'OK' }]
+          );
+          // Remove unavailable seats from selection
+          setSelectedSeats(prevSeats =>
+            prevSeats.filter(seat => {
+              const currentSeat = availableSeats.find(s => s.id === seat.id);
+              return (
+                currentSeat &&
+                (currentSeat.isAvailable ||
+                  currentSeat.isCurrentUserReservation)
+              );
+            })
+          );
+        }
+      };
+
+      // Check immediately and then periodically
+      checkSeatAvailability();
+      const checkInterval = setInterval(checkSeatAvailability, 5000); // Check every 5 seconds
+
+      return () => clearInterval(checkInterval);
+    }
+  }, [selectedSeats, availableSeats]);
 
   const scrollToInput = (inputKey: string) => {
     setTimeout(() => {
@@ -189,11 +275,35 @@ export default function ModifyBookingScreen() {
 
   // Fetch seats when trip is selected
   useEffect(() => {
-    if (selectedTrip?.id) {
-      fetchAvailableSeats(selectedTrip.id, false);
-      fetchTripSeatAvailability(selectedTrip.id);
-    }
-  }, [selectedTrip?.id, fetchAvailableSeats]);
+    const initializeSeatsForTrip = async () => {
+      if (selectedTrip?.id) {
+        try {
+          // Use real-time seat status fetching
+          await fetchRealtimeSeatStatus(selectedTrip.id, false);
+          // Subscribe to real-time updates for this trip
+          subscribeSeatUpdates(selectedTrip.id, false);
+          // Also fetch trip seat availability for display
+          fetchTripSeatAvailability(selectedTrip.id);
+        } catch (error) {
+          // Silently handle seat initialization errors
+        }
+      }
+    };
+
+    initializeSeatsForTrip();
+
+    // Cleanup subscriptions when trip changes
+    return () => {
+      if (selectedTrip?.id) {
+        unsubscribeSeatUpdates(selectedTrip.id);
+      }
+    };
+  }, [
+    selectedTrip?.id,
+    fetchRealtimeSeatStatus,
+    subscribeSeatUpdates,
+    unsubscribeSeatUpdates,
+  ]);
 
   // Calculate fare difference when trip changes
   useEffect(() => {
@@ -218,7 +328,6 @@ export default function ModifyBookingScreen() {
         .eq('trip_id', tripId);
 
       if (error) {
-        console.error('Error fetching seat availability:', error);
         return;
       }
 
@@ -229,29 +338,104 @@ export default function ModifyBookingScreen() {
 
       setTripSeatCounts(prev => ({ ...prev, [tripId]: availableCount }));
     } catch (error) {
-      console.error('Error fetching trip seat availability:', error);
+      // Silently handle seat availability fetch errors
     }
   };
 
-  const handleSeatToggle = (seat: Seat) => {
-    setSelectedSeats(prevSeats => {
-      const isSelected = prevSeats.some(s => s.id === seat.id);
+  const handleSeatToggle = async (seat: Seat) => {
+    // Check if seat is already being processed
+    if (loadingSeats.has(seat.id)) {
+      return;
+    }
+
+    // Check if seat is temporarily reserved by another user
+    if (seat.isTempReserved && !seat.isCurrentUserReservation) {
+      Alert.alert(
+        'Seat Unavailable',
+        'This seat is temporarily reserved by another user. Please select a different seat.'
+      );
+      return;
+    }
+
+    // Set loading state for this seat
+    setLoadingSeats(prev => new Set(prev).add(seat.id));
+    setSeatErrors(prev => ({ ...prev, [seat.id]: '' }));
+
+    try {
+      const isSelected = selectedSeats.some(s => s.id === seat.id);
+      const tripId = selectedTrip?.id;
+
+      if (!tripId) {
+        throw new Error('No trip selected');
+      }
 
       if (isSelected) {
-        return prevSeats.filter(s => s.id !== seat.id);
+        // Release the temporary reservation
+        const result = await releaseTempSeatReservation(tripId, seat.id);
+        if (result.success) {
+          setSelectedSeats(prevSeats =>
+            prevSeats.filter(s => s.id !== seat.id)
+          );
+          // Refresh seat status to show updated availability
+          await fetchRealtimeSeatStatus(tripId, false);
+        } else {
+          throw new Error(
+            result.message || 'Failed to release seat reservation'
+          );
+        }
       } else {
-        if (prevSeats.length >= (booking?.passengers?.length || 0)) {
+        // Check max seats limit
+        if (selectedSeats.length >= (booking?.passengers?.length || 0)) {
           Alert.alert(
             'Maximum Seats Selected',
             `You can only select ${booking?.passengers?.length || 0} seat(s) for this booking.`
           );
-          return prevSeats;
+          return;
         }
-        return [...prevSeats, { ...seat, isSelected: true }];
-      }
-    });
 
-    clearError('seats');
+        // Double-check availability at selection time
+        if (!seat.isAvailable && !seat.isCurrentUserReservation) {
+          throw new Error('This seat is no longer available');
+        }
+
+        // Try to temporarily reserve the seat
+        const result = await tempReserveSeat(tripId, seat.id, 10); // 10 minute expiry
+        if (result.success) {
+          setSelectedSeats(prevSeats => [
+            ...prevSeats,
+            { ...seat, isSelected: true },
+          ]);
+          // Refresh seat status to show updated availability
+          await fetchRealtimeSeatStatus(tripId, false);
+        } else {
+          throw new Error(result.message || 'Unable to reserve this seat');
+        }
+      }
+
+      clearError('seats');
+    } catch (error: any) {
+      const errorMessage =
+        error.message || 'Failed to select seat. Please try again.';
+      setSeatErrors(prev => ({ ...prev, [seat.id]: errorMessage }));
+
+      Alert.alert('Seat Selection Error', errorMessage);
+
+      // Refresh seat availability to show current status
+      if (selectedTrip?.id) {
+        try {
+          await fetchRealtimeSeatStatus(selectedTrip.id, false);
+        } catch (refreshError) {
+          // Silently handle refresh errors
+        }
+      }
+    } finally {
+      // Remove loading state for this seat
+      setLoadingSeats(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(seat.id);
+        return newSet;
+      });
+    }
   };
 
   const validateForm = () => {
@@ -575,6 +759,9 @@ export default function ModifyBookingScreen() {
               selectedSeats={selectedSeats}
               onSeatToggle={handleSeatToggle}
               maxSeats={booking.passengers.length}
+              isLoading={seatLoading}
+              loadingSeats={loadingSeats}
+              seatErrors={seatErrors}
             />
           ) : (
             <Text style={styles.noSeatsText}>

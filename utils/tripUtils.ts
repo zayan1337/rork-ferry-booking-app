@@ -104,6 +104,7 @@ export const formatTripTime = (time: string): string => {
   return new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
+    hour12: true,
   });
 };
 

@@ -48,6 +48,12 @@ export interface Seat {
   priceMultiplier?: number;
   positionX?: number;
   positionY?: number;
+  // Real-time reservation properties
+  isConfirmed?: boolean;
+  isTempReserved?: boolean;
+  tempReservedBy?: string;
+  tempExpiry?: string;
+  isCurrentUserReservation?: boolean;
 }
 
 export interface Passenger {
@@ -104,6 +110,8 @@ export type Booking = {
   vessel: {
     id: string;
     name: string;
+    model?: string;
+    registrationNumber?: string;
   };
   payment?: {
     method: PaymentMethod;

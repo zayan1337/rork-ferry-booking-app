@@ -25,7 +25,8 @@ module.exports = {
   rules: {
     // Prettier integration - make it a warning instead of error
     'prettier/prettier': 'warn',
-
+    // Disable non-existent Expo rule
+    'expo/use-dom-exports': 'off',
     // TypeScript rules - make them more lenient
     '@typescript-eslint/no-unused-vars': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',

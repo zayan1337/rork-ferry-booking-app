@@ -9,6 +9,7 @@ import {
 } from 'lucide-react-native';
 import Card from '@/components/Card';
 import Colors from '@/constants/colors';
+import { formatTimeAMPM } from '@/utils/dateUtils';
 
 interface TripDetailsCardProps {
   departureDate: string;
@@ -129,7 +130,9 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
         </View>
         <View style={styles.detailContent}>
           <Text style={styles.detailLabel}>Departure Time</Text>
-          <Text style={styles.detailValue}>{departureTime || 'N/A'}</Text>
+          <Text style={styles.detailValue}>
+            {departureTime ? formatTimeAMPM(departureTime) : 'N/A'}
+          </Text>
         </View>
       </View>
 

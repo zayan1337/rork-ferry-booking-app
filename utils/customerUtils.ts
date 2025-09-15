@@ -148,10 +148,21 @@ export const filterRoutesByDepartureIsland = (
 };
 
 /**
- * Format time string (HH:mm format)
+ * Format time string (12-hour AM/PM format)
  */
 export const formatTime = (timeString: string): string => {
-  return timeString.slice(0, 5); // Format HH:mm
+  if (!timeString) return '';
+
+  // Handle both "HH:mm:ss" and "HH:mm" formats
+  const timeParts = timeString.split(':');
+  const hours = parseInt(timeParts[0], 10);
+  const minutes = timeParts[1] || '00';
+
+  // Convert to 12-hour format
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return `${displayHours}:${minutes} ${period}`;
 };
 
 /**

@@ -40,7 +40,6 @@ function RootLayoutNav() {
   const { checkAuth, isAuthenticated, isLoading, user, error, isRehydrated } =
     useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
-
   useEffect(() => {
     // Only check auth once on startup and when rehydrated
     if (!authChecked && isRehydrated) {

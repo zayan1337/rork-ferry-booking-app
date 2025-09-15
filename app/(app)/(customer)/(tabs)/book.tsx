@@ -24,16 +24,14 @@ import Dropdown from '@/components/Dropdown';
 import SeatSelector from '@/components/SeatSelector';
 import Input from '@/components/Input';
 import type { Seat } from '@/types';
-import {
-  toggleSeatSelection,
-  updatePassengersForSeats,
-} from '@/utils/seatSelectionUtils';
+// Removed unused imports
 import {
   createRouteLabel,
   formatTime,
   createEmptyFormErrors,
 } from '@/utils/customerUtils';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
+// Removed unused SeatStatusIndicator import
 import {
   BOOKING_STEPS,
   STEP_LABELS,
@@ -54,6 +52,8 @@ export default function BookScreen() {
   const [localReturnSelectedSeats, setLocalReturnSelectedSeats] = useState<
     Seat[]
   >([]);
+  const [loadingSeats, setLoadingSeats] = useState<Set<string>>(new Set());
+  const [seatErrors, setSeatErrors] = useState<Record<string, string>>({});
 
   const [errors, setErrors] = useState(createEmptyFormErrors());
 
@@ -170,7 +170,9 @@ export default function BookScreen() {
           await fetchAvailableSeats(currentBooking.trip.id, false);
           // Subscribe to real-time updates for this trip
           subscribeSeatUpdates(currentBooking.trip.id, false);
-        } catch (error) {}
+        } catch (error) {
+          // Silently handle seat initialization errors
+        }
       }
     };
 
@@ -181,7 +183,9 @@ export default function BookScreen() {
           await fetchAvailableSeats(currentBooking.returnTrip.id, true);
           // Subscribe to real-time updates for return trip
           subscribeSeatUpdates(currentBooking.returnTrip.id, true);
-        } catch (error) {}
+        } catch (error) {
+          // Silently handle seat initialization errors
+        }
       }
     };
 
@@ -203,6 +207,21 @@ export default function BookScreen() {
   useEffect(() => {
     return () => {
       cleanupAllSeatSubscriptions();
+      // Also cleanup any temporary reservations
+      if (currentBooking.trip?.id) {
+        import('@/utils/realtimeSeatReservation').then(
+          ({ cleanupUserTempReservations }) => {
+            cleanupUserTempReservations(currentBooking.trip!.id);
+          }
+        );
+      }
+      if (currentBooking.returnTrip?.id) {
+        import('@/utils/realtimeSeatReservation').then(
+          ({ cleanupUserTempReservations }) => {
+            cleanupUserTempReservations(currentBooking.returnTrip!.id);
+          }
+        );
+      }
     };
   }, []);
 
@@ -231,6 +250,62 @@ export default function BookScreen() {
       return () => clearInterval(refreshInterval);
     }
   }, [currentStep, currentBooking.trip?.id, currentBooking.returnTrip?.id]);
+
+  // Monitor seat availability changes and notify user
+  useEffect(() => {
+    if (currentStep === BOOKING_STEPS.SEAT_SELECTION) {
+      // Check if any selected seats are no longer available
+      const checkSeatAvailability = () => {
+        const unavailableSeats: string[] = [];
+
+        localSelectedSeats.forEach(selectedSeat => {
+          const currentSeat = availableSeats.find(
+            s => s.id === selectedSeat.id
+          );
+          if (
+            currentSeat &&
+            !currentSeat.isAvailable &&
+            !currentSeat.isCurrentUserReservation
+          ) {
+            unavailableSeats.push(currentSeat.number);
+          }
+        });
+
+        localReturnSelectedSeats.forEach(selectedSeat => {
+          const currentSeat = availableReturnSeats.find(
+            s => s.id === selectedSeat.id
+          );
+          if (
+            currentSeat &&
+            !currentSeat.isAvailable &&
+            !currentSeat.isCurrentUserReservation
+          ) {
+            unavailableSeats.push(`Return ${currentSeat.number}`);
+          }
+        });
+
+        if (unavailableSeats.length > 0) {
+          Alert.alert(
+            'Seat Availability Changed',
+            `The following seats are no longer available: ${unavailableSeats.join(', ')}. Please select different seats.`,
+            [{ text: 'OK' }]
+          );
+        }
+      };
+
+      // Check immediately and then periodically
+      checkSeatAvailability();
+      const checkInterval = setInterval(checkSeatAvailability, 5000); // Check every 5 seconds
+
+      return () => clearInterval(checkInterval);
+    }
+  }, [
+    currentStep,
+    localSelectedSeats,
+    localReturnSelectedSeats,
+    availableSeats,
+    availableReturnSeats,
+  ]);
 
   const validateStep = (step: number) => {
     const newErrors = { ...errors };
@@ -443,7 +518,9 @@ export default function BookScreen() {
         if (currentBooking.trip?.id) {
           try {
             await refreshAvailableSeatsSilently(currentBooking.trip.id, false);
-          } catch (refreshError) {}
+          } catch (refreshError) {
+            // Silently handle refresh errors
+          }
         }
 
         if (currentBooking.returnTrip?.id) {
@@ -452,7 +529,9 @@ export default function BookScreen() {
               currentBooking.returnTrip.id,
               true
             );
-          } catch (refreshError) {}
+          } catch (refreshError) {
+            // Silently handle refresh errors
+          }
         }
       }
     }
@@ -471,55 +550,38 @@ export default function BookScreen() {
     updatePassengers(updatedPassengers);
   };
 
-  // Handle seat selection using utility function
-  const handleSeatToggle = (seat: Seat, isReturn: boolean = false) => {
-    const currentSeats = isReturn
-      ? localReturnSelectedSeats
-      : localSelectedSeats;
+  // Handle seat selection with real-time reservation
+  const handleSeatToggle = async (seat: Seat, isReturn: boolean = false) => {
+    // Check if seat is already being processed
+    if (loadingSeats.has(seat.id)) {
+      return;
+    }
 
-    toggleSeatSelection(
-      seat,
-      currentSeats,
-      {
-        onSeatsChange: (newSeats, isReturnSeat) => {
-          if (isReturnSeat) {
-            setLocalReturnSelectedSeats(newSeats);
-            // Update booking store with return seats
-            const updatedBooking = {
-              ...currentBooking,
-              returnSelectedSeats: newSeats,
-            };
-            useBookingStore.setState({ currentBooking: updatedBooking });
-          } else {
-            setLocalSelectedSeats(newSeats);
-            // Update booking store with departure seats
-            const updatedBooking = {
-              ...currentBooking,
-              selectedSeats: newSeats,
-            };
+    // Set loading state for this seat
+    setLoadingSeats(prev => new Set(prev).add(seat.id));
+    setSeatErrors(prev => ({ ...prev, [seat.id]: '' }));
 
-            // Update passengers array to match seat count
-            const newPassengers = updatePassengersForSeats(
-              currentBooking.passengers,
-              newSeats.length
-            );
-            updatedBooking.passengers = newPassengers;
+    try {
+      // Use the seat store's toggleSeatSelection which handles real-time reservations
+      await useSeatStore.getState().toggleSeatSelection(seat, isReturn);
 
-            useBookingStore.setState({ currentBooking: updatedBooking });
-          }
+      // Clear any seat-related errors
+      if (errors.seats) setErrors({ ...errors, seats: '' });
+    } catch (error: any) {
+      const errorMessage =
+        error.message || 'Unable to select this seat. Please try again.';
+      setSeatErrors(prev => ({ ...prev, [seat.id]: errorMessage }));
 
-          // Recalculate total fare
-          calculateTotalFare();
-        },
-        onError: error => {
-          Alert.alert('Seat Selection Error', error);
-        },
-        maxSeats: undefined, // No specific limit here, validation will happen later
-      },
-      isReturn
-    );
-
-    if (errors.seats) setErrors({ ...errors, seats: '' });
+      // Show error message to user
+      Alert.alert('Seat Selection Error', errorMessage);
+    } finally {
+      // Remove loading state for this seat
+      setLoadingSeats(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(seat.id);
+        return newSet;
+      });
+    }
   };
 
   // Format route options for dropdown
@@ -807,12 +869,16 @@ export default function BookScreen() {
           <View>
             <Text style={styles.stepTitle}>Select Seats</Text>
 
+            {/* Seat status indicator removed */}
+
             <Text style={styles.seatSectionTitle}>Departure Seats</Text>
             <SeatSelector
               seats={availableSeats}
               selectedSeats={localSelectedSeats}
               onSeatToggle={seat => handleSeatToggle(seat, false)}
               isLoading={isLoading}
+              loadingSeats={loadingSeats}
+              seatErrors={seatErrors}
             />
 
             {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
@@ -823,6 +889,8 @@ export default function BookScreen() {
                   selectedSeats={localReturnSelectedSeats}
                   onSeatToggle={seat => handleSeatToggle(seat, true)}
                   isLoading={isLoading}
+                  loadingSeats={loadingSeats}
+                  seatErrors={seatErrors}
                 />
               </>
             )}

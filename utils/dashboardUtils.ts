@@ -40,7 +40,11 @@ export const formatDate = (date: string | Date): string => {
 
 export const formatTime = (date: string | Date): string => {
   const d = new Date(date);
-  return d.toLocaleTimeString();
+  return d.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 };
 
 export const formatCurrency = (amount: number, currency = 'MVR'): string => {

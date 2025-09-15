@@ -83,7 +83,9 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             departure_time,
             vessel:vessel_id(
               id,
-              name
+              name,
+              model,
+              registration_number
             )
           ),
           is_round_trip,
@@ -194,6 +196,9 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             vessel: {
               id: booking?.trip?.vessel?.id || '',
               name: booking?.trip?.vessel?.name || 'Unknown Vessel',
+              model: booking?.trip?.vessel?.model || '',
+              registrationNumber:
+                booking?.trip?.vessel?.registration_number || '',
             },
             payment,
           };
@@ -331,7 +336,8 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
 
       if (newBookingError) throw newBookingError;
 
-      // 2. Generate QR code URL using the auto-generated booking number
+      // 2. Generate QR code URL using the booking number (simplified for modifications)
+      // Note: Full booking details will be available after fetching updated bookings
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`Booking: ${newBookingData.booking_number}`)}`;
 
       // 3. Update the booking with the QR code URL
@@ -467,10 +473,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
           .eq('id', bookingId);
 
         if (originalBookingError) {
-          console.warn(
-            'Failed to update original booking status:',
-            originalBookingError
-          );
+          console.error('Failed to update original booking status:', originalBookingError);
         }
 
         // Update new booking status to confirmed
@@ -483,10 +486,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
           .eq('id', newBookingData.id);
 
         if (newBookingStatusError) {
-          console.warn(
-            'Failed to update new booking status:',
-            newBookingStatusError
-          );
+          console.error('Failed to update new booking status:', newBookingStatusError);
         }
       }
 

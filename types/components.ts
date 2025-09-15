@@ -11,6 +11,8 @@ export type SeatSelectorProps = {
   onSeatToggle: (seat: Seat) => Promise<void> | void;
   maxSeats?: number;
   isLoading?: boolean;
+  loadingSeats?: Set<string>;
+  seatErrors?: Record<string, string>;
 };
 
 export type InputProps = {

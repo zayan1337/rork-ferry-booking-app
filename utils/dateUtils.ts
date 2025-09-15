@@ -46,3 +46,23 @@ export const isDateInPast = (dateString: string): boolean => {
   now.setHours(0, 0, 0, 0);
   return date < now;
 };
+
+/**
+ * Format time string from 24-hour format to 12-hour AM/PM format
+ * @param timeString - Time string in format "HH:mm:ss" or "HH:mm"
+ * @returns Formatted time string in 12-hour AM/PM format
+ */
+export const formatTimeAMPM = (timeString: string): string => {
+  if (!timeString) return '';
+
+  // Handle both "HH:mm:ss" and "HH:mm" formats
+  const timeParts = timeString.split(':');
+  const hours = parseInt(timeParts[0], 10);
+  const minutes = timeParts[1] || '00';
+
+  // Convert to 12-hour format
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return `${displayHours}:${minutes} ${period}`;
+};

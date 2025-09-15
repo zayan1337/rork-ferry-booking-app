@@ -1,0 +1,71 @@
+# EAS CLI Commands Reference
+
+## Pre-Build Diagnostic Commands
+npx expo-doctor                          # Check project health and configuration issues
+eas build:configure                       # Check and configure EAS build settings
+npx tsc --noEmit                         # Check TypeScript compilation errors
+npx expo config                          # Display resolved Expo configuration
+yarn cache clean                         # Clean yarn cache
+yarn install                             # Reinstall dependencies
+
+## EAS Build Commands
+eas build --platform android --profile preview     # Build Android APK (preview)
+eas build --platform ios --profile preview         # Build iOS app (preview)
+eas build --platform all --profile preview         # Build both platforms (preview)
+eas build --platform android --profile production  # Build Android production
+eas build --platform ios --profile production      # Build iOS production
+eas build --platform all --profile production      # Build both platforms production
+
+## Build Options
+eas build --platform android --profile preview --local        # Build locally (faster)
+eas build --platform android --profile preview --clear-cache  # Build with cleared cache
+eas build --platform android --profile preview --no-wait      # Don't wait for build completion
+
+## EAS Submit Commands
+eas submit --platform android           # Submit Android app to Google Play
+eas submit --platform ios               # Submit iOS app to App Store
+eas submit --platform all               # Submit to both stores
+
+## EAS Management Commands
+eas build:list                          # List all builds
+eas build:cancel [build-id]             # Cancel a specific build
+eas build:view [build-id]               # View build details
+eas device:list                         # List registered devices
+eas device:create                       # Register a new device
+eas credentials                         # Manage app credentials
+eas secret:list                         # List environment secrets
+eas secret:create                       # Create new environment secret
+
+## EAS Update Commands
+eas update                              # Publish an update
+eas update --branch production          # Publish to specific branch
+eas update:list                         # List all updates
+eas update:view [update-id]             # View update details
+
+## EAS Project Commands
+eas project:info                        # Show project information
+eas project:init                        # Initialize EAS project
+eas whoami                              # Show current user
+eas login                               # Login to EAS
+eas logout                              # Logout from EAS
+
+## EAS Analytics & Monitoring
+eas analytics                           # View app analytics
+eas webhook:list                        # List webhooks
+eas webhook:create                      # Create new webhook
+
+## Environment & Configuration
+eas env:list                            # List environment variables
+eas env:create                          # Create environment variable
+eas channel:list                        # List update channels
+eas channel:create                      # Create update channel
+
+## Useful Combinations
+# Complete build workflow:
+npx expo-doctor && eas build:configure && eas build --platform android --profile preview
+
+# Production release workflow:
+eas build --platform all --profile production && eas submit --platform all
+
+# Quick preview build with cache clear:
+eas build --platform android --profile preview --clear-cache --no-wait

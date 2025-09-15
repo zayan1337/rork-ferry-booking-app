@@ -4,6 +4,7 @@ import { ChevronRight, Calendar, Clock, Users } from 'lucide-react-native';
 import type { Booking } from '@/types';
 import Colors from '@/constants/colors';
 import Card from './Card';
+import { formatTimeAMPM } from '@/utils/dateUtils';
 
 interface BookingCardProps {
   booking: Booking;
@@ -90,7 +91,9 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
               color={Colors.textSecondary}
               style={styles.infoIcon}
             />
-            <Text style={styles.infoText}>{booking.departureTime}</Text>
+            <Text style={styles.infoText}>
+              {formatTimeAMPM(booking.departureTime)}
+            </Text>
           </View>
 
           <View style={styles.infoItem}>

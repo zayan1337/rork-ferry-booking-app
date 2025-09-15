@@ -1,13 +1,39 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  TouchableOpacity,
+  Modal,
+} from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { Calendar, Clock, MapPin, Users } from 'lucide-react-native';
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Users,
+  Share2,
+  X,
+  AlertCircle,
+  Info,
+  Phone,
+  Luggage,
+  FileText,
+  DollarSign,
+  Globe,
+  Timer,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react-native';
 import { useUserBookingsStore } from '@/store/userBookingsStore';
 import { useBookingEligibility } from '@/hooks/useBookingEligibility';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import TicketCard from '@/components/TicketCard';
+import TicketDesign from '@/components/TicketDesign';
 import { shareBookingTicket } from '@/utils/shareUtils';
 import { formatBookingDate } from '@/utils/dateUtils';
 import { formatPaymentMethod } from '@/utils/paymentUtils';
@@ -15,6 +41,22 @@ import { formatPaymentMethod } from '@/utils/paymentUtils';
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
   const { bookings, fetchUserBookings } = useUserBookingsStore();
+  const ticketDesignRef = useRef<any>(null);
+  const [showTicketPopup, setShowTicketPopup] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [expandedPolicies, setExpandedPolicies] = useState<{
+    checkin: boolean;
+    luggage: boolean;
+    cancellation: boolean;
+    refund: boolean;
+    conditions: boolean;
+  }>({
+    checkin: false,
+    luggage: false,
+    cancellation: false,
+    refund: false,
+    conditions: false,
+  });
 
   // Ensure bookings are loaded when component mounts
   useEffect(() => {
@@ -44,8 +86,30 @@ export default function BookingDetailsScreen() {
     );
   }
 
-  const handleShareTicket = async () => {
-    await shareBookingTicket(booking);
+  const handleShareTicket = () => {
+    setShowTicketPopup(true);
+  };
+
+  const handleShareIconPress = async () => {
+    try {
+      setIsSharing(true);
+
+      // Small delay to ensure component is ready
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Use the robust shareUtils function with TicketDesign ref
+      await shareBookingTicket(booking, ticketDesignRef);
+
+      setShowTicketPopup(false);
+    } catch (error) {
+      Alert.alert('Sharing Error', 'Failed to share ticket. Please try again.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleCloseTicketPopup = () => {
+    setShowTicketPopup(false);
   };
 
   const handleModifyBooking = () => {
@@ -70,6 +134,13 @@ export default function BookingDetailsScreen() {
     }
 
     router.push(`/cancel-booking/${booking.id}`);
+  };
+
+  const togglePolicySection = (section: keyof typeof expandedPolicies) => {
+    setExpandedPolicies(prev => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
   };
 
   const renderBookingDetails = () => (
@@ -232,15 +303,271 @@ export default function BookingDetailsScreen() {
     </Card>
   );
 
+  const renderPoliciesAndConditions = () => (
+    <Card variant='elevated' style={styles.policiesCard}>
+      <Text style={styles.cardTitle}>Important Information & Policies</Text>
+
+      {/* Check-in & Boarding */}
+      <View style={styles.policySection}>
+        <TouchableOpacity
+          style={styles.policySectionHeader}
+          onPress={() => togglePolicySection('checkin')}
+          activeOpacity={0.7}
+        >
+          <Timer size={18} color={Colors.primary} />
+          <Text style={styles.policySectionTitle}>Check-in & Boarding</Text>
+          {expandedPolicies.checkin ? (
+            <ChevronUp size={18} color={Colors.primary} />
+          ) : (
+            <ChevronDown size={18} color={Colors.primary} />
+          )}
+        </TouchableOpacity>
+        <Text style={styles.policyText}>
+          Check-in: 30 min before departure • Boarding: 15 min before departure
+        </Text>
+        {expandedPolicies.checkin && (
+          <View style={styles.expandedContent}>
+            <Text style={styles.policyText}>
+              Passengers must check in at least 30 minutes before departure and
+              be at the boarding gate at least 15 minutes before departure. Late
+              arrivals may result in denied boarding without refund.
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Luggage Policy */}
+      <View style={styles.policySection}>
+        <TouchableOpacity
+          style={styles.policySectionHeader}
+          onPress={() => togglePolicySection('luggage')}
+          activeOpacity={0.7}
+        >
+          <Luggage size={18} color={Colors.primary} />
+          <Text style={styles.policySectionTitle}>Luggage Policy</Text>
+          {expandedPolicies.luggage ? (
+            <ChevronUp size={18} color={Colors.primary} />
+          ) : (
+            <ChevronDown size={18} color={Colors.primary} />
+          )}
+        </TouchableOpacity>
+        <Text style={styles.policyText}>
+          Luggage: 15kg max • Handbag: 5kg max • Prohibited items apply
+        </Text>
+        {expandedPolicies.luggage && (
+          <View style={styles.expandedContent}>
+            <View style={styles.policyList}>
+              <Text style={styles.policyListItem}>
+                • 1 luggage per passenger: Max 15kg, dimensions 67x43x26cm
+              </Text>
+              <Text style={styles.policyListItem}>
+                • 1 handbag per passenger: Max 5kg, dimensions 25x20x6cm
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Large/excessively long articles (fishing rods, poles, pipes,
+                tubes) not allowed
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Prohibited: Chemicals, aerosols, alcohol, drugs, sharp
+                objects, weapons, ammunition, valuables, fragile articles,
+                dangerous goods
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Cancellation & Modification Policy */}
+      <View style={styles.policySection}>
+        <TouchableOpacity
+          style={styles.policySectionHeader}
+          onPress={() => togglePolicySection('cancellation')}
+          activeOpacity={0.7}
+        >
+          <FileText size={18} color={Colors.primary} />
+          <Text style={styles.policySectionTitle}>
+            Cancellation & Modification
+          </Text>
+          {expandedPolicies.cancellation ? (
+            <ChevronUp size={18} color={Colors.primary} />
+          ) : (
+            <ChevronDown size={18} color={Colors.primary} />
+          )}
+        </TouchableOpacity>
+        <Text style={styles.policyText}>
+          Cancel: 48+ hrs allowed • Modify: 72+ hrs • 50% charge applies
+        </Text>
+        {expandedPolicies.cancellation && (
+          <View style={styles.expandedContent}>
+            <View style={styles.policyList}>
+              <Text style={styles.policyListItem}>
+                • Cancellation allowed: 48+ hours before departure
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Cancellation not possible: Less than 72 hours before departure
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Cancellation charge: 50% of ticket fare
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Modification allowed: 72+ hours before departure
+              </Text>
+              <Text style={styles.policyListItem}>
+                • No refund for no-shows or late arrivals
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Refund Policy */}
+      <View style={styles.policySection}>
+        <TouchableOpacity
+          style={styles.policySectionHeader}
+          onPress={() => togglePolicySection('refund')}
+          activeOpacity={0.7}
+        >
+          <DollarSign size={18} color={Colors.primary} />
+          <Text style={styles.policySectionTitle}>Refund Policy</Text>
+          {expandedPolicies.refund ? (
+            <ChevronUp size={18} color={Colors.primary} />
+          ) : (
+            <ChevronDown size={18} color={Colors.primary} />
+          )}
+        </TouchableOpacity>
+        <Text style={styles.policyText}>
+          Processing: 72 hrs • Bank transfer • 50% charge applies
+        </Text>
+        {expandedPolicies.refund && (
+          <View style={styles.expandedContent}>
+            <View style={styles.policyList}>
+              <Text style={styles.policyListItem}>
+                • Refund processing time: 72 hours after cancellation request
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Refunds processed to bank account provided during cancellation
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Cancellation charge of 50% applies to all eligible
+                cancellations
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Operator cancellations: Full refund or rebooking on next
+                available service
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Conditions of Carriage */}
+      <View style={styles.policySection}>
+        <TouchableOpacity
+          style={styles.policySectionHeader}
+          onPress={() => togglePolicySection('conditions')}
+          activeOpacity={0.7}
+        >
+          <Info size={18} color={Colors.primary} />
+          <Text style={styles.policySectionTitle}>Conditions of Carriage</Text>
+          {expandedPolicies.conditions ? (
+            <ChevronUp size={18} color={Colors.primary} />
+          ) : (
+            <ChevronDown size={18} color={Colors.primary} />
+          )}
+        </TouchableOpacity>
+        <Text style={styles.policyText}>
+          Contract terms • ID required • Age restrictions • Behavior rules
+        </Text>
+        {expandedPolicies.conditions && (
+          <View style={styles.expandedContent}>
+            <View style={styles.policyList}>
+              <Text style={styles.policyListItem}>
+                • By purchasing a ticket, you enter into a contract of carriage
+                with the ferry operator
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Valid identification required and must be presented upon
+                request
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Passengers must be 18+ years to travel unaccompanied
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Tickets are non-transferable and valid only for specified
+                date/time
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Fare covers journey from departure point to destination
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Additional services or excess baggage may incur extra charges
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Passengers must behave appropriately and follow crew
+                instructions
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Drugs, alcohol, and smoking are prohibited on board
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Special assistance requests must be made at time of booking
+              </Text>
+              <Text style={styles.policyListItem}>
+                • Operator may cancel/delay services due to weather or
+                unforeseen circumstances
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Contact Information */}
+      <View style={[styles.policySection, styles.contactSection]}>
+        <View style={styles.policySectionHeader}>
+          <Phone size={18} color={Colors.primary} />
+          <Text style={styles.policySectionTitle}>Contact Information</Text>
+        </View>
+        <View style={styles.contactInfo}>
+          <View style={styles.contactItem}>
+            <Phone size={14} color={Colors.primary} />
+            <Text style={styles.contactText}>Emergency: +960 123-4567</Text>
+          </View>
+          <View style={styles.contactItem}>
+            <Info size={14} color={Colors.primary} />
+            <Text style={styles.contactText}>
+              Support: info@crystaltransfer.mv
+            </Text>
+          </View>
+          <View style={styles.contactItem}>
+            <Globe size={14} color={Colors.primary} />
+            <Text style={styles.contactText}>
+              Website: www.crystaltransfer.mv
+            </Text>
+          </View>
+          <View style={styles.contactItem}>
+            <Clock size={14} color={Colors.primary} />
+            <Text style={styles.contactText}>
+              Office Hours: 6:00 AM - 10:00 PM
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Card>
+  );
+
   const renderActionButtons = () => (
     <View style={styles.actionButtons}>
-      <Button
-        title='Share Ticket'
-        onPress={handleShareTicket}
-        variant='outline'
-        style={styles.actionButton}
-        textStyle={styles.actionButtonText}
-      />
+      {/* Only show Share Ticket button for confirmed bookings with completed payment */}
+      {booking.status === 'confirmed' &&
+        booking.payment?.status === 'completed' && (
+          <Button
+            title='Share Ticket'
+            onPress={handleShareTicket}
+            variant='outline'
+            style={styles.actionButton}
+            textStyle={styles.actionButtonText}
+          />
+        )}
 
       {(isModifiable || isCancellable) && (
         <>
@@ -299,6 +626,61 @@ export default function BookingDetailsScreen() {
       {/* Ticket Card */}
       <TicketCard booking={booking} />
 
+      {/* Ticket Modal */}
+      <Modal
+        visible={showTicketPopup}
+        animationType='slide'
+        presentationStyle='pageSheet'
+        onRequestClose={handleCloseTicketPopup}
+      >
+        <View style={styles.modalContainer}>
+          {/* Header with buttons */}
+          <View style={styles.modalHeader}>
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={handleCloseTicketPopup}
+            >
+              <X size={24} color={Colors.text} />
+            </TouchableOpacity>
+
+            {/* Title */}
+            <Text style={styles.modalTitle}>Ticket Details</Text>
+
+            {/* Share Button */}
+            <TouchableOpacity
+              style={[
+                styles.modalShareButton,
+                isSharing && styles.shareIconButtonDisabled,
+              ]}
+              onPress={handleShareIconPress}
+              disabled={isSharing}
+            >
+              <Share2
+                size={24}
+                color={isSharing ? Colors.textSecondary : Colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Ticket Content */}
+          <ScrollView
+            style={styles.modalScrollView}
+            contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            <View style={styles.modalTicketContainer}>
+              <TicketDesign
+                booking={booking}
+                size='large'
+                ref={ticketDesignRef}
+              />
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
       {/* Booking Details */}
       {renderBookingDetails()}
 
@@ -307,6 +689,37 @@ export default function BookingDetailsScreen() {
 
       {/* Payment Details */}
       {renderPaymentDetails()}
+
+      {/* Pricing Disclaimer */}
+      <Card variant='elevated' style={styles.pricingDisclaimerCard}>
+        <View style={styles.pricingDisclaimerHeader}>
+          <AlertCircle size={20} color={Colors.error} />
+          <Text style={styles.pricingDisclaimerTitle}>
+            Important Pricing Notice
+          </Text>
+        </View>
+        <Text style={styles.pricingDisclaimerText}>
+          The ticket price(s) shown are valid for locals and Work Permit holders
+          only. For tickets related to tourists, please reach us on our hotlines{' '}
+          <Text style={styles.hotlineNumber}>3323113</Text> or{' '}
+          <Text style={styles.hotlineNumber}>7892929</Text>.
+        </Text>
+      </Card>
+
+      {/* Policies and Conditions */}
+      {renderPoliciesAndConditions()}
+
+      {/* Terms and Conditions Link */}
+      <View style={styles.termsLinkSection}>
+        <TouchableOpacity
+          style={styles.termsLinkButton}
+          onPress={() => router.push('/(app)/terms-and-conditions')}
+          activeOpacity={0.7}
+        >
+          <FileText size={18} color={Colors.primary} />
+          <Text style={styles.termsLinkText}>View Full Terms & Conditions</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Action Buttons */}
       {renderActionButtons()}
@@ -490,5 +903,176 @@ const styles = StyleSheet.create({
   },
   notFoundButton: {
     minWidth: 120,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.card,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+    flex: 1,
+    textAlign: 'center',
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modalShareButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+  },
+  modalTicketContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  shareIconButtonDisabled: {
+    opacity: 0.5,
+  },
+  // Policies and Conditions Styles
+  policiesCard: {
+    marginBottom: 16,
+  },
+  policySection: {
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  policySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  policySectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginLeft: 8,
+    flex: 1,
+  },
+  expandedContent: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  policyText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  policyList: {
+    gap: 6,
+  },
+  policyListItem: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  contactSection: {
+    borderBottomWidth: 0,
+    backgroundColor: Colors.card,
+    padding: 12,
+    borderRadius: 8,
+  },
+  contactInfo: {
+    gap: 12,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contactText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  // Pricing Disclaimer Styles
+  pricingDisclaimerCard: {
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.error,
+  },
+  pricingDisclaimerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  pricingDisclaimerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.error,
+  },
+  pricingDisclaimerText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 20,
+  },
+  hotlineNumber: {
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  // Terms Link Styles
+  termsLinkSection: {
+    marginBottom: 16,
+  },
+  termsLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.card,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    gap: 8,
+  },
+  termsLinkText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });

@@ -18,7 +18,16 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
   onSeatToggle,
   maxSeats = 10,
   isLoading = false,
+  loadingSeats: externalLoadingSeats,
+  seatErrors: externalSeatErrors,
 }) => {
+  const [internalLoadingSeats, setInternalLoadingSeats] = React.useState<
+    Set<string>
+  >(new Set());
+
+  // Use external loading seats if provided, otherwise use internal state
+  const loadingSeats = externalLoadingSeats || internalLoadingSeats;
+  const seatErrors = externalSeatErrors || {};
   // Show loading state only when there are no seats AND we're loading
   if (!seats || seats.length === 0) {
     return (
@@ -47,6 +56,10 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 
   // Helper function to get seat style based on properties
   const getSeatStyle = (seat: Seat) => {
+    if (seat.isTempReserved && !seat.isCurrentUserReservation) {
+      return styles.tempReservedSeat;
+    }
+
     if (!seat.isAvailable) {
       return styles.unavailableSeat;
     }
@@ -114,10 +127,20 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
   // Check if max seats are selected
   const isMaxSeatsSelected = selectedSeats.length >= maxSeats;
 
-  // Handle seat selection
+  // Handle seat selection with loading state
   const handleSeatPress = async (seat: Seat) => {
+    // Check if seat is already being processed
+    if (loadingSeats.has(seat.id)) {
+      return;
+    }
+
+    // Check if seat is temporarily reserved by another user
+    if (seat.isTempReserved && !seat.isCurrentUserReservation) {
+      return; // Don't allow selection of seats reserved by others
+    }
+
     // Double-check availability at selection time
-    if (!seat.isAvailable) {
+    if (!seat.isAvailable && !seat.isCurrentUserReservation) {
       return;
     }
 
@@ -128,10 +151,24 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
       return;
     }
 
+    // Set loading state for this seat (only if using internal state)
+    if (!externalLoadingSeats) {
+      setInternalLoadingSeats(prev => new Set(prev).add(seat.id));
+    }
+
     try {
       await onSeatToggle(seat);
     } catch (error) {
       console.error('Error toggling seat selection:', error);
+    } finally {
+      // Remove loading state for this seat (only if using internal state)
+      if (!externalLoadingSeats) {
+        setInternalLoadingSeats(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(seat.id);
+          return newSet;
+        });
+      }
     }
   };
 
@@ -154,6 +191,10 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
         <View style={styles.legendItem}>
           <View style={[styles.legendBox, styles.unavailableSeat]} />
           <Text style={styles.legendText}>Unavailable</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendBox, styles.tempReservedSeat]} />
+          <Text style={styles.legendText}>Temporarily Reserved</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendBox, styles.premiumSeat]} />
@@ -202,6 +243,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 
                         if (seat) {
                           const isSelected = isSeatSelected(seat.id);
+                          const isLoadingSeat = loadingSeats.has(seat.id);
                           const seatNumber = renderSeatNumber(seat.number);
 
                           elements.push(
@@ -211,27 +253,42 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                 styles.seat,
                                 getSeatStyle(seat),
                                 isSelected && styles.selectedSeat,
+                                isLoadingSeat && styles.loadingSeat,
+                                seatErrors[seat.id] && styles.errorSeat,
                               ]}
                               onPress={() => handleSeatPress(seat)}
                               disabled={
-                                !seat.isAvailable ||
+                                isLoadingSeat ||
+                                (!seat.isAvailable &&
+                                  !seat.isCurrentUserReservation) ||
+                                (seat.isTempReserved &&
+                                  !seat.isCurrentUserReservation) ||
                                 seat.isDisabled ||
                                 seat.seatType === 'disabled'
                               }
                               activeOpacity={0.7}
                             >
-                              <Text
-                                style={[
-                                  styles.seatNumber,
-                                  isSelected && styles.selectedSeatNumber,
-                                  !seat.isAvailable &&
-                                    styles.unavailableSeatNumber,
-                                ]}
-                              >
-                                {seatNumber}
-                              </Text>
-                              {seat.isWindow && (
-                                <View style={styles.windowIndicator} />
+                              {isLoadingSeat ? (
+                                <ActivityIndicator
+                                  size='small'
+                                  color={Colors.primary}
+                                />
+                              ) : (
+                                <>
+                                  <Text
+                                    style={[
+                                      styles.seatNumber,
+                                      isSelected && styles.selectedSeatNumber,
+                                      !seat.isAvailable &&
+                                        styles.unavailableSeatNumber,
+                                    ]}
+                                  >
+                                    {seatNumber}
+                                  </Text>
+                                  {seat.isWindow && (
+                                    <View style={styles.windowIndicator} />
+                                  )}
+                                </>
                               )}
                             </TouchableOpacity>
                           );
@@ -372,6 +429,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.inactive,
     borderColor: Colors.inactive,
   },
+  tempReservedSeat: {
+    backgroundColor: '#E0E0E0',
+    borderColor: '#E0E0E0',
+  },
+  loadingSeat: {
+    backgroundColor: '#E0E0E0', // Light gray for loading
+    borderColor: Colors.primary,
+    opacity: 0.7,
+  },
   premiumSeat: {
     backgroundColor: Colors.success,
     borderColor: Colors.success,
@@ -443,6 +509,11 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: Colors.primary,
     marginTop: 2,
+  },
+  errorSeat: {
+    backgroundColor: '#ffebee',
+    borderColor: Colors.error,
+    borderWidth: 2,
   },
 
   seatsGrid: {

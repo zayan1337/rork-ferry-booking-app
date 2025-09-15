@@ -8,6 +8,10 @@ import type {
 } from '@/types/booking';
 import type { Route, Seat, Passenger, PaymentMethod } from '@/types';
 import { calculateBookingFare } from '@/utils/bookingUtils';
+import {
+  confirmSeatReservations,
+  cleanupUserTempReservations,
+} from '@/utils/realtimeSeatReservation';
 
 const initialCurrentBooking: CurrentBooking = {
   tripType: 'one_way',
@@ -652,24 +656,30 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         );
       }
 
-      // Reserve seats
-      const seatReservations = selectedSeats.map(seat => ({
-        trip_id: trip.id,
-        seat_id: seat.id,
-        booking_id: booking.id,
-        is_available: false,
-        is_reserved: false,
-      }));
+      // Confirm seat reservations using the new real-time system
+      const seatIds = selectedSeats.map(seat => seat.id);
+      const seatConfirmation = await confirmSeatReservations(
+        trip.id,
+        seatIds,
+        booking.id
+      );
 
-      const { error: seatError } = await supabase
-        .from('seat_reservations')
-        .upsert(seatReservations, { onConflict: 'trip_id,seat_id' });
-
-      if (seatError) {
-        // Clean up booking and passengers if seat reservation fails
+      if (
+        !seatConfirmation.success ||
+        seatConfirmation.failed_seats.length > 0
+      ) {
+        // Clean up booking and passengers if seat confirmation fails
         await supabase.from('passengers').delete().eq('booking_id', booking.id);
         await supabase.from('bookings').delete().eq('id', booking.id);
-        throw new Error(`Failed to reserve seats: ${seatError.message}`);
+
+        const failedSeatNumbers = selectedSeats
+          .filter(seat => seatConfirmation.failed_seats.includes(seat.id))
+          .map(seat => seat.number)
+          .join(', ');
+
+        throw new Error(
+          `Failed to confirm seat reservations. Seats ${failedSeatNumbers} are no longer available. Please select different seats.`
+        );
       }
 
       // Handle payment based on method
@@ -684,7 +694,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         });
 
         if (paymentError) {
-          console.warn('Failed to create payment record:', paymentError);
+          console.error('Failed to create payment record:', paymentError);
         }
 
         // Update booking status to pending_payment for MIB
@@ -697,10 +707,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           .eq('id', booking.id);
 
         if (statusUpdateError) {
-          console.warn(
-            'Failed to update booking status to pending_payment:',
-            statusUpdateError
-          );
+          console.error('Failed to update booking status to pending_payment:', statusUpdateError);
         }
 
         // Small delay to ensure database transaction is committed
@@ -724,7 +731,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         });
 
         if (paymentError) {
-          console.warn('Failed to create payment record:', paymentError);
+          console.error('Failed to create payment record:', paymentError);
         }
 
         // Update booking status to confirmed after successful payment
@@ -794,21 +801,20 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             // Return passenger creation failed - non-critical
           }
 
-          // Reserve return seats
-          const returnSeatReservations = returnSelectedSeats.map(seat => ({
-            trip_id: returnTrip.id,
-            seat_id: seat.id,
-            booking_id: returnBooking.id,
-            is_available: false,
-            is_reserved: false,
-          }));
+          // Confirm return seat reservations using the new real-time system
+          const returnSeatIds = returnSelectedSeats.map(seat => seat.id);
+          const returnSeatConfirmation = await confirmSeatReservations(
+            returnTrip.id,
+            returnSeatIds,
+            returnBooking.id
+          );
 
-          const { error: returnSeatError } = await supabase
-            .from('seat_reservations')
-            .upsert(returnSeatReservations, { onConflict: 'trip_id,seat_id' });
-
-          if (returnSeatError) {
-            // Return seat reservation failed - non-critical
+          if (
+            !returnSeatConfirmation.success ||
+            returnSeatConfirmation.failed_seats.length > 0
+          ) {
+            // Return seat confirmation failed - log warning but don't fail the main booking
+            console.error('Failed to confirm return seat reservations:', returnSeatConfirmation);
           }
 
           // Create payment record for return trip
@@ -846,6 +852,19 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         return_booking_number: returnBookingNumber,
       };
     } catch (error: any) {
+      // Clean up any temporary seat reservations if booking fails
+      try {
+        const { currentBooking: booking } = get();
+        if (booking.trip?.id) {
+          await cleanupUserTempReservations(booking.trip.id);
+        }
+        if (booking.returnTrip?.id) {
+          await cleanupUserTempReservations(booking.returnTrip.id);
+        }
+      } catch (cleanupError) {
+        console.error('Failed to cleanup temporary reservations:', cleanupError);
+      }
+
       set({
         error: error.message || 'Failed to create booking',
         isLoading: false,

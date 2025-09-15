@@ -23,6 +23,7 @@ import Card from './Card';
 import { isBookingExpired, isBookingInactive } from '@/utils/bookingUtils';
 import { getClientDisplayName } from '@/utils/clientUtils';
 import { formatCurrency, formatBookingDate } from '@/utils/agentFormatters';
+import { formatTimeAMPM } from '@/utils/dateUtils';
 import { useAgentStore } from '@/store/agent/agentStore';
 
 interface AgentBookingCardProps {
@@ -103,15 +104,7 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
 
     const formatTime = (timeString?: string) => {
       if (!timeString) return '';
-      try {
-        const time = new Date(`2000-01-01T${timeString}`);
-        return time.toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-      } catch {
-        return timeString;
-      }
+      return formatTimeAMPM(timeString);
     };
 
     return (

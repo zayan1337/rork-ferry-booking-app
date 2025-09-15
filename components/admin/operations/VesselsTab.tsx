@@ -132,7 +132,7 @@ export default function VesselsTab({
   }
 
   // Loading state - only show loading if we're actively loading and haven't received any data yet
-  if (loading.vessels && allVessels === undefined) {
+  if (loading.vessels && safeVessels.length === 0) {
     return <LoadingSpinner />;
   }
 

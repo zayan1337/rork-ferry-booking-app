@@ -102,16 +102,31 @@ export default function CaptainCheckinScreen() {
       return;
     }
 
-    // Check if it's the right day
-    const bookingDate = new Date(booking.departureDate);
-    const today = new Date();
-    const isToday = bookingDate.toDateString() === today.toDateString();
+    // Check if it's within the check-in window (30 minutes before and after departure)
+    const departureDateTime = new Date(
+      `${booking.departureDate}T${booking.departureTime}`
+    );
+    const now = new Date();
+    const timeDifferenceMs = departureDateTime.getTime() - now.getTime();
+    const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60);
 
-    if (!isToday) {
-      Alert.alert(
-        'Wrong Date',
-        `This booking is for ${formatSimpleDate(booking.departureDate)}. Check-in is only allowed on the travel date.`
-      );
+    // Allow check-in 30 minutes before and 30 minutes after departure
+    const isWithinCheckInWindow =
+      timeDifferenceMinutes >= -30 && timeDifferenceMinutes <= 30;
+
+    if (!isWithinCheckInWindow) {
+      const departureTimeStr = `${formatSimpleDate(booking.departureDate)} at ${booking.departureTime}`;
+      if (timeDifferenceMinutes > 30) {
+        Alert.alert(
+          'Too Early for Check-in',
+          `Check-in opens 30 minutes before departure.\n\nDeparture: ${departureTimeStr}\nCurrent time: ${now.toLocaleString()}\n\nPlease wait ${Math.ceil(timeDifferenceMinutes - 30)} more minutes.`
+        );
+      } else {
+        Alert.alert(
+          'Check-in Window Closed',
+          `Check-in closes 30 minutes after departure.\n\nDeparture was: ${departureTimeStr}\nCurrent time: ${now.toLocaleString()}\n\nCheck-in window has expired.`
+        );
+      }
       return;
     }
 
@@ -246,20 +261,25 @@ export default function CaptainCheckinScreen() {
         ticketStatus = 'Invalid';
         statusMessage = `Ticket is ${currentBooking.status.toUpperCase()}. Only confirmed tickets are valid for travel.`;
       }
-      // Check if it's the right day
+      // Check if it's within the valid time window
       else {
-        const bookingDate = new Date(booking.departureDate);
-        const today = new Date();
-        const isToday = bookingDate.toDateString() === today.toDateString();
-        const isFuture = bookingDate > today;
-        const isPast = bookingDate < today;
+        const departureDateTime = new Date(
+          `${booking.departureDate}T${booking.departureTime}`
+        );
+        const now = new Date();
+        const timeDifferenceMs = departureDateTime.getTime() - now.getTime();
+        const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60);
 
-        if (isPast) {
-          ticketStatus = 'Expired';
-          statusMessage = `Ticket has expired. Travel date was ${formatSimpleDate(booking.departureDate)}.`;
-        } else if (isFuture) {
+        // Check if within check-in window (30 minutes before and after departure)
+        const isWithinCheckInWindow =
+          timeDifferenceMinutes >= -30 && timeDifferenceMinutes <= 30;
+
+        if (timeDifferenceMinutes > 30) {
           ticketStatus = 'Future';
-          statusMessage = `Ticket is valid for future travel on ${formatSimpleDate(booking.departureDate)}.`;
+          statusMessage = `Ticket is valid but check-in window hasn't opened yet.\n\nDeparture: ${formatSimpleDate(booking.departureDate)} at ${booking.departureTime}\nCheck-in opens: 30 minutes before departure`;
+        } else if (timeDifferenceMinutes < -30) {
+          ticketStatus = 'Expired';
+          statusMessage = `Ticket has expired. Check-in window closed 30 minutes after departure.\n\nDeparture was: ${formatSimpleDate(booking.departureDate)} at ${booking.departureTime}`;
         } else if (currentBooking.check_in_status) {
           ticketStatus = 'Used';
           statusMessage =
@@ -269,6 +289,10 @@ export default function CaptainCheckinScreen() {
             const checkedInTime = new Date(currentBooking.checked_in_at);
             additionalInfo = `\nChecked in at: ${checkedInTime.toLocaleString()}`;
           }
+        } else if (isWithinCheckInWindow) {
+          ticketStatus = 'Valid';
+          statusMessage = 'Ticket is valid and within check-in window.';
+          additionalInfo = `\nDeparture: ${formatSimpleDate(booking.departureDate)} at ${booking.departureTime}\nCheck-in window: 30 min before to 30 min after departure`;
         }
       }
 
