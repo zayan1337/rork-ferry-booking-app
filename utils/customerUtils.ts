@@ -16,6 +16,7 @@ export const transformSeatsData = (seatsData: SupabaseSeat[]): Seat[] => {
     rowNumber: seat.row_number,
     isWindow: seat.is_window,
     isAisle: seat.is_aisle,
+    isRowAisle: seat.is_row_aisle || false,
     isAvailable: Math.random() > 0.3, // Temporarily keeping random availability until we implement real availability
     isSelected: false,
   }));
@@ -101,6 +102,7 @@ export const createEmptyFormErrors = (): CustomerBookingFormErrors => ({
   terms: '',
   trip: '',
   returnTrip: '',
+  pricingNotice: '',
 });
 
 /**

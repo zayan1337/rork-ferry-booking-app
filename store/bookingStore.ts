@@ -707,7 +707,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           .eq('id', booking.id);
 
         if (statusUpdateError) {
-          console.error('Failed to update booking status to pending_payment:', statusUpdateError);
+          console.error(
+            'Failed to update booking status to pending_payment:',
+            statusUpdateError
+          );
         }
 
         // Small delay to ensure database transaction is committed
@@ -814,7 +817,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             returnSeatConfirmation.failed_seats.length > 0
           ) {
             // Return seat confirmation failed - log warning but don't fail the main booking
-            console.error('Failed to confirm return seat reservations:', returnSeatConfirmation);
+            console.error(
+              'Failed to confirm return seat reservations:',
+              returnSeatConfirmation
+            );
           }
 
           // Create payment record for return trip
@@ -862,7 +868,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           await cleanupUserTempReservations(booking.returnTrip.id);
         }
       } catch (cleanupError) {
-        console.error('Failed to cleanup temporary reservations:', cleanupError);
+        console.error(
+          'Failed to cleanup temporary reservations:',
+          cleanupError
+        );
       }
 
       set({

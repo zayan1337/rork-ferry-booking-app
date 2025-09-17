@@ -9,8 +9,6 @@ import {
   subscribeToSeatUpdates,
   unsubscribeFromSeatUpdates,
   convertToSeatType,
-  batchReserveSeats,
-  batchReleaseSeats,
   cleanupUserTempReservations,
 } from '../utils/realtimeSeatReservation';
 
@@ -21,7 +19,10 @@ interface SeatStoreActions {
     isReturn?: boolean
   ) => Promise<void>;
   fetchSeats: (vesselId: string) => Promise<void>;
-  fetchSeatsWithReservations: (tripId: string, isReturn?: boolean) => Promise<void>;
+  fetchSeatsWithReservations: (
+    tripId: string,
+    isReturn?: boolean
+  ) => Promise<void>;
   toggleSeatSelection: (seat: Seat, isReturn?: boolean) => Promise<void>;
   ensureSeatReservations: (tripId: string) => Promise<void>;
   initializeAllSeatReservations: () => Promise<void>;
@@ -34,7 +35,10 @@ interface SeatStoreActions {
   // New real-time seat reservation actions
   tempReserveSeat: (tripId: string, seatId: string) => Promise<boolean>;
   releaseTempReservation: (tripId: string, seatId: string) => Promise<boolean>;
-  fetchRealtimeSeatStatus: (tripId: string, isReturn?: boolean) => Promise<void>;
+  fetchRealtimeSeatStatus: (
+    tripId: string,
+    isReturn?: boolean
+  ) => Promise<void>;
   cleanupUserReservations: (tripId: string) => Promise<void>;
 }
 
@@ -77,20 +81,22 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
   // New real-time seat status fetching
   fetchRealtimeSeatStatus: async (tripId: string, isReturn = false) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const currentUserId = user?.id;
 
       // Get real-time seat status (includes safe cleanup)
       const realtimeSeatStatus = await getTripSeatStatus(tripId);
-      
+
       // Check if we got valid seat data
       if (!realtimeSeatStatus || realtimeSeatStatus.length === 0) {
         await get().fetchSeatsWithReservations(tripId, isReturn);
         return;
       }
-      
+
       // Convert to Seat type with current user context
-      const seats: Seat[] = realtimeSeatStatus.map(status => 
+      const seats: Seat[] = realtimeSeatStatus.map(status =>
         convertToSeatType(status, currentUserId)
       );
 
@@ -100,7 +106,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
       }));
     } catch (error: any) {
       console.error('Error fetching realtime seat status:', error);
-      
+
       // Use fallback method for any error
       try {
         await get().fetchSeatsWithReservations(tripId, isReturn);
@@ -171,7 +177,9 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
   // Fallback seat fetching method that matches the original data structure
   fetchSeatsWithReservations: async (tripId: string, isReturn = false) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const currentUserId = user?.id;
 
       // First, get the trip details to find the vessel
@@ -204,7 +212,8 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
       const { data: seatReservations, error: reservationsError } =
         await supabase
           .from('seat_reservations')
-          .select(`
+          .select(
+            `
             id,
             trip_id,
             seat_id,
@@ -213,7 +222,8 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
             booking_id,
             user_id,
             temp_reservation_expiry
-          `)
+          `
+          )
           .eq('trip_id', tripId);
 
       if (reservationsError) throw reservationsError;
@@ -241,7 +251,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
           else if (reservation.temp_reservation_expiry) {
             const expiryTime = new Date(reservation.temp_reservation_expiry);
             const currentTime = new Date();
-            
+
             if (currentTime < expiryTime) {
               isTempReserved = true;
               isCurrentUserReservation = reservation.user_id === currentUserId;
@@ -249,8 +259,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
             } else {
               isAvailable = true; // Expired reservation, seat is available
             }
-          }
-          else {
+          } else {
             isAvailable = reservation.is_available && !reservation.booking_id;
           }
         }
@@ -261,6 +270,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
           rowNumber: Number(vesselSeat.row_number || 0),
           isWindow: Boolean(vesselSeat.is_window),
           isAisle: Boolean(vesselSeat.is_aisle),
+          isRowAisle: Boolean(vesselSeat.is_row_aisle),
           isAvailable,
           isSelected: false,
           seatType: vesselSeat.seat_type || 'standard',
@@ -289,7 +299,10 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
     }
   },
 
-  toggleSeatSelection: async (seat: Seat, isReturn: boolean = false): Promise<void> => {
+  toggleSeatSelection: async (
+    seat: Seat,
+    isReturn: boolean = false
+  ): Promise<void> => {
     try {
       const state = get();
       const seatsArray = isReturn
@@ -308,7 +321,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
       // Get current trip ID for reservation
       const { useBookingStore } = await import('./bookingStore');
       const bookingState = useBookingStore.getState();
-      const tripId = isReturn 
+      const tripId = isReturn
         ? bookingState.currentBooking.returnTrip?.id
         : bookingState.currentBooking.trip?.id;
 
@@ -319,13 +332,13 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 
       // Step 1: Refresh seat status to get latest data
       await get().fetchRealtimeSeatStatus(tripId, isReturn);
-      
+
       // Get updated seat data after refresh
       const updatedState = get();
       const updatedSeatsArray = isReturn
         ? updatedState.availableReturnSeats
         : updatedState.availableSeats;
-      
+
       const updatedSeat = updatedSeatsArray.find(s => s.id === seat.id);
       if (!updatedSeat) {
         throw new Error('Seat no longer exists');
@@ -336,17 +349,17 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
         // Release the temporary reservation
         console.log('Releasing seat reservation:', seat.id);
         const released = await get().releaseTempReservation(tripId, seat.id);
-        
+
         if (released) {
           // Refresh seat status after release
           await get().fetchRealtimeSeatStatus(tripId, isReturn);
-          
+
           // Update booking store
           const finalState = get();
           const finalSeatsArray = isReturn
             ? finalState.availableReturnSeats
             : finalState.availableSeats;
-          
+
           const selectedSeats = finalSeatsArray.filter(s => s.isSelected);
           const currentBooking = bookingState.currentBooking;
           const updatedBooking = {
@@ -356,12 +369,13 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 
           // Update passengers array to match departure seat count (primary seats)
           if (!isReturn) {
-            const newPassengers = selectedSeats.map((_, index) => 
-              currentBooking.passengers[index] || {
-                fullName: '',
-                idNumber: '',
-                specialAssistance: '',
-              }
+            const newPassengers = selectedSeats.map(
+              (_, index) =>
+                currentBooking.passengers[index] || {
+                  fullName: '',
+                  idNumber: '',
+                  specialAssistance: '',
+                }
             );
             updatedBooking.passengers = newPassengers;
           }
@@ -374,8 +388,13 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
       } else {
         // Step 3: Check if seat is available for selection
         if (!updatedSeat.isAvailable) {
-          if (updatedSeat.isTempReserved && !updatedSeat.isCurrentUserReservation) {
-            throw new Error('This seat is temporarily reserved by another user');
+          if (
+            updatedSeat.isTempReserved &&
+            !updatedSeat.isCurrentUserReservation
+          ) {
+            throw new Error(
+              'This seat is temporarily reserved by another user'
+            );
           } else if (updatedSeat.isConfirmed) {
             throw new Error('This seat is already booked');
           } else {
@@ -386,18 +405,20 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
         // Step 4: Try to temporarily reserve the seat
         console.log('Attempting to reserve seat:', seat.id);
         const reserved = await get().tempReserveSeat(tripId, seat.id);
-        
+
         if (reserved) {
           // Refresh seat status after reservation
           await get().fetchRealtimeSeatStatus(tripId, isReturn);
-          
+
           // Update booking store
           const finalState = get();
           const finalSeatsArray = isReturn
             ? finalState.availableReturnSeats
             : finalState.availableSeats;
-          
-          const selectedSeats = finalSeatsArray.filter(s => s.isSelected || s.isCurrentUserReservation);
+
+          const selectedSeats = finalSeatsArray.filter(
+            s => s.isSelected || s.isCurrentUserReservation
+          );
           const currentBooking = bookingState.currentBooking;
           const updatedBooking = {
             ...currentBooking,
@@ -406,12 +427,13 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 
           // Update passengers array to match departure seat count (primary seats)
           if (!isReturn) {
-            const newPassengers = selectedSeats.map((_, index) => 
-              currentBooking.passengers[index] || {
-                fullName: '',
-                idNumber: '',
-                specialAssistance: '',
-              }
+            const newPassengers = selectedSeats.map(
+              (_, index) =>
+                currentBooking.passengers[index] || {
+                  fullName: '',
+                  idNumber: '',
+                  specialAssistance: '',
+                }
             );
             updatedBooking.passengers = newPassengers;
           }
@@ -421,12 +443,16 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
         } else {
           // Refresh seat status to show current state
           await get().fetchRealtimeSeatStatus(tripId, isReturn);
-          throw new Error('Unable to reserve this seat. It may have been taken by another user.');
+          throw new Error(
+            'Unable to reserve this seat. It may have been taken by another user.'
+          );
         }
       }
     } catch (error: any) {
       console.error('Error toggling seat selection:', error);
-      set({ error: error.message || 'Failed to select seat. Please try again.' });
+      set({
+        error: error.message || 'Failed to select seat. Please try again.',
+      });
       throw error;
     }
   },
@@ -435,19 +461,21 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
   tempReserveSeat: async (tripId: string, seatId: string): Promise<boolean> => {
     try {
       const result = await tempReserveSeat(tripId, seatId, 10); // 10 minute expiry
-      
+
       if (!result.success) {
         set({ error: result.message });
         return false;
       }
-      
+
       return true;
     } catch (error: any) {
       console.error('Error in tempReserveSeat:', error);
-      
+
       // Fallback: Try direct database update as a simple reservation
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) {
           set({ error: 'User not authenticated' });
           return false;
@@ -455,7 +483,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 
         // Simple fallback: Just mark the seat as reserved in seat_reservations
         const expiryTime = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes from now
-        
+
         const { error: insertError } = await supabase
           .from('seat_reservations')
           .upsert({
@@ -484,7 +512,10 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
     }
   },
 
-  releaseTempReservation: async (tripId: string, seatId: string): Promise<boolean> => {
+  releaseTempReservation: async (
+    tripId: string,
+    seatId: string
+  ): Promise<boolean> => {
     try {
       const result = await releaseTempSeatReservation(tripId, seatId);
       if (!result.success) {
@@ -494,10 +525,12 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
       return true;
     } catch (error: any) {
       console.error('Error in releaseTempReservation:', error);
-      
+
       // Fallback: Try direct database update
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) {
           return false;
         }
@@ -555,14 +588,14 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
   // Real-time subscription methods
   subscribeSeatUpdates: (tripId: string, isReturn?: boolean) => {
     const subscriptionKey = `${tripId}_${isReturn ? 'return' : 'departure'}`;
-    
+
     // Check if already subscribed
     const existingSubscription = get().seatSubscriptions.get(subscriptionKey);
     if (existingSubscription) {
       return;
     }
 
-    const subscription = subscribeToSeatUpdates(tripId, async (payload) => {
+    const subscription = subscribeToSeatUpdates(tripId, async payload => {
       try {
         // Refresh seat status when changes occur
         await get().fetchRealtimeSeatStatus(tripId, isReturn);
@@ -584,7 +617,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 
     set(state => {
       const newSubscriptions = new Map(state.seatSubscriptions);
-      
+
       const departureSubscription = newSubscriptions.get(departureKey);
       if (departureSubscription) {
         unsubscribeFromSeatUpdates(departureSubscription);

@@ -6,7 +6,10 @@ import type { Booking } from '@/types';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import ViewShot from 'react-native-view-shot';
 import colors from '@/constants/colors';
-import { Users, Scissors } from 'lucide-react-native';
+import { Users } from 'lucide-react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import { SOCIAL_MEDIA } from '@/constants/customer';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -40,9 +43,11 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
           </View>
           {/* Header - Legion Style */}
           <View style={styles.header}>
-            <Text style={styles.companyName}>CRYSTAL TRANSFER VAAVU</Text>
+            <Text style={styles.companyName}>CRYSTAL TRANSFER</Text>
+            <Text style={styles.companyLocation}>VAAVU</Text>
+            <Text style={styles.ticketType}>Ferry Ticket</Text>
             <Text style={styles.companySubtitle}>
-              Ferry Services #{booking.bookingNumber}
+              Booking No. {booking.bookingNumber}
             </Text>
           </View>
 
@@ -59,10 +64,11 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
                 <View style={styles.tripInfoItem}>
                   <Text style={styles.tripInfoLabel}>Ferry</Text>
                   <Text style={styles.tripInfoValue}>
-                    {booking.vessel?.registrationNumber ||
+                    Crystal Transfer
+                    {/* {booking.vessel?.name ||
+                      booking.vessel?.registrationNumber ||
                       booking.vessel?.model ||
-                      booking.vessel?.name ||
-                      'Ferry'}
+                      'Ferry'} */}
                   </Text>
                 </View>
                 <View style={styles.tripInfoItem}>
@@ -159,129 +165,115 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
             ))}
           </View>
 
-          {/* Ferry Policy Section - Compact Grid Layout */}
+          {/* Ferry Policy Section - Structured Layout */}
           <View style={styles.policySection}>
             <View style={styles.policyHeader}>
-              <Text style={styles.policyTitle}>FERRY POLICY</Text>
+              <Text style={styles.policyTitle}>FERRY POLICIES</Text>
             </View>
 
-            {/* Policy Grid - 2x2 Layout */}
-            <View style={styles.policyGrid}>
-              {/* Row 1 */}
-              <View style={styles.policyGridRow}>
-                {/* Check-in & Boarding */}
-                <View style={styles.policyGridItem}>
-                  <Text style={styles.policyGridTitle}>
-                    Check-in & Boarding
+            {/* Policy Content */}
+            <View style={styles.policyContent}>
+              {/* Left Column */}
+              <View style={styles.policyColumn}>
+                {/* Luggage/Baggage Policy */}
+                <View style={styles.policyItem}>
+                  <Text style={styles.policyItemTitle}>
+                    Luggage/baggage Policy
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Check-in: 30 min before departure
+                  <Text style={styles.policyItemText}>
+                    1. 01 Luggage per ticket.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Boarding: 15 min before departure
-                  </Text>
-                  <Text style={styles.policyGridText}>
-                    • Late arrivals: denied boarding, no refund
-                  </Text>
-                  <Text style={styles.policyGridText}>
-                    • Children 0-2 years: FREE
-                  </Text>
-                  <Text style={styles.policyGridText}>
-                    • Above 2 years: adult prices
+                  <Text style={styles.policyItemText}>
+                    2. 01 handbag per ticket.
                   </Text>
                 </View>
 
-                {/* Luggage Policy */}
-                <View style={styles.policyGridItem}>
-                  <Text style={styles.policyGridTitle}>Luggage Policy</Text>
-                  <Text style={styles.policyGridText}>
-                    • 1 luggage: Max 15kg (67x43x26cm)
+                {/* Check-in & Boarding Policy */}
+                <View style={styles.policyItem}>
+                  <Text style={styles.policyItemTitle}>
+                    Check-in & Boarding Policy
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • 1 handbag: Max 5kg (25x20x6cm)
+                  <Text style={styles.policyItemText}>
+                    1. Check-in: 30 minutes before departure time at the jetty.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Prohibited: Chemicals, aerosols, alcohol
+                  <Text style={styles.policyItemText}>
+                    2. Boarding: 10 minutes before departure time at the ferry.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • No drugs, weapons, ammunition
+                </View>
+
+                {/* Cancellation, Modification & Refund Policy */}
+                <View style={styles.policyItem}>
+                  <Text style={styles.policyItemTitle}>
+                    Cancellation, Modification & Refund Policy
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • No valuables, fragile articles
+                  <Text style={styles.policyItemText}>
+                    1. Cancellation allowed: 48+ Hours before trip's departure
+                    time.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • No fishing rods, poles, pipes, tubes
+                  <Text style={styles.policyItemText}>
+                    2. Cancellation charge: 50% of ticket fare.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Ferry not liable for lost luggage
+                  <Text style={styles.policyItemText}>
+                    3. Modification allowed: 72+ Hours before trip's departure
+                    time.
+                  </Text>
+                  <Text style={styles.policyItemText}>
+                    4. Late arrivals & No-Shows: No refund.
+                  </Text>
+                  <Text style={styles.policyItemText}>
+                    5. Refund Processing: 72 Hours (to bank account).
+                  </Text>
+                  <Text style={styles.policyItemText}>
+                    6. Trip cancelled by operator: Full refund or re-booking to
+                    an available trip of choice.
                   </Text>
                 </View>
               </View>
 
-              {/* Row 2 */}
-              <View style={styles.policyGridRow}>
-                {/* Cancellation & Refund */}
-                <View style={styles.policyGridItem}>
-                  <Text style={styles.policyGridTitle}>
-                    Cancellation & Refund
-                  </Text>
-                  <Text style={styles.policyGridText}>
-                    • Cancel: 48+ hrs before departure
-                  </Text>
-                  <Text style={styles.policyGridText}>
-                    • No cancel: Less than 72 hrs before
-                  </Text>
-                  <Text style={styles.policyGridText}>
-                    • Modify: 72+ hrs before departure
-                  </Text>
-                  <Text style={styles.policyGridText}>
-                    • Cancellation charge: 50% of fare
-                  </Text>
-                  <Text style={styles.policyGridText}>
-                    • No refund: no-shows/late arrivals
-                  </Text>
-                  <Text style={styles.policyGridText}>
-                    • Refund processing: 72 hrs to bank
-                  </Text>
-                  <Text style={styles.policyGridText}>
-                    • Operator cancels: full refund/rebooking
-                  </Text>
-                </View>
-
+              {/* Right Column */}
+              <View style={styles.policyColumn}>
                 {/* Conditions of Carriage */}
-                <View style={styles.policyGridItem}>
-                  <Text style={styles.policyGridTitle}>
+                <View style={styles.policyItem}>
+                  <Text style={styles.policyItemTitle}>
                     Conditions of Carriage
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Valid ID required upon request
+                  <Text style={styles.policyItemText}>
+                    *Applies to all passengers and baggage.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • 18+ years for unaccompanied travel
+                  <Text style={styles.policyItemText}>
+                    1. Valid ID required upon request.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Tickets non-transferable
+                  <Text style={styles.policyItemText}>
+                    2. Infants (below 02 years): Free (sits in accompanying
+                    adult's lap).
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Valid only for specified date/time
+                  <Text style={styles.policyItemText}>
+                    3. Children (above 02 years): Adult ticket price.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Fare covers departure to destination
+                  <Text style={styles.policyItemText}>
+                    4. Tickets valid only for date and time specified.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Extra charges for excess baggage
+                  <Text style={styles.policyItemText}>
+                    5. Tickets are non-transferable.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Behave appropriately, follow crew
+                  <Text style={styles.policyItemText}>
+                    6. Fare covers trip from departure point to destination.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • No drugs/alcohol/smoking on board
+                  <Text style={styles.policyItemText}>
+                    7. Drugs, alcohol, smoking & inappropriate behavior
+                    prohibited onboard.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Special assistance: book at time
+                  <Text style={styles.policyItemText}>
+                    8. Dangerous articles, flammable materials & illegal
+                    substances prohibited.
                   </Text>
-                  <Text style={styles.policyGridText}>
-                    • Weather delays may occur
+                  <Text style={styles.policyItemText}>
+                    9. Operator reserves the right to cancel or delay services
+                    due to weather conditions or other unforeseen circumstances.
+                  </Text>
+                  <Text style={styles.policyItemText}>
+                    10. Passengers requiring special assistance must notify
+                    operator during booking.
                   </Text>
                 </View>
               </View>
@@ -303,101 +295,51 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
           </View>
           {/* Contact Details */}
           <View style={styles.contactSection}>
-            <View style={styles.contactLeft}>
-              <Text style={styles.contactTitle}>Contact Details</Text>
-              <Text style={styles.contactDescription}>
-                For booking or more information about our services and ferry
-                schedules, you may contact:
-              </Text>
-
-              {/* Phone Numbers Row */}
-              <View style={styles.contactRow}>
-                <Text style={styles.contactPhone}>
-                  Emergency: +960 123-4567
+            {/* Top Row - Contact Details and QR Code */}
+            <View style={styles.contactTopRow}>
+              <View style={styles.contactLeft}>
+                <Text style={styles.contactTitle}>Contact Details</Text>
+                <Text style={styles.contactDescription}>
+                  For inquiries and assistance please call 3323113 or 7892929
                 </Text>
-              </View>
-              <View style={styles.contactRow}>
-                <Text style={styles.contactPhone}>Hotline: +960 3323113</Text>
-                <Text style={styles.contactPhone}>+960 7892929</Text>
+                <Text style={styles.contactDescription}>
+                  email: crystalhotelsmv@gmail.com
+                </Text>
               </View>
 
-              {/* Email & Website Row */}
-              <View style={styles.contactRow}>
-                <Text style={styles.contactEmail}>
-                  Support: info@crystaltransfer.mv
-                </Text>
-                <Text style={styles.contactWebsite}>
-                  Website: www.crystaltransfer.mv
-                </Text>
+              <View style={styles.contactRight}>
+                <Text style={styles.qrTitle}>Scan and Join our Community!</Text>
+                <View style={styles.footerQrContainer}>
+                  <QRCode
+                    value={SOCIAL_MEDIA.COMMUNITY}
+                    size={45}
+                    backgroundColor='white'
+                    color='#1e40af'
+                  />
+                </View>
               </View>
-              <View style={styles.contactRow}></View>
             </View>
 
-            {/* <View style={styles.contactCenter}>
-              <Text style={styles.socialTitle}>
-                Follow us on Social Media for a surprise!
-              </Text>
-              <Text style={styles.companyNameFooter}>Crystal Transfer</Text>
-            </View> */}
-
-            <View style={styles.contactRight}>
-              <Text style={styles.qrTitle}>Scan and Join our Community</Text>
-              <View style={styles.footerQrContainer}>
-                <QRCode
-                  value='https://crystaltransfer.mv'
-                  size={45}
-                  backgroundColor='white'
-                  color='#1e40af'
-                />
+            {/* Bottom Row - Social Media (Centered) */}
+            <View style={styles.socialMediaSection}>
+              {/* <Text style={styles.socialMediaText}>Social media accounts</Text> */}
+              <View style={styles.socialMediaIcons}>
+                <View style={styles.socialMediaItem}>
+                  <FontAwesome name='facebook' size={12} color='white' />
+                  <Text style={styles.socialMediaIcon}>
+                    Crystal Transfer Vaavu
+                  </Text>
+                </View>
+                <View style={styles.socialMediaItem}>
+                  <FontAwesome name='instagram' size={12} color='white' />
+                  <Text style={styles.socialMediaIcon}>@crystaltransfermv</Text>
+                </View>
+                <View style={styles.socialMediaItem}>
+                  <MaterialIcons name='tiktok' size={14} color='white' />
+                  <Text style={styles.socialMediaIcon}>@crystal.transfer</Text>
+                </View>
               </View>
             </View>
-          </View>
-
-          {/* Cutting Line with Scissors */}
-          <View style={styles.cuttingLine}>
-            <View style={styles.cuttingDots}>
-              {Array.from({ length: 20 }).map((_, index) => (
-                <View key={index} style={styles.dot} />
-              ))}
-            </View>
-            <View style={styles.scissorsContainer}>
-              <Scissors size={16} color='#94a3b8' style={styles.scissorsIcon} />
-            </View>
-          </View>
-
-          {/* Ticket Stub Footer */}
-          <View style={styles.ticketStub}>
-            <View style={styles.stubContent}>
-              <View style={styles.stubLeft}>
-                <Text style={styles.stubTitle}>CRYSTAL TRANSFER VAAVU</Text>
-                <Text style={styles.stubBookingNumber}>
-                  #{booking.bookingNumber}
-                </Text>
-                <Text style={styles.stubRoute}>
-                  {booking.route.fromIsland.name} →{' '}
-                  {booking.route.toIsland.name}
-                </Text>
-              </View>
-              <View style={styles.stubCenter}>
-                <Text style={styles.stubDate}>
-                  {formatBookingDate(booking.departureDate)}
-                </Text>
-                <Text style={styles.stubTime}>
-                  {formatTimeAMPM(booking.departureTime)}
-                </Text>
-              </View>
-              <View style={styles.stubRight}>
-                <QRCode
-                  value={booking.qrCodeUrl || booking.bookingNumber}
-                  size={30}
-                  backgroundColor='white'
-                  color='#1e40af'
-                />
-              </View>
-            </View>
-            <Text style={styles.stubFooter}>
-              Keep this stub for verification • Present at boarding
-            </Text>
           </View>
         </View>
       </ViewShot>
@@ -452,7 +394,7 @@ const styles = StyleSheet.create({
   // Header Section - Legion Style
   header: {
     backgroundColor: '#1e40af',
-    paddingVertical: 15,
+    paddingVertical: 8,
     paddingHorizontal: 20,
     alignItems: 'center',
     borderTopLeftRadius: 10,
@@ -460,13 +402,27 @@ const styles = StyleSheet.create({
   },
   companyName: {
     color: 'white',
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 1,
   },
+  companyLocation: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginTop: -2,
+  },
+  ticketType: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 4,
+    opacity: 0.95,
+  },
   companySubtitle: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 12,
     opacity: 0.9,
     marginTop: 2,
   },
@@ -866,12 +822,28 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   policyContent: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 8,
   },
   policyColumn: {
     flex: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
+  },
+  policyItem: {
+    marginBottom: 8,
+  },
+  policyItemTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1e40af',
+    marginBottom: 4,
+  },
+  policyItemText: {
+    fontSize: 10,
+    color: '#374151',
+    lineHeight: 10,
+    marginBottom: 2,
   },
   policySubtitle: {
     fontSize: 14,
@@ -923,12 +895,19 @@ const styles = StyleSheet.create({
   contactSection: {
     backgroundColor: '#1e40af',
     padding: 10,
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  contactTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    width: '100%',
+    marginBottom: 8,
   },
   contactLeft: {
-    flex: 2,
+    flex: 1.2,
   },
   contactRow: {
     flexDirection: 'row',
@@ -944,9 +923,9 @@ const styles = StyleSheet.create({
   },
   contactDescription: {
     color: 'white',
-    fontSize: 8,
-    marginBottom: 6,
-    lineHeight: 10,
+    fontSize: 10,
+    marginBottom: 4,
+    lineHeight: 12,
   },
   contactPhone: {
     color: 'white',
@@ -983,6 +962,7 @@ const styles = StyleSheet.create({
   contactRight: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   qrTitle: {
     color: 'white',
@@ -995,6 +975,35 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 3,
     borderRadius: 3,
+  },
+  socialMediaSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  socialMediaText: {
+    color: 'white',
+    fontSize: 8,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  socialMediaIcons: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  socialMediaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    justifyContent: 'center',
+  },
+  socialMediaIcon: {
+    color: 'white',
+    fontSize: 7,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 
   // Cutting Line Styles

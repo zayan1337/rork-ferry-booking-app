@@ -110,7 +110,10 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
           .select('id, qr_code_url');
 
         if (qrUpdateError) {
-          console.error('Failed to update departure QR code URL:', qrUpdateError);
+          console.error(
+            'Failed to update departure QR code URL:',
+            qrUpdateError
+          );
         }
 
         // Create payment record for departure
@@ -206,7 +209,10 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
               .select('id, qr_code_url');
 
           if (returnQrUpdateError) {
-            console.error('Failed to update return QR code URL:', returnQrUpdateError);
+            console.error(
+              'Failed to update return QR code URL:',
+              returnQrUpdateError
+            );
           }
 
           // Create payment record for return

@@ -79,45 +79,62 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     return styles.availableSeat;
   };
 
-  // Generate 2D grid layout from seats with aisle spacing
-  const generateSeatGrid = () => {
-    if (!seats || seats.length === 0) return { grid: [], aisles: [] };
+  // Generate seat layout by rows with aisle grouping (same logic as FerryLayoutDisplay)
+  const generateSeatLayout = () => {
+    if (!seats || seats.length === 0) return [];
 
-    // Find the maximum row and column numbers
-    const maxRow = Math.max(...seats.map(s => s.rowNumber));
-    const maxCol = Math.max(...seats.map(s => s.positionX || 0));
-
-    // Get aisle positions from seats
-    const aislePositions = seats
-      .filter(seat => seat.isAisle)
-      .map(seat => seat.positionX || 0);
-    const uniqueAisles = [...new Set(aislePositions)];
-
-    // Create a 2D grid
-    const grid: (Seat | null)[][] = [];
-
-    // Initialize empty grid
-    for (let row = 0; row < maxRow; row++) {
-      grid[row] = [];
-      for (let col = 0; col < maxCol; col++) {
-        grid[row][col] = null;
-      }
-    }
-
-    // Place seats in the grid based on their position
+    // Group seats by row number
+    const seatsByRow = new Map<number, Seat[]>();
     seats.forEach(seat => {
-      const row = seat.rowNumber - 1; // Convert to 0-based index
-      const col = (seat.positionX || 0) - 1; // Convert to 0-based index
-
-      if (row >= 0 && row < maxRow && col >= 0 && col < maxCol) {
-        grid[row][col] = seat;
+      const rowNumber = seat.rowNumber;
+      if (!seatsByRow.has(rowNumber)) {
+        seatsByRow.set(rowNumber, []);
       }
+      seatsByRow.get(rowNumber)!.push(seat);
     });
 
-    return { grid, aisles: uniqueAisles };
+    // Sort rows and create layout
+    const sortedRows = Array.from(seatsByRow.keys()).sort((a, b) => a - b);
+
+    return sortedRows.map(rowNumber => {
+      const rowSeats = seatsByRow.get(rowNumber) || [];
+      rowSeats.sort((a, b) => (a.positionX || 0) - (b.positionX || 0));
+
+      // Create seat groups with aisles based on isAisle property
+      const seatGroups: Seat[][] = [];
+      let currentGroup: Seat[] = [];
+
+      rowSeats.forEach((seat, index) => {
+        currentGroup.push(seat);
+
+        // Check if there should be an aisle after this seat
+        const nextSeat = rowSeats[index + 1];
+        if (seat.isAisle && nextSeat) {
+          seatGroups.push([...currentGroup]);
+          currentGroup = [];
+        } else if (
+          nextSeat &&
+          (nextSeat.positionX || 0) > (seat.positionX || 0) + 1
+        ) {
+          // Fallback: check for gaps in position
+          seatGroups.push([...currentGroup]);
+          currentGroup = [];
+        }
+      });
+
+      if (currentGroup.length > 0) {
+        seatGroups.push(currentGroup);
+      }
+
+      return {
+        rowNumber,
+        seatGroups,
+        rowSeats,
+      };
+    });
   };
 
-  const { grid: seatGrid, aisles } = generateSeatGrid();
+  const seatLayout = generateSeatLayout();
 
   // Check if a seat is selected
   const isSeatSelected = (seatId: string) => {
@@ -214,119 +231,148 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
         </View>
       </ScrollView>
 
-      <View style={styles.cabinContainer}>
-        <View style={styles.frontLabel}>
-          <Text style={styles.frontLabelText}>FRONT</Text>
+      <View style={styles.ferryContainer}>
+        {/* BOW Label */}
+        <View style={[styles.ferryLabel, styles.bowLabelContainer]}>
+          <Text style={styles.bowLabel}>BOW</Text>
         </View>
 
+        {/* Ferry Shape Container */}
         <ScrollView
-          style={styles.seatMapContainer}
-          contentContainerStyle={styles.seatMapContent}
-          showsVerticalScrollIndicator={true}
+          horizontal={true}
           showsHorizontalScrollIndicator={true}
-          horizontal={false}
-          nestedScrollEnabled={true}
+          contentContainerStyle={styles.ferryScrollContent}
+          style={styles.ferryScrollContainer}
         >
-          <ScrollView
-            horizontal={true}
-            showsHorizontalScrollIndicator={true}
-            contentContainerStyle={styles.horizontalScrollContent}
-          >
-            <View style={styles.seatsGrid}>
-              {seatGrid.map((row, rowIndex) => (
-                <View key={`row-${rowIndex + 1}`} style={styles.row}>
-                  {/* <Text style={styles.rowLabel}>Row {rowIndex + 1}</Text> */}
-                  <View style={styles.seats}>
-                    {row
-                      .map((seat, colIndex) => {
-                        const elements: React.ReactElement[] = [];
-
-                        if (seat) {
-                          const isSelected = isSeatSelected(seat.id);
-                          const isLoadingSeat = loadingSeats.has(seat.id);
-                          const seatNumber = renderSeatNumber(seat.number);
-
-                          elements.push(
-                            <TouchableOpacity
-                              key={seat.id}
-                              style={[
-                                styles.seat,
-                                getSeatStyle(seat),
-                                isSelected && styles.selectedSeat,
-                                isLoadingSeat && styles.loadingSeat,
-                                seatErrors[seat.id] && styles.errorSeat,
-                              ]}
-                              onPress={() => handleSeatPress(seat)}
-                              disabled={
-                                isLoadingSeat ||
-                                (!seat.isAvailable &&
-                                  !seat.isCurrentUserReservation) ||
-                                (seat.isTempReserved &&
-                                  !seat.isCurrentUserReservation) ||
-                                seat.isDisabled ||
-                                seat.seatType === 'disabled'
-                              }
-                              activeOpacity={0.7}
-                            >
-                              {isLoadingSeat ? (
-                                <ActivityIndicator
-                                  size='small'
-                                  color={Colors.primary}
-                                />
-                              ) : (
-                                <>
-                                  <Text
-                                    style={[
-                                      styles.seatNumber,
-                                      isSelected && styles.selectedSeatNumber,
-                                      !seat.isAvailable &&
-                                        styles.unavailableSeatNumber,
-                                    ]}
-                                  >
-                                    {seatNumber}
-                                  </Text>
-                                  {seat.isWindow && (
-                                    <View style={styles.windowIndicator} />
-                                  )}
-                                </>
-                              )}
-                            </TouchableOpacity>
-                          );
-                        } else {
-                          // Render empty space
-                          elements.push(
-                            <View
-                              key={`empty-${rowIndex}-${colIndex}`}
-                              style={styles.emptySeat}
-                            />
-                          );
-                        }
-
-                        // Add aisle space if this column is marked as an aisle
-                        if (
-                          aisles.includes(colIndex + 1) &&
-                          colIndex < row.length - 1
-                        ) {
-                          elements.push(
-                            <View
-                              key={`aisle-${rowIndex}-${colIndex}`}
-                              style={styles.aisleSpace}
-                            />
-                          );
-                        }
-
-                        return elements;
-                      })
-                      .flat()}
-                  </View>
-                </View>
-              ))}
+          <View style={styles.ferryBodyContainer}>
+            {/* Port Side Label */}
+            <View style={styles.sideLabel}>
+              <View style={styles.sideLabelContainer}>
+                <Text style={styles.sideLabelText}>PORT</Text>
+              </View>
             </View>
-          </ScrollView>
+
+            {/* Ferry Body */}
+            <View style={styles.ferryBody}>
+              <ScrollView
+                style={styles.seatMapContainer}
+                contentContainerStyle={styles.seatMapContent}
+                showsVerticalScrollIndicator={true}
+                horizontal={false}
+                nestedScrollEnabled={true}
+              >
+                <View style={styles.seatsGrid}>
+                  {seatLayout.map((rowData, rowIndex) => {
+                    const hasRowAisleAfter = rowData.rowSeats.some(
+                      seat => seat.isRowAisle === true
+                    );
+
+                    return (
+                      <React.Fragment key={`row-fragment-${rowData.rowNumber}`}>
+                        <View
+                          key={`row-${rowData.rowNumber}`}
+                          style={styles.row}
+                        >
+                          <View style={styles.rowContent}>
+                            {rowData.seatGroups.map((group, groupIndex) => (
+                              <React.Fragment key={`group-${groupIndex}`}>
+                                <View style={styles.seatGroup}>
+                                  {group.map(seat => {
+                                    const isSelected = isSeatSelected(seat.id);
+                                    const isLoadingSeat = loadingSeats.has(
+                                      seat.id
+                                    );
+                                    const seatNumber = renderSeatNumber(
+                                      seat.number
+                                    );
+
+                                    return (
+                                      <TouchableOpacity
+                                        key={seat.id}
+                                        style={[
+                                          styles.seat,
+                                          getSeatStyle(seat),
+                                          isSelected && styles.selectedSeat,
+                                          isLoadingSeat && styles.loadingSeat,
+                                          seatErrors[seat.id] &&
+                                            styles.errorSeat,
+                                        ]}
+                                        onPress={() => handleSeatPress(seat)}
+                                        disabled={
+                                          isLoadingSeat ||
+                                          (!seat.isAvailable &&
+                                            !seat.isCurrentUserReservation) ||
+                                          (seat.isTempReserved &&
+                                            !seat.isCurrentUserReservation) ||
+                                          seat.isDisabled ||
+                                          seat.seatType === 'disabled'
+                                        }
+                                        activeOpacity={0.7}
+                                      >
+                                        {isLoadingSeat ? (
+                                          <ActivityIndicator
+                                            size='small'
+                                            color={Colors.primary}
+                                          />
+                                        ) : (
+                                          <>
+                                            <Text
+                                              style={[
+                                                styles.seatNumber,
+                                                isSelected &&
+                                                  styles.selectedSeatNumber,
+                                                !seat.isAvailable &&
+                                                  styles.unavailableSeatNumber,
+                                              ]}
+                                            >
+                                              {seatNumber}
+                                            </Text>
+                                            {seat.isWindow && (
+                                              <View
+                                                style={styles.windowIndicator}
+                                              />
+                                            )}
+                                          </>
+                                        )}
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                                {groupIndex < rowData.seatGroups.length - 1 && (
+                                  <View style={styles.aisle} />
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </View>
+                        </View>
+
+                        {/* Row Aisle - Show between rows (not after the last row) */}
+                        {hasRowAisleAfter &&
+                          rowIndex < seatLayout.length - 1 && (
+                            <View style={styles.rowAisle}>
+                              <View style={styles.rowAisleLine} />
+                              <Text style={styles.rowAisleLabel}>Aisle</Text>
+                            </View>
+                          )}
+                      </React.Fragment>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
+
+            {/* Starboard Side Label */}
+            <View style={styles.sideLabel}>
+              <View style={styles.sideLabelContainer}>
+                <Text style={styles.sideLabelText}>STARBOARD</Text>
+              </View>
+            </View>
+          </View>
         </ScrollView>
 
-        <View style={styles.rearLabel}>
-          <Text style={styles.rearLabelText}>REAR</Text>
+        {/* STERN Label */}
+        <View style={[styles.ferryLabel, styles.sternLabelContainer]}>
+          <Text style={styles.sternLabel}>STERN</Text>
         </View>
       </View>
 
@@ -338,10 +384,8 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     </View>
   );
 };
-
 const { width } = Dimensions.get('window');
-const seatSize = Math.min(40, (width - 80) / 8); // Adjust based on screen width
-
+const seatSize = Math.min(40, (width - 80) / 8);
 const styles = StyleSheet.create({
   container: {
     marginVertical: 16,
@@ -369,52 +413,119 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
   },
-  cabinContainer: {
+  ferryContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  ferryLabel: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginVertical: 8,
+  },
+  bowLabelContainer: {
+    backgroundColor: Colors.primary,
+  },
+  sternLabelContainer: {
+    backgroundColor: Colors.primary,
+  },
+  bowLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.card,
+    textAlign: 'center',
+  },
+  sternLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.card,
+    textAlign: 'center',
+  },
+  ferryScrollContainer: {
+    maxHeight: 400,
+  },
+  ferryScrollContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ferryBodyContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  sideLabel: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    minWidth: 50,
+    width: 50,
+  },
+  sideLabelContainer: {
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    backgroundColor: Colors.highlight,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 8,
-    padding: 16,
+    transform: [{ rotate: '-90deg' }],
+  },
+  sideLabelText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.text,
+    letterSpacing: 1.5,
+    textAlign: 'center',
+    width: 80,
+  },
+  ferryBody: {
     backgroundColor: Colors.card,
-  },
-  frontLabel: {
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  frontLabelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textSecondary,
+    borderTopEndRadius: 50,
+    borderBottomEndRadius: 8,
+    borderTopStartRadius: 50,
+    borderBottomStartRadius: 8,
+    padding: 12,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    minWidth: 200,
   },
   seatMapContainer: {
     maxHeight: 400,
     minHeight: 100,
   },
   seatMapContent: {
-    paddingVertical: 16,
-    paddingHorizontal: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   row: {
-    marginBottom: 10,
-    alignItems: 'center',
+    marginVertical: 2,
+    borderRadius: 6,
+    padding: 4,
   },
-  seats: {
+  rowContent: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  seatGroup: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  aisle: {
+    width: 12,
+    height: 24,
+    backgroundColor: 'transparent',
   },
   seat: {
     width: seatSize,
     height: seatSize,
     justifyContent: 'center',
     alignItems: 'center',
-    margin: 4,
-    borderRadius: 6,
+    margin: 1,
+    borderRadius: 4,
     borderWidth: 1,
   },
   availableSeat: {
@@ -450,16 +561,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.error,
     borderColor: Colors.error,
   },
-  emptySeat: {
-    width: seatSize,
-    height: seatSize,
-    margin: 4,
-  },
-  aisleSpace: {
-    width: 16,
-    height: seatSize,
-    marginHorizontal: 4,
-  },
   seatNumber: {
     fontSize: 12,
     fontWeight: '600',
@@ -469,18 +570,6 @@ const styles = StyleSheet.create({
     color: Colors.card,
   },
   unavailableSeatNumber: {
-    color: Colors.textSecondary,
-  },
-  rearLabel: {
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  rearLabelText: {
-    fontSize: 14,
-    fontWeight: '600',
     color: Colors.textSecondary,
   },
   selectionInfo: {
@@ -520,11 +609,23 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
   },
-  horizontalScrollContent: {
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    justifyContent: 'center',
+  // Row Aisle Styles
+  rowAisle: {
     alignItems: 'center',
+    paddingVertical: 6,
+    marginVertical: 2,
+  },
+  rowAisleLine: {
+    width: '80%',
+    height: 2,
+    backgroundColor: Colors.warning,
+    borderRadius: 1,
+  },
+  rowAisleLabel: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: Colors.warning,
+    marginTop: 2,
   },
 });
 

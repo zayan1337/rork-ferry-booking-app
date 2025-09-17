@@ -9,7 +9,7 @@ import Switch from '@/components/admin/Switch';
 import DatePicker from '@/components/admin/DatePicker';
 import SeatArrangementManager from '../seat-arrangement/SeatArrangementManager';
 import { useVesselStore } from '@/store/admin/vesselStore';
-import { calculateOptimalRowColumnRatio } from '@/utils/admin/vesselUtils';
+// Removed unused vessel utilities - using only flexible ferry layout
 import {
   Ship,
   Users,
@@ -22,7 +22,6 @@ import {
   Info,
   Activity,
   AlertCircle,
-  Layout,
   Smartphone,
 } from 'lucide-react-native';
 
@@ -92,17 +91,12 @@ export default function VesselForm({
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
     {}
   );
-  const [showSeatLayout, setShowSeatLayout] = useState(false);
   const [existingSeatLayout, setExistingSeatLayout] = useState<any>(null);
   const [existingSeats, setExistingSeats] = useState<any[]>([]);
+
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [autoGenerateLayout, setAutoGenerateLayout] = useState(true);
-  const [layoutPreview, setLayoutPreview] = useState<{
-    rows: number;
-    columns: number;
-    aisles: number[];
-  } | null>(null);
+  // Removed auto-generation - using only flexible ferry layout
   const [customLayoutModified, setCustomLayoutModified] = useState(false);
   const [customLayoutData, setCustomLayoutData] = useState<{
     layout: any;
@@ -164,45 +158,14 @@ export default function VesselForm({
           }
         }
 
-        // If we have existing seats OR layout, show custom layout and turn off auto-generate
-        if (hasExistingSeats || hasExistingLayout) {
-          setShowSeatLayout(true);
-          setAutoGenerateLayout(false);
-        } else {
-          // No existing data, keep auto-generate on for new vessels
-          setShowSeatLayout(false);
-          setAutoGenerateLayout(true);
-        }
+        // Seat layout will be shown automatically when capacity > 0
       }
     };
 
     checkExistingSeatLayout();
   }, [initialData?.id, initialData?.seatLayout, initialData?.seats]);
 
-  // Handle custom seat layout toggle
-  const handleCustomSeatLayoutToggle = (value: boolean) => {
-    setShowSeatLayout(value);
-    if (value) {
-      // When enabling custom layout, turn off auto-generate
-      setAutoGenerateLayout(false);
-    } else {
-      // When disabling custom layout, turn on auto-generate and reset custom state
-      setAutoGenerateLayout(true);
-      setCustomLayoutModified(false);
-      setCustomLayoutData(null);
-    }
-  };
-
-  // Handle auto-generate layout toggle
-  const handleAutoGenerateLayoutToggle = (value: boolean) => {
-    setAutoGenerateLayout(value);
-    if (value) {
-      // When enabling auto-generate, turn off custom layout and reset custom state
-      setShowSeatLayout(false);
-      setCustomLayoutModified(false);
-      setCustomLayoutData(null);
-    }
-  };
+  // Seat layout is automatically shown when capacity > 0 (no toggle needed)
 
   // Track form changes
   useEffect(() => {
@@ -255,20 +218,7 @@ export default function VesselForm({
     }
   }, [formData, initialData, customLayoutModified]);
 
-  // Generate layout preview when capacity changes
-  useEffect(() => {
-    if (formData.seating_capacity > 0) {
-      const { rows, columns } = calculateOptimalRowColumnRatio(
-        formData.seating_capacity
-      );
-      const aislePosition = Math.ceil(columns / 2);
-      const aisles = columns > 4 ? [aislePosition] : [];
-
-      setLayoutPreview({ rows, columns, aisles });
-    } else {
-      setLayoutPreview(null);
-    }
-  }, [formData.seating_capacity]);
+  // Removed layout preview generation - using only flexible ferry layout
 
   const validateForm = (): boolean => {
     const errors: ValidationErrors = {};
@@ -359,8 +309,7 @@ export default function VesselForm({
         (submitData as any).customSeatLayout = customLayoutData;
       }
 
-      // Add auto-generation flag to submitData
-      (submitData as any).autoGenerateLayout = autoGenerateLayout;
+      // Removed auto-generation flag - using only flexible ferry layout
 
       // Save the vessel (store will handle custom layout saving automatically)
       await onSave(submitData);
@@ -447,38 +396,7 @@ export default function VesselForm({
     }
   };
 
-  const getLayoutDescription = () => {
-    if (!layoutPreview) return '';
-
-    const { rows, columns, aisles } = layoutPreview;
-    const totalSeats = rows * columns;
-    const aisleText =
-      aisles.length > 0
-        ? ` with ${aisles.length} aisle${aisles.length > 1 ? 's' : ''}`
-        : ' without aisles';
-
-    return `${rows} rows × ${columns} columns = ${totalSeats} seats${aisleText}`;
-  };
-
-  const getLayoutEfficiency = () => {
-    if (!layoutPreview || formData.seating_capacity <= 0) return '';
-
-    const { rows, columns } = layoutPreview;
-    const totalSeats = rows * columns;
-    const efficiency = ((formData.seating_capacity / totalSeats) * 100).toFixed(
-      1
-    );
-
-    if (efficiency === '100.0') {
-      return 'Perfect fit!';
-    } else if (parseFloat(efficiency) >= 95) {
-      return `Excellent efficiency (${efficiency}%)`;
-    } else if (parseFloat(efficiency) >= 85) {
-      return `Good efficiency (${efficiency}%)`;
-    } else {
-      return `Efficiency: ${efficiency}%`;
-    }
-  };
+  // Removed layout preview functions - using only flexible ferry layout
 
   return (
     <View style={styles.container}>
@@ -879,134 +797,21 @@ export default function VesselForm({
             <Text style={styles.sectionTitle}>Seat Layout Configuration</Text>
           </View>
 
-          {/* Layout Preview */}
-          {layoutPreview && formData.seating_capacity > 0 && (
-            <View style={styles.layoutPreviewContainer}>
-              <View style={styles.layoutPreviewHeader}>
-                <View style={styles.layoutPreviewIcon}>
-                  <Layout size={16} color={colors.primary} />
-                </View>
-                <Text style={styles.layoutPreviewTitle}>
-                  Auto-Generated Layout
-                </Text>
-              </View>
-
-              <View style={styles.layoutPreviewContent}>
-                <Text style={styles.layoutPreviewText}>
-                  {getLayoutDescription()}
-                </Text>
-                <Text style={styles.layoutEfficiencyText}>
-                  {getLayoutEfficiency()}
-                </Text>
-              </View>
-
-              {/* Visual Layout Preview */}
-              <View style={styles.visualPreviewContainer}>
-                <Text style={styles.visualPreviewTitle}>Layout Preview:</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={true}
-                  contentContainerStyle={styles.scrollablePreviewContent}
-                  style={styles.scrollablePreview}
-                >
-                  <View style={styles.visualPreview}>
-                    {Array.from(
-                      { length: Math.min(layoutPreview.rows, 6) },
-                      (_, rowIndex) => (
-                        <View key={rowIndex} style={styles.previewRow}>
-                          {Array.from(
-                            { length: layoutPreview.columns },
-                            (_, colIndex) => {
-                              const seatNumber =
-                                rowIndex * layoutPreview.columns + colIndex + 1;
-                              const isWindow =
-                                colIndex === 0 ||
-                                colIndex === layoutPreview.columns - 1;
-                              const isAisle = layoutPreview.aisles.includes(
-                                colIndex + 1
-                              );
-                              const isDisabled =
-                                seatNumber > formData.seating_capacity;
-
-                              return (
-                                <View
-                                  key={colIndex}
-                                  style={styles.previewSeatContainer}
-                                >
-                                  {isAisle && colIndex > 0 && (
-                                    <View style={styles.previewAisle} />
-                                  )}
-                                  <View
-                                    style={[
-                                      styles.previewSeat,
-                                      isWindow && styles.previewWindowSeat,
-                                      isDisabled && styles.previewDisabledSeat,
-                                      seatNumber <= formData.seating_capacity &&
-                                        styles.previewActiveSeat,
-                                    ]}
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.previewSeatText,
-                                        isDisabled &&
-                                          styles.previewDisabledSeatText,
-                                      ]}
-                                    >
-                                      {seatNumber <= formData.seating_capacity
-                                        ? seatNumber
-                                        : ''}
-                                    </Text>
-                                  </View>
-                                </View>
-                              );
-                            }
-                          )}
-                        </View>
-                      )
-                    )}
-                    {layoutPreview.rows > 6 && (
-                      <Text style={styles.previewMoreText}>
-                        ... and {layoutPreview.rows - 6} more rows
-                      </Text>
-                    )}
-                  </View>
-                </ScrollView>
-
-                {/* Scroll indicator text for better UX */}
-                {layoutPreview.columns > 8 && (
-                  <Text style={styles.scrollHintText}>
-                    ← Scroll horizontally to view all {layoutPreview.columns}{' '}
-                    columns →
-                  </Text>
-                )}
-              </View>
+          {/* Seat layout is automatically shown when capacity is entered */}
+          {formData.seating_capacity > 0 && (
+            <View style={styles.layoutInfo}>
+              <Text style={styles.layoutInfoText}>
+                💡 Seat layout will be automatically generated based on your
+                capacity ({formData.seating_capacity} seats). You can customize
+                it below.
+              </Text>
             </View>
           )}
 
-          <View style={styles.formGroup}>
-            <Switch
-              label='Auto-Generate Seat Layout'
-              value={autoGenerateLayout}
-              onValueChange={handleAutoGenerateLayoutToggle}
-              description='Automatically generate optimal seat layout based on capacity'
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Switch
-              label='Customize Seat Layout'
-              value={showSeatLayout}
-              onValueChange={handleCustomSeatLayoutToggle}
-              description='Enable to manually configure seat arrangement and premium sections'
-            />
-          </View>
-
-          {showSeatLayout && (
+          {formData.seating_capacity > 0 && (
             <View style={styles.seatLayoutContainer}>
               <SeatArrangementManager
-                key={`seat-layout-${initialData?.id || 'new'}-${
-                  existingSeats.length
-                }-${existingSeatLayout?.id || 'no-layout'}`}
+                key={`seat-layout-${initialData?.id || 'new'}`}
                 vesselId={initialData?.id || 'new'}
                 seatingCapacity={formData.seating_capacity}
                 vesselType={formData.vessel_type}
@@ -1112,33 +917,28 @@ export default function VesselForm({
                     Alert.alert('Error', 'Failed to save seat layout');
                   }
                 }}
-                onCancel={() => setShowSeatLayout(false)}
+                onCancel={() => {
+                  // Reset seat layout data when cancelled
+                  setCustomLayoutModified(false);
+                  setCustomLayoutData(null);
+                }}
                 loading={loading}
               />
             </View>
           )}
 
-          {showSeatLayout && formData.seating_capacity > 0 && (
-            <View style={styles.layoutInfo}>
-              <Text style={styles.layoutInfoText}>
-                💡 Tip: Use Edit mode to add/remove seats, Arrange mode for bulk
-                actions
-              </Text>
-            </View>
-          )}
-
-          {/* Layout Configuration Tips */}
-          {formData.seating_capacity > 0 && !showSeatLayout && (
+          {formData.seating_capacity > 0 && (
             <View style={styles.layoutTipsContainer}>
               <View style={styles.layoutTipsHeader}>
                 <Smartphone size={16} color={colors.info} />
                 <Text style={styles.layoutTipsTitle}>Layout Tips</Text>
               </View>
               <Text style={styles.layoutTipsText}>
-                • Window seats are automatically positioned at the ends of each
-                row{'\n'}• Aisles are placed between seat columns for easy
-                access{'\n'}• Premium sections can be configured in the custom
-                layout mode{'\n'}• The system optimizes for the best
+                • Use Edit mode to add/remove seats, Arrange mode for bulk
+                actions{'\n'}• Window seats are automatically positioned at the
+                ends of each row{'\n'}• Aisles are placed between seat columns
+                for easy access{'\n'}• Premium sections can be configured in the
+                layout editor{'\n'}• The system optimizes for the best
                 row-to-column ratio
               </Text>
             </View>
@@ -1334,124 +1134,6 @@ const styles = StyleSheet.create({
   buttonContainer: {
     gap: 16,
     marginBottom: 20,
-  },
-  layoutPreviewContainer: {
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  layoutPreviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  layoutPreviewIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  layoutPreviewTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  layoutPreviewContent: {
-    marginBottom: 16,
-  },
-  layoutPreviewText: {
-    fontSize: 14,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  layoutEfficiencyText: {
-    fontSize: 13,
-    color: colors.success,
-    fontWeight: '500',
-  },
-  visualPreviewContainer: {
-    marginTop: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  visualPreviewTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
-  scrollablePreview: {
-    maxHeight: 160, // Limit height to prevent excessive vertical space
-  },
-  scrollablePreviewContent: {
-    paddingHorizontal: 8,
-    alignItems: 'center',
-  },
-  visualPreview: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollHintText: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 8,
-    opacity: 0.7,
-  },
-  previewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  previewSeatContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  previewSeat: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    backgroundColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 1,
-  },
-  previewActiveSeat: {
-    backgroundColor: colors.primary,
-  },
-  previewWindowSeat: {
-    backgroundColor: colors.info,
-  },
-  previewDisabledSeat: {
-    backgroundColor: colors.errorLight,
-  },
-  previewSeatText: {
-    fontSize: 8,
-    color: colors.white,
-    fontWeight: '600',
-  },
-  previewDisabledSeatText: {
-    color: colors.error,
-  },
-  previewAisle: {
-    width: 8,
-    height: 16,
-    backgroundColor: colors.warningLight,
-    marginHorizontal: 2,
-    borderRadius: 2,
-  },
-  previewMoreText: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: 4,
   },
   layoutTipsContainer: {
     backgroundColor: colors.infoLight,

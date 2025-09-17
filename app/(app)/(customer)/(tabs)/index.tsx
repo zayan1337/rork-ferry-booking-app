@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import {
   Calendar,
@@ -263,7 +264,7 @@ export default function HomeScreen() {
         animationType='slide'
         presentationStyle='pageSheet'
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Departure Island</Text>
             <TouchableOpacity
@@ -292,7 +293,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* To Island Selection Modal */}
@@ -301,7 +302,7 @@ export default function HomeScreen() {
         animationType='slide'
         presentationStyle='pageSheet'
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Destination Island</Text>
             <TouchableOpacity
@@ -330,7 +331,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Date Selection Modal */}
@@ -339,7 +340,7 @@ export default function HomeScreen() {
         animationType='slide'
         presentationStyle='pageSheet'
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Date</Text>
             <TouchableOpacity
@@ -377,7 +378,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Upcoming Trips Section */}

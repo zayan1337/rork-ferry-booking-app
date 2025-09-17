@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import { X, ArrowLeft } from 'lucide-react-native';
 import Colors from '@/constants/colors';
@@ -775,7 +776,7 @@ export default function MibPaymentWebView({
       presentationStyle='pageSheet'
       onRequestClose={handleClose}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           {showPaymentPage && (
             <TouchableOpacity
@@ -852,7 +853,7 @@ export default function MibPaymentWebView({
           }}
           userAgent='Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1'
         />
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

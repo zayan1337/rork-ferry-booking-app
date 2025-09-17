@@ -12,6 +12,7 @@ import { colors } from '@/constants/adminColors';
 import { Vessel } from '@/types/admin/management';
 import { formatCurrency } from '@/utils/currencyUtils';
 import Button from '@/components/admin/Button';
+import FerryLayoutDisplay from './FerryLayoutDisplay';
 import {
   Ship,
   Users,
@@ -784,148 +785,10 @@ export default function VesselDetails({
               <Text style={styles.loadingText}>Loading seat layout...</Text>
             </View>
           ) : (
-            (() => {
-              const seats = vessel.seats || [];
-              const maxColumns =
-                seats.length > 0
-                  ? Math.max(...seats.map(s => s.position_x))
-                  : 0;
-              const shouldScroll = maxColumns > 8; // Threshold for scrolling
-
-              return shouldScroll ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={true}
-                  style={styles.seatLayoutScrollView}
-                  contentContainerStyle={styles.seatLayoutScrollContent}
-                >
-                  <View style={styles.seatLayoutGrid}>
-                    {generateSeatLayoutFromDatabase(
-                      vessel.seats || [],
-                      vessel.seatLayout || null
-                    )}
-                  </View>
-                </ScrollView>
-              ) : (
-                <View style={styles.seatLayoutWrapper}>
-                  <View style={styles.seatLayoutGrid}>
-                    {generateSeatLayoutFromDatabase(
-                      vessel.seats || [],
-                      vessel.seatLayout || null
-                    )}
-                  </View>
-                </View>
-              );
-            })()
-          )}
-
-          {!isLoadingSeats && (
-            <>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.seatLayoutScrollView}
-                contentContainerStyle={styles.seatLayoutScrollContent}
-              >
-                <View style={styles.seatLegend}>
-                  <View style={styles.legendItem}>
-                    <View
-                      style={[
-                        styles.legendDot,
-                        { backgroundColor: colors.primary },
-                      ]}
-                    />
-                    <Text style={styles.legendText}>Standard Seats</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View
-                      style={[
-                        styles.legendDot,
-                        { backgroundColor: colors.success },
-                      ]}
-                    />
-                    <Text style={styles.legendText}>Premium Seats</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View
-                      style={[
-                        styles.legendDot,
-                        { backgroundColor: colors.info },
-                      ]}
-                    />
-                    <Text style={styles.legendText}>Window Seats</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View
-                      style={[
-                        styles.legendDot,
-                        { backgroundColor: colors.warning },
-                      ]}
-                    />
-                    <Text style={styles.legendText}>Crew Seats</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View
-                      style={[
-                        styles.legendDot,
-                        { backgroundColor: colors.danger },
-                      ]}
-                    />
-                    <Text style={styles.legendText}>Disabled Seats</Text>
-                  </View>
-                </View>
-              </ScrollView>
-              <View style={styles.seatLayoutInfo}>
-                <View style={styles.seatInfoRow}>
-                  <Text style={styles.seatInfoLabel}>Total Seats:</Text>
-                  <Text style={styles.seatInfoValue}>
-                    {(vessel.seats || []).length}
-                  </Text>
-                </View>
-                <View style={styles.seatInfoRow}>
-                  <Text style={styles.seatInfoLabel}>Window Seats:</Text>
-                  <Text style={styles.seatInfoValue}>
-                    {(vessel.seats || []).filter(seat => seat.is_window).length}
-                  </Text>
-                </View>
-                <View style={styles.seatInfoRow}>
-                  <Text style={styles.seatInfoLabel}>Aisle Seats:</Text>
-                  <Text style={styles.seatInfoValue}>
-                    {(vessel.seats || []).filter(seat => seat.is_aisle).length}
-                  </Text>
-                </View>
-                <View style={styles.seatInfoRow}>
-                  <Text style={styles.seatInfoLabel}>Premium Seats:</Text>
-                  <Text style={styles.seatInfoValue}>
-                    {
-                      (vessel.seats || []).filter(seat => seat.is_premium)
-                        .length
-                    }
-                  </Text>
-                </View>
-                <View style={styles.seatInfoRow}>
-                  <Text style={styles.seatInfoLabel}>Crew Seats:</Text>
-                  <Text style={styles.seatInfoValue}>
-                    {
-                      (vessel.seats || []).filter(
-                        seat => seat.seat_type === 'crew'
-                      ).length
-                    }
-                  </Text>
-                </View>
-                <View style={styles.seatInfoRow}>
-                  <Text style={styles.seatInfoLabel}>Disabled Seats:</Text>
-                  <Text style={styles.seatInfoValue}>
-                    {
-                      (vessel.seats || []).filter(
-                        seat =>
-                          seat.is_disabled || seat.seat_type === 'disabled'
-                      ).length
-                    }
-                  </Text>
-                </View>
-              </View>
-            </>
+            <FerryLayoutDisplay
+              seats={vessel.seats || []}
+              totalSeats={vessel.seating_capacity}
+            />
           )}
         </View>
       </View>
@@ -1429,17 +1292,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
-  seatLayoutScrollView: {
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 12,
-    width: '100%',
-  },
-  seatLayoutScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1453,17 +1305,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '500',
-  },
-  seatLayoutWrapper: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  seatLayoutGrid: {
-    padding: 16,
-    marginBottom: 16,
-    alignItems: 'center',
-    minWidth: '100%',
   },
   seatRow: {
     flexDirection: 'row',
@@ -1507,47 +1348,6 @@ const styles = StyleSheet.create({
   seatLayoutNumber: {
     fontSize: 8,
     fontWeight: '600',
-  },
-  seatLegend: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    gap: 12,
-    marginTop: 16,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  legendText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  seatLayoutInfo: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-  },
-  seatInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  seatInfoLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  seatInfoValue: {
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '500',
   },
   windowIndicator: {
     position: 'absolute',

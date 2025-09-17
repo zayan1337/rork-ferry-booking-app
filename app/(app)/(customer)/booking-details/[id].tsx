@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import {
   Calendar,
@@ -116,7 +117,7 @@ export default function BookingDetailsScreen() {
     if (!isModifiable) {
       Alert.alert(
         'Cannot Modify',
-        message || 'This booking cannot be modified'
+        'Bookings can only be modified at least 72 hours before departure time.'
       );
       return;
     }
@@ -128,7 +129,7 @@ export default function BookingDetailsScreen() {
     if (!isCancellable) {
       Alert.alert(
         'Cannot Cancel',
-        message || 'This booking cannot be cancelled'
+        'Bookings can only be cancelled at least 48 hours before departure time.'
       );
       return;
     }
@@ -323,14 +324,15 @@ export default function BookingDetailsScreen() {
           )}
         </TouchableOpacity>
         <Text style={styles.policyText}>
-          Check-in: 30 min before departure • Boarding: 15 min before departure
+          Check-in: 30 min before departure • Boarding: 10 min before departure
         </Text>
         {expandedPolicies.checkin && (
           <View style={styles.expandedContent}>
             <Text style={styles.policyText}>
-              Passengers must check in at least 30 minutes before departure and
-              be at the boarding gate at least 15 minutes before departure. Late
-              arrivals may result in denied boarding without refund.
+              Passengers must check in at least 30 minutes before departure time
+              at the jetty and be at the boarding gate at least 10 minutes
+              before departure time at the ferry. Late arrivals may result in
+              denied boarding without refund.
             </Text>
           </View>
         )}
@@ -352,16 +354,16 @@ export default function BookingDetailsScreen() {
           )}
         </TouchableOpacity>
         <Text style={styles.policyText}>
-          Luggage: 15kg max • Handbag: 5kg max • Prohibited items apply
+          1 luggage per ticket • 1 handbag per ticket • Prohibited items apply
         </Text>
         {expandedPolicies.luggage && (
           <View style={styles.expandedContent}>
             <View style={styles.policyList}>
               <Text style={styles.policyListItem}>
-                • 1 luggage per passenger: Max 15kg, dimensions 67x43x26cm
+                • 1 luggage per ticket: Max 15kg, dimensions 67x43x26cm
               </Text>
               <Text style={styles.policyListItem}>
-                • 1 handbag per passenger: Max 5kg, dimensions 25x20x6cm
+                • 1 handbag per ticket: Max 5kg, dimensions 25x20x6cm
               </Text>
               <Text style={styles.policyListItem}>
                 • Large/excessively long articles (fishing rods, poles, pipes,
@@ -530,12 +532,12 @@ export default function BookingDetailsScreen() {
         <View style={styles.contactInfo}>
           <View style={styles.contactItem}>
             <Phone size={14} color={Colors.primary} />
-            <Text style={styles.contactText}>Emergency: +960 123-4567</Text>
+            <Text style={styles.contactText}>Hotline: 3323113 or 7892929</Text>
           </View>
           <View style={styles.contactItem}>
             <Info size={14} color={Colors.primary} />
             <Text style={styles.contactText}>
-              Support: info@crystaltransfer.mv
+              Email: crystalhotelsmv@gmail.com
             </Text>
           </View>
           <View style={styles.contactItem}>
@@ -569,26 +571,24 @@ export default function BookingDetailsScreen() {
           />
         )}
 
-      {(isModifiable || isCancellable) && (
-        <>
-          <Button
-            title='Modify Booking'
-            onPress={handleModifyBooking}
-            variant='outline'
-            style={styles.actionButton}
-            textStyle={styles.modifyButtonText}
-            disabled={!isModifiable}
-          />
+      {isModifiable && (
+        <Button
+          title='Modify Booking'
+          onPress={handleModifyBooking}
+          variant='outline'
+          style={styles.actionButton}
+          textStyle={styles.modifyButtonText}
+        />
+      )}
 
-          <Button
-            title='Cancel Booking'
-            onPress={handleCancelBooking}
-            variant='outline'
-            style={styles.actionButton}
-            textStyle={styles.cancelButtonText}
-            disabled={!isCancellable}
-          />
-        </>
+      {isCancellable && (
+        <Button
+          title='Cancel Booking'
+          onPress={handleCancelBooking}
+          variant='outline'
+          style={styles.actionButton}
+          textStyle={styles.cancelButtonText}
+        />
       )}
     </View>
   );
@@ -633,7 +633,7 @@ export default function BookingDetailsScreen() {
         presentationStyle='pageSheet'
         onRequestClose={handleCloseTicketPopup}
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           {/* Header with buttons */}
           <View style={styles.modalHeader}>
             {/* Close Button */}
@@ -678,7 +678,7 @@ export default function BookingDetailsScreen() {
               />
             </View>
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Booking Details */}

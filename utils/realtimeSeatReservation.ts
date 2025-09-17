@@ -21,6 +21,7 @@ export interface RealtimeSeatStatus {
   row_number: number;
   is_window: boolean;
   is_aisle: boolean;
+  is_row_aisle?: boolean;
   seat_type: string;
   seat_class: string;
   is_disabled: boolean;
@@ -65,15 +66,14 @@ export const tempReserveSeat = async (
   expiryMinutes: number = 10
 ): Promise<TempSeatReservationResult> => {
   try {
-    console.log('Attempting to reserve seat:', { tripId, seatId, expiryMinutes });
-    
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       throw new Error('User must be authenticated to reserve seats');
     }
 
     const sessionId = getSessionId();
-    console.log('Using session ID:', sessionId);
 
     const { data, error } = await supabase.rpc('temp_reserve_seat', {
       p_trip_id: tripId,
@@ -91,7 +91,6 @@ export const tempReserveSeat = async (
       };
     }
 
-    console.log('Seat reservation result:', data);
     return data as TempSeatReservationResult;
   } catch (error: any) {
     console.error('Error in tempReserveSeat:', error);
@@ -110,19 +109,24 @@ export const releaseTempSeatReservation = async (
   seatId: string
 ): Promise<TempSeatReservationResult> => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       throw new Error('User must be authenticated');
     }
 
     const sessionId = getSessionId();
 
-    const { data, error } = await supabase.rpc('release_temp_seat_reservation', {
-      p_trip_id: tripId,
-      p_seat_id: seatId,
-      p_user_id: user.id,
-      p_session_id: sessionId,
-    });
+    const { data, error } = await supabase.rpc(
+      'release_temp_seat_reservation',
+      {
+        p_trip_id: tripId,
+        p_seat_id: seatId,
+        p_user_id: user.id,
+        p_session_id: sessionId,
+      }
+    );
 
     if (error) {
       console.error('Error releasing seat reservation:', error);
@@ -182,7 +186,9 @@ export const confirmSeatReservations = async (
   bookingId: string
 ): Promise<SeatConfirmationResult> => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       throw new Error('User must be authenticated');
     }
@@ -216,8 +222,8 @@ export const convertToSeatType = (
   realtimeStatus: RealtimeSeatStatus,
   currentUserId?: string
 ): Seat => {
-  const isCurrentUserTempReservation = 
-    realtimeStatus.is_temp_reserved && 
+  const isCurrentUserTempReservation =
+    realtimeStatus.is_temp_reserved &&
     realtimeStatus.temp_reserved_by === currentUserId;
 
   return {
@@ -226,10 +232,18 @@ export const convertToSeatType = (
     rowNumber: realtimeStatus.row_number,
     isWindow: realtimeStatus.is_window,
     isAisle: realtimeStatus.is_aisle,
+    isRowAisle: realtimeStatus.is_row_aisle || false,
     isAvailable: realtimeStatus.is_available || isCurrentUserTempReservation,
     isSelected: isCurrentUserTempReservation, // Mark as selected if current user has temp reservation
-    seatType: realtimeStatus.seat_type as 'standard' | 'premium' | 'crew' | 'disabled' | undefined,
-    seatClass: (realtimeStatus.seat_class as 'economy' | 'business' | 'first') || 'economy',
+    seatType: realtimeStatus.seat_type as
+      | 'standard'
+      | 'premium'
+      | 'crew'
+      | 'disabled'
+      | undefined,
+    seatClass:
+      (realtimeStatus.seat_class as 'economy' | 'business' | 'first') ||
+      'economy',
     isDisabled: realtimeStatus.is_disabled || false,
     isPremium: realtimeStatus.is_premium || false,
     priceMultiplier: realtimeStatus.price_multiplier || 1.0,
@@ -283,7 +297,10 @@ export const batchReserveSeats = async (
   tripId: string,
   seatIds: string[],
   expiryMinutes: number = 10
-): Promise<{ success: string[]; failed: { seatId: string; reason: string }[] }> => {
+): Promise<{
+  success: string[];
+  failed: { seatId: string; reason: string }[];
+}> => {
   const results = await Promise.allSettled(
     seatIds.map(seatId => tempReserveSeat(tripId, seatId, expiryMinutes))
   );
@@ -296,9 +313,8 @@ export const batchReserveSeats = async (
     if (result.status === 'fulfilled' && result.value.success) {
       success.push(seatId);
     } else {
-      const reason = result.status === 'fulfilled' 
-        ? result.value.message 
-        : 'Request failed';
+      const reason =
+        result.status === 'fulfilled' ? result.value.message : 'Request failed';
       failed.push({ seatId, reason });
     }
   });
@@ -312,7 +328,10 @@ export const batchReserveSeats = async (
 export const batchReleaseSeats = async (
   tripId: string,
   seatIds: string[]
-): Promise<{ success: string[]; failed: { seatId: string; reason: string }[] }> => {
+): Promise<{
+  success: string[];
+  failed: { seatId: string; reason: string }[];
+}> => {
   const results = await Promise.allSettled(
     seatIds.map(seatId => releaseTempSeatReservation(tripId, seatId))
   );
@@ -325,9 +344,8 @@ export const batchReleaseSeats = async (
     if (result.status === 'fulfilled' && result.value.success) {
       success.push(seatId);
     } else {
-      const reason = result.status === 'fulfilled' 
-        ? result.value.message 
-        : 'Request failed';
+      const reason =
+        result.status === 'fulfilled' ? result.value.message : 'Request failed';
       failed.push({ seatId, reason });
     }
   });
@@ -354,12 +372,14 @@ export const getUserTempReservations = async (
   tripId: string
 ): Promise<RealtimeSeatStatus[]> => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return [];
 
     const allSeats = await getTripSeatStatus(tripId);
-    return allSeats.filter(seat => 
-      seat.is_temp_reserved && seat.temp_reserved_by === user.id
+    return allSeats.filter(
+      seat => seat.is_temp_reserved && seat.temp_reserved_by === user.id
     );
   } catch (error) {
     console.error('Error getting user temp reservations:', error);
@@ -370,11 +390,13 @@ export const getUserTempReservations = async (
 /**
  * Clean up all temporary reservations for current user session
  */
-export const cleanupUserTempReservations = async (tripId: string): Promise<void> => {
+export const cleanupUserTempReservations = async (
+  tripId: string
+): Promise<void> => {
   try {
     const userReservations = await getUserTempReservations(tripId);
     const seatIds = userReservations.map(seat => seat.seat_id);
-    
+
     if (seatIds.length > 0) {
       await batchReleaseSeats(tripId, seatIds);
     }

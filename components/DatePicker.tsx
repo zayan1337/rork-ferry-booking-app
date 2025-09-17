@@ -8,6 +8,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Button from './Button';
@@ -111,7 +112,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
         transparent={true}
         onRequestClose={handleCancel}
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Date</Text>
@@ -161,7 +162,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
               />
             </View>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );

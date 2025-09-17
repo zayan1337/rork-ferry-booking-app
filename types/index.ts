@@ -38,6 +38,7 @@ export interface Seat {
   rowNumber: number;
   isWindow: boolean;
   isAisle: boolean;
+  isRowAisle?: boolean;
   isAvailable: boolean;
   isSelected?: boolean;
   // Enhanced seat properties

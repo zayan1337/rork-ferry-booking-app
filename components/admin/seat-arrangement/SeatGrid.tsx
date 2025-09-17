@@ -70,14 +70,18 @@ export default function SeatGrid({
     const { seat, position } = cell;
     const isSelected = seat && selectedSeats.includes(seat.id);
 
+    // Check if this is a ferry layout for special styling
+    const isFerryLayout = seatGrid[0]?.length === 8 && seatGrid.length === 15;
+
     if (!seat) {
-      // Render empty space
+      // Render empty space - different styling for ferry layout
       return (
         <TouchableOpacity
           key={`empty_${position.row}_${position.col}`}
           style={[
             styles.emptySeat,
             mode === 'edit' && styles.emptySeatEditable,
+            isFerryLayout && styles.ferryEmptySeat,
           ]}
           onPress={() =>
             !disabled &&
@@ -87,7 +91,7 @@ export default function SeatGrid({
           disabled={disabled || mode !== 'edit'}
           activeOpacity={0.7}
         >
-          <Plus size={16} color={colors.textSecondary} />
+          {mode === 'edit' && <Plus size={16} color={colors.textSecondary} />}
         </TouchableOpacity>
       );
     }
@@ -103,6 +107,7 @@ export default function SeatGrid({
           { backgroundColor: seatColor },
           isSelected && styles.selectedSeat,
           seat.is_disabled && styles.disabledSeat,
+          isFerryLayout && styles.ferrySeat,
         ]}
         onPress={() => !disabled && onSeatPress(position.row, position.col)}
         disabled={disabled}
@@ -190,13 +195,30 @@ export default function SeatGrid({
   const renderColumnHeaders = () => {
     if (seatGrid.length === 0) return null;
 
+    // Check if this is a ferry layout (8 columns = A-H, 15 rows)
+    const isFerryLayout = seatGrid[0].length === 8 && seatGrid.length === 15;
+
     return (
       <View style={styles.headerRow}>
-        <View style={styles.rowLabel} />
+        <View style={styles.rowLabel}>
+          {isFerryLayout && <Text style={styles.ferryLabel}>BOW</Text>}
+        </View>
         {seatGrid[0].map((_, colIndex) => (
           <React.Fragment key={`header_${colIndex}`}>
             <View style={styles.columnHeader}>
-              <Text style={styles.columnNumber}>{colIndex + 1}</Text>
+              <Text style={styles.columnNumber}>
+                {
+                  isFerryLayout
+                    ? String.fromCharCode(65 + colIndex) // A, B, C, D, E, F, G, H
+                    : colIndex + 1 // 1, 2, 3, 4...
+                }
+              </Text>
+              {isFerryLayout && colIndex === 0 && (
+                <Text style={styles.sideLabel}>PORT</Text>
+              )}
+              {isFerryLayout && colIndex === seatGrid[0].length - 1 && (
+                <Text style={styles.sideLabel}>STARBOARD</Text>
+              )}
             </View>
             {colIndex < seatGrid[0].length - 1 && renderAisleControl(colIndex)}
           </React.Fragment>
@@ -206,11 +228,28 @@ export default function SeatGrid({
   };
 
   const renderRow = (rowIndex: number, rowCells: SeatCell[]) => {
+    // Check if this is a ferry layout (8 columns, 15 rows)
+    const isFerryLayout = seatGrid[0]?.length === 8 && seatGrid.length === 15;
+    const rowNumber = rowIndex + 1;
+
+    // Ferry zone identification based on the diagram
+    let zoneLabel = '';
+    if (isFerryLayout) {
+      if (rowNumber <= 3) {
+        zoneLabel = 'BOW';
+      } else if (rowNumber >= 14) {
+        zoneLabel = 'STERN';
+      } else if (rowNumber >= 4 && rowNumber <= 13) {
+        zoneLabel = 'MAIN DECK';
+      }
+    }
+
     return (
       <React.Fragment key={`row_${rowIndex}`}>
         <View style={styles.row}>
           <View style={styles.rowLabel}>
-            <Text style={styles.rowNumber}>{rowIndex + 1}</Text>
+            <Text style={styles.rowNumber}>{rowNumber}</Text>
+            {zoneLabel && <Text style={styles.zoneLabel}>{zoneLabel}</Text>}
           </View>
           {rowCells.map((cell, colIndex) => (
             <React.Fragment key={`cell_${rowIndex}_${colIndex}`}>
@@ -290,6 +329,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
   },
+  ferryLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.primary,
+    textAlign: 'center',
+  },
+  sideLabel: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  zoneLabel: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: colors.warning,
+    textAlign: 'center',
+    marginTop: 2,
+  },
   seat: {
     width: 40,
     height: 40,
@@ -360,6 +419,19 @@ const styles = StyleSheet.create({
   emptySeatEditable: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryLight,
+  },
+  ferryEmptySeat: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    borderWidth: 0,
+  },
+  ferrySeat: {
+    borderRadius: 8,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 3,
   },
   // Aisle control styles
   aisleControl: {

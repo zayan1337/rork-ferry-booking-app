@@ -865,7 +865,7 @@ export default function ModifyBookingScreen() {
                     </TouchableOpacity>
                   )}
 
-                  <TouchableOpacity
+                  {/* <TouchableOpacity
                     style={[
                       styles.paymentOption,
                       selectedPaymentMethod === 'wallet' &&
@@ -903,7 +903,7 @@ export default function ModifyBookingScreen() {
                     >
                       Bank Transfer
                     </Text>
-                  </TouchableOpacity>
+                  </TouchableOpacity> */}
                 </View>
               </View>
             )}

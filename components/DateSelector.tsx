@@ -8,6 +8,7 @@ import {
   FlatList,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronDown, Calendar } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { DateSelectorProps } from '@/types/components';
@@ -302,7 +303,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
         animationType='slide'
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               {isDateOfBirth && viewMode !== 'year' ? (
@@ -338,7 +339,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
 
             {renderModalContent()}
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );

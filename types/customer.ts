@@ -37,6 +37,7 @@ export interface CustomerBookingFormErrors {
   terms: string;
   trip: string;
   returnTrip: string;
+  pricingNotice: string;
 }
 
 // Supabase seat data type
@@ -47,6 +48,7 @@ export interface SupabaseSeat {
   row_number: number;
   is_window: boolean;
   is_aisle: boolean;
+  is_row_aisle?: boolean;
   created_at: string;
 }
 

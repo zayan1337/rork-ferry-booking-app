@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminManagement } from '@/types';
-import Button from '@/components/admin/Button';
 import Switch from '@/components/admin/Switch';
 import {
   X,
@@ -25,6 +24,7 @@ import {
   DollarSign,
   Square,
   ArrowRight,
+  Check,
 } from 'lucide-react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -45,12 +45,6 @@ const SEAT_TYPES = [
   { type: 'premium', label: 'Premium', icon: Crown, color: '#3b82f6' },
   { type: 'crew', label: 'Crew', icon: Anchor, color: '#f59e0b' },
   { type: 'disabled', label: 'Disabled', icon: UserCheck, color: '#ef4444' },
-] as const;
-
-const SEAT_CLASSES = [
-  { class: 'economy', label: 'Economy', color: '#6b7280' },
-  { class: 'business', label: 'Business', color: '#3b82f6' },
-  { class: 'first', label: 'First Class', color: '#8b5cf6' },
 ] as const;
 
 const SEAT_FEATURES = [
@@ -142,10 +136,6 @@ export default function SeatEditModal({
 
   const getSeatTypeData = (type: string) => {
     return SEAT_TYPES.find(t => t.type === type) || SEAT_TYPES[0];
-  };
-
-  const getSeatClassData = (seatClass: string) => {
-    return SEAT_CLASSES.find(c => c.class === seatClass) || SEAT_CLASSES[0];
   };
 
   // Reusable components
@@ -254,45 +244,34 @@ export default function SeatEditModal({
     <Modal
       visible={visible}
       animationType='slide'
-      transparent={true}
+      presentationStyle='pageSheet'
       onRequestClose={handleCancel}
     >
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <View
-                style={[
-                  styles.seatTypeIcon,
-                  { backgroundColor: `${currentTypeData.color}20` },
-                ]}
-              >
-                <currentTypeData.icon size={24} color={currentTypeData.color} />
-              </View>
-              <View style={styles.headerContent}>
-                <Text style={styles.title}>
-                  {isNewSeat
-                    ? 'Add New Seat'
-                    : `Edit Seat ${editedSeat.seat_number}`}
-                </Text>
-                <Text style={styles.subtitle}>
-                  {isNewSeat
-                    ? 'Configure new seat properties'
-                    : 'Modify seat configuration'}
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.closeButton} onPress={handleCancel}>
-              <X size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
+      <View style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity
+            style={styles.modalCloseButton}
+            onPress={handleCancel}
+          >
+            <X size={24} color={colors.text} />
+          </TouchableOpacity>
+
+          <View style={styles.modalTitleContainer}>
+            <Text style={styles.modalTitle}>
+              Edit Seat {seat?.seat_number || 'Unknown'}
+            </Text>
+            <Text style={styles.modalSubtitle}>Modify seat configuration</Text>
           </View>
 
-          {/* Content */}
-          <ScrollView
-            style={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
+          <View style={styles.modalHeaderSpacer} />
+        </View>
+
+        <ScrollView
+          style={styles.modalScrollView}
+          contentContainerStyle={styles.modalScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.modalContentContainer}>
             {/* Seat Identity - Only show if editable */}
             {isNewSeat && (
               <View style={styles.section}>
@@ -337,17 +316,17 @@ export default function SeatEditModal({
               </View>
             )}
 
-            {/* Quick Seat Type Selection */}
+            {/* Seat Type Selection */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Seat Type & Class</Text>
-              <View style={styles.quickSelection}>
+              <Text style={styles.sectionTitle}>Seat Type</Text>
+              <View style={styles.seatTypeGrid}>
                 {SEAT_TYPES.map(type => (
                   <TouchableOpacity
                     key={type.type}
                     style={[
-                      styles.quickOption,
+                      styles.seatTypeCard,
                       editedSeat.seat_type === type.type &&
-                        styles.quickOptionSelected,
+                        styles.seatTypeCardSelected,
                     ]}
                     onPress={() => {
                       updateSeat({
@@ -362,64 +341,57 @@ export default function SeatEditModal({
                       });
                     }}
                   >
-                    <type.icon
-                      size={20}
-                      color={
-                        editedSeat.seat_type === type.type
-                          ? colors.primary
-                          : type.color
-                      }
-                    />
+                    <View
+                      style={[
+                        styles.seatTypeIcon,
+                        editedSeat.seat_type === type.type &&
+                          styles.seatTypeIconSelected,
+                      ]}
+                    >
+                      <type.icon
+                        size={24}
+                        color={
+                          editedSeat.seat_type === type.type
+                            ? colors.white
+                            : type.color
+                        }
+                      />
+                    </View>
                     <Text
                       style={[
-                        styles.quickOptionText,
+                        styles.seatTypeLabel,
                         editedSeat.seat_type === type.type &&
-                          styles.quickOptionTextSelected,
+                          styles.seatTypeLabelSelected,
                       ]}
                     >
                       {type.label}
                     </Text>
+                    {editedSeat.seat_type === type.type && (
+                      <View style={styles.seatTypeCheckmark}>
+                        <Check size={16} color={colors.primary} />
+                      </View>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
 
-              {/* Class selection only for standard/premium seats */}
-              {(editedSeat.seat_type === 'standard' ||
-                editedSeat.seat_type === 'premium') && (
-                <View style={styles.classSelection}>
-                  <Text style={styles.subLabel}>Class</Text>
-                  <View style={styles.classButtons}>
-                    {SEAT_CLASSES.map(seatClass => (
-                      <TouchableOpacity
-                        key={seatClass.class}
-                        style={[
-                          styles.classButton,
-                          editedSeat.seat_class === seatClass.class &&
-                            styles.classButtonSelected,
-                        ]}
-                        onPress={() =>
-                          updateSeat({
-                            seat_class: seatClass.class as any,
-                            is_premium:
-                              seatClass.class === 'business' ||
-                              seatClass.class === 'first',
-                          })
-                        }
-                      >
-                        <Text
-                          style={[
-                            styles.classButtonText,
-                            editedSeat.seat_class === seatClass.class &&
-                              styles.classButtonTextSelected,
-                          ]}
-                        >
-                          {seatClass.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
+            {/* Seat Name/Number */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Seat Name</Text>
+              <View style={styles.seatNameContainer}>
+                <RNTextInput
+                  style={styles.seatNameInput}
+                  value={editedSeat.seat_number}
+                  onChangeText={text => updateSeat({ seat_number: text })}
+                  placeholder='Enter seat name (e.g., A1, B2, VIP1)'
+                  placeholderTextColor={colors.textSecondary}
+                  maxLength={10}
+                />
+                <Text style={styles.seatNameHint}>
+                  Custom name for this seat (max 10 characters)
+                </Text>
+              </View>
             </View>
 
             {/* Seat Properties */}
@@ -544,35 +516,42 @@ export default function SeatEditModal({
                 </View>
               </View>
             )}
-          </ScrollView>
+          </View>
+        </ScrollView>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <View style={styles.footerActions}>
-              {!isNewSeat && onDelete && (
-                <Button
-                  title='Delete'
-                  onPress={handleDelete}
-                  variant='danger'
-                  icon={<Trash2 size={16} color={colors.white} />}
-                  style={styles.deleteButton}
-                />
-              )}
-              <View style={styles.primaryActions}>
-                <Button
-                  title='Cancel'
-                  onPress={handleCancel}
-                  variant='secondary'
-                  style={styles.cancelButton}
-                />
-                <Button
-                  title={isNewSeat ? 'Add Seat' : 'Save Changes'}
-                  onPress={handleSave}
-                  variant='primary'
-                  icon={<Save size={16} color={colors.white} />}
-                  style={styles.saveButton}
-                />
-              </View>
+        {/* Footer */}
+        <View style={styles.modalFooter}>
+          <View style={styles.footerButtonContainer}>
+            {!isNewSeat && onDelete && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={handleDelete}
+                activeOpacity={0.7}
+              >
+                <Trash2 size={18} color={colors.white} />
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.primaryButtonContainer}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={handleCancel}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSave}
+                activeOpacity={0.7}
+              >
+                <Save size={18} color={colors.white} />
+                <Text style={styles.saveButtonText}>
+                  {isNewSeat ? 'Add Seat' : 'Save Changes'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -591,92 +570,84 @@ const CustomTextInput = ({ style, ...props }: any) => (
 );
 
 const styles = StyleSheet.create({
-  overlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modal: {
     backgroundColor: colors.background,
-    borderRadius: 20,
-    minHeight: Math.max(500, screenHeight * 0.6),
-    width: Math.min(screenWidth - 32, 420),
-    maxHeight: screenHeight * 0.92,
-    overflow: 'hidden',
-    elevation: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.3,
-    shadowRadius: 25,
   },
-  header: {
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 24,
-    backgroundColor: colors.card,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    minHeight: 88,
+    backgroundColor: colors.card,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  seatTypeIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  headerContent: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-    letterSpacing: 0.2,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  closeButton: {
+  modalCloseButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 20,
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.backgroundSecondary,
-    borderWidth: 1,
-    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  content: {
+  modalTitleContainer: {
     flex: 1,
-    paddingTop: 8,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  modalHeaderSpacer: {
+    width: 40,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+  },
+  modalContentContainer: {
+    width: '100%',
+  },
+  modalFooter: {
+    padding: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  footerButtonContainer: {
+    gap: 16,
+  },
+  primaryButtonContainer: {
+    flexDirection: 'row',
+    gap: 12,
   },
   section: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
-    marginBottom: 18,
-    letterSpacing: 0.3,
+    marginBottom: 12,
   },
   infoItem: {
     gap: 10,
@@ -710,6 +681,27 @@ const styles = StyleSheet.create({
   },
   textInput: {
     // Inherits from baseTextInput
+  },
+  seatNameContainer: {
+    gap: 8,
+  },
+  seatNameInput: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '600',
+    padding: 14,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.border,
+    minHeight: 48,
+    textAlign: 'center',
+  },
+  seatNameHint: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   selectionGrid: {
     flexDirection: 'row',
@@ -782,31 +774,52 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     backgroundColor: colors.background,
   },
-  footer: {
-    padding: 24,
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    minHeight: 90,
-  },
-  footerActions: {
-    gap: 16,
-  },
-  primaryActions: {
-    flexDirection: 'row',
-    gap: 16,
-  },
   deleteButton: {
-    alignSelf: 'flex-start',
-    minWidth: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: colors.error,
+    borderRadius: 12,
+    gap: 8,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
   },
   cancelButton: {
     flex: 1,
-    minHeight: 48,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
   },
   saveButton: {
     flex: 1,
-    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    gap: 8,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
   },
   // New compact styles
   compactRow: {
@@ -835,76 +848,63 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
-  // Quick selection styles
-  quickSelection: {
+  // Seat type selection styles
+  seatTypeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
+    gap: 12,
   },
-  quickOption: {
-    flexDirection: 'row',
+  seatTypeCard: {
+    flex: 1,
+    minWidth: '45%',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: 16,
     backgroundColor: colors.backgroundSecondary,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: colors.border,
-    gap: 8,
-    flex: 1,
-    minWidth: 80,
+    position: 'relative',
   },
-  quickOptionSelected: {
-    backgroundColor: `${colors.primary}15`,
+  seatTypeCardSelected: {
+    backgroundColor: `${colors.primary}10`,
     borderColor: colors.primary,
   },
-  quickOptionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  quickOptionTextSelected: {
-    color: colors.primary,
-  },
-  // Class selection styles
-  classSelection: {
-    gap: 10,
-  },
-  subLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  classButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  classButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 8,
-    borderWidth: 1,
+  seatTypeIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 2,
     borderColor: colors.border,
   },
-  classButtonSelected: {
-    backgroundColor: `${colors.primary}15`,
+  seatTypeIconSelected: {
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  classButtonText: {
-    fontSize: 12,
+  seatTypeLabel: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
     textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
-  classButtonTextSelected: {
+  seatTypeLabelSelected: {
     color: colors.primary,
+  },
+  seatTypeCheckmark: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   // Properties grid styles
   propertiesGrid: {

@@ -4,12 +4,14 @@ import type { BookingEligibility } from '@/types/pages/booking';
 
 interface UseBookingEligibilityProps {
   booking: Booking | null;
-  minimumHours?: number;
+  minimumCancellationHours?: number;
+  minimumModificationHours?: number;
 }
 
 export const useBookingEligibility = ({
   booking,
-  minimumHours = 72,
+  minimumCancellationHours = 48, // As per ticket policy: 48+ hours for cancellation
+  minimumModificationHours = 72, // As per ticket policy: 72+ hours for modification
 }: UseBookingEligibilityProps): BookingEligibility => {
   return useMemo(() => {
     if (!booking) {
@@ -35,15 +37,23 @@ export const useBookingEligibility = ({
     const hoursUntilDeparture =
       (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    const isEligible = hoursUntilDeparture >= minimumHours;
+    const isModifiable = hoursUntilDeparture >= minimumModificationHours;
+    const isCancellable = hoursUntilDeparture >= minimumCancellationHours;
+
+    let message: string | undefined;
+    if (!isModifiable && !isCancellable) {
+      message = `Bookings can only be modified at least ${minimumModificationHours} hours before departure and cancelled at least ${minimumCancellationHours} hours before departure`;
+    } else if (!isModifiable) {
+      message = `Bookings can only be modified at least ${minimumModificationHours} hours before departure`;
+    } else if (!isCancellable) {
+      message = `Bookings can only be cancelled at least ${minimumCancellationHours} hours before departure`;
+    }
 
     return {
-      isModifiable: isEligible,
-      isCancellable: isEligible,
-      message: isEligible
-        ? undefined
-        : `Bookings can only be modified or cancelled at least ${minimumHours} hours before departure`,
+      isModifiable,
+      isCancellable,
+      message,
       hoursUntilDeparture,
     };
-  }, [booking, minimumHours]);
+  }, [booking, minimumCancellationHours, minimumModificationHours]);
 };

@@ -52,6 +52,15 @@ export const CONTACT_INFO = {
   SUPPORT_HOURS: '8:00 AM - 8:00 PM, 7 days a week',
 } as const;
 
+// Social media links
+export const SOCIAL_MEDIA = {
+  TIKTOK: 'https://www.tiktok.com/@crystaltransfervaavu',
+  INSTAGRAM: 'https://www.instagram.com/crystaltransfermv',
+  FACEBOOK: 'https://www.facebook.com/share/1BB6QKWWMj/',
+  COMMUNITY:
+    'SOCIAL_MEDIA.FACEBOOKhttps://invite.viber.com/?g2=AQB4FUs%2FTM4GEFUg2eMhEfKlzQ%2BzT5FvokKYtQQu%2BDPaKGDGM0%2FRNgy5Gb1r5bW%2F',
+} as const;
+
 // FAQ data
 export const FAQS: CustomerFAQ[] = [
   {

@@ -46,6 +46,7 @@ export default function BookScreen() {
   // Removed local currentStep state - using store's currentStep
   const [paymentMethod, setPaymentMethod] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [pricingNoticeAccepted, setPricingNoticeAccepted] = useState(false);
 
   // Local seat selection state to avoid store circular dependencies
   const [localSelectedSeats, setLocalSelectedSeats] = useState<Seat[]>([]);
@@ -420,6 +421,12 @@ export default function BookScreen() {
           newErrors.terms = 'You must accept the terms and conditions';
           isValid = false;
         }
+
+        if (!pricingNoticeAccepted) {
+          newErrors.pricingNotice =
+            'You must acknowledge the pricing notice for locals and work permit holders';
+          isValid = false;
+        }
         break;
     }
 
@@ -477,6 +484,7 @@ export default function BookScreen() {
           setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
           setPaymentMethod('');
           setTermsAccepted(false);
+          setPricingNoticeAccepted(false);
           setLocalSelectedSeats([]);
           setLocalReturnSelectedSeats([]);
           setErrors(createEmptyFormErrors());
@@ -1087,6 +1095,34 @@ export default function BookScreen() {
                 </Text>
               </Text>
             </View>
+            <View style={styles.termsContainer}>
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => {
+                  setPricingNoticeAccepted(!pricingNoticeAccepted);
+                  if (errors.pricingNotice)
+                    setErrors({ ...errors, pricingNotice: '' });
+                }}
+              >
+                <View
+                  style={[
+                    styles.checkboxInner,
+                    pricingNoticeAccepted && styles.checkboxChecked,
+                  ]}
+                />
+              </TouchableOpacity>
+              <Text style={styles.termsText}>
+                I acknowledge that the ticket prices shown are valid for locals
+                and Work Permit holders only. For tourist pricing, I will
+                contact the hotlines{' '}
+                <Text style={styles.hotlineNumber}>3323113</Text> or{' '}
+                <Text style={styles.hotlineNumber}>7892929</Text>.
+              </Text>
+            </View>
+
+            {errors.pricingNotice ? (
+              <Text style={styles.errorText}>{errors.pricingNotice}</Text>
+            ) : null}
 
             {errors.terms ? (
               <Text style={styles.errorText}>{errors.terms}</Text>
@@ -1450,5 +1486,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     fontStyle: 'italic',
+  },
+  hotlineNumber: {
+    fontWeight: '700',
+    color: Colors.primary,
   },
 });

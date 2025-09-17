@@ -8,6 +8,7 @@ import {
   FlatList,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronDown, Search, X } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Button from './Button';
@@ -97,7 +98,7 @@ const Dropdown: React.FC<DropdownProps> = ({
         transparent={true}
         onRequestClose={handleCancel}
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
@@ -165,7 +166,7 @@ const Dropdown: React.FC<DropdownProps> = ({
               />
             </View>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );

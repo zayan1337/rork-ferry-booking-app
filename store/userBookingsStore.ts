@@ -473,7 +473,10 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
           .eq('id', bookingId);
 
         if (originalBookingError) {
-          console.error('Failed to update original booking status:', originalBookingError);
+          console.error(
+            'Failed to update original booking status:',
+            originalBookingError
+          );
         }
 
         // Update new booking status to confirmed
@@ -486,7 +489,10 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
           .eq('id', newBookingData.id);
 
         if (newBookingStatusError) {
-          console.error('Failed to update new booking status:', newBookingStatusError);
+          console.error(
+            'Failed to update new booking status:',
+            newBookingStatusError
+          );
         }
       }
 

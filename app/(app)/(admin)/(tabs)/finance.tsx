@@ -103,7 +103,7 @@ export default function FinanceScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Add',
-          onPress: value => {
+          onPress: (value: any) => {
             if (value && !isNaN(Number(value))) {
               addWalletTransaction({
                 wallet_id: walletId,
