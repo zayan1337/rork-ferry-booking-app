@@ -21,9 +21,8 @@ interface TicketDesignProps {
 export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
   ({ booking, size = 'large' }, ref) => {
     const isLarge = size === 'large';
-    // Make ticket responsive to screen width
-    const maxWidth = screenWidth - 32; // Account for padding
-    const ticketWidth = Math.min(isLarge ? 400 : 340, maxWidth);
+    // Fixed width for consistent ticket size across all devices
+    const ticketWidth = isLarge ? 400 : 340;
 
     return (
       <ViewShot ref={ref}>
@@ -278,20 +277,6 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
                 </View>
               </View>
             </View>
-          </View>
-          {/* Important Pricing Notice */}
-          <View style={styles.pricingNoticeSection}>
-            <View style={styles.pricingNoticeHeader}>
-              <Text style={styles.pricingNoticeTitle}>
-                IMPORTANT PRICING NOTICE
-              </Text>
-            </View>
-            <Text style={styles.pricingNoticeText}>
-              The ticket price(s) shown are valid for locals and Work Permit
-              holders only. For tickets related to tourists, please reach us on
-              our hotlines <Text style={styles.hotlineText}>3323113</Text> or{' '}
-              <Text style={styles.hotlineText}>7892929</Text>.
-            </Text>
           </View>
           {/* Contact Details */}
           <View style={styles.contactSection}>
@@ -648,7 +633,7 @@ const styles = StyleSheet.create({
   },
   fromLocation: {
     color: colors.primary,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
   },
@@ -659,7 +644,7 @@ const styles = StyleSheet.create({
   },
   toLocation: {
     color: colors.primary,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 12,
   },

@@ -64,6 +64,15 @@ export default function CaptainCheckinScreen() {
 
     try {
       const result = await validateTicket(bookingNumber.trim().toUpperCase());
+
+      // Debug logging to see what data we're getting
+      console.log('Validation result:', JSON.stringify(result, null, 2));
+      if (result?.booking) {
+        console.log('Booking data:', JSON.stringify(result.booking, null, 2));
+        console.log('Passengers:', result.booking.passengers);
+        console.log('Seats:', result.booking.seats);
+      }
+
       setValidationResult(result);
 
       if (error) {
@@ -132,7 +141,7 @@ export default function CaptainCheckinScreen() {
 
     Alert.alert(
       'Confirm Check-in',
-      `Check in ${booking.passengers.length} passenger(s) for booking ${booking.bookingNumber}?`,
+      `Check in ${(booking as any).passengers?.length || (booking as any).passengerCount || 0} passenger(s) for booking ${booking.bookingNumber}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -179,7 +188,10 @@ export default function CaptainCheckinScreen() {
                   booking_id: booking.id,
                   captain_id: user.id,
                   check_in_time: checkInTime,
-                  passenger_count: booking.passengers.length,
+                  passenger_count:
+                    (booking as any).passengers?.length ||
+                    (booking as any).passengerCount ||
+                    0,
                   notes: `Captain check-in via mobile app`,
                 });
               } catch (logError) {
@@ -201,7 +213,7 @@ export default function CaptainCheckinScreen() {
 
               Alert.alert(
                 'Check-in Successful',
-                `${booking.passengers.length} passenger(s) have been checked in for booking ${booking.bookingNumber}.\n\nCheck-in completed at ${new Date().toLocaleTimeString()}.`
+                `${(booking as any).passengers?.length || (booking as any).passengerCount || 0} passenger(s) have been checked in for booking ${booking.bookingNumber}.\n\nCheck-in completed at ${new Date().toLocaleTimeString()}.`
               );
             } catch (error) {
               const errorMessage =
@@ -310,7 +322,7 @@ export default function CaptainCheckinScreen() {
 
       Alert.alert(
         `Ticket Status: ${ticketStatus}`,
-        `${statusMessage}${additionalInfo}\n\nBooking: ${booking.bookingNumber}\nPassengers: ${booking.passengers.length}\nRoute: ${booking.route.fromIsland.name} → ${booking.route.toIsland.name}\nFare: MVR ${currentBooking.total_fare.toFixed(2)}`,
+        `${statusMessage}${additionalInfo}\n\nBooking: ${booking.bookingNumber}\nPassengers: ${(booking as any).passengers?.length || (booking as any).passengerCount || 0}\nRoute: ${(booking as any).route?.fromIsland?.name || (booking as any).fromIsland || 'Unknown'} → ${(booking as any).route?.toIsland?.name || (booking as any).toIsland || 'Unknown'}\nFare: MVR ${currentBooking.total_fare.toFixed(2)}`,
         [{ text: 'OK', style: 'default' }]
       );
     } catch (error) {
@@ -398,6 +410,20 @@ export default function CaptainCheckinScreen() {
         // Auto-validate after scanning
         validateTicket(formattedBookingNum)
           .then(result => {
+            // Debug logging for QR scan results
+            console.log(
+              'QR Scan validation result:',
+              JSON.stringify(result, null, 2)
+            );
+            if (result?.booking) {
+              console.log(
+                'QR Scan booking data:',
+                JSON.stringify(result.booking, null, 2)
+              );
+              console.log('QR Scan passengers:', result.booking.passengers);
+              console.log('QR Scan seats:', result.booking.seats);
+            }
+
             setValidationResult(result);
 
             if (error) {
@@ -451,27 +477,29 @@ export default function CaptainCheckinScreen() {
     if (!validationResult?.booking) return null;
 
     const { booking } = validationResult;
+    // Type assertion to handle flexible booking structure
+    const bookingData = booking as any;
 
     return (
       <View style={styles.bookingSummary}>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Booking #:</Text>
-          <Text style={styles.summaryValue}>{booking.bookingNumber}</Text>
+          <Text style={styles.summaryValue}>{bookingData.bookingNumber}</Text>
         </View>
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Type:</Text>
           <Text style={styles.summaryValue}>
-            {booking.bookingType === 'agent'
+            {bookingData.bookingType === 'agent'
               ? 'Agent Booking'
               : 'Customer Booking'}
           </Text>
         </View>
 
-        {booking.clientName && (
+        {bookingData.clientName && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Client:</Text>
-            <Text style={styles.summaryValue}>{booking.clientName}</Text>
+            <Text style={styles.summaryValue}>{bookingData.clientName}</Text>
           </View>
         )}
 
@@ -480,57 +508,69 @@ export default function CaptainCheckinScreen() {
           <Text
             style={[
               styles.summaryValue,
-              booking.status === 'confirmed'
+              bookingData.status === 'confirmed'
                 ? styles.confirmedStatus
                 : styles.cancelledStatus,
             ]}
           >
-            {booking.status.toUpperCase()}
+            {bookingData.status.toUpperCase()}
           </Text>
         </View>
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Route:</Text>
           <Text style={styles.summaryValue}>
-            {booking.route.fromIsland.name} → {booking.route.toIsland.name}
+            {bookingData.route?.fromIsland?.name ||
+              bookingData.fromIsland ||
+              'Unknown'}{' '}
+            →{' '}
+            {bookingData.route?.toIsland?.name ||
+              bookingData.toIsland ||
+              'Unknown'}
           </Text>
         </View>
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Date:</Text>
           <Text style={styles.summaryValue}>
-            {formatSimpleDate(booking.departureDate)}
+            {formatSimpleDate(bookingData.departureDate)}
           </Text>
         </View>
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Time:</Text>
-          <Text style={styles.summaryValue}>{booking.departureTime}</Text>
+          <Text style={styles.summaryValue}>{bookingData.departureTime}</Text>
         </View>
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Vessel:</Text>
           <Text style={styles.summaryValue}>
-            {booking.vessel?.name || 'N/A'}
+            {bookingData.vessel?.name || bookingData.vesselName || 'N/A'}
           </Text>
         </View>
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Passengers:</Text>
-          <Text style={styles.summaryValue}>{booking.passengers.length}</Text>
+          <Text style={styles.summaryValue}>
+            {bookingData.passengers?.length || bookingData.passengerCount || 0}
+          </Text>
         </View>
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Seats:</Text>
           <Text style={styles.summaryValue}>
-            {booking.seats.map(seat => seat.number).join(', ')}
+            {bookingData.seats?.length > 0
+              ? bookingData.seats
+                  .map((seat: any) => seat.number || seat)
+                  .join(', ')
+              : bookingData.seatNumbers || 'N/A'}
           </Text>
         </View>
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Total Fare:</Text>
           <Text style={styles.summaryValue}>
-            MVR {booking.totalFare.toFixed(2)}
+            MVR {(bookingData.totalFare || 0).toFixed(2)}
           </Text>
         </View>
 
@@ -539,12 +579,12 @@ export default function CaptainCheckinScreen() {
           <Text
             style={[
               styles.summaryValue,
-              booking.checkInStatus
+              bookingData.checkInStatus
                 ? styles.checkedInStatus
                 : styles.notCheckedInStatus,
             ]}
           >
-            {booking.checkInStatus ? 'CHECKED IN' : 'NOT CHECKED IN'}
+            {bookingData.checkInStatus ? 'CHECKED IN' : 'NOT CHECKED IN'}
           </Text>
         </View>
       </View>
@@ -720,11 +760,16 @@ export default function CaptainCheckinScreen() {
 
                     {/* Passenger count info */}
                     <Text style={styles.passengerInfo}>
-                      {validationResult.booking.passengers.length} passenger(s)
-                      • Seats:{' '}
-                      {validationResult.booking.seats
-                        .map(seat => seat.number)
-                        .join(', ')}
+                      {(validationResult.booking as any).passengers?.length ||
+                        (validationResult.booking as any).passengerCount ||
+                        0}{' '}
+                      passenger(s) • Seats:{' '}
+                      {(validationResult.booking as any).seats?.length > 0
+                        ? (validationResult.booking as any).seats
+                            .map((seat: any) => seat.number || seat)
+                            .join(', ')
+                        : (validationResult.booking as any).seatNumbers ||
+                          'N/A'}
                     </Text>
                   </View>
                 </>

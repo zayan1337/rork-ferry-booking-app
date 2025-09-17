@@ -37,7 +37,11 @@ export default function DatePicker({
   required = false,
 }: DatePickerProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => {
+    // Initialize to today's date
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  });
   const [selectedDate, setSelectedDate] = useState<Date | null>(
     value ? new Date(`${value}T00:00:00`) : null
   );
@@ -78,6 +82,16 @@ export default function DatePicker({
     // Add days of the month
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(i);
+    }
+
+    // Add empty cells at the end to complete the grid (ensure we have complete weeks)
+    const totalCells = days.length;
+    const remainingCells = totalCells % 7;
+    if (remainingCells !== 0) {
+      const cellsToAdd = 7 - remainingCells;
+      for (let i = 0; i < cellsToAdd; i++) {
+        days.push(null);
+      }
     }
 
     return days;
@@ -125,6 +139,15 @@ export default function DatePicker({
     const today = new Date();
     setCurrentDate(today);
     setSelectedDate(today);
+
+    // Auto-select today's date and close modal
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day}`;
+
+    onChange(formattedDate);
+    setIsVisible(false);
   };
 
   const formatDisplayDate = (dateString: string) => {
@@ -202,7 +225,28 @@ export default function DatePicker({
           error && styles.inputError,
           disabled && styles.inputDisabled,
         ]}
-        onPress={() => !disabled && setIsVisible(true)}
+        onPress={() => {
+          if (!disabled) {
+            // Reset to current date when opening if no date is selected
+            if (!value) {
+              const today = new Date();
+              setCurrentDate(
+                new Date(today.getFullYear(), today.getMonth(), today.getDate())
+              );
+            } else {
+              // Navigate to the selected date's month/year
+              const selectedDateObj = new Date(`${value}T00:00:00`);
+              setCurrentDate(
+                new Date(
+                  selectedDateObj.getFullYear(),
+                  selectedDateObj.getMonth(),
+                  selectedDateObj.getDate()
+                )
+              );
+            }
+            setIsVisible(true);
+          }
+        }}
         disabled={disabled}
       >
         <Text
@@ -380,32 +424,43 @@ export default function DatePicker({
                 ))}
               </View>
 
-              {/* Calendar days */}
-              <View style={styles.daysGrid}>
-                {calendarDays.map((day, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.dayCell,
-                      day && isToday(day) ? styles.todayCell : null,
-                      day && isSelected(day) ? styles.selectedCell : null,
-                    ]}
-                    onPress={() => day && handleDateSelect(day)}
-                    disabled={!day}
-                  >
-                    {day && (
-                      <Text
-                        style={[
-                          styles.dayText,
-                          isToday(day) && styles.todayText,
-                          isSelected(day) && styles.selectedText,
-                        ]}
-                      >
-                        {day}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
+              {/* Calendar days - organized in rows */}
+              <View style={styles.daysContainer}>
+                {Array.from(
+                  { length: Math.ceil(calendarDays.length / 7) },
+                  (_, weekIndex) => (
+                    <View key={weekIndex} style={styles.weekRow}>
+                      {calendarDays
+                        .slice(weekIndex * 7, (weekIndex + 1) * 7)
+                        .map((day, dayIndex) => (
+                          <TouchableOpacity
+                            key={`${weekIndex}-${dayIndex}`}
+                            style={[
+                              styles.dayCell,
+                              day && isToday(day) ? styles.todayCell : null,
+                              day && isSelected(day)
+                                ? styles.selectedCell
+                                : null,
+                            ]}
+                            onPress={() => day && handleDateSelect(day)}
+                            disabled={!day}
+                          >
+                            {day && (
+                              <Text
+                                style={[
+                                  styles.dayText,
+                                  isToday(day) && styles.todayText,
+                                  isSelected(day) && styles.selectedText,
+                                ]}
+                              >
+                                {day}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+                  )
+                )}
               </View>
             </View>
 
@@ -628,17 +683,21 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     paddingVertical: 8,
   },
-  daysGrid: {
+  daysContainer: {
+    width: '100%',
+  },
+  weekRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 2,
   },
   dayCell: {
-    width: '14.28%',
-    aspectRatio: 1,
+    flex: 1,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 6,
-    margin: 1,
+    marginHorizontal: 1,
   },
   todayCell: {
     backgroundColor: colors.primaryLight,

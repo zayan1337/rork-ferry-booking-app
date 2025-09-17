@@ -126,28 +126,48 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
         };
       }
 
-      // STEP 2: Check ownership
+      // STEP 2: Check ownership and captain access
       if (currentUser) {
-        if (ticketData.agent_id === currentUser.id) {
-          isOwnBooking = true;
-        } else if (
-          !ticketData.agent_id &&
-          ticketData.user_id === currentUser.id
-        ) {
-          isOwnBooking = true;
-        } else if (ticketData.agent_client_id) {
-          try {
-            const { data: clientData, error: clientError } = await supabase
-              .from('agent_clients')
-              .select('client_id')
-              .eq('id', ticketData.agent_client_id)
-              .single();
+        // Check if current user is a captain - captains can see all booking details
+        let isCaptain = false;
+        try {
+          const { data: userProfile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('id', currentUser.id)
+            .single();
+          
+          if (!profileError && userProfile?.role === 'captain') {
+            isCaptain = true;
+            isOwnBooking = true; // Allow captains to see full details
+          }
+        } catch (profileError) {
+          // Continue with normal ownership checks
+        }
 
-            if (!clientError && clientData?.client_id === currentUser.id) {
-              isOwnBooking = true;
+        // Regular ownership checks
+        if (!isCaptain) {
+          if (ticketData.agent_id === currentUser.id) {
+            isOwnBooking = true;
+          } else if (
+            !ticketData.agent_id &&
+            ticketData.user_id === currentUser.id
+          ) {
+            isOwnBooking = true;
+          } else if (ticketData.agent_client_id) {
+            try {
+              const { data: clientData, error: clientError } = await supabase
+                .from('agent_clients')
+                .select('client_id')
+                .eq('id', ticketData.agent_client_id)
+                .single();
+
+              if (!clientError && clientData?.client_id === currentUser.id) {
+                isOwnBooking = true;
+              }
+            } catch (clientCheckError) {
+              // Client check failed, continue with false
             }
-          } catch (clientCheckError) {
-            // Client check failed, continue with false
           }
         }
       }
@@ -246,7 +266,7 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
       let clientPhone = '';
 
       if (isOwnBooking) {
-        // Only get detailed client info for own bookings
+        // Get detailed client info for own bookings and captains
         if (bookingType === 'agent' && ticketData.agent_client_id) {
           try {
             const { data: clientData, error: clientError } = await supabase

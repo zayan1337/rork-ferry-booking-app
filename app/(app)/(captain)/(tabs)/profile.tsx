@@ -25,6 +25,7 @@ import {
 } from 'lucide-react-native';
 
 import { useAuthStore } from '@/store/authStore';
+import { router } from 'expo-router';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -202,6 +203,7 @@ export default function CaptainProfileScreen() {
           style={styles.actionButton}
           onPress={() => {
             // Navigate to check-in tab
+            router.push('/(captain)/(tabs)/checkin');
           }}
         >
           <CheckCircle size={24} color={Colors.primary} />

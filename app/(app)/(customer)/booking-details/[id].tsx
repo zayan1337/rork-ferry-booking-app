@@ -668,15 +668,21 @@ export default function BookingDetailsScreen() {
             style={styles.modalScrollView}
             contentContainerStyle={styles.modalScrollContent}
             showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
             bounces={false}
           >
-            <View style={styles.modalTicketContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.modalTicketContainer}
+              bounces={false}
+            >
               <TicketDesign
                 booking={booking}
                 size='large'
                 ref={ticketDesignRef}
               />
-            </View>
+            </ScrollView>
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -957,12 +963,11 @@ const styles = StyleSheet.create({
   modalScrollContent: {
     alignItems: 'center',
     paddingVertical: 20,
-    paddingHorizontal: 20,
   },
   modalTicketContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
+    minWidth: '100%',
   },
   shareIconButtonDisabled: {
     opacity: 0.5,
