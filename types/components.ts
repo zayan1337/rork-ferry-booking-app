@@ -99,3 +99,11 @@ export type BookingCardProps = {
   booking: Booking;
   onPress: (booking: Booking) => void;
 };
+
+export type SafeViewProps = {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  backgroundColor?: string;
+  edges?: ('top' | 'bottom' | 'left' | 'right')[];
+  mode?: 'padding' | 'margin';
+};

@@ -1,39 +1,28 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import {
-  StyleSheet,
-  TouchableOpacity,
-  View,
-  Alert,
-  Dimensions,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, TouchableOpacity, Alert } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import { useAuthStore } from '@/store/authStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { usePermissionStore } from '@/store/admin/permissionStore';
-import { router } from 'expo-router';
+import { useAuthStore } from '@/store/authStore';
 import NoPermissionsWelcome from '@/components/admin/NoPermissionsWelcome';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import AuthLoadingScreen from '@/components/AuthLoadingScreen';
+import SafeView from '@/components/SafeView';
+import { router } from 'expo-router';
 import {
   Home,
   CreditCard,
   Settings,
   Ship,
   Users,
-  User,
-  LogOut,
   DollarSign,
   MessageSquare,
+  User,
+  LogOut,
 } from 'lucide-react-native';
 
-const { width: screenWidth } = Dimensions.get('window');
-
-export default function TabLayout() {
-  const isTablet = screenWidth >= 768;
-  const isSmallScreen = screenWidth < 480;
-  const insets = useSafeAreaInsets();
+export default function AdminTabLayout() {
   const { user, signOut } = useAuthStore();
   const {
     canViewDashboard,
@@ -63,6 +52,7 @@ export default function TabLayout() {
     ? currentAdminUser !== undefined
     : true;
 
+  // Header button handlers
   const handleProfilePress = () => {
     router.push('../modal');
   };
@@ -85,9 +75,20 @@ export default function TabLayout() {
   };
 
   const renderHeaderRight = () => (
-    <View style={styles.headerRightContainer}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginRight: 12,
+      }}
+    >
       <TouchableOpacity
-        style={styles.headerButton}
+        style={{
+          padding: 8,
+          borderRadius: 8,
+          backgroundColor: colors.card,
+        }}
         onPress={handleProfilePress}
         accessibilityRole='button'
         accessibilityLabel='Profile'
@@ -95,7 +96,11 @@ export default function TabLayout() {
         <User size={20} color={colors.text} />
       </TouchableOpacity>
       <TouchableOpacity
-        style={styles.headerButton}
+        style={{
+          padding: 8,
+          borderRadius: 8,
+          backgroundColor: colors.card,
+        }}
         onPress={handleLogout}
         accessibilityRole='button'
         accessibilityLabel='Logout'
@@ -111,7 +116,11 @@ export default function TabLayout() {
     (isDataLoading || !isUserDataLoaded) && !isSuperAdmin;
 
   if (shouldShowLoading) {
-    return <AuthLoadingScreen />;
+    return (
+      <SafeView>
+        <AuthLoadingScreen />
+      </SafeView>
+    );
   }
 
   // Only show no permissions screen if:
@@ -120,13 +129,17 @@ export default function TabLayout() {
   // 3. User actually has no permissions
   if (user?.profile?.id && !hasAnyPermissions()) {
     return (
-      <View style={styles.noPermissionsContainer}>
-        <NoPermissionsWelcome
-          adminName={adminName}
-          adminRole={adminRole}
-          isSuperAdmin={isSuperAdmin}
-        />
-      </View>
+      <SafeView backgroundColor={colors.backgroundSecondary}>
+        <View
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <NoPermissionsWelcome
+            adminName={adminName}
+            adminRole={adminRole}
+            isSuperAdmin={isSuperAdmin}
+          />
+        </View>
+      </SafeView>
     );
   }
 
@@ -135,23 +148,24 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: [
-          styles.tabBar,
-          {
-            paddingBottom: Math.max(insets.bottom, 6),
-            paddingTop: 6,
-          },
-        ],
-        tabBarLabelStyle: styles.tabBarLabel,
-        headerStyle: styles.header,
-        headerTitleStyle: styles.headerTitle,
-        headerShadowVisible: false,
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+        },
+        headerStyle: {
+          backgroundColor: colors.background,
+        },
+        headerTintColor: colors.text,
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
         headerRight: renderHeaderRight,
-        tabBarHideOnKeyboard: true,
-        tabBarItemStyle: styles.tabBarItem,
       }}
     >
-      {/* Dashboard Tab */}
       <Tabs.Screen
         name='index'
         options={{
@@ -160,8 +174,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
-
-      {/* Bookings Tab */}
       <Tabs.Screen
         name='bookings'
         options={{
@@ -172,18 +184,14 @@ export default function TabLayout() {
           ),
         }}
       />
-
-      {/* Operations Tab */}
       <Tabs.Screen
         name='operations'
         options={{
-          title: isSmallScreen ? 'Ops' : 'Operations',
+          title: 'Operations',
           href: canAccessOperationsTab() ? undefined : null,
           tabBarIcon: ({ color, size }) => <Ship size={size} color={color} />,
         }}
       />
-
-      {/* Users Tab */}
       <Tabs.Screen
         name='users'
         options={{
@@ -192,8 +200,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
         }}
       />
-
-      {/* Finance Tab */}
       <Tabs.Screen
         name='finance'
         options={{
@@ -204,20 +210,16 @@ export default function TabLayout() {
           ),
         }}
       />
-
-      {/* Communications Tab */}
       <Tabs.Screen
         name='communications'
         options={{
-          title: isSmallScreen ? 'Comms' : 'Communications',
+          title: 'Communications',
           href: canAccessCommunicationsTab() ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <MessageSquare size={size} color={color} />
           ),
         }}
       />
-
-      {/* Settings Tab */}
       <Tabs.Screen
         name='settings'
         options={{
@@ -231,54 +233,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: colors.card,
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-  },
-  tabBarItem: {
-    paddingVertical: 4,
-  },
-  tabBarLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  header: {
-    backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: `${colors.border}30`,
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  headerTitle: {
-    fontWeight: '700',
-    color: colors.text,
-    fontSize: 18,
-  },
-  headerRightContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginRight: 12,
-  },
-  headerButton: {
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: colors.card,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: `${colors.border}60`,
-  },
-  noPermissionsContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.backgroundSecondary,
-  },
-});
