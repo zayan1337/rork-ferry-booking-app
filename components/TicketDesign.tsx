@@ -16,20 +16,57 @@ const { width: screenWidth } = Dimensions.get('window');
 interface TicketDesignProps {
   booking: Booking;
   size?: 'small' | 'large';
+  forImageGeneration?: boolean; // New prop for standardized image generation
 }
 
 export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
-  ({ booking, size = 'large' }, ref) => {
+  ({ booking, size = 'large', forImageGeneration = false }, ref) => {
     const isLarge = size === 'large';
-    // Fixed width for consistent ticket size across all devices
-    const ticketWidth = isLarge ? 400 : 340;
+
+    // Standardized width for image generation (consistent across all devices)
+    // For display, use responsive width; for image generation, use fixed standard width
+    const getTicketWidth = () => {
+      if (forImageGeneration) {
+        // Standardized width for image generation - 500px with natural height
+        return 500;
+      }
+      // Original responsive width for display
+      return isLarge ? 400 : 340;
+    };
+
+    const ticketWidth = getTicketWidth();
+
+    // Scale factor for image generation (2x for high quality)
+    const scaleFactor = forImageGeneration ? 2 : 1;
+
+    // Dynamic styles that scale for image generation
+    const getDynamicStyles = () => {
+      if (!forImageGeneration) {
+        return {}; // Use default styles for display
+      }
+
+      // Scaled styles for image generation (optimized for natural content fit)
+      return {
+        container: {
+          ...styles.container,
+          width: ticketWidth,
+          // Remove fixed height to let content determine natural size
+        },
+        // Scale text and spacing proportionally
+        scaledText: {
+          transform: [{ scale: scaleFactor }],
+        },
+      };
+    };
+
+    const dynamicStyles = getDynamicStyles();
 
     return (
       <ViewShot ref={ref}>
         <View
           style={[
-            styles.container,
-            isLarge ? styles.large : styles.small,
+            forImageGeneration ? dynamicStyles.container : styles.container,
+            !forImageGeneration && (isLarge ? styles.large : styles.small),
             { width: ticketWidth },
           ]}
           collapsable={false}
@@ -51,7 +88,12 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
           </View>
 
           {/* Main Ticket Content */}
-          <View style={styles.ticketBody}>
+          <View
+            style={[
+              styles.ticketBody,
+              forImageGeneration && { minHeight: 180 }, // Slightly compact for image generation
+            ]}
+          >
             {/* Left Side - Passenger & Trip Info */}
             <View style={styles.leftSection}>
               {/* <Text style={styles.sectionTitle}>Name of the Passenger</Text>
@@ -93,7 +135,7 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
               <View style={styles.qrContainer}>
                 <QRCode
                   value={booking.qrCodeUrl || booking.bookingNumber}
-                  size={isLarge ? 80 : 60}
+                  size={forImageGeneration ? 100 : isLarge ? 80 : 60}
                   backgroundColor='white'
                   color='#1e40af'
                 />
@@ -129,7 +171,12 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
             </View>
           </View>
 
-          <View style={styles.passengerDetailsSection}>
+          <View
+            style={[
+              styles.passengerDetailsSection,
+              forImageGeneration && { paddingVertical: 10 }, // Slightly reduce padding for image
+            ]}
+          >
             <View style={styles.passengerDetailsHeader}>
               <Users
                 size={16}
@@ -162,10 +209,78 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
                 </View>
               </View>
             ))}
+            {booking.passengers.map((passenger, index) => (
+              <View key={index} style={styles.passengerRow}>
+                <Text style={styles.passengerIndex}>{index + 1}.</Text>
+                <View style={styles.passengerInfoSimple}>
+                  <Text style={styles.passengerNameSimple}>
+                    {passenger.fullName}
+                  </Text>
+                  {passenger.idNumber && (
+                    <Text style={styles.passengerIdSimple}>
+                      ID: {passenger.idNumber}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.seatInfoSimple}>
+                  <Text style={styles.seatLabelSimple}>Seat:</Text>
+                  <Text style={styles.seatNumberSimple}>
+                    {booking.seats[index]?.number || 'N/A'}
+                  </Text>
+                </View>
+              </View>
+            ))}
+            {booking.passengers.map((passenger, index) => (
+              <View key={index} style={styles.passengerRow}>
+                <Text style={styles.passengerIndex}>{index + 1}.</Text>
+                <View style={styles.passengerInfoSimple}>
+                  <Text style={styles.passengerNameSimple}>
+                    {passenger.fullName}
+                  </Text>
+                  {passenger.idNumber && (
+                    <Text style={styles.passengerIdSimple}>
+                      ID: {passenger.idNumber}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.seatInfoSimple}>
+                  <Text style={styles.seatLabelSimple}>Seat:</Text>
+                  <Text style={styles.seatNumberSimple}>
+                    {booking.seats[index]?.number || 'N/A'}
+                  </Text>
+                </View>
+              </View>
+            ))}
+            {booking.passengers.map((passenger, index) => (
+              <View key={index} style={styles.passengerRow}>
+                <Text style={styles.passengerIndex}>{index + 1}.</Text>
+                <View style={styles.passengerInfoSimple}>
+                  <Text style={styles.passengerNameSimple}>
+                    {passenger.fullName}
+                  </Text>
+                  {passenger.idNumber && (
+                    <Text style={styles.passengerIdSimple}>
+                      ID: {passenger.idNumber}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.seatInfoSimple}>
+                  <Text style={styles.seatLabelSimple}>Seat:</Text>
+                  <Text style={styles.seatNumberSimple}>
+                    {booking.seats[index]?.number || 'N/A'}
+                  </Text>
+                </View>
+              </View>
+            ))}
           </View>
 
           {/* Ferry Policy Section - Structured Layout */}
-          <View style={styles.policySection}>
+          <View
+            style={[
+              styles.policySection,
+              forImageGeneration && { padding: 8 }, // Slightly reduce padding for image
+            ]}
+          >
             <View style={styles.policyHeader}>
               <Text style={styles.policyTitle}>FERRY POLICIES</Text>
             </View>
@@ -279,7 +394,12 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
             </View>
           </View>
           {/* Contact Details */}
-          <View style={styles.contactSection}>
+          <View
+            style={[
+              styles.contactSection,
+              forImageGeneration && { padding: 8 }, // Slightly reduce padding for image
+            ]}
+          >
             {/* Top Row - Contact Details and QR Code */}
             <View style={styles.contactTopRow}>
               <View style={styles.contactLeft}>
@@ -297,7 +417,7 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
                 <View style={styles.footerQrContainer}>
                   <QRCode
                     value={SOCIAL_MEDIA.COMMUNITY}
-                    size={45}
+                    size={forImageGeneration ? 56 : 45}
                     backgroundColor='white'
                     color='#1e40af'
                   />

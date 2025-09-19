@@ -31,7 +31,7 @@ export default function CaptainTabLayout() {
     ]);
   };
 
-  const renderHeaderRight = () => (
+  const   renderHeaderRight = () => (
     <View
       style={{
         flexDirection: 'row',
@@ -76,10 +76,6 @@ export default function CaptainTabLayout() {
           backgroundColor: Colors.card,
           borderTopColor: Colors.border,
         },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
         headerStyle: {
           backgroundColor: Colors.card,
         },
@@ -88,6 +84,7 @@ export default function CaptainTabLayout() {
           fontWeight: '600',
         },
         headerRight: renderHeaderRight,
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen

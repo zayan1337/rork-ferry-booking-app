@@ -26,41 +26,48 @@ export default function AgentTabLayout() {
         headerTitleStyle: {
           fontWeight: '600',
         },
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen
         name='index'
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color }) => <Home size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name='bookings'
         options={{
           title: 'Bookings',
-          tabBarIcon: ({ color }) => <BarChart size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <BarChart size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name='clients'
         options={{
           title: 'Clients',
-          tabBarIcon: ({ color }) => <Users size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name='credit'
         options={{
           title: 'Credit',
-          tabBarIcon: ({ color }) => <CreditCard size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <CreditCard size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name='profile'
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <Settings size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <Settings size={size} color={color} />
+          ),
         }}
       />
     </Tabs>

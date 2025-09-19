@@ -19,10 +19,6 @@ export default function TabLayout() {
           backgroundColor: Colors.card,
           borderTopColor: Colors.border,
         },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
         headerStyle: {
           backgroundColor: Colors.card,
         },
@@ -30,6 +26,7 @@ export default function TabLayout() {
         headerTitleStyle: {
           fontWeight: '600',
         },
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen

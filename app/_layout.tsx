@@ -6,7 +6,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../store/authStore';
 import * as Linking from 'expo-linking';
-import colors from '@/constants/colors';
 import SafeView from '../components/SafeView';
 // import CustomSplashScreen from '../components/SplashScreen';
 
@@ -121,7 +120,7 @@ function RootLayoutNav() {
     isAuthenticated && user?.profile && user.profile.is_active;
 
   return (
-    <SafeView edges={['bottom']}>
+    <SafeView edges={[]}>
       <StatusBar style='dark' />
       <Stack
         screenOptions={{

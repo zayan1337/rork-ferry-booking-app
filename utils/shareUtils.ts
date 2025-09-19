@@ -22,13 +22,15 @@ export const shareBookingTicketAsImage = async (
     }
 
     // Small delay to ensure component is fully rendered
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Capture the ticket as image
+    // Capture the ticket as image with standardized width, natural height
     const uri = await captureRef(ticketRef, {
       format: 'png',
       quality: 1.0,
       result: 'tmpfile',
+      width: 500, // Compact width perfect for mobile sharing
+      // Height will be determined by content (no white space)
     });
 
     // Check if sharing is available

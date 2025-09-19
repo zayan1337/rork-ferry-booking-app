@@ -152,10 +152,6 @@ export default function AdminTabLayout() {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
         },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
         headerStyle: {
           backgroundColor: colors.background,
         },
@@ -164,6 +160,7 @@ export default function AdminTabLayout() {
           fontWeight: '600',
         },
         headerRight: renderHeaderRight,
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen

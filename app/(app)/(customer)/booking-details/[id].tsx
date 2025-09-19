@@ -43,6 +43,7 @@ export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
   const { bookings, fetchUserBookings } = useUserBookingsStore();
   const ticketDesignRef = useRef<any>(null);
+  const imageGenerationTicketRef = useRef<any>(null); // Separate ref for image generation
   const [showTicketPopup, setShowTicketPopup] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [expandedPolicies, setExpandedPolicies] = useState<{
@@ -98,8 +99,8 @@ export default function BookingDetailsScreen() {
       // Small delay to ensure component is ready
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Use the robust shareUtils function with TicketDesign ref
-      await shareBookingTicket(booking, ticketDesignRef);
+      // Use the robust shareUtils function with image generation TicketDesign ref
+      await shareBookingTicket(booking, imageGenerationTicketRef);
 
       setShowTicketPopup(false);
     } catch (error) {
@@ -729,6 +730,16 @@ export default function BookingDetailsScreen() {
 
       {/* Action Buttons */}
       {renderActionButtons()}
+
+      {/* Hidden TicketDesign for standardized image generation */}
+      <View style={styles.hiddenTicketContainer}>
+        <TicketDesign
+          booking={booking}
+          size='large'
+          forImageGeneration={true}
+          ref={imageGenerationTicketRef}
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -1079,5 +1090,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  // Hidden container for image generation ticket
+  hiddenTicketContainer: {
+    position: 'absolute',
+    left: -10000, // Move far off-screen
+    top: -10000,
+    opacity: 0,
+    pointerEvents: 'none',
   },
 });

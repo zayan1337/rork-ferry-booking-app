@@ -136,7 +136,7 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
             .select('role')
             .eq('id', currentUser.id)
             .single();
-          
+
           if (!profileError && userProfile?.role === 'captain') {
             isCaptain = true;
             isOwnBooking = true; // Allow captains to see full details
