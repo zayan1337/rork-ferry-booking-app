@@ -118,6 +118,7 @@ interface OperationsStore {
     departure_time: string;
     vessel_id: string;
     available_seats: number;
+    captain_id?: string;
   }) => Promise<boolean>;
   updateTripData: (
     id: string,
@@ -129,6 +130,7 @@ interface OperationsStore {
       available_seats: number;
       is_active: boolean;
       status: string;
+      captain_id: string;
     }>
   ) => Promise<boolean>;
   removeTrip: (id: string) => Promise<boolean>;

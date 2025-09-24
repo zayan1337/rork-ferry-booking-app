@@ -283,6 +283,7 @@ export const createTrip = async (tripData: {
   departure_time: string;
   vessel_id: string;
   available_seats: number;
+  captain_id?: string;
 }): Promise<OperationsTrip | null> => {
   try {
     const { data, error } = await supabase
@@ -294,6 +295,7 @@ export const createTrip = async (tripData: {
           departure_time: tripData.departure_time,
           vessel_id: tripData.vessel_id,
           available_seats: tripData.available_seats,
+          captain_id: tripData.captain_id || null,
           is_active: true,
           status: 'scheduled',
         },
@@ -322,6 +324,7 @@ export const updateTrip = async (
     available_seats: number;
     is_active: boolean;
     status: string;
+    captain_id: string;
   }>
 ): Promise<OperationsTrip | null> => {
   try {

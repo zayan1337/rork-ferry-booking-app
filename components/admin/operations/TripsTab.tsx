@@ -357,6 +357,7 @@ const styles = StyleSheet.create({
     gap: 8,
     flexShrink: 0,
     maxWidth: '50%',
+    marginRight: 8,
   },
   itemsList: {
     gap: 12,

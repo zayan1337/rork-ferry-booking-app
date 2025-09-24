@@ -234,6 +234,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
         status: tripData.status || 'scheduled',
         is_active: tripData.is_active,
         booked_seats: 0, // Default for new trips
+        captain_id: tripData.captain_id || null, // Include captain assignment
       };
 
       const { data, error } = await supabase
@@ -279,6 +280,8 @@ export const useTripStore = create<TripStore>((set, get) => ({
       if (updates.status !== undefined) dbUpdates.status = updates.status;
       if (updates.is_active !== undefined)
         dbUpdates.is_active = updates.is_active;
+      if (updates.captain_id !== undefined)
+        dbUpdates.captain_id = updates.captain_id || null; // Include captain assignment
 
       const { data, error } = await supabase
         .from('trips')
@@ -686,6 +689,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
           status: trip.status,
           is_active: trip.is_active,
           booked_seats: 0, // Default to 0 for new trips
+          captain_id: trip.captain_id || null, // Include captain assignment
         }));
 
         const { data, error } = await supabase

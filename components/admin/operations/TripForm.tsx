@@ -4,6 +4,7 @@ import { colors } from '@/constants/adminColors';
 import { useTripManagement } from '@/hooks/useTripManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
+import { useUserStore } from '@/store/admin/userStore';
 import { AdminManagement } from '@/types';
 import {
   Calendar,
@@ -92,6 +93,7 @@ export default function TripForm({
   } = useTripManagement();
   const { routes, loadAll: loadRoutes } = useRouteManagement();
   const { vessels, loadAll: loadVessels } = useVesselManagement();
+  const { users, fetchAll: fetchUsers } = useUserStore();
 
   // Find current trip data for editing
   const currentTrip = tripId ? getById(tripId) : null;
@@ -118,10 +120,11 @@ export default function TripForm({
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Load routes and vessels on component mount
+  // Load routes, vessels, and users on component mount
   useEffect(() => {
     loadRoutes();
     loadVessels();
+    fetchUsers();
   }, []);
 
   // Track form changes
@@ -338,6 +341,16 @@ export default function TripForm({
     { label: 'Delayed', value: 'delayed' },
   ];
 
+  const captainOptions = [
+    { label: 'No Captain Assigned', value: '' },
+    ...(users || [])
+      .filter(user => user.role === 'captain' && user.status === 'active')
+      .map(captain => ({
+        label: captain.name || captain.email,
+        value: captain.id,
+      })),
+  ];
+
   if (loading || tripLoading.data) {
     return (
       <View style={styles.loadingContainer}>
@@ -492,6 +505,19 @@ export default function TripForm({
               options={statusOptions}
               placeholder='Select status'
               error={validationErrors.status}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Dropdown
+              label='Captain'
+              value={formData.captain_id || ''}
+              onValueChange={(value: string) =>
+                setFormData(prev => ({ ...prev, captain_id: value }))
+              }
+              options={captainOptions}
+              placeholder='Select captain (optional)'
+              error={validationErrors.captain_id}
             />
           </View>
 

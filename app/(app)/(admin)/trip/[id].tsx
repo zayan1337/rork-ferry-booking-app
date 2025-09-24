@@ -155,6 +155,7 @@ export default function TripDetailsPage() {
         travel_date: tripData.travel_date,
         departure_time: tripData.departure_time,
         available_seats: trip?.available_seats || 0, // Keep current available seats
+        captain_id: tripData.captain_id || '', // Include captain assignment
         is_active: true,
       });
 

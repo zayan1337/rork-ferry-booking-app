@@ -12,6 +12,7 @@ import { colors } from '@/constants/adminColors';
 import { useTripManagement } from '@/hooks/useTripManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
+import { useUserStore } from '@/store/admin/userStore';
 import {
   TripGenerationRequest,
   getCommonTimeSlots,
@@ -65,6 +66,7 @@ export default function TripGenerator({
   const tripMgmt = useTripManagement();
   const { routes, loadAll: loadRoutes } = useRouteManagement();
   const { vessels, loadAll: loadVessels } = useVesselManagement();
+  const { users, fetchAll: fetchUsers } = useUserStore();
 
   // Form state
   const [formData, setFormData] = useState<Partial<TripGenerationRequest>>({
@@ -76,6 +78,7 @@ export default function TripGenerator({
     time_slots: [],
     fare_multiplier: 1.0,
     vessel_capacity: 50,
+    captain_id: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -91,6 +94,7 @@ export default function TripGenerator({
     if (visible) {
       loadRoutes();
       loadVessels();
+      fetchUsers();
     }
   }, [visible]);
 
@@ -111,6 +115,17 @@ export default function TripGenerator({
   const timeSlots = getCommonTimeSlots();
   const daysOfWeek = getDaysOfWeek();
 
+  // Captain options
+  const captainOptions = [
+    { label: 'No Captain Assigned', value: '' },
+    ...(users || [])
+      .filter(user => user.role === 'captain' && user.status === 'active')
+      .map(captain => ({
+        label: captain.name || captain.email,
+        value: captain.id,
+      })),
+  ];
+
   // Track changes for unsaved state
   useEffect(() => {
     const hasFormData =
@@ -120,7 +135,8 @@ export default function TripGenerator({
       formData.end_date ||
       (formData.selected_days && formData.selected_days.length > 0) ||
       (formData.time_slots && formData.time_slots.length > 0) ||
-      formData.fare_multiplier !== 1.0;
+      formData.fare_multiplier !== 1.0 ||
+      formData.captain_id;
 
     setHasChanges(!!hasFormData);
   }, [formData]);
@@ -629,6 +645,19 @@ export default function TripGenerator({
           <Settings size={20} color={colors.primary} />
         </View>
         <Text style={styles.sectionTitle}>Trip Settings</Text>
+      </View>
+
+      <View style={styles.formGroup}>
+        <Dropdown
+          label='Captain'
+          value={formData.captain_id || ''}
+          onValueChange={(value: string) =>
+            handleUpdateField('captain_id', value)
+          }
+          options={captainOptions}
+          placeholder='Select captain (optional)'
+          error={errors.captain_id}
+        />
       </View>
 
       <View style={styles.formRow}>

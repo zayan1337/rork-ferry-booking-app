@@ -763,6 +763,7 @@ export interface TripGenerationRequest {
   time_slots: string[];
   fare_multiplier: number;
   vessel_capacity?: number;
+  captain_id?: string;
 }
 
 export interface GeneratedTrip {
@@ -774,6 +775,7 @@ export interface GeneratedTrip {
   fare_multiplier: number;
   status: 'scheduled';
   is_active: boolean;
+  captain_id?: string;
 }
 
 export const generateTripsForSchedule = (
@@ -788,6 +790,7 @@ export const generateTripsForSchedule = (
     time_slots,
     fare_multiplier,
     vessel_capacity = 50,
+    captain_id,
   } = request;
 
   const trips: GeneratedTrip[] = [];
@@ -817,6 +820,7 @@ export const generateTripsForSchedule = (
           fare_multiplier,
           status: 'scheduled',
           is_active: true,
+          captain_id: captain_id || undefined,
         });
       });
     }

@@ -1,7 +1,14 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, TouchableOpacity, Alert } from 'react-native';
-import { User, UserCheck, LogOut } from 'lucide-react-native';
+import {
+  User,
+  UserCheck,
+  LogOut,
+  Home,
+  Ship,
+  Settings,
+} from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useAuthStore } from '@/store/authStore';
 import { router } from 'expo-router';
@@ -31,7 +38,7 @@ export default function CaptainTabLayout() {
     ]);
   };
 
-  const   renderHeaderRight = () => (
+  const renderHeaderRight = () => (
     <View
       style={{
         flexDirection: 'row',
@@ -88,10 +95,17 @@ export default function CaptainTabLayout() {
       }}
     >
       <Tabs.Screen
-        name='profile'
+        name='index'
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name='trips'
+        options={{
+          title: 'My Trips',
+          tabBarIcon: ({ color, size }) => <Ship size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -100,6 +114,15 @@ export default function CaptainTabLayout() {
           title: 'Check-in',
           tabBarIcon: ({ color, size }) => (
             <UserCheck size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name='profile'
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <Settings size={size} color={color} />
           ),
         }}
       />
