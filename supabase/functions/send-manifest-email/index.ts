@@ -1,10 +1,11 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type',
+};
 
 interface PassengerManifestData {
   manifest_id: string;
@@ -38,6 +39,298 @@ interface PassengerManifestData {
   actual_departure_time: string;
 }
 
+// Send email via Gmail SMTP using native Deno TCP connection
+async function sendEmailViaGmailSMTP(
+  emailData: any,
+  gmailUser: string,
+  gmailPassword: string
+): Promise<string> {
+
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  let conn: Deno.TcpConn | undefined;
+  let tlsConn: Deno.TlsConn | undefined;
+
+  try {
+    // Connect to Gmail SMTP server
+    conn = await Deno.connect({
+      hostname: 'smtp.gmail.com',
+      port: 587, // Use STARTTLS port
+    });
+
+    // Helper function to read response
+    const readResponse = async (): Promise<string> => {
+      const buffer = new Uint8Array(4096);
+      const n = await conn.read(buffer);
+      if (n === null) throw new Error('Connection closed');
+      return decoder.decode(buffer.subarray(0, n));
+    };
+
+    // Helper function to send command
+    const sendCommand = async (command: string): Promise<string> => {
+      await conn.write(encoder.encode(command + '\r\n'));
+      const response = await readResponse();
+      return response;
+    };
+
+    // Read initial greeting
+    let response = await readResponse();
+
+    if (!response.startsWith('220')) {
+      throw new Error(`SMTP greeting failed: ${response}`);
+    }
+
+    // Send EHLO
+    response = await sendCommand('EHLO localhost');
+    if (!response.startsWith('250')) {
+      throw new Error(`EHLO failed: ${response}`);
+    }
+
+    // Start TLS
+    response = await sendCommand('STARTTLS');
+    if (!response.startsWith('220')) {
+      throw new Error(`STARTTLS failed: ${response}`);
+    }
+
+    // Upgrade to TLS connection
+    tlsConn = await Deno.startTls(conn, { hostname: 'smtp.gmail.com' });
+
+    // Helper functions for TLS connection
+    const readTlsResponse = async (): Promise<string> => {
+      if (!tlsConn) throw new Error('TLS connection not established');
+      const buffer = new Uint8Array(4096);
+      const n = await tlsConn.read(buffer);
+      if (n === null) throw new Error('TLS connection closed');
+      return decoder.decode(buffer.subarray(0, n));
+    };
+
+    const sendTlsCommand = async (command: string): Promise<string> => {
+      if (!tlsConn) throw new Error('TLS connection not established');
+      await tlsConn.write(encoder.encode(command + '\r\n'));
+      const response = await readTlsResponse();
+      return response;
+    };
+
+    // Send EHLO again after TLS
+    response = await sendTlsCommand('EHLO localhost');
+    if (!response.startsWith('250')) {
+      throw new Error(`EHLO after TLS failed: ${response}`);
+    }
+
+    // Authenticate using LOGIN method
+    response = await sendTlsCommand('AUTH LOGIN');
+    if (!response.startsWith('334')) {
+      throw new Error(`AUTH LOGIN failed: ${response}`);
+    }
+
+    // Send username (base64 encoded)
+    const encodedUsername = btoa(gmailUser);
+    response = await sendTlsCommand(encodedUsername);
+    if (!response.startsWith('334')) {
+      throw new Error(`Username authentication failed: ${response}`);
+    }
+
+    // Send password (base64 encoded)
+    const encodedPassword = btoa(gmailPassword);
+    response = await sendTlsCommand(encodedPassword);
+    if (!response.startsWith('235')) {
+      throw new Error(`Password authentication failed: ${response}`);
+    }
+
+    // Send email
+    response = await sendTlsCommand(`MAIL FROM:<${gmailUser}>`);
+    if (!response.startsWith('250')) {
+      throw new Error(`MAIL FROM failed: ${response}`);
+    }
+
+    // Add recipients
+    const recipients = emailData.to
+      .split(',')
+      .map((email: string) => email.trim());
+    for (const recipient of recipients) {
+      response = await sendTlsCommand(`RCPT TO:<${recipient}>`);
+      if (!response.startsWith('250')) {
+        throw new Error(`RCPT TO failed for ${recipient}: ${response}`);
+      }
+    }
+
+    // Start data
+    response = await sendTlsCommand('DATA');
+    if (!response.startsWith('354')) {
+      throw new Error(`DATA command failed: ${response}`);
+    }
+
+    // Send email headers and body
+    const emailContent = [
+      `From: ${gmailUser}`,
+      `To: ${emailData.to}`,
+      `Subject: ${emailData.subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=UTF-8',
+      'Content-Transfer-Encoding: 8bit',
+      '',
+      emailData.html,
+      '.',
+    ].join('\r\n');
+
+    await tlsConn.write(encoder.encode(emailContent + '\r\n'));
+    response = await readTlsResponse();
+
+    if (!response.startsWith('250')) {
+      throw new Error(`Email send failed: ${response}`);
+    }
+
+    // Quit gracefully
+    try {
+      await sendTlsCommand('QUIT');
+    } catch (quitError) {
+      // Connection may already be closed
+    }
+
+    // Close connections safely
+    try {
+      tlsConn.close();
+    } catch (tlsCloseError) {
+      // Ignore close errors
+    }
+
+    try {
+      conn.close();
+    } catch (connCloseError) {
+      // Ignore close errors
+    }
+
+    // Generate a unique message ID for tracking
+    const messageId = `gmail-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return messageId;
+  } catch (error) {
+    console.error('❌ Gmail SMTP Error:', error);
+
+    // Clean up connections on error
+    try {
+      if (typeof tlsConn !== 'undefined') {
+        tlsConn.close();
+      }
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
+
+    try {
+      if (typeof conn !== 'undefined') {
+        conn.close();
+      }
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
+
+    throw new Error(`Gmail SMTP failed: ${error.message}`);
+  }
+}
+
+// Helper function to convert UTC to Asia timezone
+function formatTimeInAsiaTimezone(utcTimeString: string): string {
+  try {
+    const date = new Date(utcTimeString);
+
+    if (isNaN(date.getTime())) {
+      return utcTimeString;
+    }
+
+    // Try Asia/Maldives first, fallback to manual calculation
+    try {
+      return date.toLocaleString('en-US', {
+        timeZone: 'Asia/Maldives',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch (timezoneError) {
+      // Manual calculation: UTC + 5 hours
+      const utcTime = date.getTime();
+      const maldivesTime = new Date(utcTime + 5 * 60 * 60 * 1000);
+      return maldivesTime.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'UTC',
+      });
+    }
+  } catch (error) {
+    return utcTimeString; // Fallback to original string
+  }
+}
+
+// Helper function to format date only in Asia timezone
+function formatDateInAsiaTimezone(utcTimeString: string): string {
+  try {
+    const date = new Date(utcTimeString);
+    return date.toLocaleDateString('en-US', {
+      timeZone: 'Asia/Maldives',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  } catch (error) {
+    return utcTimeString;
+  }
+}
+
+// Helper function to format time only in Asia timezone
+function formatTimeOnlyInAsiaTimezone(utcTimeString: string): string {
+  try {
+    const date = new Date(utcTimeString);
+
+    if (isNaN(date.getTime())) {
+      return 'Invalid Time';
+    }
+
+    // Try Asia/Maldives first, fallback to manual calculation
+    try {
+      return date.toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Maldives',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch (timezoneError) {
+      // Manual calculation: UTC + 5 hours
+      const utcTime = date.getTime();
+      const maldivesTime = new Date(utcTime + 5 * 60 * 60 * 1000);
+      return maldivesTime.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'UTC',
+      });
+    }
+  } catch (error) {
+    // Fallback: try to extract time manually
+    try {
+      const date = new Date(utcTimeString);
+      const hours = date.getUTCHours() + 5; // Add 5 hours for Maldives time
+      const minutes = date.getUTCMinutes();
+      const adjustedHours = hours >= 24 ? hours - 24 : hours;
+      const period = adjustedHours >= 12 ? 'PM' : 'AM';
+      const displayHours =
+        adjustedHours === 0
+          ? 12
+          : adjustedHours > 12
+            ? adjustedHours - 12
+            : adjustedHours;
+      return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+    } catch (fallbackError) {
+      return 'N/A';
+    }
+  }
+}
+
 function generateManifestHTML(data: PassengerManifestData): string {
   const checkedInPassengers = data.passengers.filter(p => p.check_in_status);
   const noShowPassengers = data.passengers.filter(p => !p.check_in_status);
@@ -63,7 +356,7 @@ function generateManifestHTML(data: PassengerManifestData): string {
         .info-label { font-weight: bold; color: #64748b; }
         .info-value { color: #1e293b; }
         .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }
-        .stat-card { background: #f1f5f9; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-card { background: #f1f5f9; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 8px; }
         .stat-number { font-size: 24px; font-weight: bold; color: #1e40af; }
         .stat-label { color: #64748b; font-size: 14px; margin-top: 5px; }
         .passengers-section { margin: 20px 0; }
@@ -87,7 +380,7 @@ function generateManifestHTML(data: PassengerManifestData): string {
     <div class="container">
         <div class="header">
             <h1>Passenger Manifest</h1>
-            <p>${data.manifest_number} | ${new Date(data.actual_departure_time).toLocaleDateString()}</p>
+            <p>${data.manifest_number} | ${formatTimeInAsiaTimezone(data.actual_departure_time)}</p>
         </div>
         
         <div class="content">
@@ -104,7 +397,7 @@ function generateManifestHTML(data: PassengerManifestData): string {
                     </div>
                     <div class="info-item">
                         <span class="info-label">Travel Date:</span>
-                        <span class="info-value">${new Date(data.trip_date).toLocaleDateString()}</span>
+                        <span class="info-value">${formatDateInAsiaTimezone(data.trip_date)}</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Scheduled Departure:</span>
@@ -112,7 +405,7 @@ function generateManifestHTML(data: PassengerManifestData): string {
                     </div>
                     <div class="info-item">
                         <span class="info-label">Actual Departure:</span>
-                        <span class="info-value">${new Date(data.actual_departure_time).toLocaleString()}</span>
+                        <span class="info-value">${formatTimeInAsiaTimezone(data.actual_departure_time)}</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Captain:</span>
@@ -140,7 +433,9 @@ function generateManifestHTML(data: PassengerManifestData): string {
                 </div>
             </div>
 
-            ${checkedInPassengers.length > 0 ? `
+            ${
+              checkedInPassengers.length > 0
+                ? `
             <div class="passengers-section">
                 <h3>Checked-In Passengers (${checkedInPassengers.length})</h3>
                 <table class="passenger-table">
@@ -154,21 +449,29 @@ function generateManifestHTML(data: PassengerManifestData): string {
                         </tr>
                     </thead>
                     <tbody>
-                        ${checkedInPassengers.map(p => `
+                        ${checkedInPassengers
+                          .map(
+                            p => `
                         <tr>
                             <td>${p.passenger_name}</td>
                             <td>${p.seat_number}</td>
                             <td>${p.booking_number}</td>
                             <td>${p.contact_number}</td>
-                            <td class="status-checked-in">${p.checked_in_at ? new Date(p.checked_in_at).toLocaleTimeString() : 'N/A'}</td>
+                            <td class="status-checked-in">${p.checked_in_at ? formatTimeOnlyInAsiaTimezone(p.checked_in_at) : 'N/A'}</td>
                         </tr>
-                        `).join('')}
+                        `
+                          )
+                          .join('')}
                     </tbody>
                 </table>
             </div>
-            ` : ''}
+            `
+                : ''
+            }
 
-            ${noShowPassengers.length > 0 ? `
+            ${
+              noShowPassengers.length > 0
+                ? `
             <div class="passengers-section">
                 <h3>No-Show Passengers (${noShowPassengers.length})</h3>
                 <table class="passenger-table">
@@ -182,7 +485,9 @@ function generateManifestHTML(data: PassengerManifestData): string {
                         </tr>
                     </thead>
                     <tbody>
-                        ${noShowPassengers.map(p => `
+                        ${noShowPassengers
+                          .map(
+                            p => `
                         <tr>
                             <td>${p.passenger_name}</td>
                             <td>${p.seat_number}</td>
@@ -190,34 +495,42 @@ function generateManifestHTML(data: PassengerManifestData): string {
                             <td>${p.contact_number}</td>
                             <td class="status-no-show">No Show</td>
                         </tr>
-                        `).join('')}
+                        `
+                          )
+                          .join('')}
                     </tbody>
                 </table>
             </div>
-            ` : ''}
+            `
+                : ''
+            }
 
-            ${(data.captain_notes || data.weather_conditions || data.delay_reason) ? `
+            ${
+              data.captain_notes || data.weather_conditions || data.delay_reason
+                ? `
             <div class="notes-section">
                 <h4>Additional Information</h4>
                 ${data.captain_notes ? `<p><strong>Captain Notes:</strong> ${data.captain_notes}</p>` : ''}
                 ${data.weather_conditions ? `<p><strong>Weather Conditions:</strong> ${data.weather_conditions}</p>` : ''}
                 ${data.delay_reason ? `<p><strong>Delay Reason:</strong> ${data.delay_reason}</p>` : ''}
             </div>
-            ` : ''}
+            `
+                : ''
+            }
         </div>
         
         <div class="footer">
-            <p>This manifest was generated automatically by Ferry Operations System</p>
-            <p>Generated on: ${new Date().toLocaleString()}</p>
+            <p>This manifest was generated automatically by ${Deno.env.get('COMPANY_NAME') || 'Crystal Transfer Vaavu'} Operations System</p>
+            <p>Generated on: ${formatTimeInAsiaTimezone(new Date().toISOString())}</p>
         </div>
     </div>
 </body>
 </html>`;
 }
 
-serve(async (req) => {
+serve(async req => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -229,47 +542,47 @@ serve(async (req) => {
           headers: { Authorization: req.headers.get('Authorization')! },
         },
       }
-    )
+    );
 
-    const { manifestData, recipients } = await req.json()
+    const { manifestData, recipients } = await req.json();
 
     if (!manifestData || !recipients || recipients.length === 0) {
-      throw new Error('Missing manifest data or recipients')
+      throw new Error('Missing manifest data or recipients');
     }
 
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'operations@yourcompany.com'
+    const gmailUser = Deno.env.get('GMAIL_USER') || 'crystalhotelsmv@gmail.com';
+    const gmailPassword =
+      Deno.env.get('GMAIL_APP_PASSWORD') || 'aajq lrvf wfiy wqtx';
+    const companyName =
+      Deno.env.get('COMPANY_NAME') || 'Crystal Transfer Vaavu';
 
-    if (!resendApiKey) {
-      throw new Error('Resend API key not configured')
+    if (!gmailUser || !gmailPassword) {
+      throw new Error('Gmail credentials not configured');
     }
 
-    const htmlContent = generateManifestHTML(manifestData)
+    const htmlContent = generateManifestHTML(manifestData);
 
-    // Send email using Resend API
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: recipients,
-        subject: `Passenger Manifest - ${manifestData.manifest_number} | ${manifestData.route_name}`,
-        html: htmlContent,
-        tags: [
-          { name: 'type', value: 'passenger-manifest' },
-          { name: 'manifest_id', value: manifestData.manifest_id },
-          { name: 'trip_id', value: manifestData.trip_id },
-        ],
-      }),
-    })
+    // Prepare email data
+    const emailData = {
+      from: gmailUser,
+      to: recipients.join(','),
+      subject: `Passenger Manifest - ${manifestData.manifest_number} | ${manifestData.route_name}`,
+      html: htmlContent,
+    };
 
-    const result = await response.json()
-
-    if (!response.ok) {
-      throw new Error(result.message || 'Failed to send email')
+    // Send email using Gmail SMTP
+    let messageId: string;
+    try {
+      messageId = await sendEmailViaGmailSMTP(
+        emailData,
+        gmailUser,
+        gmailPassword
+      );
+    } catch (emailError) {
+      console.error('❌ Gmail SMTP Error:', emailError);
+      throw new Error(
+        `Failed to send email via Gmail SMTP: ${emailError.message}`
+      );
     }
 
     // Update email status in database for each recipient
@@ -278,35 +591,33 @@ serve(async (req) => {
         p_manifest_id: manifestData.manifest_id,
         p_recipient_email: recipient,
         p_status: 'sent',
-        p_resend_message_id: result.id,
-      })
+        p_resend_message_id: messageId,
+      });
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        messageId: result.id,
-        message: 'Manifest email sent successfully'
+      JSON.stringify({
+        success: true,
+        messageId: messageId,
+        message: 'Manifest email sent successfully via Gmail SMTP',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
-    )
-
+    );
   } catch (error) {
-    console.error('Error sending manifest email:', error)
-    
+    console.error('Error sending manifest email:', error);
+
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message || 'Unknown error occurred'
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Unknown error occurred',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       }
-    )
+    );
   }
-})
-
+});

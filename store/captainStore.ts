@@ -336,6 +336,34 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
 
       // Prepare manifest data for email
       const currentTrip = get().trips.find(t => t.id === data.trip_id);
+
+      // Get captain name from user profile or metadata
+      let captainName = 'Unknown Captain';
+
+      // First try to get from user metadata
+      if (user.user_metadata?.full_name) {
+        captainName = user.user_metadata.full_name;
+      } else {
+        // Try to get from user_profiles table
+        try {
+          const { data: profileData } = await supabase
+            .from('user_profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
+
+          if (profileData?.full_name) {
+            captainName = profileData.full_name;
+          } else {
+            // Fallback to email without domain
+            captainName = user.email?.split('@')[0] || 'Unknown Captain';
+          }
+        } catch (profileError) {
+          // Fallback to email without domain
+          captainName = user.email?.split('@')[0] || 'Unknown Captain';
+        }
+      }
+
       const manifestData = {
         manifest_id: result.manifest_id,
         manifest_number: result.manifest_number,
@@ -344,11 +372,7 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         route_name: currentTrip?.route_name || 'Unknown Route',
         vessel_name: currentTrip?.vessel_name || 'Unknown Vessel',
         departure_time: currentTrip?.departure_time || '',
-        captain_name:
-          currentTrip?.captain_name ||
-          user.user_metadata?.full_name ||
-          user.email ||
-          'Unknown Captain',
+        captain_name: captainName,
         total_passengers: result.total_passengers,
         checked_in_passengers: result.checked_in_passengers,
         no_show_passengers: result.no_show_passengers,
@@ -370,11 +394,9 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         );
 
         if (!emailResult.success) {
-          console.warn('Failed to send manifest email:', emailResult.error);
           // Don't fail the entire operation if email fails
         }
       } catch (emailError) {
-        console.warn('Email service error:', emailError);
         // Don't fail the entire operation if email fails
       }
 

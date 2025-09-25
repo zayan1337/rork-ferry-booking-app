@@ -209,69 +209,6 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
                 </View>
               </View>
             ))}
-            {booking.passengers.map((passenger, index) => (
-              <View key={index} style={styles.passengerRow}>
-                <Text style={styles.passengerIndex}>{index + 1}.</Text>
-                <View style={styles.passengerInfoSimple}>
-                  <Text style={styles.passengerNameSimple}>
-                    {passenger.fullName}
-                  </Text>
-                  {passenger.idNumber && (
-                    <Text style={styles.passengerIdSimple}>
-                      ID: {passenger.idNumber}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.seatInfoSimple}>
-                  <Text style={styles.seatLabelSimple}>Seat:</Text>
-                  <Text style={styles.seatNumberSimple}>
-                    {booking.seats[index]?.number || 'N/A'}
-                  </Text>
-                </View>
-              </View>
-            ))}
-            {booking.passengers.map((passenger, index) => (
-              <View key={index} style={styles.passengerRow}>
-                <Text style={styles.passengerIndex}>{index + 1}.</Text>
-                <View style={styles.passengerInfoSimple}>
-                  <Text style={styles.passengerNameSimple}>
-                    {passenger.fullName}
-                  </Text>
-                  {passenger.idNumber && (
-                    <Text style={styles.passengerIdSimple}>
-                      ID: {passenger.idNumber}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.seatInfoSimple}>
-                  <Text style={styles.seatLabelSimple}>Seat:</Text>
-                  <Text style={styles.seatNumberSimple}>
-                    {booking.seats[index]?.number || 'N/A'}
-                  </Text>
-                </View>
-              </View>
-            ))}
-            {booking.passengers.map((passenger, index) => (
-              <View key={index} style={styles.passengerRow}>
-                <Text style={styles.passengerIndex}>{index + 1}.</Text>
-                <View style={styles.passengerInfoSimple}>
-                  <Text style={styles.passengerNameSimple}>
-                    {passenger.fullName}
-                  </Text>
-                  {passenger.idNumber && (
-                    <Text style={styles.passengerIdSimple}>
-                      ID: {passenger.idNumber}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.seatInfoSimple}>
-                  <Text style={styles.seatLabelSimple}>Seat:</Text>
-                  <Text style={styles.seatNumberSimple}>
-                    {booking.seats[index]?.number || 'N/A'}
-                  </Text>
-                </View>
-              </View>
-            ))}
           </View>
 
           {/* Ferry Policy Section - Structured Layout */}
