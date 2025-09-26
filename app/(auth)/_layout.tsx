@@ -26,6 +26,7 @@ export default function AuthLayout() {
         name='register'
         options={{
           title: 'Create Account',
+          headerShown: false,
         }}
       />
       <Stack.Screen
@@ -39,6 +40,21 @@ export default function AuthLayout() {
         name='forgotPassword'
         options={{
           title: 'Reset Password',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name='otp-verification'
+        options={{
+          title: 'Verify Code',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name='new-password'
+        options={{
+          title: 'New Password',
+          headerShown: false,
         }}
       />
     </Stack>

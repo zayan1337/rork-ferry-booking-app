@@ -14,14 +14,7 @@ import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { useUserManagement } from '@/hooks';
-import {
-  Users,
-  Plus,
-  Download,
-  AlertTriangle,
-  Check,
-} from 'lucide-react-native';
-import Button from '@/components/admin/Button';
+import { Users, Download, AlertTriangle, Check } from 'lucide-react-native';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import UserItem from '@/components/admin/UserItem';
 import EmptyState from '@/components/admin/EmptyState';
@@ -403,15 +396,6 @@ export default function UsersScreen() {
                     >
                       <Download size={18} color={colors.primary} />
                     </TouchableOpacity>
-                  )}
-                  {canCreateUsers() && (
-                    <Button
-                      title={isSmallScreen ? 'New' : 'New User'}
-                      variant='primary'
-                      size={isTablet ? 'medium' : 'small'}
-                      icon={<Plus size={isTablet ? 18 : 16} color='#FFFFFF' />}
-                      onPress={handleNewUser}
-                    />
                   )}
                 </View>
               ),

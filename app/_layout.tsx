@@ -110,10 +110,10 @@ function RootLayoutNav() {
     };
   }, []);
 
-  // Show custom splash screen while checking authentication or rehydrating
-  if (!isRehydrated || !authChecked || isLoading) {
-    return null;
-  }
+  // Show loading screen while checking authentication or rehydrating
+  // if (!isRehydrated || !authChecked || isLoading) {
+  //   return <AuthLoadingScreen message='Initializing app...' />;
+  // }
 
   // Determine if user has valid profile after authentication
   const hasValidProfile =

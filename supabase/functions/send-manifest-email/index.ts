@@ -45,7 +45,6 @@ async function sendEmailViaGmailSMTP(
   gmailUser: string,
   gmailPassword: string
 ): Promise<string> {
-
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 

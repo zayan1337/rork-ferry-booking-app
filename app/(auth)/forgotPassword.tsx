@@ -3,14 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   BackHandler,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Input from '@/components/Input';
@@ -22,8 +21,15 @@ export default function ForgotPasswordScreen() {
   const [emailError, setEmailError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isSendingOTP, setIsSendingOTP] = useState(false);
 
-  const { resetPassword, isLoading, error, clearError } = useAuthStore();
+  const {
+    sendOTPForPasswordReset,
+    isLoading,
+    error,
+    clearError,
+    clearLoading,
+  } = useAuthStore();
 
   // Prevent going back if navigating
   useEffect(() => {
@@ -65,6 +71,13 @@ export default function ForgotPasswordScreen() {
     };
   }, [isSuccess]);
 
+  // Clear errors when screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      clearError();
+    }, [clearError])
+  );
+
   const validateEmail = () => {
     if (!email.trim()) {
       setEmailError('Email is required');
@@ -84,9 +97,9 @@ export default function ForgotPasswordScreen() {
     }
   };
 
-  const handleResetPassword = async () => {
+  const handleSendOTP = async () => {
     // Prevent multiple attempts while loading or navigating
-    if (isLoading || isNavigating) {
+    if (isLoading || isNavigating || isSendingOTP) {
       return;
     }
 
@@ -100,18 +113,41 @@ export default function ForgotPasswordScreen() {
     }
 
     try {
-      await resetPassword(email);
-      // Clear the email field after success
-      setEmail('');
-      // Set success state
-      setIsSuccess(true);
+      setIsSendingOTP(true);
+      await sendOTPForPasswordReset(email);
+
+      // Keep loading state and navigate
+      setIsNavigating(true);
+
+      // Navigate with a small delay to ensure loading screen is visible
+      setTimeout(() => {
+        clearLoading(); // Clear the auth store loading state
+        router.push({
+          pathname: '/(auth)/otp-verification',
+          params: { email, type: 'forgot-password' },
+        });
+      }, 300); // Increased delay to 300ms
     } catch (err) {
-      // Reset states if reset fails
+      // Reset states if sending OTP fails
+      console.error('Send OTP error:', err);
+      setIsSendingOTP(false);
       setIsNavigating(false);
       setIsSuccess(false);
-      console.error('Password reset error:', err);
     }
   };
+
+  // Show loading screen while sending OTP or navigating
+  // if (isSendingOTP || isNavigating || isLoading) {
+  //   return (
+  //     <AuthLoadingScreen
+  //       message={
+  //         isSendingOTP || isLoading
+  //           ? `Sending verification code to ${email}...`
+  //           : 'Redirecting to verification page...'
+  //       }
+  //     />
+  //   );
+  // }
 
   return (
     <KeyboardAvoidingView
@@ -123,7 +159,7 @@ export default function ForgotPasswordScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps='handled'
       >
-        <View style={styles.logoContainer}>
+        {/* <View style={styles.logoContainer}>
           <Image
             source={{
               uri: 'https://images.unsplash.com/photo-1534008897995-27a23e859048?q=80&w=1000&auto=format&fit=crop',
@@ -132,15 +168,13 @@ export default function ForgotPasswordScreen() {
           />
           <Text style={styles.appName}>Crystal Transfer Vaavu</Text>
           <Text style={styles.tagline}>Your gateway to island adventures</Text>
-        </View>
+        </View> */}
 
         <Card variant='elevated' style={styles.card}>
           <Text style={styles.title}>Reset Password</Text>
 
           {error && !isSuccess && (
             <View style={styles.errorContainer}>
-              <Text style={styles.errorIcon}>⚠️</Text>
-              <Text style={styles.errorTitle}>Error</Text>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
@@ -148,35 +182,20 @@ export default function ForgotPasswordScreen() {
           {isSuccess ? (
             <View style={styles.successContainer}>
               <Text style={styles.successIcon}>✓</Text>
-              <Text style={styles.successTitle}>Check Your Email</Text>
+              <Text style={styles.successTitle}>Code Sent Successfully!</Text>
               <Text style={styles.successText}>
-                We've sent password reset instructions to your email address.
-                Please check your inbox and follow the instructions to reset
-                your password.
+                We've sent a 6-digit verification code to {email}. You'll be
+                redirected to enter the code shortly.
               </Text>
               <Text style={styles.successNote}>
-                You will be redirected to the login page in 5 seconds...
+                Redirecting to verification page...
               </Text>
-              <TouchableOpacity
-                style={styles.backToLoginButton}
-                onPress={() => {
-                  if (!isNavigating) {
-                    setIsNavigating(true);
-                    setTimeout(() => {
-                      router.push('/');
-                    }, 100);
-                  }
-                }}
-                disabled={isNavigating}
-              >
-                <Text style={styles.backToLoginText}>Back to Login</Text>
-              </TouchableOpacity>
             </View>
           ) : (
             <>
               <Text style={styles.description}>
-                Enter your email address and we'll send you instructions to
-                reset your password.
+                Enter your email address and we'll send you a verification code
+                to reset your password.
               </Text>
 
               <Input
@@ -186,19 +205,23 @@ export default function ForgotPasswordScreen() {
                 onChangeText={text => {
                   setEmail(text);
                   if (emailError) setEmailError('');
+                  // Clear auth store error when user starts typing
+                  if (error) clearError();
                 }}
                 error={emailError}
                 keyboardType='email-address'
                 autoCapitalize='none'
-                disabled={isLoading || isNavigating}
+                disabled={isLoading || isNavigating || isSendingOTP}
                 required
               />
 
               <Button
-                title='Reset Password'
-                onPress={handleResetPassword}
-                loading={isLoading || isNavigating}
-                disabled={isLoading || isNavigating}
+                title={
+                  isSendingOTP ? 'Sending Code...' : 'Send Verification Code'
+                }
+                onPress={handleSendOTP}
+                loading={isLoading || isNavigating || isSendingOTP}
+                disabled={isLoading || isNavigating || isSendingOTP}
                 fullWidth
                 style={styles.resetButton}
               />
@@ -206,9 +229,9 @@ export default function ForgotPasswordScreen() {
               <View style={styles.loginContainer}>
                 <Text style={styles.loginText}>Remember your password? </Text>
                 <TouchableOpacity
-                  disabled={isLoading || isNavigating}
+                  disabled={isLoading || isNavigating || isSendingOTP}
                   onPress={() => {
-                    if (!isNavigating && !isLoading) {
+                    if (!isNavigating && !isLoading && !isSendingOTP) {
                       setIsNavigating(true);
                       setTimeout(() => {
                         router.push('/');
@@ -216,7 +239,15 @@ export default function ForgotPasswordScreen() {
                     }
                   }}
                 >
-                  <Text style={styles.loginLink}>Login</Text>
+                  <Text
+                    style={[
+                      styles.loginLink,
+                      (isLoading || isNavigating || isSendingOTP) &&
+                        styles.disabledLink,
+                    ]}
+                  >
+                    Login
+                  </Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -236,27 +267,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     justifyContent: 'center',
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 20,
-    marginBottom: 16,
-  },
-  appName: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Colors.primary,
-    marginBottom: 8,
-  },
-  tagline: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: 'center',
   },
   card: {
     width: '100%',
@@ -280,16 +290,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 16,
     alignItems: 'center',
-  },
-  errorIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.error,
-    marginBottom: 8,
   },
   errorText: {
     color: Colors.error,
@@ -343,12 +343,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  backToLoginButton: {
-    padding: 12,
-  },
-  backToLoginText: {
-    color: Colors.primary,
-    fontSize: 16,
-    fontWeight: '600',
+  disabledLink: {
+    color: Colors.textSecondary,
+    opacity: 0.5,
   },
 });

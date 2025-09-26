@@ -8,7 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Input from '@/components/Input';
@@ -43,10 +43,12 @@ export default function RegisterScreen() {
 
   const {
     signUp,
+    sendOTPForSignup,
     isAuthenticated,
     isLoading,
     error,
     clearError,
+    clearLoading,
     setPreventRedirect,
   } = useAuthStore();
 
@@ -81,6 +83,13 @@ export default function RegisterScreen() {
     };
   }, [setPreventRedirect]);
 
+  // Clear errors when screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      clearError();
+    }, [clearError])
+  );
+
   const updateFormData = (
     field: keyof typeof formData,
     value: string | null
@@ -90,6 +99,11 @@ export default function RegisterScreen() {
     // Clear error for this field
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+
+    // Clear auth store error when user starts typing
+    if (error) {
+      clearError();
     }
   };
 
@@ -185,11 +199,13 @@ export default function RegisterScreen() {
       // Show success message
       setShowSuccess(true);
       setCountdown(10);
+      clearLoading();
     } catch (err) {
       // Reset states if registration fails
+      console.error('Registration error:', err);
+      clearLoading();
       setPreventRedirect(false);
       setShowSuccess(false);
-      console.error('Registration error:', err);
     }
   };
 
@@ -330,9 +346,7 @@ export default function RegisterScreen() {
           {/* Success Message - Shows under the form */}
           {showSuccess && (
             <View style={styles.successContainer}>
-              <Text style={styles.successTitle}>
-                Registration Successful! ✅
-              </Text>
+              <Text style={styles.successTitle}>Registration Successful!</Text>
               <Text style={styles.successText}>
                 Confirmation mail sent to {formData.email}. Please check your
                 email and confirm your account.
@@ -382,6 +396,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     paddingTop: 10,
+    justifyContent: 'center',
     paddingBottom: 40,
   },
   card: {

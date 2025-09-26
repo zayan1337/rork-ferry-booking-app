@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../utils/supabase';
+import { supabase, supabaseAdmin } from '../utils/supabase';
 import type { UserProfile, RegisterData, AuthUser } from '@/types/auth';
 
 interface AuthState {
@@ -11,17 +11,29 @@ interface AuthState {
   error: string | null;
   preventRedirect: boolean;
   isRehydrated: boolean;
+  otpEmail: string | null;
+  pendingRegistration: RegisterData | null;
   login: (email: string, password: string) => Promise<void>;
   signUp: (userData: RegisterData) => Promise<void>;
   signOut: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
   setError: (error: string) => void;
-  resetPassword: (email: string) => Promise<void>;
+  clearLoading: () => void;
+  sendOTPForPasswordReset: (email: string) => Promise<void>;
+  ResetPassword: (newPassword: string) => Promise<void>;
+  sendOTPForSignup: (userData: RegisterData) => Promise<void>;
+  completePendingRegistration: () => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
   setPreventRedirect: (prevent: boolean) => void;
   setRehydrated: (rehydrated: boolean) => void;
+  setOtpEmail: (email: string | null) => void;
+  verifyOTP: (
+    email: string,
+    otp: string,
+    type: 'email' | 'recovery'
+  ) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -33,15 +45,21 @@ export const useAuthStore = create<AuthState>()(
       error: null,
       preventRedirect: false,
       isRehydrated: false,
+      otpEmail: null,
+      pendingRegistration: null,
 
       setError: (error: string) => set({ error }),
 
       clearError: () => set({ error: null }),
 
+      clearLoading: () => set({ isLoading: false }),
+
       setPreventRedirect: (prevent: boolean) =>
         set({ preventRedirect: prevent }),
 
       setRehydrated: (rehydrated: boolean) => set({ isRehydrated: rehydrated }),
+
+      setOtpEmail: (email: string | null) => set({ otpEmail: email }),
 
       checkAuth: async () => {
         try {
@@ -229,6 +247,7 @@ export const useAuthStore = create<AuthState>()(
                 full_name: profileData.full_name,
                 mobile_number: profileData.mobile_number,
                 date_of_birth: profileData.date_of_birth,
+                accepted_terms: profileData.accepted_terms,
               },
             },
           });
@@ -296,19 +315,198 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      resetPassword: async (email: string) => {
+      ResetPassword: async (newPassword: string) => {
         try {
           set({ isLoading: true, error: null });
+
+          // Update password - this requires an active session from OTP verification
+          const { error: updateError } = await supabase.auth.updateUser({
+            password: newPassword,
+          });
+
+          if (updateError) throw updateError;
+
+          // Sign out after successful password reset
+          await supabase.auth.signOut();
+
+          set({
+            isLoading: false,
+            otpEmail: null,
+          });
+        } catch (error) {
+          console.error('reset password error:', error);
+          const errorMessage =
+            error instanceof Error ? error.message : 'Password reset failed';
+          set({
+            isLoading: false,
+            error: errorMessage,
+          });
+          throw error;
+        }
+      },
+      sendOTPForPasswordReset: async (email: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Use Supabase's OTP functionality for password reset
           const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'myapp://reset-password',
+            redirectTo: undefined,
           });
 
           if (error) throw error;
-          set({ isLoading: false });
+
+          // Keep loading state true for navigation - will be reset by the component
+          set({
+            isLoading: false,
+            otpEmail: email,
+          });
         } catch (error) {
-          console.error('Reset password error:', error);
+          console.error('Send OTP error:', error);
           const errorMessage =
-            error instanceof Error ? error.message : 'Password reset failed';
+            error instanceof Error ? error.message : 'Failed to send OTP';
+          set({
+            isLoading: false,
+            error: errorMessage,
+          });
+          throw error;
+        }
+      },
+
+      verifyOTP: async (
+        email: string,
+        otp: string,
+        type: 'email' | 'recovery'
+      ) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Verify OTP and sign in
+          const { data, error: verifyError } = await supabase.auth.verifyOtp({
+            email,
+            token: otp,
+            type,
+          });
+
+          if (verifyError) throw verifyError;
+          if (!data.user) throw new Error('OTP verification failed');
+
+          // Don't sign out for recovery type - we need the session for password reset
+          if (type === 'email') {
+            // Only sign out for email verification (signup flow)
+            await supabase.auth.signOut();
+          }
+
+          set({
+            isLoading: false,
+            otpEmail: type === 'recovery' ? email : null, // Keep email for recovery flow
+          });
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'OTP verification failed';
+          set({
+            isLoading: false,
+            error: errorMessage,
+          });
+          throw error;
+        }
+      },
+
+      sendOTPForSignup: async (userData: RegisterData) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Store registration data temporarily
+          set({ pendingRegistration: userData });
+
+          // Send OTP for email verification using admin client
+          const { data, error: adminError } =
+            await supabaseAdmin.auth.admin.generateLink({
+              type: 'signup',
+              email: userData.email_address,
+              password: userData.password,
+            });
+
+          if (adminError) throw adminError;
+          // Send OTP for email verification
+          // const { error } = await supabase.auth.signInWithOtp({
+          //   email: userData.email_address,
+          //   options: {
+          //     shouldCreateUser: false,
+          //   },
+          // });
+
+          // if (error) throw error;
+
+          // Keep loading state true for navigation - will be reset by the component
+          set({
+            otpEmail: userData.email_address,
+          });
+        } catch (error) {
+          console.error('Send signup OTP error:', error);
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : 'Failed to send verification code';
+          set({
+            isLoading: false,
+            error: errorMessage,
+            pendingRegistration: null,
+          });
+          throw error;
+        }
+      },
+
+      completePendingRegistration: async () => {
+        try {
+          const { pendingRegistration } = get();
+          if (!pendingRegistration) {
+            throw new Error('No pending registration found');
+          }
+
+          set({ isLoading: true, error: null });
+
+          const { email_address, password, ...profileData } =
+            pendingRegistration;
+
+          // Create the auth user
+          const { data, error } = await supabase.auth.signUp({
+            email: email_address,
+            password,
+            options: {
+              data: {
+                full_name: profileData.full_name,
+                mobile_number: profileData.mobile_number,
+                date_of_birth: profileData.date_of_birth,
+                accepted_terms: profileData.accepted_terms,
+              },
+            },
+          });
+
+          if (error) throw error;
+          if (!data.user?.id) throw new Error('User data is missing');
+
+          // Profile creation is handled by the database trigger
+          const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+
+          if (profileError)
+            throw new Error(
+              `Failed to fetch user profile: ${profileError.message}`
+            );
+
+          // Clear pending registration
+          set({
+            isLoading: false,
+            error: null,
+            pendingRegistration: null,
+          });
+        } catch (error) {
+          console.error('Complete registration error:', error);
+          const errorMessage =
+            error instanceof Error ? error.message : 'Registration failed';
           set({
             isLoading: false,
             error: errorMessage,

@@ -10,7 +10,7 @@ import {
   ScrollView,
   BackHandler,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Input from '@/components/Input';
@@ -36,6 +36,13 @@ export default function LoginScreen() {
   useEffect(() => {
     setIsNavigating(false);
   }, []);
+
+  // Clear errors when screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      clearError();
+    }, [clearError])
+  );
 
   useEffect(() => {
     // If user is authenticated and has profile, redirect to appropriate portal
@@ -67,6 +74,11 @@ export default function LoginScreen() {
     // Clear error for this field
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+
+    // Clear auth store error when user starts typing
+    if (error) {
+      clearError();
     }
   };
 
