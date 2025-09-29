@@ -8,7 +8,6 @@ import {
   Image,
   RefreshControl,
   Modal,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -57,8 +56,8 @@ export default function HomeScreen() {
     isLoading: bookingsLoading,
   } = useUserBookingsStore();
 
-  // Combined loading state
-  const isLoading = routeLoading || bookingsLoading;
+  // Don't show loading for background data fetching - let the UI render immediately
+  // Only show loading indicators within specific components that need the data
 
   // Quick booking functionality
   const { quickBookingState, updateField, resetForm, validateAndStartBooking } =
@@ -68,9 +67,8 @@ export default function HomeScreen() {
   const { modalStates, openModal, closeModal } = useModalState();
 
   useEffect(() => {
-    // Fetch user bookings when component mounts
+    // Fetch data in background without blocking UI
     fetchUserBookings();
-    // Fetch available routes for quick booking
     fetchAvailableRoutes();
   }, []);
 
@@ -100,18 +98,8 @@ export default function HomeScreen() {
     router.push(`./booking-details/${bookingId}`);
   };
 
-  const handleVesselTracking = async () => {
-    const trackingUrl = 'https://m.followme.mv/public/18667';
-    try {
-      const supported = await Linking.canOpenURL(trackingUrl);
-      if (supported) {
-        await Linking.openURL(trackingUrl);
-      } else {
-        console.log("Don't know how to open URI: " + trackingUrl);
-      }
-    } catch (error) {
-      console.error('An error occurred', error);
-    }
+  const handleVesselTracking = () => {
+    router.push('/vessel-tracking');
   };
 
   // Get unique island names for selection, filtered based on current selection and available routes
@@ -155,7 +143,10 @@ export default function HomeScreen() {
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
       refreshControl={
-        <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />
+        <RefreshControl
+          refreshing={routeLoading || bookingsLoading}
+          onRefresh={handleRefresh}
+        />
       }
     >
       {/* Welcome Section */}

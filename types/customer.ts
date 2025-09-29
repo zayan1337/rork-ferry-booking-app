@@ -78,3 +78,15 @@ export interface ContactFormState {
   contactMessage: string;
   isSubmitting: boolean;
 }
+
+// Vessel tracking types
+export interface VesselTrackingInfo {
+  id: string;
+  name: string;
+  registration_number: string;
+  vessel_type: string;
+  status: 'active' | 'maintenance' | 'inactive';
+  captain_name?: string;
+  seating_capacity: number;
+  is_active: boolean;
+}

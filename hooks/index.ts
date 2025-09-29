@@ -14,6 +14,7 @@ export { useContactForm } from './useContactForm';
 export { useQuickBooking } from './useQuickBooking';
 export { useModalState } from './useModalState';
 export { useClientForm } from './useClientForm';
+export { useVesselTracking } from './useVesselTracking';
 
 // New dashboard, bookings, and operations hooks
 export { useDashboardData } from './useDashboardData';
