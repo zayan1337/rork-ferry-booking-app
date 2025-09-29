@@ -435,7 +435,6 @@ select
       join vessels v on trip_stats.vessel_id = v.id
   ) as avg_occupancy_7d;
 
-
 create table public.admin_report_queue (
   id uuid not null default gen_random_uuid (),
   report_type character varying(100) not null,
@@ -544,7 +543,6 @@ from
 group by
   up.role;
 
-
 create view public.admin_users_only as
 select
   up.id,
@@ -591,7 +589,6 @@ group by
   up.created_at
 order by
   up.full_name;
-
 
 create view public.admin_users_view as
 select
@@ -1005,6 +1002,10 @@ or
 update on bookings for EACH row
 execute FUNCTION enhanced_audit_trigger ();
 
+create trigger trg_prevent_checkin_after_closure BEFORE
+update on bookings for EACH row
+execute FUNCTION prevent_checkin_after_closure ();
+
 create trigger trg_set_booking_number BEFORE INSERT on bookings for EACH row
 execute FUNCTION set_booking_number ();
 
@@ -1081,7 +1082,8 @@ select
   ) as client_phone,
   t.travel_date as trip_date,
   t.departure_time,
-  t.status as trip_status
+  t.status as trip_status,
+  t.is_checkin_closed
 from
   passengers p
   join bookings b on p.booking_id = b.id
@@ -1091,11 +1093,18 @@ from
   left join agent_clients ac on b.agent_client_id = ac.id
 where
   t.is_active = true
+  and (
+    b.status = any (
+      array[
+        'confirmed'::booking_status,
+        'checked_in'::booking_status
+      ]
+    )
+  )
 order by
   t.travel_date,
   t.departure_time,
   s.seat_number;
-
 
 create view public.captain_profile_view as
 select
@@ -1133,6 +1142,11 @@ select
   t.status,
   t.captain_id,
   t.fare_multiplier,
+  t.is_checkin_closed,
+  t.checkin_closed_at,
+  t.checkin_closed_by,
+  t.manifest_generated_at,
+  t.manifest_sent_at,
   t.created_at,
   t.updated_at,
   r.name as route_name,
@@ -1140,6 +1154,7 @@ select
   di.name as to_island_name,
   v.name as vessel_name,
   v.seating_capacity as capacity,
+  r.base_fare,
   cp.full_name as captain_name,
   COALESCE(booking_stats.confirmed_bookings, 0::bigint) as confirmed_bookings,
   COALESCE(booking_stats.booked_seats, 0::bigint) as booked_seats,
@@ -1165,7 +1180,8 @@ select
   case
     when t.travel_date = CURRENT_DATE
     and t.departure_time::time with time zone > (CURRENT_TIME - '00:30:00'::interval)
-    and t.departure_time::time with time zone <= (CURRENT_TIME + '00:30:00'::interval) then true
+    and t.departure_time::time with time zone <= (CURRENT_TIME + '00:30:00'::interval)
+    and not t.is_checkin_closed then true
     else false
   end as is_boarding_open
 from
@@ -1197,13 +1213,13 @@ from
               'checked_in'::booking_status
             ]
           ) then passenger_counts.passenger_count
-          else null::integer::bigint
+          else null::bigint
         end
       ) as booked_seats,
       count(
         case
           when b.status = 'checked_in'::booking_status then passenger_counts.passenger_count
-          else null::integer::bigint
+          else null::bigint
         end
       ) as checked_in_passengers,
       sum(
@@ -1267,7 +1283,6 @@ create table public.check_ins (
   constraint check_ins_booking_id_fkey foreign KEY (booking_id) references bookings (id),
   constraint check_ins_checked_in_by_fkey foreign KEY (checked_in_by) references auth.users (id)
 ) TABLESPACE pg_default;
-
 
 create materialized view public.content_dashboard_stats as
 select
@@ -1384,7 +1399,6 @@ select
   ) as recent_translations,
   CURRENT_TIMESTAMP as last_updated;
 
-
 create view public.content_management_summary as
 select
   'terms'::text as content_type,
@@ -1435,7 +1449,6 @@ select
   count(distinct translations.language_code) as version_count
 from
   translations;
-
 
 create view public.enhanced_operations_stats_view as
 select
@@ -1589,7 +1602,6 @@ select
       ) capacity_data
   ) as today_utilization;
 
-
 create table public.faq_categories (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
@@ -1623,7 +1635,6 @@ execute FUNCTION reorder_faq_categories_on_insert ();
 create trigger trigger_reorder_faq_categories_update BEFORE
 update OF order_index on faq_categories for EACH row when (old.order_index is distinct from new.order_index)
 execute FUNCTION reorder_faq_categories_on_insert ();
-
 
 create view public.faq_categories_with_stats as
 select
@@ -1696,7 +1707,6 @@ category_id on faqs for EACH row when (
 )
 execute FUNCTION reorder_faqs_on_insert ();
 
-
 create view public.faqs_with_category as
 select
   f.id,
@@ -1716,7 +1726,6 @@ order by
   fc.order_index,
   f.order_index,
   f.created_at;
-
 
 create table public.islands (
   id uuid not null default gen_random_uuid (),
@@ -1745,7 +1754,6 @@ or
 update on islands for EACH row
 execute FUNCTION notify_zone_stats_change ();
 
-
 create view public.islands_with_zones as
 select
   i.id,
@@ -1762,23 +1770,36 @@ from
   islands i
   left join zones z on i.zone_id = z.id;
 
-create table public.manifest_passengers (
+create table public.manifest_email_logs (
   id uuid not null default gen_random_uuid (),
   manifest_id uuid not null,
-  passenger_id uuid not null,
-  seat_number character varying(10) not null,
-  boarding_location character varying(100) not null,
-  destination character varying(100) not null,
-  check_in_time timestamp with time zone not null,
+  recipient_email character varying(255) not null,
+  email_status character varying(20) not null default 'pending'::character varying,
+  sent_at timestamp with time zone null,
+  error_message text null,
+  resend_message_id character varying(100) null,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
-  constraint manifest_passengers_pkey primary key (id),
-  constraint unique_manifest_passenger unique (manifest_id, passenger_id),
-  constraint manifest_passengers_manifest_id_fkey foreign KEY (manifest_id) references passenger_manifests (id),
-  constraint manifest_passengers_passenger_id_fkey foreign KEY (passenger_id) references passengers (id)
+  constraint manifest_email_logs_pkey primary key (id),
+  constraint manifest_email_logs_manifest_id_fkey foreign KEY (manifest_id) references passenger_manifests (id),
+  constraint manifest_email_logs_status_check check (
+    (
+      (email_status)::text = any (
+        (
+          array[
+            'pending'::character varying,
+            'sent'::character varying,
+            'failed'::character varying,
+            'bounced'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_manifest_passengers_manifest_id on public.manifest_passengers using btree (manifest_id) TABLESPACE pg_default;
+create index IF not exists idx_manifest_email_logs_manifest_id on public.manifest_email_logs using btree (manifest_id) TABLESPACE pg_default;
 
+create index IF not exists idx_manifest_email_logs_status on public.manifest_email_logs using btree (email_status, created_at) TABLESPACE pg_default;
 
 create table public.manifest_shares (
   id uuid not null default gen_random_uuid (),
@@ -1787,8 +1808,7 @@ create table public.manifest_shares (
   phone_number character varying(20) null,
   share_time timestamp with time zone not null default CURRENT_TIMESTAMP,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
-  constraint manifest_shares_pkey primary key (id),
-  constraint manifest_shares_manifest_id_fkey foreign KEY (manifest_id) references passenger_manifests (id)
+  constraint manifest_shares_pkey primary key (id)
 ) TABLESPACE pg_default;
 
 create table public.mass_messages (
@@ -1807,7 +1827,6 @@ create table public.mass_messages (
   constraint mass_messages_trip_id_fkey foreign KEY (trip_id) references trips (id)
 ) TABLESPACE pg_default;
 
-
 create table public.modifications (
   id uuid not null default gen_random_uuid (),
   old_booking_id uuid not null,
@@ -1823,6 +1842,20 @@ create table public.modifications (
   constraint modifications_old_booking_id_fkey foreign KEY (old_booking_id) references bookings (id)
 ) TABLESPACE pg_default;
 
+create table public.operation_team_emails (
+  id uuid not null default gen_random_uuid (),
+  email character varying(255) not null,
+  full_name character varying(100) not null,
+  role character varying(50) null default 'operations'::character varying,
+  is_active boolean not null default true,
+  receive_manifests boolean not null default true,
+  created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  constraint operation_team_emails_pkey primary key (id),
+  constraint operation_team_emails_email_key unique (email)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_operation_team_emails_active on public.operation_team_emails using btree (is_active, receive_manifests) TABLESPACE pg_default;
 
 create view public.operations_routes_view as
 select
@@ -1881,7 +1914,6 @@ from
     group by
       t.route_id
   ) route_stats on r.id = route_stats.route_id;
-
 
 create view public.operations_stats_view as
 select
@@ -2244,17 +2276,50 @@ order by
 create table public.passenger_manifests (
   id uuid not null default gen_random_uuid (),
   trip_id uuid not null,
-  scheduled_departure_time timestamp with time zone not null,
+  manifest_number character varying(20) not null,
+  total_passengers integer not null default 0,
+  checked_in_passengers integer not null default 0,
+  no_show_passengers integer not null default 0,
+  captain_id uuid not null,
+  captain_name character varying(100) not null,
+  captain_notes text null,
+  weather_conditions character varying(200) null,
+  delay_reason text null,
   actual_departure_time timestamp with time zone null,
-  status public.manifest_status not null default 'in_progress'::manifest_status,
-  passenger_count integer not null default 0,
-  captain_confirmed boolean not null default false,
+  manifest_data jsonb not null,
+  email_sent boolean not null default false,
+  email_sent_at timestamp with time zone null,
+  email_recipients text[] null,
+  status character varying(20) not null default 'generated'::character varying,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
   updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
   constraint passenger_manifests_pkey primary key (id),
-  constraint passenger_manifests_trip_id_fkey foreign KEY (trip_id) references trips (id)
+  constraint passenger_manifests_manifest_number_key unique (manifest_number),
+  constraint passenger_manifests_trip_id_key unique (trip_id),
+  constraint passenger_manifests_captain_id_fkey foreign KEY (captain_id) references user_profiles (id),
+  constraint passenger_manifests_trip_id_fkey foreign KEY (trip_id) references trips (id),
+  constraint passenger_manifests_status_check check (
+    (
+      (status)::text = any (
+        (
+          array[
+            'generated'::character varying,
+            'sent'::character varying,
+            'archived'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
 ) TABLESPACE pg_default;
 
+create index IF not exists idx_passenger_manifests_trip_id on public.passenger_manifests using btree (trip_id) TABLESPACE pg_default;
+
+create index IF not exists idx_passenger_manifests_captain_id on public.passenger_manifests using btree (captain_id) TABLESPACE pg_default;
+
+create index IF not exists idx_passenger_manifests_created_at on public.passenger_manifests using btree (created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_passenger_manifests_status on public.passenger_manifests using btree (status) TABLESPACE pg_default;
 
 create table public.passengers (
   id uuid not null default gen_random_uuid (),
@@ -2302,7 +2367,6 @@ create trigger update_passengers_status_timestamp BEFORE
 update on passengers for EACH row
 execute FUNCTION update_status_timestamp ();
 
-
 create table public.payments (
   id uuid not null default gen_random_uuid (),
   booking_id uuid not null,
@@ -2328,7 +2392,6 @@ create index IF not exists idx_payments_status_created_at on public.payments usi
 
 create index IF not exists idx_payments_booking_status_date on public.payments using btree (booking_id, status, created_at) TABLESPACE pg_default;
 
-
 create table public.permission_audit_logs (
   id uuid not null default gen_random_uuid (),
   user_id uuid not null,
@@ -2352,7 +2415,6 @@ create index IF not exists idx_permission_audit_entity on public.permission_audi
 
 create index IF not exists idx_permission_audit_performed_by on public.permission_audit_logs using btree (performed_by, created_at) TABLESPACE pg_default;
 
-
 create table public.permission_categories (
   id uuid not null default gen_random_uuid (),
   name character varying(100) not null,
@@ -2372,7 +2434,6 @@ create index IF not exists idx_permission_categories_order on public.permission_
 create trigger update_permission_categories_updated_at BEFORE
 update on permission_categories for EACH row
 execute FUNCTION update_updated_at_column ();
-
 
 create view public.permission_categories_with_stats as
 select
@@ -2402,7 +2463,6 @@ group by
 order by
   pc.order_index,
   pc.name;
-
 
 create table public.permissions (
   id uuid not null default gen_random_uuid (),
@@ -2568,6 +2628,7 @@ from
 order by
   start_date desc,
   created_at desc;
+
 create view public.realtime_seat_availability as
 select
   t.id as trip_id,
@@ -3209,6 +3270,7 @@ from
   left join islands oi on r.from_island_id = oi.id
   left join islands di on r.to_island_id = di.id;
 
+
 create view public.routes_stats_view as
 select
   r.id,
@@ -3780,6 +3842,7 @@ order by
   r.id,
   t.travel_date;
 
+
 create table public.trips (
   id uuid not null default gen_random_uuid (),
   route_id uuid not null,
@@ -3795,13 +3858,25 @@ create table public.trips (
   arrival_time time without time zone null,
   updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
   captain_id uuid null,
+  is_checkin_closed boolean not null default false,
+  checkin_closed_at timestamp with time zone null,
+  checkin_closed_by uuid null,
+  manifest_generated_at timestamp with time zone null,
+  manifest_sent_at timestamp with time zone null,
   constraint trips_pkey primary key (id),
   constraint unique_trip_vessel unique (route_id, travel_date, departure_time, vessel_id),
   constraint trips_captain_id_fkey foreign KEY (captain_id) references user_profiles (id),
+  constraint trips_checkin_closed_by_fkey foreign KEY (checkin_closed_by) references user_profiles (id),
   constraint trips_route_id_fkey foreign KEY (route_id) references routes (id),
   constraint trips_vessel_id_fkey foreign KEY (vessel_id) references vessels (id),
   constraint chk_trip_available_seats_valid check ((available_seats >= 0))
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_checkin_closed on public.trips using btree (is_checkin_closed, checkin_closed_at) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_checkin_closed_by on public.trips using btree (checkin_closed_by) TABLESPACE pg_default
+where
+  (checkin_closed_by is not null);
 
 create index IF not exists idx_trips_route_id on public.trips using btree (route_id) TABLESPACE pg_default;
 
@@ -4113,7 +4188,6 @@ from
   vessels v
   left join vessel_seats_view vs on v.id = vs.vessel_id;
 
-
 create view public.vessel_seats_view as
 select
   vessel_id,
@@ -4366,7 +4440,6 @@ create table public.wallet_transactions (
   constraint wallet_transactions_wallet_id_fkey foreign KEY (wallet_id) references wallets (id)
 ) TABLESPACE pg_default;
 
-
 create table public.wallets (
   id uuid not null default gen_random_uuid (),
   user_id uuid not null,
@@ -4378,7 +4451,6 @@ create table public.wallets (
   constraint wallets_user_id_key unique (user_id),
   constraint wallets_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
-
 
 create table public.zone_activity_logs (
   id uuid not null default gen_random_uuid (),
@@ -4396,7 +4468,6 @@ create table public.zone_activity_logs (
 create index IF not exists idx_zone_activity_logs_zone_id on public.zone_activity_logs using btree (zone_id) TABLESPACE pg_default;
 
 create index IF not exists idx_zone_activity_logs_created_at on public.zone_activity_logs using btree (created_at) TABLESPACE pg_default;
-
 
 create view public.zone_detailed_stats_view as
 with
@@ -4535,7 +4606,6 @@ from
 order by
   z.order_index,
   z.name;
-
 
 create view public.zone_management_summary as
 select

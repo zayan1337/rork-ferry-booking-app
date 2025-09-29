@@ -8,6 +8,7 @@ import {
   Image,
   RefreshControl,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -20,6 +21,7 @@ import {
   Clock,
   LifeBuoy,
   X,
+  Ship,
 } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useRouteStore, useUserBookingsStore } from '@/store';
@@ -96,6 +98,20 @@ export default function HomeScreen() {
 
   const handleViewBooking = (bookingId: string) => {
     router.push(`./booking-details/${bookingId}`);
+  };
+
+  const handleVesselTracking = async () => {
+    const trackingUrl = 'https://m.followme.mv/public/18667';
+    try {
+      const supported = await Linking.canOpenURL(trackingUrl);
+      if (supported) {
+        await Linking.openURL(trackingUrl);
+      } else {
+        console.log("Don't know how to open URI: " + trackingUrl);
+      }
+    } catch (error) {
+      console.error('An error occurred', error);
+    }
   };
 
   // Get unique island names for selection, filtered based on current selection and available routes
@@ -514,6 +530,18 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.quickActionCard}
+          onPress={handleVesselTracking}
+        >
+          <View
+            style={[styles.quickActionIcon, { backgroundColor: '#f3e5f5' }]}
+          >
+            <Ship size={24} color='#9c27b0' />
+          </View>
+          <Text style={styles.quickActionText}>Track Vessel</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickActionCard}
           onPress={() => router.push('/support')}
         >
           <View
@@ -737,11 +765,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   quickActionCard: {
-    width: '31%',
+    width: '48%',
     backgroundColor: Colors.card,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
