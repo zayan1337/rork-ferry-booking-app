@@ -1,11 +1,12 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import RoleGuard from '@/components/RoleGuard';
+import { RoleGuard } from '@/components';
+// import RoleGuard from '@/components/RoleGuard';
 
-export default function AdminLayout() {
+export default React.memo(function AdminLayout() {
   return (
-    <RoleGuard allowedRoles={['admin', 'captain']}>
+    <RoleGuard allowedRoles={['admin']}>
       <Stack
         screenOptions={{
           headerStyle: {
@@ -86,4 +87,4 @@ export default function AdminLayout() {
       </Stack>
     </RoleGuard>
   );
-}
+});

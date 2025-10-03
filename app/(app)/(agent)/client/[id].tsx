@@ -39,12 +39,12 @@ export default function ClientDetailsScreen() {
   }
 
   const handleBookingPress = (bookingId: string) => {
-    router.push(`../booking/${bookingId}`);
+    router.push(`../agent-booking/${bookingId}`);
   };
 
   const handleNewBooking = () => {
     router.push({
-      pathname: '../booking/new',
+      pathname: '../agent-booking/new',
       params: { clientId: client.id },
     });
   };

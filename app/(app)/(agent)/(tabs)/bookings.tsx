@@ -141,11 +141,11 @@ export default function AgentBookingsScreen() {
   }, [bookings, activeTab]);
 
   const handleBookingPress = (booking: Booking) => {
-    router.push(`../booking/${booking.id}` as any);
+    router.push(`../agent-booking/${booking.id}` as any);
   };
 
   const handleNewBooking = () => {
-    router.push('../booking/new' as any);
+    router.push('../agent-booking/new' as any);
   };
 
   const handleSortChange = () => {

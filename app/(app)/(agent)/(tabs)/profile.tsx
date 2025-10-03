@@ -252,7 +252,7 @@ export default function AgentProfileScreen() {
       <View style={styles.actionsGrid}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => router.push('/(app)/(agent)/booking/new')}
+          onPress={() => router.push('/(app)/(agent)/agent-booking/new')}
         >
           <Calendar size={24} color={Colors.primary} />
           <Text style={styles.actionText}>New Booking</Text>

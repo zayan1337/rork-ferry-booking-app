@@ -433,13 +433,13 @@ export default function AgentDashboardScreen() {
 
   const handleBookingPress = (bookingId: string) => {
     if (bookingId) {
-      router.push(`../booking/${bookingId}` as any);
+      router.push(`../agent-booking/${bookingId}` as any);
     }
   };
 
   const handleNewBooking = () => {
     // Navigate to booking page immediately
-    router.push('../booking/new' as any);
+    router.push('../agent-booking/new' as any);
   };
 
   const handleViewAllBookings = () => {
@@ -447,7 +447,7 @@ export default function AgentDashboardScreen() {
   };
 
   const handleViewClients = () => {
-    router.push('./clients');
+    router.push('../client/add');
   };
 
   const handleViewCredit = () => {
@@ -523,7 +523,7 @@ export default function AgentDashboardScreen() {
           <Text
             style={[
               styles.subGreeting,
-              { fontSize: responsiveConfig.fontSize.body },
+              // { fontSize: responsiveConfig.fontSize.body },
             ]}
           >
             Welcome to your agent dashboard
@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   subGreeting: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.subtext,
     marginBottom: 8,
   },
@@ -777,6 +777,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+    // alignSelf: 'flex-end',
+    // marginRight: 20,
   },
   newBookingText: {
     color: 'white',

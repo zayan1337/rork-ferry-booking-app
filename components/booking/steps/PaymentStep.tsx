@@ -222,7 +222,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           • Agent Credit: Deducted immediately from your agent account
         </Text>
         <Text style={styles.paymentInfoText}>
-          • Payment Gateway: Secure online payment processing
+          • MIB Payment Gateway: Secure online payment processing via MIB
         </Text>
         <Text style={styles.paymentInfoText}>
           • Free Ticket: Using available free ticket allocation
