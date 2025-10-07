@@ -7,28 +7,42 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Modal,
+  Platform,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAuthStore } from '@/store/authStore';
+import { supabase } from '@/utils/supabase';
 import {
   User,
   Mail,
   Shield,
-  Settings,
-  Bell,
   Lock,
-  FileText,
   LogOut,
   X,
   Phone,
   Activity,
+  ChevronRight,
+  Calendar,
 } from 'lucide-react-native';
 import Button from '@/components/admin/Button';
+import Input from '@/components/Input';
+import { DateSelector } from '@/components/DateSelector';
+import { formatProfileDate } from '@/utils/customerUtils';
+
+type EditableField = 'full_name' | 'mobile_number' | 'date_of_birth';
 
 export default function AdminProfileModal() {
   const { user, signOut } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [editingField, setEditingField] = useState<EditableField | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -65,6 +79,140 @@ export default function AdminProfileModal() {
       : 'AD';
   };
 
+  const openEditModal = (field: EditableField) => {
+    setEditingField(field);
+    let currentValue = '';
+
+    switch (field) {
+      case 'full_name':
+        currentValue = adminProfile?.full_name || '';
+        break;
+      case 'mobile_number':
+        currentValue = adminProfile?.mobile_number || '';
+        break;
+      case 'date_of_birth':
+        currentValue = user?.profile?.date_of_birth || '';
+        break;
+    }
+
+    setEditValue(currentValue);
+    setIsEditModalVisible(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalVisible(false);
+    setEditingField(null);
+    setEditValue('');
+    setIsSaving(false);
+  };
+
+  const closePasswordModal = () => {
+    setIsPasswordModalVisible(false);
+    setNewPassword('');
+    setConfirmPassword('');
+    setIsSaving(false);
+  };
+
+  // Local update function that doesn't trigger global auth loading
+  const updateProfileLocally = async (updateData: any) => {
+    if (!user?.id) throw new Error('No authenticated user');
+
+    const { error } = await supabase
+      .from('user_profiles')
+      .update(updateData)
+      .eq('id', user.id);
+
+    if (error) throw error;
+
+    // Trigger a refresh
+    await handleRefresh();
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingField || !editValue.trim()) {
+      Alert.alert('Error', 'Please enter a valid value');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const updateData: any = {};
+
+      switch (editingField) {
+        case 'full_name':
+          updateData.full_name = editValue;
+          break;
+        case 'mobile_number':
+          updateData.mobile_number = editValue;
+          break;
+        case 'date_of_birth':
+          updateData.date_of_birth = editValue;
+          break;
+      }
+
+      await updateProfileLocally(updateData);
+
+      Alert.alert('Success', 'Profile updated successfully');
+      closeEditModal();
+    } catch (error) {
+      console.error('Update error:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update profile';
+      Alert.alert('Error', errorMessage);
+      setIsSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'New passwords do not match');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      Alert.alert('Success', 'Password updated successfully');
+      closePasswordModal();
+    } catch (error) {
+      console.error('Password update error:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update password';
+      Alert.alert('Error', errorMessage);
+      setIsSaving(false);
+    }
+  };
+
+  const getFieldLabel = (field: EditableField): string => {
+    switch (field) {
+      case 'full_name':
+        return 'Full Name';
+      case 'mobile_number':
+        return 'Mobile Number';
+      case 'date_of_birth':
+        return 'Date of Birth';
+      default:
+        return '';
+    }
+  };
+
   const adminProfile = user?.profile;
   const adminName =
     adminProfile?.full_name ||
@@ -72,43 +220,6 @@ export default function AdminProfileModal() {
     'Admin';
   const adminEmail = user?.email || '';
   const adminRole = adminProfile?.role || 'admin';
-
-  const quickActions = [
-    {
-      id: 'notifications',
-      title: 'Notifications',
-      description: 'Manage alerts and notifications',
-      icon: <Bell size={20} color={colors.warning} />,
-      onPress: () => {
-        /* Navigate to notifications */
-      },
-    },
-    {
-      id: 'security',
-      title: 'Security Settings',
-      description: 'Password and security',
-      icon: <Lock size={20} color={colors.danger} />,
-      onPress: () => {
-        /* Navigate to security */
-      },
-    },
-    {
-      id: 'system',
-      title: 'System Settings',
-      description: 'App configuration',
-      icon: <Settings size={20} color={colors.textSecondary} />,
-      onPress: () => {
-        /* Navigate to system settings */
-      },
-    },
-    {
-      id: 'reports',
-      title: 'Export Reports',
-      description: 'Download system reports',
-      icon: <FileText size={20} color={colors.primary} />,
-      onPress: () => router.push('../reports/export'),
-    },
-  ];
 
   return (
     <ScrollView
@@ -161,7 +272,10 @@ export default function AdminProfileModal() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account Details</Text>
         <View style={styles.detailsCard}>
-          <View style={styles.detailItem}>
+          <TouchableOpacity
+            style={styles.detailItem}
+            onPress={() => openEditModal('full_name')}
+          >
             <User size={20} color={colors.primary} />
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Full Name</Text>
@@ -169,7 +283,8 @@ export default function AdminProfileModal() {
                 {adminProfile?.full_name || adminName}
               </Text>
             </View>
-          </View>
+            <ChevronRight size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
 
           <View style={styles.detailItem}>
             <Mail size={20} color={colors.secondary} />
@@ -179,7 +294,10 @@ export default function AdminProfileModal() {
             </View>
           </View>
 
-          <View style={styles.detailItem}>
+          <TouchableOpacity
+            style={styles.detailItem}
+            onPress={() => openEditModal('mobile_number')}
+          >
             <Phone size={20} color={colors.warning} />
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Phone Number</Text>
@@ -187,7 +305,22 @@ export default function AdminProfileModal() {
                 {adminProfile?.mobile_number || 'Not provided'}
               </Text>
             </View>
-          </View>
+            <ChevronRight size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.detailItem}
+            onPress={() => openEditModal('date_of_birth')}
+          >
+            <Calendar size={20} color={colors.primary} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Date of Birth</Text>
+              <Text style={styles.detailValue}>
+                {formatProfileDate(user?.profile?.date_of_birth || '')}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
 
           <View style={styles.detailItem}>
             <Shield size={20} color={colors.danger} />
@@ -213,25 +346,41 @@ export default function AdminProfileModal() {
 
       {/* Quick Actions */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Settings & Tools</Text>
-        {quickActions.map(action => (
-          <TouchableOpacity
-            key={action.id}
-            style={styles.actionCard}
-            onPress={action.onPress}
-          >
-            <View style={styles.actionContent}>
-              <View style={styles.actionIconContainer}>{action.icon}</View>
-              <View style={styles.actionText}>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-                <Text style={styles.actionDescription}>
-                  {action.description}
-                </Text>
-              </View>
-              <Text style={styles.arrowText}>→</Text>
+        <Text style={styles.sectionTitle}>Account Settings</Text>
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => setIsPasswordModalVisible(true)}
+        >
+          <View style={styles.actionContent}>
+            <View style={styles.actionIconContainer}>
+              <Lock size={20} color={colors.danger} />
             </View>
-          </TouchableOpacity>
-        ))}
+            <View style={styles.actionText}>
+              <Text style={styles.actionTitle}>Change Password</Text>
+              <Text style={styles.actionDescription}>
+                Update your account password
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textSecondary} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Hidden sections - No functionality yet
+        <TouchableOpacity style={styles.actionCard}>
+          <View style={styles.actionContent}>
+            <View style={styles.actionIconContainer}>
+              <Bell size={20} color={colors.warning} />
+            </View>
+            <View style={styles.actionText}>
+              <Text style={styles.actionTitle}>Notifications</Text>
+              <Text style={styles.actionDescription}>
+                Manage alerts and notifications
+              </Text>
+            </View>
+            <Text style={styles.arrowText}>→</Text>
+          </View>
+        </TouchableOpacity>
+        */}
       </View>
 
       {/* System Information */}
@@ -267,6 +416,119 @@ export default function AdminProfileModal() {
           fullWidth
         />
       </View>
+
+      {/* Edit Modal */}
+      <Modal
+        visible={isEditModalVisible}
+        animationType='slide'
+        transparent={true}
+        onRequestClose={closeEditModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Edit {getFieldLabel(editingField!)}
+              </Text>
+              <TouchableOpacity onPress={closeEditModal}>
+                <X size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              {editingField === 'date_of_birth' ? (
+                <DateSelector
+                  label='Date of Birth'
+                  value={editValue}
+                  onChange={setEditValue}
+                  maxDate={new Date().toISOString().split('T')[0]}
+                  isDateOfBirth={true}
+                />
+              ) : (
+                <Input
+                  value={editValue}
+                  onChangeText={setEditValue}
+                  placeholder={`Enter ${getFieldLabel(editingField!)}`}
+                  keyboardType={
+                    editingField === 'mobile_number' ? 'phone-pad' : 'default'
+                  }
+                  autoCapitalize='words'
+                />
+              )}
+            </View>
+
+            <View style={styles.modalFooter}>
+              <Button
+                title='Cancel'
+                variant='secondary'
+                onPress={closeEditModal}
+                disabled={isSaving}
+              />
+              <Button
+                title={isSaving ? 'Saving...' : 'Save'}
+                variant='primary'
+                onPress={handleSaveEdit}
+                disabled={isSaving}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Password Change Modal */}
+      <Modal
+        visible={isPasswordModalVisible}
+        animationType='slide'
+        transparent={true}
+        onRequestClose={closePasswordModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Change Password</Text>
+              <TouchableOpacity onPress={closePasswordModal}>
+                <X size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Input
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder='New Password'
+                secureTextEntry
+                autoCapitalize='none'
+              />
+              <View style={styles.inputSpacing} />
+              <Input
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder='Confirm New Password'
+                secureTextEntry
+                autoCapitalize='none'
+              />
+              <Text style={styles.passwordHint}>
+                Password must be at least 6 characters long
+              </Text>
+            </View>
+
+            <View style={styles.modalFooter}>
+              <Button
+                title='Cancel'
+                variant='secondary'
+                onPress={closePasswordModal}
+                disabled={isSaving}
+              />
+              <Button
+                title={isSaving ? 'Updating...' : 'Update Password'}
+                variant='primary'
+                onPress={handlePasswordChange}
+                disabled={isSaving}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -456,5 +718,62 @@ const styles = StyleSheet.create({
   },
   logoutContainer: {
     marginTop: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalBody: {
+    padding: 16,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: 12,
+  },
+  inputSpacing: {
+    height: 16,
+  },
+  passwordHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });

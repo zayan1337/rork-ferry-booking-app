@@ -6,8 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Switch,
   ActivityIndicator,
+  Modal,
+  Platform,
 } from 'react-native';
 import {
   User,
@@ -15,22 +16,30 @@ import {
   Phone,
   Calendar,
   Lock,
-  Bell,
   ChevronRight,
+  X,
 } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
+import { supabase } from '@/utils/supabase';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
-import type { ProfileSettings } from '@/types/customer';
+import Input from '@/components/Input';
+import { DateSelector } from '@/components/DateSelector';
 import { getUserInitials, formatProfileDate } from '@/utils/customerUtils';
+
+type EditableField = 'full_name' | 'mobile_number' | 'date_of_birth';
 
 export default function ProfileScreen() {
   const { user, signOut, isLoading, error } = useAuthStore();
-  const [profileSettings, setProfileSettings] = useState<ProfileSettings>({
-    emailNotifications: true,
-    smsNotifications: true,
-  });
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [editingField, setEditingField] = useState<EditableField | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [, forceUpdate] = useState({});
 
   useEffect(() => {
     if (error) {
@@ -75,6 +84,7 @@ export default function ProfileScreen() {
     ]);
   };
 
+  /* Unused functions - Hidden
   const updateProfileSetting = (key: keyof ProfileSettings, value: boolean) => {
     setProfileSettings(prev => ({
       ...prev,
@@ -96,6 +106,142 @@ export default function ProfileScreen() {
       'Your data will be exported as PDF and sent to your email address.',
       [{ text: 'OK' }]
     );
+  };
+  */
+
+  const openEditModal = (field: EditableField) => {
+    setEditingField(field);
+    let currentValue = '';
+
+    switch (field) {
+      case 'full_name':
+        currentValue = user?.profile?.full_name || '';
+        break;
+      case 'mobile_number':
+        currentValue = user?.profile?.mobile_number || '';
+        break;
+      case 'date_of_birth':
+        currentValue = user?.profile?.date_of_birth || '';
+        break;
+    }
+
+    setEditValue(currentValue);
+    setIsEditModalVisible(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalVisible(false);
+    setEditingField(null);
+    setEditValue('');
+    setIsSaving(false);
+  };
+
+  const closePasswordModal = () => {
+    setIsPasswordModalVisible(false);
+    setNewPassword('');
+    setConfirmPassword('');
+    setIsSaving(false);
+  };
+
+  // Local update function that doesn't trigger global auth loading
+  const updateProfileLocally = async (updateData: any) => {
+    if (!user?.id) throw new Error('No authenticated user');
+
+    const { error } = await supabase
+      .from('user_profiles')
+      .update(updateData)
+      .eq('id', user.id);
+
+    if (error) throw error;
+
+    // Fetch updated profile
+    const { data: updatedProfile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (updatedProfile && user.profile) {
+      // Update profile fields directly
+      Object.assign(user.profile, updatedProfile);
+      // Force re-render
+      forceUpdate({});
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingField || !editValue.trim()) {
+      Alert.alert('Error', 'Please enter a valid value');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Update profile fields
+      const updateData: any = {};
+      updateData[editingField] = editValue;
+
+      await updateProfileLocally(updateData);
+
+      Alert.alert('Success', 'Profile updated successfully');
+      closeEditModal();
+    } catch (error) {
+      console.error('Update error:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update profile';
+      Alert.alert('Error', errorMessage);
+      setIsSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'New passwords do not match');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      Alert.alert('Success', 'Password updated successfully');
+      closePasswordModal();
+    } catch (error) {
+      console.error('Password update error:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update password';
+      Alert.alert('Error', errorMessage);
+      setIsSaving(false);
+    }
+  };
+
+  const getFieldLabel = (field: EditableField): string => {
+    switch (field) {
+      case 'full_name':
+        return 'Full Name';
+      case 'mobile_number':
+        return 'Mobile Number';
+      case 'date_of_birth':
+        return 'Date of Birth';
+      default:
+        return '';
+    }
   };
 
   return (
@@ -120,7 +266,10 @@ export default function ProfileScreen() {
       <Card variant='elevated' style={styles.section}>
         <Text style={styles.sectionTitle}>Personal Information</Text>
 
-        <View style={styles.infoItem}>
+        <TouchableOpacity
+          style={styles.infoItem}
+          onPress={() => openEditModal('full_name')}
+        >
           <View style={styles.infoIcon}>
             <User size={20} color={Colors.primary} />
           </View>
@@ -129,7 +278,7 @@ export default function ProfileScreen() {
             <Text style={styles.infoValue}>{user?.profile?.full_name}</Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.infoItem}>
           <View style={styles.infoIcon}>
@@ -139,10 +288,12 @@ export default function ProfileScreen() {
             <Text style={styles.infoLabel}>Email</Text>
             <Text style={styles.infoValue}>{user?.email}</Text>
           </View>
-          <ChevronRight size={20} color={Colors.textSecondary} />
         </View>
 
-        <View style={styles.infoItem}>
+        <TouchableOpacity
+          style={styles.infoItem}
+          onPress={() => openEditModal('mobile_number')}
+        >
           <View style={styles.infoIcon}>
             <Phone size={20} color={Colors.primary} />
           </View>
@@ -151,9 +302,12 @@ export default function ProfileScreen() {
             <Text style={styles.infoValue}>{user?.profile?.mobile_number}</Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.infoItem}>
+        <TouchableOpacity
+          style={styles.infoItem}
+          onPress={() => openEditModal('date_of_birth')}
+        >
           <View style={styles.infoIcon}>
             <Calendar size={20} color={Colors.primary} />
           </View>
@@ -164,13 +318,16 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
-        </View>
+        </TouchableOpacity>
       </Card>
 
       <Card variant='elevated' style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
 
-        <TouchableOpacity style={styles.settingItem}>
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => setIsPasswordModalVisible(true)}
+        >
           <View style={styles.settingIcon}>
             <Lock size={20} color={Colors.primary} />
           </View>
@@ -180,6 +337,7 @@ export default function ProfileScreen() {
           <ChevronRight size={20} color={Colors.textSecondary} />
         </TouchableOpacity>
 
+        {/* Notification Settings - Hidden
         <View style={styles.settingItem}>
           <View style={styles.settingIcon}>
             <Bell size={20} color={Colors.primary} />
@@ -213,8 +371,10 @@ export default function ProfileScreen() {
             thumbColor={Colors.card}
           />
         </View>
+        */}
       </Card>
 
+      {/* Export Data Section - Hidden
       <Card variant='elevated' style={styles.section}>
         <Text style={styles.sectionTitle}>Export Data</Text>
         <Text style={styles.exportText}>
@@ -237,6 +397,7 @@ export default function ProfileScreen() {
           />
         </View>
       </Card>
+      */}
 
       <Button
         title='Logout'
@@ -246,6 +407,121 @@ export default function ProfileScreen() {
         textStyle={styles.logoutButtonText}
         fullWidth
       />
+
+      {/* Edit Modal */}
+      <Modal
+        visible={isEditModalVisible}
+        animationType='slide'
+        transparent={true}
+        onRequestClose={closeEditModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Edit {getFieldLabel(editingField!)}
+              </Text>
+              <TouchableOpacity onPress={closeEditModal}>
+                <X size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              {editingField === 'date_of_birth' ? (
+                <DateSelector
+                  label='Date of Birth'
+                  value={editValue}
+                  onChange={setEditValue}
+                  maxDate={new Date().toISOString().split('T')[0]}
+                  isDateOfBirth={true}
+                />
+              ) : (
+                <Input
+                  value={editValue}
+                  onChangeText={setEditValue}
+                  placeholder={`Enter ${getFieldLabel(editingField!)}`}
+                  keyboardType={
+                    editingField === 'mobile_number' ? 'phone-pad' : 'default'
+                  }
+                  autoCapitalize='words'
+                />
+              )}
+            </View>
+
+            <View style={styles.modalFooter}>
+              <Button
+                title='Cancel'
+                variant='outline'
+                onPress={closeEditModal}
+                style={styles.modalButton}
+                disabled={isSaving}
+              />
+              <Button
+                title={isSaving ? 'Saving...' : 'Save'}
+                onPress={handleSaveEdit}
+                style={styles.modalButton}
+                disabled={isSaving}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Password Change Modal */}
+      <Modal
+        visible={isPasswordModalVisible}
+        animationType='slide'
+        transparent={true}
+        onRequestClose={closePasswordModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Change Password</Text>
+              <TouchableOpacity onPress={closePasswordModal}>
+                <X size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Input
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder='New Password'
+                secureTextEntry
+                autoCapitalize='none'
+              />
+              <View style={styles.inputSpacing} />
+              <Input
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder='Confirm New Password'
+                secureTextEntry
+                autoCapitalize='none'
+              />
+              <Text style={styles.passwordHint}>
+                Password must be at least 6 characters long
+              </Text>
+            </View>
+
+            <View style={styles.modalFooter}>
+              <Button
+                title='Cancel'
+                variant='outline'
+                onPress={closePasswordModal}
+                style={styles.modalButton}
+                disabled={isSaving}
+              />
+              <Button
+                title={isSaving ? 'Updating...' : 'Update Password'}
+                onPress={handlePasswordChange}
+                style={styles.modalButton}
+                disabled={isSaving}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -339,6 +615,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
   },
+  /* Unused styles - Hidden
   exportText: {
     fontSize: 14,
     color: Colors.textSecondary,
@@ -352,6 +629,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 4,
   },
+  */
   logoutButton: {
     marginTop: 8,
     borderColor: Colors.error,
@@ -376,5 +654,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.error,
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.text,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  modalBody: {
+    padding: 16,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+  },
+  inputSpacing: {
+    height: 16,
+  },
+  passwordHint: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });

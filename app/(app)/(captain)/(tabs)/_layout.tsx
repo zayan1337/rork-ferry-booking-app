@@ -17,9 +17,9 @@ export default function CaptainTabLayout() {
   const { signOut } = useAuthStore();
 
   // Header button handlers
-  const handleProfilePress = () => {
-    router.push('../modal');
-  };
+  // const handleProfilePress = () => {
+  //   router.push('../modal');
+  // };
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -47,7 +47,7 @@ export default function CaptainTabLayout() {
         marginRight: 12,
       }}
     >
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={{
           padding: 8,
           borderRadius: 8,
@@ -58,7 +58,7 @@ export default function CaptainTabLayout() {
         accessibilityLabel='Profile'
       >
         <User size={20} color={Colors.text} />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
       <TouchableOpacity
         style={{
           padding: 8,

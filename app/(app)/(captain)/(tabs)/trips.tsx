@@ -29,6 +29,7 @@ import { CaptainTrip } from '@/types/captain';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
+import DatePicker from '@/components/DatePicker';
 import { formatSimpleDate } from '@/utils/dateUtils';
 import { formatTripTime } from '@/utils/tripUtils';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -216,15 +217,13 @@ export default function CaptainTripsScreen() {
 
       {showFilters && (
         <View style={styles.filtersContainer}>
-          <View style={styles.filterRow}>
-            <Text style={styles.filterLabel}>Date:</Text>
-            <TextInput
-              style={styles.dateInput}
-              value={dateFilter}
-              onChangeText={handleDateChange}
-              placeholder='YYYY-MM-DD'
-            />
-          </View>
+          <DatePicker
+            label='Filter by Date'
+            value={dateFilter}
+            onChange={handleDateChange}
+            placeholder='Select date'
+          />
+
           <View style={styles.filterRow}>
             <Text style={styles.filterLabel}>Status:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -541,15 +540,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
     marginBottom: 8,
-  },
-  dateInput: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 16,
-    color: Colors.text,
   },
   statusFilters: {
     flexDirection: 'row',
