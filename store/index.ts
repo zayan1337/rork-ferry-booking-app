@@ -134,6 +134,13 @@ export { useOperationsStore } from './admin/operationsStore';
  */
 export { useContentStore } from './admin/contentStore';
 
+/**
+ * Admin Finance store
+ * Handles wallet management, payment processing, and financial analytics
+ * Features wallet transactions, payment tracking, and financial statistics
+ */
+export { useFinanceStore } from './admin/financeStore';
+
 // ========================================
 // LEGACY EXPORTS - MAINTAINED FOR BACKWARD COMPATIBILITY
 // ========================================

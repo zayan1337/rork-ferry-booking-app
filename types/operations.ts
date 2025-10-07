@@ -172,7 +172,14 @@ export interface TripFormData {
   fare_multiplier: number;
   captain_id?: string;
   is_active?: boolean;
-  status?: 'scheduled' | 'boarding' | 'departed' | 'arrived' | 'cancelled' | 'delayed' | 'completed';
+  status?:
+    | 'scheduled'
+    | 'boarding'
+    | 'departed'
+    | 'arrived'
+    | 'cancelled'
+    | 'delayed'
+    | 'completed';
   available_seats?: number;
   // Note: notes, weather_conditions, and crew_ids are not in the trips table
   // These fields are kept for UI purposes but not sent to database

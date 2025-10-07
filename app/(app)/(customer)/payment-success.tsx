@@ -529,7 +529,7 @@ export default function PaymentSuccessScreen() {
 
   const handleNewBooking = () => {
     if (isAgent === 'true') {
-      router.push('/(app)/(agent)/booking/new');
+      router.push('/(app)/(agent)/agent-booking/new');
     } else {
       router.push('/(app)/(customer)/(tabs)/book');
     }

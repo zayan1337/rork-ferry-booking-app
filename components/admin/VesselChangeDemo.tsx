@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import { Button } from '@/components/admin/Button';
-import { Ship, Users, RefreshCw, AlertCircle } from 'lucide-react-native';
+import Button from '@/components/admin/Button';
+import { Ship, Users, RefreshCw } from 'lucide-react-native';
 
 /**
  * Demo component to showcase the vessel change and seat rearrangement feature
@@ -11,19 +11,37 @@ import { Ship, Users, RefreshCw, AlertCircle } from 'lucide-react-native';
 export default function VesselChangeDemo() {
   const [demoState, setDemoState] = useState({
     currentVessel: 'Ferry Alpha',
-    newVessel: null,
+    newVessel: null as string | null,
     existingBookings: 0,
-    passengers: [],
-    rearrangementPreview: [],
+    passengers: [] as any[],
+    rearrangementPreview: [] as any[],
     status: 'idle' as 'idle' | 'analyzing' | 'completed' | 'error',
   });
 
   // Mock data for demonstration
   const mockPassengers = [
     { id: 1, name: 'John Smith', oldSeat: 'A1', newSeat: 'B2', isWindow: true },
-    { id: 2, name: 'Sarah Johnson', oldSeat: 'A2', newSeat: 'B3', isWindow: false },
-    { id: 3, name: 'Mike Wilson', oldSeat: 'B1', newSeat: 'C1', isWindow: true },
-    { id: 4, name: 'Lisa Brown', oldSeat: 'B2', newSeat: 'C2', isWindow: false },
+    {
+      id: 2,
+      name: 'Sarah Johnson',
+      oldSeat: 'A2',
+      newSeat: 'B3',
+      isWindow: false,
+    },
+    {
+      id: 3,
+      name: 'Mike Wilson',
+      oldSeat: 'B1',
+      newSeat: 'C1',
+      isWindow: true,
+    },
+    {
+      id: 4,
+      name: 'Lisa Brown',
+      oldSeat: 'B2',
+      newSeat: 'C2',
+      isWindow: false,
+    },
   ];
 
   const simulateVesselChange = () => {
@@ -54,8 +72,8 @@ export default function VesselChangeDemo() {
       `This will automatically reassign ${mockPassengers.length} passengers to new vessel seats. This action cannot be undone. Do you want to continue?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Apply Rearrangement', 
+        {
+          text: 'Apply Rearrangement',
           style: 'destructive',
           onPress: () => {
             setDemoState(prev => ({
@@ -71,8 +89,8 @@ export default function VesselChangeDemo() {
               'Seat Rearrangement Complete',
               `Successfully rearranged ${mockPassengers.length} passengers to new vessel seats.`
             );
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -116,12 +134,13 @@ export default function VesselChangeDemo() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Simulate Vessel Change</Text>
           <Text style={styles.sectionDescription}>
-            Click the button below to simulate changing to a different vessel with existing bookings.
+            Click the button below to simulate changing to a different vessel
+            with existing bookings.
           </Text>
           <Button
-            title="Change to Ferry Beta"
+            title='Change to Ferry Beta'
             onPress={simulateVesselChange}
-            variant="primary"
+            variant='primary'
             icon={<Ship size={16} color={colors.white} />}
           />
         </View>
@@ -139,7 +158,7 @@ export default function VesselChangeDemo() {
                 Vessel Change Detected
               </Text>
               <Text style={styles.vesselChangeSubtitle}>
-                {demoState.existingBookings} existing booking(s) found. 
+                {demoState.existingBookings} existing booking(s) found.
                 Automatic seat rearrangement is available.
               </Text>
             </View>
@@ -158,51 +177,53 @@ export default function VesselChangeDemo() {
           )}
 
           {/* Rearrangement Preview */}
-          {demoState.status === 'completed' && demoState.rearrangementPreview.length > 0 && (
-            <View style={styles.rearrangementPreview}>
-              <View style={styles.previewHeader}>
-                <View style={styles.previewIcon}>
-                  <Users size={16} color={colors.primary} />
-                </View>
-                <Text style={styles.previewTitle}>
-                  Seat Rearrangement Preview
-                </Text>
-              </View>
-              
-              <Text style={styles.previewSubtitle}>
-                {demoState.rearrangementPreview.length} passengers will be automatically reassigned to new vessel seats.
-              </Text>
-
-              {/* Show rearrangements */}
-              {demoState.rearrangementPreview.map((passenger, index) => (
-                <View key={index} style={styles.rearrangementItem}>
-                  <Text style={styles.passengerName}>{passenger.name}</Text>
-                  <View style={styles.seatChange}>
-                    <Text style={styles.seatChangeText}>
-                      Seat {passenger.oldSeat} → Seat {passenger.newSeat}
-                    </Text>
-                    <Text style={styles.seatChangeDetails}>
-                      {passenger.isWindow ? 'Window' : 'Aisle'} seat
-                    </Text>
+          {demoState.status === 'completed' &&
+            demoState.rearrangementPreview.length > 0 && (
+              <View style={styles.rearrangementPreview}>
+                <View style={styles.previewHeader}>
+                  <View style={styles.previewIcon}>
+                    <Users size={16} color={colors.primary} />
                   </View>
+                  <Text style={styles.previewTitle}>
+                    Seat Rearrangement Preview
+                  </Text>
                 </View>
-              ))}
 
-              <View style={styles.rearrangementActions}>
-                <Button
-                  title="Apply Seat Rearrangement"
-                  onPress={applyRearrangement}
-                  variant="primary"
-                  icon={<RefreshCw size={16} color={colors.white} />}
-                />
-                <Button
-                  title="Reset Demo"
-                  onPress={resetDemo}
-                  variant="outline"
-                />
+                <Text style={styles.previewSubtitle}>
+                  {demoState.rearrangementPreview.length} passengers will be
+                  automatically reassigned to new vessel seats.
+                </Text>
+
+                {/* Show rearrangements */}
+                {demoState.rearrangementPreview.map((passenger, index) => (
+                  <View key={index} style={styles.rearrangementItem}>
+                    <Text style={styles.passengerName}>{passenger.name}</Text>
+                    <View style={styles.seatChange}>
+                      <Text style={styles.seatChangeText}>
+                        Seat {passenger.oldSeat} → Seat {passenger.newSeat}
+                      </Text>
+                      <Text style={styles.seatChangeDetails}>
+                        {passenger.isWindow ? 'Window' : 'Aisle'} seat
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+
+                <View style={styles.rearrangementActions}>
+                  <Button
+                    title='Apply Seat Rearrangement'
+                    onPress={applyRearrangement}
+                    variant='primary'
+                    icon={<RefreshCw size={16} color={colors.white} />}
+                  />
+                  <Button
+                    title='Reset Demo'
+                    onPress={resetDemo}
+                    variant='outline'
+                  />
+                </View>
               </View>
-            </View>
-          )}
+            )}
         </View>
       )}
     </View>

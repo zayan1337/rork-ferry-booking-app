@@ -16,54 +16,60 @@ import {
 // Utility function to format time for PostgreSQL
 const formatTimeForDB = (time: string): string => {
   if (!time) return time;
-  
+
   // If time already has colon, return as is
   if (time.includes(':')) {
     return time;
   }
-  
+
   // If time is in HHMM format, convert to HH:MM
   if (time.length === 4 && /^\d{4}$/.test(time)) {
     return `${time.slice(0, 2)}:${time.slice(2, 4)}`;
   }
-  
+
   // If time is in HMM format, pad with zero
   if (time.length === 3 && /^\d{3}$/.test(time)) {
     return `0${time.slice(0, 1)}:${time.slice(1, 3)}`;
   }
-  
+
   // If time is in HH format, add :00
   if (time.length === 2 && /^\d{2}$/.test(time)) {
     return `${time}:00`;
   }
-  
+
   // If time is in H format, pad and add :00
   if (time.length === 1 && /^\d$/.test(time)) {
     return `0${time}:00`;
   }
-  
+
   return time;
 };
 
 // Utility function to validate UUID format
 const validateUUID = (uuid: string): boolean => {
   if (!uuid) return false;
-  
+
   // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(uuid);
 };
 
 // Utility function to validate and format UUID for database
-const validateAndFormatUUID = (uuid: string | undefined, fieldName: string): string | null => {
+const validateAndFormatUUID = (
+  uuid: string | undefined,
+  fieldName: string
+): string | null => {
   if (!uuid) return null;
-  
+
   // Check if it's a valid UUID
   if (!validateUUID(uuid)) {
     console.error(`Invalid UUID format for ${fieldName}:`, uuid);
-    throw new Error(`Invalid UUID format for ${fieldName}. Expected format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`);
+    throw new Error(
+      `Invalid UUID format for ${fieldName}. Expected format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`
+    );
   }
-  
+
   return uuid;
 };
 
@@ -322,10 +328,16 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
       // Only include fields that actually exist in the trips table
       if (updates.route_id !== undefined) {
-        dbUpdates.route_id = validateAndFormatUUID(updates.route_id, 'route_id');
+        dbUpdates.route_id = validateAndFormatUUID(
+          updates.route_id,
+          'route_id'
+        );
       }
       if (updates.vessel_id !== undefined) {
-        dbUpdates.vessel_id = validateAndFormatUUID(updates.vessel_id, 'vessel_id');
+        dbUpdates.vessel_id = validateAndFormatUUID(
+          updates.vessel_id,
+          'vessel_id'
+        );
       }
       if (updates.travel_date !== undefined)
         dbUpdates.travel_date = updates.travel_date;
@@ -343,9 +355,12 @@ export const useTripStore = create<TripStore>((set, get) => ({
       if (updates.is_active !== undefined)
         dbUpdates.is_active = updates.is_active;
       if (updates.captain_id !== undefined) {
-        dbUpdates.captain_id = validateAndFormatUUID(updates.captain_id, 'captain_id');
+        dbUpdates.captain_id = validateAndFormatUUID(
+          updates.captain_id,
+          'captain_id'
+        );
       }
-      
+
       // Note: delay_reason, weather_conditions, and notes are not in the trips table
       // These fields might be in a different table or need to be added to the schema
 
@@ -353,7 +368,8 @@ export const useTripStore = create<TripStore>((set, get) => ({
         .from('trips')
         .update(dbUpdates)
         .eq('id', id)
-        .select(`
+        .select(
+          `
           id,
           route_id,
           vessel_id,
@@ -368,7 +384,8 @@ export const useTripStore = create<TripStore>((set, get) => ({
           is_active,
           created_at,
           updated_at
-        `)
+        `
+        )
         .single();
 
       if (error) {

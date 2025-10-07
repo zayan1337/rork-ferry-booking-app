@@ -30,14 +30,19 @@ export default function PaymentMethodCard({
         </View>
         <View style={styles.cardStats}>
           <Text style={styles.cardValue}>{value}</Text>
-          <Text style={[styles.cardPercentage, { color }]}>{percentage}%</Text>
+          <Text style={[styles.cardPercentage, { color }]}>
+            {percentage.toFixed(2)}%
+          </Text>
         </View>
       </View>
       <View style={styles.progressBar}>
         <View
           style={[
             styles.progressFill,
-            { width: `${percentage}%`, backgroundColor: color },
+            {
+              width: `${percentage.toFixed(2)}%` as any,
+              backgroundColor: color,
+            },
           ]}
         />
       </View>
