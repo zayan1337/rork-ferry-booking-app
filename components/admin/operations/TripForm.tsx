@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useTripManagement } from '@/hooks/useTripManagement';
@@ -6,6 +6,7 @@ import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
 import { useUserStore } from '@/store/admin/userStore';
 import { AdminManagement } from '@/types';
+import { supabase } from '@/utils/supabase';
 import {
   Calendar,
   Clock,
@@ -17,6 +18,8 @@ import {
   Info,
   Activity,
   Settings,
+  Users,
+  RefreshCw,
 } from 'lucide-react-native';
 
 // Components
@@ -53,13 +56,15 @@ interface FormData {
     | 'cancelled'
     | 'delayed'
     | 'completed';
-  delay_reason?: string;
   fare_multiplier: number;
-  weather_conditions?: string;
   captain_id?: string;
-  crew_ids?: string[];
-  notes?: string;
   is_active: boolean;
+  // Note: delay_reason, weather_conditions, notes, and crew_ids are not in the trips table
+  // These fields are kept for UI purposes but not sent to database
+  delay_reason?: string;
+  weather_conditions?: string;
+  notes?: string;
+  crew_ids?: string[];
 }
 
 interface ValidationErrors {
@@ -119,6 +124,13 @@ export default function TripForm({
   );
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Vessel change detection and seat rearrangement
+  const [originalVesselId, setOriginalVesselId] = useState<string | null>(null);
+  const [vesselChangeDetected, setVesselChangeDetected] = useState(false);
+  const [existingBookings, setExistingBookings] = useState<any[]>([]);
+  const [seatRearrangementStatus, setSeatRearrangementStatus] = useState<'idle' | 'analyzing' | 'rearranging' | 'completed' | 'error'>('idle');
+  const [rearrangementPreview, setRearrangementPreview] = useState<any[]>([]);
 
   // Load routes, vessels, and users on component mount
   useEffect(() => {
@@ -126,6 +138,254 @@ export default function TripForm({
     loadVessels();
     fetchUsers();
   }, []);
+
+  // Initialize original vessel ID for change detection
+  useEffect(() => {
+    if (currentTrip?.vessel_id && !originalVesselId) {
+      setOriginalVesselId(currentTrip.vessel_id);
+    }
+  }, [currentTrip?.vessel_id, originalVesselId]);
+
+  // Detect vessel changes and fetch existing bookings
+  useEffect(() => {
+    const detectVesselChange = async () => {
+      if (!tripId || !formData.vessel_id || !originalVesselId) return;
+      
+      if (formData.vessel_id !== originalVesselId) {
+        setVesselChangeDetected(true);
+        setSeatRearrangementStatus('analyzing');
+        
+        try {
+          // Fetch existing bookings for this trip
+          const { data: bookings, error } = await supabase
+            .from('bookings')
+            .select(`
+              id,
+              booking_number,
+              status,
+              total_fare,
+              passengers (
+                id,
+                passenger_name,
+                seat_id,
+                seats (
+                  id,
+                  seat_number,
+                  row_number,
+                  is_window,
+                  is_aisle
+                )
+              )
+            `)
+            .eq('trip_id', tripId)
+            .eq('status', 'confirmed');
+
+          if (error) {
+            console.error('Error fetching existing bookings:', error);
+            setSeatRearrangementStatus('error');
+            return;
+          }
+
+          setExistingBookings(bookings || []);
+          
+          // Generate seat rearrangement preview
+          if (bookings && bookings.length > 0) {
+            await generateSeatRearrangementPreview(bookings);
+          } else {
+            setSeatRearrangementStatus('completed');
+          }
+        } catch (error) {
+          console.error('Error analyzing vessel change:', error);
+          setSeatRearrangementStatus('error');
+        }
+      } else {
+        setVesselChangeDetected(false);
+        setSeatRearrangementStatus('idle');
+        setExistingBookings([]);
+        setRearrangementPreview([]);
+      }
+    };
+
+    // Add a small delay to prevent rapid fire calls
+    const timeoutId = setTimeout(detectVesselChange, 300);
+    return () => clearTimeout(timeoutId);
+  }, [formData.vessel_id, originalVesselId, tripId]);
+
+  // Generate seat rearrangement preview
+  const generateSeatRearrangementPreview = useCallback(async (bookings: any[]) => {
+    try {
+      setSeatRearrangementStatus('analyzing');
+      
+      // Get new vessel's seats
+      const { data: newVesselSeats, error: seatsError } = await supabase
+        .from('seats')
+        .select('*')
+        .eq('vessel_id', formData.vessel_id)
+        .order('row_number', { ascending: true })
+        .order('seat_number', { ascending: true });
+
+      if (seatsError) {
+        console.error('Error fetching new vessel seats:', seatsError);
+        setSeatRearrangementStatus('error');
+        return;
+      }
+
+      if (!newVesselSeats || newVesselSeats.length === 0) {
+        setSeatRearrangementStatus('error');
+        return;
+      }
+
+      // Extract all passengers from bookings
+      const allPassengers = bookings.flatMap(booking => 
+        booking.passengers?.map((passenger: any) => ({
+          ...passenger,
+          booking_id: booking.id,
+          booking_number: booking.booking_number,
+        })) || []
+      );
+
+      // Generate rearrangement mapping
+      const rearrangement = generateSeatMapping(allPassengers, newVesselSeats);
+      setRearrangementPreview(rearrangement);
+      setSeatRearrangementStatus('completed');
+      
+    } catch (error) {
+      console.error('Error generating seat rearrangement preview:', error);
+      setSeatRearrangementStatus('error');
+    }
+  }, [formData.vessel_id]);
+
+  // Generate intelligent seat mapping
+  const generateSeatMapping = useCallback((passengers: any[], newVesselSeats: any[]) => {
+    const rearrangement: any[] = [];
+    
+    // Sort passengers by their original seat preferences (window, aisle, etc.)
+    const sortedPassengers = [...passengers].sort((a, b) => {
+      const seatA = a.seats;
+      const seatB = b.seats;
+      
+      // Prioritize window seats, then aisle seats
+      if (seatA?.is_window && !seatB?.is_window) return -1;
+      if (!seatA?.is_window && seatB?.is_window) return 1;
+      if (seatA?.is_aisle && !seatB?.is_aisle) return -1;
+      if (!seatA?.is_aisle && seatB?.is_aisle) return 1;
+      
+      return 0;
+    });
+
+    // Sort new vessel seats by preference (window, aisle, etc.)
+    const sortedNewSeats = [...newVesselSeats].sort((a, b) => {
+      if (a.is_window && !b.is_window) return -1;
+      if (!a.is_window && b.is_window) return 1;
+      if (a.is_aisle && !b.is_aisle) return -1;
+      if (!a.is_aisle && b.is_aisle) return 1;
+      
+      // Then by row number and seat number
+      if (a.row_number !== b.row_number) return a.row_number - b.row_number;
+      return a.seat_number - b.seat_number;
+    });
+
+    // Map passengers to new seats
+    sortedPassengers.forEach((passenger, index) => {
+      if (index < sortedNewSeats.length) {
+        const newSeat = sortedNewSeats[index];
+        rearrangement.push({
+          passenger_id: passenger.id,
+          passenger_name: passenger.passenger_name,
+          booking_id: passenger.booking_id,
+          booking_number: passenger.booking_number,
+          old_seat: {
+            id: passenger.seat_id,
+            number: passenger.seats?.seat_number,
+            row: passenger.seats?.row_number,
+            is_window: passenger.seats?.is_window,
+            is_aisle: passenger.seats?.is_aisle,
+          },
+          new_seat: {
+            id: newSeat.id,
+            number: newSeat.seat_number,
+            row: newSeat.row_number,
+            is_window: newSeat.is_window,
+            is_aisle: newSeat.is_aisle,
+          },
+          status: 'pending',
+        });
+      }
+    });
+
+    return rearrangement;
+  }, []);
+
+  // Apply seat rearrangement
+  const applySeatRearrangement = useCallback(async () => {
+    if (rearrangementPreview.length === 0) return;
+
+    // Show confirmation dialog
+    Alert.alert(
+      'Confirm Seat Rearrangement',
+      `This will automatically reassign ${rearrangementPreview.length} passengers to new vessel seats. This action cannot be undone. Do you want to continue?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Apply Rearrangement', 
+          style: 'destructive',
+          onPress: async () => {
+            setSeatRearrangementStatus('rearranging');
+            await performSeatRearrangement();
+          }
+        }
+      ]
+    );
+  }, [rearrangementPreview.length]);
+
+  // Perform the actual seat rearrangement
+  const performSeatRearrangement = useCallback(async () => {
+    try {
+      // Update seat reservations for each passenger
+      for (const rearrangement of rearrangementPreview) {
+        const { error } = await supabase
+          .from('seat_reservations')
+          .update({
+            seat_id: rearrangement.new_seat.id,
+            is_available: false,
+            is_reserved: true,
+          })
+          .eq('trip_id', tripId)
+          .eq('seat_id', rearrangement.old_seat.id);
+
+        if (error) {
+          console.error('Error updating seat reservation:', error);
+          continue;
+        }
+
+        // Update passenger's seat assignment
+        const { error: passengerError } = await supabase
+          .from('passengers')
+          .update({
+            seat_id: rearrangement.new_seat.id,
+          })
+          .eq('id', rearrangement.passenger_id);
+
+        if (passengerError) {
+          console.error('Error updating passenger seat:', passengerError);
+        }
+      }
+
+      setSeatRearrangementStatus('completed');
+      Alert.alert(
+        'Seat Rearrangement Complete',
+        `Successfully rearranged ${rearrangementPreview.length} passengers to new vessel seats.`
+      );
+      
+    } catch (error) {
+      console.error('Error applying seat rearrangement:', error);
+      setSeatRearrangementStatus('error');
+      Alert.alert('Error', 'Failed to apply seat rearrangement. Please try again.');
+    }
+  }, [rearrangementPreview, tripId]);
+
+  // Check if rearrangement is in progress
+  const isRearranging = seatRearrangementStatus === 'rearranging';
 
   // Track form changes
   useEffect(() => {
@@ -165,23 +425,95 @@ export default function TripForm({
 
     if (!formData.route_id) {
       errors.route_id = 'Route is required';
+    } else {
+      // Validate UUID format for route_id
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(formData.route_id)) {
+        errors.route_id = 'Invalid route selection. Please select a valid route.';
+      }
     }
 
     if (!formData.vessel_id) {
       errors.vessel_id = 'Vessel is required';
+    } else {
+      // Validate UUID format for vessel_id
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(formData.vessel_id)) {
+        errors.vessel_id = 'Invalid vessel selection. Please select a valid vessel.';
+      }
     }
 
     if (!formData.travel_date) {
       errors.travel_date = 'Travel date is required';
+    } else {
+      // Validate date is not in the past
+      const selectedDate = new Date(formData.travel_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (selectedDate < today) {
+        errors.travel_date = 'Travel date cannot be in the past';
+      }
     }
 
     if (!formData.departure_time) {
       errors.departure_time = 'Departure time is required';
+    } else {
+      // Validate time format - ensure it's in HH:MM format
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(formData.departure_time)) {
+        errors.departure_time = 'Invalid time format. Use HH:MM format (e.g., 14:30)';
+      } else {
+        // Additional validation: ensure time is valid
+        const [hours, minutes] = formData.departure_time.split(':').map(Number);
+        if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+          errors.departure_time = 'Invalid time. Hours must be 00-23, minutes must be 00-59';
+        }
+      }
+    }
+
+    if (formData.arrival_time) {
+      // Validate arrival time format
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(formData.arrival_time)) {
+        errors.arrival_time = 'Invalid time format. Use HH:MM format (e.g., 16:30)';
+      } else {
+        // Additional validation: ensure time is valid
+        const [hours, minutes] = formData.arrival_time.split(':').map(Number);
+        if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+          errors.arrival_time = 'Invalid time. Hours must be 00-23, minutes must be 00-59';
+        }
+      }
+    }
+
+    if (formData.arrival_time && formData.departure_time && !errors.arrival_time && !errors.departure_time) {
+      // Validate arrival time is after departure time
+      const departureTime = new Date(`2000-01-01T${formData.departure_time}`);
+      const arrivalTime = new Date(`2000-01-01T${formData.arrival_time}`);
+      
+      if (arrivalTime <= departureTime) {
+        errors.arrival_time = 'Arrival time must be after departure time';
+      }
     }
 
     if (formData.fare_multiplier <= 0) {
       errors.fare_multiplier = 'Fare multiplier must be greater than 0';
     }
+
+    if (formData.fare_multiplier > 10) {
+      errors.fare_multiplier = 'Fare multiplier cannot exceed 10';
+    }
+
+    // Validate captain_id UUID format if provided
+    if (formData.captain_id) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(formData.captain_id)) {
+        errors.captain_id = 'Invalid captain selection. Please select a valid captain.';
+      }
+    }
+
+    // Note: delay_reason validation removed as it's not in the trips table
+    // These fields are kept for UI purposes but not validated for database
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -192,6 +524,29 @@ export default function TripForm({
       return;
     }
 
+    // Check for vessel change conflicts
+    if (vesselChangeDetected && seatRearrangementStatus === 'completed' && rearrangementPreview.length > 0) {
+      Alert.alert(
+        'Vessel Change Detected',
+        'You have changed the vessel and there are existing bookings. Please apply the seat rearrangement first before saving the trip.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Apply Rearrangement & Save', 
+            onPress: async () => {
+              await performSeatRearrangement();
+              await performTripUpdate();
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    await performTripUpdate();
+  };
+
+  const performTripUpdate = async () => {
     setLoading(true);
     try {
       const tripFormData: TripFormData = {
@@ -201,18 +556,44 @@ export default function TripForm({
         departure_time: formData.departure_time,
         arrival_time: formData.arrival_time,
         status: formData.status,
-        delay_reason: formData.delay_reason,
         fare_multiplier: formData.fare_multiplier,
-        weather_conditions: formData.weather_conditions,
         captain_id: formData.captain_id,
-        crew_ids: formData.crew_ids,
-        notes: formData.notes,
         is_active: formData.is_active,
+        // Note: delay_reason, weather_conditions, notes, and crew_ids are not in the trips table
+        // These fields need to be handled separately or added to the database schema
       };
 
       if (currentTrip) {
-        await update(currentTrip.id, tripFormData);
-        Alert.alert('Success', 'Trip updated successfully');
+        try {
+          await update(currentTrip.id, tripFormData);
+          Alert.alert('Success', 'Trip updated successfully');
+        } catch (updateError: any) {
+          // Handle PGRST204 error specifically
+          if (updateError.message.includes('PGRST204') || 
+              updateError.message.includes('No data returned from update operation')) {
+            // The update might have succeeded but no data was returned
+            // Try to refresh the trip data to confirm
+            try {
+              const refreshedTrip = await getById(currentTrip.id);
+              if (refreshedTrip) {
+                Alert.alert('Success', 'Trip updated successfully (verified)');
+              } else {
+                // If refresh fails, try one more time with a delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const retryTrip = await getById(currentTrip.id);
+                if (retryTrip) {
+                  Alert.alert('Success', 'Trip updated successfully (verified on retry)');
+                } else {
+                  throw new Error('Unable to verify trip update');
+                }
+              }
+            } catch (refreshError) {
+              throw updateError; // Re-throw original error if refresh fails
+            }
+          } else {
+            throw updateError; // Re-throw other errors
+          }
+        }
       } else {
         await create(tripFormData);
         Alert.alert('Success', 'Trip created successfully');
@@ -223,7 +604,47 @@ export default function TripForm({
       }
     } catch (error) {
       console.error('Error saving trip:', error);
-      Alert.alert('Error', 'Failed to save trip. Please try again.');
+      
+      // Handle specific database constraint errors
+      let errorMessage = 'Failed to save trip. Please try again.';
+      
+      if (error instanceof Error) {
+        // Check for specific database errors
+        if (error.message.includes('PGRST204') || 
+            error.message.includes('No data returned from update operation')) {
+          errorMessage = 'Trip update completed but no data was returned. The trip may have been updated successfully.';
+        } else if (error.message.includes('duplicate key value') || 
+            error.message.includes('unique constraint')) {
+          errorMessage = 'A trip with the same details already exists. Please check your input.';
+        } else if (error.message.includes('foreign key constraint')) {
+          errorMessage = 'Invalid route or vessel selection. Please check your selections.';
+        } else if (error.message.includes('check constraint')) {
+          errorMessage = 'Invalid data provided. Please check your input values.';
+        } else if (error.message.includes('not null constraint')) {
+          errorMessage = 'Required fields are missing. Please fill in all required fields.';
+        } else if (error.message.includes('permission denied') || 
+            error.message.includes('insufficient_privilege')) {
+          errorMessage = 'You do not have permission to update this trip. Please contact an administrator.';
+        } else if (error.message.includes('connection') || 
+            error.message.includes('network')) {
+          errorMessage = 'Network connection error. Please check your internet connection and try again.';
+        } else if (error.message.includes('invalid input syntax for type time')) {
+          errorMessage = 'Invalid time format. Please ensure times are in HH:MM format (e.g., 14:30).';
+        } else if (error.message.includes('time') && error.message.includes('format')) {
+          errorMessage = 'Time format error. Please check your departure and arrival times.';
+        } else if (error.message.includes('invalid input syntax for type uuid')) {
+          errorMessage = 'Invalid ID format. Please refresh the page and try again.';
+        } else if (error.message.includes('uuid') && error.message.includes('invalid')) {
+          errorMessage = 'Invalid selection format. Please refresh the page and try again.';
+        } else if (error.message.includes('foreign key constraint')) {
+          errorMessage = 'Invalid selection. The selected route, vessel, or captain may no longer exist.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setValidationErrors({ general: errorMessage });
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -432,6 +853,98 @@ export default function TripForm({
                 {vessels?.find(v => v.id === formData.vessel_id)?.name ||
                   'Selected Vessel'}
               </Text>
+            </View>
+          )}
+
+          {/* Vessel Change Detection and Seat Rearrangement */}
+          {vesselChangeDetected && (
+            <View style={styles.vesselChangeContainer}>
+              <View style={styles.vesselChangeHeader}>
+                <View style={styles.vesselChangeIcon}>
+                  <RefreshCw size={20} color={colors.warning} />
+                </View>
+                <View style={styles.vesselChangeContent}>
+                  <Text style={styles.vesselChangeTitle}>
+                    Vessel Change Detected
+                  </Text>
+                  <Text style={styles.vesselChangeSubtitle}>
+                    {existingBookings.length} existing booking(s) found. 
+                    Automatic seat rearrangement is available.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Seat Rearrangement Status */}
+              {seatRearrangementStatus === 'analyzing' && (
+                <View style={styles.rearrangementStatus}>
+                  <View style={styles.rearrangementStatusIcon}>
+                    <RefreshCw size={16} color={colors.info} />
+                  </View>
+                  <Text style={styles.rearrangementStatusText}>
+                    Analyzing existing bookings and generating seat mapping...
+                  </Text>
+                </View>
+              )}
+
+              {seatRearrangementStatus === 'completed' && rearrangementPreview.length > 0 && (
+                <View style={styles.rearrangementPreview}>
+                  <View style={styles.previewHeader}>
+                    <View style={styles.previewIcon}>
+                      <Users size={16} color={colors.primary} />
+                    </View>
+                    <Text style={styles.previewTitle}>
+                      Seat Rearrangement Preview
+                    </Text>
+                  </View>
+                  
+                  <Text style={styles.previewSubtitle}>
+                    {rearrangementPreview.length} passengers will be automatically reassigned to new vessel seats.
+                  </Text>
+
+                  {/* Show first few rearrangements as preview */}
+                  {rearrangementPreview.slice(0, 3).map((item, index) => (
+                    <View key={index} style={styles.rearrangementItem}>
+                      <Text style={styles.passengerName}>{item.passenger_name}</Text>
+                      <View style={styles.seatChange}>
+                        <Text style={styles.seatChangeText}>
+                          Seat {item.old_seat.number} → Seat {item.new_seat.number}
+                        </Text>
+                        <Text style={styles.seatChangeDetails}>
+                          Row {item.old_seat.row} → Row {item.new_seat.row}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+
+                  {rearrangementPreview.length > 3 && (
+                    <Text style={styles.morePassengers}>
+                      +{rearrangementPreview.length - 3} more passengers
+                    </Text>
+                  )}
+
+                  <View style={styles.rearrangementActions}>
+                    <Button
+                      title="Apply Seat Rearrangement"
+                      onPress={applySeatRearrangement}
+                      variant="primary"
+                      icon={<RefreshCw size={16} color={colors.white} />}
+                      loading={isRearranging}
+                      disabled={isRearranging}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {seatRearrangementStatus === 'error' && (
+                <View style={styles.errorStatus}>
+                  <View style={styles.rearrangementErrorIcon}>
+                    <AlertCircle size={16} color={colors.error} />
+                  </View>
+                  <Text style={styles.rearrangementErrorText}>
+                    Failed to analyze seat rearrangement. Please check vessel configuration.
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -904,5 +1417,159 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+  },
+  // Vessel change detection styles
+  vesselChangeContainer: {
+    backgroundColor: colors.warningLight,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+  },
+  vesselChangeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  vesselChangeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${colors.warning}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  vesselChangeContent: {
+    flex: 1,
+  },
+  vesselChangeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.warning,
+    marginBottom: 4,
+  },
+  vesselChangeSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  // Rearrangement status styles
+  rearrangementStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${colors.info}10`,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  rearrangementStatusIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: `${colors.info}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  rearrangementStatusText: {
+    fontSize: 14,
+    color: colors.info,
+    fontWeight: '600',
+    flex: 1,
+  },
+  // Rearrangement preview styles
+  rearrangementPreview: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  previewIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  previewSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  rearrangementItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  passengerName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
+  seatChange: {
+    alignItems: 'flex-end',
+  },
+  seatChangeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  seatChangeDetails: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  morePassengers: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  rearrangementActions: {
+    marginTop: 16,
+  },
+  // Error status styles
+  errorStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.errorLight,
+    padding: 12,
+    borderRadius: 8,
+  },
+  rearrangementErrorIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: `${colors.error}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  rearrangementErrorText: {
+    fontSize: 14,
+    color: colors.error,
+    fontWeight: '600',
+    flex: 1,
   },
 });

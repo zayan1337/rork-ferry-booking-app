@@ -13,6 +13,60 @@ import {
   type TripGenerationRequest,
 } from '@/utils/admin/tripUtils';
 
+// Utility function to format time for PostgreSQL
+const formatTimeForDB = (time: string): string => {
+  if (!time) return time;
+  
+  // If time already has colon, return as is
+  if (time.includes(':')) {
+    return time;
+  }
+  
+  // If time is in HHMM format, convert to HH:MM
+  if (time.length === 4 && /^\d{4}$/.test(time)) {
+    return `${time.slice(0, 2)}:${time.slice(2, 4)}`;
+  }
+  
+  // If time is in HMM format, pad with zero
+  if (time.length === 3 && /^\d{3}$/.test(time)) {
+    return `0${time.slice(0, 1)}:${time.slice(1, 3)}`;
+  }
+  
+  // If time is in HH format, add :00
+  if (time.length === 2 && /^\d{2}$/.test(time)) {
+    return `${time}:00`;
+  }
+  
+  // If time is in H format, pad and add :00
+  if (time.length === 1 && /^\d$/.test(time)) {
+    return `0${time}:00`;
+  }
+  
+  return time;
+};
+
+// Utility function to validate UUID format
+const validateUUID = (uuid: string): boolean => {
+  if (!uuid) return false;
+  
+  // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+};
+
+// Utility function to validate and format UUID for database
+const validateAndFormatUUID = (uuid: string | undefined, fieldName: string): string | null => {
+  if (!uuid) return null;
+  
+  // Check if it's a valid UUID
+  if (!validateUUID(uuid)) {
+    console.error(`Invalid UUID format for ${fieldName}:`, uuid);
+    throw new Error(`Invalid UUID format for ${fieldName}. Expected format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`);
+  }
+  
+  return uuid;
+};
+
 type Trip = AdminManagement.Trip;
 type TripFormData = AdminManagement.TripFormData;
 type TripStats = AdminManagement.TripStats;
@@ -266,13 +320,21 @@ export const useTripStore = create<TripStore>((set, get) => ({
       // Only include fields that exist in the database
       const dbUpdates: any = {};
 
-      if (updates.route_id !== undefined) dbUpdates.route_id = updates.route_id;
-      if (updates.vessel_id !== undefined)
-        dbUpdates.vessel_id = updates.vessel_id;
+      // Only include fields that actually exist in the trips table
+      if (updates.route_id !== undefined) {
+        dbUpdates.route_id = validateAndFormatUUID(updates.route_id, 'route_id');
+      }
+      if (updates.vessel_id !== undefined) {
+        dbUpdates.vessel_id = validateAndFormatUUID(updates.vessel_id, 'vessel_id');
+      }
       if (updates.travel_date !== undefined)
         dbUpdates.travel_date = updates.travel_date;
-      if (updates.departure_time !== undefined)
-        dbUpdates.departure_time = updates.departure_time;
+      if (updates.departure_time !== undefined) {
+        dbUpdates.departure_time = formatTimeForDB(updates.departure_time);
+      }
+      if (updates.arrival_time !== undefined) {
+        dbUpdates.arrival_time = formatTimeForDB(updates.arrival_time);
+      }
       if (updates.available_seats !== undefined)
         dbUpdates.available_seats = updates.available_seats;
       if (updates.fare_multiplier !== undefined)
@@ -280,17 +342,43 @@ export const useTripStore = create<TripStore>((set, get) => ({
       if (updates.status !== undefined) dbUpdates.status = updates.status;
       if (updates.is_active !== undefined)
         dbUpdates.is_active = updates.is_active;
-      if (updates.captain_id !== undefined)
-        dbUpdates.captain_id = updates.captain_id || null; // Include captain assignment
+      if (updates.captain_id !== undefined) {
+        dbUpdates.captain_id = validateAndFormatUUID(updates.captain_id, 'captain_id');
+      }
+      
+      // Note: delay_reason, weather_conditions, and notes are not in the trips table
+      // These fields might be in a different table or need to be added to the schema
 
       const { data, error } = await supabase
         .from('trips')
         .update(dbUpdates)
         .eq('id', id)
-        .select()
+        .select(`
+          id,
+          route_id,
+          vessel_id,
+          travel_date,
+          departure_time,
+          arrival_time,
+          status,
+          available_seats,
+          booked_seats,
+          fare_multiplier,
+          captain_id,
+          is_active,
+          created_at,
+          updated_at
+        `)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database update error:', error);
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('No data returned from update operation');
+      }
 
       // Update local state
       const updatedData = get().data.map(trip =>
