@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
-import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { useAgentStore } from '@/store/agent/agentStore';
 import { useAgentBookingFormStore } from '@/store/agent/agentBookingFormStore';
@@ -20,7 +20,11 @@ import {
   PassengerDetailsStep,
   PaymentStep,
 } from '@/components/booking';
-import { validateBookingStep } from '@/utils/bookingFormUtils';
+import {
+  validateBookingStep,
+  AGENT_PAYMENT_OPTIONS,
+} from '@/utils/bookingFormUtils';
+import MibPaymentWebView from '@/components/MibPaymentWebView';
 
 const BOOKING_STEPS = [
   { id: 1, label: 'Route', description: 'Select route & date' },
@@ -105,6 +109,12 @@ export default function AgentNewBookingScreen() {
   const [showAddNewClientForm, setShowAddNewClientForm] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // MIB Payment WebView state
+  const [showMibPayment, setShowMibPayment] = useState(false);
+  const [currentBookingId, setCurrentBookingId] = useState('');
+  const [mibSessionData, setMibSessionData] = useState<any>(null);
+  const [mibBookingDetails, setMibBookingDetails] = useState<any>(null);
   const [errors, setErrors] = useState({
     tripType: '',
     departureDate: '',
@@ -349,66 +359,98 @@ export default function AgentNewBookingScreen() {
       try {
         const result = await createBooking();
 
-        // Reset states
-        reset();
-        setCurrentStep(1);
-        setClientForm({ name: '', email: '', phone: '', idNumber: '' });
-        setShowAddNewClientForm(false);
-        setTermsAccepted(false);
-        setErrors({
-          tripType: '',
-          departureDate: '',
-          returnDate: '',
-          route: '',
-          returnRoute: '',
-          seats: '',
-          passengers: '',
-          paymentMethod: '',
-          terms: '',
-          trip: '',
-          returnTrip: '',
-          client: '',
-        });
-
-        // Create success message
-        let successMessage = `Your ${
-          currentBooking.tripType === 'round_trip' ? 'round trip' : 'one way'
-        } booking has been confirmed with QR codes generated.`;
-        if (typeof result === 'string') {
-          // Legacy single booking ID
-          successMessage += `\n\nBooking ID: ${result}`;
-        } else if (result && typeof result === 'object') {
-          // New format with departure and return booking IDs
-          const bookingResult = result as {
-            bookingId: string;
-            returnBookingId?: string;
+        // Handle MIB payment differently
+        if (currentBooking.paymentMethod === 'mib') {
+          // Prepare booking details for the payment modal
+          const bookingDetails = {
+            bookingNumber: result.bookingId,
+            route: `${
+              currentBooking.route?.fromIsland?.name || 'N/A'
+            } → ${currentBooking.route?.toIsland?.name || 'N/A'}`,
+            travelDate:
+              currentBooking.departureDate || new Date().toISOString(),
+            amount:
+              currentBooking.discountedFare || currentBooking.totalFare || 0,
+            currency: 'MVR',
+            passengerCount: currentBooking.selectedSeats.length,
           };
-          successMessage += `\n\nDeparture Booking ID: ${bookingResult.bookingId}`;
-          if (bookingResult.returnBookingId) {
-            successMessage += `\nReturn Booking ID: ${bookingResult.returnBookingId}`;
-          }
-        }
 
-        Alert.alert('Booking Created', successMessage, [
-          {
-            text: 'View Bookings',
-            onPress: () => {
-              // Trigger refresh immediately before navigation
-              useAgentStore
-                .getState()
-                .refreshBookingsData()
-                .then(() => {
-                  router.push('/(app)/(agent)/(tabs)/bookings');
-                });
+          // Show modal immediately with booking details
+          if (typeof result === 'string') {
+            setCurrentBookingId(result);
+          } else if (result && typeof result === 'object') {
+            const bookingResult = result as {
+              bookingId: string;
+              returnBookingId?: string;
+            };
+            setCurrentBookingId(bookingResult.bookingId);
+          }
+          setMibBookingDetails(bookingDetails);
+          setShowMibPayment(true);
+
+          // Note: MIB session will be created when user clicks "Proceed to Payment" in the modal
+        } else {
+          // For other payment methods, show success message and reset
+          reset();
+          setCurrentStep(1);
+          setClientForm({ name: '', email: '', phone: '', idNumber: '' });
+          setShowAddNewClientForm(false);
+          setTermsAccepted(false);
+          setErrors({
+            tripType: '',
+            departureDate: '',
+            returnDate: '',
+            route: '',
+            returnRoute: '',
+            seats: '',
+            passengers: '',
+            paymentMethod: '',
+            terms: '',
+            trip: '',
+            returnTrip: '',
+            client: '',
+          });
+
+          // Create success message
+          let successMessage = `Your ${
+            currentBooking.tripType === 'round_trip' ? 'round trip' : 'one way'
+          } booking has been confirmed with QR codes generated.`;
+          if (typeof result === 'string') {
+            // Legacy single booking ID
+            successMessage += `\n\nBooking ID: ${result}`;
+          } else if (result && typeof result === 'object') {
+            // New format with departure and return booking IDs
+            const bookingResult = result as {
+              bookingId: string;
+              returnBookingId?: string;
+            };
+            successMessage += `\n\nDeparture Booking ID: ${bookingResult.bookingId}`;
+            if (bookingResult.returnBookingId) {
+              successMessage += `\nReturn Booking ID: ${bookingResult.returnBookingId}`;
+            }
+          }
+
+          Alert.alert('Booking Created', successMessage, [
+            {
+              text: 'View Bookings',
+              onPress: () => {
+                // Trigger refresh immediately before navigation
+                useAgentStore
+                  .getState()
+                  .refreshBookingsData()
+                  .then(() => {
+                    router.push('/(app)/(agent)/(tabs)/bookings');
+                  });
+              },
             },
-          },
-          {
-            text: 'New Booking',
-            onPress: () => {
-              // Stay on the same page, everything is already reset
+            {
+              text: 'New Booking',
+              onPress: () => {
+                // Stay on the same page, everything is already reset
+              },
             },
-          },
-        ]);
+          ]);
+        }
       } catch (error) {
         console.error('Booking creation failed:', error);
         Alert.alert(
@@ -446,12 +488,8 @@ export default function AgentNewBookingScreen() {
     value: trip.id,
   }));
 
-  // Payment method options
-  const paymentOptions = [
-    { label: '💳 Agent Credit', value: 'credit' },
-    { label: '🌐 Payment Gateway', value: 'gateway' },
-    { label: '🎫 Free Ticket', value: 'free' },
-  ];
+  // Payment method options - using the centralized options from utils
+  const paymentOptions = [...AGENT_PAYMENT_OPTIONS];
 
   // Render current step
   const renderCurrentStep = () => {
@@ -604,7 +642,7 @@ export default function AgentNewBookingScreen() {
             agent={storeAgent}
             paymentMethod={currentBooking.paymentMethod}
             onPaymentMethodChange={method =>
-              setPaymentMethod(method as 'credit' | 'gateway' | 'free')
+              setPaymentMethod(method as 'credit' | 'mib' | 'free')
             }
             termsAccepted={termsAccepted}
             onTermsToggle={() => setTermsAccepted(!termsAccepted)}
@@ -623,8 +661,6 @@ export default function AgentNewBookingScreen() {
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
-      <Stack.Screen options={{ title: 'New Agent Booking' }} />
-
       {/* Progress Stepper */}
       <View style={styles.progressContainer}>
         <BookingProgressStepper
@@ -675,6 +711,77 @@ export default function AgentNewBookingScreen() {
           )}
         </View>
       </Card>
+
+      {/* MIB Payment WebView */}
+      {showMibPayment && mibBookingDetails && currentBookingId && (
+        <MibPaymentWebView
+          visible={showMibPayment}
+          bookingDetails={mibBookingDetails}
+          bookingId={currentBookingId}
+          sessionData={mibSessionData}
+          onClose={() => {
+            setShowMibPayment(false);
+            setCurrentBookingId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+          }}
+          onSuccess={result => {
+            // Close the modal first
+            setShowMibPayment(false);
+            setCurrentBookingId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+
+            // Navigate to agent payment success page immediately without resetting booking state
+            // The payment success page will handle the booking state reset
+            router.push({
+              pathname: '/(app)/(agent)/payment-success',
+              params: {
+                bookingId: currentBookingId,
+                result: 'SUCCESS',
+                sessionId: result.sessionId,
+                resetBooking: 'true', // Flag to indicate booking should be reset
+              },
+            });
+          }}
+          onFailure={error => {
+            // Close the modal first
+            setShowMibPayment(false);
+            setCurrentBookingId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+
+            // Navigate to agent payment success page with failure status
+            // Don't reset booking state so user can retry payment
+            router.push({
+              pathname: '/(app)/(agent)/payment-success',
+              params: {
+                bookingId: currentBookingId,
+                result: 'FAILURE',
+                resetBooking: 'false', // Don't reset booking on failure
+              },
+            });
+          }}
+          onCancel={() => {
+            // Close the modal first
+            setShowMibPayment(false);
+            setCurrentBookingId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+
+            // Navigate to agent payment success page with cancelled status
+            // Don't reset booking state so user can retry payment
+            router.push({
+              pathname: '/(app)/(agent)/payment-success',
+              params: {
+                bookingId: currentBookingId,
+                result: 'CANCELLED',
+                resetBooking: 'false', // Don't reset booking on cancellation
+              },
+            });
+          }}
+        />
+      )}
     </ScrollView>
   );
 }

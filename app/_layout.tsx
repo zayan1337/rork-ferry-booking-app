@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../store/authStore';
 import * as Linking from 'expo-linking';
 import SafeView from '../components/SafeView';
+import { AuthLoadingScreen } from '@/components';
 // import CustomSplashScreen from '../components/SplashScreen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -111,9 +112,9 @@ function RootLayoutNav() {
   }, []);
 
   // Show loading screen while checking authentication or rehydrating
-  // if (!isRehydrated || !authChecked || isLoading) {
-  //   return <AuthLoadingScreen message='Initializing app...' />;
-  // }
+  if (!isRehydrated || !authChecked || isLoading) {
+    return <AuthLoadingScreen message='Initializing app...' />;
+  }
 
   // Determine if user has valid profile after authentication
   const hasValidProfile =

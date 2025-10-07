@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useAgentStore } from '@/store/agent/agentStore';
 import { useClientForm } from '@/hooks/useClientForm';
 import { useExistingUserSearch } from '@/hooks/useExistingUserSearch';
@@ -94,7 +94,7 @@ export default function AddClientScreen() {
             text: 'Create Booking',
             onPress: () => {
               router.replace({
-                pathname: '../booking/new',
+                pathname: '../agent-booking/new',
                 params: { clientId: newClientId },
               });
             },
@@ -125,7 +125,7 @@ export default function AddClientScreen() {
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
-      <Stack.Screen options={{ title: 'Add New Client' }} />
+      {/* <Stack.Screen options={{ title: 'Add New Client' }} /> */}
 
       <Card variant='elevated' style={styles.formCard}>
         <ClientFormHeader

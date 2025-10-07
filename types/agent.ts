@@ -78,7 +78,7 @@ export interface AgentCurrentBooking {
   discountRate: number;
 
   // Payment
-  paymentMethod: 'credit' | 'gateway' | 'free';
+  paymentMethod: 'credit' | 'gateway' | 'free' | 'mib';
 }
 
 export interface AgentBookingState {
@@ -178,7 +178,7 @@ export interface Booking {
   status: 'confirmed' | 'completed' | 'cancelled' | 'pending' | 'modified';
   bookingDate: string;
   updatedAt?: string;
-  paymentMethod: 'credit' | 'gateway' | 'free';
+  paymentMethod: 'credit' | 'gateway' | 'free' | 'mib';
   payment?: {
     method: string;
     status: string;

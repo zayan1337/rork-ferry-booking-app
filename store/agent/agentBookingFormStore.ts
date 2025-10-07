@@ -12,6 +12,10 @@ import {
   calculateDiscountedFare,
 } from '@/utils/bookingUtils';
 import { parseBookingQrCode } from '@/utils/qrCodeUtils';
+import {
+  confirmSeatReservations,
+  cleanupUserTempReservations,
+} from '@/utils/realtimeSeatReservation';
 import { useAgentStore } from './agentStore';
 
 /**
@@ -143,7 +147,7 @@ interface AgentBookingFormActions {
 
   // Pricing
   calculateFares: () => void;
-  setPaymentMethod: (method: 'credit' | 'gateway' | 'free') => void;
+  setPaymentMethod: (method: 'credit' | 'gateway' | 'free' | 'mib') => void;
 
   // Booking operations
   validateCurrentStep: () => string | null;
@@ -976,6 +980,16 @@ export const useAgentBookingFormStore = create<
     try {
       set({ isLoading: true, error: null });
 
+      // Add user authentication like customer booking
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error('User must be authenticated to create booking');
+      }
+
       const { currentBooking, agent } = get();
 
       // Ensure agent data is properly loaded
@@ -1042,6 +1056,7 @@ export const useAgentBookingFormStore = create<
       const commissionAmount = originalFare - discountedFare;
 
       // Create the booking WITHOUT QR code data first
+      // Set status based on payment method - MIB payments start as pending_payment
       const bookingData = {
         user_id: bookingUserId, // Always agent ID for permissions
         agent_id: validAgent.id,
@@ -1049,7 +1064,10 @@ export const useAgentBookingFormStore = create<
         trip_id: currentBooking.trip!.id,
         total_fare: discountedFare, // Store discounted fare in database
         payment_method_type: currentBooking.paymentMethod,
-        status: 'confirmed' as const,
+        status:
+          currentBooking.paymentMethod === 'mib'
+            ? ('pending_payment' as const)
+            : ('confirmed' as const),
         is_round_trip: currentBooking.tripType === 'round_trip',
         return_booking_id: null, // We'll handle return trips separately if needed
       };
@@ -1123,24 +1141,66 @@ export const useAgentBookingFormStore = create<
         );
       }
 
-      // Reserve seats
-      const seatReservations = currentBooking.selectedSeats.map(seat => ({
-        trip_id: currentBooking.trip!.id,
-        seat_id: seat.id,
-        booking_id: booking.id,
-        is_available: false,
-        is_reserved: false,
-      }));
+      // Reserve seats using the same utility as customer booking
+      const seatIds = currentBooking.selectedSeats.map(seat => seat.id);
+      const seatConfirmation = await confirmSeatReservations(
+        currentBooking.trip!.id,
+        seatIds,
+        booking.id
+      );
 
-      const { error: seatError } = await supabase
-        .from('seat_reservations')
-        .upsert(seatReservations, { onConflict: 'trip_id,seat_id' });
-
-      if (seatError) {
+      if (
+        !seatConfirmation.success ||
+        seatConfirmation.failed_seats.length > 0
+      ) {
         // Clean up booking and passengers if seat reservation fails
         await supabase.from('passengers').delete().eq('booking_id', booking.id);
         await supabase.from('bookings').delete().eq('id', booking.id);
-        throw new Error(`Failed to reserve seats: ${seatError.message}`);
+        throw new Error(
+          `Failed to reserve seats: ${seatConfirmation.failed_seats.join(', ')}`
+        );
+      }
+
+      // Create payment record for all payment methods (like customer booking)
+      if (currentBooking.paymentMethod === 'mib') {
+        // For MIB, create pending payment record
+        const { error: paymentError } = await supabase.from('payments').insert({
+          booking_id: booking.id,
+          payment_method: 'mib',
+          amount: discountedFare,
+          currency: 'MVR',
+          status: 'pending', // Start with pending for MIB
+        });
+
+        if (paymentError) {
+          console.error('Failed to create MIB payment record:', paymentError);
+          // Don't throw error - booking was created successfully
+        }
+      } else {
+        // For other payment methods (credit/free), create completed payment record
+        const { error: paymentError } = await supabase.from('payments').insert({
+          booking_id: booking.id,
+          payment_method: currentBooking.paymentMethod,
+          amount: discountedFare,
+          currency: 'MVR',
+          status: 'completed', // Mark as completed for immediate confirmation
+        });
+
+        if (paymentError) {
+          console.error('Failed to create payment record:', paymentError);
+          // Don't throw error - booking was created successfully
+        }
+
+        // Update booking status to confirmed for non-MIB payments
+        const { error: statusUpdateError } = await supabase
+          .from('bookings')
+          .update({ status: 'confirmed' })
+          .eq('id', booking.id);
+
+        if (statusUpdateError) {
+          console.error('Failed to update booking status:', statusUpdateError);
+          // Don't throw error - booking was created successfully
+        }
       }
 
       // Handle credit payment
@@ -1259,7 +1319,10 @@ export const useAgentBookingFormStore = create<
           trip_id: currentBooking.returnTrip.id,
           total_fare: returnDiscountedFare,
           payment_method_type: currentBooking.paymentMethod,
-          status: 'confirmed' as const,
+          status:
+            currentBooking.paymentMethod === 'mib'
+              ? ('pending_payment' as const)
+              : ('confirmed' as const),
           is_round_trip: true,
           return_booking_id: null,
         };
@@ -1330,22 +1393,80 @@ export const useAgentBookingFormStore = create<
 
         await supabase.from('passengers').insert(returnPassengerInserts);
 
-        // Reserve return seats
-        const returnSeatReservations = currentBooking.returnSelectedSeats.map(
-          seat => ({
-            trip_id: currentBooking.returnTrip!.id,
-            seat_id: seat.id,
-            booking_id: returnBooking.id,
-            is_available: false,
-            is_reserved: false,
-          })
+        // Reserve return seats using the same utility as customer booking
+        const returnSeatIds = currentBooking.returnSelectedSeats.map(
+          seat => seat.id
+        );
+        const returnSeatConfirmation = await confirmSeatReservations(
+          currentBooking.returnTrip!.id,
+          returnSeatIds,
+          returnBooking.id
         );
 
-        await supabase
-          .from('seat_reservations')
-          .upsert(returnSeatReservations, { onConflict: 'trip_id,seat_id' });
+        if (
+          !returnSeatConfirmation.success ||
+          returnSeatConfirmation.failed_seats.length > 0
+        ) {
+          console.error(
+            'Failed to reserve return seats:',
+            returnSeatConfirmation.failed_seats
+          );
+          // Don't fail the main booking for return seat issues, but log the error
+        }
 
-        // Handle payment for return trip (same logic as departure)
+        // Create payment record for return trip (all payment methods like customer booking)
+        if (currentBooking.paymentMethod === 'mib') {
+          // For MIB, create pending payment record for return trip
+          const { error: returnPaymentError } = await supabase
+            .from('payments')
+            .insert({
+              booking_id: returnBooking.id,
+              payment_method: 'mib',
+              amount: returnDiscountedFare,
+              currency: 'MVR',
+              status: 'pending', // Start with pending for MIB
+            });
+
+          if (returnPaymentError) {
+            console.error(
+              'Failed to create MIB payment record for return trip:',
+              returnPaymentError
+            );
+            // Don't throw error - booking was created successfully
+          }
+        } else {
+          // For other payment methods (credit/free), create completed payment record
+          const { error: returnPaymentError } = await supabase
+            .from('payments')
+            .insert({
+              booking_id: returnBooking.id,
+              payment_method: currentBooking.paymentMethod,
+              amount: returnDiscountedFare,
+              currency: 'MVR',
+              status: 'completed', // Mark as completed for immediate confirmation
+            });
+
+          if (returnPaymentError) {
+            console.error(
+              'Failed to create return payment record:',
+              returnPaymentError
+            );
+          }
+
+          // Update return booking status to confirmed for non-MIB payments
+          const { error: returnStatusUpdateError } = await supabase
+            .from('bookings')
+            .update({ status: 'confirmed' })
+            .eq('id', returnBooking.id);
+
+          if (returnStatusUpdateError) {
+            console.error(
+              'Failed to update return booking status:',
+              returnStatusUpdateError
+            );
+          }
+        }
+
         if (currentBooking.paymentMethod === 'credit') {
           const returnFare =
             currentBooking.returnSelectedSeats.length *
@@ -1406,8 +1527,34 @@ export const useAgentBookingFormStore = create<
       }
 
       set({ isLoading: false });
+
+      // For MIB payments, return additional data needed for payment processing
+      if (currentBooking.paymentMethod === 'mib') {
+        return {
+          bookingId: booking.id,
+          returnBookingId,
+          booking_number: booking.booking_number,
+        };
+      }
+
       return { bookingId: booking.id, returnBookingId };
     } catch (error: any) {
+      // Clean up any temporary seat reservations if booking fails (like customer booking)
+      try {
+        const { currentBooking: booking } = get();
+        if (booking.trip?.id) {
+          await cleanupUserTempReservations(booking.trip.id);
+        }
+        if (booking.returnTrip?.id) {
+          await cleanupUserTempReservations(booking.returnTrip.id);
+        }
+      } catch (cleanupError) {
+        console.error(
+          'Failed to cleanup temporary reservations:',
+          cleanupError
+        );
+      }
+
       handleError(error, 'Failed to create booking', set);
       throw error;
     }

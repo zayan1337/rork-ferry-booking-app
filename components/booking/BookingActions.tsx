@@ -12,6 +12,9 @@ interface BookingActionsProps {
   loading?: boolean;
   onShare: () => void;
   onUpdateStatus?: (status: string) => void;
+  paymentStatus?: string;
+  isModifiable?: boolean;
+  isCancellable?: boolean;
 }
 
 const BookingActions: React.FC<BookingActionsProps> = ({
@@ -23,15 +26,26 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   loading = false,
   onShare,
   onUpdateStatus,
+  paymentStatus,
+  isModifiable: propIsModifiable,
+  isCancellable: propIsCancellable,
 }) => {
   const router = useRouter();
 
   const isModifiable = () => {
+    // Use prop value if provided, otherwise fallback to status check
+    if (propIsModifiable !== undefined) {
+      return propIsModifiable;
+    }
     const allowedStatuses = ['confirmed'];
     return allowedStatuses.includes(status);
   };
 
   const isCancellable = () => {
+    // Use prop value if provided, otherwise fallback to status check
+    if (propIsCancellable !== undefined) {
+      return propIsCancellable;
+    }
     const allowedStatuses = ['confirmed'];
     return allowedStatuses.includes(status);
   };
@@ -144,13 +158,16 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 
   return (
     <View style={styles.actionButtons}>
-      <Button
-        title='Share Ticket'
-        onPress={onShare}
-        variant='outline'
-        style={styles.actionButton}
-        textStyle={styles.actionButtonText}
-      />
+      {/* Only show Share Ticket button for confirmed bookings with completed payment */}
+      {status === 'confirmed' && paymentStatus === 'completed' && (
+        <Button
+          title='Share Ticket'
+          onPress={onShare}
+          variant='outline'
+          style={styles.actionButton}
+          textStyle={styles.actionButtonText}
+        />
+      )}
 
       {isModifiable() && (
         <Button

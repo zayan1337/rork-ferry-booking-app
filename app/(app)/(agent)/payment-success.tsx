@@ -16,10 +16,8 @@ import {
   cancelModificationBookingOnPaymentCancellation,
   completeModificationAfterPayment,
 } from '@/utils/paymentUtils';
-import { useBookingStore } from '@/store';
 import { useAgentBookingFormStore } from '@/store/agent/agentBookingFormStore';
 import { useAgentStore } from '@/store/agent/agentStore';
-import { BOOKING_STEPS } from '@/constants/customer';
 
 type PaymentStatus =
   | 'success'
@@ -38,7 +36,7 @@ interface PaymentResult {
   sessionId?: string;
 }
 
-export default function PaymentSuccessScreen() {
+export default function AgentPaymentSuccessScreen() {
   const params = useLocalSearchParams();
   const [status, setStatus] = useState<PaymentStatus>('processing');
   const [loading, setLoading] = useState(true);
@@ -47,11 +45,7 @@ export default function PaymentSuccessScreen() {
     null
   );
 
-  // Get booking store actions for resetting state
-  const { resetBooking: resetCurrentBooking, setCurrentStep } =
-    useBookingStore();
-
-  // Import agent stores conditionally
+  // Get agent booking store actions for resetting state
   const { reset: resetAgentBooking, setCurrentStep: setAgentCurrentStep } =
     useAgentBookingFormStore();
   const { refreshBookingsData: refreshAgentBookingsData } = useAgentStore();
@@ -62,7 +56,6 @@ export default function PaymentSuccessScreen() {
     (params['session.id'] as string) || (params.sessionId as string);
   const shouldResetBooking = params.resetBooking as string;
   const isModification = params.isModification as string;
-  const isAgent = params.isAgent as string;
 
   useEffect(() => {
     handlePaymentResult();
@@ -129,8 +122,15 @@ export default function PaymentSuccessScreen() {
 
             // Reset booking state only on successful payment
             if (shouldResetBooking === 'true') {
-              resetCurrentBooking();
-              setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+              resetAgentBooking();
+              setAgentCurrentStep(1);
+            }
+
+            // Refresh agent bookings data
+            try {
+              await refreshAgentBookingsData();
+            } catch (refreshError) {
+              console.warn('Failed to refresh bookings data:', refreshError);
             }
           } else if (result === 'CANCELLED') {
             setStatus('cancelled');
@@ -138,7 +138,6 @@ export default function PaymentSuccessScreen() {
             try {
               if (isModification === 'true') {
                 // For modifications, we need to get the original booking ID
-                // We'll extract it from the modification record
                 const { data: modificationData } = await supabase
                   .from('modifications')
                   .select('old_booking_id')
@@ -149,19 +148,19 @@ export default function PaymentSuccessScreen() {
                   await cancelModificationBookingOnPaymentCancellation(
                     bookingId,
                     modificationData.old_booking_id,
-                    'Modification payment cancelled by user'
+                    'Agent booking modification payment cancelled by user'
                   );
                 } else {
                   // Fallback to regular cancellation
                   await cancelBookingOnPaymentCancellation(
                     bookingId,
-                    'Payment cancelled by user'
+                    'Agent booking payment cancelled by user'
                   );
                 }
               } else {
                 await cancelBookingOnPaymentCancellation(
                   bookingId,
-                  'Payment cancelled by user'
+                  'Agent booking payment cancelled by user'
                 );
               }
             } catch (cancelError) {
@@ -195,19 +194,19 @@ export default function PaymentSuccessScreen() {
                   await cancelModificationBookingOnPaymentFailure(
                     bookingId,
                     modificationData.old_booking_id,
-                    'Modification payment failed'
+                    'Agent booking modification payment failed'
                   );
                 } else {
                   // Fallback to regular cancellation
                   await cancelBookingOnPaymentFailure(
                     bookingId,
-                    'Payment failed'
+                    'Agent booking payment failed'
                   );
                 }
               } else {
                 await cancelBookingOnPaymentFailure(
                   bookingId,
-                  'Payment failed'
+                  'Agent booking payment failed'
                 );
               }
             } catch (cancelError) {
@@ -270,15 +269,22 @@ export default function PaymentSuccessScreen() {
 
             // Reset booking state only on successful payment
             if (shouldResetBooking === 'true') {
-              resetCurrentBooking();
-              setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+              resetAgentBooking();
+              setAgentCurrentStep(1);
+            }
+
+            // Refresh agent bookings data
+            try {
+              await refreshAgentBookingsData();
+            } catch (refreshError) {
+              console.warn('Failed to refresh bookings data:', refreshError);
             }
           } else if (result === 'CANCELLED') {
             // Cancel booking and release seats when payment is cancelled
             try {
               await cancelBookingOnPaymentCancellation(
                 bookingId,
-                'Payment cancelled by user'
+                'Agent booking payment cancelled by user'
               );
             } catch (cancelError) {
               console.warn(
@@ -318,7 +324,10 @@ export default function PaymentSuccessScreen() {
           } else if (result === 'FAILURE') {
             // Cancel booking and release seats when payment fails
             try {
-              await cancelBookingOnPaymentFailure(bookingId, 'Payment failed');
+              await cancelBookingOnPaymentFailure(
+                bookingId,
+                'Agent booking payment failed'
+              );
             } catch (cancelError) {
               console.warn(
                 'Failed to cancel booking on payment failure:',
@@ -417,8 +426,15 @@ export default function PaymentSuccessScreen() {
 
           // Reset booking state only on successful payment
           if (shouldResetBooking === 'true') {
-            resetCurrentBooking();
-            setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+            resetAgentBooking();
+            setAgentCurrentStep(1);
+          }
+
+          // Refresh agent bookings data
+          try {
+            await refreshAgentBookingsData();
+          } catch (refreshError) {
+            console.warn('Failed to refresh bookings data:', refreshError);
           }
         } else if (resultData.paymentStatus === 'failed') {
           setStatus('failed');
@@ -476,25 +492,15 @@ export default function PaymentSuccessScreen() {
   const getStatusMessage = () => {
     switch (status) {
       case 'success':
-        return isAgent === 'true'
-          ? 'The payment has been processed successfully. The booking is now confirmed and the client will receive a confirmation email shortly.'
-          : 'Your payment has been processed successfully. Your booking is now confirmed and you will receive a confirmation email shortly.';
+        return 'The payment has been processed successfully. The booking is now confirmed and the client will receive a confirmation email shortly.';
       case 'failed':
-        return isAgent === 'true'
-          ? 'The payment could not be processed. Please try again or contact support if the problem persists.'
-          : 'Your payment could not be processed. Please try again or contact support if the problem persists.';
+        return 'The payment could not be processed. Please try again or contact support if the problem persists.';
       case 'cancelled':
-        return isAgent === 'true'
-          ? 'The payment was cancelled. No charges have been made and the booking has been cancelled.'
-          : 'Your payment was cancelled. No charges have been made to your account.';
+        return 'The payment was cancelled. No charges have been made and the booking has been cancelled.';
       case 'pending':
-        return isAgent === 'true'
-          ? 'The payment is being processed. Please wait while we confirm the payment.'
-          : 'Your payment is being processed. Please wait while we confirm your payment.';
+        return 'The payment is being processed. Please wait while we confirm the payment.';
       default:
-        return isAgent === 'true'
-          ? 'We are processing the payment. Please wait...'
-          : 'We are processing your payment. Please wait...';
+        return 'We are processing the payment. Please wait...';
     }
   };
 
@@ -502,53 +508,21 @@ export default function PaymentSuccessScreen() {
     // Navigate back to booking page to retry payment
     // Set the booking step to payment step if booking state wasn't reset
     if (shouldResetBooking !== 'true') {
-      if (isAgent === 'true') {
-        setAgentCurrentStep(6); // Payment step for agent booking
-      } else {
-        setCurrentStep(BOOKING_STEPS.PAYMENT);
-      }
+      setAgentCurrentStep(6); // Payment step for agent booking
     }
     router.back();
   };
 
   const handleViewBookings = () => {
-    if (isAgent === 'true') {
-      router.push('/(app)/(agent)/(tabs)/bookings');
-    } else {
-      router.push('/(app)/(customer)/(tabs)/bookings');
-    }
-  };
-
-  const handleGoHome = () => {
-    if (isAgent === 'true') {
-      router.push('/(app)/(agent)/(tabs)');
-    } else {
-      router.push('/(app)/(customer)/(tabs)');
-    }
+    router.push('/(app)/(agent)/(tabs)/bookings');
   };
 
   const handleNewBooking = () => {
-    if (isAgent === 'true') {
-      router.push('/(app)/(agent)/booking/new');
-    } else {
-      router.push('/(app)/(customer)/(tabs)/book');
-    }
+    router.push('/(app)/(agent)/agent-booking/new');
   };
 
-  const resetBookingState = async () => {
-    if (isAgent === 'true') {
-      resetAgentBooking();
-      setAgentCurrentStep(1);
-      // Refresh agent bookings data
-      try {
-        await refreshAgentBookingsData();
-      } catch (refreshError) {
-        console.warn('Failed to refresh agent bookings data:', refreshError);
-      }
-    } else {
-      resetCurrentBooking();
-      setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
-    }
+  const handleGoToDashboard = () => {
+    router.push('/(app)/(agent)/(tabs)');
   };
 
   const handleCheckStatus = async () => {
@@ -588,8 +562,15 @@ export default function PaymentSuccessScreen() {
 
         // Reset booking state only on successful payment
         if (shouldResetBooking === 'true') {
-          resetCurrentBooking();
-          setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+          resetAgentBooking();
+          setAgentCurrentStep(1);
+        }
+
+        // Refresh agent bookings data
+        try {
+          await refreshAgentBookingsData();
+        } catch (refreshError) {
+          console.warn('Failed to refresh bookings data:', refreshError);
         }
       } else if (resultData.paymentStatus === 'failed') {
         setStatus('failed');
@@ -652,6 +633,14 @@ export default function PaymentSuccessScreen() {
                 {paymentResult.bookingStatus}
               </Text>
             </View>
+            {/* {paymentResult.bookingId && (
+              <View style={styles.resultRow}>
+                <Text style={styles.resultLabel}>Booking ID:</Text>
+                <Text style={styles.resultValue}>
+                  {paymentResult.bookingId}
+                </Text>
+              </View>
+            )} */}
           </View>
         )}
 
@@ -659,23 +648,19 @@ export default function PaymentSuccessScreen() {
           {status === 'success' && (
             <>
               <Button
-                title={
-                  isAgent === 'true' ? 'View Bookings' : 'View My Bookings'
-                }
+                title='View Bookings'
                 onPress={handleViewBookings}
                 style={styles.primaryButton}
               />
-              {isAgent === 'true' && (
-                <Button
-                  title='New Booking'
-                  onPress={handleNewBooking}
-                  variant='outline'
-                  style={styles.secondaryButton}
-                />
-              )}
               <Button
-                title={isAgent === 'true' ? 'Dashboard' : 'Go Home'}
-                onPress={handleGoHome}
+                title='New Booking'
+                onPress={handleNewBooking}
+                variant='outline'
+                style={styles.secondaryButton}
+              />
+              <Button
+                title='Dashboard'
+                onPress={handleGoToDashboard}
                 variant='outline'
                 style={styles.secondaryButton}
               />
@@ -689,17 +674,15 @@ export default function PaymentSuccessScreen() {
                 onPress={handleRetryPayment}
                 style={styles.primaryButton}
               />
-              {isAgent === 'true' && (
-                <Button
-                  title='View Bookings'
-                  onPress={handleViewBookings}
-                  variant='outline'
-                  style={styles.secondaryButton}
-                />
-              )}
               <Button
-                title={isAgent === 'true' ? 'Dashboard' : 'Go Home'}
-                onPress={handleGoHome}
+                title='View Bookings'
+                onPress={handleViewBookings}
+                variant='outline'
+                style={styles.secondaryButton}
+              />
+              <Button
+                title='Dashboard'
+                onPress={handleGoToDashboard}
                 variant='outline'
                 style={styles.secondaryButton}
               />
@@ -713,17 +696,15 @@ export default function PaymentSuccessScreen() {
                 onPress={handleRetryPayment}
                 style={styles.primaryButton}
               />
-              {isAgent === 'true' && (
-                <Button
-                  title='New Booking'
-                  onPress={handleNewBooking}
-                  variant='outline'
-                  style={styles.secondaryButton}
-                />
-              )}
               <Button
-                title={isAgent === 'true' ? 'Dashboard' : 'Go Home'}
-                onPress={handleGoHome}
+                title='New Booking'
+                onPress={handleNewBooking}
+                variant='outline'
+                style={styles.secondaryButton}
+              />
+              <Button
+                title='Dashboard'
+                onPress={handleGoToDashboard}
                 variant='outline'
                 style={styles.secondaryButton}
               />
@@ -738,8 +719,8 @@ export default function PaymentSuccessScreen() {
                 style={styles.primaryButton}
               />
               <Button
-                title={isAgent === 'true' ? 'Dashboard' : 'Go Home'}
-                onPress={handleGoHome}
+                title='Dashboard'
+                onPress={handleGoToDashboard}
                 variant='outline'
                 style={styles.secondaryButton}
               />

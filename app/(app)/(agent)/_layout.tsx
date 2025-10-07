@@ -17,14 +17,14 @@ export default function AgentLayout() {
     >
       <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
       <Stack.Screen
-        name='booking/[id]'
+        name='agent-booking/[id]'
         options={{
           title: 'Booking Details',
           presentation: 'card',
         }}
       />
       <Stack.Screen
-        name='booking/new'
+        name='agent-booking/new'
         options={{
           title: 'New Booking',
           presentation: 'card',
@@ -49,6 +49,21 @@ export default function AgentLayout() {
         options={{
           title: 'Client Details',
           presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name='client/add'
+        options={{
+          title: 'Add Client',
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name='payment-success'
+        options={{
+          title: 'Payment Status',
+          presentation: 'card',
+          headerBackVisible: false,
         }}
       />
     </Stack>
