@@ -36,6 +36,7 @@ export { useTripForm } from './useTripForm';
 export { useTripManagement } from './useTripManagement';
 export { useRouteManagement } from './useRouteManagement';
 export { useVesselManagement } from './useVesselManagement';
+export { useOperationTeamManagement } from './useOperationTeamManagement';
 
 // User Management Hooks
 export { useUserForm } from './useUserForm';

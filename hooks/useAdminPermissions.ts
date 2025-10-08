@@ -203,6 +203,12 @@ export const useAdminPermissions = () => {
   const canManageVessels = () =>
     canCreateVessels() || canUpdateVessels() || canDeleteVessels();
 
+  // Operation Team permissions (uses operations permissions)
+  const canViewOperations = () =>
+    canViewRoutes() || canViewTrips() || canViewVessels();
+  const canManageOperations = () =>
+    canManageRoutes() || canManageTrips() || canManageVessels();
+
   // Content Management permissions (Islands, Zones, FAQ, Content)
   const canViewIslands = () =>
     hasPermissionCheck(PERMISSION_RESOURCES.ISLANDS, PERMISSION_ACTIONS.VIEW);
@@ -500,6 +506,9 @@ export const useAdminPermissions = () => {
     canUpdateVessels,
     canDeleteVessels,
     canManageVessels,
+
+    canViewOperations,
+    canManageOperations,
 
     // Content Management
     canViewIslands,

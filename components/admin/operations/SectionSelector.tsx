@@ -4,6 +4,7 @@ import {
   Ship,
   Route as RouteIcon,
   Activity,
+  Users,
 } from 'lucide-react-native';
 import { TabSelector } from '@/components/admin/common';
 import { OperationsSection } from '@/types/admin/dashboard';
@@ -14,6 +15,7 @@ interface SectionSelectorProps {
   canViewRoutes: boolean;
   canViewTrips: boolean;
   canViewVessels: boolean;
+  canViewOperations: boolean;
 }
 
 export default function SectionSelector({
@@ -22,6 +24,7 @@ export default function SectionSelector({
   canViewRoutes,
   canViewTrips,
   canViewVessels,
+  canViewOperations,
 }: SectionSelectorProps) {
   const sections = [
     {
@@ -42,6 +45,12 @@ export default function SectionSelector({
       label: 'Schedule',
       icon: Activity,
       permission: canViewTrips,
+    },
+    {
+      key: 'operation-team',
+      label: 'Operation Team',
+      icon: Users,
+      permission: canViewOperations,
     },
   ].filter(section => section.permission);
 

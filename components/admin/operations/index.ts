@@ -7,6 +7,7 @@ export { default as RoutesTab } from './RoutesTab';
 export { default as TripsTab } from './TripsTab';
 export { default as VesselsTab } from './VesselsTab';
 export { default as ScheduleTab } from './ScheduleTab';
+export { default as OperationTeamTab } from './OperationTeamTab';
 
 // FAQ Components
 export { default as FAQForm } from './FAQForm';

@@ -24,12 +24,14 @@ import {
   TripsTab,
   VesselsTab,
   ScheduleTab,
+  OperationTeamTab,
 } from '@/components/admin/operations';
 
 type Route = AdminManagement.Route;
 
 export default function OperationsScreen() {
-  const { canViewRoutes, canViewTrips, canViewVessels } = useAdminPermissions();
+  const { canViewRoutes, canViewTrips, canViewVessels, canViewOperations } =
+    useAdminPermissions();
 
   // UPDATED: Use new route management hook for routes
   const {
@@ -107,7 +109,7 @@ export default function OperationsScreen() {
   }, [allRoutes, loadRoutes, safeVessels, loadVessels, allTrips, loadTrips]);
 
   const [activeSection, setActiveSection] = useState<
-    'routes' | 'trips' | 'vessels' | 'schedule'
+    'routes' | 'trips' | 'vessels' | 'schedule' | 'operation-team'
   >('routes');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -155,6 +157,10 @@ export default function OperationsScreen() {
         );
       case 'schedule':
         return <ScheduleTab isActive={activeSection === 'schedule'} />;
+      case 'operation-team':
+        return (
+          <OperationTeamTab isActive={activeSection === 'operation-team'} />
+        );
       default:
         return (
           <RoutesTab
@@ -209,6 +215,7 @@ export default function OperationsScreen() {
         canViewRoutes={canViewRoutes()}
         canViewTrips={canViewTrips()}
         canViewVessels={canViewVessels()}
+        canViewOperations={canViewOperations()}
       />
 
       {/* Content */}

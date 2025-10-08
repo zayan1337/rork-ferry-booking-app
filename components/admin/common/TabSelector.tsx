@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 
 export interface TabOption {
@@ -60,7 +60,12 @@ export default function TabSelector({
   };
 
   return (
-    <View style={[getTabStyle(), style]}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={getTabStyle()}
+      style={[styles.scrollView, style]}
+    >
       {(options || []).map(option => {
         const isActive = activeTab === option.key;
         const IconComponent = option.icon;
@@ -85,11 +90,15 @@ export default function TabSelector({
           </TouchableOpacity>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollView: {
+    flexGrow: 0,
+  },
+
   // Pills variant (like FilterTabs)
   pillsContainer: {
     flexDirection: 'row',
@@ -104,9 +113,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   pillTab: {
-    flex: 1,
+    minWidth: 80,
     paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
@@ -128,12 +137,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   cardTab: {
-    flex: 1,
+    minWidth: 100,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
     gap: 6,
   },
@@ -149,9 +158,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   underlineTab: {
-    flex: 1,
+    minWidth: 80,
     paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',

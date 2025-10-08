@@ -1,5 +1,10 @@
 // Admin Dashboard Types
-export type OperationsSection = 'routes' | 'trips' | 'vessels' | 'schedule';
+export type OperationsSection =
+  | 'routes'
+  | 'trips'
+  | 'vessels'
+  | 'schedule'
+  | 'operation-team';
 
 export interface OperationsStatsData {
   activeRoutes: number;
