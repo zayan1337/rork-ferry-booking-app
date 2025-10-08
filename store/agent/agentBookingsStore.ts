@@ -821,6 +821,7 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
           .eq('booking_id', bookingId);
 
         // Create new seat reservations
+        // IMPORTANT: Clear temporary reservation fields to prevent "seat unavailable" issues
         const seatReservations = modificationData.selectedSeats.map(
           (seat: any) => ({
             trip_id: modificationData.newTripId || currentBooking.trip_id,
@@ -828,6 +829,11 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
             booking_id: newBooking.id,
             is_available: false,
             is_reserved: false,
+            // Clear temporary reservation fields
+            user_id: null,
+            session_id: null,
+            temp_reservation_expiry: null,
+            last_activity: new Date().toISOString(),
           })
         );
 

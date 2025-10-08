@@ -138,6 +138,7 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
         await supabase.from('passengers').insert(departurePassengerInserts);
 
         // Update seat reservations for departure
+        // IMPORTANT: Clear temporary reservation fields to prevent "seat unavailable" issues
         await supabase
           .from('seat_reservations')
           .update({
@@ -145,6 +146,11 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
             booking_id: departureBooking.id,
             is_reserved: false,
             reservation_expiry: null,
+            // Clear temporary reservation fields
+            user_id: null,
+            session_id: null,
+            temp_reservation_expiry: null,
+            last_activity: new Date().toISOString(),
           })
           .eq('trip_id', currentBooking.trip.id)
           .in(
@@ -237,6 +243,7 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
           await supabase.from('passengers').insert(returnPassengerInserts);
 
           // Update seat reservations for return
+          // IMPORTANT: Clear temporary reservation fields to prevent "seat unavailable" issues
           await supabase
             .from('seat_reservations')
             .update({
@@ -244,6 +251,11 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
               booking_id: returnBooking.id,
               is_reserved: false,
               reservation_expiry: null,
+              // Clear temporary reservation fields
+              user_id: null,
+              session_id: null,
+              temp_reservation_expiry: null,
+              last_activity: new Date().toISOString(),
             })
             .eq('trip_id', currentBooking.returnTrip.id)
             .in(

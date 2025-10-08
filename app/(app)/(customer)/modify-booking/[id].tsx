@@ -166,8 +166,15 @@ export default function ModifyBookingScreen() {
   }, [selectedTrip?.id, refreshAvailableSeatsSilently]);
 
   // Monitor seat availability changes and notify user
+  // Skip initial check to avoid false alerts for currently booked seats
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+
   useEffect(() => {
-    if (selectedSeats.length > 0 && availableSeats.length > 0) {
+    if (
+      selectedSeats.length > 0 &&
+      availableSeats.length > 0 &&
+      hasUserInteracted
+    ) {
       const checkSeatAvailability = () => {
         const unavailableSeats: string[] = [];
 
@@ -175,6 +182,9 @@ export default function ModifyBookingScreen() {
           const currentSeat = availableSeats.find(
             s => s.id === selectedSeat.id
           );
+
+          // Skip if seat belongs to current booking (has booking_id matching current booking)
+          // Only alert if seat is unavailable AND not reserved by current user
           if (
             currentSeat &&
             !currentSeat.isAvailable &&
@@ -204,13 +214,12 @@ export default function ModifyBookingScreen() {
         }
       };
 
-      // Check immediately and then periodically
-      checkSeatAvailability();
+      // Don't check immediately on first render, wait a bit
       const checkInterval = setInterval(checkSeatAvailability, 5000); // Check every 5 seconds
 
       return () => clearInterval(checkInterval);
     }
-  }, [selectedSeats, availableSeats]);
+  }, [selectedSeats, availableSeats, hasUserInteracted]);
 
   const scrollToInput = (inputKey: string) => {
     setTimeout(() => {
@@ -277,6 +286,9 @@ export default function ModifyBookingScreen() {
   useEffect(() => {
     const initializeSeatsForTrip = async () => {
       if (selectedTrip?.id) {
+        // Reset interaction flag when trip changes to prevent false alerts
+        setHasUserInteracted(false);
+
         try {
           // Use real-time seat status fetching
           await fetchRealtimeSeatStatus(selectedTrip.id, false);
@@ -344,6 +356,9 @@ export default function ModifyBookingScreen() {
   };
 
   const handleSeatToggle = async (seat: Seat) => {
+    // Mark that user has started interacting (enable availability monitoring)
+    setHasUserInteracted(true);
+
     // Check if seat is already being processed
     if (loadingSeats.has(seat.id)) {
       return;
@@ -534,6 +549,19 @@ export default function ModifyBookingScreen() {
         modificationData
       );
 
+      // Cleanup temporary seat reservations after modification is processed
+      if (selectedTrip?.id) {
+        try {
+          await cleanupUserTempReservations(selectedTrip.id);
+          console.log('[MODIFY] Cleaned up temporary seat reservations');
+        } catch (cleanupError) {
+          console.warn(
+            '[MODIFY] Failed to cleanup temp reservations (non-critical):',
+            cleanupError
+          );
+        }
+      }
+
       if (fareDifference > 0) {
         // Additional payment required
         if (selectedPaymentMethod === 'mib') {
@@ -578,11 +606,28 @@ export default function ModifyBookingScreen() {
           );
         }
       } else if (fareDifference < 0) {
-        // Refund scenario - refund has been automatically processed
-        const refundMessage =
-          booking.payment?.method === 'mib'
-            ? `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} has been initiated via MIB and will be processed within 3-5 business days.`
-            : `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed within 72 hours.`;
+        // Refund scenario - check if refund was processed or needs manual handling
+        let refundMessage = '';
+
+        if (booking.payment?.method === 'mib') {
+          // For MIB payments, check if automatic refund was successful
+          // The modification result might include refund status
+          const refundStatus = (modificationResult as any)?.refundStatus;
+
+          if (refundStatus === 'completed') {
+            refundMessage = `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} has been processed via MIB and will be reflected in your account within 3-5 business days.`;
+          } else if (
+            refundStatus === 'pending_manual' ||
+            refundStatus === 'failed'
+          ) {
+            refundMessage = `Your booking has been modified successfully. However, the automatic refund of MVR ${Math.abs(fareDifference).toFixed(2)} could not be processed. Our team will manually process your refund within 3-5 business days. You will receive a confirmation email once completed.`;
+          } else {
+            // Default message if status is unclear
+            refundMessage = `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} has been initiated via MIB. If you do not see the refund within 5 business days, please contact our support team.`;
+          }
+        } else {
+          refundMessage = `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed within 72 hours.`;
+        }
 
         Alert.alert('Booking Modified', refundMessage, [
           {

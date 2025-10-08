@@ -425,6 +425,11 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
             booking_id: booking.id,
             is_available: false,
             is_reserved: false,
+            // Clear temporary reservation fields
+            user_id: null,
+            session_id: null,
+            temp_reservation_expiry: null,
+            last_activity: new Date().toISOString(),
           }));
 
         if (seatReservations.length > 0) {

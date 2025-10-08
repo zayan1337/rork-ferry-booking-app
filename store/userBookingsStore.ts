@@ -396,6 +396,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
     const { setError, setLoading, fetchUserBookings, bookings } = get();
     setLoading(true);
     setError(null);
+    let refundStatus: string | null = null; // Track refund status for user feedback
 
     try {
       // Find the original booking
@@ -443,6 +444,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
       // when payment is successful
 
       // 5. Update seat reservations for new booking
+      // IMPORTANT: Clear temporary reservation fields to prevent "seat unavailable" issues
       for (const seat of modifications.selectedSeats) {
         const { error: seatUpdateError } = await supabase
           .from('seat_reservations')
@@ -450,6 +452,11 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             booking_id: newBookingData.id,
             is_available: false,
             is_reserved: true,
+            // Clear temporary reservation fields
+            user_id: null,
+            session_id: null,
+            temp_reservation_expiry: null,
+            last_activity: new Date().toISOString(),
           })
           .eq('trip_id', modifications.newTripId)
           .eq('seat_id', seat.id);
@@ -523,37 +530,36 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
               `[MODIFY] Initiating MIB refund for original booking ${bookingId}, amount: ${refundAmount}`
             );
 
-            // Call MIB refund API through edge function
-            // IMPORTANT: Use original booking ID so the edge function uses the correct booking_number as order ID
-            const { data: refundData, error: refundError } =
-              await supabase.functions.invoke('mib-payment', {
-                body: {
-                  action: 'process-refund',
-                  bookingId: bookingId, // Use ORIGINAL booking ID for refund
-                  refundAmount,
-                  currency: 'MVR',
-                },
-              });
+            // Verify that payment record has necessary transaction info
+            const { data: paymentRecord, error: paymentCheckError } =
+              await supabase
+                .from('payments')
+                .select(
+                  'id, booking_id, payment_method, status, receipt_number, session_id'
+                )
+                .eq('booking_id', bookingId)
+                .eq('payment_method', 'mib')
+                .eq('status', 'completed')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-            if (refundError) {
-              console.error('[MODIFY] Refund API error:', refundError);
-              // Don't throw - continue with modification even if refund fails
-              // Admin can manually process refund later
-            }
-
-            if (refundData) {
-              console.log(
-                '[MODIFY] Refund API response:',
-                JSON.stringify(refundData, null, 2)
+            if (paymentCheckError) {
+              console.error(
+                '[MODIFY] Failed to verify payment record:',
+                paymentCheckError
+              );
+              throw new Error(
+                `Payment verification failed: ${paymentCheckError.message}`
               );
             }
 
-            if (!refundData?.success) {
+            if (!paymentRecord) {
               console.warn(
-                '[MODIFY] Refund processing failed:',
-                refundData?.error || 'Unknown error'
+                '[MODIFY] No completed MIB payment found for this booking'
               );
-              // Update modification record to indicate refund failure
+              refundStatus = 'pending_manual';
+              // Update modification record to indicate manual refund needed
               await supabase
                 .from('modifications')
                 .update({
@@ -561,31 +567,152 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
                     amount: refundAmount,
                     payment_method: originalBooking.payment.method,
                     bank_account_details: modifications.bankAccountDetails,
-                    status: 'failed',
+                    status: 'pending_manual',
+                    note: 'No completed MIB payment record found - requires manual processing',
                   },
                 })
                 .eq('new_booking_id', newBookingData.id);
+              // Don't return early - continue with modification
+            } else if (
+              !paymentRecord.receipt_number &&
+              !paymentRecord.session_id
+            ) {
+              console.warn('[MODIFY] Payment record missing transaction ID');
+              refundStatus = 'pending_manual';
+              // Update modification record to indicate manual refund needed
+              await supabase
+                .from('modifications')
+                .update({
+                  refund_details: {
+                    amount: refundAmount,
+                    payment_method: originalBooking.payment.method,
+                    bank_account_details: modifications.bankAccountDetails,
+                    status: 'pending_manual',
+                    note: 'Payment record missing transaction ID - requires manual processing',
+                  },
+                })
+                .eq('new_booking_id', newBookingData.id);
+              // Don't return early - continue with modification
             } else {
-              console.log('[MODIFY] Refund processed successfully');
-              // Update modification record to indicate refund success
-              await supabase
-                .from('modifications')
-                .update({
-                  refund_details: {
-                    amount: refundAmount,
-                    payment_method: originalBooking.payment.method,
-                    bank_account_details: modifications.bankAccountDetails,
-                    status: 'completed',
-                    processed_at: new Date().toISOString(),
+              console.log(
+                `[MODIFY] Payment record verified - Receipt: ${paymentRecord.receipt_number}, Session: ${paymentRecord.session_id}`
+              );
+
+              // Call MIB refund API through edge function
+              // IMPORTANT: Use original booking ID so the edge function uses the correct booking_number as order ID
+              const { data: refundData, error: refundError } =
+                await supabase.functions.invoke('mib-payment', {
+                  body: {
+                    action: 'process-refund',
+                    bookingId: bookingId, // Use ORIGINAL booking ID for refund
+                    refundAmount,
+                    currency: 'MVR',
                   },
-                })
-                .eq('new_booking_id', newBookingData.id);
+                });
+
+              if (refundError) {
+                console.error('[MODIFY] Refund API error:', refundError);
+                console.error(
+                  '[MODIFY] Error details:',
+                  JSON.stringify(refundError, null, 2)
+                );
+                refundStatus = 'failed';
+                // Update modification record to indicate refund failure
+                await supabase
+                  .from('modifications')
+                  .update({
+                    refund_details: {
+                      amount: refundAmount,
+                      payment_method: originalBooking.payment.method,
+                      bank_account_details: modifications.bankAccountDetails,
+                      status: 'failed',
+                      error: refundError.message || 'Refund API call failed',
+                    },
+                  })
+                  .eq('new_booking_id', newBookingData.id);
+                // Don't throw - continue with modification even if refund fails
+                // Admin can manually process refund later
+              } else {
+                if (refundData) {
+                  console.log(
+                    '[MODIFY] Refund API response:',
+                    JSON.stringify(refundData, null, 2)
+                  );
+                }
+
+                if (!refundData?.success) {
+                  console.warn(
+                    '[MODIFY] Refund processing failed:',
+                    refundData?.error || 'Unknown error'
+                  );
+                  refundStatus = 'failed';
+                  // Update modification record to indicate refund failure
+                  await supabase
+                    .from('modifications')
+                    .update({
+                      refund_details: {
+                        amount: refundAmount,
+                        payment_method: originalBooking.payment.method,
+                        bank_account_details: modifications.bankAccountDetails,
+                        status: 'failed',
+                        error: refundData?.error || 'Unknown error',
+                      },
+                    })
+                    .eq('new_booking_id', newBookingData.id);
+                } else {
+                  console.log('[MODIFY] Refund processed successfully');
+                  refundStatus = 'completed';
+                  // Update modification record to indicate refund success
+                  await supabase
+                    .from('modifications')
+                    .update({
+                      refund_details: {
+                        amount: refundAmount,
+                        payment_method: originalBooking.payment.method,
+                        bank_account_details: modifications.bankAccountDetails,
+                        status: 'completed',
+                        processed_at: new Date().toISOString(),
+                        transaction_id: refundData?.transactionId,
+                      },
+                    })
+                    .eq('new_booking_id', newBookingData.id);
+                }
+              }
             }
           } catch (refundException) {
             console.error(
               '[MODIFY] Exception during refund processing:',
               refundException
             );
+            console.error(
+              '[MODIFY] Exception stack:',
+              refundException instanceof Error ? refundException.stack : 'N/A'
+            );
+            refundStatus = 'failed';
+            // Update modification record to indicate exception
+            try {
+              await supabase
+                .from('modifications')
+                .update({
+                  refund_details: {
+                    amount: Math.abs(modifications.fareDifference),
+                    payment_method:
+                      originalBooking.payment?.method || 'unknown',
+                    bank_account_details: modifications.bankAccountDetails,
+                    status: 'failed',
+                    error:
+                      refundException instanceof Error
+                        ? refundException.message
+                        : 'Unknown exception',
+                  },
+                })
+                .eq('new_booking_id', newBookingData.id);
+            } catch (updateError) {
+              console.error(
+                '[MODIFY] Failed to update modification record:',
+                updateError
+              );
+            }
             // Continue - modification is complete, refund can be handled manually
           }
         }
@@ -671,6 +798,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
         newBookingId: newBookingData.id,
         newBookingNumber: newBookingData.booking_number,
         originalBookingId: bookingId,
+        refundStatus: refundStatus, // Include refund status for user feedback
       };
     } catch (error) {
       console.error('Error modifying booking:', error);
