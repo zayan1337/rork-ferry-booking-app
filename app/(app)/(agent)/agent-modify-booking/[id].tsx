@@ -177,12 +177,14 @@ export default function AgentModifyBookingScreen() {
 
   // Calculate fare difference when trip changes
   useEffect(() => {
-    if (selectedTrip && booking && booking.route) {
+    if (selectedTrip && booking) {
       const currentPaidFare =
         Number(booking.discountedAmount) || Number(booking.totalAmount) || 0;
       const passengerCount =
         booking.passengers?.length || booking.passengerCount || 1;
-      const newFarePerPassenger = booking.route.baseFare || 0;
+      // Calculate fare using trip data (base_fare * fare_multiplier)
+      const newFarePerPassenger =
+        (selectedTrip.base_fare || 0) * (selectedTrip.fare_multiplier || 1.0);
       const newTotalFare = newFarePerPassenger * passengerCount;
 
       const discountCalculation = calculateDiscountedFare(

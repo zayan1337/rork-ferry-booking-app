@@ -844,7 +844,8 @@ export const useAgentBookingFormStore = create<
     const { currentBooking, agent } = get();
 
     // Only calculate fare if we have the minimum required data
-    if (!currentBooking.route) {
+    // Changed: now we need trip (with fare multiplier), not just route
+    if (!currentBooking.trip) {
       set(state => ({
         currentBooking: {
           ...state.currentBooking,
@@ -857,8 +858,8 @@ export const useAgentBookingFormStore = create<
     }
 
     const fareCalculation = calculateBookingFare(
-      currentBooking.route,
-      currentBooking.returnRoute,
+      currentBooking.trip,
+      currentBooking.returnTrip,
       currentBooking.selectedSeats,
       currentBooking.returnSelectedSeats,
       currentBooking.tripType

@@ -956,6 +956,55 @@ export const completeModificationAfterPayment = async (
 };
 
 /**
+ * Process MIB refund for a cancelled booking
+ * @param bookingId - The booking ID to process refund for
+ * @param refundAmount - Amount to refund
+ * @param currency - Currency code (default: MVR)
+ * @returns Promise that resolves with refund result
+ */
+export const processMibRefund = async (
+  bookingId: string,
+  refundAmount: number,
+  currency: string = 'MVR'
+): Promise<{
+  success: boolean;
+  refundStatus: string;
+  message?: string;
+}> => {
+  try {
+    // Call Supabase Edge Function to process refund
+    const { data, error } = await supabase.functions.invoke('mib-payment', {
+      body: {
+        action: 'process-refund',
+        bookingId,
+        refundAmount,
+        currency,
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Failed to process refund');
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.error || 'Refund processing failed');
+    }
+
+    return {
+      success: true,
+      refundStatus: data.refundStatus || 'completed',
+      message: data.message || 'Refund processed successfully',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      refundStatus: 'failed',
+      message: error instanceof Error ? error.message : 'Unknown refund error',
+    };
+  }
+};
+
+/**
  * Cancel booking and release seats when payment is cancelled by user
  * @param bookingId - The booking ID to cancel
  * @param reason - Reason for cancellation (default: payment cancelled)

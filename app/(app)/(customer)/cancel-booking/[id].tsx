@@ -102,16 +102,18 @@ export default function CancelBookingScreen() {
     try {
       await cancelBooking(booking.id, reason, bankDetails);
 
-      Alert.alert(
-        'Booking Cancelled',
-        'Your booking has been cancelled successfully. A refund of 50% will be processed within 72 hours.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings'),
-          },
-        ]
-      );
+      // Determine refund message based on payment method
+      const isMibPayment = booking.payment?.method === 'mib';
+      const refundMessage = isMibPayment
+        ? 'Your booking has been cancelled successfully. A refund of 50% has been initiated and will be processed to your original payment method within 3-5 business days.'
+        : 'Your booking has been cancelled successfully. A refund of 50% will be processed to your bank account within 5-7 business days.';
+
+      Alert.alert('Booking Cancelled', refundMessage, [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings'),
+        },
+      ]);
     } catch (error) {
       Alert.alert(
         'Cancellation Failed',
@@ -157,88 +159,114 @@ export default function CancelBookingScreen() {
     </Card>
   );
 
-  const renderCancellationForm = () => (
-    <Card variant='elevated' style={styles.formCard}>
-      <Text style={styles.cardTitle}>Cancellation Reason</Text>
+  const renderCancellationForm = () => {
+    const isMibPayment = booking?.payment?.method === 'mib';
 
-      <View ref={ref => setInputRef('reason', ref)}>
-        <Input
-          label='Reason for Cancellation'
-          placeholder='Please provide a reason for cancellation'
-          value={reason}
-          onChangeText={handleReasonChange}
-          onFocus={() => handleInputFocus('reason')}
-          multiline
-          numberOfLines={3}
-          error={errors.reason}
-          required
-        />
-      </View>
+    return (
+      <Card variant='elevated' style={styles.formCard}>
+        <Text style={styles.cardTitle}>Cancellation Reason</Text>
 
-      <Text style={styles.cardTitle}>Refund Bank Details</Text>
+        <View ref={ref => setInputRef('reason', ref)}>
+          <Input
+            label='Reason for Cancellation'
+            placeholder='Please provide a reason for cancellation'
+            value={reason}
+            onChangeText={handleReasonChange}
+            onFocus={() => handleInputFocus('reason')}
+            multiline
+            numberOfLines={3}
+            error={errors.reason}
+            required
+          />
+        </View>
 
-      <View ref={ref => setInputRef('accountNumber', ref)}>
-        <Input
-          label='Account Number'
-          placeholder='Enter your bank account number'
-          value={bankDetails.accountNumber}
-          onChangeText={text => handleInputChange('accountNumber', text)}
-          onFocus={() => handleInputFocus('accountNumber')}
-          error={errors.accountNumber}
-          required
-        />
-      </View>
-
-      <View ref={ref => setInputRef('accountName', ref)}>
-        <Input
-          label='Account Holder Name'
-          placeholder='Enter account holder name'
-          value={bankDetails.accountName}
-          onChangeText={text => handleInputChange('accountName', text)}
-          onFocus={() => handleInputFocus('accountName')}
-          error={errors.accountName}
-          required
-        />
-      </View>
-
-      <View ref={ref => setInputRef('bankName', ref)}>
-        <Input
-          label='Bank Name'
-          placeholder='Enter bank name'
-          value={bankDetails.bankName}
-          onChangeText={text => handleInputChange('bankName', text)}
-          onFocus={() => handleInputFocus('bankName')}
-          error={errors.bankName}
-          required
-        />
-      </View>
-    </Card>
-  );
-
-  const renderWarningCard = () => (
-    <Card variant='elevated' style={styles.warningCard}>
-      <View style={styles.warningHeader}>
-        <AlertTriangle
-          size={24}
-          color={Colors.warning}
-          style={styles.warningIcon}
-        />
-        <Text style={styles.warningTitle}>Cancellation Policy</Text>
-      </View>
-      <Text style={styles.warningText}>
-        You are about to cancel your booking. Please note that:
-      </Text>
-      <View style={styles.policyList}>
-        <Text style={styles.policyItem}>
-          • Only 50% of the fare will be refunded
+        <Text style={styles.cardTitle}>
+          {isMibPayment
+            ? 'Refund Bank Details (Backup)'
+            : 'Refund Bank Details'}
         </Text>
-        <Text style={styles.policyItem}>
-          • Refund will be processed within 72 hours
+
+        {isMibPayment && (
+          <Text style={styles.infoText}>
+            Your refund will be automatically processed to your original payment
+            method. Bank details are required as a backup option.
+          </Text>
+        )}
+
+        <View ref={ref => setInputRef('accountNumber', ref)}>
+          <Input
+            label='Account Number'
+            placeholder='Enter your bank account number'
+            value={bankDetails.accountNumber}
+            onChangeText={text => handleInputChange('accountNumber', text)}
+            onFocus={() => handleInputFocus('accountNumber')}
+            error={errors.accountNumber}
+            required
+          />
+        </View>
+
+        <View ref={ref => setInputRef('accountName', ref)}>
+          <Input
+            label='Account Holder Name'
+            placeholder='Enter account holder name'
+            value={bankDetails.accountName}
+            onChangeText={text => handleInputChange('accountName', text)}
+            onFocus={() => handleInputFocus('accountName')}
+            error={errors.accountName}
+            required
+          />
+        </View>
+
+        <View ref={ref => setInputRef('bankName', ref)}>
+          <Input
+            label='Bank Name'
+            placeholder='Enter bank name'
+            value={bankDetails.bankName}
+            onChangeText={text => handleInputChange('bankName', text)}
+            onFocus={() => handleInputFocus('bankName')}
+            error={errors.bankName}
+            required
+          />
+        </View>
+      </Card>
+    );
+  };
+
+  const renderWarningCard = () => {
+    const isMibPayment = booking?.payment?.method === 'mib';
+
+    return (
+      <Card variant='elevated' style={styles.warningCard}>
+        <View style={styles.warningHeader}>
+          <AlertTriangle
+            size={24}
+            color={Colors.warning}
+            style={styles.warningIcon}
+          />
+          <Text style={styles.warningTitle}>Cancellation Policy</Text>
+        </View>
+        <Text style={styles.warningText}>
+          You are about to cancel your booking. Please note that:
         </Text>
-        <Text style={styles.policyItem}>• This action cannot be undone</Text>
-      </View>
-    </Card>
-  );
+        <View style={styles.policyList}>
+          <Text style={styles.policyItem}>
+            • Only 50% of the fare will be refunded
+          </Text>
+          <Text style={styles.policyItem}>
+            {isMibPayment
+              ? '• Refund will be automatically processed to your original payment method'
+              : '• Refund will be transferred to the bank account you provide'}
+          </Text>
+          <Text style={styles.policyItem}>
+            {isMibPayment
+              ? '• Processing time: 3-5 business days'
+              : '• Processing time: 5-7 business days'}
+          </Text>
+          <Text style={styles.policyItem}>• This action cannot be undone</Text>
+        </View>
+      </Card>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -395,5 +423,12 @@ const styles = StyleSheet.create({
   },
   notFoundButton: {
     minWidth: 120,
+  },
+  infoText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 16,
+    fontStyle: 'italic',
+    lineHeight: 18,
   },
 });

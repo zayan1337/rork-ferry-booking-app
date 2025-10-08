@@ -70,6 +70,13 @@ serve(async req => {
         return await updatePaymentStatus(supabase, bookingId);
       case 'process-payment-result':
         return await processPaymentResult(supabase, requestBody);
+      case 'process-refund':
+        return await processRefund(
+          supabase,
+          requestBody.bookingId,
+          requestBody.refundAmount,
+          requestBody.currency || 'MVR'
+        );
       default:
         return new Response(
           JSON.stringify({
@@ -552,6 +559,243 @@ async function processPaymentResult(supabase, resultData) {
       paymentStatus: 'pending',
       bookingStatus: 'pending_payment',
     };
+    return new Response(JSON.stringify(errorResponse), {
+      status: 500,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+}
+
+/**
+ * Process refund for a cancelled booking
+ * @param supabase - Supabase client
+ * @param bookingId - Booking ID
+ * @param refundAmount - Amount to refund
+ * @param currency - Currency code
+ */
+async function processRefund(supabase, bookingId, refundAmount, currency) {
+  try {
+    console.log(
+      `[REFUND] Starting refund process for booking: ${bookingId}, amount: ${refundAmount}`
+    );
+
+    // Get booking details
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select('id, booking_number, status')
+      .eq('id', bookingId)
+      .maybeSingle();
+
+    if (bookingError) {
+      console.error('[REFUND] Booking lookup error:', bookingError);
+      throw new Error(`Database error: ${bookingError.message}`);
+    }
+
+    if (!booking) {
+      console.error(`[REFUND] Booking not found: ${bookingId}`);
+      throw new Error(`Booking with ID ${bookingId} not found`);
+    }
+
+    console.log(
+      `[REFUND] Booking found - Status: ${booking.status}, Number: ${booking.booking_number}`
+    );
+
+    // Get the original payment record - check all MIB payments first
+    console.log('[REFUND] Looking for payment records...');
+    const { data: allPayments, error: allPaymentsError } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('booking_id', bookingId)
+      .eq('payment_method', 'mib')
+      .order('created_at', { ascending: false });
+
+    if (allPaymentsError) {
+      console.error('[REFUND] Payment lookup error:', allPaymentsError);
+      throw new Error(`Payment lookup error: ${allPaymentsError.message}`);
+    }
+
+    console.log(
+      `[REFUND] Found ${allPayments?.length || 0} MIB payment(s) for this booking`
+    );
+    if (allPayments && allPayments.length > 0) {
+      console.log(
+        '[REFUND] Payment statuses:',
+        allPayments.map(p => p.status)
+      );
+    }
+
+    // Try to find completed payment first, then fall back to other statuses
+    let payment = allPayments?.find(p => p.status === 'completed');
+
+    if (!payment && allPayments && allPayments.length > 0) {
+      // If no completed payment, try to use the most recent payment
+      payment = allPayments[0];
+      console.warn(
+        `[REFUND] No completed payment found, using most recent payment with status: ${payment.status}`
+      );
+    }
+
+    if (!payment) {
+      console.error('[REFUND] No MIB payment found for this booking');
+      throw new Error(
+        'No MIB payment found for this booking. Cannot process refund. Please ensure the booking was paid via MIB.'
+      );
+    }
+
+    console.log(
+      `[REFUND] Using payment - ID: ${payment.id}, Status: ${payment.status}, Session: ${payment.session_id}, Receipt: ${payment.receipt_number}`
+    );
+
+    // Get transaction ID (either from receipt_number or session_id)
+    const transactionId = payment.receipt_number || payment.session_id;
+    if (!transactionId) {
+      console.error('[REFUND] No transaction ID found in payment record');
+      throw new Error(
+        'No transaction ID found in payment record. Receipt number and session ID are both missing.'
+      );
+    }
+
+    // Prepare the order ID
+    const orderId = booking.booking_number || `order-${bookingId}`;
+
+    console.log(
+      `[REFUND] Preparing MIB API call - Order: ${orderId}, Transaction: ${transactionId}`
+    );
+
+    // Generate a unique refund transaction ID (use timestamp to make it unique)
+    const refundTransactionId = `refund-${Date.now()}`;
+
+    // Call MIB Refund API
+    const refundRequest = {
+      apiOperation: 'REFUND',
+      transaction: {
+        amount: refundAmount.toFixed(2),
+        currency: currency,
+      },
+    };
+
+    console.log('[REFUND] Calling MIB Refund API...');
+    console.log('[REFUND] Request:', JSON.stringify(refundRequest, null, 2));
+
+    const refundResponse = await fetch(
+      `${MIB_BASE_URL}/api/rest/version/${API_VERSION}/merchant/${MERCHANT_ID}/order/${orderId}/transaction/${transactionId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: AUTH_HEADER,
+        },
+        body: JSON.stringify(refundRequest),
+      }
+    );
+
+    console.log(`[REFUND] MIB API Response Status: ${refundResponse.status}`);
+
+    if (!refundResponse.ok) {
+      const errorText = await refundResponse.text();
+      console.error('[REFUND] MIB API Error Response:', errorText);
+      throw new Error(
+        `MIB Refund API failed: ${refundResponse.status} - ${errorText}`
+      );
+    }
+
+    const refundData = await refundResponse.json();
+    console.log(
+      '[REFUND] MIB API Success Response:',
+      JSON.stringify(refundData, null, 2)
+    );
+
+    // Check if refund was successful
+    const refundResult = refundData.result || refundData.response?.gatewayCode;
+    const refundSuccessful =
+      refundResult === 'SUCCESS' ||
+      refundData.transaction?.result === 'SUCCESS' ||
+      refundData.result === 'SUCCESS';
+
+    console.log(
+      `[REFUND] Refund result: ${refundSuccessful ? 'SUCCESS' : 'FAILED'} (${refundResult})`
+    );
+
+    // Update payment status to reflect refund
+    const newPaymentStatus = refundSuccessful
+      ? 'partially_refunded'
+      : 'refund_failed';
+
+    console.log(`[REFUND] Updating payment status to: ${newPaymentStatus}`);
+    const { error: paymentUpdateError } = await supabase
+      .from('payments')
+      .update({
+        status: newPaymentStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', payment.id);
+
+    if (paymentUpdateError) {
+      console.warn(
+        '[REFUND] Failed to update payment status:',
+        paymentUpdateError
+      );
+      // Non-critical - continue processing
+    }
+
+    // Update cancellation record with refund status
+    console.log('[REFUND] Updating cancellation record...');
+    const { error: cancellationUpdateError } = await supabase
+      .from('cancellations')
+      .update({
+        status: refundSuccessful ? 'completed' : 'failed',
+        refund_processed_at: new Date().toISOString(),
+        refund_transaction_id:
+          refundData.transaction?.id || refundTransactionId,
+      })
+      .eq('booking_id', bookingId)
+      .eq('status', 'pending');
+
+    if (cancellationUpdateError) {
+      console.warn(
+        '[REFUND] Failed to update cancellation record:',
+        cancellationUpdateError
+      );
+      // Non-critical - continue processing
+    }
+
+    const responseData = {
+      success: refundSuccessful,
+      refundStatus: refundSuccessful ? 'completed' : 'failed',
+      refundAmount: refundAmount,
+      currency: currency,
+      transactionId: refundData.transaction?.id || refundTransactionId,
+      orderId: orderId,
+      message: refundSuccessful
+        ? 'Refund processed successfully'
+        : 'Refund processing failed',
+      gatewayResponse: {
+        result: refundResult,
+        responseCode: refundData.response?.gatewayCode,
+      },
+    };
+
+    console.log('[REFUND] Process completed successfully');
+    return new Response(JSON.stringify(responseData), {
+      status: refundSuccessful ? 200 : 400,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (error) {
+    console.error('[REFUND] Error during refund processing:', error);
+
+    const errorResponse = {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      details: error instanceof Error ? error.stack : undefined,
+      refundStatus: 'failed',
+    };
+
     return new Response(JSON.stringify(errorResponse), {
       status: 500,
       headers: {

@@ -281,8 +281,94 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
 
       if (cancellationError) throw cancellationError;
 
-      // 4. Update payment status to refunded (if payment exists)
-      if (booking.payment?.status === 'completed') {
+      // 4. Process refund through MIB if payment was made via MIB
+      if (
+        booking.payment?.status === 'completed' &&
+        booking.payment?.method === 'mib'
+      ) {
+        try {
+          console.log(
+            `[CANCEL] Initiating MIB refund for booking ${bookingId}, amount: ${refundAmount}`
+          );
+
+          // Call MIB refund API through edge function
+          const { data: refundData, error: refundError } =
+            await supabase.functions.invoke('mib-payment', {
+              body: {
+                action: 'process-refund',
+                bookingId,
+                refundAmount,
+                currency: 'MVR',
+              },
+            });
+
+          if (refundError) {
+            console.error('[CANCEL] Refund API error:', refundError);
+            console.error(
+              '[CANCEL] Error status:',
+              refundError.context?.status
+            );
+            console.error(
+              '[CANCEL] Error statusText:',
+              refundError.context?.statusText
+            );
+
+            // The actual error message is likely in the response body
+            // Since we got a 500 error, the edge function should have returned error details
+            console.error(
+              '[CANCEL] Check Supabase Edge Function logs for detailed error'
+            );
+            console.error(
+              '[CANCEL] Project ref:',
+              refundError.context?.headers?.map?.['sb-project-ref']
+            );
+            console.error(
+              '[CANCEL] Request ID:',
+              refundError.context?.headers?.map?.['sb-request-id']
+            );
+
+            // Don't throw - continue with cancellation even if refund fails
+            // Admin can manually process refund later
+          }
+
+          if (refundData) {
+            console.log(
+              '[CANCEL] Refund API response:',
+              JSON.stringify(refundData, null, 2)
+            );
+          } else if (!refundError) {
+            console.warn(
+              '[CANCEL] No refund data and no error - unexpected state'
+            );
+          }
+
+          if (!refundData?.success) {
+            console.warn(
+              '[CANCEL] Refund processing failed:',
+              refundData?.error || 'Unknown error'
+            );
+            // Update cancellation status to indicate refund failure
+            await supabase
+              .from('cancellations')
+              .update({
+                status: 'refund_failed',
+              })
+              .eq('booking_id', bookingId);
+          } else {
+            console.log('[CANCEL] Refund processed successfully');
+          }
+        } catch (refundException) {
+          console.error(
+            '[CANCEL] Exception during refund processing:',
+            refundException
+          );
+          // Continue - cancellation is complete, refund can be handled manually
+        }
+      } else if (booking.payment?.status === 'completed') {
+        console.log(
+          `[CANCEL] Non-MIB payment method: ${booking.payment?.method}, updating payment status only`
+        );
+        // For non-MIB payments, just update payment status
         await supabase
           .from('payments')
           .update({
@@ -290,6 +376,10 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             updated_at: new Date().toISOString(),
           })
           .eq('booking_id', bookingId);
+      } else {
+        console.log(
+          `[CANCEL] Payment status is not completed: ${booking.payment?.status}, skipping refund processing`
+        );
       }
 
       await fetchUserBookings();
@@ -421,6 +511,84 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             status: 'confirmed',
           })
           .eq('id', newBookingData.id);
+
+        // Process MIB refund if original payment was via MIB
+        if (
+          originalBooking.payment?.status === 'completed' &&
+          originalBooking.payment?.method === 'mib'
+        ) {
+          try {
+            const refundAmount = Math.abs(modifications.fareDifference);
+            console.log(
+              `[MODIFY] Initiating MIB refund for original booking ${bookingId}, amount: ${refundAmount}`
+            );
+
+            // Call MIB refund API through edge function
+            // IMPORTANT: Use original booking ID so the edge function uses the correct booking_number as order ID
+            const { data: refundData, error: refundError } =
+              await supabase.functions.invoke('mib-payment', {
+                body: {
+                  action: 'process-refund',
+                  bookingId: bookingId, // Use ORIGINAL booking ID for refund
+                  refundAmount,
+                  currency: 'MVR',
+                },
+              });
+
+            if (refundError) {
+              console.error('[MODIFY] Refund API error:', refundError);
+              // Don't throw - continue with modification even if refund fails
+              // Admin can manually process refund later
+            }
+
+            if (refundData) {
+              console.log(
+                '[MODIFY] Refund API response:',
+                JSON.stringify(refundData, null, 2)
+              );
+            }
+
+            if (!refundData?.success) {
+              console.warn(
+                '[MODIFY] Refund processing failed:',
+                refundData?.error || 'Unknown error'
+              );
+              // Update modification record to indicate refund failure
+              await supabase
+                .from('modifications')
+                .update({
+                  refund_details: {
+                    amount: refundAmount,
+                    payment_method: originalBooking.payment.method,
+                    bank_account_details: modifications.bankAccountDetails,
+                    status: 'failed',
+                  },
+                })
+                .eq('new_booking_id', newBookingData.id);
+            } else {
+              console.log('[MODIFY] Refund processed successfully');
+              // Update modification record to indicate refund success
+              await supabase
+                .from('modifications')
+                .update({
+                  refund_details: {
+                    amount: refundAmount,
+                    payment_method: originalBooking.payment.method,
+                    bank_account_details: modifications.bankAccountDetails,
+                    status: 'completed',
+                    processed_at: new Date().toISOString(),
+                  },
+                })
+                .eq('new_booking_id', newBookingData.id);
+            }
+          } catch (refundException) {
+            console.error(
+              '[MODIFY] Exception during refund processing:',
+              refundException
+            );
+            // Continue - modification is complete, refund can be handled manually
+          }
+        }
       }
 
       // 8. DO NOT update original booking status yet - only after successful payment

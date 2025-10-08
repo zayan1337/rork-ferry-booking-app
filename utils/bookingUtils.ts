@@ -60,63 +60,69 @@ export const getInactiveBookings = (
 };
 
 /**
- * Calculate total fare for a booking with proper validation
- * @param route - Departure route
- * @param returnRoute - Return route (optional)
+ * Calculate total fare for a booking using trip data (includes fare multiplier)
+ * @param trip - Departure trip
+ * @param returnTrip - Return trip (optional)
  * @param selectedSeats - Selected departure seats
  * @param returnSelectedSeats - Selected return seats (optional)
  * @param tripType - Type of trip (one_way or round_trip)
  * @returns Object with calculated fares and validation status
  */
 export const calculateBookingFare = (
-  route: any,
-  returnRoute?: any,
+  trip: any,
+  returnTrip?: any,
   selectedSeats: any[] = [],
   returnSelectedSeats: any[] = [],
   tripType: 'one_way' | 'round_trip' = 'one_way'
 ) => {
   try {
-    // Validate departure route
-    if (!route) {
+    // Validate departure trip
+    if (!trip) {
       return {
         departureFare: 0,
         returnFare: 0,
         totalFare: 0,
         isValid: false,
-        errors: ['Departure route is required'],
+        errors: ['Departure trip is required'],
       };
     }
 
-    // Validate departure base fare
-    const baseFare = Number(route.baseFare) || 0;
-    if (baseFare < 0) {
+    // Calculate fare from trip: base_fare * fare_multiplier
+    const baseFare = Number(trip.base_fare) || 0;
+    const fareMultiplier = Number(trip.fare_multiplier) || 1.0;
+    const tripFare = baseFare * fareMultiplier;
+
+    if (tripFare < 0) {
       return {
         departureFare: 0,
         returnFare: 0,
         totalFare: 0,
         isValid: false,
-        errors: [`Invalid departure base fare: ${route.baseFare}`],
+        errors: [`Invalid departure fare: ${tripFare}`],
       };
     }
 
     // Calculate departure fare
     const departureSeatCount = selectedSeats.length;
-    const departureFare = departureSeatCount * baseFare;
+    const departureFare = departureSeatCount * tripFare;
 
     // Calculate return fare for round trips
     let returnFare = 0;
     const errors: string[] = [];
 
     if (tripType === 'round_trip') {
-      if (!returnRoute) {
-        errors.push('Return route is required for round trips');
+      if (!returnTrip) {
+        errors.push('Return trip is required for round trips');
       } else {
-        const returnBaseFare = Number(returnRoute.baseFare) || 0;
-        if (returnBaseFare < 0) {
-          errors.push(`Invalid return base fare: ${returnRoute.baseFare}`);
+        const returnBaseFare = Number(returnTrip.base_fare) || 0;
+        const returnFareMultiplier = Number(returnTrip.fare_multiplier) || 1.0;
+        const returnTripFare = returnBaseFare * returnFareMultiplier;
+
+        if (returnTripFare < 0) {
+          errors.push(`Invalid return fare: ${returnTripFare}`);
         } else {
           const returnSeatCount = returnSelectedSeats.length;
-          returnFare = returnSeatCount * returnBaseFare;
+          returnFare = returnSeatCount * returnTripFare;
         }
       }
     }

@@ -262,7 +262,8 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     const { currentBooking } = get();
 
     // Only calculate fare if we have the minimum required data
-    if (!currentBooking.route) {
+    // Changed: now we need trip (with fare multiplier), not just route
+    if (!currentBooking.trip) {
       set(state => ({
         currentBooking: {
           ...state.currentBooking,
@@ -273,8 +274,8 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     }
 
     const fareCalculation = calculateBookingFare(
-      currentBooking.route,
-      currentBooking.returnRoute,
+      currentBooking.trip,
+      currentBooking.returnTrip,
       currentBooking.selectedSeats,
       currentBooking.returnSelectedSeats,
       currentBooking.tripType
@@ -608,11 +609,14 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         throw new Error('User must be authenticated to create booking');
       }
 
+      // Calculate fare from trip (includes fare multiplier)
+      const tripFare = (trip.base_fare || 0) * (trip.fare_multiplier || 1.0);
+
       // Create the main booking first with user_id for RLS policy
       const bookingData = {
         user_id: user.id, // Required for RLS policy
         trip_id: trip.id,
-        total_fare: selectedSeats.length * (route.baseFare || 0), // Only departure fare
+        total_fare: selectedSeats.length * tripFare, // Use trip fare with multiplier
         payment_method_type: paymentMethod,
         status: 'pending_payment' as const, // Start with pending_payment like booking operations
         is_round_trip: tripType === 'round_trip',
@@ -688,7 +692,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         const { error: paymentError } = await supabase.from('payments').insert({
           booking_id: booking.id,
           payment_method: paymentMethod as PaymentMethod,
-          amount: selectedSeats.length * (route.baseFare || 0),
+          amount: selectedSeats.length * tripFare,
           currency: 'MVR',
           status: 'pending', // Start with pending for MIB
         });
@@ -728,7 +732,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         const { error: paymentError } = await supabase.from('payments').insert({
           booking_id: booking.id,
           payment_method: paymentMethod as PaymentMethod,
-          amount: selectedSeats.length * (route.baseFare || 0),
+          amount: selectedSeats.length * tripFare,
           currency: 'MVR',
           status: 'completed', // Mark as completed for immediate confirmation
         });
@@ -758,10 +762,14 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         returnRoute &&
         returnSelectedSeats.length > 0
       ) {
+        // Calculate fare from return trip (includes fare multiplier)
+        const returnTripFare =
+          (returnTrip.base_fare || 0) * (returnTrip.fare_multiplier || 1.0);
+
         const returnBookingData = {
           user_id: user.id, // Required for RLS policy
           trip_id: returnTrip.id,
-          total_fare: returnSelectedSeats.length * (returnRoute.baseFare || 0),
+          total_fare: returnSelectedSeats.length * returnTripFare,
           payment_method_type: paymentMethod,
           status: 'pending_payment' as const, // Start with pending_payment like booking operations
           is_round_trip: true,
@@ -829,7 +837,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             .insert({
               booking_id: returnBooking.id,
               payment_method: paymentMethod as PaymentMethod,
-              amount: returnSelectedSeats.length * (returnRoute.baseFare || 0),
+              amount: returnSelectedSeats.length * returnTripFare,
               currency: 'MVR',
               status: paymentMethod === 'mib' ? 'pending' : 'completed', // Pending for MIB, completed for others
             });

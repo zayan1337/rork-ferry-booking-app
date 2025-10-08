@@ -861,11 +861,23 @@ export default function BookScreen() {
                 </>
               )}
 
-            {currentBooking.route && (
+            {currentBooking.trip && (
               <View style={styles.fareContainer}>
-                <Text style={styles.fareLabel}>Base Fare:</Text>
+                <Text style={styles.fareLabel}>Fare per seat:</Text>
                 <Text style={styles.fareValue}>
-                  MVR {currentBooking.route.baseFare.toFixed(2)} per seat
+                  MVR{' '}
+                  {(
+                    (currentBooking.trip.base_fare || 0) *
+                    (currentBooking.trip.fare_multiplier || 1.0)
+                  ).toFixed(2)}
+                  {currentBooking.trip.fare_multiplier !== 1.0 && (
+                    <Text style={styles.fareMultiplierText}>
+                      {' '}
+                      (Base: MVR {currentBooking.trip.base_fare?.toFixed(
+                        2
+                      )} × {currentBooking.trip.fare_multiplier})
+                    </Text>
+                  )}
                 </Text>
               </View>
             )}
@@ -1337,6 +1349,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: Colors.primary,
+  },
+  fareMultiplierText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '400',
   },
   seatSectionTitle: {
     fontSize: 16,

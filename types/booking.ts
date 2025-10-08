@@ -16,6 +16,8 @@ export interface Trip {
   vessel_name: string;
   available_seats: number;
   is_active: boolean;
+  base_fare?: number;
+  fare_multiplier?: number;
 }
 
 export interface SeatReservation {

@@ -307,13 +307,14 @@ export default function ModifyBookingScreen() {
 
   // Calculate fare difference when trip changes
   useEffect(() => {
-    if (selectedTrip && booking && booking.passengers && booking.route) {
-      // Simple fare calculation - you may need to adjust based on your pricing logic
-      const currentFarePerSeat = booking.totalFare / booking.passengers.length;
-      const newFarePerSeat = booking.route.baseFare; // Assuming base fare from route
+    if (selectedTrip && booking && booking.passengers) {
+      // Calculate fare using trip data (base_fare * fare_multiplier)
+      const newFarePerSeat =
+        (selectedTrip.base_fare || 0) * (selectedTrip.fare_multiplier || 1.0);
+      const newTotalFare = newFarePerSeat * booking.passengers.length;
       const difference = calculateFareDifference(
         booking.totalFare,
-        newFarePerSeat * booking.passengers.length
+        newTotalFare
       );
       setFareDifference(difference);
     }
@@ -577,18 +578,18 @@ export default function ModifyBookingScreen() {
           );
         }
       } else if (fareDifference < 0) {
-        // Refund scenario
-        Alert.alert(
-          'Booking Modified',
-          `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed within 72 hours.`,
-          [
-            {
-              text: 'OK',
-              onPress: () =>
-                router.replace('/(app)/(customer)/(tabs)/bookings'),
-            },
-          ]
-        );
+        // Refund scenario - refund has been automatically processed
+        const refundMessage =
+          booking.payment?.method === 'mib'
+            ? `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} has been initiated via MIB and will be processed within 3-5 business days.`
+            : `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed within 72 hours.`;
+
+        Alert.alert('Booking Modified', refundMessage, [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings'),
+          },
+        ]);
       } else {
         // No fare difference
         Alert.alert(
@@ -735,6 +736,19 @@ export default function ModifyBookingScreen() {
                       ? tripSeatCounts[trip.id]
                       : '...'}{' '}
                     seats available
+                  </Text>
+                  <Text style={styles.tripFare}>
+                    MVR{' '}
+                    {(
+                      (trip.base_fare || 0) * (trip.fare_multiplier || 1.0)
+                    ).toFixed(2)}{' '}
+                    per seat
+                    {trip.fare_multiplier && trip.fare_multiplier !== 1.0 && (
+                      <Text style={styles.tripFareMultiplier}>
+                        {' '}
+                        (×{trip.fare_multiplier})
+                      </Text>
+                    )}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -1179,6 +1193,17 @@ const styles = StyleSheet.create({
   tripSeats: {
     fontSize: 14,
     color: Colors.primary,
+    marginBottom: 2,
+  },
+  tripFare: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  tripFareMultiplier: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '400',
   },
   seatSectionTitle: {
     fontSize: 16,

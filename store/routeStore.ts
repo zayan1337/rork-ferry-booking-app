@@ -183,7 +183,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     setError(null);
 
     try {
-      // Fetch trips with vessel information
+      // Fetch trips with vessel information and fare data
       const { data: trips, error } = await supabase
         .from('trips')
         .select(
@@ -194,6 +194,10 @@ export const useTripStore = create<TripStore>((set, get) => ({
                     departure_time,
                     vessel_id,
                     is_active,
+                    fare_multiplier,
+                    routes!inner(
+                        base_fare
+                    ),
                     vessels!inner(
                         id,
                         name,
@@ -233,8 +237,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
               departure_time: String(trip.departure_time || ''),
               available_seats: Number(trip.vessels.seating_capacity || 0),
               vessel_name: String(trip.vessels.name || 'Unknown'),
+              vessel_id: String(trip.vessel_id || ''),
               seating_capacity: Number(trip.vessels.seating_capacity || 0),
               is_active: true,
+              base_fare: Number(trip.routes?.base_fare || 0),
+              fare_multiplier: Number(trip.fare_multiplier || 1.0),
             };
           }
 
@@ -278,8 +285,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
                   departure_time: String(trip.departure_time || ''),
                   available_seats: Number(trip.vessels.seating_capacity || 0),
                   vessel_name: String(trip.vessels.name || 'Unknown'),
+                  vessel_id: String(trip.vessel_id || ''),
                   seating_capacity: Number(trip.vessels.seating_capacity || 0),
                   is_active: true,
+                  base_fare: Number(trip.routes?.base_fare || 0),
+                  fare_multiplier: Number(trip.fare_multiplier || 1.0),
                 };
               }
             }
@@ -309,8 +319,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
             departure_time: String(trip.departure_time || ''),
             available_seats: availableSeats,
             vessel_name: String(trip.vessels.name || 'Unknown'),
+            vessel_id: String(trip.vessel_id || ''),
             seating_capacity: Number(trip.vessels.seating_capacity || 0),
             is_active: true,
+            base_fare: Number(trip.routes?.base_fare || 0),
+            fare_multiplier: Number(trip.fare_multiplier || 1.0),
           };
         })
       );
