@@ -499,6 +499,11 @@ export const restoreOriginalSeatReservations = async (
         booking_id: originalBookingId,
         is_reserved: false, // Not temporarily reserved, permanently booked
         reservation_expiry: null,
+        // Clear temporary reservation fields to prevent "seat unavailable" issues
+        user_id: null,
+        session_id: null,
+        temp_reservation_expiry: null,
+        last_activity: new Date().toISOString(),
       })
       .eq('booking_id', originalBookingId);
 
@@ -537,6 +542,11 @@ export const releaseSeatReservations = async (
         booking_id: null,
         is_reserved: false,
         reservation_expiry: null,
+        // Clear temporary reservation fields to prevent "seat unavailable" issues
+        user_id: null,
+        session_id: null,
+        temp_reservation_expiry: null,
+        last_activity: new Date().toISOString(),
       })
       .eq('booking_id', bookingId);
 
@@ -884,6 +894,10 @@ export const completeModificationAfterPayment = async (
     }
 
     // 3. NOW release original seat reservations since payment is successful
+    console.log(
+      '[MODIFY_PAYMENT] Releasing seats from original booking:',
+      originalBookingId
+    );
     const { error: originalSeatReleaseError } = await supabase
       .from('seat_reservations')
       .update({
@@ -891,13 +905,23 @@ export const completeModificationAfterPayment = async (
         booking_id: null,
         is_reserved: false,
         reservation_expiry: null,
+        // Clear temporary reservation fields to prevent "seat unavailable" issues
+        user_id: null,
+        session_id: null,
+        temp_reservation_expiry: null,
+        last_activity: new Date().toISOString(),
       })
       .eq('booking_id', originalBookingId);
 
     if (originalSeatReleaseError) {
-      console.warn(
-        'Error releasing original seat reservations (non-critical):',
+      console.error(
+        '[MODIFY_PAYMENT] Error releasing original seat reservations:',
         originalSeatReleaseError
+      );
+      // Don't throw - modification is complete, seat release failure is non-critical
+    } else {
+      console.log(
+        '[MODIFY_PAYMENT] Successfully released seats from original booking'
       );
     }
 

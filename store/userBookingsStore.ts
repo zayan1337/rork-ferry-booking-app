@@ -789,6 +789,38 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             newBookingStatusError
           );
         }
+
+        // IMPORTANT: Release old seat reservations from the original booking
+        console.log(
+          '[MODIFY] Releasing seats from original booking:',
+          bookingId
+        );
+        const { error: originalSeatReleaseError } = await supabase
+          .from('seat_reservations')
+          .update({
+            is_available: true,
+            booking_id: null,
+            is_reserved: false,
+            reservation_expiry: null,
+            // Clear temporary reservation fields
+            user_id: null,
+            session_id: null,
+            temp_reservation_expiry: null,
+            last_activity: new Date().toISOString(),
+          })
+          .eq('booking_id', bookingId);
+
+        if (originalSeatReleaseError) {
+          console.error(
+            '[MODIFY] Error releasing original seat reservations:',
+            originalSeatReleaseError
+          );
+          // Don't throw - modification is complete, seat release can be handled manually
+        } else {
+          console.log(
+            '[MODIFY] Successfully released seats from original booking'
+          );
+        }
       }
 
       await fetchUserBookings();
