@@ -103,10 +103,10 @@ export default function CaptainProfileScreen() {
 
     switch (field) {
       case 'full_name':
-        currentValue = profile?.full_name || '';
+        currentValue = user?.profile?.full_name || '';
         break;
       case 'mobile_number':
-        currentValue = profile?.mobile_number || '';
+        currentValue = user?.profile?.mobile_number || '';
         break;
       case 'date_of_birth':
         currentValue = user?.profile?.date_of_birth || '';
@@ -297,7 +297,7 @@ export default function CaptainProfileScreen() {
           <View style={styles.detailContent}>
             <Text style={styles.detailLabel}>Full Name</Text>
             <Text style={styles.detailValue}>
-              {profile?.full_name || 'Not set'}
+              {user?.profile?.full_name || 'Not set'}
             </Text>
           </View>
           <ChevronRight size={18} color={Colors.textSecondary} />
@@ -321,7 +321,7 @@ export default function CaptainProfileScreen() {
           <View style={styles.detailContent}>
             <Text style={styles.detailLabel}>Mobile Number</Text>
             <Text style={styles.detailValue}>
-              {profile?.mobile_number || 'Not set'}
+              {user?.profile?.mobile_number || 'Not set'}
             </Text>
           </View>
           <ChevronRight size={18} color={Colors.textSecondary} />

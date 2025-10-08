@@ -686,11 +686,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
-  arrowText: {
-    fontSize: 18,
-    color: colors.textSecondary,
-    fontWeight: '300',
-  },
   systemCard: {
     backgroundColor: colors.card,
     borderRadius: 12,

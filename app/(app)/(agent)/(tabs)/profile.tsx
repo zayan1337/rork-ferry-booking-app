@@ -811,11 +811,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
   },
-  settingDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginLeft: 48,
-  },
   logoutButton: {
     marginTop: 8,
     marginBottom: 24,

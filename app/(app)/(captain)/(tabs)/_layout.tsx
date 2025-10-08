@@ -1,17 +1,9 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, TouchableOpacity, Alert } from 'react-native';
-import {
-  User,
-  UserCheck,
-  LogOut,
-  Home,
-  Ship,
-  Settings,
-} from 'lucide-react-native';
+import { UserCheck, LogOut, Home, Ship, Settings } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useAuthStore } from '@/store/authStore';
-import { router } from 'expo-router';
 
 export default function CaptainTabLayout() {
   const { signOut } = useAuthStore();
