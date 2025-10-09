@@ -257,13 +257,30 @@ export default function AgentCancelBookingScreen() {
               (safeBooking.totalAmount * refundPercentage) / 100;
             const refundMethodDisplay = refundMethod.replace('_', ' ');
 
-            const successMessage =
-              `Booking has been cancelled successfully. ` +
-              `Cancellation number: ${String(
-                cancellationNumber
-              )}. ${formatCurrency(
-                calculatedRefundAmount
-              )} will be refunded via ${refundMethodDisplay}.`;
+            // Check if booking was paid via MIB to provide appropriate message
+            let successMessage = `Booking has been cancelled successfully. Cancellation number: ${String(
+              cancellationNumber
+            )}.`;
+
+            if (calculatedRefundAmount > 0) {
+              // Get booking payment info from store to check if MIB
+              const cancelledBooking = bookingsArray.find(
+                (b: any) => String(b.id) === String(safeBooking.id)
+              );
+
+              if (
+                cancelledBooking?.payment?.method === 'mib' &&
+                refundMethod === 'original_payment'
+              ) {
+                successMessage += ` A refund of ${formatCurrency(
+                  calculatedRefundAmount
+                )} has been initiated via MIB and will be processed within 3-5 business days.`;
+              } else {
+                successMessage += ` ${formatCurrency(
+                  calculatedRefundAmount
+                )} will be refunded via ${refundMethodDisplay}.`;
+              }
+            }
 
             Alert.alert('Booking Cancelled', successMessage, [
               {

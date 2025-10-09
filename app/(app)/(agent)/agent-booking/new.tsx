@@ -13,8 +13,7 @@ import Button from '@/components/Button';
 import { Passenger } from '@/types';
 import {
   BookingProgressStepper,
-  RouteAndDateStep,
-  TripSelectionStep,
+  TripRouteSelectionStep,
   ClientInfoStep,
   SeatSelectionStep,
   PassengerDetailsStep,
@@ -27,12 +26,11 @@ import {
 import MibPaymentWebView from '@/components/MibPaymentWebView';
 
 const BOOKING_STEPS = [
-  { id: 1, label: 'Route', description: 'Select route & date' },
-  { id: 2, label: 'Trip', description: 'Choose departure & return trips' },
-  { id: 3, label: 'Client', description: 'Select or add client' },
-  { id: 4, label: 'Seats', description: 'Choose seats' },
-  { id: 5, label: 'Details', description: 'Passenger information' },
-  { id: 6, label: 'Payment', description: 'Payment & confirmation' },
+  { id: 1, label: 'Trip', description: 'Route, date & trip selection' },
+  { id: 2, label: 'Client', description: 'Select or add client' },
+  { id: 3, label: 'Seats', description: 'Choose seats' },
+  { id: 4, label: 'Details', description: 'Passenger information' },
+  { id: 5, label: 'Payment', description: 'Payment & confirmation' },
 ];
 
 export default function AgentNewBookingScreen() {
@@ -230,7 +228,7 @@ export default function AgentNewBookingScreen() {
 
   // Clear client search when leaving step 3 or component unmounts
   useEffect(() => {
-    if (currentStep !== 3) {
+    if (currentStep !== 2) {
       clearClientSearch();
     }
   }, [currentStep, clearClientSearch]);
@@ -258,12 +256,12 @@ export default function AgentNewBookingScreen() {
   const handleNext = () => {
     if (validateStep(currentStep)) {
       // Save client info before moving to seat selection
-      if (currentStep === 3) {
+      if (currentStep === 2) {
         if (showAddNewClientForm) {
           handleSaveClient();
           return;
         } else if (currentBooking.client) {
-          setCurrentStep(4); // Move to seat selection
+          setCurrentStep(3); // Move to seat selection
           return;
         }
       }
@@ -274,13 +272,13 @@ export default function AgentNewBookingScreen() {
   };
 
   const handleBack = () => {
-    if (currentStep === 3 && showAddNewClientForm) {
+    if (currentStep === 2 && showAddNewClientForm) {
       // If we're on add new client form, go back to search
       setShowAddNewClientForm(false);
       setClientForm({ name: '', email: '', phone: '', idNumber: '' });
       if (errors.client) setErrors({ ...errors, client: '' });
     } else {
-      if (currentStep === 3) {
+      if (currentStep === 2) {
         setLocalSearchQuery('');
       }
       setCurrentStep(currentStep - 1);
@@ -305,7 +303,7 @@ export default function AgentNewBookingScreen() {
       idNumber: clientForm.idNumber, // Optional field
     });
 
-    setCurrentStep(4); // Move to seat selection
+    setCurrentStep(3); // Move to seat selection
   };
 
   const handleClientSearch = async (query: string) => {
@@ -355,7 +353,7 @@ export default function AgentNewBookingScreen() {
   };
 
   const handleCreateBooking = async () => {
-    if (validateStep(6)) {
+    if (validateStep(5)) {
       try {
         const result = await createBooking();
 
@@ -391,7 +389,7 @@ export default function AgentNewBookingScreen() {
           // Note: MIB session will be created when user clicks "Proceed to Payment" in the modal
         } else {
           // For other payment methods, show success message and reset
-          reset();
+          await reset();
           setCurrentStep(1);
           setClientForm({ name: '', email: '', phone: '', idNumber: '' });
           setShowAddNewClientForm(false);
@@ -495,85 +493,35 @@ export default function AgentNewBookingScreen() {
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 1:
+        // Combined Trip, Route & Date Selection (like customer booking)
         return (
-          <RouteAndDateStep
+          <TripRouteSelectionStep
             tripType={currentBooking.tripType}
             onTripTypeChange={setTripType}
-            availableRoutes={
-              (availableRoutes || []).map(route => ({
-                ...route,
-                name: `${route.fromIsland?.name || 'Unknown'} to ${
-                  route.toIsland?.name || 'Unknown'
-                }`,
-                origin: route.fromIsland?.name || 'Unknown',
-                destination: route.toIsland?.name || 'Unknown',
-                from_island_id: route.fromIsland?.id || '',
-                to_island_id: route.toIsland?.id || '',
-                from_island: route.fromIsland,
-                to_island: route.toIsland,
-                distance: '0 km',
-                duration: route.duration || '0h 0m',
-                base_fare: route.baseFare,
-                status: 'active' as const,
-                description: '',
-                created_at: '',
-                updated_at: '',
-              })) as any
-            }
-            selectedRoute={currentBooking.route}
-            selectedReturnRoute={currentBooking.returnRoute}
-            onRouteChange={setRoute as any}
-            onReturnRouteChange={setReturnRoute as any}
             departureDate={currentBooking.departureDate}
             returnDate={currentBooking.returnDate}
             onDepartureDateChange={setDepartureDate}
             onReturnDateChange={setReturnDate}
+            routes={availableRoutes || []}
+            selectedRoute={currentBooking.route}
+            selectedReturnRoute={currentBooking.returnRoute}
+            onRouteChange={setRoute}
+            onReturnRouteChange={setReturnRoute}
+            trips={(trips || []) as any}
+            returnTrips={(returnTrips || []) as any}
+            selectedTrip={currentBooking.trip}
+            selectedReturnTrip={currentBooking.returnTrip}
+            onTripChange={setTrip as any}
+            onReturnTripChange={setReturnTrip as any}
+            isLoadingRoutes={routeLoading}
+            isLoadingTrips={tripLoading}
             errors={errors}
             clearError={field => setErrors({ ...errors, [field]: '' })}
           />
         );
 
       case 2:
-        return (
-          <TripSelectionStep
-            trips={
-              (trips || []).map(trip => ({
-                ...trip,
-                estimated_duration: '00:00',
-                status: 'scheduled' as const,
-                booked_seats: 0,
-                fare_multiplier: 1,
-                created_at: '',
-                updated_at: '',
-              })) as any
-            }
-            returnTrips={
-              (returnTrips || []).map(trip => ({
-                ...trip,
-                estimated_duration: '00:00',
-                status: 'scheduled' as const,
-                booked_seats: 0,
-                fare_multiplier: 1,
-                created_at: '',
-                updated_at: '',
-              })) as any
-            }
-            selectedTrip={currentBooking.trip}
-            selectedReturnTrip={currentBooking.returnTrip}
-            onTripChange={setTrip}
-            onReturnTripChange={setReturnTrip}
-            isLoading={tripLoading}
-            routeId={currentBooking.route?.id || null}
-            returnRouteId={currentBooking.returnRoute?.id || null}
-            departureDate={currentBooking.departureDate}
-            returnDate={currentBooking.returnDate}
-            tripType={currentBooking.tripType}
-            errors={errors}
-            clearError={setError}
-          />
-        );
-
-      case 3:
+        // Client Selection (agent-specific step)
         return (
           <ClientInfoStep
             selectedClient={currentBooking.client}
@@ -593,7 +541,8 @@ export default function AgentNewBookingScreen() {
           />
         );
 
-      case 4:
+      case 3:
+        // Seat Selection
         return (
           <SeatSelectionStep
             availableSeats={availableSeats}
@@ -612,7 +561,8 @@ export default function AgentNewBookingScreen() {
           />
         );
 
-      case 5:
+      case 4:
+        // Passenger Details
         return (
           <PassengerDetailsStep
             passengers={currentBooking.passengers}
@@ -625,7 +575,8 @@ export default function AgentNewBookingScreen() {
           />
         );
 
-      case 6:
+      case 5:
+        // Payment & Confirmation
         return (
           <PaymentStep
             client={currentBooking.client}
@@ -690,7 +641,7 @@ export default function AgentNewBookingScreen() {
             />
           )}
 
-          {currentStep < 6 ? (
+          {currentStep < 5 ? (
             <Button
               title='Next'
               onPress={handleNext}

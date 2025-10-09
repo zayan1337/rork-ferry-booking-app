@@ -141,14 +141,7 @@ const RouteAndDateStep: React.FC<RouteAndDateStepProps> = ({
         </>
       )}
 
-      {selectedRoute && (
-        <View style={styles.fareContainer}>
-          <Text style={styles.fareLabel}>Base Fare:</Text>
-          <Text style={styles.fareValue}>
-            {formatCurrency(selectedRoute.base_fare || 0)} per seat
-          </Text>
-        </View>
-      )}
+      {/* Note: Actual fare with multiplier will be calculated after trip selection */}
     </View>
   );
 };
@@ -160,24 +153,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 24,
     textAlign: 'center',
-  },
-  fareContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  fareLabel: {
-    fontSize: 16,
-    color: Colors.text,
-  },
-  fareValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.primary,
   },
 });
 

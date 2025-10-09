@@ -15,6 +15,8 @@ import { parseBookingQrCode } from '@/utils/qrCodeUtils';
 import {
   confirmSeatReservations,
   cleanupUserTempReservations,
+  tempReserveSeat,
+  releaseTempSeatReservation,
 } from '@/utils/realtimeSeatReservation';
 import { useAgentStore } from './agentStore';
 
@@ -91,7 +93,9 @@ const generateQrCodeUrl = (bookingNumber: string): string => {
 };
 
 /**
- * Calculate discounted fare for seats
+ * Calculate discounted fare for seats (DEPRECATED - not currently used)
+ * Note: This function is kept for backwards compatibility but not actively used
+ * Use calculateBookingFare and calculateDiscountedFare from utils/bookingUtils.ts instead
  * @param seats - Array of selected seats
  * @param route - Route information
  * @param discountRate - Discount rate percentage
@@ -103,6 +107,8 @@ const calculateSeatFare = (
   discountRate: number
 ): number => {
   if (!route || !seats.length) return 0;
+  // Note: This uses route.baseFare which doesn't include fare_multiplier
+  // For accurate calculations, use the trip-based fare calculation instead
   const baseFare = seats.length * route.baseFare;
   return baseFare * (1 - discountRate / 100);
 };
@@ -157,7 +163,7 @@ interface AgentBookingFormActions {
   }>;
 
   // Utility
-  reset: () => void;
+  reset: () => Promise<void>;
   setError: (error: string | null) => void;
   setLoading: (isLoading: boolean) => void;
   setAgent: (agent: Agent) => void;
@@ -744,16 +750,36 @@ export const useAgentBookingFormStore = create<
     const targetSeats = isReturn
       ? currentBooking.returnSelectedSeats
       : currentBooking.selectedSeats;
+    const tripId = isReturn
+      ? currentBooking.returnTrip?.id
+      : currentBooking.trip?.id;
+
+    if (!tripId) {
+      console.error('Trip ID is required for seat selection');
+      throw new Error('Please select a trip first');
+    }
 
     if (!seat.isAvailable) {
       console.warn('Seat not available:', seat.number);
-      return;
+      throw new Error('This seat is not available');
     }
 
     const isSelected = targetSeats.some(s => s.id === seat.id);
 
     if (isSelected) {
-      // Remove seat
+      // Release temporary reservation
+      try {
+        const releaseResult = await releaseTempSeatReservation(tripId, seat.id);
+        if (!releaseResult.success) {
+          console.warn('Failed to release seat reservation:', releaseResult.message);
+          // Continue anyway to allow local state update
+        }
+      } catch (error) {
+        console.error('Error releasing seat reservation:', error);
+        // Continue anyway to allow local state update
+      }
+
+      // Remove seat from local state
       const newSeats = targetSeats.filter(s => s.id !== seat.id);
       set(state => ({
         currentBooking: {
@@ -773,7 +799,18 @@ export const useAgentBookingFormStore = create<
         },
       }));
     } else {
-      // Add seat
+      // Temporarily reserve the seat first
+      try {
+        const reserveResult = await tempReserveSeat(tripId, seat.id, 10);
+        if (!reserveResult.success) {
+          throw new Error(reserveResult.message || 'Failed to reserve seat');
+        }
+      } catch (error: any) {
+        console.error('Error reserving seat:', error);
+        throw new Error(error.message || 'Failed to reserve seat. Please try again.');
+      }
+
+      // Add seat to local state
       const newSeats = [...targetSeats, { ...seat, isSelected: true }];
       set(state => ({
         currentBooking: {
@@ -915,7 +952,7 @@ export const useAgentBookingFormStore = create<
     const { currentBooking, currentStep } = get();
 
     switch (currentStep) {
-      case 1: // Route and Date
+      case 1: // Trip Type, Date, Route & Trip Selection (Combined)
         if (!currentBooking.route) return 'Please select a route';
         if (!currentBooking.departureDate)
           return 'Please select departure date';
@@ -923,9 +960,7 @@ export const useAgentBookingFormStore = create<
           if (!currentBooking.returnRoute) return 'Please select return route';
           if (!currentBooking.returnDate) return 'Please select return date';
         }
-        break;
-
-      case 2: // Trip Selection
+        // Also validate trip selection in step 1 now
         if (!currentBooking.trip) return 'Please select a departure trip';
         if (
           currentBooking.tripType === 'round_trip' &&
@@ -935,7 +970,7 @@ export const useAgentBookingFormStore = create<
         }
         break;
 
-      case 3: // Client Information
+      case 2: // Client Information (moved from step 3)
         if (!currentBooking.client) return 'Please provide client information';
         if (!currentBooking.client.name) return 'Client name is required';
         if (!currentBooking.client.email) return 'Client email is required';
@@ -943,7 +978,7 @@ export const useAgentBookingFormStore = create<
         // ID number is optional for all clients
         break;
 
-      case 4: // Seat Selection
+      case 3: // Seat Selection (moved from step 4)
         if (currentBooking.selectedSeats.length === 0)
           return 'Please select departure seats';
         if (
@@ -954,7 +989,7 @@ export const useAgentBookingFormStore = create<
         }
         break;
 
-      case 5: // Passenger Details
+      case 4: // Passenger Details (moved from step 5)
         if (
           currentBooking.passengers.length !==
           currentBooking.selectedSeats.length
@@ -968,7 +1003,7 @@ export const useAgentBookingFormStore = create<
         }
         break;
 
-      case 6: // Payment
+      case 5: // Payment (moved from step 6)
         if (!currentBooking.paymentMethod)
           return 'Please select a payment method';
         break;
@@ -1048,10 +1083,12 @@ export const useAgentBookingFormStore = create<
       // Store client's user ID separately if they have an account
       const bookingUserId = validAgent.id; // Always use agent ID for agent bookings
 
-      // Calculate fares for commission tracking
-      const originalFare =
-        currentBooking.selectedSeats.length *
-        (currentBooking.route?.baseFare || 0);
+      // Calculate fares for commission tracking using route's base_fare × trip's fare_multiplier
+      const routeBaseFare = Number(currentBooking.route?.baseFare || 0);
+      const fareMultiplier = Number(currentBooking.trip?.fare_multiplier || 1.0);
+      const tripFare = routeBaseFare * fareMultiplier;
+      
+      const originalFare = currentBooking.selectedSeats.length * tripFare;
       const discountedFare =
         originalFare * (1 - (validAgent.discountRate || 0) / 100);
       const commissionAmount = originalFare - discountedFare;
@@ -1304,10 +1341,12 @@ export const useAgentBookingFormStore = create<
         currentBooking.tripType === 'round_trip' &&
         currentBooking.returnTrip
       ) {
-        // Calculate return trip fares for commission tracking
-        const returnOriginalFare =
-          currentBooking.returnSelectedSeats.length *
-          (currentBooking.returnRoute?.baseFare || 0);
+        // Calculate return trip fares for commission tracking using route's base_fare × trip's fare_multiplier
+        const returnRouteBaseFare = Number(currentBooking.returnRoute?.baseFare || 0);
+        const returnFareMultiplier = Number(currentBooking.returnTrip?.fare_multiplier || 1.0);
+        const returnTripFare = returnRouteBaseFare * returnFareMultiplier;
+        
+        const returnOriginalFare = currentBooking.returnSelectedSeats.length * returnTripFare;
         const returnDiscountedFare =
           returnOriginalFare * (1 - (validAgent.discountRate || 0) / 100);
         const returnCommissionAmount =
@@ -1469,10 +1508,7 @@ export const useAgentBookingFormStore = create<
         }
 
         if (currentBooking.paymentMethod === 'credit') {
-          const returnFare =
-            currentBooking.returnSelectedSeats.length *
-            (currentBooking.returnRoute?.baseFare || 0) *
-            (1 - (validAgent.discountRate || 0) / 100);
+          // Use the already-calculated returnDiscountedFare (includes trip multiplier)
           const currentBalance = await supabase
             .from('user_profiles')
             .select('credit_balance')
@@ -1480,7 +1516,7 @@ export const useAgentBookingFormStore = create<
             .single();
 
           if (currentBalance.data) {
-            const newBalance = currentBalance.data.credit_balance - returnFare;
+            const newBalance = currentBalance.data.credit_balance - returnDiscountedFare;
             await supabase
               .from('user_profiles')
               .update({ credit_balance: newBalance })
@@ -1562,7 +1598,21 @@ export const useAgentBookingFormStore = create<
   },
 
   // Utility
-  reset: () => {
+  reset: async () => {
+    // Clean up any temporary seat reservations before resetting
+    const { currentBooking } = get();
+    try {
+      if (currentBooking.trip?.id) {
+        await cleanupUserTempReservations(currentBooking.trip.id);
+      }
+      if (currentBooking.returnTrip?.id) {
+        await cleanupUserTempReservations(currentBooking.returnTrip.id);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up temporary reservations during reset:', cleanupError);
+      // Continue with reset even if cleanup fails
+    }
+
     set({
       currentBooking: { ...initialBooking },
       currentStep: 1,

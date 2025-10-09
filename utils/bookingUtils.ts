@@ -61,7 +61,8 @@ export const getInactiveBookings = (
 
 /**
  * Calculate total fare for a booking using trip data (includes fare multiplier)
- * @param trip - Departure trip
+ * Note: base_fare is in route, fare_multiplier is in trip
+ * @param trip - Departure trip (must include route with base_fare)
  * @param returnTrip - Return trip (optional)
  * @param selectedSeats - Selected departure seats
  * @param returnSelectedSeats - Selected return seats (optional)
@@ -87,8 +88,9 @@ export const calculateBookingFare = (
       };
     }
 
-    // Calculate fare from trip: base_fare * fare_multiplier
-    const baseFare = Number(trip.base_fare) || 0;
+    // Calculate fare: route.base_fare × trip.fare_multiplier
+    // base_fare comes from route, fare_multiplier comes from trip
+    const baseFare = Number(trip.route?.base_fare || trip.base_fare) || 0;
     const fareMultiplier = Number(trip.fare_multiplier) || 1.0;
     const tripFare = baseFare * fareMultiplier;
 
@@ -114,7 +116,8 @@ export const calculateBookingFare = (
       if (!returnTrip) {
         errors.push('Return trip is required for round trips');
       } else {
-        const returnBaseFare = Number(returnTrip.base_fare) || 0;
+        // Calculate return fare: route.base_fare × trip.fare_multiplier
+        const returnBaseFare = Number(returnTrip.route?.base_fare || returnTrip.base_fare) || 0;
         const returnFareMultiplier = Number(returnTrip.fare_multiplier) || 1.0;
         const returnTripFare = returnBaseFare * returnFareMultiplier;
 

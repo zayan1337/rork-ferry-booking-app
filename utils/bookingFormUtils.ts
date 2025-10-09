@@ -40,7 +40,8 @@ export const formatRouteOptions = (routes: Route[] = []) => {
 };
 
 /**
- * Format trip options for dropdown
+ * Format trip options for dropdown with comprehensive information
+ * Shows: Date | Time | Ship | Fare | Available Seats
  */
 export const formatTripOptions = (trips: Trip[] = []) => {
   return trips.map(trip => {
@@ -49,9 +50,28 @@ export const formatTripOptions = (trips: Trip[] = []) => {
       trip.vessel?.name ||
       (trip as any).vessel_name ||
       trip.vesselName ||
-      'Unknown';
+      'Unknown Vessel';
+    
+    // Format date (e.g., "Dec 25")
+    const travelDate = trip.travel_date 
+      ? new Date(trip.travel_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : '';
+    
+    // Format time (e.g., "09:00")
+    const departureTime = String(trip.departure_time || '').slice(0, 5);
+    
+    // Calculate fare with multiplier (route.base_fare × trip.fare_multiplier)
+    const baseFare = Number(trip.route?.base_fare || (trip as any).base_fare || 0);
+    const fareMultiplier = Number(trip.fare_multiplier || 1.0);
+    const totalFare = baseFare * fareMultiplier;
+    const fareDisplay = totalFare > 0 ? `MVR ${totalFare.toFixed(0)}` : 'N/A';
+    
+    // Available seats
+    const seatsDisplay = `${String(trip.available_seats || 0)} seats`;
+    
+    // Combine all information in a clear format
     return {
-      label: `${String(trip.departure_time || '').slice(0, 5)} - ${vesselName} (${String(trip.available_seats || 0)} seats)`,
+      label: `${travelDate} • ${departureTime} • ${vesselName} • ${fareDisplay} • ${seatsDisplay}`,
       value: trip.id,
     };
   });
@@ -67,7 +87,7 @@ export const validateBookingStep = (
   const errors: Record<string, string> = {};
 
   switch (step) {
-    case 1: // Route & Date
+    case 1: // Trip Type, Date, Route & Trip Selection (Combined)
       if (!data.tripType) {
         errors.tripType = 'Please select a trip type';
       }
@@ -83,9 +103,7 @@ export const validateBookingStep = (
       if (data.tripType === 'round_trip' && !data.returnRoute) {
         errors.returnRoute = 'Please select a return route';
       }
-      break;
-
-    case 2: // Trip Selection
+      // Also validate trip selection in step 1 now
       if (!data.trip) {
         errors.trip = 'Please select a departure trip';
       }
@@ -94,7 +112,7 @@ export const validateBookingStep = (
       }
       break;
 
-    case 3: // Client Info
+    case 2: // Client Info (moved from step 3)
       if (!data.client) {
         if (data.showAddNewClientForm) {
           if (!data.clientForm?.name?.trim()) {
@@ -110,7 +128,7 @@ export const validateBookingStep = (
       }
       break;
 
-    case 4: // Seat Selection
+    case 3: // Seat Selection (moved from step 4)
       if (!data.selectedSeats || data.selectedSeats.length === 0) {
         errors.seats = 'Please select at least one seat';
       }
@@ -128,7 +146,7 @@ export const validateBookingStep = (
       }
       break;
 
-    case 5: // Passenger Details
+    case 4: // Passenger Details (moved from step 5)
       const incompletePassenger = data.passengers?.find(
         (p: any) => !p.fullName?.trim()
       );
@@ -137,7 +155,7 @@ export const validateBookingStep = (
       }
       break;
 
-    case 6: // Payment
+    case 5: // Payment (moved from step 6)
       if (!data.paymentMethod) {
         errors.paymentMethod = 'Please select a payment method';
       }

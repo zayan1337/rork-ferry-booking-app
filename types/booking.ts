@@ -16,8 +16,11 @@ export interface Trip {
   vessel_name: string;
   available_seats: number;
   is_active: boolean;
-  base_fare?: number;
+  base_fare?: number; // Kept for backwards compatibility
   fare_multiplier?: number;
+  route?: {
+    base_fare: number; // Nested route data for proper fare calculation
+  };
 }
 
 export interface SeatReservation {

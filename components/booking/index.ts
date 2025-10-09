@@ -5,6 +5,7 @@ export { default as BookingSummary } from './BookingSummary';
 // Step components
 export { default as RouteAndDateStep } from './steps/RouteAndDateStep';
 export { default as TripSelectionStep } from './steps/TripSelectionStep';
+export { default as TripRouteSelectionStep } from './steps/TripRouteSelectionStep';
 export { default as ClientInfoStep } from './steps/ClientInfoStep';
 export { default as SeatSelectionStep } from './steps/SeatSelectionStep';
 export { default as PassengerDetailsStep } from './steps/PassengerDetailsStep';

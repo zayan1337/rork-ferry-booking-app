@@ -91,6 +91,7 @@ export default function AgentModifyBookingScreen() {
   });
   const [isModifying, setIsModifying] = useState(false);
   const [agentDiscountRate, setAgentDiscountRate] = useState(0);
+  const [newTotalFare, setNewTotalFare] = useState(0); // Fare with multiplier, before discount
   const [discountedFare, setDiscountedFare] = useState(0);
   const [errors, setErrors] = useState({
     date: '',
@@ -182,13 +183,19 @@ export default function AgentModifyBookingScreen() {
         Number(booking.discountedAmount) || Number(booking.totalAmount) || 0;
       const passengerCount =
         booking.passengers?.length || booking.passengerCount || 1;
-      // Calculate fare using trip data (base_fare * fare_multiplier)
-      const newFarePerPassenger =
-        (selectedTrip.base_fare || 0) * (selectedTrip.fare_multiplier || 1.0);
-      const newTotalFare = newFarePerPassenger * passengerCount;
+      
+      // Calculate fare using route.base_fare × trip.fare_multiplier
+      // base_fare is in route table, fare_multiplier is in trip table
+      // booking.route.routeBaseFare has the original route base_fare (if available)
+      const routeBaseFare = Number((booking.route as any)?.routeBaseFare || 0);
+      const fareMultiplier = Number(selectedTrip.fare_multiplier) || 1.0;
+      const newFarePerPassenger = routeBaseFare * fareMultiplier;
+      const calculatedNewTotalFare = newFarePerPassenger * passengerCount;
+      
+      setNewTotalFare(calculatedNewTotalFare); // Store total fare with multiplier
 
       const discountCalculation = calculateDiscountedFare(
-        newTotalFare,
+        calculatedNewTotalFare,
         agentDiscountRate
       );
       setDiscountedFare(discountCalculation.discountedFare);
@@ -511,10 +518,7 @@ export default function AgentModifyBookingScreen() {
                 Number(booking.totalAmount) ||
                 0
               }
-              newBookingFare={
-                (booking.route?.baseFare || 0) *
-                (booking.passengers?.length || booking.passengerCount || 1)
-              }
+              newBookingFare={newTotalFare} // Use trip's multiplied fare
               agentDiscountRate={agentDiscountRate}
               discountedFare={discountedFare}
               fareDifference={fareDifference}

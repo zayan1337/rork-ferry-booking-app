@@ -7,6 +7,7 @@ interface RouteStoreActions {
   fetchRoutes: () => Promise<void>;
   fetchAvailableIslands: () => Promise<void>;
   fetchAvailableRoutes: () => Promise<void>;
+  fetchRoutesWithTripsOnDate: (date: string) => Promise<Route[]>;
   setError: (error: string | null) => void;
   setLoading: (isLoading: boolean) => void;
 }
@@ -17,6 +18,7 @@ interface TripStoreActions {
     date: string,
     isReturn?: boolean
   ) => Promise<void>;
+  getAvailableDatesForRoute: (routeId: string, daysAhead?: number) => Promise<string[]>;
   setTrip: (trip: Trip | null) => void;
   setReturnTrip: (trip: Trip | null) => void;
   setError: (error: string | null) => void;
@@ -165,6 +167,81 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
     }
   },
 
+  fetchRoutesWithTripsOnDate: async (date: string) => {
+    const { setError, setLoading } = get();
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Get all route IDs that have trips on the specified date
+      const { data: tripsOnDate, error: tripsError } = await supabase
+        .from('trips')
+        .select('route_id')
+        .eq('travel_date', date)
+        .eq('is_active', true);
+
+      if (tripsError) throw tripsError;
+
+      // Get unique route IDs
+      const routeIds = [...new Set(tripsOnDate.map((t: any) => t.route_id))];
+
+      if (routeIds.length === 0) {
+        set({ availableRoutes: [] });
+        return [];
+      }
+
+      // Fetch route details for routes that have trips on this date
+      const { data: routes, error: routesError } = await supabase
+        .from('routes')
+        .select(
+          `
+          id,
+          base_fare,
+          is_active,
+          from_island:from_island_id(
+            id,
+            name,
+            zone
+          ),
+          to_island:to_island_id(
+            id,
+            name,
+            zone
+          )
+        `
+        )
+        .in('id', routeIds)
+        .eq('is_active', true);
+
+      if (routesError) throw routesError;
+
+      const formattedRoutes = routes.map((route: any) => ({
+        id: String(route.id || ''),
+        fromIsland: {
+          id: String(route.from_island?.id || ''),
+          name: String(route.from_island?.name || ''),
+          zone: String(route.from_island?.zone || 'A') as 'A' | 'B',
+        },
+        toIsland: {
+          id: String(route.to_island?.id || ''),
+          name: String(route.to_island?.name || ''),
+          zone: String(route.to_island?.zone || 'A') as 'A' | 'B',
+        },
+        baseFare: Number(route.base_fare || 0),
+        duration: '2h',
+      }));
+
+      set({ availableRoutes: formattedRoutes });
+      return formattedRoutes;
+    } catch (error) {
+      console.error('Error fetching routes with trips on date:', error);
+      setError('Failed to fetch available routes');
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  },
+
   setError: (error: string | null) => set({ error }),
   setLoading: (isLoading: boolean) => set({ isLoading }),
 }));
@@ -240,8 +317,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
               vessel_id: String(trip.vessel_id || ''),
               seating_capacity: Number(trip.vessels.seating_capacity || 0),
               is_active: true,
-              base_fare: Number(trip.routes?.base_fare || 0),
+              base_fare: Number(trip.routes?.base_fare || 0), // Kept for backwards compatibility
               fare_multiplier: Number(trip.fare_multiplier || 1.0),
+              route: {
+                base_fare: Number(trip.routes?.base_fare || 0), // Nested for consistency
+              },
             };
           }
 
@@ -288,8 +368,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
                   vessel_id: String(trip.vessel_id || ''),
                   seating_capacity: Number(trip.vessels.seating_capacity || 0),
                   is_active: true,
-                  base_fare: Number(trip.routes?.base_fare || 0),
+                  base_fare: Number(trip.routes?.base_fare || 0), // Kept for backwards compatibility
                   fare_multiplier: Number(trip.fare_multiplier || 1.0),
+                  route: {
+                    base_fare: Number(trip.routes?.base_fare || 0), // Nested for consistency
+                  },
                 };
               }
             }
@@ -322,8 +405,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
             vessel_id: String(trip.vessel_id || ''),
             seating_capacity: Number(trip.vessels.seating_capacity || 0),
             is_active: true,
-            base_fare: Number(trip.routes?.base_fare || 0),
+            base_fare: Number(trip.routes?.base_fare || 0), // Kept for backwards compatibility
             fare_multiplier: Number(trip.fare_multiplier || 1.0),
+            route: {
+              base_fare: Number(trip.routes?.base_fare || 0), // Nested for consistency
+            },
           };
         })
       );
@@ -336,6 +422,37 @@ export const useTripStore = create<TripStore>((set, get) => ({
       setError('Failed to fetch trips');
     } finally {
       setLoading(false);
+    }
+  },
+
+  getAvailableDatesForRoute: async (routeId: string, daysAhead: number = 30) => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const futureDate = new Date(today);
+      futureDate.setDate(futureDate.getDate() + daysAhead);
+
+      // Get all trips for this route in the date range
+      const { data: trips, error } = await supabase
+        .from('trips')
+        .select('travel_date')
+        .eq('route_id', routeId)
+        .eq('is_active', true)
+        .gte('travel_date', today.toISOString().split('T')[0])
+        .lte('travel_date', futureDate.toISOString().split('T')[0])
+        .order('travel_date');
+
+      if (error) {
+        console.error('Error fetching available dates:', error);
+        return [];
+      }
+
+      // Get unique dates
+      const uniqueDates = [...new Set(trips.map((t: any) => t.travel_date))];
+      return uniqueDates;
+    } catch (error) {
+      console.error('Error in getAvailableDatesForRoute:', error);
+      return [];
     }
   },
 

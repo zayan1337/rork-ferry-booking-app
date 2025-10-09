@@ -145,6 +145,7 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                     check_in_status,
                     trip:trip_id(
                         id,
+                        fare_multiplier,
                         route:route_id(
                             id,
                             from_island:from_island_id(
@@ -227,7 +228,12 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
       }
 
       const allBookings = (allAgentBookings || []).map((booking: any) => {
-        // Extract route and trip information
+        // Extract route and trip information with multiplied fare
+        // Note: base_fare is in route, fare_multiplier is in trip
+        const routeBaseFare = Number(booking.trip?.route?.base_fare || 0);
+        const fareMultiplier = Number(booking.trip?.fare_multiplier || 1.0);
+        const multipliedFare = routeBaseFare * fareMultiplier;
+        
         const route = booking.trip?.route
           ? {
               id: booking.trip.route.id,
@@ -241,7 +247,9 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                 name: booking.trip.route.to_island.name,
                 zone: booking.trip.route.to_island.zone,
               },
-              baseFare: booking.trip.route.base_fare,
+              baseFare: multipliedFare, // Store multiplied fare (route.base_fare × trip.fare_multiplier)
+              routeBaseFare: routeBaseFare, // Keep original route base fare for reference
+              fareMultiplier: fareMultiplier, // Keep multiplier for reference
             }
           : null;
 
@@ -319,11 +327,14 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
           };
         }
 
-        // Calculate commission based on fare difference
+        // Calculate commission based on fare difference using trip's multiplied fare
         const discountedFare = Number(booking.total_fare || 0);
+        
+        // Calculate original fare using trip's base_fare × fare_multiplier
+        // Use the already calculated multipliedFare from above
         const originalFare =
-          route && passengers.length > 0
-            ? passengers.length * (route.baseFare || 0)
+          booking.trip && passengers.length > 0
+            ? passengers.length * multipliedFare
             : discountedFare;
         const commission =
           originalFare > discountedFare ? originalFare - discountedFare : 0;
@@ -1058,6 +1069,7 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
       }
 
       // Calculate refund and cancellation fee
+      // Note: total_fare already contains the discounted amount calculated from trip's multiplied fare
       const refundPercentage = cancellationData.refundPercentage || 50; // Default 50% refund
       const refundAmount = (currentBooking.total_fare * refundPercentage) / 100;
       const cancellationFee = currentBooking.total_fare - refundAmount;
@@ -1132,14 +1144,77 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
         }
       }
 
-      // Update payment status if needed
-      if (currentBooking.payments && currentBooking.payments.length > 0) {
+      // Process MIB refund if payment was made via MIB
+      let refundStatus: string | null = null;
+      if (
+        currentBooking.payments &&
+        currentBooking.payments.length > 0 &&
+        refundAmount > 0
+      ) {
+        const payment = currentBooking.payments[0];
+
+        // Check if payment was via MIB and is completed
+        if (payment.status === 'completed' && payment.payment_method === 'mib') {
+          try {
+            console.log(
+              `[AGENT CANCEL] Initiating MIB refund for booking ${bookingId}, amount: ${refundAmount}`
+            );
+
+            // Call MIB refund API through edge function
+            const { data: refundData, error: refundError } =
+              await supabase.functions.invoke('mib-payment', {
+                body: {
+                  action: 'process-refund',
+                  bookingId,
+                  refundAmount,
+                  currency: 'MVR',
+                },
+              });
+
+            if (refundError) {
+              console.error('[AGENT CANCEL] Refund API error:', refundError);
+              refundStatus = 'failed';
+              // Don't throw - continue with cancellation even if refund fails
+            } else if (refundData) {
+              console.log(
+                '[AGENT CANCEL] Refund API response:',
+                JSON.stringify(refundData, null, 2)
+              );
+
+              if (!refundData?.success) {
+                console.warn(
+                  '[AGENT CANCEL] Refund processing failed:',
+                  refundData?.error || 'Unknown error'
+                );
+                refundStatus = 'failed';
+              } else {
+                console.log('[AGENT CANCEL] Refund processed successfully');
+                refundStatus = 'completed';
+              }
+            }
+          } catch (refundException) {
+            console.error(
+              '[AGENT CANCEL] Exception during refund processing:',
+              refundException
+            );
+            refundStatus = 'failed';
+            // Continue - cancellation is complete, refund can be handled manually
+          }
+        }
+
+        // Update payment status based on refund outcome
         const newPaymentStatus =
-          refundAmount > 0
+          refundStatus === 'completed'
             ? refundAmount === currentBooking.total_fare
               ? 'refunded'
               : 'partially_refunded'
-            : 'cancelled';
+            : refundStatus === 'failed'
+              ? 'refund_failed'
+              : refundAmount > 0
+                ? refundAmount === currentBooking.total_fare
+                  ? 'refunded'
+                  : 'partially_refunded'
+                : 'cancelled';
 
         const { error: paymentUpdateError } = await supabase
           .from('payments')
@@ -1185,7 +1260,7 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
         }
       }
 
-      // Create cancellation record
+      // Create cancellation record with refund status
       const cancellationRecord = {
         booking_id: bookingId,
         cancellation_number: cancellationNumber,
@@ -1197,9 +1272,17 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
         refund_bank_account_name:
           cancellationData.bankDetails?.accountName || null,
         refund_bank_name: cancellationData.bankDetails?.bankName || null,
-        status: 'pending',
+        status:
+          refundStatus === 'completed'
+            ? 'completed'
+            : refundStatus === 'failed'
+              ? 'refund_failed'
+              : cancellationData.refundMethod === 'agent_credit'
+                ? 'completed'
+                : 'pending',
         refund_processing_date:
-          cancellationData.refundMethod === 'agent_credit'
+          cancellationData.refundMethod === 'agent_credit' ||
+          refundStatus === 'completed'
             ? new Date().toISOString()
             : null,
       };
