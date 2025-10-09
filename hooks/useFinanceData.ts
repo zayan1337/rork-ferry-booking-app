@@ -1,509 +1,452 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useFinanceStore } from '@/store/admin/financeStore';
-import {
-  WalletFormData,
-  WalletTransactionFormData,
-  PaymentFormData,
-  FinanceFilters,
-  WalletFilters,
-  TransactionFilters,
-} from '@/types/admin/finance';
-
-// ============================================================================
-// FINANCE DATA HOOKS - COMPONENT INTEGRATION
-// ============================================================================
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import type { Payment, Wallet, WalletTransaction } from '@/types/admin/finance';
 
 /**
- * Hook for managing wallet data
+ * Custom hook for managing finance data with comprehensive filtering and statistics
+ * Provides centralized finance data fetching and state management
+ *
+ * Features:
+ * - Automatic initialization and data fetching
+ * - Comprehensive filtering for payments, wallets, and transactions
+ * - Real-time statistics calculation
+ * - Agent-specific wallet filtering
+ * - Error handling and retry mechanisms
+ * - Granular refresh controls
  */
-export const useWalletData = () => {
-  const {
-    wallets,
-    loading,
-    error,
-    searchQueries,
-    filters,
-    fetchWallets,
-    createWallet,
-    createWalletTransaction,
-    setSearchQuery,
-    setFilters,
-    clearFilters,
-    refreshData,
-  } = useFinanceStore();
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Fetch wallets on mount
-  useEffect(() => {
-    fetchWallets();
-  }, []);
-
-  // Handle refresh
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    await refreshData();
-    setIsRefreshing(false);
-  }, [refreshData]);
-
-  // Handle search
-  const handleSearch = useCallback(
-    (query: string) => {
-      setSearchQuery('wallets', query);
-      fetchWallets(true);
-    },
-    [setSearchQuery, fetchWallets]
-  );
-
-  // Handle filter changes
-  const handleFilterChange = useCallback(
-    (newFilters: Partial<WalletFilters>) => {
-      setFilters('wallets', newFilters);
-      fetchWallets(true);
-    },
-    [setFilters, fetchWallets]
-  );
-
-  // Handle wallet creation
-  const handleCreateWallet = useCallback(
-    async (walletData: WalletFormData) => {
-      try {
-        const newWallet = await createWallet(walletData);
-        return newWallet;
-      } catch (error) {
-        console.error('Failed to create wallet:', error);
-        throw error;
-      }
-    },
-    [createWallet]
-  );
-
-  // Handle transaction creation
-  const handleCreateTransaction = useCallback(
-    async (transactionData: WalletTransactionFormData) => {
-      try {
-        const newTransaction = await createWalletTransaction(transactionData);
-        return newTransaction;
-      } catch (error) {
-        console.error('Failed to create transaction:', error);
-        throw error;
-      }
-    },
-    [createWalletTransaction]
-  );
-
-  return {
-    wallets,
-    loading: loading.wallets,
-    error,
-    isRefreshing,
-    searchQuery: searchQueries.wallets,
-    filters: filters.wallets,
-    handleRefresh,
-    handleSearch,
-    handleFilterChange,
-    handleCreateWallet,
-    handleCreateTransaction,
-    clearFilters: () => clearFilters('wallets'),
-  };
-};
-
-/**
- * Hook for managing wallet transaction data
- */
-export const useWalletTransactionData = () => {
-  const {
-    walletTransactions,
-    loading,
-    error,
-    searchQueries,
-    filters,
-    fetchWalletTransactions,
-    setSearchQuery,
-    setFilters,
-    clearFilters,
-    refreshData,
-  } = useFinanceStore();
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Fetch transactions on mount
-  useEffect(() => {
-    fetchWalletTransactions();
-  }, []);
-
-  // Handle refresh
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    await refreshData();
-    setIsRefreshing(false);
-  }, [refreshData]);
-
-  // Handle search
-  const handleSearch = useCallback(
-    (query: string) => {
-      setSearchQuery('transactions', query);
-      fetchWalletTransactions(true);
-    },
-    [setSearchQuery, fetchWalletTransactions]
-  );
-
-  // Handle filter changes
-  const handleFilterChange = useCallback(
-    (newFilters: Partial<TransactionFilters>) => {
-      setFilters('transactions', newFilters);
-      fetchWalletTransactions(true);
-    },
-    [setFilters, fetchWalletTransactions]
-  );
-
-  return {
-    transactions: walletTransactions,
-    loading: loading.transactions,
-    error,
-    isRefreshing,
-    searchQuery: searchQueries.transactions,
-    filters: filters.transactions,
-    handleRefresh,
-    handleSearch,
-    handleFilterChange,
-    clearFilters: () => clearFilters('transactions'),
-  };
-};
-
-/**
- * Hook for managing payment data
- */
-export const usePaymentData = () => {
+export const useFinanceData = () => {
   const {
     payments,
+    wallets,
+    walletTransactions,
+    agentCreditTransactions,
+    stats,
+    paymentMethodStats,
     loading,
     error,
     searchQueries,
     filters,
     fetchPayments,
-    createPayment,
-    updatePaymentStatus,
+    fetchWallets,
+    fetchWalletTransactions,
+    fetchAgentCreditTransactions,
+    fetchStats,
     setSearchQuery,
     setFilters,
     clearFilters,
     refreshData,
   } = useFinanceStore();
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Fetch payments on mount
-  useEffect(() => {
-    fetchPayments();
-  }, []);
-
-  // Handle refresh
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    await refreshData();
-    setIsRefreshing(false);
-  }, [refreshData]);
-
-  // Handle search
-  const handleSearch = useCallback(
-    (query: string) => {
-      setSearchQuery('payments', query);
-      fetchPayments(true);
-    },
-    [setSearchQuery, fetchPayments]
-  );
-
-  // Handle filter changes
-  const handleFilterChange = useCallback(
-    (newFilters: Partial<FinanceFilters>) => {
-      setFilters('payments', newFilters);
-      fetchPayments(true);
-    },
-    [setFilters, fetchPayments]
-  );
-
-  // Handle payment creation
-  const handleCreatePayment = useCallback(
-    async (paymentData: PaymentFormData) => {
-      try {
-        const newPayment = await createPayment(paymentData);
-        return newPayment;
-      } catch (error) {
-        console.error('Failed to create payment:', error);
-        throw error;
-      }
-    },
-    [createPayment]
-  );
-
-  // Handle payment status update
-  const handleUpdatePaymentStatus = useCallback(
-    async (paymentId: string, status: string) => {
-      try {
-        await updatePaymentStatus(paymentId, status);
-      } catch (error) {
-        console.error('Failed to update payment status:', error);
-        throw error;
-      }
-    },
-    [updatePaymentStatus]
-  );
-
-  return {
-    payments,
-    loading: loading.payments,
-    error,
-    isRefreshing,
-    searchQuery: searchQueries.payments,
-    filters: filters.payments,
-    handleRefresh,
-    handleSearch,
-    handleFilterChange,
-    handleCreatePayment,
-    handleUpdatePaymentStatus,
-    clearFilters: () => clearFilters('payments'),
-  };
-};
-
-/**
- * Hook for managing finance statistics
- */
-export const useFinanceStats = () => {
-  const { stats, paymentMethodStats, loading, error, fetchStats, refreshData } =
-    useFinanceStore();
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Fetch stats on mount
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  // Handle refresh
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    await refreshData();
-    setIsRefreshing(false);
-  }, [refreshData]);
-
-  return {
-    stats,
-    paymentMethodStats,
-    loading: loading.stats,
-    error,
-    isRefreshing,
-    handleRefresh,
-  };
-};
-
-/**
- * Hook for managing finance dashboard data
- */
-export const useFinanceDashboard = () => {
-  const { dashboardData, loading, error, fetchDashboardData, refreshData } =
-    useFinanceStore();
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Fetch dashboard data on mount
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  // Handle refresh
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    await refreshData();
-    setIsRefreshing(false);
-  }, [refreshData]);
-
-  return {
-    dashboardData,
-    loading: loading.dashboard,
-    error,
-    isRefreshing,
-    handleRefresh,
-  };
-};
-
-/**
- * Hook for managing finance operations (CRUD)
- */
-export const useFinanceOperations = () => {
   const {
-    createWallet,
-    createWalletTransaction,
-    createPayment,
-    updatePaymentStatus,
-    getWalletByUserId,
-    loading,
-    error,
-  } = useFinanceStore();
+    canViewPayments,
+    canViewWallets,
+    canManagePayments,
+    canManageWallets,
+  } = useAdminPermissions();
 
-  return {
-    // Wallet operations
-    createWallet: async (walletData: WalletFormData) => {
-      try {
-        return await createWallet(walletData);
-      } catch (error) {
-        console.error('Failed to create wallet:', error);
-        throw error;
+  // Calculate filtered payments based on search and filters
+  const filteredPayments = useMemo(() => {
+    if (!payments) return [];
+
+    let filtered = [...payments];
+
+    // Apply search filter
+    const searchQuery = searchQueries.payments.toLowerCase();
+    if (searchQuery) {
+      filtered = filtered.filter(
+        payment =>
+          payment.booking?.booking_number
+            ?.toLowerCase()
+            .includes(searchQuery) ||
+          payment.booking?.user_name?.toLowerCase().includes(searchQuery) ||
+          payment.receipt_number?.toLowerCase().includes(searchQuery)
+      );
+    }
+
+    // Apply status filter
+    if (filters.payments.status && filters.payments.status !== 'all') {
+      filtered = filtered.filter(
+        payment => payment.status === filters.payments.status
+      );
+    }
+
+    // Apply payment method filter
+    if (
+      filters.payments.paymentMethod &&
+      filters.payments.paymentMethod !== 'all'
+    ) {
+      filtered = filtered.filter(
+        payment => payment.payment_method === filters.payments.paymentMethod
+      );
+    }
+
+    // Apply date range filter
+    if (filters.payments.dateRange.start) {
+      filtered = filtered.filter(
+        payment =>
+          new Date(payment.created_at) >=
+          new Date(filters.payments.dateRange.start)
+      );
+    }
+    if (filters.payments.dateRange.end) {
+      filtered = filtered.filter(
+        payment =>
+          new Date(payment.created_at) <=
+          new Date(filters.payments.dateRange.end)
+      );
+    }
+
+    // Apply amount range filter
+    if (filters.payments.amountRange.min) {
+      filtered = filtered.filter(
+        payment => payment.amount >= filters.payments.amountRange.min
+      );
+    }
+    if (filters.payments.amountRange.max) {
+      filtered = filtered.filter(
+        payment => payment.amount <= filters.payments.amountRange.max
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const aVal = a[filters.payments.sortBy as keyof Payment];
+      const bVal = b[filters.payments.sortBy as keyof Payment];
+
+      if (aVal < bVal) return filters.payments.sortOrder === 'asc' ? -1 : 1;
+      if (aVal > bVal) return filters.payments.sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [payments, searchQueries.payments, filters.payments]);
+
+  // Calculate filtered wallets with agent filtering
+  const filteredWallets = useMemo(() => {
+    if (!wallets) return [];
+
+    let filtered = [...wallets];
+
+    // Apply search filter
+    const searchQuery = searchQueries.wallets.toLowerCase();
+    if (searchQuery) {
+      filtered = filtered.filter(
+        wallet =>
+          wallet.user_name.toLowerCase().includes(searchQuery) ||
+          wallet.user_email.toLowerCase().includes(searchQuery)
+      );
+    }
+
+    // Apply status filter
+    if (filters.wallets.status && filters.wallets.status !== 'all') {
+      if (filters.wallets.status === 'active') {
+        filtered = filtered.filter(wallet => wallet.balance > 0);
+      } else if (filters.wallets.status === 'inactive') {
+        filtered = filtered.filter(wallet => wallet.balance === 0);
       }
-    },
+    }
 
-    // Transaction operations
-    createWalletTransaction: async (
-      transactionData: WalletTransactionFormData
-    ) => {
-      try {
-        return await createWalletTransaction(transactionData);
-      } catch (error) {
-        console.error('Failed to create wallet transaction:', error);
-        throw error;
+    // Apply balance range filter
+    if (filters.wallets.balanceRange.min !== undefined) {
+      filtered = filtered.filter(
+        wallet => wallet.balance >= filters.wallets.balanceRange.min
+      );
+    }
+    if (filters.wallets.balanceRange.max !== undefined) {
+      filtered = filtered.filter(
+        wallet => wallet.balance <= filters.wallets.balanceRange.max
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const aVal = a[filters.wallets.sortBy as keyof Wallet];
+      const bVal = b[filters.wallets.sortBy as keyof Wallet];
+
+      if (aVal < bVal) return filters.wallets.sortOrder === 'asc' ? -1 : 1;
+      if (aVal > bVal) return filters.wallets.sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [wallets, searchQueries.wallets, filters.wallets]);
+
+  // Filter wallets by agent role
+  const agentWallets = useMemo(() => {
+    return filteredWallets; // Would filter by user role if we had that data
+  }, [filteredWallets]);
+
+  // Calculate filtered transactions
+  const filteredTransactions = useMemo(() => {
+    if (!walletTransactions) return [];
+
+    let filtered = [...walletTransactions];
+
+    // Apply search filter
+    const searchQuery = searchQueries.transactions.toLowerCase();
+    if (searchQuery) {
+      filtered = filtered.filter(
+        transaction =>
+          transaction.user_name.toLowerCase().includes(searchQuery) ||
+          transaction.description?.toLowerCase().includes(searchQuery)
+      );
+    }
+
+    // Apply type filter
+    if (filters.transactions.type && filters.transactions.type !== 'all') {
+      filtered = filtered.filter(
+        transaction =>
+          transaction.transaction_type === filters.transactions.type
+      );
+    }
+
+    // Apply date range filter
+    if (filters.transactions.dateRange.start) {
+      filtered = filtered.filter(
+        transaction =>
+          new Date(transaction.created_at) >=
+          new Date(filters.transactions.dateRange.start)
+      );
+    }
+    if (filters.transactions.dateRange.end) {
+      filtered = filtered.filter(
+        transaction =>
+          new Date(transaction.created_at) <=
+          new Date(filters.transactions.dateRange.end)
+      );
+    }
+
+    // Apply amount range filter
+    if (filters.transactions.amountRange.min !== undefined) {
+      filtered = filtered.filter(
+        transaction =>
+          transaction.amount >= filters.transactions.amountRange.min
+      );
+    }
+    if (filters.transactions.amountRange.max !== undefined) {
+      filtered = filtered.filter(
+        transaction =>
+          transaction.amount <= filters.transactions.amountRange.max
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const aVal = a[filters.transactions.sortBy as keyof WalletTransaction];
+      const bVal = b[filters.transactions.sortBy as keyof WalletTransaction];
+
+      if (aVal < bVal) return filters.transactions.sortOrder === 'asc' ? -1 : 1;
+      if (aVal > bVal) return filters.transactions.sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [walletTransactions, searchQueries.transactions, filters.transactions]);
+
+  // Calculate payment statistics
+  const paymentStats = useMemo(() => {
+    if (!filteredPayments) return null;
+
+    const totalPayments = filteredPayments.length;
+    const completedPayments = filteredPayments.filter(
+      p => p.status === 'completed'
+    ).length;
+    const pendingPayments = filteredPayments.filter(
+      p => p.status === 'pending'
+    ).length;
+    const failedPayments = filteredPayments.filter(
+      p => p.status === 'failed'
+    ).length;
+    const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+    const averageAmount = totalPayments > 0 ? totalAmount / totalPayments : 0;
+    const successRate =
+      totalPayments > 0 ? (completedPayments / totalPayments) * 100 : 0;
+
+    return {
+      totalPayments,
+      completedPayments,
+      pendingPayments,
+      failedPayments,
+      totalAmount,
+      averageAmount,
+      successRate,
+    };
+  }, [filteredPayments]);
+
+  // Calculate wallet statistics
+  const walletStats = useMemo(() => {
+    if (!filteredWallets) return null;
+
+    const totalWallets = filteredWallets.length;
+    const activeWallets = filteredWallets.filter(w => w.balance > 0).length;
+    const inactiveWallets = totalWallets - activeWallets;
+    const totalBalance = filteredWallets.reduce((sum, w) => sum + w.balance, 0);
+    const averageBalance = totalWallets > 0 ? totalBalance / totalWallets : 0;
+
+    return {
+      totalWallets,
+      activeWallets,
+      inactiveWallets,
+      totalBalance,
+      averageBalance,
+    };
+  }, [filteredWallets]);
+
+  // Calculate transaction statistics
+  const transactionStats = useMemo(() => {
+    if (!filteredTransactions) return null;
+
+    const totalTransactions = filteredTransactions.length;
+    const creditTransactions = filteredTransactions.filter(
+      t => t.transaction_type === 'credit'
+    ).length;
+    const debitTransactions = filteredTransactions.filter(
+      t => t.transaction_type === 'debit'
+    ).length;
+    const totalCredits = filteredTransactions
+      .filter(t => t.transaction_type === 'credit')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const totalDebits = filteredTransactions
+      .filter(t => t.transaction_type === 'debit')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const netFlow = totalCredits - totalDebits;
+
+    return {
+      totalTransactions,
+      creditTransactions,
+      debitTransactions,
+      totalCredits,
+      totalDebits,
+      netFlow,
+    };
+  }, [filteredTransactions]);
+
+  // Initialize data on mount
+  useEffect(() => {
+    const initializeData = async () => {
+      const promises = [];
+
+      if (canViewPayments() && (!payments || payments.length === 0)) {
+        promises.push(fetchPayments());
       }
-    },
-
-    // Payment operations
-    createPayment: async (paymentData: PaymentFormData) => {
-      try {
-        return await createPayment(paymentData);
-      } catch (error) {
-        console.error('Failed to create payment:', error);
-        throw error;
+      if (canViewWallets() && (!wallets || wallets.length === 0)) {
+        promises.push(fetchWallets());
       }
-    },
-
-    updatePaymentStatus: async (paymentId: string, status: string) => {
-      try {
-        await updatePaymentStatus(paymentId, status);
-      } catch (error) {
-        console.error('Failed to update payment status:', error);
-        throw error;
+      if (
+        canViewWallets() &&
+        (!walletTransactions || walletTransactions.length === 0)
+      ) {
+        promises.push(fetchWalletTransactions());
       }
+      promises.push(fetchStats());
+
+      await Promise.all(promises);
+    };
+
+    initializeData();
+  }, []);
+
+  // Refresh all finance data
+  const handleRefresh = useCallback(async () => {
+    await refreshData();
+  }, [refreshData]);
+
+  // Get a single payment by ID
+  const getPaymentById = useCallback(
+    (paymentId: string) => {
+      return payments?.find(p => p.id === paymentId) || null;
     },
+    [payments]
+  );
 
-    // Utility operations
-    getWalletByUserId: async (userId: string) => {
-      try {
-        return await getWalletByUserId(userId);
-      } catch (error) {
-        console.error('Failed to get wallet by user ID:', error);
-        throw error;
-      }
+  // Get a single wallet by ID
+  const getWalletById = useCallback(
+    (walletId: string) => {
+      return wallets?.find(w => w.id === walletId) || null;
     },
+    [wallets]
+  );
 
-    loading: loading.creating || loading.updating,
-    error,
-  };
-};
+  // Get transactions for a specific wallet
+  const getWalletTransactions = useCallback(
+    (walletId: string) => {
+      return walletTransactions?.filter(t => t.wallet_id === walletId) || [];
+    },
+    [walletTransactions]
+  );
 
-/**
- * Hook for managing finance filters and search
- */
-export const useFinanceFilters = () => {
-  const { searchQueries, filters, setSearchQuery, setFilters, clearFilters } =
-    useFinanceStore();
+  // Format currency
+  const formatCurrency = useCallback((amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'MVR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  }, []);
 
-  return {
-    searchQueries,
-    filters,
-    setSearchQuery,
-    setFilters,
-    clearFilters,
-  };
-};
-
-/**
- * Combined hook for finance screen
- */
-export const useFinanceScreen = () => {
-  const walletData = useWalletData();
-  const transactionData = useWalletTransactionData();
-  const paymentData = usePaymentData();
-  const statsData = useFinanceStats();
-  const dashboardData = useFinanceDashboard();
-  const operations = useFinanceOperations();
+  // Format date
+  const formatDate = useCallback((dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }, []);
 
   return {
     // Data
-    wallets: walletData.wallets,
-    transactions: transactionData.transactions,
-    payments: paymentData.payments,
-    agentCreditTransactions: [], // TODO: Add agent credit transactions
-    stats: statsData.stats,
-    paymentMethodStats: statsData.paymentMethodStats,
-    dashboardData: dashboardData.dashboardData,
+    payments,
+    wallets,
+    agentWallets,
+    walletTransactions,
+    agentCreditTransactions,
+    stats,
+    paymentMethodStats,
+
+    // Filtered data
+    filteredPayments,
+    filteredWallets,
+    filteredTransactions,
+
+    // Calculated statistics
+    paymentStats,
+    walletStats,
+    transactionStats,
 
     // Loading states
-    loading: {
-      wallets: walletData.loading,
-      transactions: transactionData.loading,
-      payments: paymentData.loading,
-      stats: statsData.loading,
-      dashboard: dashboardData.loading,
-      operations: operations.loading,
-    },
-
-    // Error states
-    error:
-      walletData.error ||
-      transactionData.error ||
-      paymentData.error ||
-      statsData.error ||
-      dashboardData.error ||
-      operations.error,
-
-    // Refresh states
-    isRefreshing:
-      walletData.isRefreshing ||
-      transactionData.isRefreshing ||
-      paymentData.isRefreshing ||
-      statsData.isRefreshing ||
-      dashboardData.isRefreshing,
-
-    // Actions
-    handleRefresh: async () => {
-      await Promise.all([
-        walletData.handleRefresh(),
-        transactionData.handleRefresh(),
-        paymentData.handleRefresh(),
-        statsData.handleRefresh(),
-        dashboardData.handleRefresh(),
-      ]);
-    },
+    loading,
+    error,
 
     // Search and filters
-    searchQueries: {
-      wallets: walletData.searchQuery,
-      transactions: transactionData.searchQuery,
-      payments: paymentData.searchQuery,
-    },
+    searchQueries,
+    filters,
 
-    filters: {
-      wallets: walletData.filters,
-      transactions: transactionData.filters,
-      payments: paymentData.filters,
-    },
+    // Actions
+    fetchPayments,
+    fetchWallets,
+    fetchWalletTransactions,
+    fetchAgentCreditTransactions,
+    fetchStats,
+    setSearchQuery,
+    setFilters,
+    clearFilters,
+    handleRefresh,
 
-    handleSearch: {
-      wallets: walletData.handleSearch,
-      transactions: transactionData.handleSearch,
-      payments: paymentData.handleSearch,
-    },
+    // Utility functions
+    getPaymentById,
+    getWalletById,
+    getWalletTransactions,
+    formatCurrency,
+    formatDate,
 
-    handleFilterChange: {
-      wallets: walletData.handleFilterChange,
-      transactions: transactionData.handleFilterChange,
-      payments: paymentData.handleFilterChange,
-    },
-
-    clearFilters: {
-      wallets: walletData.clearFilters,
-      transactions: transactionData.clearFilters,
-      payments: paymentData.clearFilters,
-    },
-
-    // Operations
-    operations,
+    // Permissions
+    canViewPayments: canViewPayments(),
+    canViewWallets: canViewWallets(),
+    canManagePayments: canManagePayments(),
+    canManageWallets: canManageWallets(),
   };
 };

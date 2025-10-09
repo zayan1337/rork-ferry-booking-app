@@ -206,8 +206,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     set({ loading: { ...state.loading, wallets: true }, error: null });
 
     try {
+      console.log('Fetching wallets from store...');
       const filters = state.filters.wallets;
       const wallets = await fetchWallets(filters);
+      console.log('Wallets fetched:', wallets.length);
 
       set({
         wallets,
@@ -260,8 +262,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     set({ loading: { ...state.loading, payments: true }, error: null });
 
     try {
+      console.log('Fetching payments from store...');
       const filters = state.filters.payments;
       const payments = await fetchPayments(filters);
+      console.log('Payments fetched:', payments.length);
 
       set({
         payments,
@@ -286,8 +290,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     set({ loading: { ...state.loading, stats: true }, error: null });
 
     try {
+      console.log('Fetching finance stats...');
       const stats = await fetchFinanceStats();
       const paymentMethodStats = await fetchPaymentMethodStats();
+      console.log('Stats fetched:', stats);
 
       set({
         stats,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Mail } from 'lucide-react-native';
@@ -10,16 +10,16 @@ interface UserItemProps {
   onPress?: () => void;
 }
 
-export default function UserItem({ user, onPress }: UserItemProps) {
-  const getInitials = (name: string) => {
-    return name
+const UserItem = memo(({ user, onPress }: UserItemProps) => {
+  const initials = useMemo(() => {
+    return user.name
       .split(' ')
       .map(n => n[0])
       .join('')
       .toUpperCase();
-  };
+  }, [user.name]);
 
-  const getRoleColor = () => {
+  const roleColor = useMemo(() => {
     switch (user.role) {
       case 'admin':
         return colors.primary;
@@ -28,7 +28,11 @@ export default function UserItem({ user, onPress }: UserItemProps) {
       default:
         return colors.textSecondary;
     }
-  };
+  }, [user.role]);
+
+  const formattedDate = useMemo(() => {
+    return new Date(user.created_at).toLocaleDateString();
+  }, [user.created_at]);
 
   return (
     <TouchableOpacity
@@ -37,7 +41,7 @@ export default function UserItem({ user, onPress }: UserItemProps) {
       activeOpacity={0.7}
     >
       <View style={styles.avatarContainer}>
-        <Text style={styles.avatarText}>{getInitials(user.name)}</Text>
+        <Text style={styles.avatarText}>{initials}</Text>
       </View>
 
       <View style={styles.content}>
@@ -53,23 +57,22 @@ export default function UserItem({ user, onPress }: UserItemProps) {
 
         <View style={styles.footer}>
           <View
-            style={[
-              styles.roleBadge,
-              { backgroundColor: `${getRoleColor()}20` },
-            ]}
+            style={[styles.roleBadge, { backgroundColor: `${roleColor}20` }]}
           >
-            <Text style={[styles.roleText, { color: getRoleColor() }]}>
+            <Text style={[styles.roleText, { color: roleColor }]}>
               {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
             </Text>
           </View>
-          <Text style={styles.date}>
-            Joined {new Date(user.created_at).toLocaleDateString()}
-          </Text>
+          <Text style={styles.date}>Joined {formattedDate}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
-}
+});
+
+UserItem.displayName = 'UserItem';
+
+export default UserItem;
 
 const styles = StyleSheet.create({
   container: {

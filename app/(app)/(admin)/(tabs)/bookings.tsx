@@ -115,6 +115,26 @@ export default function BookingsScreen() {
     'overview'
   );
 
+  // Local search state - completely client-side, no store updates
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+
+  // Client-side filtering using local search query for immediate results
+  const displayBookings = React.useMemo(() => {
+    if (!localSearchQuery.trim()) return bookings;
+
+    const query = localSearchQuery.toLowerCase().trim();
+    return bookings.filter(booking => {
+      return (
+        booking.user_name?.toLowerCase().includes(query) ||
+        booking.user_email?.toLowerCase().includes(query) ||
+        booking.booking_number?.toLowerCase().includes(query) ||
+        booking.route_name?.toLowerCase().includes(query) ||
+        booking.from_island_name?.toLowerCase().includes(query) ||
+        booking.to_island_name?.toLowerCase().includes(query)
+      );
+    });
+  }, [bookings, localSearchQuery]);
+
   // Fetch data on component mount and when switching tabs
   useEffect(() => {
     // Always fetch stats for overview tab
@@ -160,10 +180,11 @@ export default function BookingsScreen() {
   };
 
   const isAllSelected =
-    bookings.length > 0 && filters.selectedBookings.length === bookings.length;
+    displayBookings.length > 0 &&
+    filters.selectedBookings.length === displayBookings.length;
   const isPartiallySelected =
     filters.selectedBookings.length > 0 &&
-    filters.selectedBookings.length < bookings.length;
+    filters.selectedBookings.length < displayBookings.length;
 
   const handleLoadMore = () => {
     if (!loading && hasMore) {
@@ -219,8 +240,8 @@ export default function BookingsScreen() {
       <View style={styles.searchContainer}>
         <View style={styles.searchWrapper}>
           <SearchBar
-            value={filters.searchQuery}
-            onChangeText={setSearchQuery}
+            value={localSearchQuery}
+            onChangeText={setLocalSearchQuery}
             placeholder='Search by customer, route, booking ID, or email...'
           />
         </View>
@@ -279,14 +300,14 @@ export default function BookingsScreen() {
       <View style={styles.section}>
         <View style={styles.bookingsHeader}>
           <SectionHeader
-            title={filters.searchQuery ? 'Search Results' : 'All Bookings'}
-            subtitle={`${totalItems} ${totalItems === 1 ? 'booking' : 'bookings'} found`}
+            title={localSearchQuery ? 'Search Results' : 'All Bookings'}
+            subtitle={`${displayBookings.length} ${displayBookings.length === 1 ? 'booking' : 'bookings'} found`}
             size={isTablet ? 'large' : 'medium'}
           />
         </View>
 
         {/* Compact Filter Status */}
-        {(hasActiveFilters() || bookings.length > 0) && (
+        {(hasActiveFilters() || displayBookings.length > 0) && (
           <View style={styles.compactFilterStatus}>
             <Text style={styles.compactFilterText}>
               {getCurrentFilterText().filters}
@@ -310,7 +331,7 @@ export default function BookingsScreen() {
         )}
 
         {/* Select All Section */}
-        {canUpdateBookings() && bookings.length > 0 && (
+        {canUpdateBookings() && displayBookings.length > 0 && (
           <TouchableOpacity
             style={styles.selectAllButton}
             onPress={selectAllBookings}
@@ -375,108 +396,109 @@ export default function BookingsScreen() {
           )}
         </ScrollView>
       ) : (
-        <FlatList
-          style={styles.container}
-          contentContainerStyle={[
-            styles.contentContainer,
-            getResponsivePadding(),
-          ]}
-          data={bookings}
-          renderItem={({ item: booking }) => (
-            <View style={styles.bookingItemWrapper}>
-              {canUpdateBookings() && (
-                <TouchableOpacity
-                  style={styles.selectionCheckbox}
-                  onPress={() => toggleBookingSelection(booking.id)}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      filters.selectedBookings.includes(booking.id) &&
-                        styles.checkboxSelected,
-                    ]}
+        <View style={styles.container}>
+          {renderHeader()}
+          <View style={[getResponsivePadding()]}>
+            <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+            {renderBookingsList()}
+          </View>
+          <FlatList
+            style={styles.flatListContainer}
+            contentContainerStyle={[
+              styles.contentContainer,
+              getResponsivePadding(),
+            ]}
+            data={displayBookings}
+            keyboardShouldPersistTaps='handled'
+            renderItem={({ item: booking }) => (
+              <View style={styles.bookingItemWrapper}>
+                {canUpdateBookings() && (
+                  <TouchableOpacity
+                    style={styles.selectionCheckbox}
+                    onPress={() => toggleBookingSelection(booking.id)}
                   >
-                    {filters.selectedBookings.includes(booking.id) && (
-                      <Check size={14} color='white' />
-                    )}
+                    <View
+                      style={[
+                        styles.checkbox,
+                        filters.selectedBookings.includes(booking.id) &&
+                          styles.checkboxSelected,
+                      ]}
+                    >
+                      {filters.selectedBookings.includes(booking.id) && (
+                        <Check size={14} color='white' />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+                <View style={styles.bookingItemContent}>
+                  <AdminBookingItem
+                    booking={booking}
+                    onPress={handleBookingPress}
+                    compact={!isTablet}
+                  />
+                </View>
+              </View>
+            )}
+            ListEmptyComponent={() => {
+              if ((loading || !hasFetched) && displayBookings.length === 0) {
+                return (
+                  <View style={styles.loadingContainer}>
+                    <LoadingSpinner size='large' />
+                    <Text style={styles.loadingText}>Loading bookings...</Text>
                   </View>
-                </TouchableOpacity>
-              )}
-              <View style={styles.bookingItemContent}>
-                <AdminBookingItem
-                  booking={booking}
-                  onPress={handleBookingPress}
-                  compact={!isTablet}
-                />
-              </View>
-            </View>
-          )}
-          ListHeaderComponent={() => (
-            <>
-              {renderHeader()}
-              <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-              {renderBookingsList()}
-            </>
-          )}
-          ListEmptyComponent={() => {
-            if ((loading || !hasFetched) && bookings.length === 0) {
+                );
+              }
               return (
-                <View style={styles.loadingContainer}>
-                  <LoadingSpinner size='large' />
-                  <Text style={styles.loadingText}>Loading bookings...</Text>
+                <View style={styles.emptyState}>
+                  <EmptyState
+                    icon={<Eye size={48} color={colors.textSecondary} />}
+                    title='No bookings found'
+                    message={
+                      localSearchQuery
+                        ? 'Try adjusting your search criteria'
+                        : 'No bookings match the current filters'
+                    }
+                  />
                 </View>
               );
+            }}
+            ListFooterComponent={() => {
+              if (!loading && !hasMore && displayBookings.length > 0) {
+                return (
+                  <View style={styles.footer}>
+                    <Text style={styles.footerText}>
+                      Showing {displayBookings.length} bookings
+                    </Text>
+                  </View>
+                );
+              }
+              if (loading && hasMore) {
+                return (
+                  <View style={styles.footer}>
+                    <LoadingSpinner size='small' />
+                    <Text style={styles.footerText}>
+                      Loading more bookings...
+                    </Text>
+                  </View>
+                );
+              }
+              return null;
+            }}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
+              />
             }
-            return (
-              <View style={styles.emptyState}>
-                <EmptyState
-                  icon={<Eye size={48} color={colors.textSecondary} />}
-                  title='No bookings found'
-                  message={
-                    filters.searchQuery
-                      ? 'Try adjusting your search criteria'
-                      : 'No bookings match the current filters'
-                  }
-                />
-              </View>
-            );
-          }}
-          ListFooterComponent={() => {
-            if (!loading && !hasMore) {
-              return (
-                <View style={styles.footer}>
-                  <Text style={styles.footerText}>
-                    Showing {bookings.length} of {totalItems} bookings
-                  </Text>
-                </View>
-              );
-            }
-            if (loading && hasMore) {
-              return (
-                <View style={styles.footer}>
-                  <LoadingSpinner size='small' />
-                  <Text style={styles.footerText}>
-                    Loading more bookings...
-                  </Text>
-                </View>
-              );
-            }
-            return null;
-          }}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
-            />
-          }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.1}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-        />
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.1}
+            showsVerticalScrollIndicator={false}
+            ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+          />
+        </View>
       )}
 
       <FilterModal
@@ -500,6 +522,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
+  },
+  flatListContainer: {
+    flex: 1,
   },
   contentContainer: {
     flexGrow: 1,

@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
-import { StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import {
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  View,
+  Text,
+} from 'react-native';
 import { Stack } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -36,6 +42,14 @@ function FinanceScreen() {
     searchQueries,
   } = useFinanceStore();
 
+  console.log('Finance Screen - Data:', {
+    paymentsCount: payments?.length || 0,
+    walletsCount: wallets?.length || 0,
+    transactionsCount: walletTransactions?.length || 0,
+    stats,
+    loading,
+  });
+
   const [activeSection, setActiveSection] =
     useState<FinanceSection>('payments');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -47,27 +61,24 @@ function FinanceScreen() {
   useEffect(() => {
     const initializeData = async () => {
       // Prevent multiple initializations
-      if (hasInitialized.current || loading) return;
+      if (hasInitialized.current) return;
 
       hasInitialized.current = true;
 
-      const promises = [];
+      console.log('Initializing finance data...');
 
-      if (canViewPayments() && (!payments || payments.length === 0)) {
-        promises.push(fetchPayments());
+      try {
+        // Fetch all data in parallel for faster loading
+        await Promise.all([
+          canViewPayments() ? fetchPayments() : Promise.resolve(),
+          canViewWallets() ? fetchWallets() : Promise.resolve(),
+          canViewWallets() ? fetchWalletTransactions() : Promise.resolve(),
+          fetchStats(),
+        ]);
+        console.log('Finance data initialized successfully');
+      } catch (error) {
+        console.error('Error initializing finance data:', error);
       }
-      if (canViewWallets() && (!wallets || wallets.length === 0)) {
-        promises.push(fetchWallets());
-      }
-      if (
-        canViewWallets() &&
-        (!walletTransactions || walletTransactions.length === 0)
-      ) {
-        promises.push(fetchWalletTransactions());
-      }
-      promises.push(fetchStats());
-
-      await Promise.all(promises);
     };
 
     initializeData();

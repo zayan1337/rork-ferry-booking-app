@@ -135,8 +135,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    flexGrow: 1,
   },
   cardTab: {
+    flex: 1,
     minWidth: 100,
     flexDirection: 'row',
     alignItems: 'center',

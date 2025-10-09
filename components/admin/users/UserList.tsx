@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
@@ -16,57 +16,61 @@ interface UserListProps {
   onUserSelect: (userId: string) => void;
 }
 
-const UserList: React.FC<UserListProps> = ({
-  users,
-  selectedUsers,
-  canUpdateUsers,
-  searchQuery,
-  onUserPress,
-  onUserSelect,
-}) => {
-  if (users.length === 0) {
+const UserList = memo<UserListProps>(
+  ({
+    users,
+    selectedUsers,
+    canUpdateUsers,
+    searchQuery,
+    onUserPress,
+    onUserSelect,
+  }) => {
+    if (users.length === 0) {
+      return (
+        <EmptyState
+          icon={<Users size={48} color={colors.textSecondary} />}
+          title='No users found'
+          message={
+            searchQuery
+              ? 'Try adjusting your search criteria'
+              : 'No users match the current filters'
+          }
+        />
+      );
+    }
+
     return (
-      <EmptyState
-        icon={<Users size={48} color={colors.textSecondary} />}
-        title='No users found'
-        message={
-          searchQuery
-            ? 'Try adjusting your search criteria'
-            : 'No users match the current filters'
-        }
-      />
+      <View style={styles.usersList}>
+        {users.map(user => (
+          <View key={user.id} style={styles.userItemWrapper}>
+            {canUpdateUsers && (
+              <TouchableOpacity
+                style={styles.selectionCheckbox}
+                onPress={() => onUserSelect(user.id)}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    selectedUsers.includes(user.id) && styles.checkboxSelected,
+                  ]}
+                >
+                  {selectedUsers.includes(user.id) && (
+                    <Check size={14} color='white' />
+                  )}
+                </View>
+              </TouchableOpacity>
+            )}
+            <View style={styles.userItemContent}>
+              <UserItem user={user} onPress={() => onUserPress(user)} />
+            </View>
+          </View>
+        ))}
+      </View>
     );
   }
+);
 
-  return (
-    <View style={styles.usersList}>
-      {users.map(user => (
-        <View key={user.id} style={styles.userItemWrapper}>
-          {canUpdateUsers && (
-            <TouchableOpacity
-              style={styles.selectionCheckbox}
-              onPress={() => onUserSelect(user.id)}
-            >
-              <View
-                style={[
-                  styles.checkbox,
-                  selectedUsers.includes(user.id) && styles.checkboxSelected,
-                ]}
-              >
-                {selectedUsers.includes(user.id) && (
-                  <Check size={14} color='white' />
-                )}
-              </View>
-            </TouchableOpacity>
-          )}
-          <View style={styles.userItemContent}>
-            <UserItem user={user} onPress={() => onUserPress(user)} />
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-};
+UserList.displayName = 'UserList';
 
 const styles = StyleSheet.create({
   usersList: {

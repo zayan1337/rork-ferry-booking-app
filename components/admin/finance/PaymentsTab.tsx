@@ -31,35 +31,23 @@ function PaymentsTab({ isActive, searchQuery = '' }: PaymentsTabProps) {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Initialize payments data when tab becomes active
-  useEffect(() => {
-    if (isActive && canViewPayments() && (!payments || payments.length === 0)) {
-      fetchPayments();
-    }
-  }, [isActive, payments?.length]);
+  // Local search state - completely client-side, no store updates
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
 
-  // Filter payments based on search query
+  // Filter payments based on search query - client-side only
   const filteredPayments = useMemo(() => {
     if (!payments) return [];
 
-    let filtered = payments;
-    const query = searchQuery || searchQueries.payments || '';
+    if (!localSearchQuery.trim()) return payments;
 
-    if (query) {
-      filtered = payments.filter(
-        payment =>
-          payment.booking?.booking_number
-            ?.toLowerCase()
-            .includes(query.toLowerCase()) ||
-          payment.booking?.user_name
-            ?.toLowerCase()
-            .includes(query.toLowerCase()) ||
-          payment.receipt_number?.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-
-    return filtered;
-  }, [payments, searchQuery, searchQueries.payments]);
+    const query = localSearchQuery.toLowerCase().trim();
+    return payments.filter(
+      payment =>
+        payment.booking?.booking_number?.toLowerCase().includes(query) ||
+        payment.booking?.user_name?.toLowerCase().includes(query) ||
+        payment.receipt_number?.toLowerCase().includes(query)
+    );
+  }, [payments, localSearchQuery]);
 
   // Limit payments to 4 for display
   const displayPayments = useMemo(() => {
@@ -127,10 +115,8 @@ function PaymentsTab({ isActive, searchQuery = '' }: PaymentsTabProps) {
     );
   }
 
-  // Loading state - only show loading if we're actively loading and haven't received any data yet
-  if (loading.payments && (!payments || payments.length === 0)) {
-    return <LoadingSpinner />;
-  }
+  // Don't show loading spinner - let the page render with empty state instead
+  // This prevents the "always loading" issue
 
   return (
     <View style={styles.container}>
@@ -139,7 +125,11 @@ function PaymentsTab({ isActive, searchQuery = '' }: PaymentsTabProps) {
         <View style={styles.sectionHeaderContent}>
           <SectionHeader
             title='Payment Management'
-            subtitle={`${payments?.length || 0} total payments`}
+            subtitle={
+              loading.payments
+                ? 'Loading payments...'
+                : `${payments?.length || 0} total payments`
+            }
           />
         </View>
       </View>
@@ -147,8 +137,8 @@ function PaymentsTab({ isActive, searchQuery = '' }: PaymentsTabProps) {
       {/* Search Bar */}
       <SearchBar
         placeholder='Search payments...'
-        value={searchQuery || searchQueries.payments || ''}
-        onChangeText={text => setSearchQuery('payments', text)}
+        value={localSearchQuery}
+        onChangeText={setLocalSearchQuery}
       />
 
       {/* Payments List */}
@@ -200,7 +190,7 @@ function PaymentsTab({ isActive, searchQuery = '' }: PaymentsTabProps) {
             <CreditCard size={48} color={colors.textSecondary} />
             <Text style={styles.emptyStateTitle}>No payments found</Text>
             <Text style={styles.emptyStateText}>
-              {searchQuery || searchQueries.payments
+              {localSearchQuery
                 ? 'Try adjusting your search terms'
                 : 'No payments available'}
             </Text>

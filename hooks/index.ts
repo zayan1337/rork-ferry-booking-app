@@ -54,13 +54,4 @@ export {
 export { useContentManagement } from './useContentManagement';
 
 // Finance Management Hooks
-export {
-  useWalletData,
-  useWalletTransactionData,
-  usePaymentData,
-  useFinanceStats,
-  useFinanceDashboard,
-  useFinanceOperations,
-  useFinanceFilters,
-  useFinanceScreen,
-} from './useFinanceData';
+export { useFinanceData } from './useFinanceData';

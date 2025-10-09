@@ -30,30 +30,22 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Initialize wallets data when tab becomes active
-  useEffect(() => {
-    if (isActive && canViewWallets() && (!wallets || wallets.length === 0)) {
-      fetchWallets();
-    }
-  }, [isActive, wallets?.length]);
+  // Local search state - completely client-side, no store updates
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
 
-  // Filter wallets based on search query
+  // Filter wallets based on search query - client-side only
   const filteredWallets = useMemo(() => {
     if (!wallets) return [];
 
-    let filtered = wallets;
-    const query = searchQuery || searchQueries.wallets || '';
+    if (!localSearchQuery.trim()) return wallets;
 
-    if (query) {
-      filtered = wallets.filter(
-        wallet =>
-          wallet.user_name.toLowerCase().includes(query.toLowerCase()) ||
-          wallet.user_email.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-
-    return filtered;
-  }, [wallets, searchQuery, searchQueries.wallets]);
+    const query = localSearchQuery.toLowerCase().trim();
+    return wallets.filter(
+      wallet =>
+        wallet.user_name.toLowerCase().includes(query) ||
+        wallet.user_email.toLowerCase().includes(query)
+    );
+  }, [wallets, localSearchQuery]);
 
   // Limit wallets to 4 for display
   const displayWallets = useMemo(() => {
@@ -93,10 +85,8 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
     );
   }
 
-  // Loading state - only show loading if we're actively loading and haven't received any data yet
-  if (loading.wallets && (!wallets || wallets.length === 0)) {
-    return <LoadingSpinner />;
-  }
+  // Don't show loading spinner - let the page render with empty state instead
+  // This prevents the "always loading" issue
 
   return (
     <View style={styles.container}>
@@ -105,7 +95,11 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
         <View style={styles.sectionHeaderContent}>
           <SectionHeader
             title='Wallet Management'
-            subtitle={`${wallets?.length || 0} total wallets`}
+            subtitle={
+              loading.wallets
+                ? 'Loading wallets...'
+                : `${wallets?.length || 0} total wallets`
+            }
           />
         </View>
         {canManageWallets() && (
@@ -124,8 +118,8 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
       {/* Search Bar */}
       <SearchBar
         placeholder='Search wallets...'
-        value={searchQuery || searchQueries.wallets || ''}
-        onChangeText={text => setSearchQuery('wallets', text)}
+        value={localSearchQuery}
+        onChangeText={setLocalSearchQuery}
       />
 
       {/* Wallets List */}
@@ -189,7 +183,7 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
             <WalletIcon size={48} color={colors.textSecondary} />
             <Text style={styles.emptyStateTitle}>No wallets found</Text>
             <Text style={styles.emptyStateText}>
-              {searchQuery || searchQueries.wallets
+              {localSearchQuery
                 ? 'Try adjusting your search terms'
                 : 'No wallets available'}
             </Text>

@@ -1,167 +1,325 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-  RefreshControl,
   FlatList,
+  TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
+import { useFinanceData } from '@/hooks/useFinanceData';
+import type { Wallet } from '@/types/admin/finance';
 import {
-  Wallet,
-  DollarSign,
+  Wallet as WalletIcon,
+  AlertTriangle,
+  ArrowLeft,
   TrendingUp,
-  ChevronRight,
+  TrendingDown,
+  Users,
+  DollarSign,
 } from 'lucide-react-native';
-import { useFinanceStore } from '@/store/admin/financeStore';
-import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import SearchBar from '@/components/admin/SearchBar';
-import StatCard from '@/components/admin/StatCard';
-import { Wallet as WalletType } from '@/types/admin/finance';
 
-const { width: screenWidth } = Dimensions.get('window');
+interface WalletsListPageProps {
+  agentOnly?: boolean;
+}
 
-export default function WalletsListingScreen() {
+export default function WalletsListPage({
+  agentOnly = false,
+}: WalletsListPageProps) {
   const {
-    wallets,
-    stats,
+    filteredWallets,
+    agentWallets,
     loading,
-    fetchWallets,
-    fetchStats,
-    setSearchQuery,
-    searchQueries,
-  } = useFinanceStore();
+    formatCurrency,
+    formatDate,
+    canViewWallets,
+    handleRefresh,
+    walletStats,
+  } = useFinanceData();
 
-  const { canViewWallets, canManageWallets } = useAdminPermissions();
-
-  const [refreshing, setRefreshing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<
     'all' | 'active' | 'inactive'
   >('all');
 
-  const isTablet = screenWidth >= 768;
+  // Choose wallet list based on agentOnly prop
+  const baseWallets = agentOnly ? agentWallets : filteredWallets;
 
-  useEffect(() => {
-    if (canViewWallets()) {
-      fetchWallets();
-      fetchStats();
+  // Client-side search and filter
+  const displayWallets = useMemo(() => {
+    let filtered = [...baseWallets];
+
+    // Apply search filter
+    if (localSearchQuery.trim()) {
+      const query = localSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter(
+        wallet =>
+          wallet.user_name.toLowerCase().includes(query) ||
+          wallet.user_email.toLowerCase().includes(query)
+      );
     }
-  }, []);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchWallets(true);
-    await fetchStats();
-    setRefreshing(false);
+    // Apply status filter
+    if (filterStatus !== 'all') {
+      if (filterStatus === 'active') {
+        filtered = filtered.filter(w => w.balance > 0);
+      } else if (filterStatus === 'inactive') {
+        filtered = filtered.filter(w => w.balance === 0);
+      }
+    }
+
+    return filtered;
+  }, [baseWallets, localSearchQuery, filterStatus]);
+
+  const handleRefreshData = async () => {
+    setIsRefreshing(true);
+    try {
+      await handleRefresh();
+    } catch (error) {
+      console.error('Error refreshing wallets:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleWalletPress = (walletId: string) => {
     router.push(`/(app)/(admin)/wallet-detail?walletId=${walletId}` as any);
   };
 
-  const handleSearch = (query: string) => {
-    setSearchQuery('wallets', query);
-  };
-
-  const filteredWallets = wallets.filter(wallet => {
-    const matchesSearch =
-      wallet.user_name
-        .toLowerCase()
-        .includes(searchQueries.wallets.toLowerCase()) ||
-      wallet.user_email
-        .toLowerCase()
-        .includes(searchQueries.wallets.toLowerCase());
-
-    const matchesFilter =
-      filterStatus === 'all' ||
-      (filterStatus === 'active' && wallet.is_active) ||
-      (filterStatus === 'inactive' && !wallet.is_active);
-
-    return matchesSearch && matchesFilter;
-  });
-
-  const renderWalletItem = ({ item }: { item: WalletType }) => (
+  const renderWallet = ({ item }: { item: Wallet }) => (
     <TouchableOpacity
-      style={styles.walletCard}
+      style={styles.walletItem}
       onPress={() => handleWalletPress(item.id)}
+      activeOpacity={0.7}
     >
-      <View style={styles.walletHeader}>
-        <View style={styles.walletIconContainer}>
-          <View
-            style={[
-              styles.walletIcon,
-              { backgroundColor: colors.primary + '15' },
-            ]}
-          >
-            <Wallet size={24} color={colors.primary} />
-          </View>
-          <View style={styles.walletInfo}>
-            <Text style={styles.walletUserName}>{item.user_name}</Text>
-            <Text style={styles.walletUserEmail}>{item.user_email}</Text>
-          </View>
-        </View>
-        <ChevronRight size={20} color={colors.textSecondary} />
+      <View
+        style={[
+          styles.walletIcon,
+          {
+            backgroundColor: item.is_active
+              ? colors.success + '15'
+              : colors.danger + '15',
+          },
+        ]}
+      >
+        <WalletIcon
+          size={24}
+          color={item.is_active ? colors.success : colors.danger}
+        />
       </View>
-
-      <View style={styles.walletDetails}>
-        <View style={styles.balanceContainer}>
-          <Text style={styles.balanceLabel}>Balance</Text>
-          <Text style={styles.balanceAmount}>
-            {item.currency} {item.balance.toFixed(2)}
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor: item.is_active
-                ? colors.success + '15'
-                : colors.danger + '15',
-            },
-          ]}
-        >
+      <View style={styles.walletContent}>
+        <View style={styles.walletHeader}>
+          <View style={styles.walletUserInfo}>
+            <Text style={styles.walletUser} numberOfLines={1}>
+              {item.user_name}
+            </Text>
+            <Text style={styles.walletEmail} numberOfLines={1}>
+              {item.user_email}
+            </Text>
+          </View>
           <View
             style={[
-              styles.statusDot,
+              styles.statusBadge,
               {
                 backgroundColor: item.is_active
-                  ? colors.success
-                  : colors.danger,
-              },
-            ]}
-          />
-          <Text
-            style={[
-              styles.statusText,
-              {
-                color: item.is_active ? colors.success : colors.danger,
+                  ? colors.success + '15'
+                  : colors.danger + '15',
               },
             ]}
           >
-            {item.is_active ? 'Active' : 'Inactive'}
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor: item.is_active
+                    ? colors.success
+                    : colors.danger,
+                },
+              ]}
+            />
+            <Text
+              style={[
+                styles.statusText,
+                { color: item.is_active ? colors.success : colors.danger },
+              ]}
+            >
+              {item.is_active ? 'ACTIVE' : 'INACTIVE'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.walletFooter}>
+          <View style={styles.balanceContainer}>
+            <Text style={styles.balanceLabel}>Balance</Text>
+            <Text style={styles.balanceValue}>
+              {formatCurrency(item.balance)} {item.currency}
+            </Text>
+          </View>
+          <Text style={styles.walletDate}>
+            Updated {new Date(item.updated_at).toLocaleDateString()}
           </Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 
-  if (!canViewWallets()) {
+  const renderEmpty = () => (
+    <View style={styles.emptyState}>
+      <View style={styles.emptyIcon}>
+        <WalletIcon size={48} color={colors.textSecondary} />
+      </View>
+      <Text style={styles.emptyStateTitle}>No Wallets Found</Text>
+      <Text style={styles.emptyStateText}>
+        {localSearchQuery || filterStatus !== 'all'
+          ? 'Try adjusting your filters or search terms'
+          : agentOnly
+            ? 'No agent wallets available yet'
+            : 'No wallet records available yet'}
+      </Text>
+    </View>
+  );
+
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      {/* Summary Stats */}
+      {walletStats && (
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <DollarSign size={20} color={colors.primary} />
+            </View>
+            <Text style={styles.statValue}>
+              {formatCurrency(walletStats.totalBalance)}
+            </Text>
+            <Text style={styles.statLabel}>Total Balance</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <TrendingUp size={20} color={colors.success} />
+            </View>
+            <Text style={styles.statValue}>{walletStats.activeWallets}</Text>
+            <Text style={styles.statLabel}>Active Wallets</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Users size={20} color={colors.info} />
+            </View>
+            <Text style={styles.statValue}>{walletStats.totalWallets}</Text>
+            <Text style={styles.statLabel}>Total Wallets</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <SearchBar
+          placeholder='Search by name or email...'
+          value={localSearchQuery}
+          onChangeText={setLocalSearchQuery}
+        />
+      </View>
+
+      {/* Filter Buttons */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filterStatus === 'all' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilterStatus('all')}
+        >
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterStatus === 'all' && styles.filterButtonTextActive,
+            ]}
+          >
+            All ({baseWallets.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filterStatus === 'active' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilterStatus('active')}
+        >
+          <TrendingUp
+            size={16}
+            color={filterStatus === 'active' ? colors.white : colors.success}
+          />
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterStatus === 'active' && styles.filterButtonTextActive,
+            ]}
+          >
+            Active ({walletStats?.activeWallets || 0})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filterStatus === 'inactive' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilterStatus('inactive')}
+        >
+          <TrendingDown
+            size={16}
+            color={filterStatus === 'inactive' ? colors.white : colors.danger}
+          />
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterStatus === 'inactive' && styles.filterButtonTextActive,
+            ]}
+          >
+            Inactive ({walletStats?.inactiveWallets || 0})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Results Count */}
+      <View style={styles.resultsHeader}>
+        <Text style={styles.resultsText}>
+          Showing {displayWallets.length} wallet
+          {displayWallets.length !== 1 ? 's' : ''}
+          {filterStatus !== 'all' && ` · ${filterStatus}`}
+        </Text>
+      </View>
+    </View>
+  );
+
+  // Permission check
+  if (!canViewWallets) {
     return (
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            title: 'Wallets',
-            headerShown: true,
+            title: agentOnly ? 'Agent Wallets' : 'All Wallets',
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+              >
+                <ArrowLeft size={24} color={colors.primary} />
+              </TouchableOpacity>
+            ),
           }}
         />
-        <View style={styles.centerContainer}>
-          <Text style={styles.noAccessText}>
-            You don't have permission to view wallets
+        <View style={styles.noPermissionContainer}>
+          <View style={styles.noPermissionIcon}>
+            <AlertTriangle size={40} color={colors.warning} />
+          </View>
+          <Text style={styles.noPermissionTitle}>Access Denied</Text>
+          <Text style={styles.noPermissionText}>
+            You don't have permission to view wallet records.
           </Text>
         </View>
       </View>
@@ -172,120 +330,36 @@ export default function WalletsListingScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Wallets',
-          headerShown: true,
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.text,
-          headerTitleStyle: {
-            fontWeight: '600',
-            fontSize: 18,
-          },
+          title: agentOnly ? 'Agent Wallets' : 'All Wallets',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <ArrowLeft size={24} color={colors.primary} />
+            </TouchableOpacity>
+          ),
         }}
       />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
+      <FlatList
+        data={displayWallets}
+        renderItem={renderWallet}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
+            refreshing={isRefreshing}
+            onRefresh={handleRefreshData}
             colors={[colors.primary]}
             tintColor={colors.primary}
           />
         }
-      >
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <View style={styles.statsGrid}>
-            <StatCard
-              icon={<Wallet size={24} color={colors.primary} />}
-              title='Total Wallets'
-              value={wallets.length.toString()}
-              color={colors.primary}
-            />
-            <StatCard
-              icon={<TrendingUp size={24} color={colors.success} />}
-              title='Active Wallets'
-              value={stats.activeWallets.toString()}
-              color={colors.success}
-            />
-            <StatCard
-              icon={<DollarSign size={24} color={colors.warning} />}
-              title='Total Balance'
-              value={`MVR ${stats.totalWalletBalance.toFixed(2)}`}
-              color={colors.warning}
-            />
-          </View>
-        </View>
-
-        {/* Search and Filter Section */}
-        <View style={styles.searchSection}>
-          <SearchBar
-            placeholder='Search wallets...'
-            value={searchQueries.wallets}
-            onChangeText={handleSearch}
-          />
-
-          <View style={styles.filterChips}>
-            {[
-              { key: 'all', label: 'All' },
-              { key: 'active', label: 'Active' },
-              { key: 'inactive', label: 'Inactive' },
-            ].map(filter => (
-              <TouchableOpacity
-                key={filter.key}
-                style={[
-                  styles.filterChip,
-                  filterStatus === filter.key && styles.filterChipActive,
-                ]}
-                onPress={() => setFilterStatus(filter.key as any)}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    filterStatus === filter.key && styles.filterChipTextActive,
-                  ]}
-                >
-                  {filter.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Wallets List */}
-        <View style={styles.listSection}>
-          <View style={styles.listHeader}>
-            <Text style={styles.listTitle}>All Wallets</Text>
-            <Text style={styles.listSubtitle}>
-              {filteredWallets.length} wallet
-              {filteredWallets.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-
-          {loading.wallets ? (
-            <View style={styles.centerContainer}>
-              <Text style={styles.loadingText}>Loading wallets...</Text>
-            </View>
-          ) : filteredWallets.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Wallet size={48} color={colors.textSecondary} />
-              <Text style={styles.emptyStateText}>No wallets found</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={filteredWallets}
-              renderItem={renderWalletItem}
-              keyExtractor={item => item.id}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
-        </View>
-      </ScrollView>
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[0]}
+      />
     </View>
   );
 }
@@ -295,142 +369,170 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
   },
-  scrollView: {
-    flex: 1,
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
   },
-  contentContainer: {
-    paddingBottom: 20,
+  headerContainer: {
+    backgroundColor: colors.backgroundSecondary,
+    paddingBottom: 8,
   },
-  centerContainer: {
+  statsContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  statItem: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  noAccessText: {
-    fontSize: 16,
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 11,
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  loadingText: {
-    fontSize: 16,
-    color: colors.textSecondary,
+  statDivider: {
+    width: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: 8,
   },
-
-  // Stats Section
-  statsSection: {
-    padding: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-
-  // Search Section
-  searchSection: {
+  searchContainer: {
     paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingBottom: 12,
   },
-  filterChips: {
+  filterContainer: {
     flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     gap: 8,
-    marginTop: 12,
   },
-  filterChip: {
-    paddingHorizontal: 16,
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 8,
-    backgroundColor: colors.background,
+    paddingHorizontal: 14,
     borderRadius: 20,
-    borderWidth: 1,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    gap: 6,
   },
-  filterChipActive: {
-    backgroundColor: colors.primary + '15',
+  filterButtonActive: {
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  filterChipText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  filterChipTextActive: {
-    color: colors.primary,
-  },
-
-  // List Section
-  listSection: {
-    paddingHorizontal: 16,
-  },
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  listTitle: {
-    fontSize: 18,
+  filterButtonText: {
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text,
   },
-  listSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  filterButtonTextActive: {
+    color: colors.white,
   },
-
-  // Wallet Card
-  walletCard: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
+  resultsHeader: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  resultsText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  walletItem: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
     padding: 16,
+    borderRadius: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border + '40',
+  },
+  walletIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  walletContent: {
+    flex: 1,
   },
   walletHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 12,
+    gap: 12,
   },
-  walletIconContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  walletUserInfo: {
     flex: 1,
   },
-  walletIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  walletInfo: {
-    flex: 1,
-  },
-  walletUserName: {
+  walletUser: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  walletUserEmail: {
-    fontSize: 14,
+  walletEmail: {
+    fontSize: 13,
     color: colors.textSecondary,
   },
-  walletDetails: {
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 6,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  walletFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    alignItems: 'flex-end',
   },
   balanceContainer: {
     flex: 1,
@@ -439,39 +541,72 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     marginBottom: 4,
+    fontWeight: '500',
   },
-  balanceAmount: {
+  balanceValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.primary,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 6,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
+  walletDate: {
     fontSize: 12,
-    fontWeight: '600',
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
-
-  // Empty State
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 100,
+    gap: 16,
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
   },
   emptyStateText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 280,
+    lineHeight: 20,
+  },
+  noPermissionContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    gap: 16,
+  },
+  noPermissionIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.warning + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  noPermissionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  noPermissionText: {
     fontSize: 16,
     color: colors.textSecondary,
-    marginTop: 12,
+    textAlign: 'center',
+    maxWidth: 280,
+    lineHeight: 22,
   },
 } as any);

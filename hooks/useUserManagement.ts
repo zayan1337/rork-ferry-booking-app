@@ -296,7 +296,7 @@ export const useUserManagement = (
     // Pagination
     currentPage,
     itemsPerPage,
-    totalItems,
+    totalItems: filteredUsers.length, // Use filtered count, not store totalItems
 
     // Computed data
     filteredUsers,

@@ -117,29 +117,9 @@ export const useUserStore = create<UserState>((set, get) => ({
         itemsPerPage,
       } = get();
 
-      // Fetch ALL users from user_profiles table (no pagination initially)
+      // Fetch ALL users from user_profiles table without any filters
+      // Filters will be applied in the component/hook layer
       let userQuery = supabase.from('user_profiles').select('*');
-
-      // Apply search to user_profiles
-      if (searchQuery) {
-        userQuery = userQuery.or(
-          `full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,mobile_number.ilike.%${searchQuery}%`
-        );
-      }
-
-      // Apply role filter
-      if (
-        filters.role &&
-        filters.role !== 'all' &&
-        filters.role !== 'passenger'
-      ) {
-        userQuery = userQuery.eq('role', filters.role);
-      }
-
-      // Apply status filter
-      if (filters.status && filters.status !== 'all') {
-        userQuery = userQuery.eq('is_active', filters.status === 'active');
-      }
 
       const { data: userData, error: userError } = await userQuery;
 
@@ -168,39 +148,27 @@ export const useUserStore = create<UserState>((set, get) => ({
         total_spent: 0,
       }));
 
-      // If filtering for passengers or all, also fetch passengers
+      // Always fetch passengers (no filtering at fetch level)
       let allUsers = [...transformedUsers];
 
-      if (
-        filters.role === 'passenger' ||
-        filters.role === 'all' ||
-        !filters.role
-      ) {
-        // Fetch ALL passengers from passengers table (no pagination initially)
-        let passengerQuery = supabase.from('passengers').select(`
-            id,
-            passenger_name,
-            passenger_contact_number,
-            created_at,
-            booking_id
-          `);
+      // Fetch ALL passengers from passengers table
+      let passengerQuery = supabase.from('passengers').select(`
+          id,
+          passenger_name,
+          passenger_contact_number,
+          created_at,
+          booking_id
+        `);
 
-        if (searchQuery) {
-          passengerQuery = passengerQuery.or(
-            `passenger_name.ilike.%${searchQuery}%,passenger_contact_number.ilike.%${searchQuery}%`
-          );
-        }
+      const { data: passengerData, error: passengerError } =
+        await passengerQuery;
 
-        const { data: passengerData, error: passengerError } =
-          await passengerQuery;
-
-        if (passengerError) {
-          console.error('Error fetching passengers:', passengerError);
-        } else {
-          // Transform passengers data
-          const transformedPassengers: UserProfile[] = (
-            passengerData || []
-          ).map(passenger => ({
+      if (passengerError) {
+        console.error('Error fetching passengers:', passengerError);
+      } else {
+        // Transform passengers data
+        const transformedPassengers: UserProfile[] = (passengerData || []).map(
+          passenger => ({
             id: passenger.id,
             name: passenger.passenger_name,
             email: '', // Passengers don't have emails in the table
@@ -215,88 +183,17 @@ export const useUserStore = create<UserState>((set, get) => ({
             last_login: undefined,
             total_bookings: 1, // Each passenger record represents one booking
             total_spent: 0,
-          }));
-
-          allUsers = [...transformedUsers, ...transformedPassengers];
-        }
-      }
-
-      // Apply final filtering and sorting
-      let filteredUsers = allUsers;
-
-      // Apply role filter for passengers
-      if (filters.role === 'passenger') {
-        filteredUsers = allUsers.filter(user => user.role === 'passenger');
-      }
-
-      // Apply status filter
-      if (filters.status && filters.status !== 'all') {
-        filteredUsers = filteredUsers.filter(
-          user => user.status === filters.status
+          })
         );
+
+        allUsers = [...transformedUsers, ...transformedPassengers];
       }
 
-      // Apply search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        filteredUsers = filteredUsers.filter(
-          user =>
-            user.name?.toLowerCase().includes(query) ||
-            user.email?.toLowerCase().includes(query) ||
-            user.mobile_number?.toLowerCase().includes(query) ||
-            user.id?.toLowerCase().includes(query)
-        );
-      }
-
-      // Apply sorting
-      filteredUsers.sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
-
-        switch (sortBy) {
-          case 'name':
-            aValue = a.name || '';
-            bValue = b.name || '';
-            break;
-          case 'email':
-            aValue = a.email || '';
-            bValue = b.email || '';
-            break;
-          case 'role':
-            aValue = a.role || '';
-            bValue = b.role || '';
-            break;
-          case 'status':
-            aValue = a.status || '';
-            bValue = b.status || '';
-            break;
-          case 'created_at':
-            aValue = new Date(a.created_at || '').getTime();
-            bValue = new Date(b.created_at || '').getTime();
-            break;
-          case 'last_login':
-            aValue = new Date(a.last_login || '').getTime();
-            bValue = new Date(b.last_login || '').getTime();
-            break;
-          default:
-            return 0;
-        }
-
-        if (sortOrder === 'asc') {
-          return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-        } else {
-          return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-        }
-      });
-
-      // Apply pagination
-      const from = (currentPage - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
-      const paginatedUsers = filteredUsers.slice(from, to + 1);
-
+      // Store ALL users without filtering
+      // Filtering, sorting, and pagination will be handled in the hook layer
       set({
-        users: filteredUsers, // Return all filtered users, not just paginated ones
-        totalItems: filteredUsers.length,
+        users: allUsers,
+        totalItems: allUsers.length,
         loading: false,
       });
     } catch (error) {
@@ -627,7 +524,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   setSearchQuery: (query: string) => {
     set({ searchQuery: query, currentPage: 1 });
-    get().fetchAll();
+    // No need to refetch - filtering is done client-side in the hook
   },
 
   setFilters: (filters: Partial<UserFilters>) => {
@@ -635,7 +532,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       filters: { ...state.filters, ...filters },
       currentPage: 1,
     }));
-    get().fetchAll();
+    // No need to refetch - filtering is done client-side in the hook
   },
 
   clearFilters: () => {
@@ -644,19 +541,19 @@ export const useUserStore = create<UserState>((set, get) => ({
       searchQuery: '',
       currentPage: 1,
     });
-    get().fetchAll();
+    // No need to refetch - filtering is done client-side in the hook
   },
 
   setSortBy: (
     sortBy: 'name' | 'email' | 'role' | 'status' | 'created_at' | 'last_login'
   ) => {
     set({ sortBy });
-    get().fetchAll();
+    // No need to refetch - sorting is done client-side in the hook
   },
 
   setSortOrder: (order: 'asc' | 'desc') => {
     set({ sortOrder: order });
-    get().fetchAll();
+    // No need to refetch - sorting is done client-side in the hook
   },
 
   // ========================================================================
@@ -665,12 +562,12 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   setCurrentPage: (page: number) => {
     set({ currentPage: page });
-    get().fetchAll();
+    // No need to refetch - pagination is done client-side in the hook
   },
 
   setItemsPerPage: (items: number) => {
     set({ itemsPerPage: items, currentPage: 1 });
-    get().fetchAll();
+    // No need to refetch - pagination is done client-side in the hook
   },
 
   loadMore: () => {

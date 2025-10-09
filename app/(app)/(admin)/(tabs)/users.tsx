@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   RefreshControl,
   FlatList,
@@ -94,14 +94,30 @@ export default function UsersScreen() {
   } = useAdminPermissions();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [filterRole, setFilterRole] = useState<FilterRole>('all');
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview');
 
+  // Local search state - completely client-side, no store updates
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+
   const isTablet = screenWidth >= 768;
   const isSmallScreen = screenWidth < 480;
+
+  // Client-side filtering using local search query for immediate results
+  const displayUsers = React.useMemo(() => {
+    if (!localSearchQuery.trim()) return paginatedUsers;
+
+    const query = localSearchQuery.toLowerCase().trim();
+    return paginatedUsers.filter(user => {
+      return (
+        user.name?.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query) ||
+        user.mobile_number?.toLowerCase().includes(query) ||
+        user.id?.toLowerCase().includes(query)
+      );
+    });
+  }, [paginatedUsers, localSearchQuery]);
 
   // Load data on component mount
   useEffect(() => {
@@ -127,20 +143,6 @@ export default function UsersScreen() {
     }
   };
 
-  // Use the paginated users from the hook (already filtered and sorted)
-  const filteredAndSortedUsers = useMemo(() => {
-    return paginatedUsers.filter(user => {
-      // Role filter
-      const roleMatch = filterRole === 'all' || user.role === filterRole;
-
-      // Status filter
-      const statusMatch =
-        filterStatus === 'all' || user.status === filterStatus;
-
-      return roleMatch && statusMatch;
-    });
-  }, [paginatedUsers, filterRole, filterStatus]);
-
   // Enhanced statistics
   const userStats = useMemo(() => {
     const totalUsers = stats.total_users;
@@ -165,13 +167,16 @@ export default function UsersScreen() {
     };
   }, [stats]);
 
-  const handleUserPress = (user: UserProfile) => {
-    if (canViewUsers()) {
-      router.push(`../user/${user.id}` as any);
-    }
-  };
+  const handleUserPress = useCallback(
+    (user: UserProfile) => {
+      if (canViewUsers()) {
+        router.push(`../user/${user.id}` as any);
+      }
+    },
+    [canViewUsers]
+  );
 
-  const handleNewUser = () => {
+  const handleNewUser = useCallback(() => {
     if (canCreateUsers()) {
       router.push('../user/new' as any);
     } else {
@@ -180,9 +185,9 @@ export default function UsersScreen() {
         "You don't have permission to create users."
       );
     }
-  };
+  }, [canCreateUsers]);
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     if (canExportReports()) {
       try {
         // TODO: Implement export functionality
@@ -196,7 +201,7 @@ export default function UsersScreen() {
         "You don't have permission to export reports."
       );
     }
-  };
+  }, [canExportReports]);
 
   const handleBulkStatusUpdate = async (status: string) => {
     if (!canUpdateUsers()) {
@@ -230,53 +235,86 @@ export default function UsersScreen() {
     );
   };
 
-  const handleLoadMore = () => {
-    if (!loading && paginatedUsers.length < totalItems) {
-      loadMore();
-    }
-  };
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const toggleUserSelection = (userId: string) => {
+  const handleLoadMore = useCallback(() => {
+    if (!loadingMore && paginatedUsers.length < totalItems) {
+      setLoadingMore(true);
+      loadMore();
+      // Reset loading state after a short delay to show the spinner
+      setTimeout(() => setLoadingMore(false), 500);
+    }
+  }, [loadingMore, paginatedUsers.length, totalItems, loadMore]);
+
+  // Footer component for loading indicator
+  const renderFooter = useCallback(() => {
+    const hasMoreData = paginatedUsers.length < totalItems;
+    const remainingUsers = totalItems - paginatedUsers.length;
+
+    if (loadingMore) {
+      return (
+        <View style={styles.footerLoader}>
+          <LoadingSpinner size='small' />
+          <Text style={styles.footerLoaderText}>Loading more users...</Text>
+        </View>
+      );
+    }
+
+    if (hasMoreData) {
+      return (
+        <View style={styles.footerIndicator}>
+          <Text style={styles.footerIndicatorText}>
+            {remainingUsers} more • Scroll to load
+          </Text>
+        </View>
+      );
+    }
+
+    // No more data to load
+    if (paginatedUsers.length > 0) {
+      return (
+        <View style={styles.footerEnd}>
+          <Text style={styles.footerEndText}>
+            • All loaded ({paginatedUsers.length}) •
+          </Text>
+        </View>
+      );
+    }
+
+    return null;
+  }, [loadingMore, paginatedUsers.length, totalItems]);
+
+  const toggleUserSelection = useCallback((userId: string) => {
     setSelectedUsers(prev =>
       prev.includes(userId)
         ? prev.filter(id => id !== userId)
         : [...prev, userId]
     );
-  };
+  }, []);
 
   // Add select all functionality
-  const handleSelectAll = () => {
-    if (selectedUsers.length === filteredAndSortedUsers.length) {
+  const handleSelectAll = useCallback(() => {
+    if (selectedUsers.length === displayUsers.length) {
       // Deselect all
       setSelectedUsers([]);
     } else {
       // Select all visible users
-      setSelectedUsers(filteredAndSortedUsers.map(user => user.id));
+      setSelectedUsers(displayUsers.map(user => user.id));
     }
-  };
+  }, [selectedUsers.length, displayUsers]);
 
   const isAllSelected =
-    filteredAndSortedUsers.length > 0 &&
-    selectedUsers.length === filteredAndSortedUsers.length;
+    displayUsers.length > 0 && selectedUsers.length === displayUsers.length;
   const isPartiallySelected =
-    selectedUsers.length > 0 &&
-    selectedUsers.length < filteredAndSortedUsers.length;
+    selectedUsers.length > 0 && selectedUsers.length < displayUsers.length;
 
-  const getCount = (role: FilterRole, status?: FilterStatus) => {
-    let filtered = users;
-    if (role !== 'all') {
-      if (role === 'agent') {
-        filtered = users.filter(u => u.role === 'agent');
-      } else if (role === 'passenger') {
-        filtered = users.filter(u => u.role === 'passenger');
-      } else {
-        filtered = users.filter(u => u.role === role);
-      }
+  const getCount = (role: FilterRole) => {
+    // Always count from all users, ignoring current filters
+    // Tab counts should show total users in each role
+    if (role === 'all') {
+      return users.length;
     }
-    if (status && status !== 'all') {
-      filtered = filtered.filter(u => u.status === status);
-    }
-    return filtered.length;
+    return users.filter(u => u.role === role).length;
   };
 
   const getResponsivePadding = () => ({
@@ -288,16 +326,16 @@ export default function UsersScreen() {
   const getCurrentFilterText = () => {
     const filterText = [];
 
-    if (filterRole !== 'all') {
+    if (filters.role && filters.role !== 'all') {
       filterText.push(
-        `Role: ${filterRole.charAt(0).toUpperCase() + filterRole.slice(1)}`
+        `Role: ${filters.role.charAt(0).toUpperCase() + filters.role.slice(1)}`
       );
     }
 
-    if (filterStatus !== 'all') {
+    if (filters.status && filters.status !== 'all') {
       filterText.push(
         `Status: ${
-          filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)
+          filters.status.charAt(0).toUpperCase() + filters.status.slice(1)
         }`
       );
     }
@@ -324,23 +362,55 @@ export default function UsersScreen() {
   // Helper to check if any filters are active
   const hasActiveFilters = () => {
     return (
-      filterRole !== 'all' ||
-      filterStatus !== 'all' ||
+      (filters.role && filters.role !== 'all') ||
+      (filters.status && filters.status !== 'all') ||
       sortBy !== 'created_at' ||
       sortOrder !== 'desc' ||
-      searchQuery !== ''
+      localSearchQuery !== ''
     );
   };
 
   // Clear all filters function
-  const clearAllFilters = () => {
-    setFilterRole('all');
-    setFilterStatus('all');
+  const clearAllFilters = useCallback(() => {
+    setFilters({ role: 'all', status: 'all' });
     setSortBy('created_at');
     setSortOrder('desc');
     setSearchQuery('');
+    setLocalSearchQuery(''); // Clear local search as well
     setSelectedUsers([]);
-  };
+  }, [setFilters, setSortBy, setSortOrder, setSearchQuery]);
+
+  // Memoized keyExtractor
+  const keyExtractor = useCallback((item: UserProfile) => item.id, []);
+
+  // Memoized renderItem for FlatList
+  const renderUserItem = useCallback(
+    ({ item: user }: { item: UserProfile }) => (
+      <View style={styles.userItemWrapper}>
+        {canUpdateUsers() && (
+          <TouchableOpacity
+            style={styles.selectionCheckbox}
+            onPress={() => toggleUserSelection(user.id)}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                selectedUsers.includes(user.id) && styles.checkboxSelected,
+              ]}
+            >
+              {selectedUsers.includes(user.id) && (
+                <Check size={14} color='white' />
+              )}
+            </View>
+          </TouchableOpacity>
+        )}
+        <View style={styles.userItemContent}>
+          <UserItem user={user} onPress={() => handleUserPress(user)} />
+        </View>
+      </View>
+    ),
+    [canUpdateUsers, selectedUsers, toggleUserSelection, handleUserPress]
+  );
 
   // Show loading state while initial data is being fetched
   if (loading && users.length === 0) {
@@ -381,6 +451,20 @@ export default function UsersScreen() {
             />
           }
           showsVerticalScrollIndicator={false}
+          onScroll={({ nativeEvent }) => {
+            if (activeTab !== ('users' as any)) return;
+
+            const { layoutMeasurement, contentOffset, contentSize } =
+              nativeEvent;
+            const isCloseToBottom =
+              layoutMeasurement.height + contentOffset.y >=
+              contentSize.height - 100; // Trigger 100px before bottom
+
+            if (isCloseToBottom) {
+              handleLoadMore();
+            }
+          }}
+          scrollEventThrottle={400}
         >
           <Stack.Screen
             options={{
@@ -409,8 +493,8 @@ export default function UsersScreen() {
           ) : (
             <>
               <SearchAndFilterBar
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
+                searchQuery={localSearchQuery}
+                onSearchChange={setLocalSearchQuery}
                 onFilterPress={() => setShowFilterModal(true)}
                 onSortPress={() => {
                   const sortFields: (
@@ -436,8 +520,8 @@ export default function UsersScreen() {
               />
 
               <FilterTabs
-                filterRole={filterRole}
-                onRoleChange={setFilterRole}
+                filterRole={filters.role || 'all'}
+                onRoleChange={role => setFilters({ ...filters, role })}
                 getCount={getCount}
               />
 
@@ -450,8 +534,8 @@ export default function UsersScreen() {
               />
 
               <UserListHeader
-                searchQuery={searchQuery}
-                filteredCount={filteredAndSortedUsers.length}
+                searchQuery={localSearchQuery}
+                filteredCount={displayUsers.length}
                 isTablet={isTablet}
                 hasActiveFilters={hasActiveFilters()}
                 currentFilterText={getCurrentFilterText()}
@@ -460,7 +544,7 @@ export default function UsersScreen() {
 
               <SelectAllSection
                 canUpdateUsers={canUpdateUsers()}
-                filteredCount={filteredAndSortedUsers.length}
+                filteredCount={displayUsers.length}
                 selectedCount={selectedUsers.length}
                 isAllSelected={isAllSelected}
                 isPartiallySelected={isPartiallySelected}
@@ -468,146 +552,141 @@ export default function UsersScreen() {
               />
 
               <UserList
-                users={filteredAndSortedUsers}
+                users={displayUsers}
                 selectedUsers={selectedUsers}
                 canUpdateUsers={canUpdateUsers()}
-                searchQuery={searchQuery}
+                searchQuery={localSearchQuery}
                 onUserPress={handleUserPress}
                 onUserSelect={toggleUserSelection}
               />
+
+              {renderFooter()}
             </>
           )}
         </ScrollView>
       ) : (
-        <FlatList
-          style={styles.container}
-          contentContainerStyle={[
-            styles.contentContainer,
-            getResponsivePadding(),
-          ]}
-          data={filteredAndSortedUsers}
-          keyExtractor={item => item.id}
-          renderItem={({ item: user }) => (
-            <View style={styles.userItemWrapper}>
-              {canUpdateUsers() && (
-                <TouchableOpacity
-                  style={styles.selectionCheckbox}
-                  onPress={() => toggleUserSelection(user.id)}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      selectedUsers.includes(user.id) &&
-                        styles.checkboxSelected,
-                    ]}
-                  >
-                    {selectedUsers.includes(user.id) && (
-                      <Check size={14} color='white' />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              )}
-              <View style={styles.userItemContent}>
-                <UserItem user={user} onPress={() => handleUserPress(user)} />
-              </View>
-            </View>
-          )}
-          ListEmptyComponent={() => (
-            <EmptyState
-              icon={<Users size={48} color={colors.textSecondary} />}
-              title='No users found'
-              message={
-                searchQuery
-                  ? 'Try adjusting your search criteria'
-                  : 'No users match the current filters'
-              }
+        <View style={styles.container}>
+          <Stack.Screen
+            options={{
+              title: 'User Management',
+              headerRight: () => (
+                <View style={styles.headerActions}>
+                  {canExportReports() && (
+                    <TouchableOpacity
+                      style={styles.headerButton}
+                      onPress={handleExport}
+                      accessibilityRole='button'
+                      accessibilityLabel='Export'
+                    >
+                      <Download size={18} color={colors.primary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ),
+            }}
+          />
+          <View style={[getResponsivePadding()]}>
+            <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+
+            <SearchAndFilterBar
+              searchQuery={localSearchQuery}
+              onSearchChange={setLocalSearchQuery}
+              onFilterPress={() => setShowFilterModal(true)}
+              onSortPress={() => {
+                const sortFields: (
+                  | 'name'
+                  | 'email'
+                  | 'role'
+                  | 'status'
+                  | 'created_at'
+                  | 'last_login'
+                )[] = [
+                  'created_at',
+                  'name',
+                  'email',
+                  'role',
+                  'status',
+                  'last_login',
+                ];
+                const currentIndex = sortFields.indexOf(sortBy);
+                const nextIndex = (currentIndex + 1) % sortFields.length;
+                setSortBy(sortFields[nextIndex]);
+              }}
+              isTablet={isTablet}
             />
-          )}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.1}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          windowSize={10}
-          initialNumToRender={20}
-          getItemLayout={(data, index) => ({
-            length: 80, // Approximate height of each item
-            offset: 80 * index,
-            index,
-          })}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+
+            <FilterTabs
+              filterRole={filters.role || 'all'}
+              onRoleChange={role => setFilters({ ...filters, role })}
+              getCount={getCount}
             />
-          }
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={() => (
-            <>
-              <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-              <SearchAndFilterBar
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                onFilterPress={() => setShowFilterModal(true)}
-                onSortPress={() => {
-                  const sortFields: (
-                    | 'name'
-                    | 'email'
-                    | 'role'
-                    | 'status'
-                    | 'created_at'
-                    | 'last_login'
-                  )[] = [
-                    'created_at',
-                    'name',
-                    'email',
-                    'role',
-                    'status',
-                    'last_login',
-                  ];
-                  const currentIndex = sortFields.indexOf(sortBy);
-                  const nextIndex = (currentIndex + 1) % sortFields.length;
-                  setSortBy(sortFields[nextIndex]);
-                }}
-                isTablet={isTablet}
-              />
+            <BulkActionsBar
+              selectedCount={selectedUsers.length}
+              onActivate={() => handleBulkStatusUpdate('active')}
+              onSuspend={() => handleBulkStatusUpdate('suspended')}
+              onClear={() => setSelectedUsers([])}
+              canUpdateUsers={canUpdateUsers()}
+            />
 
-              <FilterTabs
-                filterRole={filterRole}
-                onRoleChange={setFilterRole}
-                getCount={getCount}
+            <UserListHeader
+              searchQuery={localSearchQuery}
+              filteredCount={displayUsers.length}
+              isTablet={isTablet}
+              hasActiveFilters={hasActiveFilters()}
+              currentFilterText={getCurrentFilterText()}
+              onClearFilters={clearAllFilters}
+            />
+          </View>
+          <FlatList
+            style={styles.flatListContainer}
+            contentContainerStyle={[
+              styles.contentContainer,
+              getResponsivePadding(),
+            ]}
+            data={displayUsers}
+            keyExtractor={keyExtractor}
+            keyboardShouldPersistTaps='handled'
+            renderItem={renderUserItem}
+            ListEmptyComponent={() => (
+              <EmptyState
+                icon={<Users size={48} color={colors.textSecondary} />}
+                title='No users found'
+                message={
+                  localSearchQuery
+                    ? 'Try adjusting your search criteria'
+                    : 'No users match the current filters'
+                }
               />
-
-              <BulkActionsBar
-                selectedCount={selectedUsers.length}
-                onActivate={() => handleBulkStatusUpdate('active')}
-                onSuspend={() => handleBulkStatusUpdate('suspended')}
-                onClear={() => setSelectedUsers([])}
-                canUpdateUsers={canUpdateUsers()}
+            )}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={15}
+            windowSize={5}
+            initialNumToRender={15}
+            updateCellsBatchingPeriod={50}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
               />
-
-              <UserListHeader
-                searchQuery={searchQuery}
-                filteredCount={filteredAndSortedUsers.length}
-                isTablet={isTablet}
-                hasActiveFilters={hasActiveFilters()}
-                currentFilterText={getCurrentFilterText()}
-                onClearFilters={clearAllFilters}
-              />
-            </>
-          )}
-        />
+            }
+            showsVerticalScrollIndicator={false}
+            ListFooterComponent={renderFooter}
+          />
+        </View>
       )}
 
       <FilterModal
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}
-        filterStatus={filterStatus}
+        filterStatus={filters.status || ('all' as any)}
         sortBy={sortBy}
         sortOrder={sortOrder}
-        onStatusChange={setFilterStatus}
+        onStatusChange={status => setFilters({ ...filters, status })}
         onSortChange={(field, order) => {
           setSortBy(field);
           setSortOrder(order);
@@ -622,6 +701,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
+  },
+  flatListContainer: {
+    flex: 1,
   },
   contentContainer: {
     flexGrow: 1,
@@ -697,5 +779,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     marginTop: 16,
+  },
+  footerLoader: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerLoaderText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 6,
+  },
+  footerIndicator: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.primary}08`,
+    marginTop: 8,
+    marginHorizontal: 16,
+    borderRadius: 6,
+  },
+  footerIndicatorText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  footerEnd: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerEndText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    opacity: 0.6,
   },
 });

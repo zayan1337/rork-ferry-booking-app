@@ -43,10 +43,16 @@ export const fetchWallets = async (
     }
 
     if (filters?.balanceRange) {
-      if (filters.balanceRange.min !== undefined) {
+      if (
+        filters.balanceRange.min !== undefined &&
+        filters.balanceRange.min > 0
+      ) {
         query = query.gte('balance', filters.balanceRange.min);
       }
-      if (filters.balanceRange.max !== undefined) {
+      if (
+        filters.balanceRange.max !== undefined &&
+        filters.balanceRange.max > 0
+      ) {
         query = query.lte('balance', filters.balanceRange.max);
       }
     }
@@ -182,10 +188,16 @@ export const fetchWalletTransactions = async (
     }
 
     if (filters?.amountRange) {
-      if (filters.amountRange.min !== undefined) {
+      if (
+        filters.amountRange.min !== undefined &&
+        filters.amountRange.min > 0
+      ) {
         query = query.gte('amount', filters.amountRange.min);
       }
-      if (filters.amountRange.max !== undefined) {
+      if (
+        filters.amountRange.max !== undefined &&
+        filters.amountRange.max > 0
+      ) {
         query = query.lte('amount', filters.amountRange.max);
       }
     }
@@ -291,10 +303,16 @@ export const fetchPayments = async (
     }
 
     if (filters?.amountRange) {
-      if (filters.amountRange.min !== undefined) {
+      if (
+        filters.amountRange.min !== undefined &&
+        filters.amountRange.min > 0
+      ) {
         query = query.gte('amount', filters.amountRange.min);
       }
-      if (filters.amountRange.max !== undefined) {
+      if (
+        filters.amountRange.max !== undefined &&
+        filters.amountRange.max > 0
+      ) {
         query = query.lte('amount', filters.amountRange.max);
       }
     }
@@ -306,12 +324,17 @@ export const fetchPayments = async (
       throw paymentsError;
     }
 
+    console.log('Raw payments fetched from DB:', payments?.length || 0);
+
     if (!payments || payments.length === 0) {
+      console.log('No payments found in database');
       return [];
     }
 
     // Fetch bookings and user profiles
     const bookingIds = [...new Set(payments.map(p => p.booking_id))];
+    console.log('Fetching bookings for payment bookings:', bookingIds.length);
+
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
       .select('id, booking_number, user_id, total_fare, status')
@@ -319,8 +342,10 @@ export const fetchPayments = async (
 
     if (bookingsError) {
       console.error('Error fetching bookings:', bookingsError);
-      throw bookingsError;
+      // Don't throw - continue with payment data even if booking fetch fails
     }
+
+    console.log('Bookings fetched:', bookings?.length || 0);
 
     const userIds = [...new Set(bookings?.map(b => b.user_id) || [])];
     const { data: userProfiles, error: profilesError } = await supabase
@@ -330,7 +355,10 @@ export const fetchPayments = async (
 
     if (profilesError) {
       console.error('Error fetching user profiles:', profilesError);
+      // Don't throw - continue without user profile data
     }
+
+    console.log('User profiles fetched:', userProfiles?.length || 0);
 
     // Combine data
     const paymentsWithBookings = payments.map((payment: any) => {
@@ -363,10 +391,15 @@ export const fetchPayments = async (
       };
     });
 
+    console.log(
+      'Payments with bookings combined:',
+      paymentsWithBookings.length
+    );
+
     // Apply search filter after combining data
-    if (filters?.searchQuery) {
+    if (filters?.searchQuery && filters.searchQuery.trim()) {
       const searchLower = filters.searchQuery.toLowerCase();
-      return paymentsWithBookings.filter(
+      const filtered = paymentsWithBookings.filter(
         payment =>
           payment.booking?.booking_number
             ?.toLowerCase()
@@ -375,8 +408,11 @@ export const fetchPayments = async (
           (payment.receipt_number &&
             payment.receipt_number.toLowerCase().includes(searchLower))
       );
+      console.log('Payments after search filter:', filtered.length);
+      return filtered;
     }
 
+    console.log('Returning payments:', paymentsWithBookings.length);
     return paymentsWithBookings;
   } catch (error) {
     console.error('Failed to fetch payments:', error);
