@@ -17,8 +17,6 @@ import {
   Clock,
   XCircle,
   AlertTriangle,
-  Search,
-  Filter,
 } from 'lucide-react-native';
 
 // Components

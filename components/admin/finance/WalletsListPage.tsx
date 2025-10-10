@@ -14,8 +14,6 @@ import type { Wallet } from '@/types/admin/finance';
 import {
   Wallet as WalletIcon,
   AlertTriangle,
-  Search,
-  Filter,
   TrendingUp,
   TrendingDown,
 } from 'lucide-react-native';

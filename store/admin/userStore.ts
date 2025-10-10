@@ -119,7 +119,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       // Fetch ALL users from user_profiles table without any filters
       // Filters will be applied in the component/hook layer
-      let userQuery = supabase.from('user_profiles').select('*');
+      const userQuery = supabase.from('user_profiles').select('*');
 
       const { data: userData, error: userError } = await userQuery;
 
@@ -152,7 +152,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       let allUsers = [...transformedUsers];
 
       // Fetch ALL passengers from passengers table
-      let passengerQuery = supabase.from('passengers').select(`
+      const passengerQuery = supabase.from('passengers').select(`
           id,
           passenger_name,
           passenger_contact_number,

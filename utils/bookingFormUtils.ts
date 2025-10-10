@@ -51,24 +51,29 @@ export const formatTripOptions = (trips: Trip[] = []) => {
       (trip as any).vessel_name ||
       trip.vesselName ||
       'Unknown Vessel';
-    
+
     // Format date (e.g., "Dec 25")
-    const travelDate = trip.travel_date 
-      ? new Date(trip.travel_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const travelDate = trip.travel_date
+      ? new Date(trip.travel_date).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        })
       : '';
-    
+
     // Format time (e.g., "09:00")
     const departureTime = String(trip.departure_time || '').slice(0, 5);
-    
+
     // Calculate fare with multiplier (route.base_fare × trip.fare_multiplier)
-    const baseFare = Number(trip.route?.base_fare || (trip as any).base_fare || 0);
+    const baseFare = Number(
+      trip.route?.base_fare || (trip as any).base_fare || 0
+    );
     const fareMultiplier = Number(trip.fare_multiplier || 1.0);
     const totalFare = baseFare * fareMultiplier;
     const fareDisplay = totalFare > 0 ? `MVR ${totalFare.toFixed(0)}` : 'N/A';
-    
+
     // Available seats
     const seatsDisplay = `${String(trip.available_seats || 0)} seats`;
-    
+
     // Combine all information in a clear format
     return {
       label: `${travelDate} • ${departureTime} • ${vesselName} • ${fareDisplay} • ${seatsDisplay}`,

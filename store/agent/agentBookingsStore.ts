@@ -233,7 +233,7 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
         const routeBaseFare = Number(booking.trip?.route?.base_fare || 0);
         const fareMultiplier = Number(booking.trip?.fare_multiplier || 1.0);
         const multipliedFare = routeBaseFare * fareMultiplier;
-        
+
         const route = booking.trip?.route
           ? {
               id: booking.trip.route.id,
@@ -329,7 +329,7 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
 
         // Calculate commission based on fare difference using trip's multiplied fare
         const discountedFare = Number(booking.total_fare || 0);
-        
+
         // Calculate original fare using trip's base_fare × fare_multiplier
         // Use the already calculated multipliedFare from above
         const originalFare =
@@ -1154,7 +1154,10 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
         const payment = currentBooking.payments[0];
 
         // Check if payment was via MIB and is completed
-        if (payment.status === 'completed' && payment.payment_method === 'mib') {
+        if (
+          payment.status === 'completed' &&
+          payment.payment_method === 'mib'
+        ) {
           try {
             console.log(
               `[AGENT CANCEL] Initiating MIB refund for booking ${bookingId}, amount: ${refundAmount}`

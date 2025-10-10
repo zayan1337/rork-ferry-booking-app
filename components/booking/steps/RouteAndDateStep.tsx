@@ -4,7 +4,6 @@ import Dropdown from '@/components/Dropdown';
 import DatePicker from '@/components/DatePicker';
 import TripTypeSelector from '@/components/booking/TripTypeSelector';
 import { formatRouteOptions } from '@/utils/bookingFormUtils';
-import { formatCurrency } from '@/utils/agentFormatters';
 import Colors from '@/constants/colors';
 import type { Route } from '@/types/agent';
 

@@ -78,7 +78,7 @@ const TripRouteSelectionStep: React.FC<TripRouteSelectionStepProps> = ({
   // For now, use routes directly - filtering can be added back later if needed
   // The automatic trip fetching already handles showing only available trips
   const displayRoutes = routes;
-  
+
   const routeOptions = displayRoutes.map(route => ({
     label: `${route.fromIsland?.name || 'Unknown'} → ${route.toIsland?.name || 'Unknown'}`,
     value: route.id,
@@ -203,11 +203,11 @@ const TripRouteSelectionStep: React.FC<TripRouteSelectionStepProps> = ({
         value={selectedRoute?.id || ''}
         onChange={handleRouteSelect}
         placeholder={
-          isLoadingRoutes 
-            ? 'Loading routes...' 
+          isLoadingRoutes
+            ? 'Loading routes...'
             : routeOptions.length === 0
-            ? 'No routes available'
-            : 'Select departure route'
+              ? 'No routes available'
+              : 'Select departure route'
         }
         error={errors.route}
         searchable
@@ -236,9 +236,11 @@ const TripRouteSelectionStep: React.FC<TripRouteSelectionStepProps> = ({
         <>
           <View style={styles.sectionDivider} />
           <Text style={styles.sectionTitle}>
-            {isLoadingTrips ? 'Loading Available Trips...' : 'Select Departure Trip'}
+            {isLoadingTrips
+              ? 'Loading Available Trips...'
+              : 'Select Departure Trip'}
           </Text>
-          
+
           {!isLoadingTrips && tripOptions.length > 0 && (
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>
@@ -256,8 +258,8 @@ const TripRouteSelectionStep: React.FC<TripRouteSelectionStepProps> = ({
               isLoadingTrips
                 ? 'Loading trips...'
                 : tripOptions.length === 0
-                ? 'No trips available for this date'
-                : 'Select a departure trip'
+                  ? 'No trips available for this date'
+                  : 'Select a departure trip'
             }
             error={errors.trip}
             required
@@ -271,60 +273,60 @@ const TripRouteSelectionStep: React.FC<TripRouteSelectionStepProps> = ({
                 {new Date(departureDate).toLocaleDateString()}.
               </Text>
               <Text style={styles.noTripsSubtext}>
-                💡 Try selecting a different date or contact the administrator to schedule trips.
+                💡 Try selecting a different date or contact the administrator
+                to schedule trips.
               </Text>
             </View>
           )}
         </>
       )}
 
-      {tripType === 'round_trip' &&
-        selectedReturnRoute &&
-        returnDate && (
-          <>
-            <View style={styles.sectionDivider} />
-            <Text style={styles.sectionTitle}>
-              {isLoadingTrips ? 'Loading Return Trips...' : 'Select Return Trip'}
-            </Text>
-            
-            {!isLoadingTrips && returnTripOptions.length > 0 && (
-              <View style={styles.infoBox}>
-                <Text style={styles.infoText}>
-                  📅 Date • 🕐 Time • 🚢 Ship • 💰 Fare/Seat • 💺 Available
-                </Text>
-              </View>
-            )}
+      {tripType === 'round_trip' && selectedReturnRoute && returnDate && (
+        <>
+          <View style={styles.sectionDivider} />
+          <Text style={styles.sectionTitle}>
+            {isLoadingTrips ? 'Loading Return Trips...' : 'Select Return Trip'}
+          </Text>
 
-            <Dropdown
-              label='Select Return Trip'
-              items={returnTripOptions}
-              value={selectedReturnTrip?.id || ''}
-              onChange={handleReturnTripSelect}
-              placeholder={
-                isLoadingTrips
-                  ? 'Loading return trips...'
-                  : returnTripOptions.length === 0
+          {!isLoadingTrips && returnTripOptions.length > 0 && (
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                📅 Date • 🕐 Time • 🚢 Ship • 💰 Fare/Seat • 💺 Available
+              </Text>
+            </View>
+          )}
+
+          <Dropdown
+            label='Select Return Trip'
+            items={returnTripOptions}
+            value={selectedReturnTrip?.id || ''}
+            onChange={handleReturnTripSelect}
+            placeholder={
+              isLoadingTrips
+                ? 'Loading return trips...'
+                : returnTripOptions.length === 0
                   ? 'No return trips available for this date'
                   : 'Select a return trip'
-              }
-              error={errors.returnTrip}
-              required
-              disabled={returnTripOptions.length === 0 || isLoadingTrips}
-            />
+            }
+            error={errors.returnTrip}
+            required
+            disabled={returnTripOptions.length === 0 || isLoadingTrips}
+          />
 
-            {returnTripOptions.length === 0 && !isLoadingTrips && (
-              <View style={styles.noTripsContainer}>
-                <Text style={styles.noTripsText}>
-                  ⚠️ No return trips available for this route on{' '}
-                  {new Date(returnDate).toLocaleDateString()}.
-                </Text>
-                <Text style={styles.noTripsSubtext}>
-                  💡 Try selecting a different return date or contact the administrator to schedule trips.
-                </Text>
-              </View>
-            )}
-          </>
-        )}
+          {returnTripOptions.length === 0 && !isLoadingTrips && (
+            <View style={styles.noTripsContainer}>
+              <Text style={styles.noTripsText}>
+                ⚠️ No return trips available for this route on{' '}
+                {new Date(returnDate).toLocaleDateString()}.
+              </Text>
+              <Text style={styles.noTripsSubtext}>
+                💡 Try selecting a different return date or contact the
+                administrator to schedule trips.
+              </Text>
+            </View>
+          )}
+        </>
+      )}
     </View>
   );
 };
@@ -418,4 +420,3 @@ const styles = StyleSheet.create({
 });
 
 export default TripRouteSelectionStep;
-

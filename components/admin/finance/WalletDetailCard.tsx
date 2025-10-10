@@ -13,8 +13,6 @@ import type { Wallet, WalletTransaction } from '@/types/admin/finance';
 import {
   Wallet as WalletIcon,
   User,
-  Mail,
-  Calendar,
   ArrowLeft,
   TrendingUp,
   TrendingDown,

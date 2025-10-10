@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, memo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -16,7 +16,6 @@ import {
 import SectionHeader from '@/components/admin/SectionHeader';
 import Button from '@/components/admin/Button';
 import SearchBar from '@/components/admin/SearchBar';
-import LoadingSpinner from '@/components/admin/LoadingSpinner';
 
 interface WalletsTabProps {
   isActive: boolean;

@@ -18,7 +18,10 @@ interface TripStoreActions {
     date: string,
     isReturn?: boolean
   ) => Promise<void>;
-  getAvailableDatesForRoute: (routeId: string, daysAhead?: number) => Promise<string[]>;
+  getAvailableDatesForRoute: (
+    routeId: string,
+    daysAhead?: number
+  ) => Promise<string[]>;
   setTrip: (trip: Trip | null) => void;
   setReturnTrip: (trip: Trip | null) => void;
   setError: (error: string | null) => void;
@@ -425,7 +428,10 @@ export const useTripStore = create<TripStore>((set, get) => ({
     }
   },
 
-  getAvailableDatesForRoute: async (routeId: string, daysAhead: number = 30) => {
+  getAvailableDatesForRoute: async (
+    routeId: string,
+    daysAhead: number = 30
+  ) => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);

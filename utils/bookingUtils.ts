@@ -117,7 +117,8 @@ export const calculateBookingFare = (
         errors.push('Return trip is required for round trips');
       } else {
         // Calculate return fare: route.base_fare × trip.fare_multiplier
-        const returnBaseFare = Number(returnTrip.route?.base_fare || returnTrip.base_fare) || 0;
+        const returnBaseFare =
+          Number(returnTrip.route?.base_fare || returnTrip.base_fare) || 0;
         const returnFareMultiplier = Number(returnTrip.fare_multiplier) || 1.0;
         const returnTripFare = returnBaseFare * returnFareMultiplier;
 

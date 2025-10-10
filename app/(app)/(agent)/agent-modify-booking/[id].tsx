@@ -183,7 +183,7 @@ export default function AgentModifyBookingScreen() {
         Number(booking.discountedAmount) || Number(booking.totalAmount) || 0;
       const passengerCount =
         booking.passengers?.length || booking.passengerCount || 1;
-      
+
       // Calculate fare using route.base_fare × trip.fare_multiplier
       // base_fare is in route table, fare_multiplier is in trip table
       // booking.route.routeBaseFare has the original route base_fare (if available)
@@ -191,7 +191,7 @@ export default function AgentModifyBookingScreen() {
       const fareMultiplier = Number(selectedTrip.fare_multiplier) || 1.0;
       const newFarePerPassenger = routeBaseFare * fareMultiplier;
       const calculatedNewTotalFare = newFarePerPassenger * passengerCount;
-      
+
       setNewTotalFare(calculatedNewTotalFare); // Store total fare with multiplier
 
       const discountCalculation = calculateDiscountedFare(

@@ -573,25 +573,25 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
                 })
                 .eq('new_booking_id', newBookingData.id);
               // Don't return early - continue with modification
-            // } else if (
-            //   !paymentRecord.receipt_number &&
-            //   !paymentRecord.session_id
-            // ) {
-            //   console.warn('[MODIFY] Payment record missing transaction ID');
-            //   refundStatus = 'pending_manual';
-            //   // Update modification record to indicate manual refund needed
-            //   await supabase
-            //     .from('modifications')
-            //     .update({
-            //       refund_details: {
-            //         amount: refundAmount,
-            //         payment_method: originalBooking.payment.method,
-            //         bank_account_details: modifications.bankAccountDetails,
-            //         status: 'pending_manual',
-            //         note: 'Payment record missing transaction ID - requires manual processing',
-            //       },
-            //     })
-            //     .eq('new_booking_id', newBookingData.id);
+              // } else if (
+              //   !paymentRecord.receipt_number &&
+              //   !paymentRecord.session_id
+              // ) {
+              //   console.warn('[MODIFY] Payment record missing transaction ID');
+              //   refundStatus = 'pending_manual';
+              //   // Update modification record to indicate manual refund needed
+              //   await supabase
+              //     .from('modifications')
+              //     .update({
+              //       refund_details: {
+              //         amount: refundAmount,
+              //         payment_method: originalBooking.payment.method,
+              //         bank_account_details: modifications.bankAccountDetails,
+              //         status: 'pending_manual',
+              //         note: 'Payment record missing transaction ID - requires manual processing',
+              //       },
+              //     })
+              //     .eq('new_booking_id', newBookingData.id);
               // Don't return early - continue with modification
             } else {
               console.log(

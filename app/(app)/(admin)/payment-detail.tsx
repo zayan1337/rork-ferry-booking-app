@@ -18,7 +18,6 @@ import {
   XCircle,
   AlertCircle,
   FileText,
-  User,
   Calendar,
   DollarSign,
   BarChart3,

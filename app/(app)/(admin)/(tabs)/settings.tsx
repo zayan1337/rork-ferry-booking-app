@@ -20,10 +20,7 @@ import { useAdminStore } from '@/store/admin/adminStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import {
   Shield,
-  Bell,
   Activity,
-  Settings,
-  FileText,
   MapPin,
   Globe,
   HelpCircle,

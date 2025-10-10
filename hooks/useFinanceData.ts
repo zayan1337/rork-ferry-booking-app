@@ -114,6 +114,7 @@ export const useFinanceData = () => {
       const aVal = a[filters.payments.sortBy as keyof Payment];
       const bVal = b[filters.payments.sortBy as keyof Payment];
 
+      if (aVal === undefined || bVal === undefined) return 0;
       if (aVal < bVal) return filters.payments.sortOrder === 'asc' ? -1 : 1;
       if (aVal > bVal) return filters.payments.sortOrder === 'asc' ? 1 : -1;
       return 0;
@@ -164,6 +165,7 @@ export const useFinanceData = () => {
       const aVal = a[filters.wallets.sortBy as keyof Wallet];
       const bVal = b[filters.wallets.sortBy as keyof Wallet];
 
+      if (aVal === undefined || bVal === undefined) return 0;
       if (aVal < bVal) return filters.wallets.sortOrder === 'asc' ? -1 : 1;
       if (aVal > bVal) return filters.wallets.sortOrder === 'asc' ? 1 : -1;
       return 0;
@@ -236,6 +238,7 @@ export const useFinanceData = () => {
       const aVal = a[filters.transactions.sortBy as keyof WalletTransaction];
       const bVal = b[filters.transactions.sortBy as keyof WalletTransaction];
 
+      if (aVal === undefined || bVal === undefined) return 0;
       if (aVal < bVal) return filters.transactions.sortOrder === 'asc' ? -1 : 1;
       if (aVal > bVal) return filters.transactions.sortOrder === 'asc' ? 1 : -1;
       return 0;

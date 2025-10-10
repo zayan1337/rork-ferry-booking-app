@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  View,
-  Text,
-} from 'react-native';
+import { StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { Stack } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';

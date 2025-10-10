@@ -771,7 +771,10 @@ export const useAgentBookingFormStore = create<
       try {
         const releaseResult = await releaseTempSeatReservation(tripId, seat.id);
         if (!releaseResult.success) {
-          console.warn('Failed to release seat reservation:', releaseResult.message);
+          console.warn(
+            'Failed to release seat reservation:',
+            releaseResult.message
+          );
           // Continue anyway to allow local state update
         }
       } catch (error) {
@@ -807,7 +810,9 @@ export const useAgentBookingFormStore = create<
         }
       } catch (error: any) {
         console.error('Error reserving seat:', error);
-        throw new Error(error.message || 'Failed to reserve seat. Please try again.');
+        throw new Error(
+          error.message || 'Failed to reserve seat. Please try again.'
+        );
       }
 
       // Add seat to local state
@@ -1085,9 +1090,11 @@ export const useAgentBookingFormStore = create<
 
       // Calculate fares for commission tracking using route's base_fare × trip's fare_multiplier
       const routeBaseFare = Number(currentBooking.route?.baseFare || 0);
-      const fareMultiplier = Number(currentBooking.trip?.fare_multiplier || 1.0);
+      const fareMultiplier = Number(
+        currentBooking.trip?.fare_multiplier || 1.0
+      );
       const tripFare = routeBaseFare * fareMultiplier;
-      
+
       const originalFare = currentBooking.selectedSeats.length * tripFare;
       const discountedFare =
         originalFare * (1 - (validAgent.discountRate || 0) / 100);
@@ -1342,11 +1349,16 @@ export const useAgentBookingFormStore = create<
         currentBooking.returnTrip
       ) {
         // Calculate return trip fares for commission tracking using route's base_fare × trip's fare_multiplier
-        const returnRouteBaseFare = Number(currentBooking.returnRoute?.baseFare || 0);
-        const returnFareMultiplier = Number(currentBooking.returnTrip?.fare_multiplier || 1.0);
+        const returnRouteBaseFare = Number(
+          currentBooking.returnRoute?.baseFare || 0
+        );
+        const returnFareMultiplier = Number(
+          currentBooking.returnTrip?.fare_multiplier || 1.0
+        );
         const returnTripFare = returnRouteBaseFare * returnFareMultiplier;
-        
-        const returnOriginalFare = currentBooking.returnSelectedSeats.length * returnTripFare;
+
+        const returnOriginalFare =
+          currentBooking.returnSelectedSeats.length * returnTripFare;
         const returnDiscountedFare =
           returnOriginalFare * (1 - (validAgent.discountRate || 0) / 100);
         const returnCommissionAmount =
@@ -1516,7 +1528,8 @@ export const useAgentBookingFormStore = create<
             .single();
 
           if (currentBalance.data) {
-            const newBalance = currentBalance.data.credit_balance - returnDiscountedFare;
+            const newBalance =
+              currentBalance.data.credit_balance - returnDiscountedFare;
             await supabase
               .from('user_profiles')
               .update({ credit_balance: newBalance })
@@ -1609,7 +1622,10 @@ export const useAgentBookingFormStore = create<
         await cleanupUserTempReservations(currentBooking.returnTrip.id);
       }
     } catch (cleanupError) {
-      console.error('Error cleaning up temporary reservations during reset:', cleanupError);
+      console.error(
+        'Error cleaning up temporary reservations during reset:',
+        cleanupError
+      );
       // Continue with reset even if cleanup fails
     }
 
