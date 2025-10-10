@@ -1199,7 +1199,7 @@ export const useAgentBookingFormStore = create<
         );
       }
 
-      // Create payment record for all payment methods (like customer booking)
+      // Create payment record based on payment method
       if (currentBooking.paymentMethod === 'mib') {
         // For MIB, create pending payment record
         const { error: paymentError } = await supabase.from('payments').insert({
@@ -1214,14 +1214,21 @@ export const useAgentBookingFormStore = create<
           console.error('Failed to create MIB payment record:', paymentError);
           // Don't throw error - booking was created successfully
         }
-      } else {
-        // For other payment methods (credit/free), create completed payment record
+      } else if (currentBooking.paymentMethod === 'credit') {
+        // For agent credit, use 'wallet' payment method with receipt for professional tracking
+        // Generate compact receipt number (max 20 chars due to DB constraint)
+        const timestamp = Date.now().toString().slice(-8); // Last 8 digits of timestamp
+        const bookingRef = booking.booking_number.slice(-5); // Last 5 chars of booking number
+        const receiptNumber = `AGT${timestamp}${bookingRef}`; // e.g., AGT8912345600001 (16 chars)
+        
         const { error: paymentError } = await supabase.from('payments').insert({
           booking_id: booking.id,
-          payment_method: currentBooking.paymentMethod,
+          payment_method: 'wallet', // Use wallet for agent credit payments
           amount: discountedFare,
           currency: 'MVR',
           status: 'completed', // Mark as completed for immediate confirmation
+          receipt_number: receiptNumber, // Compact receipt number
+          transaction_date: new Date().toISOString(),
         });
 
         if (paymentError) {
@@ -1229,7 +1236,33 @@ export const useAgentBookingFormStore = create<
           // Don't throw error - booking was created successfully
         }
 
-        // Update booking status to confirmed for non-MIB payments
+        // Update booking status to confirmed
+        const { error: statusUpdateError } = await supabase
+          .from('bookings')
+          .update({ status: 'confirmed' })
+          .eq('id', booking.id);
+
+        if (statusUpdateError) {
+          console.error('Failed to update booking status:', statusUpdateError);
+          // Don't throw error - booking was created successfully
+        }
+      } else if (currentBooking.paymentMethod === 'free') {
+        // For free tickets, use 'wallet' with 0 amount (no receipt needed)
+        const { error: paymentError } = await supabase.from('payments').insert({
+          booking_id: booking.id,
+          payment_method: 'wallet', // Use wallet for free tickets
+          amount: 0,
+          currency: 'MVR',
+          status: 'completed',
+          transaction_date: new Date().toISOString(),
+        });
+
+        if (paymentError) {
+          console.error('Failed to create payment record:', paymentError);
+          // Don't throw error - booking was created successfully
+        }
+
+        // Update booking status to confirmed
         const { error: statusUpdateError } = await supabase
           .from('bookings')
           .update({ status: 'confirmed' })
@@ -1454,7 +1487,7 @@ export const useAgentBookingFormStore = create<
           // Don't fail the main booking for return seat issues, but log the error
         }
 
-        // Create payment record for return trip (all payment methods like customer booking)
+        // Create payment record for return trip based on payment method
         if (currentBooking.paymentMethod === 'mib') {
           // For MIB, create pending payment record for return trip
           const { error: returnPaymentError } = await supabase
@@ -1474,16 +1507,26 @@ export const useAgentBookingFormStore = create<
             );
             // Don't throw error - booking was created successfully
           }
-        } else {
-          // For other payment methods (credit/free), create completed payment record
+        } else if (currentBooking.paymentMethod === 'credit' || currentBooking.paymentMethod === 'free') {
+          // For agent credit and free tickets, use 'wallet' as payment method
+          // Generate compact receipt for credit payments only (max 20 chars)
+          let returnReceiptNumber = null;
+          if (currentBooking.paymentMethod === 'credit') {
+            const returnTimestamp = Date.now().toString().slice(-8);
+            const returnBookingRef = returnBooking.booking_number.slice(-5);
+            returnReceiptNumber = `AGT${returnTimestamp}${returnBookingRef}`;
+          }
+          
           const { error: returnPaymentError } = await supabase
             .from('payments')
             .insert({
               booking_id: returnBooking.id,
-              payment_method: currentBooking.paymentMethod,
-              amount: returnDiscountedFare,
+              payment_method: 'wallet', // Use wallet for agent payments
+              amount: currentBooking.paymentMethod === 'free' ? 0 : returnDiscountedFare,
               currency: 'MVR',
               status: 'completed', // Mark as completed for immediate confirmation
+              receipt_number: returnReceiptNumber, // Compact receipt for credit, null for free
+              transaction_date: new Date().toISOString(),
             });
 
           if (returnPaymentError) {
