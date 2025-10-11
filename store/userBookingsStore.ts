@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../utils/supabase';
 import type { UserBookingsStoreState } from '@/types/booking';
 import type { Booking, Route, Passenger, Seat } from '@/types';
+import { releaseSeatReservations } from '@/utils/paymentUtils';
 
 interface UserBookingsStoreActions {
   fetchUserBookings: () => Promise<void>;
@@ -251,18 +252,8 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
 
       if (bookingUpdateError) throw bookingUpdateError;
 
-      // 2. Release seat reservations back to available status
-      const { error: seatReleaseError } = await supabase
-        .from('seat_reservations')
-        .update({
-          is_available: true,
-          booking_id: null,
-          is_reserved: false,
-          reservation_expiry: null,
-        })
-        .eq('booking_id', bookingId);
-
-      if (seatReleaseError) throw seatReleaseError;
+      // 2. Release seat reservations (both permanent and temporary)
+      await releaseSeatReservations(bookingId);
 
       // 3. Insert into cancellations table
       const { error: cancellationError } = await supabase

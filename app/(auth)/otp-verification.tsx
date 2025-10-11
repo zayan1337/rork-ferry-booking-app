@@ -26,7 +26,7 @@ export default function OTPVerificationScreen() {
   const [otp, setOtp] = useState('');
   const [otpError, setOtpError] = useState('');
   const [isNavigating, setIsNavigating] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState(60);
   const [isVerifying, setIsVerifying] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -125,7 +125,7 @@ export default function OTPVerificationScreen() {
         // First verify the OTP
         await verifyOTP(email, otp, 'email');
         // Then complete the registration
-        await completePendingRegistration();
+        // await completePendingRegistration();
 
         // Show success state
         setShowSuccess(true);

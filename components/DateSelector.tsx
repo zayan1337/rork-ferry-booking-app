@@ -21,6 +21,8 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
   maxDate,
   isDateOfBirth = false,
   error,
+  required = false,
+  labelStyle,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -276,7 +278,11 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      {label && (
+        <Text style={[styles.label, labelStyle]}>
+          {label} {required && <Text style={styles.required}>*</Text>}
+        </Text>
+      )}
 
       <TouchableOpacity
         style={[styles.selector, error && styles.selectorError]}
@@ -354,6 +360,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 6,
     color: colors.text,
+  },
+  required: {
+    color: colors.error,
   },
   selector: {
     flexDirection: 'row',

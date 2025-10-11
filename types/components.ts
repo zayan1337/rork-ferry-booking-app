@@ -61,6 +61,7 @@ export type DateSelectorProps = {
   isDateOfBirth?: boolean;
   error?: string;
   required?: boolean;
+  labelStyle?: TextStyle;
 };
 
 export type DatePickerProps = {

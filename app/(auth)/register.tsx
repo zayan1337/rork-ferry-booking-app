@@ -38,8 +38,6 @@ export default function RegisterScreen() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsError, setTermsError] = useState('');
   const [isNavigating, setIsNavigating] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [countdown, setCountdown] = useState(10);
 
   const {
     signUp,
@@ -52,34 +50,10 @@ export default function RegisterScreen() {
     setPreventRedirect,
   } = useAuthStore();
 
-  // Handle countdown timer when success is shown
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-    if (showSuccess && countdown > 0) {
-      timer = setInterval(() => {
-        setCountdown(prev => prev - 1);
-      }, 1000);
-    } else if (showSuccess && countdown === 0 && !isNavigating) {
-      setIsNavigating(true);
-      setPreventRedirect(false);
-      setShowSuccess(false);
-      setTimeout(() => {
-        router.replace('/');
-      }, 100);
-    }
-
-    return () => {
-      if (timer) {
-        clearInterval(timer);
-      }
-    };
-  }, [showSuccess, countdown, isNavigating, setPreventRedirect]);
-
-  // Clear success message and reset form when component unmounts or navigates away
+  // Clear preventRedirect when component unmounts
   useEffect(() => {
     return () => {
       setPreventRedirect(false);
-      setShowSuccess(false);
     };
   }, [setPreventRedirect]);
 
@@ -170,7 +144,7 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     // Prevent multiple attempts while loading or navigating
-    if (isLoading || isNavigating || showSuccess) {
+    if (isLoading || isNavigating) {
       return;
     }
 
@@ -183,10 +157,7 @@ export default function RegisterScreen() {
     }
 
     try {
-      // Prevent redirects during success message
-      setPreventRedirect(true);
-
-      // Attempt registration
+      // Send OTP for signup verification
       await signUp({
         email_address: formData.email,
         password: formData.password,
@@ -196,27 +167,20 @@ export default function RegisterScreen() {
         accepted_terms: termsAccepted,
       });
 
-      // Show success message
-      setShowSuccess(true);
-      setCountdown(10);
-      clearLoading();
+      // Navigate to OTP verification page
+      setIsNavigating(true);
+      setTimeout(() => {
+        clearLoading();
+        router.push({
+          pathname: '/(auth)/otp-verification',
+          params: { email: formData.email, type: 'signup' },
+        });
+      }, 300);
     } catch (err) {
-      // Reset states if registration fails
+      // Reset states if sending OTP fails
       console.error('Registration error:', err);
       clearLoading();
-      setPreventRedirect(false);
-      setShowSuccess(false);
-    }
-  };
-
-  const handleSkipCountdown = () => {
-    if (!isNavigating) {
-      setIsNavigating(true);
-      setPreventRedirect(false);
-      setShowSuccess(false);
-      setTimeout(() => {
-        router.replace('/');
-      }, 100);
+      setIsNavigating(false);
     }
   };
 
@@ -245,7 +209,7 @@ export default function RegisterScreen() {
             value={formData.fullname}
             onChangeText={text => updateFormData('fullname', text)}
             error={errors.fullname}
-            disabled={isLoading || isNavigating || showSuccess}
+            disabled={isLoading || isNavigating}
             required
           />
 
@@ -256,7 +220,7 @@ export default function RegisterScreen() {
             onChangeText={text => updateFormData('phone', text)}
             keyboardType='phone-pad'
             error={errors.phone}
-            disabled={isLoading || isNavigating || showSuccess}
+            disabled={isLoading || isNavigating}
             required
           />
 
@@ -267,7 +231,7 @@ export default function RegisterScreen() {
             onChangeText={text => updateFormData('email', text)}
             keyboardType='email-address'
             error={errors.email}
-            disabled={isLoading || isNavigating || showSuccess}
+            disabled={isLoading || isNavigating}
             required
           />
 
@@ -288,7 +252,7 @@ export default function RegisterScreen() {
             onChangeText={text => updateFormData('password', text)}
             secureTextEntry
             error={errors.password}
-            disabled={isLoading || isNavigating || showSuccess}
+            disabled={isLoading || isNavigating}
             required
           />
 
@@ -299,7 +263,7 @@ export default function RegisterScreen() {
             onChangeText={text => updateFormData('confirmPassword', text)}
             secureTextEntry
             error={errors.confirmPassword}
-            disabled={isLoading || isNavigating || showSuccess}
+            disabled={isLoading || isNavigating}
             required
           />
 
@@ -310,7 +274,7 @@ export default function RegisterScreen() {
                 setTermsAccepted(!termsAccepted);
                 if (termsError) setTermsError('');
               }}
-              disabled={isLoading || isNavigating || showSuccess}
+              disabled={isLoading || isNavigating}
             >
               <View
                 style={[
@@ -338,44 +302,19 @@ export default function RegisterScreen() {
             title='Create Account'
             onPress={handleRegister}
             loading={isLoading}
-            disabled={isLoading || isNavigating || showSuccess}
+            disabled={isLoading || isNavigating}
             fullWidth
             style={styles.registerButton}
           />
 
-          {/* Success Message - Shows under the form */}
-          {showSuccess && (
-            <View style={styles.successContainer}>
-              <Text style={styles.successTitle}>Registration Successful!</Text>
-              <Text style={styles.successText}>
-                Confirmation mail sent to {formData.email}. Please check your
-                email and confirm your account.
-              </Text>
-              <Text style={styles.countdownText}>
-                Redirecting to login page in {countdown} seconds...
-              </Text>
-              <Button
-                title={`Go to Login Now (${countdown}s)`}
-                onPress={handleSkipCountdown}
-                disabled={isNavigating}
-                fullWidth
-                variant='secondary'
-                style={styles.skipButton}
-              />
-            </View>
-          )}
-
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Already have an account? </Text>
             <TouchableOpacity
-              disabled={isLoading || isNavigating || showSuccess}
+              disabled={isLoading || isNavigating}
               onPress={() => router.push('/')}
             >
               <Text
-                style={[
-                  styles.loginLink,
-                  (showSuccess || isLoading) && styles.disabledLink,
-                ]}
+                style={[styles.loginLink, isLoading && styles.disabledLink]}
               >
                 Login
               </Text>

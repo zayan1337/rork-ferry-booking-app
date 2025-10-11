@@ -38,8 +38,14 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const { checkAuth, isAuthenticated, isLoading, user, error, isRehydrated } =
-    useAuthStore();
+  const {
+    checkAuth,
+    isAuthenticated,
+    isAuthenticating,
+    user,
+    error,
+    isRehydrated,
+  } = useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
     // Only check auth once on startup and when rehydrated
@@ -112,7 +118,7 @@ function RootLayoutNav() {
   }, []);
 
   // Show loading screen while checking authentication or rehydrating
-  if (!isRehydrated || !authChecked || isLoading) {
+  if (!isRehydrated || !authChecked || isAuthenticating) {
     return <AuthLoadingScreen message='Initializing app...' />;
   }
 

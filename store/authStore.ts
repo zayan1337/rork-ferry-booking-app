@@ -7,6 +7,7 @@ import type { UserProfile, RegisterData, AuthUser } from '@/types/auth';
 interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAuthenticating: boolean; // Separate state for auth initialization
   user: AuthUser | null;
   error: string | null;
   preventRedirect: boolean;
@@ -41,6 +42,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       isAuthenticated: false,
       isLoading: false,
+      isAuthenticating: false,
       user: null,
       error: null,
       preventRedirect: false,
@@ -63,7 +65,7 @@ export const useAuthStore = create<AuthState>()(
 
       checkAuth: async () => {
         try {
-          set({ isLoading: true, error: null });
+          set({ isAuthenticating: true, error: null });
           const {
             data: { session },
             error: sessionError,
@@ -81,7 +83,7 @@ export const useAuthStore = create<AuthState>()(
               set({
                 isAuthenticated: false,
                 user: null,
-                isLoading: false,
+                isAuthenticating: false,
                 error: null, // Don't show error for invalid refresh tokens
               });
               return;
@@ -103,7 +105,7 @@ export const useAuthStore = create<AuthState>()(
               set({
                 isAuthenticated: false,
                 user: null,
-                isLoading: false,
+                isAuthenticating: false,
                 error: 'Profile not found. Please contact support.',
               });
               return;
@@ -115,7 +117,7 @@ export const useAuthStore = create<AuthState>()(
               set({
                 isAuthenticated: false,
                 user: null,
-                isLoading: false,
+                isAuthenticating: false,
                 error: 'User profile not found. Please contact support.',
               });
               return;
@@ -127,7 +129,7 @@ export const useAuthStore = create<AuthState>()(
               set({
                 isAuthenticated: false,
                 user: null,
-                isLoading: false,
+                isAuthenticating: false,
                 error: 'Account is inactive. Please contact support.',
               });
               return;
@@ -139,13 +141,13 @@ export const useAuthStore = create<AuthState>()(
                 ...session.user,
                 profile: userProfile,
               },
-              isLoading: false,
+              isAuthenticating: false,
             });
           } else {
             set({
               isAuthenticated: false,
               user: null,
-              isLoading: false,
+              isAuthenticating: false,
             });
           }
         } catch (error) {
@@ -162,7 +164,7 @@ export const useAuthStore = create<AuthState>()(
             set({
               isAuthenticated: false,
               user: null,
-              isLoading: false,
+              isAuthenticating: false,
               error: null,
             });
             return;
@@ -175,7 +177,7 @@ export const useAuthStore = create<AuthState>()(
           set({
             isAuthenticated: false,
             user: null,
-            isLoading: false,
+            isAuthenticating: false,
             error: errorMessage,
           });
         }
@@ -183,7 +185,7 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (email: string, password: string) => {
         try {
-          set({ isLoading: true, error: null });
+          set({ isAuthenticating: true, error: null });
 
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
@@ -217,7 +219,7 @@ export const useAuthStore = create<AuthState>()(
               ...data.user,
               profile,
             },
-            isLoading: false,
+            isAuthenticating: false,
             error: null,
           });
         } catch (error) {
@@ -225,7 +227,7 @@ export const useAuthStore = create<AuthState>()(
           const errorMessage =
             error instanceof Error ? error.message : 'Login failed';
           set({
-            isLoading: false,
+            isAuthenticating: false,
             error: errorMessage,
           });
           throw error;
@@ -267,6 +269,13 @@ export const useAuthStore = create<AuthState>()(
               `Failed to fetch user profile: ${profileError.message}`
             );
 
+          // Note: Welcome email will be sent automatically when user verifies their email
+          // This is handled by the database trigger on user_profiles table
+          // Alternatively, you can manually trigger it here after email verification:
+          // await supabase.functions.invoke('send-welcome-email', {
+          //   body: { userId: data.user.id, email: email_address, fullName: profileData.full_name }
+          // });
+
           set({
             isLoading: false,
             error: null,
@@ -286,7 +295,7 @@ export const useAuthStore = create<AuthState>()(
 
       signOut: async () => {
         try {
-          set({ isLoading: true, error: null });
+          set({ isAuthenticating: true, error: null });
           const { error } = await supabase.auth.signOut();
           // if (error) throw error;
 
@@ -294,7 +303,7 @@ export const useAuthStore = create<AuthState>()(
           set({
             isAuthenticated: false,
             user: null,
-            isLoading: false,
+            isAuthenticating: false,
             error: null,
             preventRedirect: true,
           });
@@ -308,7 +317,7 @@ export const useAuthStore = create<AuthState>()(
           const errorMessage =
             error instanceof Error ? error.message : 'Sign out failed';
           set({
-            isLoading: false,
+            isAuthenticating: false,
             error: errorMessage,
           });
           throw error;
@@ -389,6 +398,24 @@ export const useAuthStore = create<AuthState>()(
 
           if (verifyError) throw verifyError;
           if (!data.user) throw new Error('OTP verification failed');
+
+          // Send welcome email after successful email verification
+          if (type === 'email' && data.user) {
+            try {
+              // Call edge function to send welcome email
+              await supabase.functions.invoke('send-welcome-email', {
+                body: {
+                  userId: data.user.id,
+                  email: email,
+                  fullName: data.user.user_metadata?.full_name,
+                },
+              });
+              console.log('Welcome email sent successfully');
+            } catch (emailError) {
+              // Log error but don't fail the verification process
+              console.warn('Failed to send welcome email:', emailError);
+            }
+          }
 
           // Don't sign out for recovery type - we need the session for password reset
           if (type === 'email') {

@@ -534,7 +534,13 @@ export const releaseSeatReservations = async (
   bookingId: string
 ): Promise<void> => {
   try {
-    // Release seat reservations back to available status
+    // Get user ID to also clean up any temp reservations
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id;
+
+    // Release permanent seat reservations (with booking_id)
     const { error: seatReleaseError } = await supabase
       .from('seat_reservations')
       .update({
@@ -551,17 +557,40 @@ export const releaseSeatReservations = async (
       .eq('booking_id', bookingId);
 
     if (seatReleaseError) {
-      console.error('Error releasing seat reservations:', seatReleaseError);
+      console.error(
+        '[RELEASE] Error releasing permanent seat reservations:',
+        seatReleaseError
+      );
       throw new Error(
         `Failed to release seat reservations: ${seatReleaseError.message}`
       );
     }
 
-    console.log(
-      `Successfully released seat reservations for booking ${bookingId}`
-    );
+    // ALSO release any temporary reservations for this user (without booking_id)
+    // This handles cases where temp reservations exist but booking was cancelled before completion
+    if (userId) {
+      const { error: tempSeatError } = await supabase
+        .from('seat_reservations')
+        .update({
+          is_available: true,
+          user_id: null,
+          session_id: null,
+          temp_reservation_expiry: null,
+          is_reserved: false,
+          last_activity: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .is('booking_id', null);
+
+      if (tempSeatError) {
+        console.warn(
+          '[RELEASE] Failed to release temporary reservations (non-critical):',
+          tempSeatError
+        );
+      }
+    }
   } catch (error) {
-    console.error('Error in releaseSeatReservations:', error);
+    console.error('[RELEASE] Error in releaseSeatReservations:', error);
     throw error;
   }
 };
