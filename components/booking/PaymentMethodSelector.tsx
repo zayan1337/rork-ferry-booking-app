@@ -4,7 +4,7 @@ import Card from '@/components/Card';
 import Input from '@/components/Input';
 import Colors from '@/constants/colors';
 
-type PaymentMethod = 'agent_credit' | 'bank_transfer';
+type PaymentMethod = 'agent_credit' | 'bank_transfer' | 'mib';
 
 interface BankDetails {
   accountNumber: string;
@@ -89,6 +89,26 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               🏦 Bank Transfer
             </Text>
           </TouchableOpacity>
+
+          {/* MIB Payment Option */}
+          <TouchableOpacity
+            style={[
+              styles.paymentOption,
+              selectedPaymentMethod === 'mib' &&
+                styles.paymentOptionSelected,
+            ]}
+            onPress={() => onPaymentMethodChange('mib')}
+          >
+            <Text
+              style={[
+                styles.paymentOptionText,
+                selectedPaymentMethod === 'mib' &&
+                  styles.paymentOptionTextSelected,
+              ]}
+            >
+              💳 MIB Gateway
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -165,9 +185,11 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       )}
 
       <Text style={styles.fareNote}>
-        {isRefund
-          ? 'Refund will be processed within 72 hours'
-          : 'Additional payment will be required from client'}
+        {selectedPaymentMethod === 'mib'
+          ? 'Payment will be processed securely through MIB Gateway'
+          : isRefund
+            ? 'Refund will be processed within 72 hours'
+            : 'Additional payment will be required from client'}
       </Text>
     </Card>
   );
