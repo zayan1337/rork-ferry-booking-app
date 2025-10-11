@@ -50,12 +50,38 @@ export default function MibPaymentWebView({
   onFailure,
   onCancel,
 }: MibPaymentWebViewProps) {
+  console.log('[MIB WebView] Component rendering with:', {
+    visible,
+    hasSessionData: !!sessionData,
+    sessionId: sessionData?.sessionId,
+    bookingId,
+  });
+
   const [isLoading, setIsLoading] = useState(false);
-  const [showPaymentPage, setShowPaymentPage] = useState(false);
+  const [showPaymentPage, setShowPaymentPage] = useState(!!sessionData);
   const [currentSessionData, setCurrentSessionData] = useState(sessionData);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const webViewRef = useRef<WebView>(null);
   const paymentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-show payment page when sessionData is provided
+  useEffect(() => {
+    console.log('[MIB WebView] useEffect triggered - Session data:', {
+      hasSessionData: !!sessionData,
+      sessionId: sessionData?.sessionId,
+      redirectUrl: sessionData?.redirectUrl,
+      visible,
+    });
+    
+    if (sessionData && sessionData.sessionId && sessionData.redirectUrl) {
+      console.log('[MIB WebView] ✅ Auto-opening payment page with session data');
+      setCurrentSessionData(sessionData);
+      setShowPaymentPage(true);
+      setIsLoading(false);
+    } else {
+      console.log('[MIB WebView] ⚠️ Not showing payment page - missing session data');
+    }
+  }, [sessionData, visible]);
 
   // Clear timeout when component unmounts or modal closes
   useEffect(() => {
@@ -769,18 +795,41 @@ export default function MibPaymentWebView({
     setIsLoading(true);
   };
 
+  console.log('[MIB WebView] ========================================');
+  console.log('[MIB WebView] 🎬 RENDERING MODAL');
+  console.log('[MIB WebView] Visible:', visible);
+  console.log('[MIB WebView] Show Payment Page:', showPaymentPage);
+  console.log('[MIB WebView] Has Session Data:', !!currentSessionData);
+  console.log('[MIB WebView] Session ID:', currentSessionData?.sessionId);
+  console.log('[MIB WebView] Redirect URL:', currentSessionData?.redirectUrl);
+  console.log('[MIB WebView] Is Loading:', isLoading);
+  console.log('[MIB WebView] ========================================');
+
+  if (!visible) {
+    console.log('[MIB WebView] ⚠️ Modal not visible - visible prop is false');
+    return null;
+  }
+
+  console.log('[MIB WebView] ✅ RETURNING MODAL JSX');
+
   return (
     <Modal
-      visible={visible}
+      visible={true}
       animationType='slide'
       presentationStyle='pageSheet'
       onRequestClose={handleClose}
+      transparent={false}
+      onShow={() => console.log('[MIB WebView] 📱 Modal onShow callback triggered')}
+      onDismiss={() => console.log('[MIB WebView] 📱 Modal onDismiss callback triggered')}
     >
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           {showPaymentPage && (
             <TouchableOpacity
-              onPress={() => setShowPaymentPage(false)}
+              onPress={() => {
+                console.log('[MIB WebView] Back button pressed');
+                setShowPaymentPage(false);
+              }}
               style={styles.backButton}
             >
               <ArrowLeft size={20} color={Colors.primary} />

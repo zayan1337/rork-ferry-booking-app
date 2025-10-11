@@ -6,6 +6,7 @@ export { default as TransactionList } from './TransactionList';
 export { default as PaymentsTab } from './PaymentsTab';
 export { default as WalletsTab } from './WalletsTab';
 export { default as FinanceSectionSelector } from './FinanceSectionSelector';
+export { default as WalletCreationForm } from './WalletCreationForm';
 
 // Detail Components
 export { default as PaymentDetailCard } from './PaymentDetailCard';

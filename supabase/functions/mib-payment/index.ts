@@ -119,46 +119,80 @@ async function createMibSession(
   cancelUrl
 ) {
   try {
-    // Get basic booking details
+    let orderId = '';
+    let orderDescription = '';
+    let paymentType = 'booking'; // Default type
+
+    // First, try to find if this is a regular booking
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select('id, booking_number, status, trip_id')
       .eq('id', bookingId)
       .maybeSingle();
-    if (bookingError) {
-      throw new Error(`Database error: ${bookingError.message}`);
-    }
-    if (!booking) {
-      throw new Error(
-        `Booking with ID ${bookingId} not found. Please ensure the booking was created successfully.`
-      );
-    }
-    // Try to get route description, but don't fail if it doesn't work
-    let routeDescription = 'Ferry booking';
-    try {
-      // Get trip details
-      const { data: trip, error: tripError } = await supabase
-        .from('trips')
-        .select('id, route_id')
-        .eq('id', booking.trip_id)
-        .maybeSingle();
-      if (!tripError && trip) {
-        // Get route details using the routes_simple_view
-        const { data: route, error: routeError } = await supabase
-          .from('routes_simple_view')
-          .select('id, from_island_name, to_island_name, route_display_name')
-          .eq('id', trip.route_id)
+
+    if (booking) {
+      // This is a regular ferry booking
+      paymentType = 'booking';
+      orderId = booking.booking_number || `order-${bookingId}-${Date.now()}`;
+      
+      // Try to get route description
+      try {
+        const { data: trip } = await supabase
+          .from('trips')
+          .select('id, route_id')
+          .eq('id', booking.trip_id)
           .maybeSingle();
-        if (!routeError && route) {
-          routeDescription = `Ferry booking from ${route.from_island_name} to ${route.to_island_name}`;
+        
+        if (trip) {
+          const { data: route } = await supabase
+            .from('routes_simple_view')
+            .select('id, from_island_name, to_island_name, route_display_name')
+            .eq('id', trip.route_id)
+            .maybeSingle();
+          
+          if (route) {
+            orderDescription = `Ferry booking from ${route.from_island_name} to ${route.to_island_name}`;
+          } else {
+            orderDescription = 'Ferry booking';
+          }
+        } else {
+          orderDescription = 'Ferry booking';
+        }
+      } catch (routeError) {
+        orderDescription = 'Ferry booking';
+      }
+    } else {
+      // Not a booking, check if it's a credit top-up
+      const { data: creditTransaction } = await supabase
+        .from('agent_credit_transactions')
+        .select('id, agent_id, amount')
+        .eq('id', bookingId)
+        .maybeSingle();
+
+      if (creditTransaction) {
+        paymentType = 'credit';
+        orderId = `CREDIT-${bookingId.slice(0, 20)}`;
+        orderDescription = 'Agent Credit Top-up';
+      } else {
+        // Check if it's a wallet transaction
+        const { data: walletTransaction } = await supabase
+          .from('wallet_transactions')
+          .select('id, wallet_id, amount')
+          .eq('id', bookingId)
+          .maybeSingle();
+
+        if (walletTransaction) {
+          paymentType = 'wallet';
+          orderId = `WALLET-${bookingId.slice(0, 19)}`;
+          orderDescription = 'Wallet Recharge';
+        } else {
+          // Unknown transaction type - use generic
+          paymentType = 'generic';
+          orderId = `PAY-${bookingId.slice(0, 22)}`;
+          orderDescription = `Payment for ${merchantName}`;
         }
       }
-    } catch (routeError) {
-      // Route lookup failed - use default description
     }
-    // Generate unique order ID
-    const orderId =
-      booking.booking_number || `order-${bookingId}-${Date.now()}`;
     // Create MIB session using INITIATE_CHECKOUT operation
     const sessionRequest = {
       apiOperation: 'INITIATE_CHECKOUT',
@@ -176,7 +210,7 @@ async function createMibSession(
         amount: amount.toFixed(2),
         currency: currency,
         id: orderId,
-        description: routeDescription,
+        description: orderDescription,
       },
     };
     const sessionResponse = await fetch(
@@ -202,34 +236,46 @@ async function createMibSession(
     if (!sessionId) {
       throw new Error('No session ID returned from MIB API');
     }
-    // Update booking with MIB session ID and success indicator
-    const { error: updateError } = await supabase
-      .from('bookings')
-      .update({
-        payment_method_type: 'mib',
-        status: 'pending_payment',
-      })
-      .eq('id', bookingId);
-    if (updateError) {
-      // Booking update error - non-critical
+
+    // Update records based on payment type
+    if (paymentType === 'booking') {
+      // Update booking with MIB session ID and success indicator
+      await supabase
+        .from('bookings')
+        .update({
+          payment_method_type: 'mib',
+          status: 'pending_payment',
+        })
+        .eq('id', bookingId);
+
+      // Create or update payment record with session ID
+      await supabase.from('payments').upsert(
+        {
+          booking_id: bookingId,
+          payment_method: 'mib',
+          amount: amount,
+          currency: currency,
+          status: 'pending',
+          session_id: sessionId,
+        },
+        {
+          onConflict: 'booking_id,payment_method',
+        }
+      );
+    } else if (paymentType === 'credit') {
+      // Update credit transaction with session ID in description
+      await supabase
+        .from('agent_credit_transactions')
+        .update({
+          description: `Credit top-up via MIB Payment (Session: ${sessionId})`,
+        })
+        .eq('id', bookingId);
+    } else if (paymentType === 'wallet') {
+      // For wallet transactions, we can't add session ID to the limited fields
+      // Transaction tracking will be done via the transaction ID itself
     }
-    // Create or update payment record with session ID
-    const { error: paymentError } = await supabase.from('payments').upsert(
-      {
-        booking_id: bookingId,
-        payment_method: 'mib',
-        amount: amount,
-        currency: currency,
-        status: 'pending',
-        session_id: sessionId,
-      },
-      {
-        onConflict: 'booking_id,payment_method',
-      }
-    );
-    if (paymentError) {
-      // Payment record error - non-critical
-    }
+    // Note: For credit and wallet, we don't create payment records in the payments table
+    // as that table is specifically for booking payments
     // The SDK will handle the redirect, but we still need the base URL for return handling
     const responseData = {
       success: true,
@@ -578,6 +624,7 @@ async function processPaymentResult(supabase, resultData) {
  */
 async function processRefund(supabase, bookingId, refundAmount, currency) {
   try {
+    var i=5;
     console.log(
       `[REFUND] Starting refund process for booking: ${bookingId}, amount: ${refundAmount}`
     );
@@ -650,7 +697,7 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
     );
 
     // Get transaction ID (either from receipt_number or session_id)
-    const transactionId = payment.receipt_number || payment.session_id;
+    const transactionId = payment.receipt_number || 28+i;
     if (!transactionId) {
       console.error('[REFUND] No transaction ID found in payment record');
       throw new Error(

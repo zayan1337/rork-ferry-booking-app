@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   TrendingUp,
   TrendingDown,
+  CreditCard,
+  User,
 } from 'lucide-react-native';
 
 // Components
@@ -44,6 +46,9 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
   const [filterStatus, setFilterStatus] = useState<
     'all' | 'active' | 'inactive'
   >('all');
+  const [filterRole, setFilterRole] = useState<'all' | 'agent' | 'customer'>(
+    'all'
+  );
 
   // Choose wallet list based on agentOnly prop
   const baseWallets = agentOnly ? agentWallets : filteredWallets;
@@ -71,8 +76,13 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
       }
     }
 
+    // Apply role filter
+    if (filterRole !== 'all') {
+      filtered = filtered.filter(w => w.user_role === filterRole);
+    }
+
     return filtered;
-  }, [baseWallets, localSearchQuery, filterStatus]);
+  }, [baseWallets, localSearchQuery, filterStatus, filterRole]);
 
   const handleRefreshData = async () => {
     setIsRefreshing(true);
@@ -89,61 +99,108 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
     router.push(`/(app)/(admin)/wallet-detail?walletId=${walletId}` as any);
   };
 
-  const renderWallet = ({ item }: { item: Wallet }) => (
-    <TouchableOpacity
-      style={styles.walletItem}
-      onPress={() => handleWalletPress(item.id)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.walletIcon}>
-        <WalletIcon size={24} color={colors.primary} />
-      </View>
-      <View style={styles.walletContent}>
-        <View style={styles.walletHeader}>
-          <Text style={styles.walletUser}>{item.user_name}</Text>
-          <View
-            style={[
-              styles.statusBadge,
-              {
-                backgroundColor: item.is_active
-                  ? colors.success + '15'
-                  : colors.danger + '15',
-              },
-            ]}
-          >
+  const renderWallet = ({ item }: { item: Wallet }) => {
+    const isAgent = item.user_role === 'agent';
+    
+    return (
+      <TouchableOpacity
+        style={styles.walletItem}
+        onPress={() => handleWalletPress(item.id)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.walletIcon}>
+          {isAgent ? (
+            <CreditCard size={24} color={colors.primary} />
+          ) : (
+            <WalletIcon size={24} color={colors.primary} />
+          )}
+        </View>
+        <View style={styles.walletContent}>
+          <View style={styles.walletHeader}>
+            <View style={styles.walletUserContainer}>
+              <Text style={styles.walletUser}>{item.user_name}</Text>
+              {isAgent && (
+                <View style={styles.agentBadge}>
+                  <User size={10} color={colors.white} />
+                  <Text style={styles.agentBadgeText}>AGENT</Text>
+                </View>
+              )}
+            </View>
             <View
               style={[
-                styles.statusDot,
+                styles.statusBadge,
                 {
                   backgroundColor: item.is_active
-                    ? colors.success
-                    : colors.danger,
+                    ? colors.success + '15'
+                    : colors.danger + '15',
                 },
               ]}
-            />
-            <Text
-              style={[
-                styles.statusText,
-                { color: item.is_active ? colors.success : colors.danger },
-              ]}
             >
-              {item.is_active ? 'ACTIVE' : 'INACTIVE'}
-            </Text>
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor: item.is_active
+                      ? colors.success
+                      : colors.danger,
+                  },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.statusText,
+                  { color: item.is_active ? colors.success : colors.danger },
+                ]}
+              >
+                {item.is_active ? 'ACTIVE' : 'INACTIVE'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.walletEmail}>{item.user_email}</Text>
+          
+          {/* Agent Credit Info */}
+          {isAgent && item.credit_ceiling !== undefined && (
+            <View style={styles.agentCreditInfo}>
+              <View style={styles.creditRow}>
+                <Text style={styles.creditLabel}>Credit Limit:</Text>
+                <Text style={styles.creditValue}>
+                  {formatCurrency(item.credit_ceiling)}
+                </Text>
+              </View>
+              <View style={styles.creditRow}>
+                <Text style={styles.creditLabel}>Credit Used:</Text>
+                <Text style={[styles.creditValue, { color: colors.warning }]}>
+                  {formatCurrency(item.credit_used || 0)}
+                </Text>
+              </View>
+              <View style={styles.creditRow}>
+                <Text style={styles.creditLabel}>Balance to Pay:</Text>
+                <Text style={[styles.creditValue, { color: colors.danger }]}>
+                  {formatCurrency(item.balance_to_pay || 0)}
+                </Text>
+              </View>
+              <View style={styles.creditRow}>
+                <Text style={styles.creditLabel}>Available Credit:</Text>
+                <Text style={[styles.creditValue, { color: colors.success }]}>
+                  {formatCurrency(item.credit_balance || 0)}
+                </Text>
+              </View>
+            </View>
+          )}
+          
+          <View style={styles.walletFooter}>
+            <View style={styles.balanceContainer}>
+              <Text style={styles.balanceLabel}>Wallet Balance:</Text>
+              <Text style={styles.balanceValue}>
+                {formatCurrency(item.balance)} {item.currency}
+              </Text>
+            </View>
+            <Text style={styles.walletDate}>{formatDate(item.updated_at)}</Text>
           </View>
         </View>
-        <Text style={styles.walletEmail}>{item.user_email}</Text>
-        <View style={styles.walletFooter}>
-          <View style={styles.balanceContainer}>
-            <Text style={styles.balanceLabel}>Balance:</Text>
-            <Text style={styles.balanceValue}>
-              {formatCurrency(item.balance)} {item.currency}
-            </Text>
-          </View>
-          <Text style={styles.walletDate}>{formatDate(item.updated_at)}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmpty = () => (
     <View style={styles.emptyState}>
@@ -160,64 +217,127 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
   );
 
   const renderFilterButtons = () => (
-    <View style={styles.filterContainer}>
-      <TouchableOpacity
-        style={[
-          styles.filterButton,
-          filterStatus === 'all' && styles.filterButtonActive,
-        ]}
-        onPress={() => setFilterStatus('all')}
-      >
-        <Text
+    <>
+      {/* Status Filter */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
           style={[
-            styles.filterButtonText,
-            filterStatus === 'all' && styles.filterButtonTextActive,
+            styles.filterButton,
+            filterStatus === 'all' && styles.filterButtonActive,
           ]}
+          onPress={() => setFilterStatus('all')}
         >
-          All
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[
-          styles.filterButton,
-          filterStatus === 'active' && styles.filterButtonActive,
-        ]}
-        onPress={() => setFilterStatus('active')}
-      >
-        <TrendingUp
-          size={16}
-          color={filterStatus === 'active' ? colors.white : colors.success}
-        />
-        <Text
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterStatus === 'all' && styles.filterButtonTextActive,
+            ]}
+          >
+            All Status
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[
-            styles.filterButtonText,
-            filterStatus === 'active' && styles.filterButtonTextActive,
+            styles.filterButton,
+            filterStatus === 'active' && styles.filterButtonActive,
           ]}
+          onPress={() => setFilterStatus('active')}
         >
-          Active
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[
-          styles.filterButton,
-          filterStatus === 'inactive' && styles.filterButtonActive,
-        ]}
-        onPress={() => setFilterStatus('inactive')}
-      >
-        <TrendingDown
-          size={16}
-          color={filterStatus === 'inactive' ? colors.white : colors.danger}
-        />
-        <Text
+          <TrendingUp
+            size={16}
+            color={filterStatus === 'active' ? colors.white : colors.success}
+          />
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterStatus === 'active' && styles.filterButtonTextActive,
+            ]}
+          >
+            Active
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[
-            styles.filterButtonText,
-            filterStatus === 'inactive' && styles.filterButtonTextActive,
+            styles.filterButton,
+            filterStatus === 'inactive' && styles.filterButtonActive,
           ]}
+          onPress={() => setFilterStatus('inactive')}
         >
-          Inactive
-        </Text>
-      </TouchableOpacity>
-    </View>
+          <TrendingDown
+            size={16}
+            color={filterStatus === 'inactive' ? colors.white : colors.danger}
+          />
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterStatus === 'inactive' && styles.filterButtonTextActive,
+            ]}
+          >
+            Inactive
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
+      {/* Role Filter */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filterRole === 'all' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilterRole('all')}
+        >
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterRole === 'all' && styles.filterButtonTextActive,
+            ]}
+          >
+            All Users
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filterRole === 'agent' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilterRole('agent')}
+        >
+          <CreditCard
+            size={16}
+            color={filterRole === 'agent' ? colors.white : colors.primary}
+          />
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterRole === 'agent' && styles.filterButtonTextActive,
+            ]}
+          >
+            Agents Only
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filterRole === 'customer' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilterRole('customer')}
+        >
+          <User
+            size={16}
+            color={filterRole === 'customer' ? colors.white : colors.textSecondary}
+          />
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterRole === 'customer' && styles.filterButtonTextActive,
+            ]}
+          >
+            Customers
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </>
   );
 
   // Permission check
@@ -370,12 +490,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 6,
   },
+  walletUserContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+    gap: 8,
+  },
   walletUser: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    flex: 1,
-    marginRight: 8,
+  },
+  agentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 3,
+  },
+  agentBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.white,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -398,6 +537,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 8,
+  },
+  agentCreditInfo: {
+    backgroundColor: colors.backgroundSecondary,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 6,
+  },
+  creditRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  creditLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  creditValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
   },
   walletFooter: {
     flexDirection: 'row',

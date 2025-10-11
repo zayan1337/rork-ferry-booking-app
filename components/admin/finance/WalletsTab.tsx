@@ -1,4 +1,4 @@
-import React, { useState, useMemo, memo } from 'react';
+import React, { useState, useMemo, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -10,6 +10,8 @@ import {
   Eye,
   AlertTriangle,
   Wallet as WalletIcon,
+  CreditCard,
+  User,
 } from 'lucide-react-native';
 
 // Components
@@ -27,28 +29,54 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
   const { wallets, loading, fetchWallets, setSearchQuery, searchQueries } =
     useFinanceStore();
 
+  console.log('🔍 [WalletsTab] Component state:', {
+    isActive,
+    walletsCount: wallets?.length || 0,
+    loading: loading.wallets,
+    canView: canViewWallets(),
+    wallets: wallets?.map(w => ({ id: w.id, name: w.user_name })),
+  });
+
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Local search state - completely client-side, no store updates
   const [localSearchQuery, setLocalSearchQuery] = useState('');
 
+  // Fetch wallets when tab becomes active
+  useEffect(() => {
+    if (isActive && canViewWallets()) {
+      console.log('📥 [WalletsTab] Tab is active, fetching wallets...');
+      fetchWallets();
+    }
+  }, [isActive, canViewWallets]);
+
   // Filter wallets based on search query - client-side only
   const filteredWallets = useMemo(() => {
-    if (!wallets) return [];
+    if (!wallets) {
+      console.log('⚠️ [WalletsTab] No wallets available');
+      return [];
+    }
+
+    console.log(`📋 [WalletsTab] Filtering ${wallets.length} wallets with query: "${localSearchQuery}"`);
 
     if (!localSearchQuery.trim()) return wallets;
 
     const query = localSearchQuery.toLowerCase().trim();
-    return wallets.filter(
+    const filtered = wallets.filter(
       wallet =>
         wallet.user_name.toLowerCase().includes(query) ||
         wallet.user_email.toLowerCase().includes(query)
     );
+    
+    console.log(`✅ [WalletsTab] Filtered down to ${filtered.length} wallets`);
+    return filtered;
   }, [wallets, localSearchQuery]);
 
   // Limit wallets to 4 for display
   const displayWallets = useMemo(() => {
-    return filteredWallets.slice(0, 4);
+    const limited = filteredWallets.slice(0, 4);
+    console.log(`📊 [WalletsTab] Displaying ${limited.length} wallets (limited from ${filteredWallets.length})`);
+    return limited;
   }, [filteredWallets]);
 
   const handleRefresh = async () => {
@@ -105,7 +133,7 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
           <View style={styles.sectionHeaderButton}>
             <Button
               title='Add Wallet'
-              onPress={() => router.push('/(app)/(admin)/wallet/new' as any)}
+              onPress={() => router.push('/(app)/(admin)/wallet-new' as any)}
               size='small'
               variant='outline'
               icon={<Plus size={16} color={colors.primary} />}
@@ -124,59 +152,89 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
       {/* Wallets List */}
       <View style={styles.itemsList}>
         {displayWallets.length > 0 ? (
-          displayWallets.map((wallet: Wallet, index: number) => (
-            <TouchableOpacity
-              key={`wallet-${wallet.id}-${index}`}
-              style={styles.walletItem}
-              onPress={() => handleWalletPress(wallet.id)}
-            >
-              <View style={styles.walletIcon}>
-                <WalletIcon size={20} color={colors.primary} />
-              </View>
-              <View style={styles.walletInfo}>
-                <Text style={styles.walletUser}>{wallet.user_name}</Text>
-                <Text style={styles.walletEmail}>{wallet.user_email}</Text>
-                <Text style={styles.walletBalance}>
-                  {wallet.currency} {wallet.balance.toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.walletStatus}>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor: wallet.is_active
-                        ? colors.success + '15'
-                        : colors.danger + '15',
-                    },
-                  ]}
-                >
+          displayWallets.map((wallet: Wallet, index: number) => {
+            const isAgent = wallet.user_role === 'agent';
+            
+            return (
+              <TouchableOpacity
+                key={`wallet-${wallet.id}-${index}`}
+                style={styles.walletItem}
+                onPress={() => handleWalletPress(wallet.id)}
+              >
+                <View style={styles.walletIcon}>
+                  {isAgent ? (
+                    <CreditCard size={20} color={colors.primary} />
+                  ) : (
+                    <WalletIcon size={20} color={colors.primary} />
+                  )}
+                </View>
+                <View style={styles.walletInfo}>
+                  <View style={styles.walletUserContainer}>
+                    <Text style={styles.walletUser}>{wallet.user_name}</Text>
+                    {isAgent && (
+                      <View style={styles.agentBadge}>
+                        <Text style={styles.agentBadgeText}>AGENT</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.walletEmail}>{wallet.user_email}</Text>
+                  
+                  {/* Agent Credit Summary */}
+                  {isAgent && wallet.credit_ceiling !== undefined ? (
+                    <View style={styles.agentCreditSummary}>
+                      <Text style={styles.creditSummaryText}>
+                        Credit: {wallet.currency} {wallet.credit_balance?.toFixed(2) || '0.00'} / {wallet.credit_ceiling.toFixed(2)}
+                      </Text>
+                      {wallet.balance_to_pay !== undefined && wallet.balance_to_pay > 0 && (
+                        <Text style={styles.creditDebtText}>
+                          To Pay: {wallet.currency} {wallet.balance_to_pay.toFixed(2)}
+                        </Text>
+                      )}
+                    </View>
+                  ) : (
+                    <Text style={styles.walletBalance}>
+                      {wallet.currency} {wallet.balance.toFixed(2)}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.walletStatus}>
                   <View
                     style={[
-                      styles.statusDot,
+                      styles.statusBadge,
                       {
                         backgroundColor: wallet.is_active
-                          ? colors.success
-                          : colors.danger,
-                      },
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      styles.statusText,
-                      {
-                        color: wallet.is_active
-                          ? colors.success
-                          : colors.danger,
+                          ? colors.success + '15'
+                          : colors.danger + '15',
                       },
                     ]}
                   >
-                    {wallet.is_active ? 'ACTIVE' : 'INACTIVE'}
-                  </Text>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        {
+                          backgroundColor: wallet.is_active
+                            ? colors.success
+                            : colors.danger,
+                        },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color: wallet.is_active
+                            ? colors.success
+                            : colors.danger,
+                        },
+                      ]}
+                    >
+                      {wallet.is_active ? 'ACTIVE' : 'INACTIVE'}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))
+              </TouchableOpacity>
+            );
+          })
         ) : (
           <View style={styles.emptyState}>
             <WalletIcon size={48} color={colors.textSecondary} />
@@ -250,11 +308,27 @@ const styles = StyleSheet.create({
   walletInfo: {
     flex: 1,
   },
+  walletUserContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   walletUser: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
+  },
+  agentBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  agentBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: colors.white,
   },
   walletEmail: {
     fontSize: 14,
@@ -265,6 +339,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.primary,
+  },
+  agentCreditSummary: {
+    backgroundColor: colors.backgroundSecondary,
+    padding: 8,
+    borderRadius: 6,
+    marginTop: 4,
+    gap: 4,
+  },
+  creditSummaryText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  creditDebtText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.danger,
   },
   walletStatus: {
     alignItems: 'flex-end',

@@ -7,6 +7,7 @@ export interface Wallet {
   user_id: string;
   user_name: string;
   user_email: string;
+  user_role?: string;
   balance: number;
   currency: string;
   is_active: boolean;
@@ -15,6 +16,11 @@ export interface Wallet {
   total_debits?: number;
   created_at: string;
   updated_at: string;
+  // Agent-specific credit fields
+  credit_ceiling?: number; // Agent's credit limit
+  credit_balance?: number; // Agent's current available credit
+  credit_used?: number; // Amount of credit already used
+  balance_to_pay?: number; // Amount agent owes (credit_ceiling - credit_balance)
 }
 
 export interface WalletTransaction {
@@ -24,6 +30,7 @@ export interface WalletTransaction {
   user_name: string;
   amount: number;
   transaction_type: 'credit' | 'debit';
+  status: 'completed' | 'pending' | 'failed';
   reference_id?: string;
   description?: string;
   created_at: string;
@@ -155,6 +162,11 @@ export interface WalletFormData {
   user_id: string;
   initial_balance?: number;
   currency?: string;
+}
+
+export interface AgentCreditLimitFormData {
+  user_id: string;
+  credit_ceiling: number;
 }
 
 export interface WalletTransactionFormData {

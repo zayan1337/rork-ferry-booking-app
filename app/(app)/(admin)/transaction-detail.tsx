@@ -29,6 +29,7 @@ interface TransactionDetail {
   user_email: string;
   amount: number;
   transaction_type: 'credit' | 'debit';
+  status: 'completed' | 'pending' | 'failed';
   reference_id?: string;
   description?: string;
   created_at: string;
@@ -74,6 +75,7 @@ export default function TransactionDetailScreen() {
         user_email: 'ahmed.ali@example.com',
         amount: 150.0,
         transaction_type: 'debit',
+        status: 'completed',
         reference_id: 'REF-2024-001234',
         description: 'Ferry booking payment',
         created_at: '2024-01-20T14:45:00Z',
@@ -146,9 +148,11 @@ export default function TransactionDetailScreen() {
                 styles.statusIndicator,
                 {
                   backgroundColor:
-                    transaction?.transaction_type === 'credit'
+                    transaction?.status === 'completed'
                       ? colors.success
-                      : colors.danger,
+                      : transaction?.status === 'pending'
+                        ? colors.warning
+                        : colors.danger,
                 },
               ]}
             />
@@ -157,13 +161,15 @@ export default function TransactionDetailScreen() {
                 styles.statusText,
                 {
                   color:
-                    transaction?.transaction_type === 'credit'
+                    transaction?.status === 'completed'
                       ? colors.success
-                      : colors.danger,
+                      : transaction?.status === 'pending'
+                        ? colors.warning
+                        : colors.danger,
                 },
               ]}
             >
-              {transaction?.transaction_type === 'credit' ? 'CREDIT' : 'DEBIT'}
+              {transaction?.status.toUpperCase()}
             </Text>
           </View>
         </View>
@@ -195,13 +201,54 @@ export default function TransactionDetailScreen() {
 
       <View style={styles.detailsGrid}>
         <View style={styles.detailItem}>
+          <Text style={styles.detailLabel}>Status</Text>
+          <View style={styles.detailStatusBadge}>
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor:
+                    transaction?.status === 'completed'
+                      ? colors.success
+                      : transaction?.status === 'pending'
+                        ? colors.warning
+                        : colors.danger,
+                },
+              ]}
+            />
+            <Text
+              style={[
+                styles.detailStatusText,
+                {
+                  color:
+                    transaction?.status === 'completed'
+                      ? colors.success
+                      : transaction?.status === 'pending'
+                        ? colors.warning
+                        : colors.danger,
+                },
+              ]}
+            >
+              {transaction?.status.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.detailItem}>
+          <Text style={styles.detailLabel}>Transaction Type</Text>
+          <Text style={[styles.detailValue, { textTransform: 'capitalize' }]}>
+            {transaction?.transaction_type}
+          </Text>
+        </View>
+
+        <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Description</Text>
           <Text style={styles.detailValue}>{transaction?.description}</Text>
         </View>
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Reference ID</Text>
-          <Text style={styles.detailValue}>{transaction?.reference_id}</Text>
+          <Text style={styles.detailValue}>{transaction?.reference_id || 'N/A'}</Text>
         </View>
 
         <View style={styles.detailItem}>
@@ -519,6 +566,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     fontWeight: '600',
+  },
+  detailStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  detailStatusText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 
   // Balance Info

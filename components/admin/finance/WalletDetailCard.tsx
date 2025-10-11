@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,15 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import type { Wallet, WalletTransaction } from '@/types/admin/finance';
+import { updateAgentCreditLimit } from '@/utils/admin/financeService';
+import { supabase } from '@/utils/supabase';
 import {
   Wallet as WalletIcon,
   User,
@@ -19,6 +24,10 @@ import {
   Activity,
   DollarSign,
   BarChart3,
+  CreditCard,
+  Edit,
+  X,
+  Check,
 } from 'lucide-react-native';
 
 interface WalletDetailCardProps {
@@ -26,6 +35,7 @@ interface WalletDetailCardProps {
   transactions: WalletTransaction[];
   formatCurrency: (amount: number) => string;
   formatDate: (dateString: string) => string;
+  onRefresh?: () => Promise<void>;
 }
 
 function WalletDetailCard({
@@ -33,7 +43,16 @@ function WalletDetailCard({
   transactions,
   formatCurrency,
   formatDate,
+  onRefresh,
 }: WalletDetailCardProps) {
+  const [isEditingCreditLimit, setIsEditingCreditLimit] = useState(false);
+  const [newCreditLimit, setNewCreditLimit] = useState(
+    wallet.credit_ceiling?.toString() || '0'
+  );
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const isAgent = wallet.user_role === 'agent';
+
   // Calculate transaction statistics
   const transactionStats = useMemo(() => {
     const credits = transactions.filter(t => t.transaction_type === 'credit');
@@ -57,7 +76,151 @@ function WalletDetailCard({
   };
 
   const handleViewUser = () => {
-    router.push(`/(app)/(admin)/user-detail?id=${wallet.user_id}` as any);
+    console.log('📱 [WalletDetailCard] Navigating to user profile:', wallet.user_id);
+    router.push(`/(app)/(admin)/user/${wallet.user_id}` as any);
+  };
+
+  const handleEditCreditLimit = () => {
+    setNewCreditLimit(wallet.credit_ceiling?.toString() || '0');
+    setIsEditingCreditLimit(true);
+  };
+
+  const handleSaveCreditLimit = async () => {
+    const limitValue = parseFloat(newCreditLimit);
+    
+    if (isNaN(limitValue) || limitValue < 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid credit limit amount.');
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await updateAgentCreditLimit(wallet.user_id, limitValue);
+      Alert.alert(
+        'Success',
+        'Agent credit limit updated successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: async () => {
+              setIsEditingCreditLimit(false);
+              if (onRefresh) {
+                await onRefresh();
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error updating credit limit:', error);
+      Alert.alert(
+        'Error',
+        'Failed to update credit limit. Please try again.'
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingCreditLimit(false);
+    setNewCreditLimit(wallet.credit_ceiling?.toString() || '0');
+  };
+
+  const handlePayViaGateway = () => {
+    Alert.alert(
+      'Pay via Gateway',
+      `Pay ${formatCurrency(wallet.balance_to_pay || 0)} through MIB payment gateway?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Proceed',
+          onPress: () => {
+            // Navigate to payment gateway page with amount
+            router.push({
+              pathname: '/(app)/(admin)/wallet-payment' as any,
+              params: {
+                walletId: wallet.id,
+                userId: wallet.user_id,
+                amount: wallet.balance_to_pay || 0,
+                paymentType: 'credit_repayment',
+              },
+            });
+          },
+        },
+      ]
+    );
+  };
+
+  const handleManualPayment = () => {
+    Alert.prompt(
+      'Manual Payment',
+      `Record a manual payment for ${wallet.user_name}.\n\nBalance to Pay: ${formatCurrency(wallet.balance_to_pay || 0)}\n\nEnter payment amount:`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Record Payment',
+          onPress: async (amountStr) => {
+            const amount = parseFloat(amountStr || '0');
+            
+            if (isNaN(amount) || amount <= 0) {
+              Alert.alert('Invalid Amount', 'Please enter a valid payment amount.');
+              return;
+            }
+
+            if (amount > (wallet.balance_to_pay || 0)) {
+              Alert.alert(
+                'Amount Too High',
+                `Payment amount cannot exceed the balance to pay (${formatCurrency(wallet.balance_to_pay || 0)}).`
+              );
+              return;
+            }
+
+            try {
+              // Record the manual payment
+              const { error } = await supabase.rpc('record_agent_credit_payment', {
+                p_user_id: wallet.user_id,
+                p_payment_amount: amount,
+                p_payment_method: 'manual',
+                p_reference: `MANUAL-${Date.now()}`,
+              });
+
+              if (error) throw error;
+
+              Alert.alert(
+                'Payment Recorded',
+                `Successfully recorded payment of ${formatCurrency(amount)}`,
+                [
+                  {
+                    text: 'OK',
+                    onPress: async () => {
+                      if (onRefresh) {
+                        await onRefresh();
+                      }
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error('Error recording manual payment:', error);
+              Alert.alert(
+                'Error',
+                'Failed to record payment. Please try again.'
+              );
+            }
+          },
+        },
+      ],
+      'plain-text',
+      '',
+      'numeric'
+    );
   };
 
   const renderTransaction = ({ item }: { item: WalletTransaction }) => (
@@ -136,12 +299,118 @@ function WalletDetailCard({
       {/* Balance Card */}
       <View style={styles.balanceCard}>
         <WalletIcon size={32} color={colors.primary} />
-        <Text style={styles.balanceLabel}>Current Balance</Text>
+        <Text style={styles.balanceLabel}>Wallet Balance</Text>
         <Text style={styles.balanceValue}>
           {formatCurrency(wallet.balance)}
         </Text>
         <Text style={styles.currency}>{wallet.currency}</Text>
       </View>
+
+      {/* Agent Credit Information */}
+      {isAgent && wallet.credit_ceiling !== undefined && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <CreditCard size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Agent Credit Information</Text>
+            <TouchableOpacity
+              onPress={handleEditCreditLimit}
+              style={styles.editButton}
+            >
+              <Edit size={18} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.creditInfoCard}>
+            {/* Credit Limit */}
+            <View style={styles.creditInfoRow}>
+              <Text style={styles.creditInfoLabel}>Credit Limit</Text>
+              <Text style={styles.creditInfoValue}>
+                {formatCurrency(wallet.credit_ceiling)}
+              </Text>
+            </View>
+            
+            {/* Available Credit */}
+            <View style={styles.creditInfoRow}>
+              <Text style={styles.creditInfoLabel}>Available Credit</Text>
+              <Text style={[styles.creditInfoValue, { color: colors.success }]}>
+                {formatCurrency(wallet.credit_balance || 0)}
+              </Text>
+            </View>
+            
+            {/* Credit Used */}
+            <View style={styles.creditInfoRow}>
+              <Text style={styles.creditInfoLabel}>Credit Used</Text>
+              <Text style={[styles.creditInfoValue, { color: colors.warning }]}>
+                {formatCurrency(wallet.credit_used || 0)}
+              </Text>
+            </View>
+            
+            {/* Balance to Pay */}
+            <View style={[styles.creditInfoRow, styles.creditInfoHighlight]}>
+              <Text style={[styles.creditInfoLabel, { fontWeight: '700' }]}>
+                Balance to Pay
+              </Text>
+              <Text style={[styles.creditInfoValue, { color: colors.danger, fontWeight: '700', fontSize: 18 }]}>
+                {formatCurrency(wallet.balance_to_pay || 0)}
+              </Text>
+            </View>
+
+            {/* Credit Utilization Bar */}
+            <View style={styles.creditUtilizationContainer}>
+              <Text style={styles.creditUtilizationLabel}>Credit Utilization</Text>
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.min(
+                        ((wallet.credit_used || 0) / wallet.credit_ceiling) * 100,
+                        100
+                      )}%`,
+                      backgroundColor:
+                        ((wallet.credit_used || 0) / wallet.credit_ceiling) > 0.8
+                          ? colors.danger
+                          : ((wallet.credit_used || 0) / wallet.credit_ceiling) > 0.6
+                          ? colors.warning
+                          : colors.success,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.creditUtilizationText}>
+                {((wallet.credit_used || 0) / wallet.credit_ceiling * 100).toFixed(1)}% Used
+              </Text>
+            </View>
+
+            {/* Payment Options - Only show if there's a balance to pay */}
+            {wallet.balance_to_pay && wallet.balance_to_pay > 0 && (
+              <View style={styles.paymentOptionsContainer}>
+                <Text style={styles.paymentOptionsTitle}>Pay Balance</Text>
+                <View style={styles.paymentButtons}>
+                  <TouchableOpacity
+                    style={[styles.paymentButton, styles.gatewayPaymentButton]}
+                    onPress={handlePayViaGateway}
+                    activeOpacity={0.7}
+                  >
+                    <CreditCard size={20} color={colors.white} />
+                    <Text style={styles.paymentButtonText}>Pay via Gateway</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.paymentButton, styles.manualPaymentButton]}
+                    onPress={handleManualPayment}
+                    activeOpacity={0.7}
+                  >
+                    <DollarSign size={20} color={colors.primary} />
+                    <Text style={[styles.paymentButtonText, { color: colors.primary }]}>
+                      Manual Payment
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* User Information */}
       <View style={styles.section}>
@@ -250,6 +519,7 @@ function WalletDetailCard({
         </View>
         <View style={styles.infoCard}>
           <InfoRow label='Wallet ID' value={wallet.id} />
+          <InfoRow label='User Role' value={wallet.user_role?.toUpperCase() || 'N/A'} />
           <InfoRow label='Currency' value={wallet.currency} />
           <InfoRow
             label='Status'
@@ -259,6 +529,70 @@ function WalletDetailCard({
           <InfoRow label='Last Updated' value={formatDate(wallet.updated_at)} />
         </View>
       </View>
+
+      {/* Edit Credit Limit Modal */}
+      <Modal
+        visible={isEditingCreditLimit}
+        transparent
+        animationType='fade'
+        onRequestClose={handleCancelEdit}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Credit Limit</Text>
+              <TouchableOpacity onPress={handleCancelEdit}>
+                <X size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.modalBody}>
+              <Text style={styles.modalLabel}>New Credit Limit ({wallet.currency})</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={newCreditLimit}
+                onChangeText={setNewCreditLimit}
+                keyboardType='numeric'
+                placeholder='Enter credit limit'
+                editable={!isUpdating}
+              />
+              
+              <View style={styles.currentLimitInfo}>
+                <Text style={styles.currentLimitLabel}>Current Limit:</Text>
+                <Text style={styles.currentLimitValue}>
+                  {formatCurrency(wallet.credit_ceiling || 0)}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={handleCancelEdit}
+                disabled={isUpdating}
+              >
+                <X size={18} color={colors.textSecondary} />
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.modalSaveButton,
+                  isUpdating && styles.modalButtonDisabled,
+                ]}
+                onPress={handleSaveCreditLimit}
+                disabled={isUpdating}
+              >
+                <Check size={18} color={colors.white} />
+                <Text style={styles.modalSaveText}>
+                  {isUpdating ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -361,6 +695,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
+    flex: 1,
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: colors.primary + '15',
   },
   infoCard: {
     backgroundColor: colors.card,
@@ -530,6 +870,221 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     color: colors.textSecondary,
+  },
+  creditInfoCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    gap: 12,
+  },
+  creditInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  creditInfoHighlight: {
+    backgroundColor: colors.danger + '10',
+    paddingHorizontal: 12,
+    marginHorizontal: -12,
+    borderRadius: 8,
+    borderBottomWidth: 0,
+    marginTop: 8,
+  },
+  creditInfoLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  creditInfoValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  creditUtilizationContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  creditUtilizationLabel: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  progressBar: {
+    height: 12,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  creditUtilizationText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 6,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  modalInput: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  currentLimitInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+  },
+  currentLimitLabel: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  currentLimitValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  modalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 8,
+    gap: 8,
+  },
+  modalCancelButton: {
+    backgroundColor: colors.backgroundSecondary,
+  },
+  modalSaveButton: {
+    backgroundColor: colors.primary,
+  },
+  modalButtonDisabled: {
+    opacity: 0.5,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  modalSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+  },
+
+  // Payment Options Styles
+  paymentOptionsContainer: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  paymentOptionsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  paymentButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  paymentButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    gap: 8,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  gatewayPaymentButton: {
+    backgroundColor: colors.primary,
+  },
+  manualPaymentButton: {
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  paymentButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.white,
   },
 } as any);
 

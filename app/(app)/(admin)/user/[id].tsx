@@ -504,20 +504,18 @@ export default function UserDetailsPage() {
           {/* User Information */}
           <UserInfoSection user={user} />
 
-          {/* Role-Specific Actions - Hide for passengers */}
-          {user.role !== 'passenger' && (
-            <UserActionsSection
-              user={user}
-              onViewBookings={handleViewBookings}
-              onViewActivity={handleViewActivity}
-              onViewPermissions={handleViewPermissions}
-              onViewClients={handleViewClients}
-              onViewTransactions={handleViewTransactions}
-              onViewTrips={handleViewTrips}
-              onViewVessel={handleViewVessel}
-              onViewRoutes={handleViewRoutes}
-            />
-          )}
+          {/* Role-Specific Actions */}
+          <UserActionsSection
+            user={user}
+            onViewBookings={handleViewBookings}
+            onViewActivity={handleViewActivity}
+            onViewPermissions={handleViewPermissions}
+            onViewClients={handleViewClients}
+            onViewTransactions={handleViewTransactions}
+            onViewTrips={handleViewTrips}
+            onViewVessel={handleViewVessel}
+            onViewRoutes={handleViewRoutes}
+          />
 
           {/* System Information */}
           <UserSystemInfoSection user={user} />
