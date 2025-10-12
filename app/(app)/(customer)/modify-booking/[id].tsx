@@ -553,7 +553,6 @@ export default function ModifyBookingScreen() {
       if (selectedTrip?.id) {
         try {
           await cleanupUserTempReservations(selectedTrip.id);
-          console.log('[MODIFY] Cleaned up temporary seat reservations');
         } catch (cleanupError) {
           console.warn(
             '[MODIFY] Failed to cleanup temp reservations (non-critical):',

@@ -278,10 +278,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
         booking.payment?.method === 'mib'
       ) {
         try {
-          console.log(
-            `[CANCEL] Initiating MIB refund for booking ${bookingId}, amount: ${refundAmount}`
-          );
-
           // Call MIB refund API through edge function
           const { data: refundData, error: refundError } =
             await supabase.functions.invoke('mib-payment', {
@@ -356,9 +352,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
           // Continue - cancellation is complete, refund can be handled manually
         }
       } else if (booking.payment?.status === 'completed') {
-        console.log(
-          `[CANCEL] Non-MIB payment method: ${booking.payment?.method}, updating payment status only`
-        );
         // For non-MIB payments, just update payment status
         await supabase
           .from('payments')
@@ -517,9 +510,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
         ) {
           try {
             const refundAmount = Math.abs(modifications.fareDifference);
-            console.log(
-              `[MODIFY] Initiating MIB refund for original booking ${bookingId}, amount: ${refundAmount}`
-            );
 
             // Verify that payment record has necessary transaction info
             const { data: paymentRecord, error: paymentCheckError } =
@@ -585,10 +575,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
               //     .eq('new_booking_id', newBookingData.id);
               // Don't return early - continue with modification
             } else {
-              console.log(
-                `[MODIFY] Payment record verified - Receipt: ${paymentRecord.receipt_number}, Session: ${paymentRecord.session_id}`
-              );
-
               // Call MIB refund API through edge function
               // IMPORTANT: Use original booking ID so the edge function uses the correct booking_number as order ID
               const { data: refundData, error: refundError } =
@@ -624,13 +610,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
                 // Don't throw - continue with modification even if refund fails
                 // Admin can manually process refund later
               } else {
-                if (refundData) {
-                  console.log(
-                    '[MODIFY] Refund API response:',
-                    JSON.stringify(refundData, null, 2)
-                  );
-                }
-
                 if (!refundData?.success) {
                   console.warn(
                     '[MODIFY] Refund processing failed:',
@@ -651,7 +630,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
                     })
                     .eq('new_booking_id', newBookingData.id);
                 } else {
-                  console.log('[MODIFY] Refund processed successfully');
                   refundStatus = 'completed';
                   // Update modification record to indicate refund success
                   await supabase
@@ -782,10 +760,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
         }
 
         // IMPORTANT: Release old seat reservations from the original booking
-        console.log(
-          '[MODIFY] Releasing seats from original booking:',
-          bookingId
-        );
+
         const { error: originalSeatReleaseError } = await supabase
           .from('seat_reservations')
           .update({

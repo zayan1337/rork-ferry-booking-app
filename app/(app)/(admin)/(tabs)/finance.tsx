@@ -36,14 +36,6 @@ function FinanceScreen() {
     searchQueries,
   } = useFinanceStore();
 
-  console.log('Finance Screen - Data:', {
-    paymentsCount: payments?.length || 0,
-    walletsCount: wallets?.length || 0,
-    transactionsCount: walletTransactions?.length || 0,
-    stats,
-    loading,
-  });
-
   const [activeSection, setActiveSection] =
     useState<FinanceSection>('payments');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -59,8 +51,6 @@ function FinanceScreen() {
 
       hasInitialized.current = true;
 
-      console.log('Initializing finance data...');
-
       try {
         // Fetch all data in parallel for faster loading
         await Promise.all([
@@ -69,7 +59,6 @@ function FinanceScreen() {
           canViewWallets() ? fetchWalletTransactions() : Promise.resolve(),
           fetchStats(),
         ]);
-        console.log('Finance data initialized successfully');
       } catch (error) {
         console.error('Error initializing finance data:', error);
       }

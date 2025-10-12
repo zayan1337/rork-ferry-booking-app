@@ -94,8 +94,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           <TouchableOpacity
             style={[
               styles.paymentOption,
-              selectedPaymentMethod === 'mib' &&
-                styles.paymentOptionSelected,
+              selectedPaymentMethod === 'mib' && styles.paymentOptionSelected,
             ]}
             onPress={() => onPaymentMethodChange('mib')}
           >

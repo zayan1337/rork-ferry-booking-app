@@ -12,7 +12,6 @@ import {
   FinanceFilters,
   WalletFilters,
   TransactionFilters,
-  AgentCreditLimitFormData,
 } from '@/types/admin/finance';
 
 // ============================================================================
@@ -26,8 +25,6 @@ export const fetchWallets = async (
   filters?: WalletFilters
 ): Promise<Wallet[]> => {
   try {
-    console.log('📊 [fetchWallets] Starting wallet fetch with filters:', filters);
-
     // First fetch regular wallets
     let query = supabase
       .from('wallets')
@@ -61,52 +58,53 @@ export const fetchWallets = async (
     const { data: wallets, error: walletsError } = await query;
 
     if (walletsError) {
-      console.error('❌ [fetchWallets] Error fetching wallets from database:', walletsError);
+      console.error(
+        '❌ [fetchWallets] Error fetching wallets from database:',
+        walletsError
+      );
       throw walletsError;
     }
 
-    console.log(`✅ [fetchWallets] Fetched ${wallets?.length || 0} wallets from database`);
-
     if (!wallets || wallets.length === 0) {
-      console.log('⚠️ [fetchWallets] No wallets found in database');
       return [];
     }
 
     // Fetch user profiles with credit info separately
     const userIds = wallets.map(w => w.user_id);
-    console.log(`📋 [fetchWallets] Fetching user profiles for ${userIds.length} users`);
-    
+
     const { data: userProfiles, error: profilesError } = await supabase
       .from('user_profiles')
       .select('id, full_name, email, role, credit_ceiling, credit_balance')
       .in('id', userIds);
 
     if (profilesError) {
-      console.error('❌ [fetchWallets] Error fetching user profiles:', profilesError);
+      console.error(
+        '❌ [fetchWallets] Error fetching user profiles:',
+        profilesError
+      );
       // Continue without user profiles
     } else {
-      console.log(`✅ [fetchWallets] Fetched ${userProfiles?.length || 0} user profiles`);
+      console.log(
+        `✅ [fetchWallets] Fetched ${userProfiles?.length || 0} user profiles`
+      );
     }
 
     // Combine data
     const walletsWithUsers = wallets.map((wallet: any) => {
       const userProfile = userProfiles?.find(up => up.id === wallet.user_id);
       const isAgent = userProfile?.role === 'agent';
-      
-      // Debug logging for balance
-      console.log(`💰 [fetchWallets] Processing wallet ${wallet.id}:`, {
-        raw_balance: wallet.balance,
-        balance_type: typeof wallet.balance,
-        converted_balance: Number(wallet.balance),
-        user_name: userProfile?.full_name,
-      });
-      
+
       // Calculate agent credit metrics
-      const creditCeiling = isAgent ? Number(userProfile?.credit_ceiling || 0) : undefined;
-      const creditBalance = isAgent ? Number(userProfile?.credit_balance || 0) : undefined;
-      const creditUsed = isAgent && creditCeiling !== undefined && creditBalance !== undefined 
-        ? creditCeiling - creditBalance 
+      const creditCeiling = isAgent
+        ? Number(userProfile?.credit_ceiling || 0)
         : undefined;
+      const creditBalance = isAgent
+        ? Number(userProfile?.credit_balance || 0)
+        : undefined;
+      const creditUsed =
+        isAgent && creditCeiling !== undefined && creditBalance !== undefined
+          ? creditCeiling - creditBalance
+          : undefined;
       const balanceToPay = creditUsed; // Amount owed is the same as credit used
 
       return {
@@ -140,15 +138,6 @@ export const fetchWallets = async (
       );
     }
 
-    console.log(
-      `✅ [fetchWallets] Returning ${walletsWithUsers.length} wallets with user data`,
-      walletsWithUsers.map(w => ({
-        id: w.id,
-        name: w.user_name,
-        role: w.user_role,
-        hasCredit: !!w.credit_ceiling,
-      }))
-    );
     return walletsWithUsers;
   } catch (error) {
     console.error('❌ [fetchWallets] Failed to fetch wallets:', error);
@@ -161,8 +150,6 @@ export const fetchWallets = async (
  */
 export const fetchAgentCreditTransactions = async (): Promise<any[]> => {
   try {
-    console.log('Fetching agent credit transactions...');
-
     const { data: agentTransactions, error } = await supabase
       .from('agent_credit_transactions')
       .select(
@@ -183,11 +170,6 @@ export const fetchAgentCreditTransactions = async (): Promise<any[]> => {
       return [];
     }
 
-    console.log(
-      'Agent credit transactions fetched:',
-      agentTransactions?.length || 0,
-      'transactions'
-    );
     return agentTransactions || [];
   } catch (error) {
     console.error('Failed to fetch agent credit transactions:', error);
@@ -284,6 +266,7 @@ export const fetchWalletTransactions = async (
         transaction_type: transaction.transaction_type,
         reference_id: transaction.reference_id,
         description: transaction.description,
+        status: transaction.status,
         created_at: transaction.created_at,
       };
     });
@@ -359,16 +342,12 @@ export const fetchPayments = async (
       throw paymentsError;
     }
 
-    console.log('Raw payments fetched from DB:', payments?.length || 0);
-
     if (!payments || payments.length === 0) {
-      console.log('No payments found in database');
       return [];
     }
 
     // Fetch bookings and user profiles
     const bookingIds = [...new Set(payments.map(p => p.booking_id))];
-    console.log('Fetching bookings for payment bookings:', bookingIds.length);
 
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
@@ -380,8 +359,6 @@ export const fetchPayments = async (
       // Don't throw - continue with payment data even if booking fetch fails
     }
 
-    console.log('Bookings fetched:', bookings?.length || 0);
-
     const userIds = [...new Set(bookings?.map(b => b.user_id) || [])];
     const { data: userProfiles, error: profilesError } = await supabase
       .from('user_profiles')
@@ -392,8 +369,6 @@ export const fetchPayments = async (
       console.error('Error fetching user profiles:', profilesError);
       // Don't throw - continue without user profile data
     }
-
-    console.log('User profiles fetched:', userProfiles?.length || 0);
 
     // Combine data
     const paymentsWithBookings = payments.map((payment: any) => {
@@ -426,11 +401,6 @@ export const fetchPayments = async (
       };
     });
 
-    console.log(
-      'Payments with bookings combined:',
-      paymentsWithBookings.length
-    );
-
     // Apply search filter after combining data
     if (filters?.searchQuery && filters.searchQuery.trim()) {
       const searchLower = filters.searchQuery.toLowerCase();
@@ -443,11 +413,9 @@ export const fetchPayments = async (
           (payment.receipt_number &&
             payment.receipt_number.toLowerCase().includes(searchLower))
       );
-      console.log('Payments after search filter:', filtered.length);
       return filtered;
     }
 
-    console.log('Returning payments:', paymentsWithBookings.length);
     return paymentsWithBookings;
   } catch (error) {
     console.error('Failed to fetch payments:', error);
@@ -460,8 +428,6 @@ export const fetchPayments = async (
  */
 export const fetchFinanceStats = async (): Promise<FinanceStats> => {
   try {
-    console.log('Fetching finance stats...');
-
     // Fetch wallet statistics
     const { data: walletStats, error: walletError } = await supabase
       .from('wallets')
@@ -701,15 +667,7 @@ export const createWallet = async (
   walletData: WalletFormData
 ): Promise<Wallet> => {
   try {
-    console.log('📝 [createWallet] Creating wallet with data:', {
-      user_id: walletData.user_id,
-      initial_balance: walletData.initial_balance,
-      balance_type: typeof walletData.initial_balance,
-      currency: walletData.currency,
-    });
-
     const balanceToInsert = walletData.initial_balance || 0;
-    console.log('📝 [createWallet] Balance to insert:', balanceToInsert, 'Type:', typeof balanceToInsert);
 
     const { data, error } = await supabase
       .from('wallets')
@@ -728,13 +686,6 @@ export const createWallet = async (
       throw error;
     }
 
-    console.log('✅ [createWallet] Wallet created in DB:', {
-      id: data.id,
-      balance: data.balance,
-      balance_type: typeof data.balance,
-      raw_data: data,
-    });
-
     // Fetch user profile separately with role and credit info
     const { data: userProfile } = await supabase
       .from('user_profiles')
@@ -743,11 +694,16 @@ export const createWallet = async (
       .single();
 
     const isAgent = userProfile?.role === 'agent';
-    const creditCeiling = isAgent ? Number(userProfile?.credit_ceiling || 0) : undefined;
-    const creditBalance = isAgent ? Number(userProfile?.credit_balance || 0) : undefined;
-    const creditUsed = isAgent && creditCeiling !== undefined && creditBalance !== undefined 
-      ? creditCeiling - creditBalance 
+    const creditCeiling = isAgent
+      ? Number(userProfile?.credit_ceiling || 0)
       : undefined;
+    const creditBalance = isAgent
+      ? Number(userProfile?.credit_balance || 0)
+      : undefined;
+    const creditUsed =
+      isAgent && creditCeiling !== undefined && creditBalance !== undefined
+        ? creditCeiling - creditBalance
+        : undefined;
     const balanceToPay = creditUsed;
 
     return {
@@ -835,6 +791,7 @@ export const createWalletTransaction = async (
       transaction_type: data.transaction_type,
       reference_id: data.reference_id,
       description: data.description,
+      status: data.status,
       created_at: data.created_at,
     };
   } catch (error) {
@@ -965,11 +922,16 @@ export const getWalletByUserId = async (
       .single();
 
     const isAgent = userProfile?.role === 'agent';
-    const creditCeiling = isAgent ? Number(userProfile?.credit_ceiling || 0) : undefined;
-    const creditBalance = isAgent ? Number(userProfile?.credit_balance || 0) : undefined;
-    const creditUsed = isAgent && creditCeiling !== undefined && creditBalance !== undefined 
-      ? creditCeiling - creditBalance 
+    const creditCeiling = isAgent
+      ? Number(userProfile?.credit_ceiling || 0)
       : undefined;
+    const creditBalance = isAgent
+      ? Number(userProfile?.credit_balance || 0)
+      : undefined;
+    const creditUsed =
+      isAgent && creditCeiling !== undefined && creditBalance !== undefined
+        ? creditCeiling - creditBalance
+        : undefined;
     const balanceToPay = creditUsed;
 
     return {
@@ -1005,8 +967,6 @@ export const updateAgentCreditLimit = async (
   creditCeiling: number
 ): Promise<void> => {
   try {
-    console.log(`💳 [updateAgentCreditLimit] Updating credit limit for user ${userId} to ${creditCeiling}`);
-
     // First, get the current credit values to calculate how much is already used
     const { data: currentProfile, error: fetchError } = await supabase
       .from('user_profiles')
@@ -1016,7 +976,10 @@ export const updateAgentCreditLimit = async (
       .single();
 
     if (fetchError) {
-      console.error('❌ [updateAgentCreditLimit] Error fetching current credit data:', fetchError);
+      console.error(
+        '❌ [updateAgentCreditLimit] Error fetching current credit data:',
+        fetchError
+      );
       throw fetchError;
     }
 
@@ -1028,27 +991,13 @@ export const updateAgentCreditLimit = async (
     const oldBalance = Number(currentProfile.credit_balance || 0);
     const creditUsed = oldCeiling - oldBalance; // Amount already borrowed
 
-    console.log(`📊 [updateAgentCreditLimit] Current state:`, {
-      old_ceiling: oldCeiling,
-      old_balance: oldBalance,
-      credit_used: creditUsed,
-      new_ceiling: creditCeiling,
-    });
-
     // Calculate new balance: new_ceiling - credit_used (keeps debt the same)
     const newBalance = creditCeiling - creditUsed;
-
-    console.log(`💰 [updateAgentCreditLimit] New state:`, {
-      new_ceiling: creditCeiling,
-      new_balance: newBalance,
-      credit_used: creditUsed,
-      balance_to_pay: creditUsed,
-    });
 
     // Update both ceiling and balance
     const { error } = await supabase
       .from('user_profiles')
-      .update({ 
+      .update({
         credit_ceiling: creditCeiling,
         credit_balance: newBalance,
       })
@@ -1056,17 +1005,17 @@ export const updateAgentCreditLimit = async (
       .eq('role', 'agent'); // Ensure we only update agents
 
     if (error) {
-      console.error('❌ [updateAgentCreditLimit] Error updating credit limit:', error);
+      console.error(
+        '❌ [updateAgentCreditLimit] Error updating credit limit:',
+        error
+      );
       throw error;
     }
-
-    console.log('✅ [updateAgentCreditLimit] Credit limit updated successfully');
-    console.log(`   - Credit Limit: ${oldCeiling} → ${creditCeiling} (${creditCeiling > oldCeiling ? '+' : ''}${creditCeiling - oldCeiling})`);
-    console.log(`   - Available Credit: ${oldBalance} → ${newBalance} (${newBalance > oldBalance ? '+' : ''}${newBalance - oldBalance})`);
-    console.log(`   - Credit Used: ${creditUsed} (unchanged)`);
-    console.log(`   - Balance to Pay: ${creditUsed} (unchanged)`);
   } catch (error) {
-    console.error('❌ [updateAgentCreditLimit] Failed to update credit limit:', error);
+    console.error(
+      '❌ [updateAgentCreditLimit] Failed to update credit limit:',
+      error
+    );
     throw error;
   }
 };

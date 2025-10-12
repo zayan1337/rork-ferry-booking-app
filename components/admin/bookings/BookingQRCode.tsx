@@ -21,12 +21,10 @@ export default function BookingQRCode({
 
   const handleCopyQR = () => {
     // In a real app, you would copy the QR code value to clipboard
-    console.log('QR Code value:', qrCodeValue);
   };
 
   const handleViewQR = () => {
     // In a real app, you would show a full-screen QR code
-    console.log('View QR Code:', qrCodeValue);
   };
 
   return (

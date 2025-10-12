@@ -140,10 +140,6 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
             direct_permissions: [],
             active_permission_count: 0,
           }));
-          console.log(
-            'Permission Store: Fallback users found:',
-            adminUsers.length
-          );
         }
       }
 

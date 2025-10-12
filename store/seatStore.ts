@@ -347,7 +347,6 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
       // Step 2: Check if seat is currently selected by this user
       if (updatedSeat.isSelected || updatedSeat.isCurrentUserReservation) {
         // Release the temporary reservation
-        console.log('Releasing seat reservation:', seat.id);
         const released = await get().releaseTempReservation(tripId, seat.id);
 
         if (released) {
@@ -403,7 +402,6 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
         }
 
         // Step 4: Try to temporarily reserve the seat
-        console.log('Attempting to reserve seat:', seat.id);
         const reserved = await get().tempReserveSeat(tripId, seat.id);
 
         if (reserved) {

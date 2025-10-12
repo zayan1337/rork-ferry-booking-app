@@ -28,7 +28,6 @@ export default function AppLayout() {
         try {
           router.replace('/(auth)' as any);
         } catch (error) {
-          console.log('Navigation error during logout:', error);
           // Fallback: try to navigate to auth screen
           router.push('/(auth)' as any);
         }

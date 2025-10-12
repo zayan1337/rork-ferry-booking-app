@@ -65,14 +65,6 @@ export default function CaptainCheckinScreen() {
     try {
       const result = await validateTicket(bookingNumber.trim().toUpperCase());
 
-      // Debug logging to see what data we're getting
-      console.log('Validation result:', JSON.stringify(result, null, 2));
-      if (result?.booking) {
-        console.log('Booking data:', JSON.stringify(result.booking, null, 2));
-        console.log('Passengers:', result.booking.passengers);
-        console.log('Seats:', result.booking.seats);
-      }
-
       setValidationResult(result);
 
       if (error) {
@@ -411,18 +403,6 @@ export default function CaptainCheckinScreen() {
         validateTicket(formattedBookingNum)
           .then(result => {
             // Debug logging for QR scan results
-            console.log(
-              'QR Scan validation result:',
-              JSON.stringify(result, null, 2)
-            );
-            if (result?.booking) {
-              console.log(
-                'QR Scan booking data:',
-                JSON.stringify(result.booking, null, 2)
-              );
-              console.log('QR Scan passengers:', result.booking.passengers);
-              console.log('QR Scan seats:', result.booking.seats);
-            }
 
             setValidationResult(result);
 

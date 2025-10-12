@@ -1159,10 +1159,6 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
           payment.payment_method === 'mib'
         ) {
           try {
-            console.log(
-              `[AGENT CANCEL] Initiating MIB refund for booking ${bookingId}, amount: ${refundAmount}`
-            );
-
             // Call MIB refund API through edge function
             const { data: refundData, error: refundError } =
               await supabase.functions.invoke('mib-payment', {

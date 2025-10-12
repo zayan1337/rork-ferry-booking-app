@@ -26,7 +26,6 @@ import {
   Plus,
   CreditCard,
   X,
-  Wallet as WalletIconAlt,
 } from 'lucide-react-native';
 import SearchBar from '@/components/admin/SearchBar';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
@@ -66,7 +65,10 @@ const WalletRechargeModal = React.memo(
     const handleProceedToPayment = async () => {
       const parsedAmount = parseFloat(amount);
       if (!parsedAmount || parsedAmount < 100) {
-        Alert.alert('Invalid Amount', 'Please enter an amount of at least MVR 100');
+        Alert.alert(
+          'Invalid Amount',
+          'Please enter an amount of at least MVR 100'
+        );
         return;
       }
 
@@ -79,24 +81,28 @@ const WalletRechargeModal = React.memo(
 
       try {
         // Step 1: Create pending transaction
-        console.log('[WALLET RECHARGE] Step 1: Creating transaction record');
-        const { data: transactionData, error: transactionError } = await supabase
-          .from('wallet_transactions')
-          .insert({
-            wallet_id: wallet.id,
-            transaction_type: 'credit',
-            amount: parsedAmount,
-            reference_id: null,
-          })
-          .select()
-          .single();
+        const { data: transactionData, error: transactionError } =
+          await supabase
+            .from('wallet_transactions')
+            .insert({
+              wallet_id: wallet.id,
+              transaction_type: 'credit',
+              amount: parsedAmount,
+              reference_id: null,
+            })
+            .select()
+            .single();
 
         if (transactionError) {
-          console.error('[WALLET RECHARGE] Transaction creation error:', transactionError);
-          throw new Error(transactionError.message || 'Failed to create transaction record');
+          console.error(
+            '[WALLET RECHARGE] Transaction creation error:',
+            transactionError
+          );
+          throw new Error(
+            transactionError.message || 'Failed to create transaction record'
+          );
         }
 
-        console.log('[WALLET RECHARGE] Transaction created:', transactionData.id);
         setRechargeId(transactionData.id);
 
         // Step 2: Create MIB payment session
@@ -104,22 +110,17 @@ const WalletRechargeModal = React.memo(
         const returnUrl = `${process.env.EXPO_PUBLIC_MIB_RETURN_URL || 'crystaltransfervaavu://payment-success'}?bookingId=${rechargeTransactionId}&result=SUCCESS&type=wallet`;
         const cancelUrl = `${process.env.EXPO_PUBLIC_MIB_CANCEL_URL || 'crystaltransfervaavu://payment-cancel'}?bookingId=${rechargeTransactionId}&result=CANCELLED&type=wallet`;
 
-        console.log('[WALLET RECHARGE] Step 2: Creating MIB payment session');
-        console.log('[WALLET RECHARGE] Transaction ID:', rechargeTransactionId);
-        console.log('[WALLET RECHARGE] Amount:', parsedAmount);
-
-        const { data: mibData, error: mibError } = await supabase.functions.invoke('mib-payment', {
-          body: {
-            action: 'create-session',
-            bookingId: rechargeTransactionId,
-            amount: parsedAmount,
-            currency: wallet.currency || 'MVR',
-            returnUrl,
-            cancelUrl,
-          },
-        });
-
-        console.log('[WALLET RECHARGE] MIB Response:', { hasData: !!mibData, hasError: !!mibError });
+        const { data: mibData, error: mibError } =
+          await supabase.functions.invoke('mib-payment', {
+            body: {
+              action: 'create-session',
+              bookingId: rechargeTransactionId,
+              amount: parsedAmount,
+              currency: wallet.currency || 'MVR',
+              returnUrl,
+              cancelUrl,
+            },
+          });
 
         if (mibError) {
           console.error('[WALLET RECHARGE] MIB Error:', mibError);
@@ -127,7 +128,9 @@ const WalletRechargeModal = React.memo(
             .from('wallet_transactions')
             .delete()
             .eq('id', rechargeTransactionId);
-          throw new Error(`Payment Gateway Error: ${mibError.message || 'Unable to connect to payment gateway'}`);
+          throw new Error(
+            `Payment Gateway Error: ${mibError.message || 'Unable to connect to payment gateway'}`
+          );
         }
 
         if (!mibData) {
@@ -144,7 +147,11 @@ const WalletRechargeModal = React.memo(
             .from('wallet_transactions')
             .delete()
             .eq('id', rechargeTransactionId);
-          throw new Error(mibData.error || mibData.message || 'Payment gateway returned an error');
+          throw new Error(
+            mibData.error ||
+              mibData.message ||
+              'Payment gateway returned an error'
+          );
         }
 
         if (!mibData.redirectUrl && !mibData.sessionUrl) {
@@ -164,21 +171,16 @@ const WalletRechargeModal = React.memo(
         setMibSessionData(sessionData);
         setShowMibPayment(true);
         setIsProcessing(false);
-        console.log('[WALLET RECHARGE] Payment gateway opened successfully');
       } catch (error: any) {
         console.error('[WALLET RECHARGE] Payment initiation error:', error);
         setIsProcessing(false);
-        
+
         const errorMessage = error.message || 'Unable to start payment process';
-        const detailedMessage = errorMessage.includes('MIB') 
-          ? errorMessage 
+        const detailedMessage = errorMessage.includes('MIB')
+          ? errorMessage
           : `${errorMessage}\n\nPlease ensure the MIB payment gateway is configured correctly.`;
-        
-        Alert.alert(
-          'Payment Failed',
-          detailedMessage,
-          [{ text: 'OK' }]
-        );
+
+        Alert.alert('Payment Failed', detailedMessage, [{ text: 'OK' }]);
       }
     };
 
@@ -186,21 +188,9 @@ const WalletRechargeModal = React.memo(
       if (!wallet) return;
 
       try {
-        console.log('[WALLET RECHARGE] ========================================');
-        console.log('[WALLET RECHARGE] Payment successful! Processing wallet update...');
-        
         const parsedAmount = parseFloat(amount);
         const oldBalance = wallet.balance;
         const newBalance = oldBalance + parsedAmount;
-
-        console.log('[WALLET RECHARGE] Wallet Update:', {
-          rechargeAmount: parsedAmount,
-          oldBalance,
-          newBalance,
-          increase: parsedAmount,
-          walletId: wallet.id,
-          userName: wallet.user_name,
-        });
 
         // Update wallet balance
         await supabase
@@ -212,19 +202,15 @@ const WalletRechargeModal = React.memo(
           })
           .eq('id', wallet.id);
 
-        console.log('[WALLET RECHARGE] ✅ Wallet balance updated');
-
         setShowMibPayment(false);
         setAmount('');
-        
-        console.log('[WALLET RECHARGE] ========================================');
-        
+
         Alert.alert(
           'Payment Successful! 🎉',
           `Recharge Amount: ${formatCurrency(parsedAmount)}\n\n` +
-          `Previous Balance: ${formatCurrency(oldBalance)} ${wallet.currency}\n` +
-          `New Balance: ${formatCurrency(newBalance)} ${wallet.currency}\n\n` +
-          `✅ Wallet Balance Increased: +${formatCurrency(parsedAmount)}`,
+            `Previous Balance: ${formatCurrency(oldBalance)} ${wallet.currency}\n` +
+            `New Balance: ${formatCurrency(newBalance)} ${wallet.currency}\n\n` +
+            `✅ Wallet Balance Increased: +${formatCurrency(parsedAmount)}`,
           [
             {
               text: 'OK',
@@ -236,8 +222,14 @@ const WalletRechargeModal = React.memo(
           ]
         );
       } catch (error: any) {
-        console.error('[WALLET RECHARGE] ❌ Payment success handling error:', error);
-        Alert.alert('Error', 'Payment successful but failed to update wallet. Please contact support.');
+        console.error(
+          '[WALLET RECHARGE] ❌ Payment success handling error:',
+          error
+        );
+        Alert.alert(
+          'Error',
+          'Payment successful but failed to update wallet. Please contact support.'
+        );
       }
     };
 
@@ -289,13 +281,17 @@ const WalletRechargeModal = React.memo(
 
               <View style={styles.modalBody}>
                 <View style={styles.currentBalanceCard}>
-                  <Text style={styles.currentBalanceLabel}>Current Balance</Text>
+                  <Text style={styles.currentBalanceLabel}>
+                    Current Balance
+                  </Text>
                   <Text style={styles.currentBalanceValue}>
                     {formatCurrency(wallet.balance)} {wallet.currency}
                   </Text>
                 </View>
 
-                <Text style={styles.modalLabel}>Select or enter amount ({wallet.currency})</Text>
+                <Text style={styles.modalLabel}>
+                  Select or enter amount ({wallet.currency})
+                </Text>
 
                 {/* Predefined amounts */}
                 <View style={styles.amountGrid}>
@@ -304,7 +300,8 @@ const WalletRechargeModal = React.memo(
                       key={value}
                       style={[
                         styles.amountButton,
-                        amount === value.toString() && styles.amountButtonActive,
+                        amount === value.toString() &&
+                          styles.amountButtonActive,
                       ]}
                       onPress={() => handleAmountSelect(value)}
                     >
@@ -427,7 +424,6 @@ export default function WalletsListPage({
   // Fetch wallets when page comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      console.log('📥 [WalletsListPage] Page focused, fetching fresh wallet data...');
       if (canViewWallets) {
         fetchWallets();
       }
@@ -437,26 +433,9 @@ export default function WalletsListPage({
   // Choose wallet list based on agentOnly prop
   const baseWallets = agentOnly ? agentWallets : filteredWallets;
 
-  console.log('📊 [WalletsListPage] Data state:', {
-    filteredWallets_count: filteredWallets?.length || 0,
-    agentWallets_count: agentWallets?.length || 0,
-    baseWallets_count: baseWallets?.length || 0,
-    agentOnly,
-    filterStatus,
-    localSearchQuery,
-    sample_wallets: baseWallets?.slice(0, 2).map(w => ({
-      id: w.id,
-      name: w.user_name,
-      balance: w.balance,
-    })),
-  });
-
   // Client-side search and filter
   const displayWallets = useMemo(() => {
-    console.log('🔍 [WalletsListPage] Calculating displayWallets from baseWallets:', baseWallets?.length || 0);
-    
     let filtered = [...baseWallets];
-    console.log('🔍 [WalletsListPage] Initial filtered count:', filtered.length);
 
     // Apply search filter
     if (localSearchQuery.trim()) {
@@ -466,7 +445,6 @@ export default function WalletsListPage({
           wallet.user_name.toLowerCase().includes(query) ||
           wallet.user_email.toLowerCase().includes(query)
       );
-      console.log('🔍 [WalletsListPage] After search filter:', filtered.length);
     }
 
     // Apply status filter
@@ -477,14 +455,7 @@ export default function WalletsListPage({
       } else if (filterStatus === 'inactive') {
         filtered = filtered.filter(w => w.balance === 0);
       }
-      console.log(`🔍 [WalletsListPage] After status filter (${filterStatus}):`, filtered.length, 'from', beforeFilter);
     }
-
-    console.log('✅ [WalletsListPage] Final displayWallets:', filtered.length, filtered.map(w => ({
-      id: w.id,
-      name: w.user_name,
-      balance: w.balance,
-    })));
 
     return filtered;
   }, [baseWallets, localSearchQuery, filterStatus]);
@@ -589,7 +560,7 @@ export default function WalletsListPage({
           </View>
         </View>
       </TouchableOpacity>
-      
+
       {/* Recharge Button */}
       <TouchableOpacity
         style={styles.rechargeButton}

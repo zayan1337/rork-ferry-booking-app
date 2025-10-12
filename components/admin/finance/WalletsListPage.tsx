@@ -101,7 +101,7 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
 
   const renderWallet = ({ item }: { item: Wallet }) => {
     const isAgent = item.user_role === 'agent';
-    
+
     return (
       <TouchableOpacity
         style={styles.walletItem}
@@ -157,7 +157,7 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
             </View>
           </View>
           <Text style={styles.walletEmail}>{item.user_email}</Text>
-          
+
           {/* Agent Credit Info */}
           {isAgent && item.credit_ceiling !== undefined && (
             <View style={styles.agentCreditInfo}>
@@ -187,7 +187,7 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
               </View>
             </View>
           )}
-          
+
           <View style={styles.walletFooter}>
             <View style={styles.balanceContainer}>
               <Text style={styles.balanceLabel}>Wallet Balance:</Text>
@@ -277,7 +277,7 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
           </Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Role Filter */}
       <View style={styles.filterContainer}>
         <TouchableOpacity
@@ -325,7 +325,9 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
         >
           <User
             size={16}
-            color={filterRole === 'customer' ? colors.white : colors.textSecondary}
+            color={
+              filterRole === 'customer' ? colors.white : colors.textSecondary
+            }
           />
           <Text
             style={[

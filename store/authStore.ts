@@ -410,7 +410,6 @@ export const useAuthStore = create<AuthState>()(
                   fullName: data.user.user_metadata?.full_name,
                 },
               });
-              console.log('Welcome email sent successfully');
             } catch (emailError) {
               // Log error but don't fail the verification process
               console.warn('Failed to send welcome email:', emailError);

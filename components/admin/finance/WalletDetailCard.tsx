@@ -76,7 +76,6 @@ function WalletDetailCard({
   };
 
   const handleViewUser = () => {
-    console.log('📱 [WalletDetailCard] Navigating to user profile:', wallet.user_id);
     router.push(`/(app)/(admin)/user/${wallet.user_id}` as any);
   };
 
@@ -87,7 +86,7 @@ function WalletDetailCard({
 
   const handleSaveCreditLimit = async () => {
     const limitValue = parseFloat(newCreditLimit);
-    
+
     if (isNaN(limitValue) || limitValue < 0) {
       Alert.alert('Invalid Input', 'Please enter a valid credit limit amount.');
       return;
@@ -96,27 +95,20 @@ function WalletDetailCard({
     setIsUpdating(true);
     try {
       await updateAgentCreditLimit(wallet.user_id, limitValue);
-      Alert.alert(
-        'Success',
-        'Agent credit limit updated successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: async () => {
-              setIsEditingCreditLimit(false);
-              if (onRefresh) {
-                await onRefresh();
-              }
-            },
+      Alert.alert('Success', 'Agent credit limit updated successfully!', [
+        {
+          text: 'OK',
+          onPress: async () => {
+            setIsEditingCreditLimit(false);
+            if (onRefresh) {
+              await onRefresh();
+            }
           },
-        ]
-      );
+        },
+      ]);
     } catch (error) {
       console.error('Error updating credit limit:', error);
-      Alert.alert(
-        'Error',
-        'Failed to update credit limit. Please try again.'
-      );
+      Alert.alert('Error', 'Failed to update credit limit. Please try again.');
     } finally {
       setIsUpdating(false);
     }
@@ -166,11 +158,14 @@ function WalletDetailCard({
         },
         {
           text: 'Record Payment',
-          onPress: async (amountStr) => {
+          onPress: async (amountStr: any) => {
             const amount = parseFloat(amountStr || '0');
-            
+
             if (isNaN(amount) || amount <= 0) {
-              Alert.alert('Invalid Amount', 'Please enter a valid payment amount.');
+              Alert.alert(
+                'Invalid Amount',
+                'Please enter a valid payment amount.'
+              );
               return;
             }
 
@@ -184,12 +179,15 @@ function WalletDetailCard({
 
             try {
               // Record the manual payment
-              const { error } = await supabase.rpc('record_agent_credit_payment', {
-                p_user_id: wallet.user_id,
-                p_payment_amount: amount,
-                p_payment_method: 'manual',
-                p_reference: `MANUAL-${Date.now()}`,
-              });
+              const { error } = await supabase.rpc(
+                'record_agent_credit_payment',
+                {
+                  p_user_id: wallet.user_id,
+                  p_payment_amount: amount,
+                  p_payment_method: 'manual',
+                  p_reference: `MANUAL-${Date.now()}`,
+                }
+              );
 
               if (error) throw error;
 
@@ -319,7 +317,7 @@ function WalletDetailCard({
               <Edit size={18} color={colors.primary} />
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.creditInfoCard}>
             {/* Credit Limit */}
             <View style={styles.creditInfoRow}>
@@ -328,7 +326,7 @@ function WalletDetailCard({
                 {formatCurrency(wallet.credit_ceiling)}
               </Text>
             </View>
-            
+
             {/* Available Credit */}
             <View style={styles.creditInfoRow}>
               <Text style={styles.creditInfoLabel}>Available Credit</Text>
@@ -336,7 +334,7 @@ function WalletDetailCard({
                 {formatCurrency(wallet.credit_balance || 0)}
               </Text>
             </View>
-            
+
             {/* Credit Used */}
             <View style={styles.creditInfoRow}>
               <Text style={styles.creditInfoLabel}>Credit Used</Text>
@@ -344,41 +342,54 @@ function WalletDetailCard({
                 {formatCurrency(wallet.credit_used || 0)}
               </Text>
             </View>
-            
+
             {/* Balance to Pay */}
             <View style={[styles.creditInfoRow, styles.creditInfoHighlight]}>
               <Text style={[styles.creditInfoLabel, { fontWeight: '700' }]}>
                 Balance to Pay
               </Text>
-              <Text style={[styles.creditInfoValue, { color: colors.danger, fontWeight: '700', fontSize: 18 }]}>
+              <Text
+                style={[
+                  styles.creditInfoValue,
+                  { color: colors.danger, fontWeight: '700', fontSize: 18 },
+                ]}
+              >
                 {formatCurrency(wallet.balance_to_pay || 0)}
               </Text>
             </View>
 
             {/* Credit Utilization Bar */}
             <View style={styles.creditUtilizationContainer}>
-              <Text style={styles.creditUtilizationLabel}>Credit Utilization</Text>
+              <Text style={styles.creditUtilizationLabel}>
+                Credit Utilization
+              </Text>
               <View style={styles.progressBar}>
                 <View
                   style={[
                     styles.progressFill,
                     {
                       width: `${Math.min(
-                        ((wallet.credit_used || 0) / wallet.credit_ceiling) * 100,
+                        ((wallet.credit_used || 0) / wallet.credit_ceiling) *
+                          100,
                         100
                       )}%`,
                       backgroundColor:
-                        ((wallet.credit_used || 0) / wallet.credit_ceiling) > 0.8
+                        (wallet.credit_used || 0) / wallet.credit_ceiling > 0.8
                           ? colors.danger
-                          : ((wallet.credit_used || 0) / wallet.credit_ceiling) > 0.6
-                          ? colors.warning
-                          : colors.success,
+                          : (wallet.credit_used || 0) / wallet.credit_ceiling >
+                              0.6
+                            ? colors.warning
+                            : colors.success,
                     },
                   ]}
                 />
               </View>
               <Text style={styles.creditUtilizationText}>
-                {((wallet.credit_used || 0) / wallet.credit_ceiling * 100).toFixed(1)}% Used
+                {(
+                  ((wallet.credit_used || 0) / wallet.credit_ceiling) *
+                  100
+                ).toFixed(1)}
+                % Used
               </Text>
             </View>
 
@@ -393,7 +404,9 @@ function WalletDetailCard({
                     activeOpacity={0.7}
                   >
                     <CreditCard size={20} color={colors.white} />
-                    <Text style={styles.paymentButtonText}>Pay via Gateway</Text>
+                    <Text style={styles.paymentButtonText}>
+                      Pay via Gateway
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.paymentButton, styles.manualPaymentButton]}
@@ -401,7 +414,12 @@ function WalletDetailCard({
                     activeOpacity={0.7}
                   >
                     <DollarSign size={20} color={colors.primary} />
-                    <Text style={[styles.paymentButtonText, { color: colors.primary }]}>
+                    <Text
+                      style={[
+                        styles.paymentButtonText,
+                        { color: colors.primary },
+                      ]}
+                    >
                       Manual Payment
                     </Text>
                   </TouchableOpacity>
@@ -519,7 +537,10 @@ function WalletDetailCard({
         </View>
         <View style={styles.infoCard}>
           <InfoRow label='Wallet ID' value={wallet.id} />
-          <InfoRow label='User Role' value={wallet.user_role?.toUpperCase() || 'N/A'} />
+          <InfoRow
+            label='User Role'
+            value={wallet.user_role?.toUpperCase() || 'N/A'}
+          />
           <InfoRow label='Currency' value={wallet.currency} />
           <InfoRow
             label='Status'
@@ -545,9 +566,11 @@ function WalletDetailCard({
                 <X size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.modalBody}>
-              <Text style={styles.modalLabel}>New Credit Limit ({wallet.currency})</Text>
+              <Text style={styles.modalLabel}>
+                New Credit Limit ({wallet.currency})
+              </Text>
               <TextInput
                 style={styles.modalInput}
                 value={newCreditLimit}
@@ -556,7 +579,7 @@ function WalletDetailCard({
                 placeholder='Enter credit limit'
                 editable={!isUpdating}
               />
-              
+
               <View style={styles.currentLimitInfo}>
                 <Text style={styles.currentLimitLabel}>Current Limit:</Text>
                 <Text style={styles.currentLimitValue}>
@@ -564,7 +587,7 @@ function WalletDetailCard({
                 </Text>
               </View>
             </View>
-            
+
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalCancelButton]}
@@ -574,7 +597,7 @@ function WalletDetailCard({
                 <X size={18} color={colors.textSecondary} />
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[
                   styles.modalButton,

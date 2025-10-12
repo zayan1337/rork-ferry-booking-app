@@ -1227,7 +1227,7 @@ export const useAgentBookingFormStore = create<
         const timestamp = Date.now().toString().slice(-8); // Last 8 digits of timestamp
         const bookingRef = booking.booking_number.slice(-5); // Last 5 chars of booking number
         const receiptNumber = `AGT${timestamp}${bookingRef}`; // e.g., AGT8912345600001 (16 chars)
-        
+
         const { error: paymentError } = await supabase.from('payments').insert({
           booking_id: booking.id,
           payment_method: 'wallet', // Use wallet for agent credit payments
@@ -1519,7 +1519,10 @@ export const useAgentBookingFormStore = create<
             );
             // Don't throw error - booking was created successfully
           }
-        } else if (currentBooking.paymentMethod === 'credit' || currentBooking.paymentMethod === 'free') {
+        } else if (
+          currentBooking.paymentMethod === 'credit' ||
+          currentBooking.paymentMethod === 'free'
+        ) {
           // For agent credit and free tickets, use 'wallet' as payment method
           // Generate compact receipt for credit payments only (max 20 chars)
           let returnReceiptNumber = null;
@@ -1528,13 +1531,16 @@ export const useAgentBookingFormStore = create<
             const returnBookingRef = returnBooking.booking_number.slice(-5);
             returnReceiptNumber = `AGT${returnTimestamp}${returnBookingRef}`;
           }
-          
+
           const { error: returnPaymentError } = await supabase
             .from('payments')
             .insert({
               booking_id: returnBooking.id,
               payment_method: 'wallet', // Use wallet for agent payments
-              amount: currentBooking.paymentMethod === 'free' ? 0 : returnDiscountedFare,
+              amount:
+                currentBooking.paymentMethod === 'free'
+                  ? 0
+                  : returnDiscountedFare,
               currency: 'MVR',
               status: 'completed', // Mark as completed for immediate confirmation
               receipt_number: returnReceiptNumber, // Compact receipt for credit, null for free

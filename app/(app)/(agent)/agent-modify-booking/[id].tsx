@@ -107,7 +107,9 @@ export default function AgentModifyBookingScreen() {
   // MIB payment states
   const [showMibPayment, setShowMibPayment] = useState(false);
   const [mibBookingDetails, setMibBookingDetails] = useState<any>(null);
-  const [modifiedBookingId, setModifiedBookingId] = useState<string | null>(null);
+  const [modifiedBookingId, setModifiedBookingId] = useState<string | null>(
+    null
+  );
 
   // Find the booking by id
   const booking = bookings.find((b: any) => b.id === id);
@@ -302,7 +304,10 @@ export default function AgentModifyBookingScreen() {
         modificationReason,
         fareDifference,
         paymentMethod: selectedPaymentMethod,
-        bankAccountDetails: fareDifference < 0 && selectedPaymentMethod === 'bank_transfer' ? bankAccountDetails : null,
+        bankAccountDetails:
+          fareDifference < 0 && selectedPaymentMethod === 'bank_transfer'
+            ? bankAccountDetails
+            : null,
         agentNotes,
         modifiedByAgent: true,
       };
@@ -314,11 +319,13 @@ export default function AgentModifyBookingScreen() {
         // Prepare booking details for the payment modal
         const mibDetails = {
           bookingNumber: booking.bookingNumber,
-          route: `${booking.origin?.name || 'N/A'} → ${booking.destination?.name || 'N/A'}`,
-          travelDate: newDate || booking.departureDate || new Date().toISOString(),
+          route: `${(booking.origin as any)?.name || booking.origin || 'N/A'} → ${(booking.destination as any)?.name || booking.destination || 'N/A'}`,
+          travelDate:
+            newDate || booking.departureDate || new Date().toISOString(),
           amount: fareDifference, // Pay only the difference (already includes agent discount)
           currency: 'MVR',
-          passengerCount: booking.passengers?.length || booking.passengerCount || 1,
+          passengerCount:
+            booking.passengers?.length || booking.passengerCount || 1,
         };
 
         // Store the booking ID for payment
@@ -346,7 +353,7 @@ export default function AgentModifyBookingScreen() {
       } else {
         successMessage += ' No additional payment or refund is required.';
       }
-      
+
       // Add discount information
       if (agentDiscountRate > 0 && fareDifference !== 0) {
         successMessage += `\n\nNote: Your ${agentDiscountRate}% agent discount was applied to the new fare calculation.`;
@@ -369,13 +376,13 @@ export default function AgentModifyBookingScreen() {
   // MIB payment handlers
   const handleMibPaymentSuccess = (result: any) => {
     setShowMibPayment(false);
-    
+
     let successMessage = `The ${ticketLabel.toLowerCase()} ticket has been modified successfully and payment of ${formatCurrency(fareDifference)} has been processed through MIB Gateway.`;
-    
+
     if (agentDiscountRate > 0) {
       successMessage += ` (Your ${agentDiscountRate}% agent discount was applied to the new fare)`;
     }
-    
+
     Alert.alert('Payment Successful', successMessage, [
       {
         text: 'OK',
@@ -592,11 +599,12 @@ export default function AgentModifyBookingScreen() {
                 discountedFare={discountedFare}
                 fareDifference={fareDifference}
               />
-              
+
               {agentDiscountRate > 0 && (
                 <Card variant='elevated' style={styles.discountInfoCard}>
                   <Text style={styles.discountInfoText}>
-                    ✨ Your agent discount of {agentDiscountRate}% is automatically applied to the new booking fare.
+                    ✨ Your agent discount of {agentDiscountRate}% is
+                    automatically applied to the new booking fare.
                   </Text>
                 </Card>
               )}

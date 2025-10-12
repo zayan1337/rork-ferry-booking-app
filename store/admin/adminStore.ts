@@ -869,10 +869,8 @@ export const useAdminStore = create<AdminState>()(
         })),
 
       exportUsersReport: async users => {
-        console.log('Exporting users report:', users);
         // Simulate file saving
         await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log('Users report exported successfully!');
       },
 
       // Alert management functions
@@ -885,34 +883,24 @@ export const useAdminStore = create<AdminState>()(
       systemSettings: {},
       adminPermissions: [],
       updateSystemSettings: async settings => {
-        console.log('Updating system settings:', settings);
         // Simulate saving settings
         await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log('System settings updated successfully!');
       },
       backupDatabase: async () => {
-        console.log('Backing up database...');
         // Simulate backup
         await new Promise(resolve => setTimeout(resolve, 2000));
-        console.log('Database backed up successfully!');
       },
       restoreDatabase: async () => {
-        console.log('Restoring database...');
         // Simulate restore
         await new Promise(resolve => setTimeout(resolve, 2000));
-        console.log('Database restored successfully!');
       },
       exportActivityLogs: async logs => {
-        console.log('Exporting activity logs:', logs);
         // Simulate file saving
         await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log('Activity logs exported successfully!');
       },
       exportSystemReport: async type => {
-        console.log('Exporting system report of type:', type);
         // Simulate file saving
         await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log('System report exported successfully!');
       },
 
       // Real data fetching functions

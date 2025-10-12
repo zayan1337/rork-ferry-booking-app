@@ -516,10 +516,6 @@ export const restoreOriginalSeatReservations = async (
         `Failed to restore original seat reservations: ${restoreError.message}`
       );
     }
-
-    console.log(
-      `Successfully restored seat reservations for original booking ${originalBookingId}`
-    );
   } catch (error) {
     console.error('Error in restoreOriginalSeatReservations:', error);
     throw error;
@@ -662,10 +658,6 @@ export const cancelBookingOnPaymentFailure = async (
         paymentUpdateError
       );
     }
-
-    console.log(
-      `Successfully cancelled booking ${bookingId} due to: ${reason}`
-    );
   } catch (error) {
     console.error('Error in cancelBookingOnPaymentFailure:', error);
     throw error;
@@ -761,10 +753,6 @@ export const cancelModificationBookingOnPaymentFailure = async (
         paymentUpdateError
       );
     }
-
-    console.log(
-      `Successfully cancelled new booking ${newBookingId} due to: ${reason}. Original booking ${originalBookingId} preserved.`
-    );
   } catch (error) {
     console.error('Error in cancelModificationBookingOnPaymentFailure:', error);
     throw error;
@@ -860,10 +848,6 @@ export const cancelModificationBookingOnPaymentCancellation = async (
         paymentUpdateError
       );
     }
-
-    console.log(
-      `Successfully cancelled new booking ${newBookingId} due to: ${reason}. Original booking ${originalBookingId} preserved.`
-    );
   } catch (error) {
     console.error(
       'Error in cancelModificationBookingOnPaymentCancellation:',
@@ -922,11 +906,6 @@ export const completeModificationAfterPayment = async (
       );
     }
 
-    // 3. NOW release original seat reservations since payment is successful
-    console.log(
-      '[MODIFY_PAYMENT] Releasing seats from original booking:',
-      originalBookingId
-    );
     const { error: originalSeatReleaseError } = await supabase
       .from('seat_reservations')
       .update({
@@ -998,10 +977,6 @@ export const completeModificationAfterPayment = async (
         paymentUpdateError
       );
     }
-
-    console.log(
-      `Successfully completed modification. New booking ${newBookingId} confirmed, original booking ${originalBookingId} marked as modified.`
-    );
   } catch (error) {
     console.error('Error in completeModificationAfterPayment:', error);
     throw error;
@@ -1137,10 +1112,6 @@ export const cancelBookingOnPaymentCancellation = async (
         paymentUpdateError
       );
     }
-
-    console.log(
-      `Successfully cancelled booking ${bookingId} due to: ${reason}`
-    );
   } catch (error) {
     console.error('Error in cancelBookingOnPaymentCancellation:', error);
     throw error;

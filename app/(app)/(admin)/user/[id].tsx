@@ -113,7 +113,6 @@ export default function UserDetailsPage() {
       if (passengerError) throw passengerError;
 
       if (!passengerData?.booking_id) {
-        console.log('No booking found for passenger');
         return;
       }
 

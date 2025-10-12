@@ -10,7 +10,13 @@ import {
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { ArrowLeft, CreditCard, DollarSign, User, Wallet as WalletIcon } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  CreditCard,
+  DollarSign,
+  User,
+  Wallet as WalletIcon,
+} from 'lucide-react-native';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
 import { supabase } from '@/utils/supabase';
 
@@ -33,11 +39,12 @@ export default function WalletPaymentPage() {
   const fetchWalletInfo = async () => {
     try {
       setIsLoading(true);
-      
+
       // Fetch wallet and user details
       const { data: wallet, error: walletError } = await supabase
         .from('wallets')
-        .select(`
+        .select(
+          `
           *,
           user_profiles!inner(
             id,
@@ -46,7 +53,8 @@ export default function WalletPaymentPage() {
             credit_balance,
             credit_ceiling
           )
-        `)
+        `
+        )
         .eq('id', walletId)
         .single();
 
@@ -71,13 +79,6 @@ export default function WalletPaymentPage() {
     try {
       setIsLoading(true);
 
-      console.log('🔵 Initiating MIB payment for wallet credit repayment:', {
-        amount,
-        userId,
-        walletId,
-        paymentType,
-      });
-
       // Call the edge function to create MIB session
       const { data, error } = await supabase.functions.invoke('mib-payment', {
         body: {
@@ -100,11 +101,6 @@ export default function WalletPaymentPage() {
         throw new Error('Invalid payment session data received');
       }
 
-      console.log('✅ MIB session created successfully:', {
-        sessionId: data.sessionId,
-        redirectUrl: data.redirectUrl,
-      });
-
       setSessionData({
         sessionId: data.sessionId,
         sessionUrl: data.redirectUrl,
@@ -125,16 +121,17 @@ export default function WalletPaymentPage() {
   };
 
   const handlePaymentSuccess = async (result: any) => {
-    console.log('✅ Payment successful:', result);
-
     try {
       // Call the database function to record the payment
-      const { data, error } = await supabase.rpc('record_agent_credit_payment', {
-        p_user_id: userId,
-        p_payment_amount: amount,
-        p_payment_method: 'mib_gateway',
-        p_reference: sessionData?.sessionId || result?.sessionId,
-      });
+      const { data, error } = await supabase.rpc(
+        'record_agent_credit_payment',
+        {
+          p_user_id: userId,
+          p_payment_amount: amount,
+          p_payment_method: 'mib_gateway',
+          p_reference: sessionData?.sessionId || result?.sessionId,
+        }
+      );
 
       if (error) throw error;
 
@@ -172,14 +169,17 @@ export default function WalletPaymentPage() {
   const handlePaymentFailure = (error: string) => {
     console.error('❌ Payment failed:', error);
     setShowPaymentModal(false);
-    Alert.alert('Payment Failed', error || 'Payment was not completed successfully.', [
-      { text: 'Try Again', onPress: handleInitiatePayment },
-      { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
-    ]);
+    Alert.alert(
+      'Payment Failed',
+      error || 'Payment was not completed successfully.',
+      [
+        { text: 'Try Again', onPress: handleInitiatePayment },
+        { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
+      ]
+    );
   };
 
   const handlePaymentCancel = () => {
-    console.log('⚠️ Payment cancelled by user');
     setShowPaymentModal(false);
     Alert.alert('Payment Cancelled', 'The payment was cancelled.', [
       { text: 'Try Again', onPress: handleInitiatePayment },
@@ -201,7 +201,7 @@ export default function WalletPaymentPage() {
           }}
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size='large' color={colors.primary} />
           <Text style={styles.loadingText}>Loading payment details...</Text>
         </View>
       </View>
@@ -278,7 +278,8 @@ export default function WalletPaymentPage() {
             • This payment will be processed through the MIB payment gateway
           </Text>
           <Text style={styles.infoText}>
-            • Your agent credit balance will be updated immediately after successful payment
+            • Your agent credit balance will be updated immediately after
+            successful payment
           </Text>
           <Text style={styles.infoText}>
             • You will receive a payment confirmation
@@ -293,7 +294,7 @@ export default function WalletPaymentPage() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size='small' color={colors.white} />
             ) : (
               <>
                 <CreditCard size={20} color={colors.white} />
@@ -490,4 +491,3 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 });
-

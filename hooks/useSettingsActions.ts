@@ -204,7 +204,6 @@ export function useSettingsActions({
           style: 'destructive',
           onPress: () => {
             // Handle role deletion
-            console.log('Deleting role:', roleId);
             Alert.alert('Success', 'Role deleted successfully.');
           },
         },
@@ -229,7 +228,6 @@ export function useSettingsActions({
         style: 'destructive',
         onPress: () => {
           // Handle cache clearing
-          console.log('Clearing cache...');
           Alert.alert('Success', 'Cache cleared successfully.');
         },
       },
@@ -247,7 +245,6 @@ export function useSettingsActions({
           style: 'destructive',
           onPress: () => {
             // Handle system restart
-            console.log('Restarting system...');
             Alert.alert('Success', 'System restart initiated.');
           },
         },

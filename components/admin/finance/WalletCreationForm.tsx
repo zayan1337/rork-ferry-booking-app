@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -46,7 +46,7 @@ interface FormErrors {
 
 export default function WalletCreationForm() {
   const { createWallet, fetchWallets } = useFinanceStore();
-  
+
   const [formData, setFormData] = useState<FormData>({
     user_id: '',
     initial_balance: '0',
@@ -76,9 +76,7 @@ export default function WalletCreationForm() {
       const { data: users, error } = await supabase
         .from('user_profiles')
         .select('id, full_name, email, role')
-        .or(
-          `full_name.ilike.%${query}%,email.ilike.%${query}%`
-        )
+        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
         .limit(10);
 
       if (error) throw error;
@@ -91,7 +89,9 @@ export default function WalletCreationForm() {
           .select('user_id')
           .in('user_id', userIds);
 
-        const walletUserIds = new Set(existingWallets?.map(w => w.user_id) || []);
+        const walletUserIds = new Set(
+          existingWallets?.map(w => w.user_id) || []
+        );
 
         const usersWithWalletStatus = users.map(user => ({
           ...user,
@@ -114,7 +114,7 @@ export default function WalletCreationForm() {
   const handleUserSearchChange = (text: string) => {
     setSearchQuery(text);
     setShowUserDropdown(true);
-    
+
     // Debounce search
     const timeoutId = setTimeout(() => {
       searchUsers(text);
@@ -175,33 +175,17 @@ export default function WalletCreationForm() {
     setIsSubmitting(true);
     try {
       const parsedBalance = parseFloat(formData.initial_balance);
-      
-      console.log('🆕 [WalletCreationForm] Creating wallet with details:', {
-        user_id: formData.user_id,
-        user_name: selectedUser?.full_name,
-        raw_balance_input: formData.initial_balance,
-        parsed_balance: parsedBalance,
-        balance_type: typeof parsedBalance,
-        is_NaN: isNaN(parsedBalance),
-        currency: formData.currency,
-      });
-      
+
       const walletData = {
         user_id: formData.user_id,
         initial_balance: parsedBalance,
         currency: formData.currency,
       };
-      
-      console.log('📤 [WalletCreationForm] Sending wallet data:', walletData);
-      
+
       await createWallet(walletData);
 
-      console.log('✅ [WalletCreationForm] Wallet created successfully, refreshing wallet list...');
-      
       // Refresh the wallets list to ensure the new wallet appears
       await fetchWallets(true);
-      
-      console.log('✅ [WalletCreationForm] Wallet list refreshed');
 
       Alert.alert(
         'Success!',
@@ -240,13 +224,18 @@ export default function WalletCreationForm() {
       disabled={item.existing_wallet}
     >
       <View style={styles.userOptionIcon}>
-        <User size={20} color={item.existing_wallet ? colors.textSecondary : colors.primary} />
+        <User
+          size={20}
+          color={item.existing_wallet ? colors.textSecondary : colors.primary}
+        />
       </View>
       <View style={styles.userOptionInfo}>
-        <Text style={[
-          styles.userOptionName,
-          item.existing_wallet && styles.userOptionNameDisabled,
-        ]}>
+        <Text
+          style={[
+            styles.userOptionName,
+            item.existing_wallet && styles.userOptionNameDisabled,
+          ]}
+        >
           {item.full_name}
         </Text>
         <Text style={styles.userOptionEmail}>{item.email}</Text>
@@ -262,7 +251,7 @@ export default function WalletCreationForm() {
   );
 
   return (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.container} keyboardShouldPersistTaps='handled'>
       <View style={styles.formContainer}>
         {/* Header */}
         <View style={styles.header}>
@@ -285,14 +274,14 @@ export default function WalletCreationForm() {
               <Search size={20} color={colors.textSecondary} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search by name or email..."
+                placeholder='Search by name or email...'
                 value={searchQuery}
                 onChangeText={handleUserSearchChange}
                 onFocus={() => setShowUserDropdown(true)}
                 editable={!selectedUser}
               />
               {isSearching && (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size='small' color={colors.primary} />
               )}
               {selectedUser && (
                 <TouchableOpacity onPress={handleClearUser}>
@@ -313,11 +302,17 @@ export default function WalletCreationForm() {
             <View style={styles.selectedUserCard}>
               <User size={24} color={colors.primary} />
               <View style={styles.selectedUserInfo}>
-                <Text style={styles.selectedUserName}>{selectedUser.full_name}</Text>
-                <Text style={styles.selectedUserEmail}>{selectedUser.email}</Text>
+                <Text style={styles.selectedUserName}>
+                  {selectedUser.full_name}
+                </Text>
+                <Text style={styles.selectedUserEmail}>
+                  {selectedUser.email}
+                </Text>
               </View>
               <View style={styles.selectedUserBadge}>
-                <Text style={styles.selectedUserRole}>{selectedUser.role.toUpperCase()}</Text>
+                <Text style={styles.selectedUserRole}>
+                  {selectedUser.role.toUpperCase()}
+                </Text>
               </View>
             </View>
           )}
@@ -343,12 +338,12 @@ export default function WalletCreationForm() {
             <DollarSign size={20} color={colors.textSecondary} />
             <TextInput
               style={styles.input}
-              placeholder="0.00"
+              placeholder='0.00'
               value={formData.initial_balance}
               onChangeText={text =>
                 setFormData({ ...formData, initial_balance: text })
               }
-              keyboardType="decimal-pad"
+              keyboardType='decimal-pad'
             />
           </View>
           {errors.initial_balance && (
@@ -403,10 +398,9 @@ export default function WalletCreationForm() {
           <View style={styles.infoContent}>
             <Text style={styles.infoTitle}>Important Notes:</Text>
             <Text style={styles.infoText}>
-              • Each user can only have one wallet{'\n'}
-              • Users with existing wallets will be marked{'\n'}
-              • Initial balance can be adjusted later{'\n'}
-              • Wallet will be immediately active
+              • Each user can only have one wallet{'\n'}• Users with existing
+              wallets will be marked{'\n'}• Initial balance can be adjusted
+              later{'\n'}• Wallet will be immediately active
             </Text>
           </View>
         </View>
@@ -423,12 +417,15 @@ export default function WalletCreationForm() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              isSubmitting && styles.submitButtonDisabled,
+            ]}
             onPress={handleSubmit}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size='small' color={colors.white} />
             ) : (
               <>
                 <Check size={20} color={colors.white} />
@@ -731,4 +728,3 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 } as any);
-

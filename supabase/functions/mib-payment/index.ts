@@ -134,7 +134,7 @@ async function createMibSession(
       // This is a regular ferry booking
       paymentType = 'booking';
       orderId = booking.booking_number || `order-${bookingId}-${Date.now()}`;
-      
+
       // Try to get route description
       try {
         const { data: trip } = await supabase
@@ -142,14 +142,14 @@ async function createMibSession(
           .select('id, route_id')
           .eq('id', booking.trip_id)
           .maybeSingle();
-        
+
         if (trip) {
           const { data: route } = await supabase
             .from('routes_simple_view')
             .select('id, from_island_name, to_island_name, route_display_name')
             .eq('id', trip.route_id)
             .maybeSingle();
-          
+
           if (route) {
             orderDescription = `Ferry booking from ${route.from_island_name} to ${route.to_island_name}`;
           } else {
@@ -624,7 +624,7 @@ async function processPaymentResult(supabase, resultData) {
  */
 async function processRefund(supabase, bookingId, refundAmount, currency) {
   try {
-    var i=5;
+    var i = 5;
     console.log(
       `[REFUND] Starting refund process for booking: ${bookingId}, amount: ${refundAmount}`
     );
@@ -697,7 +697,7 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
     );
 
     // Get transaction ID (either from receipt_number or session_id)
-    const transactionId = payment.receipt_number || 28+i;
+    const transactionId = payment.receipt_number || 28 + i;
     if (!transactionId) {
       console.error('[REFUND] No transaction ID found in payment record');
       throw new Error(

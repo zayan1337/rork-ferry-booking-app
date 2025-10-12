@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   Wallet as WalletIcon,
   CreditCard,
-  User,
 } from 'lucide-react-native';
 
 // Components
@@ -29,14 +28,6 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
   const { wallets, loading, fetchWallets, setSearchQuery, searchQueries } =
     useFinanceStore();
 
-  console.log('🔍 [WalletsTab] Component state:', {
-    isActive,
-    walletsCount: wallets?.length || 0,
-    loading: loading.wallets,
-    canView: canViewWallets(),
-    wallets: wallets?.map(w => ({ id: w.id, name: w.user_name })),
-  });
-
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Local search state - completely client-side, no store updates
@@ -45,7 +36,6 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
   // Fetch wallets when tab becomes active
   useEffect(() => {
     if (isActive && canViewWallets()) {
-      console.log('📥 [WalletsTab] Tab is active, fetching wallets...');
       fetchWallets();
     }
   }, [isActive, canViewWallets]);
@@ -53,11 +43,8 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
   // Filter wallets based on search query - client-side only
   const filteredWallets = useMemo(() => {
     if (!wallets) {
-      console.log('⚠️ [WalletsTab] No wallets available');
       return [];
     }
-
-    console.log(`📋 [WalletsTab] Filtering ${wallets.length} wallets with query: "${localSearchQuery}"`);
 
     if (!localSearchQuery.trim()) return wallets;
 
@@ -67,15 +54,14 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
         wallet.user_name.toLowerCase().includes(query) ||
         wallet.user_email.toLowerCase().includes(query)
     );
-    
-    console.log(`✅ [WalletsTab] Filtered down to ${filtered.length} wallets`);
+
     return filtered;
   }, [wallets, localSearchQuery]);
 
   // Limit wallets to 4 for display
   const displayWallets = useMemo(() => {
     const limited = filteredWallets.slice(0, 4);
-    console.log(`📊 [WalletsTab] Displaying ${limited.length} wallets (limited from ${filteredWallets.length})`);
+
     return limited;
   }, [filteredWallets]);
 
@@ -154,7 +140,7 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
         {displayWallets.length > 0 ? (
           displayWallets.map((wallet: Wallet, index: number) => {
             const isAgent = wallet.user_role === 'agent';
-            
+
             return (
               <TouchableOpacity
                 key={`wallet-${wallet.id}-${index}`}
@@ -178,18 +164,22 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
                     )}
                   </View>
                   <Text style={styles.walletEmail}>{wallet.user_email}</Text>
-                  
+
                   {/* Agent Credit Summary */}
                   {isAgent && wallet.credit_ceiling !== undefined ? (
                     <View style={styles.agentCreditSummary}>
                       <Text style={styles.creditSummaryText}>
-                        Credit: {wallet.currency} {wallet.credit_balance?.toFixed(2) || '0.00'} / {wallet.credit_ceiling.toFixed(2)}
+                        Credit: {wallet.currency}{' '}
+                        {wallet.credit_balance?.toFixed(2) || '0.00'} /{' '}
+                        {wallet.credit_ceiling.toFixed(2)}
                       </Text>
-                      {wallet.balance_to_pay !== undefined && wallet.balance_to_pay > 0 && (
-                        <Text style={styles.creditDebtText}>
-                          To Pay: {wallet.currency} {wallet.balance_to_pay.toFixed(2)}
-                        </Text>
-                      )}
+                      {wallet.balance_to_pay !== undefined &&
+                        wallet.balance_to_pay > 0 && (
+                          <Text style={styles.creditDebtText}>
+                            To Pay: {wallet.currency}{' '}
+                            {wallet.balance_to_pay.toFixed(2)}
+                          </Text>
+                        )}
                     </View>
                   ) : (
                     <Text style={styles.walletBalance}>

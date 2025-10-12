@@ -125,19 +125,11 @@ export const useFinanceData = () => {
 
   // Calculate filtered wallets with agent filtering
   const filteredWallets = useMemo(() => {
-    console.log('🔄 [useFinanceData] Calculating filteredWallets...', {
-      wallets_count: wallets?.length || 0,
-      filters: filters.wallets,
-      searchQuery: searchQueries.wallets,
-    });
-
     if (!wallets) {
-      console.log('⚠️ [useFinanceData] No wallets in store, returning empty array');
       return [];
     }
 
     let filtered = [...wallets];
-    console.log('📋 [useFinanceData] Starting with', filtered.length, 'wallets');
 
     // Apply search filter
     const searchQuery = searchQueries.wallets.toLowerCase();
@@ -148,7 +140,6 @@ export const useFinanceData = () => {
           wallet.user_name.toLowerCase().includes(searchQuery) ||
           wallet.user_email.toLowerCase().includes(searchQuery)
       );
-      console.log(`🔍 [useFinanceData] After search filter: ${filtered.length} (from ${before})`);
     }
 
     // Apply status filter
@@ -156,35 +147,39 @@ export const useFinanceData = () => {
       const before = filtered.length;
       if (filters.wallets.status === 'active') {
         filtered = filtered.filter(wallet => wallet.balance > 0);
-        console.log(`🎯 [useFinanceData] After ACTIVE filter: ${filtered.length} (from ${before}) - filtered out wallets with balance <= 0`);
       } else if (filters.wallets.status === 'inactive') {
         filtered = filtered.filter(wallet => wallet.balance === 0);
-        console.log(`🎯 [useFinanceData] After INACTIVE filter: ${filtered.length} (from ${before}) - filtered out wallets with balance > 0`);
       }
-      
+
       if (filtered.length === 0 && before > 0) {
         console.warn('⚠️ [useFinanceData] STATUS FILTER BLOCKED ALL WALLETS!', {
           status_filter: filters.wallets.status,
           original_count: before,
-          sample_balances: wallets.slice(0, 3).map(w => ({ name: w.user_name, balance: w.balance })),
+          sample_balances: wallets
+            .slice(0, 3)
+            .map(w => ({ name: w.user_name, balance: w.balance })),
         });
       }
     }
 
     // Apply balance range filter (only if values are actually set, 0 means "not set")
-    if (filters.wallets.balanceRange.min !== undefined && filters.wallets.balanceRange.min > 0) {
+    if (
+      filters.wallets.balanceRange.min !== undefined &&
+      filters.wallets.balanceRange.min > 0
+    ) {
       const before = filtered.length;
       filtered = filtered.filter(
         wallet => wallet.balance >= filters.wallets.balanceRange.min
       );
-      console.log(`💰 [useFinanceData] After min balance filter (>= ${filters.wallets.balanceRange.min}): ${filtered.length} (from ${before})`);
     }
-    if (filters.wallets.balanceRange.max !== undefined && filters.wallets.balanceRange.max > 0) {
+    if (
+      filters.wallets.balanceRange.max !== undefined &&
+      filters.wallets.balanceRange.max > 0
+    ) {
       const before = filtered.length;
       filtered = filtered.filter(
         wallet => wallet.balance <= filters.wallets.balanceRange.max
       );
-      console.log(`💰 [useFinanceData] After max balance filter (<= ${filters.wallets.balanceRange.max}): ${filtered.length} (from ${before})`);
     }
 
     // Apply sorting
@@ -196,11 +191,6 @@ export const useFinanceData = () => {
       if (aVal < bVal) return filters.wallets.sortOrder === 'asc' ? -1 : 1;
       if (aVal > bVal) return filters.wallets.sortOrder === 'asc' ? 1 : -1;
       return 0;
-    });
-
-    console.log('✅ [useFinanceData] Returning filteredWallets:', {
-      count: filtered.length,
-      sample: filtered.slice(0, 2).map(w => ({ name: w.user_name, balance: w.balance })),
     });
 
     return filtered;

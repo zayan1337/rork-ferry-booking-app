@@ -248,7 +248,9 @@ export default function TransactionDetailScreen() {
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Reference ID</Text>
-          <Text style={styles.detailValue}>{transaction?.reference_id || 'N/A'}</Text>
+          <Text style={styles.detailValue}>
+            {transaction?.reference_id || 'N/A'}
+          </Text>
         </View>
 
         <View style={styles.detailItem}>
