@@ -264,36 +264,7 @@ function WalletDetailCard({
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-          <ArrowLeft size={24} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Wallet Details</Text>
-          <Text style={styles.headerSubtitle}>{wallet.user_name}</Text>
-        </View>
-        <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor: wallet.is_active
-                ? colors.success + '15'
-                : colors.danger + '15',
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.statusText,
-              { color: wallet.is_active ? colors.success : colors.danger },
-            ]}
-          >
-            {wallet.is_active ? 'ACTIVE' : 'INACTIVE'}
-          </Text>
-        </View>
-      </View>
-
+   
       {/* Balance Card */}
       <View style={styles.balanceCard}>
         <WalletIcon size={32} color={colors.primary} />

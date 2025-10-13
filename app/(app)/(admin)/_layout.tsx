@@ -84,6 +84,20 @@ export default React.memo(function AdminLayout() {
             presentation: 'card',
           }}
         />
+        <Stack.Screen
+          name='wallet-detail'
+          options={{
+            title: 'Wallet Details',
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
+          name='payment-detail'
+          options={{
+            title: 'Payment Details',
+            presentation: 'card',
+          }}
+        />
       </Stack>
     </RoleGuard>
   );

@@ -36,11 +36,11 @@ export default function WalletDetailPage() {
   if (loading.wallets && !wallet) {
     return (
       <View style={styles.container}>
-        <Stack.Screen
+        {/* <Stack.Screen
           options={{
             title: 'Wallet Details',
           }}
-        />
+        /> */}
         <View style={styles.loadingContainer}>
           <RefreshCw size={48} color={colors.primary} />
           <Text style={styles.loadingText}>Loading wallet details...</Text>
@@ -52,11 +52,11 @@ export default function WalletDetailPage() {
   if (!wallet) {
     return (
       <View style={styles.container}>
-        <Stack.Screen
+        {/* <Stack.Screen
           options={{
             title: 'Wallet Not Found',
           }}
-        />
+        /> */}
         <View style={styles.notFoundContainer}>
           <View style={styles.notFoundIcon}>
             <AlertCircle size={40} color={colors.warning} />
@@ -79,7 +79,7 @@ export default function WalletDetailPage() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
+      {/* <Stack.Screen
         options={{
           title: 'Wallet Details',
           headerLeft: () => (
@@ -91,7 +91,7 @@ export default function WalletDetailPage() {
             </TouchableOpacity>
           ),
         }}
-      />
+      /> */}
 
       <WalletDetailCard
         wallet={wallet}
