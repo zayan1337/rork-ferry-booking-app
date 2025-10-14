@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useFinanceData } from '@/hooks/useFinanceData';
 import WalletDetailCard from '@/components/admin/finance/WalletDetailCard';

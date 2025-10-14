@@ -264,7 +264,6 @@ function WalletDetailCard({
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-   
       {/* Balance Card */}
       <View style={styles.balanceCard}>
         <WalletIcon size={32} color={colors.primary} />

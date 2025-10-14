@@ -19,7 +19,6 @@ import {
   getResponsivePadding,
 } from '@/utils/dashboardUtils';
 import {
-  Plus,
   Filter,
   ArrowUpDown,
   Download,
@@ -46,6 +45,8 @@ import EmptyState from '@/components/admin/EmptyState';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import AdminBookingItem from '@/components/admin/AdminBookingItem';
 import { AdminBooking } from '@/types/admin/management';
+import ExportModal, { type ExportFilter } from '@/components/admin/ExportModal';
+import { exportBookings } from '@/utils/bookingExportUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -118,6 +119,9 @@ export default function BookingsScreen() {
   // Local search state - completely client-side, no store updates
   const [localSearchQuery, setLocalSearchQuery] = useState('');
 
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+
   // Client-side filtering using local search query for immediate results
   const displayBookings = React.useMemo(() => {
     if (!localSearchQuery.trim()) return bookings;
@@ -152,29 +156,25 @@ export default function BookingsScreen() {
     }
   };
 
-  const handleNewBooking = () => {
-    if (canCreateBookings()) {
-      router.push('../booking/new' as any);
-    } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to create bookings."
-      );
-    }
-  };
-
-  const handleExport = async () => {
+  const handleExport = () => {
     if (canExportReports()) {
-      try {
-        // TODO: Implement export functionality
-        Alert.alert('Success', 'Bookings report exported successfully.');
-      } catch (error) {
-        Alert.alert('Error', 'Failed to export bookings report.');
-      }
+      setShowExportModal(true);
     } else {
       Alert.alert(
         'Access Denied',
         "You don't have permission to export reports."
+      );
+    }
+  };
+
+  const handleExportConfirm = async (filters: ExportFilter) => {
+    try {
+      await exportBookings(bookings, filters);
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert(
+        'Export Failed',
+        'Failed to export bookings. Please try again.'
       );
     }
   };
@@ -218,15 +218,6 @@ export default function BookingsScreen() {
               >
                 <Download size={18} color={colors.primary} />
               </TouchableOpacity>
-            )}
-            {canCreateBookings() && (
-              <Button
-                title={isSmallScreen ? 'New' : 'New Booking'}
-                variant='primary'
-                size={isTablet ? 'medium' : 'small'}
-                icon={<Plus size={isTablet ? 18 : 16} color='#FFFFFF' />}
-                onPress={handleNewBooking}
-              />
             )}
           </View>
         ),
@@ -513,6 +504,24 @@ export default function BookingsScreen() {
           setSortOrder(order);
         }}
         onClearAll={clearFilters}
+      />
+
+      <ExportModal
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportConfirm}
+        title='Export Bookings'
+        description='Select filters and file type to export booking data'
+        roleOptions={[
+          { value: 'all', label: 'All Bookings' },
+          { value: 'confirmed', label: 'Confirmed' },
+          { value: 'pending', label: 'Pending' },
+          { value: 'cancelled', label: 'Cancelled' },
+          { value: 'completed', label: 'Completed' },
+        ]}
+        showRoleFilter={true}
+        showDateFilter={true}
+        fileTypes={['excel', 'pdf', 'csv']}
       />
     </>
   );

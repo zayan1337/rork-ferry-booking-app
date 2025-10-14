@@ -339,6 +339,10 @@ export default function UserForm({
                 autoCapitalize='none'
                 error={validationErrors.email || getFieldError('email')}
                 required
+                editable={!userId}
+                description={
+                  userId ? 'Email cannot be changed after creation' : undefined
+                }
               />
             </View>
 

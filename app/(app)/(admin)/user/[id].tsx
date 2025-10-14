@@ -26,6 +26,7 @@ import {
   Ship,
   Calendar,
   DollarSign,
+  Edit,
 } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
 
@@ -312,6 +313,11 @@ export default function UserDetailsPage() {
     router.push(`../routes?captain=${user.id}` as any);
   };
 
+  const handleEdit = () => {
+    if (!user) return;
+    router.push(`./${user.id}/edit` as any);
+  };
+
   // Calculate user statistics based on role
   const userStats = useMemo(() => {
     if (!user) return null;
@@ -468,13 +474,21 @@ export default function UserDetailsPage() {
             ),
             headerRight: () => (
               <View style={styles.headerActions}>
-                {canUpdateUsers() && (
-                  <TouchableOpacity
-                    onPress={handleStatusChange}
-                    style={styles.headerActionButton}
-                  >
-                    <Shield size={20} color={colors.primary} />
-                  </TouchableOpacity>
+                {canUpdateUsers() && user?.role !== 'passenger' && (
+                  <>
+                    <TouchableOpacity
+                      onPress={handleEdit}
+                      style={styles.headerActionButton}
+                    >
+                      <Edit size={20} color={colors.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleStatusChange}
+                      style={styles.headerActionButton}
+                    >
+                      <Shield size={20} color={colors.primary} />
+                    </TouchableOpacity>
+                  </>
                 )}
               </View>
             ),
@@ -641,7 +655,7 @@ export default function UserDetailsPage() {
 
           {/* Status Management */}
           <View style={styles.actionsContainer}>
-            {canUpdateUsers() && (
+            {canUpdateUsers() && user?.role !== 'passenger' && (
               <Button
                 title='Manage Status'
                 onPress={handleStatusChange}

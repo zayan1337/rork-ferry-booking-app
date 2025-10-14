@@ -10,6 +10,10 @@ export {
   SelectionSummary,
 } from './SelectionControls';
 
+// Export modal for data export functionality
+export { default as ExportModal } from '../ExportModal';
+
 // Export types for better TypeScript support
 export type { TabOption } from './TabSelector';
 export type { ActionBarAction } from './ActionBar';
+export type { ExportFilter, FileType } from '../ExportModal';

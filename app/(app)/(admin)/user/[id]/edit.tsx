@@ -4,7 +4,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { UserForm } from '@/components/admin/users';
 import { UserProfile, UserFormData } from '@/types/userManagement';
-import { useAdminStore } from '@/store/admin/adminStore';
+import { useUserStore } from '@/store/admin/userStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import RoleGuard from '@/components/RoleGuard';
 import EmptyState from '@/components/admin/EmptyState';
@@ -12,7 +12,7 @@ import { AlertTriangle } from 'lucide-react-native';
 
 export default function EditUserPage() {
   const { id } = useLocalSearchParams();
-  const { users, getUser, updateUser } = useAdminStore();
+  const { fetchById, update } = useUserStore();
   const { canUpdateUsers } = useAdminPermissions();
 
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -20,7 +20,7 @@ export default function EditUserPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadUser = () => {
+    const loadUser = async () => {
       try {
         setLoading(true);
         setError(null);
@@ -30,19 +30,15 @@ export default function EditUserPage() {
           return;
         }
 
-        // Ensure users array is available
-        if (!users || !Array.isArray(users)) {
-          setError('Users data not available');
-          return;
-        }
+        // Fetch user directly from database
+        const fetchedUser = await fetchById(id);
 
-        const foundUser = getUser(id);
-        if (!foundUser) {
+        if (!fetchedUser) {
           setError('User not found');
           return;
         }
 
-        setUser(foundUser);
+        setUser(fetchedUser);
       } catch (err) {
         setError('Failed to load user details');
         console.error('Error loading user:', err);
@@ -52,13 +48,13 @@ export default function EditUserPage() {
     };
 
     loadUser();
-  }, [id, users, getUser]);
+  }, [id, fetchById]);
 
   const handleSave = async (userData: UserFormData) => {
     if (!user) return;
 
     try {
-      await updateUser(user.id, userData);
+      await update(user.id, userData);
       Alert.alert('Success', 'User updated successfully!', [
         {
           text: 'OK',

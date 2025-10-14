@@ -19,6 +19,8 @@ import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import UserItem from '@/components/admin/UserItem';
 import EmptyState from '@/components/admin/EmptyState';
 import { UserProfile } from '@/types/userManagement';
+import ExportModal, { type ExportFilter } from '@/components/admin/ExportModal';
+import { exportUsers } from '@/utils/userExportUtils';
 
 // Users Components
 import {
@@ -95,6 +97,7 @@ export default function UsersScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview');
 
@@ -187,14 +190,9 @@ export default function UsersScreen() {
     }
   }, [canCreateUsers]);
 
-  const handleExport = useCallback(async () => {
+  const handleExport = useCallback(() => {
     if (canExportReports()) {
-      try {
-        // TODO: Implement export functionality
-        Alert.alert('Success', 'Users report exported successfully.');
-      } catch (error) {
-        Alert.alert('Error', 'Failed to export users report.');
-      }
+      setShowExportModal(true);
     } else {
       Alert.alert(
         'Access Denied',
@@ -202,6 +200,23 @@ export default function UsersScreen() {
       );
     }
   }, [canExportReports]);
+
+  const handleExportConfirm = useCallback(
+    async (filters: ExportFilter) => {
+      try {
+        // Use all users or filtered users based on current view
+        const usersToExport = users;
+        await exportUsers(usersToExport, filters);
+      } catch (error) {
+        console.error('Export error:', error);
+        Alert.alert(
+          'Export Failed',
+          'Failed to export users. Please try again.'
+        );
+      }
+    },
+    [users]
+  );
 
   const handleBulkStatusUpdate = async (status: string) => {
     if (!canUpdateUsers()) {
@@ -692,6 +707,25 @@ export default function UsersScreen() {
           setSortOrder(order);
         }}
         onClearAll={clearAllFilters}
+      />
+
+      <ExportModal
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportConfirm}
+        title='Export Users'
+        description='Select filters and file type to export user data'
+        roleOptions={[
+          { value: 'all', label: 'All Users' },
+          { value: 'admin', label: 'Admins' },
+          { value: 'agent', label: 'Agents' },
+          { value: 'customer', label: 'Customers' },
+          { value: 'passenger', label: 'Passengers' },
+          { value: 'captain', label: 'Captains' },
+        ]}
+        showRoleFilter={true}
+        showDateFilter={true}
+        fileTypes={['excel', 'pdf', 'csv']}
       />
     </>
   );

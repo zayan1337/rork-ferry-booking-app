@@ -30,11 +30,7 @@
       },
       "package": "com.fies.crystaltransfervaavu",
       "versionCode": 4,
-      "permissions": [
-        "INTERNET",
-        "ACCESS_NETWORK_STATE",
-        "CAMERA"
-      ]
+      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE", "CAMERA"]
     },
     "web": {
       "favicon": "./assets/images/favicon.png",
@@ -56,10 +52,6 @@
       }
     },
     "owner": "fi-essystems",
-    "plugins": [
-      "expo-router",
-      "expo-font",
-      "expo-web-browser"
-    ]
+    "plugins": ["expo-router", "expo-font", "expo-web-browser"]
   }
 }
