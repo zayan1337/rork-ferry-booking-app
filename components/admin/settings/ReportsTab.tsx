@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, Text } from 'react-native';
+import { View, Pressable, Text } from 'react-native';
 import { Activity, Users, Server, Shield, Download } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { ActivityLog as AdminActivityLog } from '@/types/admin';
@@ -53,7 +53,7 @@ export default function ReportsTab({
 
       <View style={styles.reportsList}>
         {reportTypes.map((report, index) => (
-          <TouchableOpacity
+          <Pressable
             key={index}
             style={styles.reportItem}
             onPress={report.action}
@@ -64,7 +64,7 @@ export default function ReportsTab({
               <Text style={styles.reportDescription}>{report.description}</Text>
             </View>
             <Download size={20} color={colors.primary} />
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
     </View>

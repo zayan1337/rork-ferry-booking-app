@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import {
   CreditCard,
@@ -33,51 +33,51 @@ export default function QuickActions({
       />
       <View style={styles.quickActionsGrid}>
         {canViewBookings && (
-          <TouchableOpacity
+          <Pressable
             style={styles.quickActionItem}
             onPress={() => onActionPress('new_booking')}
           >
             <CreditCard size={24} color={colors.primary} />
             <Text style={styles.quickActionText}>New Booking</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
 
-        <TouchableOpacity
+        <Pressable
           style={styles.quickActionItem}
           onPress={() => onActionPress('operations')}
         >
           <Ship size={24} color={colors.secondary} />
           <Text style={styles.quickActionText}>Operations</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         {canViewUsers && (
-          <TouchableOpacity
+          <Pressable
             style={styles.quickActionItem}
             onPress={() => onActionPress('users')}
           >
             <Users size={24} color='#34C759' />
             <Text style={styles.quickActionText}>User Management</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
 
         {canViewWallets && (
-          <TouchableOpacity
+          <Pressable
             style={styles.quickActionItem}
             onPress={() => onActionPress('finance')}
           >
             <DollarSign size={24} color='#FF9500' />
             <Text style={styles.quickActionText}>Finance</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
 
         {canViewNotifications && (
-          <TouchableOpacity
+          <Pressable
             style={styles.quickActionItem}
             onPress={() => onActionPress('communications')}
           >
             <MessageSquare size={24} color='#FF3B30' />
             <Text style={styles.quickActionText}>Communications</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     </View>

@@ -3,7 +3,7 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   Text,
 } from 'react-native';
@@ -113,12 +113,12 @@ export default function EditIslandScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -150,12 +150,12 @@ export default function EditIslandScreen() {
           options={{
             title: 'Loading...',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -174,12 +174,12 @@ export default function EditIslandScreen() {
           options={{
             title: 'Error',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -214,12 +214,12 @@ export default function EditIslandScreen() {
           options={{
             title: 'Island Not Found',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -247,12 +247,9 @@ export default function EditIslandScreen() {
         options={{
           title: `Edit ${island.name}`,
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />

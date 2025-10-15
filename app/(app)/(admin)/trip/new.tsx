@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
 import {
   Stack,
   router,
@@ -76,12 +76,9 @@ export default function NewTripPage() {
           },
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />

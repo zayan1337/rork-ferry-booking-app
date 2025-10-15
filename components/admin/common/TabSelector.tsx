@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, Text, Pressable, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 
 export interface TabOption {
@@ -71,7 +71,7 @@ export default function TabSelector({
         const IconComponent = option.icon;
 
         return (
-          <TouchableOpacity
+          <Pressable
             key={option.key}
             style={getTabItemStyle(isActive)}
             onPress={() => onTabChange(option.key)}
@@ -87,7 +87,7 @@ export default function TabSelector({
             {showCounts && option.count !== undefined && (
               <Text style={getCountStyle(isActive)}>{option.count}</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </ScrollView>

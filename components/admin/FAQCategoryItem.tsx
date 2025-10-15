@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { FAQCategory } from '@/types/admin/management';
 import {
@@ -84,10 +78,9 @@ const FAQCategoryItem: React.FC<FAQCategoryItemProps> = ({
   const categoryColor = getCategoryColor(category.name);
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={[styles.container, isTablet && styles.containerTablet]}
       onPress={handlePress}
-      activeOpacity={0.7}
     >
       <View style={styles.content}>
         {/* Header */}
@@ -143,30 +136,30 @@ const FAQCategoryItem: React.FC<FAQCategoryItemProps> = ({
           {showActions && (
             <View style={styles.actions}>
               {onEdit && (
-                <TouchableOpacity
+                <Pressable
                   style={styles.actionButton}
                   onPress={handleEdit}
                   hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
                 >
                   <Edit size={16} color={colors.primary} />
-                </TouchableOpacity>
+                </Pressable>
               )}
               {onDelete && (
-                <TouchableOpacity
+                <Pressable
                   style={styles.actionButton}
                   onPress={handleDelete}
                   hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
                 >
                   <Trash2 size={16} color={colors.error} />
-                </TouchableOpacity>
+                </Pressable>
               )}
-              <TouchableOpacity
+              <Pressable
                 style={styles.actionButton}
                 onPress={handlePress}
                 hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
               >
                 <MoreHorizontal size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           )}
         </View>
@@ -209,7 +202,7 @@ const FAQCategoryItem: React.FC<FAQCategoryItemProps> = ({
 
       {/* Highlight bar */}
       <View style={[styles.highlightBar, { backgroundColor: categoryColor }]} />
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -215,7 +215,7 @@ export default function WalletCreationForm() {
   };
 
   const renderUserOption = ({ item }: { item: UserOption }) => (
-    <TouchableOpacity
+    <Pressable
       style={[
         styles.userOption,
         item.existing_wallet && styles.userOptionDisabled,
@@ -247,7 +247,7 @@ export default function WalletCreationForm() {
         </View>
       </View>
       {!item.existing_wallet && <Check size={20} color={colors.success} />}
-    </TouchableOpacity>
+    </Pressable>
   );
 
   return (
@@ -284,9 +284,9 @@ export default function WalletCreationForm() {
                 <ActivityIndicator size='small' color={colors.primary} />
               )}
               {selectedUser && (
-                <TouchableOpacity onPress={handleClearUser}>
+                <Pressable onPress={handleClearUser}>
                   <X size={20} color={colors.danger} />
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
             {errors.user_id && (
@@ -364,7 +364,7 @@ export default function WalletCreationForm() {
           </Text>
           <View style={styles.currencyContainer}>
             {currencies.map(currency => (
-              <TouchableOpacity
+              <Pressable
                 key={currency}
                 style={[
                   styles.currencyButton,
@@ -381,7 +381,7 @@ export default function WalletCreationForm() {
                 >
                   {currency}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
           {errors.currency && (
@@ -407,16 +407,16 @@ export default function WalletCreationForm() {
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
+          <Pressable
             style={styles.cancelButton}
             onPress={handleCancel}
             disabled={isSubmitting}
           >
             <X size={20} color={colors.textSecondary} />
             <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.submitButton,
               isSubmitting && styles.submitButtonDisabled,
@@ -432,7 +432,7 @@ export default function WalletCreationForm() {
                 <Text style={styles.submitButtonText}>Create Wallet</Text>
               </>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </ScrollView>

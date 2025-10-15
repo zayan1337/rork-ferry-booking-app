@@ -3,7 +3,7 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Text,
   Alert,
 } from 'react-native';
@@ -55,12 +55,12 @@ export default function NewUserScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -88,12 +88,9 @@ export default function NewUserScreen() {
         options={{
           title: 'Create User',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />

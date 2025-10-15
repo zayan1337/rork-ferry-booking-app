@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
@@ -170,7 +170,7 @@ export default function VesselsTab({
       <View style={styles.itemsList}>
         {displayVessels.length > 0 ? (
           displayVessels.map((vessel: any, index: number) => (
-            <TouchableOpacity
+            <Pressable
               key={`vessel-${vessel.id}-${index}`}
               style={styles.vesselItem}
               onPress={() => handleVesselPress(vessel.id)}
@@ -212,7 +212,7 @@ export default function VesselsTab({
                   </Text>
                 </View>
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -228,13 +228,10 @@ export default function VesselsTab({
       </View>
 
       {/* View All Button */}
-      <TouchableOpacity
-        style={styles.viewAllButton}
-        onPress={handleViewAllVessels}
-      >
+      <Pressable style={styles.viewAllButton} onPress={handleViewAllVessels}>
         <Text style={styles.viewAllText}>View All Vessels</Text>
         <Eye size={16} color={colors.primary} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

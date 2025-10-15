@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { BarChart, Users } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 
@@ -30,7 +30,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
   return (
     <View style={styles.tabContainer}>
       {tabs.map(tab => (
-        <TouchableOpacity
+        <Pressable
           key={tab.key}
           style={[styles.tab, activeTab === tab.key && styles.tabActive]}
           onPress={() => onTabChange(tab.key)}
@@ -44,7 +44,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
           >
             {tab.label}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       ))}
     </View>
   );

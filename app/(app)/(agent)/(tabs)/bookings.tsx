@@ -4,7 +4,7 @@ import {
   Text,
   View,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   RefreshControl,
   Dimensions,
@@ -228,18 +228,12 @@ export default function AgentBookingsScreen() {
               style={styles.searchIcon}
             />
           </View>
-          <TouchableOpacity
-            style={styles.sortButton}
-            onPress={handleSortChange}
-          >
+          <Pressable style={styles.sortButton} onPress={handleSortChange}>
             <SortAsc size={20} color={Colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.newBookingButton}
-            onPress={handleNewBooking}
-          >
+          </Pressable>
+          <Pressable style={styles.newBookingButton} onPress={handleNewBooking}>
             <Plus size={20} color='white' />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Stats Summary */}
@@ -273,7 +267,7 @@ export default function AgentBookingsScreen() {
           contentContainerStyle={styles.tabsContent}
         >
           {tabs.map(tab => (
-            <TouchableOpacity
+            <Pressable
               key={tab.key}
               style={[styles.tab, activeTab === tab.key && styles.activeTab]}
               onPress={() => setActiveTab(tab.key as any)}
@@ -301,7 +295,7 @@ export default function AgentBookingsScreen() {
                   {tab.count}
                 </Text>
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </ScrollView>
 

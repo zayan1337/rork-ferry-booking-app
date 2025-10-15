@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   RefreshControl,
   Dimensions,
@@ -206,7 +206,7 @@ export default function RoutesScreen() {
       {/* Controls Row */}
       <View style={styles.controlsRow}>
         <View style={styles.controlsLeft}>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.controlButton,
               showFilters && styles.controlButtonActive,
@@ -225,11 +225,11 @@ export default function RoutesScreen() {
             >
               Filters
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.sortControl}>
             <Text style={styles.sortLabel}>Sort:</Text>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'name' && styles.sortButtonActive,
@@ -250,8 +250,8 @@ export default function RoutesScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'base_fare' && styles.sortButtonActive,
@@ -272,8 +272,8 @@ export default function RoutesScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'total_revenue_30d' && styles.sortButtonActive,
@@ -294,7 +294,7 @@ export default function RoutesScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -311,7 +311,7 @@ export default function RoutesScreen() {
         <View style={styles.filtersSection}>
           <Text style={styles.filterSectionTitle}>Filter by Status</Text>
           <View style={styles.filterRow}>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === null && styles.filterChipActive,
@@ -326,8 +326,8 @@ export default function RoutesScreen() {
               >
                 All Routes
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'active' && styles.filterChipActive,
@@ -342,8 +342,8 @@ export default function RoutesScreen() {
               >
                 Active Only
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'inactive' && styles.filterChipActive,
@@ -358,7 +358,7 @@ export default function RoutesScreen() {
               >
                 Inactive Only
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       )}
@@ -402,12 +402,12 @@ export default function RoutesScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -435,12 +435,9 @@ export default function RoutesScreen() {
         options={{
           title: 'Routes',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -474,13 +471,9 @@ export default function RoutesScreen() {
 
       {/* Floating Add Button */}
       {canManageRoutes() && filteredAndSortedRoutes.length > 0 && (
-        <TouchableOpacity
-          style={styles.floatingButton}
-          onPress={handleAddRoute}
-          activeOpacity={0.8}
-        >
+        <Pressable style={styles.floatingButton} onPress={handleAddRoute}>
           <Plus size={24} color={colors.white} />
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );

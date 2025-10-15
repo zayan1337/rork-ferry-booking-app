@@ -5,7 +5,7 @@ import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   Alert,
   Modal,
@@ -625,7 +625,7 @@ export default function UserPermissionsScreen() {
         options={{
           title: `Permissions - ${currentUser.full_name}`,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => {
                 if (hasUnsavedChanges) {
                   Alert.alert(
@@ -647,19 +647,19 @@ export default function UserPermissionsScreen() {
               style={styles.backButton}
             >
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
           headerRight: () => (
             <View style={styles.headerActions}>
               {hasUnsavedChanges ? (
                 <>
-                  <TouchableOpacity
+                  <Pressable
                     onPress={handleReset}
                     style={styles.headerResetButton}
                   >
                     <RotateCcw size={12} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
+                  </Pressable>
+                  <Pressable
                     onPress={handleSave}
                     style={styles.headerSaveButton}
                     disabled={localLoading}
@@ -669,12 +669,12 @@ export default function UserPermissionsScreen() {
                     ) : (
                       <Save size={12} color='white' />
                     )}
-                  </TouchableOpacity>
+                  </Pressable>
                 </>
               ) : (
-                <TouchableOpacity style={styles.headerSavedButton} disabled>
+                <Pressable style={styles.headerSavedButton} disabled>
                   <Save size={12} color={colors.success} />
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           ),
@@ -762,25 +762,25 @@ export default function UserPermissionsScreen() {
         {/* Action Bar */}
         <View style={styles.actionBar}>
           <View style={styles.actionBarLeft}>
-            <TouchableOpacity
+            <Pressable
               style={styles.outlineButton}
               onPress={() => setShowRoleTemplates(true)}
             >
               <Copy size={16} color={colors.primary} />
               <Text style={styles.outlineButtonText}>Templates</Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
+            <Pressable
               style={styles.outlineButton}
               onPress={() => setShowBulkActions(true)}
             >
               <Plus size={16} color={colors.primary} />
               <Text style={styles.outlineButtonText}>Bulk Actions</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <View style={styles.actionBarRight}>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.outlineButton,
                 filterLevel && styles.outlineButtonActive,
@@ -807,7 +807,7 @@ export default function UserPermissionsScreen() {
               >
                 {filterLevel ? filterLevel.toUpperCase() : 'All Levels'}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -827,7 +827,7 @@ export default function UserPermissionsScreen() {
             style={styles.categorySelector}
             showsHorizontalScrollIndicator={false}
           >
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.categoryTab,
                 !selectedCategory && styles.categoryTabActive,
@@ -848,9 +848,9 @@ export default function UserPermissionsScreen() {
               >
                 All
               </Text>
-            </TouchableOpacity>
+            </Pressable>
             {categories.map(category => (
-              <TouchableOpacity
+              <Pressable
                 key={category.id}
                 style={[
                   styles.categoryTab,
@@ -879,7 +879,7 @@ export default function UserPermissionsScreen() {
                 >
                   {category.name}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </ScrollView>
         </View>
@@ -896,7 +896,7 @@ export default function UserPermissionsScreen() {
             {filteredPermissionGroups.map(
               ({ category, permissions: categoryPermissions }) => (
                 <View key={category.id} style={styles.categorySection}>
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.categoryHeader}
                     onPress={() => toggleCategoryExpansion(category.id)}
                   >
@@ -926,13 +926,13 @@ export default function UserPermissionsScreen() {
                         <ChevronRight size={20} color={colors.textSecondary} />
                       )}
                     </View>
-                  </TouchableOpacity>
+                  </Pressable>
 
                   {expandedCategories.has(category.id) && (
                     <View style={styles.permissionsList}>
                       {categoryPermissions.map(permission => (
                         <View key={permission.id} style={styles.permissionRow}>
-                          <TouchableOpacity
+                          <Pressable
                             style={[
                               styles.permissionItem,
                               currentUserPermissions.includes(permission.id) &&
@@ -1029,7 +1029,7 @@ export default function UserPermissionsScreen() {
                                   )}
                               </View>
                             </View>
-                          </TouchableOpacity>
+                          </Pressable>
                         </View>
                       ))}
                     </View>
@@ -1052,14 +1052,14 @@ export default function UserPermissionsScreen() {
           <View style={styles.modal}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Role Templates</Text>
-              <TouchableOpacity onPress={() => setShowRoleTemplates(false)}>
+              <Pressable onPress={() => setShowRoleTemplates(false)}>
                 <X size={24} color={colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <ScrollView style={styles.modalContent}>
               {roleTemplates.map(template => (
-                <TouchableOpacity
+                <Pressable
                   key={template.id}
                   style={styles.templateItem}
                   onPress={() => handleApplyRoleTemplate(template)}
@@ -1089,7 +1089,7 @@ export default function UserPermissionsScreen() {
                       <Text style={styles.templateActionText}>Apply</Text>
                     )}
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </ScrollView>
           </View>
@@ -1107,13 +1107,13 @@ export default function UserPermissionsScreen() {
           <View style={styles.modal}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Bulk Actions</Text>
-              <TouchableOpacity onPress={() => setShowBulkActions(false)}>
+              <Pressable onPress={() => setShowBulkActions(false)}>
                 <X size={24} color={colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalContent}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.bulkActionItem}
                 onPress={() => handleBulkAction('select_all')}
               >
@@ -1126,9 +1126,9 @@ export default function UserPermissionsScreen() {
                     Apply all available permissions
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={styles.bulkActionItem}
                 onPress={() => handleBulkAction('deselect_all')}
               >
@@ -1141,10 +1141,10 @@ export default function UserPermissionsScreen() {
                     Remove all permissions
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
 
               {selectedCategory && (
-                <TouchableOpacity
+                <Pressable
                   style={styles.bulkActionItem}
                   onPress={() => handleBulkAction('select_category')}
                 >
@@ -1157,7 +1157,7 @@ export default function UserPermissionsScreen() {
                       Apply current category only
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           </View>

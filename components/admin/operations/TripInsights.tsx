@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminManagement } from '@/types';
 import {
@@ -173,12 +167,12 @@ export default function TripInsights({
                       {getRouteName(route)}
                     </Text>
                     {canManage && onCreateTripForRoute && (
-                      <TouchableOpacity
+                      <Pressable
                         style={styles.actionButton}
                         onPress={() => onCreateTripForRoute(getRouteId(route))}
                       >
                         <Plus size={12} color={colors.primary} />
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
                   </View>
                 ))}
@@ -217,14 +211,14 @@ export default function TripInsights({
                       {getVesselCapacity(vessel)} seats
                     </Text>
                     {canManage && onCreateTripForVessel && (
-                      <TouchableOpacity
+                      <Pressable
                         style={styles.actionButton}
                         onPress={() =>
                           onCreateTripForVessel(getVesselId(vessel))
                         }
                       >
                         <Plus size={12} color={colors.primary} />
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
                   </View>
                 ))}
@@ -259,12 +253,12 @@ export default function TripInsights({
                       {getRouteName(route)}
                     </Text>
                     {canManage && onCreateTripForRoute && (
-                      <TouchableOpacity
+                      <Pressable
                         style={styles.actionButton}
                         onPress={() => onCreateTripForRoute(getRouteId(route))}
                       >
                         <Plus size={12} color={colors.primary} />
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
                   </View>
                 ))}
@@ -288,13 +282,13 @@ export default function TripInsights({
                 Create trips for multiple routes and vessels
               </Text>
 
-              <TouchableOpacity
+              <Pressable
                 style={styles.generateButton}
                 onPress={onGenerateTrips}
               >
                 <Zap size={14} color={colors.white} />
                 <Text style={styles.generateButtonText}>Generate Trips</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           )}
         </View>

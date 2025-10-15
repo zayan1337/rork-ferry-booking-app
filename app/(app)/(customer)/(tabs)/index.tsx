@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Image,
   RefreshControl,
   Modal,
@@ -27,10 +27,10 @@ import { useRouteStore, useUserBookingsStore } from '@/store';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 import { useQuickBooking } from '@/hooks/useQuickBooking';
 import { useModalState } from '@/hooks/useModalState';
 import {
-  generateDateOptions,
   formatDisplayDate,
   getUniqueIslandNames,
   filterRoutesByDepartureIsland,
@@ -155,12 +155,12 @@ export default function HomeScreen() {
           <Text style={styles.welcomeText}>Welcome back,</Text>
           <Text style={styles.userName}>{user?.profile?.full_name}</Text>
         </View>
-        <TouchableOpacity
+        <Pressable
           style={styles.searchButton}
           onPress={() => router.push('/validate-ticket')}
         >
           <Search size={20} color={Colors.text} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Quick Booking Card */}
@@ -170,7 +170,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.bookingForm}>
-          <TouchableOpacity
+          <Pressable
             style={styles.formRow}
             onPress={() => openModal('showFromModal')}
           >
@@ -189,13 +189,13 @@ export default function HomeScreen() {
                   'Select departure island'}
               </Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.formDivider}>
             <ArrowRight size={16} color={Colors.textSecondary} />
           </View>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.formRow}
             onPress={() => {
               if (!quickBookingState.selectedFromIsland) {
@@ -219,14 +219,14 @@ export default function HomeScreen() {
                 {quickBookingState.selectedToIsland ||
                   (quickBookingState.selectedFromIsland
                     ? 'Select destination island'
-                    : 'Select departure island first')}
+                    : 'Please select departure island first')}
               </Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.formDivider} />
 
-          <TouchableOpacity
+          <Pressable
             style={styles.formRow}
             onPress={() => openModal('showDateModal')}
           >
@@ -246,7 +246,7 @@ export default function HomeScreen() {
                   : 'Select travel date'}
               </Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Error message display */}
@@ -274,17 +274,17 @@ export default function HomeScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Departure Island</Text>
-            <TouchableOpacity
+            <Pressable
               style={styles.modalCloseButton}
               onPress={() => closeModal('showFromModal')}
             >
               <X size={24} color={Colors.text} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <ScrollView style={styles.modalContent}>
             {fromIslands.map((island: string) => (
-              <TouchableOpacity
+              <Pressable
                 key={island}
                 style={[
                   styles.islandOption,
@@ -297,7 +297,7 @@ export default function HomeScreen() {
                 }}
               >
                 <Text style={styles.islandText}>{island}</Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </ScrollView>
         </SafeAreaView>
@@ -312,17 +312,17 @@ export default function HomeScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Destination Island</Text>
-            <TouchableOpacity
+            <Pressable
               style={styles.modalCloseButton}
               onPress={() => closeModal('showToModal')}
             >
               <X size={24} color={Colors.text} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <ScrollView style={styles.modalContent}>
             {toIslands.map((island: string) => (
-              <TouchableOpacity
+              <Pressable
                 key={island}
                 style={[
                   styles.islandOption,
@@ -335,73 +335,39 @@ export default function HomeScreen() {
                 }}
               >
                 <Text style={styles.islandText}>{island}</Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </ScrollView>
         </SafeAreaView>
       </Modal>
 
-      {/* Date Selection Modal */}
-      <Modal
+      {/* Date Selection Calendar */}
+      <CalendarDatePicker
+        hideInput={true}
         visible={modalStates.showDateModal}
-        animationType='slide'
-        presentationStyle='pageSheet'
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Date</Text>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => closeModal('showDateModal')}
-            >
-              <X size={24} color={Colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            {generateDateOptions().map(date => (
-              <TouchableOpacity
-                key={date.dateString}
-                style={[
-                  styles.dateOption,
-                  quickBookingState.selectedDate === date.dateString &&
-                    styles.dateOptionSelected,
-                ]}
-                onPress={() => {
-                  updateField('selectedDate', date.dateString);
-                  closeModal('showDateModal');
-                }}
-              >
-                <View style={styles.dateInfo}>
-                  <Text style={styles.dateText}>
-                    {date.dayName}, {date.day} {date.month} {date.year}
-                  </Text>
-                  {(date.isToday || date.isTomorrow) && (
-                    <Text style={styles.dateSubText}>
-                      {date.isToday ? 'Today' : 'Tomorrow'}
-                    </Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+        value={quickBookingState.selectedDate || ''}
+        onChange={date => {
+          updateField('selectedDate', date);
+          closeModal('showDateModal');
+        }}
+        onClose={() => closeModal('showDateModal')}
+        minDate={new Date().toISOString().split('T')[0]}
+        placeholder='Select travel date'
+      />
 
       {/* Upcoming Trips Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Upcoming Trips</Text>
-        <TouchableOpacity onPress={() => router.push('/bookings')}>
+        <Pressable onPress={() => router.push('/bookings')}>
           <Text style={styles.sectionLink}>View All</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {upcomingBookings.length > 0 ? (
         upcomingBookings.map(booking => (
-          <TouchableOpacity
+          <Pressable
             key={booking.id}
             onPress={() => handleViewBooking(booking.id)}
-            activeOpacity={0.7}
           >
             <Card variant='elevated' style={styles.tripCard}>
               <View style={styles.tripHeader}>
@@ -474,7 +440,7 @@ export default function HomeScreen() {
                 />
               </View>
             </Card>
-          </TouchableOpacity>
+          </Pressable>
         ))
       ) : (
         <Card variant='outlined' style={styles.emptyCard}>
@@ -495,7 +461,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.quickActionsGrid}>
-        <TouchableOpacity
+        <Pressable
           style={styles.quickActionCard}
           onPress={() => router.push('/validate-ticket')}
         >
@@ -505,9 +471,9 @@ export default function HomeScreen() {
             <Ticket size={24} color={Colors.primary} />
           </View>
           <Text style={styles.quickActionText}>Validate Ticket</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.quickActionCard}
           onPress={() => router.push('/bookings')}
         >
@@ -517,9 +483,9 @@ export default function HomeScreen() {
             <Clock size={24} color='#2ecc71' />
           </View>
           <Text style={styles.quickActionText}>My Bookings</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.quickActionCard}
           onPress={handleVesselTracking}
         >
@@ -529,9 +495,9 @@ export default function HomeScreen() {
             <Ship size={24} color='#9c27b0' />
           </View>
           <Text style={styles.quickActionText}>Track Vessel</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.quickActionCard}
           onPress={() => router.push('/support')}
         >
@@ -541,7 +507,7 @@ export default function HomeScreen() {
             <LifeBuoy size={24} color='#f39c12' />
           </View>
           <Text style={styles.quickActionText}>Support</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Featured Image */}
@@ -853,32 +819,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-  },
-  dateOption: {
-    padding: 16,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  dateOptionSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.highlight,
-  },
-  dateInfo: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  dateText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  dateSubText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.primary,
   },
   errorContainer: {
     marginTop: 4,

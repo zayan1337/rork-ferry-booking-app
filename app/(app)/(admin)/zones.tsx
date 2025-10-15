@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   RefreshControl,
   Dimensions,
@@ -211,7 +211,7 @@ export default function ZonesScreen() {
       {/* Controls Row */}
       <View style={styles.controlsRow}>
         <View style={styles.controlsLeft}>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.controlButton,
               showFilters && styles.controlButtonActive,
@@ -230,11 +230,11 @@ export default function ZonesScreen() {
             >
               Filters
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.sortControl}>
             <Text style={styles.sortLabel}>Sort:</Text>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'name' && styles.sortButtonActive,
@@ -255,8 +255,8 @@ export default function ZonesScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'code' && styles.sortButtonActive,
@@ -277,8 +277,8 @@ export default function ZonesScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'order_index' && styles.sortButtonActive,
@@ -299,7 +299,7 @@ export default function ZonesScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -316,7 +316,7 @@ export default function ZonesScreen() {
         <View style={styles.filtersSection}>
           <Text style={styles.filterSectionTitle}>Filter by Status</Text>
           <View style={styles.filterRow}>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === null && styles.filterChipActive,
@@ -331,8 +331,8 @@ export default function ZonesScreen() {
               >
                 All Zones
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === true && styles.filterChipActive,
@@ -347,8 +347,8 @@ export default function ZonesScreen() {
               >
                 Active Only
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === false && styles.filterChipActive,
@@ -363,7 +363,7 @@ export default function ZonesScreen() {
               >
                 Inactive Only
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       )}
@@ -407,12 +407,12 @@ export default function ZonesScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -440,12 +440,9 @@ export default function ZonesScreen() {
         options={{
           title: 'Zones',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -479,13 +476,9 @@ export default function ZonesScreen() {
 
       {/* Floating Add Button */}
       {canManageSettings() && filteredAndSortedZones.length > 0 && (
-        <TouchableOpacity
-          style={styles.floatingButton}
-          onPress={handleAddZone}
-          activeOpacity={0.8}
-        >
+        <Pressable style={styles.floatingButton} onPress={handleAddZone}>
           <Plus size={24} color={colors.white} />
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );

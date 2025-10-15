@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   Alert,
   RefreshControl,
@@ -290,7 +290,7 @@ const ContentTab: React.FC<ContentTabProps> = ({
 
       {/* Tab Toggle */}
       <View style={styles.tabToggleContainer}>
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.tabToggle,
             activeTab === 'terms' && styles.tabToggleActive,
@@ -311,9 +311,9 @@ const ContentTab: React.FC<ContentTabProps> = ({
           >
             Terms & Conditions ({filteredTerms.length})
           </Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.tabToggle,
             activeTab === 'promotions' && styles.tabToggleActive,
@@ -334,7 +334,7 @@ const ContentTab: React.FC<ContentTabProps> = ({
           >
             Promotions ({filteredPromotions.length})
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
@@ -399,12 +399,12 @@ const ContentTab: React.FC<ContentTabProps> = ({
           Showing {previewItems.length} of {currentData.length}{' '}
           {activeTab === 'terms' ? 'terms & conditions' : 'promotions'}
         </Text>
-        <TouchableOpacity style={styles.viewAllButton} onPress={handleViewAll}>
+        <Pressable style={styles.viewAllButton} onPress={handleViewAll}>
           <Text style={styles.viewAllText}>
             View All {activeTab === 'terms' ? 'Terms' : 'Promotions'}
           </Text>
           <Eye size={16} color={colors.primary} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   };

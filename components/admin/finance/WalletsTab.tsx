@@ -1,5 +1,5 @@
 import React, { useState, useMemo, memo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useFinanceStore } from '@/store/admin/financeStore';
@@ -142,7 +142,7 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
             const isAgent = wallet.user_role === 'agent';
 
             return (
-              <TouchableOpacity
+              <Pressable
                 key={`wallet-${wallet.id}-${index}`}
                 style={styles.walletItem}
                 onPress={() => handleWalletPress(wallet.id)}
@@ -222,7 +222,7 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
                     </Text>
                   </View>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             );
           })
         ) : (
@@ -239,13 +239,10 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
       </View>
 
       {/* View All Button */}
-      <TouchableOpacity
-        style={styles.viewAllButton}
-        onPress={handleViewAllWallets}
-      >
+      <Pressable style={styles.viewAllButton} onPress={handleViewAllWallets}>
         <Text style={styles.viewAllText}>View All Wallets</Text>
         <Eye size={16} color={colors.primary} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

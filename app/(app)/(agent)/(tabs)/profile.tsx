@@ -3,7 +3,7 @@ import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ScrollView,
   RefreshControl,
@@ -329,7 +329,7 @@ export default function AgentProfileScreen() {
 
       <Card variant='outlined' style={styles.detailsCard}>
         <View style={styles.detailsGrid}>
-          <TouchableOpacity
+          <Pressable
             style={styles.detailItem}
             onPress={() => openEditModal('name')}
           >
@@ -339,7 +339,7 @@ export default function AgentProfileScreen() {
               <Text style={styles.detailValue}>{agent?.name}</Text>
             </View>
             <ChevronRight size={18} color={Colors.subtext} />
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.detailItem}>
             <Mail size={18} color={Colors.subtext} />
@@ -349,7 +349,7 @@ export default function AgentProfileScreen() {
             </View>
           </View>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.detailItem}
             onPress={() => openEditModal('mobile_number')}
           >
@@ -361,9 +361,9 @@ export default function AgentProfileScreen() {
               </Text>
             </View>
             <ChevronRight size={18} color={Colors.subtext} />
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.detailItem}
             onPress={() => openEditModal('date_of_birth')}
           >
@@ -375,7 +375,7 @@ export default function AgentProfileScreen() {
               </Text>
             </View>
             <ChevronRight size={18} color={Colors.subtext} />
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.detailItem}>
             <CreditCard size={18} color={Colors.subtext} />
@@ -424,37 +424,37 @@ export default function AgentProfileScreen() {
       <Text style={styles.sectionTitle}>Quick Actions</Text>
 
       <View style={styles.actionsGrid}>
-        <TouchableOpacity
+        <Pressable
           style={styles.actionButton}
           onPress={() => router.push('/(app)/(agent)/agent-booking/new')}
         >
           <Calendar size={24} color={Colors.primary} />
           <Text style={styles.actionText}>New Booking</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.actionButton}
           onPress={() => router.push('/(app)/(agent)/(tabs)/clients')}
         >
           <Users size={24} color={Colors.primary} />
           <Text style={styles.actionText}>Manage Clients</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.actionButton}
           onPress={() => router.push('/(app)/(agent)/(tabs)/bookings')}
         >
           <BarChart3 size={24} color={Colors.primary} />
           <Text style={styles.actionText}>View Reports</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.actionButton}
           onPress={() => router.push('/(app)/(agent)/(tabs)/credit')}
         >
           <CreditCard size={24} color={Colors.primary} />
           <Text style={styles.actionText}>Credit History</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
@@ -464,36 +464,36 @@ export default function AgentProfileScreen() {
       <Text style={styles.sectionTitle}>Account Settings</Text>
 
       <Card variant='outlined' style={styles.settingsCard}>
-        <TouchableOpacity
+        <Pressable
           style={styles.settingRow}
           onPress={() => setIsPasswordModalVisible(true)}
         >
           <Lock size={20} color={Colors.primary} />
           <Text style={styles.settingText}>Change Password</Text>
           <ChevronRight size={18} color={Colors.subtext} />
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Hidden sections - No functionality yet
         <View style={styles.settingDivider} />
 
-        <TouchableOpacity style={styles.settingRow}>
+        <Pressable style={styles.settingRow}>
           <Bell size={20} color={Colors.primary} />
           <Text style={styles.settingText}>Notifications</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         <View style={styles.settingDivider} />
 
-        <TouchableOpacity style={styles.settingRow}>
+        <Pressable style={styles.settingRow}>
           <Shield size={20} color={Colors.primary} />
           <Text style={styles.settingText}>Privacy & Security</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         <View style={styles.settingDivider} />
 
-        <TouchableOpacity style={styles.settingRow}>
+        <Pressable style={styles.settingRow}>
           <HelpCircle size={20} color={Colors.primary} />
           <Text style={styles.settingText}>Help & Support</Text>
-        </TouchableOpacity>
+        </Pressable>
         */}
       </Card>
     </View>
@@ -552,9 +552,9 @@ export default function AgentProfileScreen() {
               <Text style={styles.modalTitle}>
                 Edit {getFieldLabel(editingField!)}
               </Text>
-              <TouchableOpacity onPress={closeEditModal}>
+              <Pressable onPress={closeEditModal}>
                 <X size={24} color={Colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalBody}>
@@ -609,9 +609,9 @@ export default function AgentProfileScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
-              <TouchableOpacity onPress={closePasswordModal}>
+              <Pressable onPress={closePasswordModal}>
                 <X size={24} color={Colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalBody}>

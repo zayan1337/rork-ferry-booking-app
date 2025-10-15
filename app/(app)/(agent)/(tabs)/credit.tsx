@@ -6,7 +6,7 @@ import {
   View,
   FlatList,
   RefreshControl,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   TextInput,
   Dimensions,
@@ -106,14 +106,13 @@ const SearchHeader = React.memo(
     return (
       <View style={styles.searchAndFiltersContainer}>
         {/* Enhanced Search Bar */}
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.searchContainer,
             (searchQuery.length > 0 || isFocused) &&
               styles.searchContainerActive,
           ]}
           onPress={handleContainerPress}
-          activeOpacity={0.7}
         >
           <Search
             size={16}
@@ -143,27 +142,26 @@ const SearchHeader = React.memo(
             clearButtonMode='never'
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
+            <Pressable
               style={styles.clearSearchButton}
               onPress={handleClearAndFocus}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Text style={styles.clearSearchText}>×</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Filter Toggle */}
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.filterToggle,
             showFilters && styles.activeFilterToggle,
           ]}
           onPress={onToggleFilters}
-          activeOpacity={0.7}
         >
           <Filter size={16} color={showFilters ? 'white' : Colors.subtext} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -377,9 +375,9 @@ const CreditPaymentModal = React.memo(
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Top Up Credit</Text>
-              <TouchableOpacity onPress={handleClose}>
+              <Pressable onPress={handleClose}>
                 <X size={24} color={Colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalBody}>
@@ -390,7 +388,7 @@ const CreditPaymentModal = React.memo(
               {/* Predefined amounts */}
               <View style={styles.amountGrid}>
                 {predefinedAmounts.map(value => (
-                  <TouchableOpacity
+                  <Pressable
                     key={value}
                     style={[
                       styles.amountButton,
@@ -407,7 +405,7 @@ const CreditPaymentModal = React.memo(
                     >
                       {formatCurrency(value)}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </View>
 
@@ -433,7 +431,7 @@ const CreditPaymentModal = React.memo(
               </View>
 
               {/* Action buttons */}
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.proceedButton,
                   isProcessing && styles.proceedButtonDisabled,
@@ -451,15 +449,15 @@ const CreditPaymentModal = React.memo(
                     </Text>
                   </>
                 )}
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={styles.cancelButton}
                 onPress={handleClose}
                 disabled={isProcessing}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -718,7 +716,7 @@ export default function AgentCreditScreen() {
 
   const renderFilterButton = useCallback(
     (filter: FilterType, label: string, icon: React.ReactNode) => (
-      <TouchableOpacity
+      <Pressable
         key={filter}
         style={[
           styles.filterButton,
@@ -735,7 +733,7 @@ export default function AgentCreditScreen() {
         >
           {label}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     ),
     [activeFilter, handleFilterChange]
   );
@@ -913,7 +911,7 @@ export default function AgentCreditScreen() {
                   { key: 'amount_high', label: 'Amount ↓' },
                   { key: 'amount_low', label: 'Amount ↑' },
                 ].map(sort => (
-                  <TouchableOpacity
+                  <Pressable
                     key={sort.key}
                     style={[
                       styles.sortButton,
@@ -929,7 +927,7 @@ export default function AgentCreditScreen() {
                     >
                       {sort.label}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </View>
             </View>
@@ -944,12 +942,12 @@ export default function AgentCreditScreen() {
               `(${filteredAndSortedTransactions.length})`}
           </Text>
           {activeFilter !== 'all' || searchQuery.trim() ? (
-            <TouchableOpacity
+            <Pressable
               style={styles.clearFiltersButton}
               onPress={clearAllFilters}
             >
               <Text style={styles.clearFiltersText}>Clear Filters</Text>
-            </TouchableOpacity>
+            </Pressable>
           ) : null}
         </View>
       </View>
@@ -987,12 +985,12 @@ export default function AgentCreditScreen() {
               : 'Your credit transactions will appear here'}
           </Text>
           {(searchQuery.trim() || activeFilter !== 'all') && (
-            <TouchableOpacity
+            <Pressable
               style={styles.emptyActionButton}
               onPress={clearAllFilters}
             >
               <Text style={styles.emptyActionText}>Clear Filters</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       </View>

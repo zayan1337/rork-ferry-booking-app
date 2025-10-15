@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Zone } from '@/types/admin/management';
 import {
@@ -34,11 +34,7 @@ const ZoneItem: React.FC<ZoneItemProps> = ({ zone, onPress, onMorePress }) => {
   };
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={handlePress}
-      activeOpacity={0.7}
-    >
+    <Pressable style={styles.container} onPress={handlePress}>
       <View style={styles.header}>
         <View style={styles.leftSection}>
           <View style={styles.mainInfo}>
@@ -84,13 +80,13 @@ const ZoneItem: React.FC<ZoneItemProps> = ({ zone, onPress, onMorePress }) => {
             </Text>
           </View>
           {onMorePress && (
-            <TouchableOpacity
+            <Pressable
               style={styles.moreButton}
               onPress={handleMorePress}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <MoreVertical size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       </View>
@@ -144,7 +140,7 @@ const ZoneItem: React.FC<ZoneItemProps> = ({ zone, onPress, onMorePress }) => {
           <Text style={styles.statValue}>{zone.order_index}</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Text,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { ArrowLeft, AlertCircle } from 'lucide-react-native';
@@ -45,12 +39,12 @@ export default function EditRouteScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -79,12 +73,12 @@ export default function EditRouteScreen() {
           options={{
             title: 'Route Not Found',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -113,12 +107,9 @@ export default function EditRouteScreen() {
         options={{
           title: `Edit ${currentRoute.name}`,
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />

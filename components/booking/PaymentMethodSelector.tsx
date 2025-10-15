@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
 import Colors from '@/constants/colors';
@@ -51,7 +51,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
 
         <View style={styles.paymentOptions}>
           {/* Agent Credit Option */}
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.paymentOption,
               selectedPaymentMethod === 'agent_credit' &&
@@ -68,10 +68,10 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             >
               💳 Agent Credit
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Bank Transfer Option */}
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.paymentOption,
               selectedPaymentMethod === 'bank_transfer' &&
@@ -88,10 +88,10 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             >
               🏦 Bank Transfer
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {/* MIB Payment Option */}
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.paymentOption,
               selectedPaymentMethod === 'mib' && styles.paymentOptionSelected,
@@ -107,7 +107,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             >
               💳 MIB Gateway
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 

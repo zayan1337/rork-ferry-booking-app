@@ -5,7 +5,7 @@ import {
   View,
   ScrollView,
   RefreshControl,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   Alert,
 } from 'react-native';
@@ -206,7 +206,7 @@ export default function CaptainDashboardScreen() {
           </View>
 
           <View style={styles.nextTripActions}>
-            <TouchableOpacity
+            <Pressable
               style={styles.prepareButton}
               onPress={() =>
                 router.push(`/(captain)/trip-details/${nextTrip.id}` as any)
@@ -214,7 +214,7 @@ export default function CaptainDashboardScreen() {
             >
               <Navigation size={16} color='white' />
               <Text style={styles.prepareButtonText}>View Trip Details</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </Card>
       </View>
@@ -225,15 +225,15 @@ export default function CaptainDashboardScreen() {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Trip Status Summary</Text>
-        <TouchableOpacity
+        <Pressable
           onPress={() => router.push('/(captain)/(tabs)/trips' as any)}
           style={styles.viewAllButton}
         >
           <Text style={styles.viewAllText}>View All</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
       <View style={styles.tripsSummaryGrid}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.summaryCard, styles.upcomingCard]}
           onPress={() => router.push('/(captain)/(tabs)/trips' as any)}
         >
@@ -244,9 +244,9 @@ export default function CaptainDashboardScreen() {
             {tripsSummary.upcoming.length}
           </Text>
           <Text style={styles.summaryLabel}>Upcoming</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={[styles.summaryCard, styles.boardingCard]}
           onPress={() => {
             if (tripsSummary.boarding.length > 0) {
@@ -265,9 +265,9 @@ export default function CaptainDashboardScreen() {
             {tripsSummary.boarding.length}
           </Text>
           <Text style={styles.summaryLabel}>Boarding</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={[styles.summaryCard, styles.departedCard]}
           onPress={() => router.push('/(captain)/(tabs)/trips' as any)}
         >
@@ -278,9 +278,9 @@ export default function CaptainDashboardScreen() {
             {tripsSummary.departed.length}
           </Text>
           <Text style={styles.summaryLabel}>En Route</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={[styles.summaryCard, styles.completedCard]}
           onPress={() => router.push('/(captain)/(tabs)/trips' as any)}
         >
@@ -291,7 +291,7 @@ export default function CaptainDashboardScreen() {
             {tripsSummary.completed.length}
           </Text>
           <Text style={styles.summaryLabel}>Completed</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
@@ -300,7 +300,7 @@ export default function CaptainDashboardScreen() {
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.actionsGrid}>
-        <TouchableOpacity
+        <Pressable
           style={styles.actionButton}
           onPress={() => router.push('/(captain)/(tabs)/checkin' as any)}
         >
@@ -309,9 +309,9 @@ export default function CaptainDashboardScreen() {
           </View>
           <Text style={styles.actionText}>Passenger Check-in</Text>
           <Text style={styles.actionSubtext}>Scan QR codes</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.actionButton}
           onPress={() => router.push('/(captain)/(tabs)/trips' as any)}
         >
@@ -320,10 +320,10 @@ export default function CaptainDashboardScreen() {
           </View>
           <Text style={styles.actionText}>My Trips</Text>
           <Text style={styles.actionSubtext}>View assigned trips</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         {nextTrip && (
-          <TouchableOpacity
+          <Pressable
             style={[styles.actionButton, styles.nextTripAction]}
             onPress={() =>
               router.push(`/(captain)/trip-details/${nextTrip.id}` as any)
@@ -336,10 +336,10 @@ export default function CaptainDashboardScreen() {
             <Text style={styles.actionSubtext}>
               {formatTripTime(nextTrip.departure_time)}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
 
-        <TouchableOpacity
+        <Pressable
           style={styles.actionButton}
           onPress={() => router.push('/(captain)/(tabs)/profile' as any)}
         >
@@ -348,7 +348,7 @@ export default function CaptainDashboardScreen() {
           </View>
           <Text style={styles.actionText}>Settings</Text>
           <Text style={styles.actionSubtext}>Profile & preferences</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );

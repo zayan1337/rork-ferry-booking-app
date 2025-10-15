@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import DatePicker from '@/components/DatePicker';
 import Dropdown from '@/components/Dropdown';
 import Colors from '@/constants/colors';
@@ -130,7 +130,7 @@ const TripRouteSelectionStep: React.FC<TripRouteSelectionStepProps> = ({
 
       {/* Trip Type Selection */}
       <View style={styles.tripTypeContainer}>
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.tripTypeButton,
             tripType === 'one_way' && styles.tripTypeButtonActive,
@@ -145,9 +145,9 @@ const TripRouteSelectionStep: React.FC<TripRouteSelectionStepProps> = ({
           >
             One Way
           </Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.tripTypeButton,
             tripType === 'round_trip' && styles.tripTypeButtonActive,
@@ -162,7 +162,7 @@ const TripRouteSelectionStep: React.FC<TripRouteSelectionStepProps> = ({
           >
             Round Trip
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {errors.tripType && (

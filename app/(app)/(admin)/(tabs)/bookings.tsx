@@ -6,7 +6,7 @@ import {
   Text,
   View,
   Dimensions,
-  TouchableOpacity,
+  Pressable,
   Alert,
   FlatList,
 } from 'react-native';
@@ -210,14 +210,14 @@ export default function BookingsScreen() {
         headerRight: () => (
           <View style={styles.headerActions}>
             {canExportReports() && (
-              <TouchableOpacity
+              <Pressable
                 style={styles.headerButton}
                 onPress={handleExport}
                 accessibilityRole='button'
                 accessibilityLabel='Export'
               >
                 <Download size={18} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         ),
@@ -308,14 +308,14 @@ export default function BookingsScreen() {
                 {getCurrentFilterText().sort}
               </Text>
               {hasActiveFilters() && (
-                <TouchableOpacity
+                <Pressable
                   style={styles.clearFiltersButton}
                   onPress={clearFilters}
                   accessibilityRole='button'
                   accessibilityLabel='Clear all filters'
                 >
                   <X size={14} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           </View>
@@ -323,7 +323,7 @@ export default function BookingsScreen() {
 
         {/* Select All Section */}
         {canUpdateBookings() && displayBookings.length > 0 && (
-          <TouchableOpacity
+          <Pressable
             style={styles.selectAllButton}
             onPress={selectAllBookings}
             accessibilityRole='button'
@@ -346,7 +346,7 @@ export default function BookingsScreen() {
             <Text style={styles.selectAllTextLarge}>
               {isAllSelected ? 'Deselect All' : 'Select All'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     </>
@@ -404,7 +404,7 @@ export default function BookingsScreen() {
             renderItem={({ item: booking }) => (
               <View style={styles.bookingItemWrapper}>
                 {canUpdateBookings() && (
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.selectionCheckbox}
                     onPress={() => toggleBookingSelection(booking.id)}
                   >
@@ -419,7 +419,7 @@ export default function BookingsScreen() {
                         <Check size={14} color='white' />
                       )}
                     </View>
-                  </TouchableOpacity>
+                  </Pressable>
                 )}
                 <View style={styles.bookingItemContent}>
                   <AdminBookingItem

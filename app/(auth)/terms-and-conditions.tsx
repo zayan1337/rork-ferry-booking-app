@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Alert,
   RefreshControl,
@@ -213,10 +213,9 @@ export default function TermsAndConditionsScreen() {
         {/* Terms Sections */}
         {terms.map((term, index) => (
           <Card key={term.id} variant='elevated' style={styles.termCard}>
-            <TouchableOpacity
+            <Pressable
               style={styles.termHeader}
               onPress={() => toggleSection(term.id)}
-              activeOpacity={0.7}
             >
               <View style={styles.termHeaderContent}>
                 <Text style={styles.termTitle}>{term.title}</Text>
@@ -232,7 +231,7 @@ export default function TermsAndConditionsScreen() {
               ) : (
                 <ChevronRight size={20} color={Colors.primary} />
               )}
-            </TouchableOpacity>
+            </Pressable>
 
             {expandedSections.has(term.id) && (
               <View style={styles.termContent}>

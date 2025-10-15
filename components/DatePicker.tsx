@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Modal,
   Platform,
   ScrollView,
@@ -89,7 +89,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
         </Text>
       )}
 
-      <TouchableOpacity
+      <Pressable
         style={[
           styles.pickerContainer,
           error ? styles.pickerError : null,
@@ -102,7 +102,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
           {value ? formatDisplayDate(value) : placeholder}
         </Text>
         <Calendar size={20} color={Colors.textSecondary} />
-      </TouchableOpacity>
+      </Pressable>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -120,7 +120,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
 
             <ScrollView style={styles.dateList}>
               {dates.map(date => (
-                <TouchableOpacity
+                <Pressable
                   key={date.dateString}
                   style={[
                     styles.dateItem,
@@ -143,7 +143,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                   {tempDate === date.dateString && (
                     <View style={styles.selectedIndicator} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </ScrollView>
 

@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ActivityIndicator,
   RefreshControl,
@@ -250,13 +250,13 @@ export default function TripPassengersPage() {
           )}
 
           {item.booking_status === 'confirmed' && (
-            <TouchableOpacity
+            <Pressable
               style={styles.checkInButton}
               onPress={() => handleCheckIn(item.id)}
             >
               <CheckCircle size={16} color={colors.primary} />
               <Text style={styles.checkInButtonText}>Check In</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       </View>
@@ -271,12 +271,12 @@ export default function TripPassengersPage() {
             title: 'Loading...',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -294,20 +294,20 @@ export default function TripPassengersPage() {
             title: 'Trip Passengers',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
             headerRight: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={handleExportManifest}
                 style={styles.exportButton}
               >
                 <Download size={20} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />

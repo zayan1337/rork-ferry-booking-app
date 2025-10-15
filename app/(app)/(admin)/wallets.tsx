@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
   Modal,
   TextInput,
@@ -274,9 +274,9 @@ const WalletRechargeModal = React.memo(
                   <Text style={styles.modalTitle}>Recharge Wallet</Text>
                   <Text style={styles.modalSubtitle}>{wallet.user_name}</Text>
                 </View>
-                <TouchableOpacity onPress={handleClose}>
+                <Pressable onPress={handleClose}>
                   <X size={24} color={colors.text} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               <View style={styles.modalBody}>
@@ -296,7 +296,7 @@ const WalletRechargeModal = React.memo(
                 {/* Predefined amounts */}
                 <View style={styles.amountGrid}>
                   {predefinedAmounts.map(value => (
-                    <TouchableOpacity
+                    <Pressable
                       key={value}
                       style={[
                         styles.amountButton,
@@ -314,7 +314,7 @@ const WalletRechargeModal = React.memo(
                       >
                         {formatCurrency(value)}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </View>
 
@@ -340,7 +340,7 @@ const WalletRechargeModal = React.memo(
                 </View>
 
                 {/* Action buttons */}
-                <TouchableOpacity
+                <Pressable
                   style={[
                     styles.proceedButton,
                     isProcessing && styles.proceedButtonDisabled,
@@ -358,15 +358,15 @@ const WalletRechargeModal = React.memo(
                       </Text>
                     </>
                   )}
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity
+                <Pressable
                   style={styles.cancelButton}
                   onPress={handleClose}
                   disabled={isProcessing}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -486,10 +486,9 @@ export default function WalletsListPage({
 
   const renderWallet = ({ item }: { item: Wallet }) => (
     <View style={styles.walletItemContainer}>
-      <TouchableOpacity
+      <Pressable
         style={styles.walletItem}
         onPress={() => handleWalletPress(item.id)}
-        activeOpacity={0.7}
       >
         <View
           style={[
@@ -559,17 +558,16 @@ export default function WalletsListPage({
             </Text>
           </View>
         </View>
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Recharge Button */}
-      <TouchableOpacity
+      <Pressable
         style={styles.rechargeButton}
         onPress={() => handleRechargeWallet(item)}
-        activeOpacity={0.7}
       >
         <Plus size={18} color={colors.white} />
         <Text style={styles.rechargeButtonText}>Recharge</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 
@@ -633,7 +631,7 @@ export default function WalletsListPage({
 
       {/* Filter Buttons */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.filterButton,
             filterStatus === 'all' && styles.filterButtonActive,
@@ -648,8 +646,8 @@ export default function WalletsListPage({
           >
             All ({baseWallets.length})
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[
             styles.filterButton,
             filterStatus === 'active' && styles.filterButtonActive,
@@ -668,8 +666,8 @@ export default function WalletsListPage({
           >
             Active ({walletStats?.activeWallets || 0})
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[
             styles.filterButton,
             filterStatus === 'inactive' && styles.filterButtonActive,
@@ -688,7 +686,7 @@ export default function WalletsListPage({
           >
             Inactive ({walletStats?.inactiveWallets || 0})
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Results Count */}
@@ -710,12 +708,12 @@ export default function WalletsListPage({
           options={{
             title: agentOnly ? 'Agent Wallets' : 'All Wallets',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -738,12 +736,9 @@ export default function WalletsListPage({
         options={{
           title: agentOnly ? 'Agent Wallets' : 'All Wallets',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />

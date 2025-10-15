@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
@@ -155,7 +155,7 @@ export default function RoutesTab({
       <View style={styles.itemsList}>
         {displayRoutes.length > 0 ? (
           displayRoutes.map((route: Route, index: number) => (
-            <TouchableOpacity
+            <Pressable
               key={`route-${route.id}-${index}`}
               style={styles.routeItem}
               onPress={() => handleRoutePress(route.id)}
@@ -197,7 +197,7 @@ export default function RoutesTab({
                     </Text>
                   )}
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -213,13 +213,10 @@ export default function RoutesTab({
       </View>
 
       {/* View All Button */}
-      <TouchableOpacity
-        style={styles.viewAllButton}
-        onPress={handleViewAllRoutes}
-      >
+      <Pressable style={styles.viewAllButton} onPress={handleViewAllRoutes}>
         <Text style={styles.viewAllText}>View All Routes</Text>
         <Eye size={16} color={colors.primary} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

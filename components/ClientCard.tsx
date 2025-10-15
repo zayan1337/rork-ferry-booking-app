@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import { StyleSheet, Text, View, Pressable, Dimensions } from 'react-native';
 import { Client } from '@/types/agent';
 import Colors from '@/constants/colors';
 import {
@@ -126,7 +120,7 @@ const ClientCard = React.memo<ClientCardProps>(
     };
 
     return (
-      <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
+      <Pressable onPress={handlePress}>
         <Card variant='elevated' style={cardStyle}>
           {/* Header Section */}
           <View style={styles.header}>
@@ -299,7 +293,7 @@ const ClientCard = React.memo<ClientCardProps>(
             </View>
           </View>
         </Card>
-      </TouchableOpacity>
+      </Pressable>
     );
   },
   (prevProps, nextProps) => {

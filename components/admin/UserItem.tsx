@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Mail } from 'lucide-react-native';
 import StatusBadge from './StatusBadge';
@@ -35,11 +35,7 @@ const UserItem = memo(({ user, onPress }: UserItemProps) => {
   }, [user.created_at]);
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
+    <Pressable style={styles.container} onPress={onPress}>
       <View style={styles.avatarContainer}>
         <Text style={styles.avatarText}>{initials}</Text>
       </View>
@@ -66,7 +62,7 @@ const UserItem = memo(({ user, onPress }: UserItemProps) => {
           <Text style={styles.date}>Joined {formattedDate}</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 });
 

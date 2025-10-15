@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   ViewStyle,
 } from 'react-native';
@@ -172,7 +172,7 @@ export default function CreditSummaryCard({
 
       {/* Action Button */}
       {onRequestCredit && (
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.requestButton,
             summary.creditUtilization > 70 && styles.urgentRequestButton,
@@ -185,7 +185,7 @@ export default function CreditSummaryCard({
               ? 'Request Credit Now'
               : 'Request More Credit'}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
     </Card>
   );

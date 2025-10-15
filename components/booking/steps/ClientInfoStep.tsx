@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
@@ -109,7 +109,7 @@ const ClientInfoStep: React.FC<ClientInfoStepProps> = ({
             <View style={styles.searchResultsContainer}>
               <Text style={styles.searchResultsTitle}>Found clients:</Text>
               {searchResults.map((client, index) => (
-                <TouchableOpacity
+                <Pressable
                   key={index}
                   style={styles.clientResultItem}
                   onPress={() => handleSelectClient(client)}
@@ -124,7 +124,7 @@ const ClientInfoStep: React.FC<ClientInfoStepProps> = ({
                     )}
                   </View>
                   <ArrowRight size={16} color={Colors.textSecondary} />
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           )}

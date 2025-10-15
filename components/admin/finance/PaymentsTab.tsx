@@ -1,5 +1,5 @@
 import React, { useState, useMemo, memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useFinanceStore } from '@/store/admin/financeStore';
@@ -144,7 +144,7 @@ function PaymentsTab({ isActive, searchQuery = '' }: PaymentsTabProps) {
       <View style={styles.itemsList}>
         {displayPayments.length > 0 ? (
           displayPayments.map((payment: Payment, index: number) => (
-            <TouchableOpacity
+            <Pressable
               key={`payment-${payment.id}-${index}`}
               style={styles.paymentItem}
               onPress={() => handlePaymentPress(payment.id)}
@@ -182,7 +182,7 @@ function PaymentsTab({ isActive, searchQuery = '' }: PaymentsTabProps) {
                   </Text>
                 </View>
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -198,13 +198,10 @@ function PaymentsTab({ isActive, searchQuery = '' }: PaymentsTabProps) {
       </View>
 
       {/* View All Button */}
-      <TouchableOpacity
-        style={styles.viewAllButton}
-        onPress={handleViewAllPayments}
-      >
+      <Pressable style={styles.viewAllButton} onPress={handleViewAllPayments}>
         <Text style={styles.viewAllText}>View All Payments</Text>
         <Eye size={16} color={colors.primary} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

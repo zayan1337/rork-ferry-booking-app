@@ -4,7 +4,7 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Keyboard,
   Clipboard,
   Alert,
@@ -168,7 +168,7 @@ export default function OTPInput({
       {/* Visual OTP fields */}
       <View style={styles.inputContainer}>
         {Array.from({ length }, (_, index) => (
-          <TouchableOpacity
+          <Pressable
             key={index}
             style={[
               styles.inputWrapper,
@@ -189,7 +189,7 @@ export default function OTPInput({
             >
               {value[index] || ''}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
 
@@ -199,12 +199,12 @@ export default function OTPInput({
         </View>
       )}
 
-      <TouchableOpacity
+      <Pressable
         onPress={() => Keyboard.dismiss()}
         style={styles.dismissButton}
       >
         <Text style={styles.dismissButtonText}>Hide Keyboard</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   Dimensions,
   RefreshControl,
@@ -267,12 +267,12 @@ export default function TermDetailScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -302,12 +302,12 @@ export default function TermDetailScreen() {
           options={{
             title: loading.singleTerms ? 'Loading...' : 'Not Found',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -349,12 +349,12 @@ export default function TermDetailScreen() {
           options={{
             title: 'Error',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -389,12 +389,12 @@ export default function TermDetailScreen() {
           options={{
             title: 'Terms & Conditions',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -411,32 +411,29 @@ export default function TermDetailScreen() {
         options={{
           title: term.title,
           headerLeft: () => (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
           headerRight: () => (
             <View style={styles.headerActions}>
               {canManageContent() && (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleEdit}
                   style={styles.headerActionButton}
                   disabled={isDeleting}
                 >
                   <Edit size={20} color={colors.primary} />
-                </TouchableOpacity>
+                </Pressable>
               )}
               {canManageContent() && (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleDelete}
                   style={[styles.headerActionButton, styles.deleteActionButton]}
                   disabled={isDeleting}
                 >
                   <Trash2 size={20} color={colors.error} />
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           ),

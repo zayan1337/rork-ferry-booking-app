@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-} from 'react-native';
+import { View, Text, Modal, ScrollView, Pressable, Switch } from 'react-native';
 import { X } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { SystemSettings } from '@/types/settings';
@@ -40,9 +33,9 @@ export default function SystemSettingsModal({
         <View style={styles.modal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>System Settings</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Pressable onPress={onClose}>
               <X size={24} color={colors.text} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <ScrollView style={styles.modalContent}>

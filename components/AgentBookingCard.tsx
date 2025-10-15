@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import { StyleSheet, Text, View, Pressable, Dimensions } from 'react-native';
 import {
   Calendar,
   User,
@@ -108,7 +102,7 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
     };
 
     return (
-      <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
+      <Pressable onPress={handlePress}>
         <Card
           variant='elevated'
           style={StyleSheet.flatten([
@@ -279,7 +273,7 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
             </View>
           </View>
         </Card>
-      </TouchableOpacity>
+      </Pressable>
     );
   },
   (prevProps, nextProps) => {

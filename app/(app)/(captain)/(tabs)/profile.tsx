@@ -3,7 +3,7 @@ import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ScrollView,
   RefreshControl,
@@ -289,7 +289,7 @@ export default function CaptainProfileScreen() {
           <Text style={styles.cardTitle}>Personal Details</Text>
         </View>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.detailItem}
           onPress={() => openEditModal('full_name')}
         >
@@ -301,7 +301,7 @@ export default function CaptainProfileScreen() {
             </Text>
           </View>
           <ChevronRight size={18} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        </Pressable>
 
         <View style={styles.detailItem}>
           <Mail size={18} color={Colors.textSecondary} />
@@ -313,7 +313,7 @@ export default function CaptainProfileScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.detailItem}
           onPress={() => openEditModal('mobile_number')}
         >
@@ -325,9 +325,9 @@ export default function CaptainProfileScreen() {
             </Text>
           </View>
           <ChevronRight size={18} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.detailItem}
           onPress={() => openEditModal('date_of_birth')}
         >
@@ -339,7 +339,7 @@ export default function CaptainProfileScreen() {
             </Text>
           </View>
           <ChevronRight size={18} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        </Pressable>
       </Card>
 
       {/* Today's Performance */}
@@ -404,7 +404,7 @@ export default function CaptainProfileScreen() {
           <Text style={styles.cardTitle}>Quick Actions</Text>
         </View>
         <View style={styles.actionsList}>
-          <TouchableOpacity
+          <Pressable
             style={styles.actionItem}
             onPress={() => handleNavigation('/(captain)/(tabs)/')}
           >
@@ -415,9 +415,9 @@ export default function CaptainProfileScreen() {
               <Text style={styles.actionTitle}>Dashboard</Text>
               <Text style={styles.actionSubtitle}>View today's overview</Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.actionItem}
             onPress={() => handleNavigation('/(captain)/(tabs)/trips')}
           >
@@ -428,9 +428,9 @@ export default function CaptainProfileScreen() {
               <Text style={styles.actionTitle}>My Trips</Text>
               <Text style={styles.actionSubtitle}>Manage assigned trips</Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.actionItem}
             onPress={() => handleNavigation('/(captain)/(tabs)/checkin')}
           >
@@ -441,7 +441,7 @@ export default function CaptainProfileScreen() {
               <Text style={styles.actionTitle}>Check-in</Text>
               <Text style={styles.actionSubtitle}>Scan passenger tickets</Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </Card>
 
@@ -454,7 +454,7 @@ export default function CaptainProfileScreen() {
           <Text style={styles.cardTitle}>Account Settings</Text>
         </View>
         <View style={styles.settingsList}>
-          <TouchableOpacity
+          <Pressable
             style={styles.settingItem}
             onPress={() => setIsPasswordModalVisible(true)}
           >
@@ -463,23 +463,23 @@ export default function CaptainProfileScreen() {
               <Text style={styles.settingText}>Change Password</Text>
             </View>
             <ChevronRight size={18} color={Colors.textSecondary} />
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Hidden sections - No functionality yet
-          <TouchableOpacity style={styles.settingItem}>
+          <Pressable style={styles.settingItem}>
             <Bell size={20} color={Colors.textSecondary} />
             <Text style={styles.settingText}>Notifications</Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <Pressable style={styles.settingItem}>
             <Shield size={20} color={Colors.textSecondary} />
             <Text style={styles.settingText}>Privacy & Security</Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <Pressable style={styles.settingItem}>
             <HelpCircle size={20} color={Colors.textSecondary} />
             <Text style={styles.settingText}>Help & Support</Text>
-          </TouchableOpacity>
+          </Pressable>
           */}
         </View>
       </Card>
@@ -509,9 +509,9 @@ export default function CaptainProfileScreen() {
               <Text style={styles.modalTitle}>
                 Edit {getFieldLabel(editingField!)}
               </Text>
-              <TouchableOpacity onPress={closeEditModal}>
+              <Pressable onPress={closeEditModal}>
                 <X size={24} color={Colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalBody}>
@@ -566,9 +566,9 @@ export default function CaptainProfileScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
-              <TouchableOpacity onPress={closePasswordModal}>
+              <Pressable onPress={closePasswordModal}>
                 <X size={24} color={Colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalBody}>

@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -106,10 +106,9 @@ function PaymentsListPage() {
   };
 
   const renderPayment = ({ item }: { item: Payment }) => (
-    <TouchableOpacity
+    <Pressable
       style={styles.paymentItem}
       onPress={() => handlePaymentPress(item.id)}
-      activeOpacity={0.7}
     >
       <View style={styles.paymentIcon}>
         <CreditCard size={20} color={colors.primary} />
@@ -152,7 +151,7 @@ function PaymentsListPage() {
           <Text style={styles.paymentDate}>{formatDate(item.created_at)}</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   const renderEmpty = () => (

@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
@@ -344,7 +344,7 @@ export default function TripAnalytics({
 
         <View style={styles.metricSelector}>
           {(['revenue', 'occupancy', 'performance'] as const).map(metric => (
-            <TouchableOpacity
+            <Pressable
               key={metric}
               style={[
                 styles.metricButton,
@@ -360,7 +360,7 @@ export default function TripAnalytics({
               >
                 {metric.charAt(0).toUpperCase() + metric.slice(1)}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 

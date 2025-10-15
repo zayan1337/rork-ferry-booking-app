@@ -5,7 +5,7 @@ import {
   View,
   ScrollView,
   RefreshControl,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   Alert,
   Dimensions,
@@ -29,7 +29,7 @@ import { CaptainTrip } from '@/types/captain';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
-import DatePicker from '@/components/DatePicker';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 import { formatSimpleDate } from '@/utils/dateUtils';
 import { formatTripTime } from '@/utils/tripUtils';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -207,21 +207,26 @@ export default function CaptainTripsScreen() {
             onChangeText={setSearchQuery}
           />
         </View>
-        <TouchableOpacity
+        <Pressable
           style={styles.filterButton}
           onPress={() => setShowFilters(!showFilters)}
         >
           <Filter size={20} color={Colors.primary} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {showFilters && (
         <View style={styles.filtersContainer}>
-          <DatePicker
+          <CalendarDatePicker
             label='Filter by Date'
             value={dateFilter}
             onChange={handleDateChange}
             placeholder='Select date'
+            minDate={
+              new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+                .toISOString()
+                .split('T')[0]
+            }
           />
 
           <View style={styles.filterRow}>
@@ -236,7 +241,7 @@ export default function CaptainTripsScreen() {
                   'arrived',
                   'completed',
                 ].map(status => (
-                  <TouchableOpacity
+                  <Pressable
                     key={status}
                     style={[
                       styles.statusFilterButton,
@@ -256,7 +261,7 @@ export default function CaptainTripsScreen() {
                         ? 'All'
                         : getStatusLabel(status as CaptainTrip['status'])}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </View>
             </ScrollView>
@@ -268,7 +273,7 @@ export default function CaptainTripsScreen() {
 
   const renderTripCard = (trip: CaptainTrip) => (
     <Card key={trip.id} variant='elevated' style={styles.tripCard}>
-      <TouchableOpacity onPress={() => handleTripPress(trip)}>
+      <Pressable onPress={() => handleTripPress(trip)}>
         {/* Trip Header */}
         <View style={styles.tripHeader}>
           <View style={styles.routeInfo}>
@@ -344,7 +349,7 @@ export default function CaptainTripsScreen() {
             {Math.round(trip.occupancy_rate || 0)}% capacity
           </Text>
         </View>
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Action Buttons */}
       <View style={styles.actionButtons}>

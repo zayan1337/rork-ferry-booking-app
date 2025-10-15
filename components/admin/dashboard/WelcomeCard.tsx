@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Bell, Shield, Activity } from 'lucide-react-native';
 import { getInitials } from '@/utils/dashboardUtils';
@@ -26,7 +26,7 @@ export default function WelcomeCard({
   isTablet,
 }: DashboardWelcomeProps) {
   return (
-    <TouchableOpacity
+    <Pressable
       style={[
         styles.welcomeCard,
         {
@@ -35,7 +35,6 @@ export default function WelcomeCard({
         },
       ]}
       onPress={onPress}
-      activeOpacity={0.8}
     >
       <View style={styles.welcomeHeader}>
         <View style={styles.welcomeContent}>
@@ -117,7 +116,7 @@ export default function WelcomeCard({
           <Text style={styles.welcomeStatLabel}>Alerts</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

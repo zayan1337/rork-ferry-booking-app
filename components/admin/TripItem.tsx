@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import {
   Navigation,
@@ -150,11 +150,7 @@ export default function TripItem({
     totalFare * (trip.confirmed_bookings || trip.booked_seats);
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={() => onPress(trip.id)}
-      activeOpacity={0.7}
-    >
+    <Pressable style={styles.container} onPress={() => onPress(trip.id)}>
       {/* Header Section */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -308,7 +304,7 @@ export default function TripItem({
           { backgroundColor: getStatusColor(trip.status) },
         ]}
       />
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

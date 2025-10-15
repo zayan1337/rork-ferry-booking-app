@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Dimensions,
-} from 'react-native';
+import { StyleSheet, Text, Pressable, View, Dimensions } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { ChevronRight } from 'lucide-react-native';
 
@@ -80,7 +74,7 @@ export default function SectionHeader({
       <View style={styles.actionContainer}>
         {action && <View style={styles.actionWrapper}>{action}</View>}
         {onSeeAll && (
-          <TouchableOpacity
+          <Pressable
             style={styles.seeAllButton}
             onPress={onSeeAll}
             accessibilityRole='button'
@@ -92,7 +86,7 @@ export default function SectionHeader({
               See All
             </Text>
             <ChevronRight size={sizeStyles.iconSize} color={colors.primary} />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     </View>

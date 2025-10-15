@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ActivityIndicator,
   Modal,
@@ -25,7 +25,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
-import { DateSelector } from '@/components/DateSelector';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 import { getUserInitials, formatProfileDate } from '@/utils/customerUtils';
 
 type EditableField = 'full_name' | 'mobile_number' | 'date_of_birth';
@@ -266,7 +266,7 @@ export default function ProfileScreen() {
       <Card variant='elevated' style={styles.section}>
         <Text style={styles.sectionTitle}>Personal Information</Text>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.infoItem}
           onPress={() => openEditModal('full_name')}
         >
@@ -278,7 +278,7 @@ export default function ProfileScreen() {
             <Text style={styles.infoValue}>{user?.profile?.full_name}</Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        </Pressable>
 
         <View style={styles.infoItem}>
           <View style={styles.infoIcon}>
@@ -290,7 +290,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.infoItem}
           onPress={() => openEditModal('mobile_number')}
         >
@@ -302,9 +302,9 @@ export default function ProfileScreen() {
             <Text style={styles.infoValue}>{user?.profile?.mobile_number}</Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.infoItem}
           onPress={() => openEditModal('date_of_birth')}
         >
@@ -318,13 +318,13 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        </Pressable>
       </Card>
 
       <Card variant='elevated' style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
 
-        <TouchableOpacity
+        <Pressable
           style={styles.settingItem}
           onPress={() => setIsPasswordModalVisible(true)}
         >
@@ -335,7 +335,7 @@ export default function ProfileScreen() {
             <Text style={styles.settingLabel}>Change Password</Text>
           </View>
           <ChevronRight size={20} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Notification Settings - Hidden
         <View style={styles.settingItem}>
@@ -421,19 +421,19 @@ export default function ProfileScreen() {
               <Text style={styles.modalTitle}>
                 Edit {getFieldLabel(editingField!)}
               </Text>
-              <TouchableOpacity onPress={closeEditModal}>
+              <Pressable onPress={closeEditModal}>
                 <X size={24} color={Colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalBody}>
               {editingField === 'date_of_birth' ? (
-                <DateSelector
+                <CalendarDatePicker
                   label='Date of Birth'
                   value={editValue}
                   onChange={setEditValue}
                   maxDate={new Date().toISOString().split('T')[0]}
-                  isDateOfBirth={true}
+                  placeholder='Select date of birth'
                 />
               ) : (
                 <Input
@@ -478,9 +478,9 @@ export default function ProfileScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
-              <TouchableOpacity onPress={closePasswordModal}>
+              <Pressable onPress={closePasswordModal}>
                 <X size={24} color={Colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalBody}>

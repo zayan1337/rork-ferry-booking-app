@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ScrollView,
 } from 'react-native';
@@ -215,12 +215,9 @@ export default function WalletPaymentPage() {
           title: 'Agent Credit Payment',
           headerShown: true,
           headerLeft: () => (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -288,7 +285,7 @@ export default function WalletPaymentPage() {
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
-          <TouchableOpacity
+          <Pressable
             style={[styles.payButton, isLoading && styles.payButtonDisabled]}
             onPress={handleInitiatePayment}
             disabled={isLoading}
@@ -301,15 +298,15 @@ export default function WalletPaymentPage() {
                 <Text style={styles.payButtonText}>Proceed to Payment</Text>
               </>
             )}
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.cancelButton}
             onPress={() => router.back()}
             disabled={isLoading}
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </ScrollView>
 

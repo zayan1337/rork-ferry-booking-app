@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  StyleSheet,
-  View,
-  ScrollView,
-  TouchableOpacity,
-  Text,
-} from 'react-native';
+import { StyleSheet, View, ScrollView, Pressable, Text } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import {
   Filter,
@@ -111,7 +105,7 @@ export default function TripFilters({
     onPress: () => void,
     icon?: React.ReactNode
   ) => (
-    <TouchableOpacity
+    <Pressable
       style={[styles.filterButton, isActive && styles.filterButtonActive]}
       onPress={onPress}
     >
@@ -124,7 +118,7 @@ export default function TripFilters({
       >
         {label}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   const renderSortButton = (field: TripSortConfig['field'], label: string) => {
@@ -133,7 +127,7 @@ export default function TripFilters({
     const isDesc = isActive && sortConfig.direction === 'desc';
 
     return (
-      <TouchableOpacity
+      <Pressable
         style={[styles.sortButton, isActive && styles.sortButtonActive]}
         onPress={() => handleSort(field)}
       >
@@ -154,7 +148,7 @@ export default function TripFilters({
         ) : (
           <ArrowUpDown size={14} color={colors.textSecondary} />
         )}
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
@@ -202,10 +196,10 @@ export default function TripFilters({
               : `${resultsCount} of ${totalCount} trips`}
           </Text>
           {isFilterActive() && (
-            <TouchableOpacity onPress={onReset} style={styles.clearFilters}>
+            <Pressable onPress={onReset} style={styles.clearFilters}>
               <X size={14} color={colors.danger} />
               <Text style={styles.clearFiltersText}>Clear filters</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       )}

@@ -7,7 +7,7 @@ import {
   RefreshControl,
   Dimensions,
   Text,
-  TouchableOpacity,
+  Pressable,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -465,29 +465,29 @@ export default function UserDetailsPage() {
             title: user.name || 'User Details',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 style={styles.backButton}
                 onPress={() => router.back()}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
             headerRight: () => (
               <View style={styles.headerActions}>
                 {canUpdateUsers() && user?.role !== 'passenger' && (
                   <>
-                    <TouchableOpacity
+                    <Pressable
                       onPress={handleEdit}
                       style={styles.headerActionButton}
                     >
                       <Edit size={20} color={colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </Pressable>
+                    <Pressable
                       onPress={handleStatusChange}
                       style={styles.headerActionButton}
                     >
                       <Shield size={20} color={colors.primary} />
-                    </TouchableOpacity>
+                    </Pressable>
                   </>
                 )}
               </View>
@@ -634,7 +634,7 @@ export default function UserDetailsPage() {
                     </View>
 
                     {/* View Full Trip Details Button */}
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.viewTripButton}
                       onPress={() => {
                         if (passengerTripData.bookings[0].trips?.id) {
@@ -647,7 +647,7 @@ export default function UserDetailsPage() {
                       <Text style={styles.viewTripButtonText}>
                         View Full Trip Details
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 )}
             </View>

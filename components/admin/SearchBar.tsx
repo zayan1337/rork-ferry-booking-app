@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TextInput, Pressable, View } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Search, X } from 'lucide-react-native';
 
@@ -29,7 +29,7 @@ export default function SearchBar({
         placeholderTextColor={colors.textSecondary}
       />
       {value.length > 0 && (
-        <TouchableOpacity
+        <Pressable
           onPress={() => {
             onChangeText('');
             onClear && onClear();
@@ -37,7 +37,7 @@ export default function SearchBar({
           style={styles.clearButton}
         >
           <X size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );

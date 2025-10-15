@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import {
   Mail,
@@ -79,10 +79,9 @@ export default function OperationTeamItem({
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={[styles.container, !member.is_active && styles.inactiveContainer]}
       onPress={() => setIsExpanded(!isExpanded)}
-      activeOpacity={0.7}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -175,15 +174,15 @@ export default function OperationTeamItem({
           {/* Actions */}
           {canManage && (
             <View style={styles.actions}>
-              <TouchableOpacity
+              <Pressable
                 style={[styles.actionButton, styles.editButton]}
                 onPress={() => onEdit(member)}
               >
                 <Edit2 size={16} color={colors.primary} />
                 <Text style={styles.editButtonText}>Edit</Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={[styles.actionButton, styles.toggleButton]}
                 onPress={handleToggleManifests}
               >
@@ -197,9 +196,9 @@ export default function OperationTeamItem({
                     ? 'Disable Manifests'
                     : 'Enable Manifests'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={[styles.actionButton, styles.toggleButton]}
                 onPress={handleToggleActive}
               >
@@ -211,20 +210,20 @@ export default function OperationTeamItem({
                 <Text style={styles.toggleButtonText}>
                   {member.is_active ? 'Deactivate' : 'Activate'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={[styles.actionButton, styles.deleteButton]}
                 onPress={handleDelete}
               >
                 <Trash2 size={16} color={colors.error} />
                 <Text style={styles.deleteButtonText}>Delete</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           )}
         </View>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

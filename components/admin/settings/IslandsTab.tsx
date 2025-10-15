@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Alert,
   FlatList,
   RefreshControl,
@@ -189,13 +189,10 @@ export default function IslandsTab({
         <Text style={styles.previewText}>
           Showing {previewItems.length} of {uniqueIslands.length} islands
         </Text>
-        <TouchableOpacity
-          style={styles.viewAllButton}
-          onPress={handleViewAllIslands}
-        >
+        <Pressable style={styles.viewAllButton} onPress={handleViewAllIslands}>
           <Text style={styles.viewAllText}>View All Islands</Text>
           <MapPin size={16} color={colors.primary} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   };

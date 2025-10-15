@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   Alert,
   RefreshControl,
@@ -248,7 +248,7 @@ export default function CommunicationsScreen() {
       ]
         .filter(section => section.permission)
         .map(section => (
-          <TouchableOpacity
+          <Pressable
             key={section.key}
             style={[
               styles.sectionButton,
@@ -272,7 +272,7 @@ export default function CommunicationsScreen() {
             >
               {section.label}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
     </View>
   );
@@ -449,20 +449,20 @@ export default function CommunicationsScreen() {
                     {!notification.is_read && (
                       <View style={styles.unreadIndicator} />
                     )}
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.actionButton}
                       onPress={() => {
                         /* View details */
                       }}
                     >
                       <Eye size={16} color={colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </Pressable>
+                    <Pressable
                       style={styles.deleteButton}
                       onPress={() => handleDeleteNotification(notification.id)}
                     >
                       <Trash2 size={16} color={colors.danger} />
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 </View>
 
@@ -574,7 +574,7 @@ export default function CommunicationsScreen() {
 
         <View style={styles.compactFilters}>
           {['all', 'draft', 'sending', 'sent', 'failed'].map(status => (
-            <TouchableOpacity
+            <Pressable
               key={status}
               style={[
                 styles.compactFilterChip,
@@ -594,7 +594,7 @@ export default function CommunicationsScreen() {
                   ? 'All'
                   : status.charAt(0).toUpperCase() + status.slice(1)}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 
@@ -702,27 +702,27 @@ export default function CommunicationsScreen() {
                       </Text>
                     </View>
                     {message.status === 'draft' && canSendBulkMessages() && (
-                      <TouchableOpacity
+                      <Pressable
                         style={styles.sendButton}
                         onPress={() => sendBulkMessage(message.id)}
                       >
                         <Send size={16} color={colors.primary} />
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.actionButton}
                       onPress={() => {
                         /* View analytics */
                       }}
                     >
                       <Eye size={16} color={colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </Pressable>
+                    <Pressable
                       style={styles.deleteButton}
                       onPress={() => handleDeleteBulkMessage(message.id)}
                     >
                       <Trash2 size={16} color={colors.danger} />
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 </View>
 
@@ -943,7 +943,7 @@ export default function CommunicationsScreen() {
 
         <View style={styles.compactFilters}>
           {['all', ...new Set(templates.map(t => t.category))].map(category => (
-            <TouchableOpacity
+            <Pressable
               key={category}
               style={[
                 styles.compactFilterChip,
@@ -961,7 +961,7 @@ export default function CommunicationsScreen() {
               >
                 {category === 'all' ? 'All' : category.replace('_', ' ')}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 
@@ -1098,19 +1098,19 @@ export default function CommunicationsScreen() {
                 </View>
 
                 <View style={styles.templateActions}>
-                  <TouchableOpacity style={styles.templateAction}>
+                  <Pressable style={styles.templateAction}>
                     <Eye size={16} color={colors.primary} />
                     <Text style={styles.templateActionText}>Preview</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.templateAction}>
+                  </Pressable>
+                  <Pressable style={styles.templateAction}>
                     <Edit size={16} color={colors.primary} />
                     <Text style={styles.templateActionText}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.templateAction}>
+                  </Pressable>
+                  <Pressable style={styles.templateAction}>
                     <Send size={16} color={colors.primary} />
                     <Text style={styles.templateActionText}>Use</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.templateAction}>
+                  </Pressable>
+                  <Pressable style={styles.templateAction}>
                     <Trash2 size={16} color={colors.danger} />
                     <Text
                       style={[
@@ -1120,7 +1120,7 @@ export default function CommunicationsScreen() {
                     >
                       Delete
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               </View>
             );
@@ -1195,9 +1195,9 @@ export default function CommunicationsScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>New Notification</Text>
-            <TouchableOpacity onPress={() => setShowNotificationModal(false)}>
+            <Pressable onPress={() => setShowNotificationModal(false)}>
               <XCircle size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <ScrollView style={styles.modalContent}>
@@ -1227,7 +1227,7 @@ export default function CommunicationsScreen() {
             <View style={styles.radioGroup}>
               {['system', 'booking', 'payment', 'maintenance', 'emergency'].map(
                 type => (
-                  <TouchableOpacity
+                  <Pressable
                     key={type}
                     style={[
                       styles.radioOption,
@@ -1250,7 +1250,7 @@ export default function CommunicationsScreen() {
                     >
                       {type}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )
               )}
             </View>
@@ -1258,7 +1258,7 @@ export default function CommunicationsScreen() {
             <Text style={styles.inputLabel}>Priority</Text>
             <View style={styles.radioGroup}>
               {['low', 'medium', 'high', 'critical'].map(priority => (
-                <TouchableOpacity
+                <Pressable
                   key={priority}
                   style={[
                     styles.radioOption,
@@ -1281,7 +1281,7 @@ export default function CommunicationsScreen() {
                   >
                     {priority}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </ScrollView>
@@ -1310,9 +1310,9 @@ export default function CommunicationsScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>New Bulk Message</Text>
-            <TouchableOpacity onPress={() => setShowBulkMessageModal(false)}>
+            <Pressable onPress={() => setShowBulkMessageModal(false)}>
               <XCircle size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <ScrollView style={styles.modalContent}>
@@ -1341,7 +1341,7 @@ export default function CommunicationsScreen() {
             <Text style={styles.inputLabel}>Target Audience</Text>
             <View style={styles.radioGroup}>
               {['customer', 'agent', 'all'].map(role => (
-                <TouchableOpacity
+                <Pressable
                   key={role}
                   style={[
                     styles.radioOption,
@@ -1365,7 +1365,7 @@ export default function CommunicationsScreen() {
                   >
                     {role}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </ScrollView>

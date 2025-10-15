@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useOperationsStore } from '@/store/admin/operationsStore';
@@ -255,7 +255,7 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
     };
 
     return (
-      <TouchableOpacity
+      <Pressable
         key={`schedule-${trip.id}-${index}`}
         style={styles.scheduleItem}
         onPress={() => handleTripPress(trip.id)}
@@ -277,7 +277,7 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
             {trip.bookings || 0}/{trip.capacity || 0}
           </Text>
         </View>
-      </TouchableOpacity>
+      </Pressable>
     );
   }, []);
 
@@ -359,7 +359,7 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
 
       {/* Filter Controls */}
       <View style={styles.filterControls}>
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.filterButton,
             showFilters && styles.filterButtonActive,
@@ -378,13 +378,13 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
           >
             Filters
           </Text>
-        </TouchableOpacity>
+        </Pressable>
 
         {(selectedRouteId || selectedVesselId) && (
-          <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
+          <Pressable style={styles.clearButton} onPress={clearFilters}>
             <X size={14} color={colors.textSecondary} />
             <Text style={styles.clearButtonText}>Clear</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
@@ -419,13 +419,10 @@ export default function ScheduleTab({ isActive }: ScheduleTabProps) {
   const renderFooter = () => (
     <View style={styles.footer}>
       {/* View All Button */}
-      <TouchableOpacity
-        style={styles.viewAllButton}
-        onPress={handleViewAllTrips}
-      >
+      <Pressable style={styles.viewAllButton} onPress={handleViewAllTrips}>
         <Text style={styles.viewAllText}>View All Trips</Text>
         <Calendar size={16} color={colors.primary} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 

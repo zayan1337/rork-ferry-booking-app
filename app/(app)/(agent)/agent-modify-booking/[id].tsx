@@ -5,7 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
@@ -501,7 +501,7 @@ export default function AgentModifyBookingScreen() {
                   </Text>
                 ) : trips.length > 0 ? (
                   trips.map(trip => (
-                    <TouchableOpacity
+                    <Pressable
                       key={trip.id}
                       style={[
                         styles.tripOption,
@@ -521,7 +521,7 @@ export default function AgentModifyBookingScreen() {
                       <Text style={styles.tripSeats}>
                         Available: {trip.available_seats || 0} seats
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))
                 ) : (
                   <Text style={styles.noSeatsText}>

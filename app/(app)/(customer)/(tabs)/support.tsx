@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Linking,
   ActivityIndicator,
   RefreshControl,
@@ -43,11 +43,7 @@ interface FAQItemProps {
 const FAQItem = React.memo<FAQItemProps>(
   ({ faq, isExpanded, onToggle, searchQuery }) => {
     return (
-      <TouchableOpacity
-        style={styles.faqItem}
-        onPress={onToggle}
-        activeOpacity={0.7}
-      >
+      <Pressable style={styles.faqItem} onPress={onToggle}>
         <View style={styles.faqHeader}>
           <View style={styles.faqQuestion}>
             <HelpCircle
@@ -65,7 +61,7 @@ const FAQItem = React.memo<FAQItemProps>(
         </View>
 
         {isExpanded && <Text style={styles.faqAnswer}>{faq.answer}</Text>}
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 );
@@ -81,7 +77,7 @@ interface CategoryChipProps {
 
 const CategoryChip = React.memo<CategoryChipProps>(
   ({ category, isSelected, onPress }) => (
-    <TouchableOpacity
+    <Pressable
       style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
       onPress={onPress}
     >
@@ -93,7 +89,7 @@ const CategoryChip = React.memo<CategoryChipProps>(
       >
         {category?.name || 'All'}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   )
 );
 
@@ -224,26 +220,26 @@ export default function SupportScreen() {
       {/* Contact Options */}
       <Text style={styles.sectionTitle}>Contact Us</Text>
       <View style={styles.contactOptions}>
-        <TouchableOpacity style={styles.contactOption} onPress={handleCall}>
+        <Pressable style={styles.contactOption} onPress={handleCall}>
           <View style={[styles.contactIcon, { backgroundColor: '#e3f2fd' }]}>
             <Phone size={24} color={Colors.primary} />
           </View>
           <Text style={styles.contactLabel}>Call</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity style={styles.contactOption} onPress={handleEmail}>
+        <Pressable style={styles.contactOption} onPress={handleEmail}>
           <View style={[styles.contactIcon, { backgroundColor: '#e8f5e9' }]}>
             <Mail size={24} color='#2ecc71' />
           </View>
           <Text style={styles.contactLabel}>Email</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity style={styles.contactOption} onPress={handleChat}>
+        <Pressable style={styles.contactOption} onPress={handleChat}>
           <View style={[styles.contactIcon, { backgroundColor: '#fff3e0' }]}>
             <MessageCircle size={24} color='#f39c12' />
           </View>
           <Text style={styles.contactLabel}>Chat</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Contact Details */}
@@ -290,12 +286,9 @@ export default function SupportScreen() {
             placeholderTextColor={Colors.textSecondary}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={clearSearch}
-              style={styles.clearSearchButton}
-            >
+            <Pressable onPress={clearSearch} style={styles.clearSearchButton}>
               <X size={16} color={Colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       </View>
@@ -326,12 +319,9 @@ export default function SupportScreen() {
 
           {/* Clear filters button */}
           {(selectedCategory || searchQuery) && (
-            <TouchableOpacity
-              onPress={clearFilters}
-              style={styles.clearFiltersButton}
-            >
+            <Pressable onPress={clearFilters} style={styles.clearFiltersButton}>
               <Text style={styles.clearFiltersText}>Clear All Filters</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       )}
@@ -345,9 +335,9 @@ export default function SupportScreen() {
               Unable to load FAQs. Showing default questions.
             </Text>
           </View>
-          <TouchableOpacity onPress={handleRefresh} style={styles.retryButton}>
+          <Pressable onPress={handleRefresh} style={styles.retryButton}>
             <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+          </Pressable>
         </Card>
       )}
 

@@ -4,7 +4,7 @@
 //     Text,
 //     StyleSheet,
 //     ScrollView,
-//     TouchableOpacity,
+//     Pressable,
 //     Dimensions,
 // } from 'react-native';
 // import { colors } from '@/constants/adminColors';
@@ -153,10 +153,10 @@
 //                     </Text>
 //                 </View>
 //                 {onViewDetails && (
-//                     <TouchableOpacity style={styles.viewDetailsButton} onPress={onViewDetails}>
+//                     <Pressable style={styles.viewDetailsButton} onPress={onViewDetails}>
 //                         <Text style={styles.viewDetailsText}>View Details</Text>
 //                         <BarChart3 size={16} color={colors.primary} />
-//                     </TouchableOpacity>
+//                     </Pressable>
 //                 )}
 //             </View>
 

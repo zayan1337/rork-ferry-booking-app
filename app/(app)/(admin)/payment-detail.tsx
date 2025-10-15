@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
 } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
@@ -124,13 +124,13 @@ export default function PaymentDetailPage() {
           <Text style={styles.notFoundText}>
             The payment you're looking for doesn't exist or has been removed.
           </Text>
-          <TouchableOpacity
+          <Pressable
             style={styles.backToListButton}
             onPress={() => router.back()}
           >
             <ArrowLeft size={20} color={colors.primary} />
             <Text style={styles.backToListText}>Back to Payments</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     );
@@ -142,12 +142,9 @@ export default function PaymentDetailPage() {
         options={{
           title: 'Payment Details',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -249,14 +246,13 @@ export default function PaymentDetailPage() {
               </View>
               <Text style={styles.sectionTitle}>Booking Information</Text>
             </View>
-            <TouchableOpacity
+            <Pressable
               style={styles.card}
               onPress={() =>
                 router.push(
                   `/(app)/(admin)/booking/${payment.booking!.id}` as any
                 )
               }
-              activeOpacity={0.7}
             >
               <View style={styles.bookingHeader}>
                 <View>
@@ -313,7 +309,7 @@ export default function PaymentDetailPage() {
                 </Text>
               </View>
 
-              <TouchableOpacity
+              <Pressable
                 style={styles.viewDetailsButton}
                 onPress={() =>
                   router.push(
@@ -323,8 +319,8 @@ export default function PaymentDetailPage() {
               >
                 <Text style={styles.viewDetailsText}>View Booking Details</Text>
                 <ExternalLink size={16} color={colors.primary} />
-              </TouchableOpacity>
-            </TouchableOpacity>
+              </Pressable>
+            </Pressable>
           </View>
         )}
 

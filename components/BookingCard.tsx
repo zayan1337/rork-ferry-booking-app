@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { ChevronRight, Calendar, Clock, Users } from 'lucide-react-native';
 import type { Booking } from '@/types';
 import Colors from '@/constants/colors';
@@ -38,7 +38,7 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
   };
 
   return (
-    <TouchableOpacity onPress={() => onPress(booking)} activeOpacity={0.7}>
+    <Pressable onPress={() => onPress(booking)}>
       <Card variant='elevated' style={styles.card}>
         <View style={styles.header}>
           <View>
@@ -115,7 +115,7 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
           </Text>
         </View>
       </Card>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

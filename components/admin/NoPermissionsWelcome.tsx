@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   ScrollView,
   StatusBar,
@@ -273,32 +273,23 @@ export default function NoPermissionsWelcome({
           </View>
 
           <View style={styles.helpOptions}>
-            <TouchableOpacity
-              style={styles.helpOption}
-              onPress={handleContactSupport}
-            >
+            <Pressable style={styles.helpOption} onPress={handleContactSupport}>
               <Phone size={14} color={colors.primary} />
               <Text style={styles.helpOptionText}>Call Support</Text>
               <ArrowRight size={14} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.helpOption}
-              onPress={handleContactSupport}
-            >
+            <Pressable style={styles.helpOption} onPress={handleContactSupport}>
               <Mail size={14} color={colors.primary} />
               <Text style={styles.helpOptionText}>Email Support</Text>
               <ArrowRight size={14} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.helpOption}
-              onPress={handleContactSupport}
-            >
+            <Pressable style={styles.helpOption} onPress={handleContactSupport}>
               <ExternalLink size={14} color={colors.primary} />
               <Text style={styles.helpOptionText}>Documentation</Text>
               <ArrowRight size={14} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 

@@ -6,7 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
@@ -14,7 +14,7 @@ import Colors from '@/constants/colors';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
-import { DateSelector } from '@/components/DateSelector';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
@@ -235,13 +235,14 @@ export default function RegisterScreen() {
             required
           />
 
-          <DateSelector
+          <CalendarDatePicker
             label='Date of Birth'
             value={formData.dateofbirth}
             onChange={date => updateFormData('dateofbirth', date)}
             maxDate={new Date().toISOString().split('T')[0]}
             error={errors.dateofbirth}
-            isDateOfBirth={true}
+            placeholder='Select your date of birth'
+            disabled={isLoading || isNavigating}
             required
           />
 
@@ -268,7 +269,7 @@ export default function RegisterScreen() {
           />
 
           <View style={styles.termsContainer}>
-            <TouchableOpacity
+            <Pressable
               style={styles.checkbox}
               onPress={() => {
                 setTermsAccepted(!termsAccepted);
@@ -282,7 +283,7 @@ export default function RegisterScreen() {
                   termsAccepted && styles.checkboxChecked,
                 ]}
               />
-            </TouchableOpacity>
+            </Pressable>
             <Text style={styles.termsText}>
               I accept the{' '}
               <Text
@@ -309,7 +310,7 @@ export default function RegisterScreen() {
 
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity
+            <Pressable
               disabled={isLoading || isNavigating}
               onPress={() => router.push('/')}
             >
@@ -318,7 +319,7 @@ export default function RegisterScreen() {
               >
                 Login
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </Card>
       </ScrollView>

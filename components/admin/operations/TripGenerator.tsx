@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   Modal,
 } from 'react-native';
@@ -466,37 +466,37 @@ export default function TripGenerator({
       </View>
 
       <View style={styles.quickActionsContainer}>
-        <TouchableOpacity
+        <Pressable
           style={styles.quickActionButton}
           onPress={() => handleQuickDaySelection('weekdays')}
         >
           <Text style={styles.quickActionText}>Weekdays</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={styles.quickActionButton}
           onPress={() => handleQuickDaySelection('weekends')}
         >
           <Text style={styles.quickActionText}>Weekends</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={styles.quickActionButton}
           onPress={() => handleQuickDaySelection('all')}
         >
           <Text style={styles.quickActionText}>All</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={styles.quickActionButton}
           onPress={() => handleQuickDaySelection('none')}
         >
           <Text style={styles.quickActionText}>Clear</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <View style={styles.daysGrid}>
         {daysOfWeek.map(day => {
           const isSelected = formData.selected_days?.includes(day.value);
           return (
-            <TouchableOpacity
+            <Pressable
               key={day.value}
               style={[styles.dayChip, isSelected && styles.dayChipSelected]}
               onPress={() => handleDayToggle(day.value)}
@@ -517,7 +517,7 @@ export default function TripGenerator({
               >
                 {day.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
@@ -550,7 +550,7 @@ export default function TripGenerator({
                 placeholder='HH:MM (24-hour)'
               />
             </View>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.addTimeButton,
                 !newTimeSlot && styles.addTimeButtonDisabled,
@@ -562,7 +562,7 @@ export default function TripGenerator({
                 size={16}
                 color={newTimeSlot ? colors.white : colors.textTertiary}
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -575,7 +575,7 @@ export default function TripGenerator({
 
           return (
             <View key={category} style={styles.timeCategory}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.timeCategoryHeader}
                 onPress={() => handleQuickTimeSelection(category)}
               >
@@ -589,7 +589,7 @@ export default function TripGenerator({
                     color={allSelected ? colors.primary : colors.textTertiary}
                   />
                 </View>
-              </TouchableOpacity>
+              </Pressable>
 
               <View style={styles.timeSlotsGrid}>
                 {slots.map(slot => {
@@ -598,7 +598,7 @@ export default function TripGenerator({
 
                   return (
                     <View key={slot.value} style={styles.timeSlotWrapper}>
-                      <TouchableOpacity
+                      <Pressable
                         style={[
                           styles.timeSlotChip,
                           isSelected && styles.timeSlotChipSelected,
@@ -615,14 +615,14 @@ export default function TripGenerator({
                           {slot.label}
                         </Text>
                         {isCustom && (
-                          <TouchableOpacity
+                          <Pressable
                             style={styles.removeTimeSlotButton}
                             onPress={() => removeCustomTimeSlot(slot.value)}
                           >
                             <Trash2 size={12} color={colors.textTertiary} />
-                          </TouchableOpacity>
+                          </Pressable>
                         )}
-                      </TouchableOpacity>
+                      </Pressable>
                     </View>
                   );
                 })}
@@ -754,9 +754,9 @@ export default function TripGenerator({
       <View style={styles.previewContainer}>
         <View style={styles.previewHeader}>
           <Text style={styles.previewTitle}>Trip Generation Preview</Text>
-          <TouchableOpacity onPress={() => setShowPreview(false)}>
+          <Pressable onPress={() => setShowPreview(false)}>
             <X size={24} color={colors.text} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {previewData && (
@@ -884,9 +884,9 @@ export default function TripGenerator({
             <Zap size={24} color={colors.primary} />
             <Text style={styles.modalTitle}>Generate Trips</Text>
           </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Pressable onPress={onClose} style={styles.closeButton}>
             <X size={24} color={colors.text} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         <ScrollView

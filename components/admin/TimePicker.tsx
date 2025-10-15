@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Modal,
   StyleSheet,
   ScrollView,
@@ -58,7 +58,7 @@ export default function TimePicker({
         </Text>
       )}
 
-      <TouchableOpacity
+      <Pressable
         style={[
           styles.input,
           error && styles.inputError,
@@ -77,7 +77,7 @@ export default function TimePicker({
           {value || placeholder}
         </Text>
         <Clock size={20} color={colors.textSecondary} />
-      </TouchableOpacity>
+      </Pressable>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -91,12 +91,12 @@ export default function TimePicker({
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Time</Text>
-              <TouchableOpacity
+              <Pressable
                 onPress={() => setIsVisible(false)}
                 style={styles.closeButton}
               >
                 <X size={22} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.pickersRow}>
@@ -108,7 +108,7 @@ export default function TimePicker({
                   showsVerticalScrollIndicator={false}
                 >
                   {hours.map(h => (
-                    <TouchableOpacity
+                    <Pressable
                       key={h}
                       style={[
                         styles.option,
@@ -124,7 +124,7 @@ export default function TimePicker({
                       >
                         {String(h).padStart(2, '0')}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </ScrollView>
               </View>
@@ -137,7 +137,7 @@ export default function TimePicker({
                   showsVerticalScrollIndicator={false}
                 >
                   {minutes.map(m => (
-                    <TouchableOpacity
+                    <Pressable
                       key={m}
                       style={[
                         styles.option,
@@ -153,7 +153,7 @@ export default function TimePicker({
                       >
                         {String(m).padStart(2, '0')}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </ScrollView>
               </View>

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -307,7 +307,7 @@ export default function OTPVerificationScreen() {
 
               <View style={styles.resendContainer}>
                 <Text style={styles.resendText}>Didn't receive the code? </Text>
-                <TouchableOpacity
+                <Pressable
                   disabled={
                     isLoading ||
                     isNavigating ||
@@ -330,12 +330,12 @@ export default function OTPVerificationScreen() {
                       ? `Resend (${resendCooldown}s)`
                       : 'Resend'}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               <View style={styles.backContainer}>
                 <Text style={styles.backText}>Wrong email? </Text>
-                <TouchableOpacity
+                <Pressable
                   disabled={isLoading || isNavigating || isVerifying}
                   onPress={() => {
                     if (type === 'signup') {
@@ -354,7 +354,7 @@ export default function OTPVerificationScreen() {
                   >
                     Go Back
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </>
           )}

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   TextInput,
   Alert,
@@ -641,9 +641,9 @@ export default function FlexibleSeatManager({
                 autoFocus
               />
             ) : (
-              <TouchableOpacity onPress={() => setEditingRow(row.id)}>
+              <Pressable onPress={() => setEditingRow(row.id)}>
                 <Text style={styles.rowName}>{row.rowName}</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
             <Text style={styles.rowType}>{row.rowType.toUpperCase()}</Text>
             {row.aisles.length > 0 && (
@@ -655,7 +655,7 @@ export default function FlexibleSeatManager({
 
           <View style={styles.rowControls}>
             <View style={styles.seatCountControl}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.countButton}
                 onPress={() => updateRowSeatCount(row.id, row.seatCount - 1)}
                 disabled={row.seatCount <= 1}
@@ -666,11 +666,11 @@ export default function FlexibleSeatManager({
                     row.seatCount <= 1 ? colors.textSecondary : colors.primary
                   }
                 />
-              </TouchableOpacity>
+              </Pressable>
 
               <Text style={styles.seatCount}>{row.seatCount}</Text>
 
-              <TouchableOpacity
+              <Pressable
                 style={styles.countButton}
                 onPress={() => updateRowSeatCount(row.id, row.seatCount + 1)}
                 disabled={row.seatCount >= 12}
@@ -681,15 +681,15 @@ export default function FlexibleSeatManager({
                     row.seatCount >= 12 ? colors.textSecondary : colors.primary
                   }
                 />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
-            <TouchableOpacity
+            <Pressable
               style={styles.removeButton}
               onPress={() => removeRow(row.id)}
             >
               <Trash2 size={16} color={colors.error} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -701,7 +701,7 @@ export default function FlexibleSeatManager({
 
             return (
               <React.Fragment key={seat.id}>
-                <TouchableOpacity
+                <Pressable
                   style={[
                     styles.seat,
                     getSeatStyle(seat),
@@ -713,25 +713,25 @@ export default function FlexibleSeatManager({
                   }
                 >
                   <Text style={styles.seatNumber}>{seat.seat_number}</Text>
-                </TouchableOpacity>
+                </Pressable>
 
                 {/* Aisle controls between seats (after each seat except the last one) */}
                 {!isLastSeat && (
                   <View style={styles.aisleControl}>
                     {hasAisleAfter ? (
-                      <TouchableOpacity
+                      <Pressable
                         style={styles.aisleRemoveButton}
                         onPress={() => removeAisleFromRow(row.id, seatPosition)}
                       >
                         <Text style={styles.aisleText}>|</Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     ) : (
-                      <TouchableOpacity
+                      <Pressable
                         style={styles.aisleAddButton}
                         onPress={() => addAisleToRow(row.id, seatPosition)}
                       >
                         <Plus size={14} color={colors.primary} />
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
                   </View>
                 )}
@@ -799,31 +799,31 @@ export default function FlexibleSeatManager({
             {index < rows.length - 1 && (
               <View style={styles.rowAisleControl}>
                 {row.hasRowAisleAfter ? (
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.rowAisleRemoveButton}
                     onPress={() => removeRowAisle(row.id)}
                   >
                     <Text style={styles.rowAisleText}>━━━━━━━</Text>
                     <Text style={styles.rowAisleLabel}>Row Aisle</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ) : (
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.rowAisleAddButton}
                     onPress={() => addRowAisle(row.id)}
                   >
                     <Plus size={16} color={colors.primary} />
                     <Text style={styles.rowAisleAddText}>Add Row Aisle</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )}
               </View>
             )}
           </React.Fragment>
         ))}
 
-        <TouchableOpacity style={styles.addRowButton} onPress={addRow}>
+        <Pressable style={styles.addRowButton} onPress={addRow}>
           <Plus size={20} color={colors.primary} />
           <Text style={styles.addRowText}>Add Row</Text>
-        </TouchableOpacity>
+        </Pressable>
       </ScrollView>
 
       {/* Ferry Shape Indicator */}

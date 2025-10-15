@@ -7,7 +7,7 @@ import {
   RefreshControl,
   Dimensions,
   Text,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
 } from 'react-native';
 import {
@@ -283,12 +283,12 @@ export default function BookingDetailsPage() {
             title: 'Access Denied',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -308,12 +308,12 @@ export default function BookingDetailsPage() {
             title: 'Loading...',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -331,12 +331,12 @@ export default function BookingDetailsPage() {
             title: 'Booking Not Found',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -345,13 +345,10 @@ export default function BookingDetailsPage() {
           {error ||
             'The requested booking could not be found. It may have been cancelled or removed.'}
         </Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={() => loadBooking()}
-        >
+        <Pressable style={styles.retryButton} onPress={() => loadBooking()}>
           <RefreshCw size={16} color='#FFFFFF' />
           <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -368,18 +365,15 @@ export default function BookingDetailsPage() {
           headerShown: true,
           presentation: 'card',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
           headerRight: () =>
             canUpdateBookings() ? (
-              <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
+              <Pressable onPress={handleEdit} style={styles.editButton}>
                 <Edit size={20} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ) : null,
         }}
       />

@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   ScrollView,
   Switch,
@@ -122,9 +122,9 @@ export default function OperationTeamModal({
             <Text style={styles.modalTitle}>
               {member ? 'Edit Team Member' : 'Add Team Member'}
             </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Pressable onPress={onClose} style={styles.closeButton}>
               <X size={24} color={colors.text} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Content */}

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Modal,
   FlatList,
   TextInput,
@@ -60,7 +60,7 @@ const Dropdown: React.FC<DropdownProps> = ({
         </Text>
       )}
 
-      <TouchableOpacity
+      <Pressable
         style={[
           styles.dropdownContainer,
           error ? styles.dropdownError : null,
@@ -78,17 +78,17 @@ const Dropdown: React.FC<DropdownProps> = ({
 
         <View style={styles.dropdownRight}>
           {value && (
-            <TouchableOpacity
+            <Pressable
               style={styles.clearButton}
               onPress={clearSelection}
               hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
             >
               <X size={16} color={Colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
           )}
           <ChevronDown size={20} color={Colors.textSecondary} />
         </View>
-      </TouchableOpacity>
+      </Pressable>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -128,7 +128,7 @@ const Dropdown: React.FC<DropdownProps> = ({
               data={filteredItems}
               keyExtractor={item => item.value}
               renderItem={({ item }) => (
-                <TouchableOpacity
+                <Pressable
                   style={[
                     styles.optionItem,
                     item.value === value && styles.selectedOptionItem,
@@ -147,7 +147,7 @@ const Dropdown: React.FC<DropdownProps> = ({
                   {item.value === value && (
                     <View style={styles.selectedIndicator} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               )}
               style={styles.optionsList}
               ListEmptyComponent={

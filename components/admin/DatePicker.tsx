@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Modal,
   StyleSheet,
   ScrollView,
@@ -219,7 +219,7 @@ export default function DatePicker({
         </Text>
       )}
 
-      <TouchableOpacity
+      <Pressable
         style={[
           styles.input,
           error && styles.inputError,
@@ -259,7 +259,7 @@ export default function DatePicker({
           {value ? formatDisplayDate(value) : placeholder}
         </Text>
         <Calendar size={20} color={colors.textSecondary} />
-      </TouchableOpacity>
+      </Pressable>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -274,12 +274,9 @@ export default function DatePicker({
             {/* Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Date</Text>
-              <TouchableOpacity
-                onPress={handleCancel}
-                style={styles.closeButton}
-              >
+              <Pressable onPress={handleCancel} style={styles.closeButton}>
                 <X size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {/* Year and Month Selection */}
@@ -287,7 +284,7 @@ export default function DatePicker({
               {/* Year Selector */}
               <View style={styles.selectorContainer}>
                 <Text style={styles.selectorLabel}>Year</Text>
-                <TouchableOpacity
+                <Pressable
                   style={styles.selectorButton}
                   onPress={() => setShowYearPicker(!showYearPicker)}
                 >
@@ -300,7 +297,7 @@ export default function DatePicker({
                       showYearPicker && styles.chevronIconRotated,
                     ]}
                   />
-                </TouchableOpacity>
+                </Pressable>
 
                 {showYearPicker && (
                   <View style={styles.dropdownContainer}>
@@ -309,7 +306,7 @@ export default function DatePicker({
                       showsVerticalScrollIndicator={false}
                     >
                       {yearOptions.map(year => (
-                        <TouchableOpacity
+                        <Pressable
                           key={year}
                           style={[
                             styles.dropdownOption,
@@ -327,7 +324,7 @@ export default function DatePicker({
                           >
                             {year}
                           </Text>
-                        </TouchableOpacity>
+                        </Pressable>
                       ))}
                     </ScrollView>
                   </View>
@@ -337,7 +334,7 @@ export default function DatePicker({
               {/* Month Selector */}
               <View style={styles.selectorContainer}>
                 <Text style={styles.selectorLabel}>Month</Text>
-                <TouchableOpacity
+                <Pressable
                   style={styles.selectorButton}
                   onPress={() => setShowMonthPicker(!showMonthPicker)}
                 >
@@ -352,7 +349,7 @@ export default function DatePicker({
                       showMonthPicker && styles.chevronIconRotated,
                     ]}
                   />
-                </TouchableOpacity>
+                </Pressable>
 
                 {showMonthPicker && (
                   <View style={styles.dropdownContainer}>
@@ -361,7 +358,7 @@ export default function DatePicker({
                       showsVerticalScrollIndicator={false}
                     >
                       {monthNames.map((month, index) => (
-                        <TouchableOpacity
+                        <Pressable
                           key={index}
                           style={[
                             styles.dropdownOption,
@@ -379,7 +376,7 @@ export default function DatePicker({
                           >
                             {month}
                           </Text>
-                        </TouchableOpacity>
+                        </Pressable>
                       ))}
                     </ScrollView>
                   </View>
@@ -389,29 +386,23 @@ export default function DatePicker({
 
             {/* Calendar Header */}
             <View style={styles.calendarHeader}>
-              <TouchableOpacity
-                onPress={goToPreviousMonth}
-                style={styles.navButton}
-              >
+              <Pressable onPress={goToPreviousMonth} style={styles.navButton}>
                 <ChevronLeft size={20} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
 
               <Text style={styles.monthYearText}>
                 {monthNames[currentMonth]} {currentYear}
               </Text>
 
-              <TouchableOpacity
-                onPress={goToNextMonth}
-                style={styles.navButton}
-              >
+              <Pressable onPress={goToNextMonth} style={styles.navButton}>
                 <ChevronRight size={20} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {/* Today Button */}
-            <TouchableOpacity onPress={goToToday} style={styles.todayButton}>
+            <Pressable onPress={goToToday} style={styles.todayButton}>
               <Text style={styles.todayButtonText}>Today</Text>
-            </TouchableOpacity>
+            </Pressable>
 
             {/* Calendar Grid */}
             <View style={styles.calendarGrid}>
@@ -433,7 +424,7 @@ export default function DatePicker({
                       {calendarDays
                         .slice(weekIndex * 7, (weekIndex + 1) * 7)
                         .map((day, dayIndex) => (
-                          <TouchableOpacity
+                          <Pressable
                             key={`${weekIndex}-${dayIndex}`}
                             style={[
                               styles.dayCell,
@@ -456,7 +447,7 @@ export default function DatePicker({
                                 {day}
                               </Text>
                             )}
-                          </TouchableOpacity>
+                          </Pressable>
                         ))}
                     </View>
                   )
@@ -466,18 +457,12 @@ export default function DatePicker({
 
             {/* Action Buttons */}
             <View style={styles.actionButtons}>
-              <TouchableOpacity
-                onPress={handleCancel}
-                style={styles.cancelButton}
-              >
+              <Pressable onPress={handleCancel} style={styles.cancelButton}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleConfirm}
-                style={styles.confirmButton}
-              >
+              </Pressable>
+              <Pressable onPress={handleConfirm} style={styles.confirmButton}>
                 <Text style={styles.confirmButtonText}>Confirm</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>

@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import {
   ArrowUpRight,
   ArrowDownLeft,
@@ -84,7 +78,7 @@ export default function TransactionList({
   const renderTransactionItem = (item: any, index: number) => {
     if (item.type === 'transaction') {
       return (
-        <TouchableOpacity
+        <Pressable
           key={`transaction-${item.id}`}
           style={styles.transactionItem}
           onPress={() => onTransactionPress(item)}
@@ -135,11 +129,11 @@ export default function TransactionList({
               </Text>
             </View>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       );
     } else {
       return (
-        <TouchableOpacity
+        <Pressable
           key={`payment-${item.id}`}
           style={styles.paymentItem}
           onPress={() => onPaymentPress(item)}
@@ -198,7 +192,7 @@ export default function TransactionList({
               </View>
             </View>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       );
     }
   };
@@ -209,9 +203,9 @@ export default function TransactionList({
       <View style={styles.revenueSummary}>
         <View style={styles.revenueHeader}>
           <Text style={styles.revenueTitle}>Revenue Overview</Text>
-          <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+          <Pressable style={styles.refreshButton} onPress={onRefresh}>
             <Download size={16} color={colors.primary} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         <View style={styles.revenueStats}>
@@ -243,7 +237,7 @@ export default function TransactionList({
           { key: 'transactions', label: 'Wallet', count: transactions.length },
           { key: 'payments', label: 'Payments', count: payments.length },
         ].map(tab => (
-          <TouchableOpacity
+          <Pressable
             key={tab.key}
             style={[
               styles.filterTab,
@@ -259,7 +253,7 @@ export default function TransactionList({
             >
               {tab.label} ({tab.count})
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
 
@@ -271,7 +265,7 @@ export default function TransactionList({
             { key: 'amount', label: 'Amount' },
             { key: 'type', label: 'Type' },
           ].map(sort => (
-            <TouchableOpacity
+            <Pressable
               key={sort.key}
               style={[
                 styles.sortButton,
@@ -287,10 +281,10 @@ export default function TransactionList({
               >
                 {sort.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
-        <TouchableOpacity
+        <Pressable
           style={styles.sortOrderButton}
           onPress={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
         >
@@ -299,7 +293,7 @@ export default function TransactionList({
           ) : (
             <TrendingDown size={16} color={colors.primary} />
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Transaction List */}

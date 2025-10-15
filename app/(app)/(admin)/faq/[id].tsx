@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   RefreshControl,
   Dimensions,
@@ -213,12 +213,12 @@ export default function FAQDetailScreen() {
         options={{
           title: 'FAQ Details',
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => router.back()}
               style={styles.headerBackButton}
             >
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />

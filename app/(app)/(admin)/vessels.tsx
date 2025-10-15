@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   RefreshControl,
   Dimensions,
@@ -249,7 +249,7 @@ export default function VesselsScreen() {
       {/* Controls Row */}
       <View style={styles.controlsRow}>
         <View style={styles.controlsLeft}>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.controlButton,
               showFilters && styles.controlButtonActive,
@@ -268,11 +268,11 @@ export default function VesselsScreen() {
             >
               Filters
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.sortControl}>
             <Text style={styles.sortLabel}>Sort:</Text>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'name' && styles.sortButtonActive,
@@ -293,8 +293,8 @@ export default function VesselsScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'seating_capacity' && styles.sortButtonActive,
@@ -315,7 +315,7 @@ export default function VesselsScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -331,7 +331,7 @@ export default function VesselsScreen() {
         <View style={styles.filtersSection}>
           <Text style={styles.filterSectionTitle}>Filter by Status</Text>
           <View style={styles.filterRow}>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === null && styles.filterChipActive,
@@ -346,8 +346,8 @@ export default function VesselsScreen() {
               >
                 All Vessels
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'active' && styles.filterChipActive,
@@ -362,8 +362,8 @@ export default function VesselsScreen() {
               >
                 Active Only
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'maintenance' && styles.filterChipActive,
@@ -378,8 +378,8 @@ export default function VesselsScreen() {
               >
                 Maintenance
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'inactive' && styles.filterChipActive,
@@ -394,7 +394,7 @@ export default function VesselsScreen() {
               >
                 Inactive Only
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       )}
@@ -439,12 +439,12 @@ export default function VesselsScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -472,12 +472,9 @@ export default function VesselsScreen() {
         options={{
           title: 'Vessels',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -516,13 +513,9 @@ export default function VesselsScreen() {
       {canManageVessels() &&
         Array.isArray(filteredAndSortedVessels) &&
         filteredAndSortedVessels.length > 0 && (
-          <TouchableOpacity
-            style={styles.floatingButton}
-            onPress={handleAddVessel}
-            activeOpacity={0.8}
-          >
+          <Pressable style={styles.floatingButton} onPress={handleAddVessel}>
             <Plus size={24} color={colors.white} />
-          </TouchableOpacity>
+          </Pressable>
         )}
     </View>
   );

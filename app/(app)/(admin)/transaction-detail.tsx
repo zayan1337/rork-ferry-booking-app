@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   RefreshControl,
   FlatList,
@@ -325,7 +325,7 @@ export default function TransactionDetailScreen() {
   );
 
   const renderRelatedTransaction = ({ item }: { item: RelatedTransaction }) => (
-    <TouchableOpacity style={styles.relatedItem}>
+    <Pressable style={styles.relatedItem}>
       <View
         style={[
           styles.relatedIcon,
@@ -367,7 +367,7 @@ export default function TransactionDetailScreen() {
           MVR {item.amount.toFixed(2)}
         </Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   if (loading) {

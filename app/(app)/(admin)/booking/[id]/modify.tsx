@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  TouchableOpacity,
+  Pressable,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -552,7 +552,7 @@ export default function AdminModifyBookingScreen() {
                   </Text>
                 ) : trips.length > 0 ? (
                   trips.map(trip => (
-                    <TouchableOpacity
+                    <Pressable
                       key={trip.id}
                       style={[
                         styles.tripOption,
@@ -573,7 +573,7 @@ export default function AdminModifyBookingScreen() {
                       <Text style={styles.tripSeats}>
                         Available: {trip.available_seats || 0} seats
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))
                 ) : (
                   <Text style={styles.noSeatsText}>
@@ -739,7 +739,7 @@ export default function AdminModifyBookingScreen() {
 
                 <View style={styles.paymentOptions}>
                   {/* Admin Credit Option */}
-                  <TouchableOpacity
+                  <Pressable
                     style={[
                       styles.paymentOption,
                       selectedPaymentMethod === 'admin_credit' &&
@@ -756,10 +756,10 @@ export default function AdminModifyBookingScreen() {
                     >
                       💳 Admin Credit
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
 
                   {/* Bank Transfer Option */}
-                  <TouchableOpacity
+                  <Pressable
                     style={[
                       styles.paymentOption,
                       selectedPaymentMethod === 'bank_transfer' &&
@@ -776,7 +776,7 @@ export default function AdminModifyBookingScreen() {
                     >
                       🏦 Bank Transfer
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               </View>
 

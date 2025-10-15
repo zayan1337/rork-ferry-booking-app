@@ -3,7 +3,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
   Dimensions,
   ViewStyle,
@@ -141,11 +141,10 @@ export default function Button({
   ];
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={buttonStyle}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={disabled ? 1 : 0.7}
       accessibilityRole='button'
       accessibilityState={{ disabled }}
       accessibilityLabel={title}
@@ -168,7 +167,7 @@ export default function Button({
           )}
         </View>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

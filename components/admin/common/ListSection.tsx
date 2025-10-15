@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
+import { StyleSheet, View, Pressable, Text } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import SectionHeader from '@/components/admin/SectionHeader';
 import SearchBar from '@/components/admin/SearchBar';
@@ -112,12 +112,12 @@ export default function ListSection({
         <View style={styles.filterInfo}>
           <Text style={styles.filterInfoText}>{filterInfo.text}</Text>
           {filterInfo.onClear && (
-            <TouchableOpacity
+            <Pressable
               style={styles.clearFiltersButton}
               onPress={filterInfo.onClear}
             >
               <Text style={styles.clearFiltersText}>Clear</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       )}
@@ -147,13 +147,10 @@ export default function ListSection({
 
       {/* View All Action */}
       {viewAllAction && hasData && (
-        <TouchableOpacity
-          style={styles.viewAllButton}
-          onPress={viewAllAction.onPress}
-        >
+        <Pressable style={styles.viewAllButton} onPress={viewAllAction.onPress}>
           <Text style={styles.viewAllText}>{viewAllAction.text}</Text>
           {viewAllAction.icon}
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );

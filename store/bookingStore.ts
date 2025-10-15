@@ -32,8 +32,8 @@ interface BookingStoreActions {
   setTripType: (tripType: TripType) => void;
   setDepartureDate: (date: string) => void;
   setReturnDate: (date: string) => void;
-  setRoute: (route: Route) => void;
-  setReturnRoute: (route: Route) => void;
+  setRoute: (route: Route | null) => void;
+  setReturnRoute: (route: Route | null) => void;
   setTrip: (trip: Trip | null) => void;
   setReturnTrip: (trip: Trip | null) => void;
   updatePassengers: (passengers: Passenger[]) => void;
@@ -178,7 +178,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     }));
   },
 
-  setRoute: (route: Route) => {
+  setRoute: (route: Route | null) => {
     set(state => ({
       currentBooking: {
         ...state.currentBooking,
@@ -190,7 +190,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     get().calculateTotalFare();
   },
 
-  setReturnRoute: (route: Route) => {
+  setReturnRoute: (route: Route | null) => {
     set(state => ({
       currentBooking: {
         ...state.currentBooking,

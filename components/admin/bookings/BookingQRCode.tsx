@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking } from '@/types/admin/management';
@@ -35,41 +35,41 @@ export default function BookingQRCode({
           <Text style={styles.title}>QR Code</Text>
         </View>
         <View style={styles.actions}>
-          <TouchableOpacity
+          <Pressable
             style={styles.actionButton}
             onPress={handleViewQR}
             accessibilityRole='button'
             accessibilityLabel='View QR code'
           >
             <Eye size={16} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             style={styles.actionButton}
             onPress={handleCopyQR}
             accessibilityRole='button'
             accessibilityLabel='Copy QR code'
           >
             <Copy size={16} color={colors.primary} />
-          </TouchableOpacity>
+          </Pressable>
           {onShare && (
-            <TouchableOpacity
+            <Pressable
               style={styles.actionButton}
               onPress={onShare}
               accessibilityRole='button'
               accessibilityLabel='Share QR code'
             >
               <Share2 size={16} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           )}
           {onDownload && (
-            <TouchableOpacity
+            <Pressable
               style={styles.actionButton}
               onPress={onDownload}
               accessibilityRole='button'
               accessibilityLabel='Download QR code'
             >
               <Download size={16} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       </View>

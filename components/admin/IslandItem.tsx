@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MapPin, Calendar, Activity } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { DatabaseIsland } from '@/types/database';
@@ -50,11 +50,7 @@ export default function IslandItem({ island, onPress }: IslandItemProps) {
   };
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={() => onPress(island.id)}
-      activeOpacity={0.7}
-    >
+    <Pressable style={styles.container} onPress={() => onPress(island.id)}>
       <View style={styles.iconContainer}>
         <MapPin size={20} color={colors.primary} />
       </View>
@@ -122,7 +118,7 @@ export default function IslandItem({ island, onPress }: IslandItemProps) {
       <View style={styles.chevron}>
         <View style={styles.chevronIcon} />
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

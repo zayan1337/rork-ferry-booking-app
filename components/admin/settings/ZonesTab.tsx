@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   RefreshControl,
 } from 'react-native';
@@ -185,13 +185,10 @@ export default function ZonesTab({ searchQuery = '' }: ZonesTabProps) {
         <Text style={styles.previewText}>
           Showing {previewItems.length} of {uniqueZones.length} zones
         </Text>
-        <TouchableOpacity
-          style={styles.viewAllButton}
-          onPress={handleViewAllZones}
-        >
+        <Pressable style={styles.viewAllButton} onPress={handleViewAllZones}>
           <Text style={styles.viewAllText}>View All Zones</Text>
           <Globe size={16} color={colors.primary} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   };

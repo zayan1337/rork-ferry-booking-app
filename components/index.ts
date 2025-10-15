@@ -5,6 +5,7 @@ export { default as Card } from './Card';
 export { default as Input } from './Input';
 export { default as Dropdown } from './Dropdown';
 export { default as DatePicker } from './DatePicker';
+export { default as CalendarDatePicker } from './CalendarDatePicker';
 export { default as SeatSelector } from './SeatSelector';
 export { default as BookingCard } from './BookingCard';
 export { default as TicketCard } from './TicketCard';

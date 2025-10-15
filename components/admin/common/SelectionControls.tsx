@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Check } from 'lucide-react-native';
 
@@ -39,10 +39,7 @@ export function SelectionCheckbox({
   };
 
   return (
-    <TouchableOpacity
-      style={[styles.checkboxContainer, style]}
-      onPress={onPress}
-    >
+    <Pressable style={[styles.checkboxContainer, style]} onPress={onPress}>
       <View
         style={[
           styles.checkbox,
@@ -52,7 +49,7 @@ export function SelectionCheckbox({
       >
         {selected && <Check size={getIconSize()} color='white' />}
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -110,7 +107,7 @@ export function SelectAllControl({
   if (totalCount === 0) return null;
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={[styles.selectAllButton, style]}
       onPress={onSelectAll}
       accessibilityRole='button'
@@ -134,7 +131,7 @@ export function SelectAllControl({
       <Text style={[styles.selectAllText, { fontSize: getTextSize() }]}>
         {isAllSelected ? 'Deselect All' : `Select All (${totalCount})`}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

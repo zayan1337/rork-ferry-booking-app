@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 
@@ -24,7 +24,7 @@ const SelectAllSection: React.FC<SelectAllSectionProps> = ({
 
   return (
     <View>
-      <TouchableOpacity
+      <Pressable
         style={styles.selectAllButton}
         onPress={onSelectAll}
         accessibilityRole='button'
@@ -47,7 +47,7 @@ const SelectAllSection: React.FC<SelectAllSectionProps> = ({
         <Text style={styles.selectAllTextLarge}>
           {isAllSelected ? 'Deselect All' : 'Select All'}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 };

@@ -4,7 +4,7 @@ import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
   Alert,
 } from 'react-native';
@@ -168,7 +168,7 @@ export default function DashboardScreen() {
 
       {/* Critical Alerts Banner */}
       {criticalAlerts > 0 && (
-        <TouchableOpacity
+        <Pressable
           style={styles.criticalAlertBanner}
           onPress={() => router.push('./settings' as any)}
         >
@@ -178,7 +178,7 @@ export default function DashboardScreen() {
             require attention
           </Text>
           <Eye size={16} color={colors.danger} />
-        </TouchableOpacity>
+        </Pressable>
       )}
 
       {/* Enhanced Stats Grid */}
@@ -236,13 +236,13 @@ export default function DashboardScreen() {
           </View>
 
           {alerts.length > 3 && (
-            <TouchableOpacity
+            <Pressable
               style={styles.viewAllButton}
               onPress={() => router.push('./settings' as any)}
             >
               <Text style={styles.viewAllText}>View All Alerts</Text>
               <Eye size={16} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       )}
@@ -258,13 +258,13 @@ export default function DashboardScreen() {
               />
             </View>
             <View style={styles.sectionHeaderButton}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.viewAllLink}
                 onPress={() => handleQuickAction('view_bookings')}
               >
                 <Text style={styles.viewAllLinkText}>View All</Text>
                 <Eye size={16} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 

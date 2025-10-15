@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AlertCircle, Calendar, CreditCard, Ship } from 'lucide-react-native';
 import { Alert } from '@/types/admin';
@@ -42,10 +42,9 @@ export default function AlertItem({ alert, onPress }: AlertItemProps) {
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={[styles.container, !alert.read && styles.unread]}
       onPress={onPress}
-      activeOpacity={0.7}
     >
       <View style={styles.iconContainer}>{getAlertIcon()}</View>
       <View style={styles.content}>
@@ -60,7 +59,7 @@ export default function AlertItem({ alert, onPress }: AlertItemProps) {
           <Text style={styles.time}>{formatTime(alert.timestamp)}</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

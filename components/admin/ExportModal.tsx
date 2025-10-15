@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   Alert,
@@ -160,13 +160,13 @@ export default function ExportModal({
               <Download size={24} color={colors.primary} />
               <Text style={styles.title}>{title}</Text>
             </View>
-            <TouchableOpacity
+            <Pressable
               onPress={handleClose}
               style={styles.closeButton}
               disabled={exporting}
             >
               <X size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <ScrollView
@@ -201,7 +201,7 @@ export default function ExportModal({
 
                 {/* Reset dates button */}
                 {(dateFrom !== getOneMonthAgo() || dateTo !== getMaxDate()) && (
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.clearDatesButton}
                     onPress={() => {
                       setDateFrom(getOneMonthAgo());
@@ -212,7 +212,7 @@ export default function ExportModal({
                     <Text style={styles.clearDatesText}>
                       Reset to Default (Last Month)
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )}
               </View>
             )}
@@ -223,7 +223,7 @@ export default function ExportModal({
                 <Text style={styles.sectionTitle}>Select Roles</Text>
                 <View style={styles.checkboxContainer}>
                   {roleOptions.map(option => (
-                    <TouchableOpacity
+                    <Pressable
                       key={option.value}
                       style={styles.checkboxItem}
                       onPress={() => handleRoleToggle(option.value)}
@@ -241,7 +241,7 @@ export default function ExportModal({
                         )}
                       </View>
                       <Text style={styles.checkboxLabel}>{option.label}</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </View>
               </View>
@@ -252,7 +252,7 @@ export default function ExportModal({
               <Text style={styles.sectionTitle}>File Type</Text>
               <View style={styles.fileTypeContainer}>
                 {fileTypes.map(type => (
-                  <TouchableOpacity
+                  <Pressable
                     key={type}
                     style={[
                       styles.fileTypeButton,
@@ -270,7 +270,7 @@ export default function ExportModal({
                     >
                       {getFileTypeLabel(type)}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </View>
             </View>
@@ -278,14 +278,14 @@ export default function ExportModal({
 
           {/* Footer Actions */}
           <View style={styles.footer}>
-            <TouchableOpacity
+            <Pressable
               style={styles.cancelButton}
               onPress={handleClose}
               disabled={exporting}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.exportButton,
                 exporting && styles.exportButtonDisabled,
@@ -297,7 +297,7 @@ export default function ExportModal({
               <Text style={styles.exportButtonText}>
                 {exporting ? 'Exporting...' : 'Export'}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </View>

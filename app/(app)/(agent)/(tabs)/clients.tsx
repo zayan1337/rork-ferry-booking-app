@@ -4,7 +4,7 @@ import {
   Text,
   View,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -200,12 +200,9 @@ export default function AgentClientsScreen() {
           />
           <Search size={20} color={Colors.subtext} style={styles.searchIcon} />
         </View>
-        <TouchableOpacity
-          style={styles.addClientButton}
-          onPress={handleAddClient}
-        >
+        <Pressable style={styles.addClientButton} onPress={handleAddClient}>
           <UserPlus size={20} color='white' />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Client Stats */}

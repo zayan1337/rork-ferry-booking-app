@@ -4,7 +4,7 @@ import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
+  Pressable,
   Alert,
   RefreshControl,
   Modal,
@@ -239,9 +239,9 @@ export default function AdminProfileModal() {
           title: 'Admin Profile',
           presentation: 'modal',
           headerRight: () => (
-            <TouchableOpacity onPress={() => router.back()}>
+            <Pressable onPress={() => router.back()}>
               <X size={24} color={colors.text} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -272,7 +272,7 @@ export default function AdminProfileModal() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account Details</Text>
         <View style={styles.detailsCard}>
-          <TouchableOpacity
+          <Pressable
             style={styles.detailItem}
             onPress={() => openEditModal('full_name')}
           >
@@ -284,7 +284,7 @@ export default function AdminProfileModal() {
               </Text>
             </View>
             <ChevronRight size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.detailItem}>
             <Mail size={20} color={colors.secondary} />
@@ -294,7 +294,7 @@ export default function AdminProfileModal() {
             </View>
           </View>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.detailItem}
             onPress={() => openEditModal('mobile_number')}
           >
@@ -306,9 +306,9 @@ export default function AdminProfileModal() {
               </Text>
             </View>
             <ChevronRight size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.detailItem}
             onPress={() => openEditModal('date_of_birth')}
           >
@@ -320,7 +320,7 @@ export default function AdminProfileModal() {
               </Text>
             </View>
             <ChevronRight size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.detailItem}>
             <Shield size={20} color={colors.danger} />
@@ -347,7 +347,7 @@ export default function AdminProfileModal() {
       {/* Quick Actions */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
-        <TouchableOpacity
+        <Pressable
           style={styles.actionCard}
           onPress={() => setIsPasswordModalVisible(true)}
         >
@@ -363,10 +363,10 @@ export default function AdminProfileModal() {
             </View>
             <ChevronRight size={18} color={colors.textSecondary} />
           </View>
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Hidden sections - No functionality yet
-        <TouchableOpacity style={styles.actionCard}>
+        <Pressable style={styles.actionCard}>
           <View style={styles.actionContent}>
             <View style={styles.actionIconContainer}>
               <Bell size={20} color={colors.warning} />
@@ -379,7 +379,7 @@ export default function AdminProfileModal() {
             </View>
             <Text style={styles.arrowText}>→</Text>
           </View>
-        </TouchableOpacity>
+        </Pressable>
         */}
       </View>
 
@@ -430,9 +430,9 @@ export default function AdminProfileModal() {
               <Text style={styles.modalTitle}>
                 Edit {getFieldLabel(editingField!)}
               </Text>
-              <TouchableOpacity onPress={closeEditModal}>
+              <Pressable onPress={closeEditModal}>
                 <X size={24} color={colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalBody}>
@@ -486,9 +486,9 @@ export default function AdminProfileModal() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
-              <TouchableOpacity onPress={closePasswordModal}>
+              <Pressable onPress={closePasswordModal}>
                 <X size={24} color={colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalBody}>

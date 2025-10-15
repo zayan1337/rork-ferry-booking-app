@@ -1,11 +1,5 @@
 import React, { memo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import type { Payment } from '@/types/admin/finance';
@@ -94,9 +88,9 @@ function PaymentDetailCard({
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+        <Pressable style={styles.backButton} onPress={handleGoBack}>
           <ArrowLeft size={24} color={colors.text} />
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Payment Details</Text>
           <Text style={styles.headerSubtitle}>
@@ -162,11 +156,7 @@ function PaymentDetailCard({
             <FileText size={20} color={colors.primary} />
             <Text style={styles.sectionTitle}>Booking Information</Text>
           </View>
-          <TouchableOpacity
-            style={styles.infoCard}
-            onPress={handleViewBooking}
-            activeOpacity={0.7}
-          >
+          <Pressable style={styles.infoCard} onPress={handleViewBooking}>
             <InfoRow
               label='Booking Number'
               value={payment.booking.booking_number}
@@ -195,7 +185,7 @@ function PaymentDetailCard({
                 style={{ transform: [{ rotate: '180deg' }] }}
               />
             </View>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       )}
 

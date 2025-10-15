@@ -3,10 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Seat } from '@/types';
 import { SeatSelectorProps } from '@/types/components';
@@ -163,8 +164,13 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 
     const isSelected = isSeatSelected(seat.id);
 
-    // If not selected and max seats are already selected, don't allow selection
+    // If not selected and max seats are already selected, show alert and don't allow selection
     if (!isSelected && isMaxSeatsSelected) {
+      Alert.alert(
+        'Maximum Seats Selected',
+        `You can select a maximum of ${maxSeats} seats. Please deselect a seat to select another one.`,
+        [{ text: 'OK' }]
+      );
       return;
     }
 
@@ -286,8 +292,13 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                       seat.number
                                     );
 
+                                    const isAtMaxCapacity =
+                                      !isSelected &&
+                                      isMaxSeatsSelected &&
+                                      seat.isAvailable;
+
                                     return (
-                                      <TouchableOpacity
+                                      <Pressable
                                         key={seat.id}
                                         style={[
                                           styles.seat,
@@ -296,6 +307,8 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                           isLoadingSeat && styles.loadingSeat,
                                           seatErrors[seat.id] &&
                                             styles.errorSeat,
+                                          isAtMaxCapacity &&
+                                            styles.maxCapacitySeat,
                                         ]}
                                         onPress={() => handleSeatPress(seat)}
                                         disabled={
@@ -307,7 +320,6 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                           seat.isDisabled ||
                                           seat.seatType === 'disabled'
                                         }
-                                        activeOpacity={0.7}
                                       >
                                         {isLoadingSeat ? (
                                           <ActivityIndicator
@@ -334,7 +346,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                             )}
                                           </>
                                         )}
-                                      </TouchableOpacity>
+                                      </Pressable>
                                     );
                                   })}
                                 </View>
@@ -380,6 +392,11 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
         <Text style={styles.selectionText}>
           Selected: {selectedSeats?.length || 0}/{maxSeats} seats
         </Text>
+        {isMaxSeatsSelected && (
+          <Text style={styles.maxReachedText}>
+            Maximum seat limit reached. Deselect a seat to select another.
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -581,6 +598,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: Colors.text,
   },
+  maxReachedText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.warning,
+    marginTop: 8,
+    textAlign: 'center',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -604,7 +628,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.error,
     borderWidth: 2,
   },
-
+  maxCapacitySeat: {
+    opacity: 0.3,
+    backgroundColor: Colors.inactive,
+    borderColor: Colors.border,
+  },
   seatsGrid: {
     flexDirection: 'column',
     alignItems: 'center',

@@ -6,7 +6,7 @@ import {
   ScrollView,
   Alert,
   Keyboard,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -303,12 +303,12 @@ export default function AdminCancelBookingScreen() {
             title: 'Access Denied',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButtonHeader}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -328,12 +328,12 @@ export default function AdminCancelBookingScreen() {
             title: 'Loading...',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButtonHeader}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -351,12 +351,12 @@ export default function AdminCancelBookingScreen() {
             title: 'Booking Not Found',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButtonHeader}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -365,13 +365,10 @@ export default function AdminCancelBookingScreen() {
           {error ||
             'The requested booking could not be found. It may have been cancelled or removed.'}
         </Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={() => loadBooking()}
-        >
+        <Pressable style={styles.retryButton} onPress={() => loadBooking()}>
           <RefreshCw size={16} color='#FFFFFF' />
           <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -387,12 +384,12 @@ export default function AdminCancelBookingScreen() {
           headerShown: true,
           presentation: 'card',
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => router.back()}
               style={styles.backButtonHeader}
             >
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -550,7 +547,7 @@ export default function AdminCancelBookingScreen() {
           <View style={styles.refundMethodContainer}>
             <Text style={styles.refundMethodLabel}>Refund Method</Text>
             <View style={styles.refundMethods}>
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.refundMethodButton,
                   refundMethod === 'original_payment' &&
@@ -567,8 +564,8 @@ export default function AdminCancelBookingScreen() {
                 >
                   Original Payment
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={[
                   styles.refundMethodButton,
                   refundMethod === 'bank_transfer' &&
@@ -585,8 +582,8 @@ export default function AdminCancelBookingScreen() {
                 >
                   Bank Transfer
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={[
                   styles.refundMethodButton,
                   refundMethod === 'credit_note' &&
@@ -603,7 +600,7 @@ export default function AdminCancelBookingScreen() {
                 >
                   Credit Note
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 
@@ -648,7 +645,7 @@ export default function AdminCancelBookingScreen() {
           <View style={styles.refundPercentageContainer}>
             <Text style={styles.refundPercentageLabel}>Refund Percentage</Text>
             <View style={styles.refundPercentageButtons}>
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.percentageButton,
                   refundPercentage === 50 && styles.percentageButtonActive,
@@ -664,8 +661,8 @@ export default function AdminCancelBookingScreen() {
                 >
                   50%
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={[
                   styles.percentageButton,
                   refundPercentage === 75 && styles.percentageButtonActive,
@@ -681,8 +678,8 @@ export default function AdminCancelBookingScreen() {
                 >
                   75%
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={[
                   styles.percentageButton,
                   refundPercentage === 100 && styles.percentageButtonActive,
@@ -698,7 +695,7 @@ export default function AdminCancelBookingScreen() {
                 >
                   100%
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 
@@ -779,15 +776,12 @@ export default function AdminCancelBookingScreen() {
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={18} color={colors.primary} />
             <Text style={styles.backButtonText}>Go Back</Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.cancelButton,
               (isCancelling || !canUpdateBookings()) &&
@@ -804,7 +798,7 @@ export default function AdminCancelBookingScreen() {
             <Text style={styles.cancelButtonText}>
               {isCancelling ? 'Cancelling...' : 'Cancel Booking'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </ScrollView>
     </View>

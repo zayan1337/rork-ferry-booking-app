@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   ScrollView,
   Platform,
@@ -325,12 +325,9 @@ export default function ValidateTicketScreen() {
     <View style={styles.cameraContainer}>
       <View style={styles.cameraHeader}>
         <Text style={styles.cameraTitle}>Scan QR Code</Text>
-        <TouchableOpacity
-          onPress={handleCloseCamera}
-          style={styles.closeButton}
-        >
+        <Pressable onPress={handleCloseCamera} style={styles.closeButton}>
           <X size={24} color={Colors.text} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <View style={styles.cameraWrapper}>
@@ -383,9 +380,9 @@ export default function ValidateTicketScreen() {
             editable={!showCamera}
           />
           {bookingNumber ? (
-            <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
+            <Pressable style={styles.clearButton} onPress={handleClear}>
               <XCircle size={20} color={Colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
           ) : null}
         </View>
 

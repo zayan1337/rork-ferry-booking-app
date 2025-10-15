@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   TextInput,
 } from 'react-native';
@@ -195,14 +195,14 @@ export default function SeatLayoutConfig({
 
           <View style={styles.numberInput}>
             <Text style={styles.inputLabel}>Rows:</Text>
-            <TouchableOpacity
+            <Pressable
               style={styles.numberButton}
               onPress={() =>
                 updateConfig({ rows: Math.max(1, config.rows - 1) })
               }
             >
               <Minus size={16} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
             {editingRows ? (
               <TextInput
                 ref={rowsInputRef}
@@ -216,33 +216,33 @@ export default function SeatLayoutConfig({
                 maxLength={3}
               />
             ) : (
-              <TouchableOpacity
+              <Pressable
                 style={styles.numberValueContainer}
                 onPress={startEditingRows}
               >
                 <Text style={styles.numberValue}>{config.rows}</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
-            <TouchableOpacity
+            <Pressable
               style={styles.numberButton}
               onPress={() =>
                 updateConfig({ rows: Math.min(maxRows, config.rows + 1) })
               }
             >
               <Plus size={16} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <View style={styles.numberInput}>
             <Text style={styles.inputLabel}>Columns:</Text>
-            <TouchableOpacity
+            <Pressable
               style={styles.numberButton}
               onPress={() =>
                 updateConfig({ columns: Math.max(2, config.columns - 1) })
               }
             >
               <Minus size={16} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
             {editingColumns ? (
               <TextInput
                 ref={columnsInputRef}
@@ -256,14 +256,14 @@ export default function SeatLayoutConfig({
                 maxLength={3}
               />
             ) : (
-              <TouchableOpacity
+              <Pressable
                 style={styles.numberValueContainer}
                 onPress={startEditingColumns}
               >
                 <Text style={styles.numberValue}>{config.columns}</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
-            <TouchableOpacity
+            <Pressable
               style={styles.numberButton}
               onPress={() =>
                 updateConfig({
@@ -272,7 +272,7 @@ export default function SeatLayoutConfig({
               }
             >
               <Plus size={16} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <View style={styles.summary}>
@@ -323,7 +323,7 @@ export default function SeatLayoutConfig({
                   const nextCol = col + 1;
                   const isAisle = config.aisles.includes(col);
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={col}
                       style={[
                         styles.aisleButton,
@@ -345,7 +345,7 @@ export default function SeatLayoutConfig({
                       >
                         {col} → {nextCol}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   );
                 })}
               </View>
@@ -360,7 +360,7 @@ export default function SeatLayoutConfig({
                     const nextRow = row + 1;
                     const isAisle = config.rowAisles.includes(row);
                     return (
-                      <TouchableOpacity
+                      <Pressable
                         key={row}
                         style={[
                           styles.aisleButton,
@@ -382,7 +382,7 @@ export default function SeatLayoutConfig({
                         >
                           {row} → {nextRow}
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     );
                   }
                 )}
@@ -403,7 +403,7 @@ export default function SeatLayoutConfig({
               {Array.from({ length: config.rows }, (_, i) => i + 1).map(row => {
                 const isPremium = config.premium_rows.includes(row);
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={row}
                     style={[
                       styles.rowButton,
@@ -419,7 +419,7 @@ export default function SeatLayoutConfig({
                     >
                       Row {row}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>

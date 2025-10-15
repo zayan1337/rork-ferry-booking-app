@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Modal,
   FlatList,
   Platform,
@@ -197,12 +197,12 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
             data={generateYears()}
             keyExtractor={item => item.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity
+              <Pressable
                 style={styles.yearItem}
                 onPress={() => handleSelectYear(item)}
               >
                 <Text style={styles.yearText}>{item}</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
             numColumns={3}
             contentContainerStyle={styles.yearGrid}
@@ -215,12 +215,12 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
             data={generateMonths()}
             keyExtractor={item => item.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity
+              <Pressable
                 style={styles.monthItem}
                 onPress={() => handleSelectMonth(item)}
               >
                 <Text style={styles.monthText}>{getMonthName(item)}</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
             numColumns={2}
             contentContainerStyle={styles.monthGrid}
@@ -240,7 +240,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
           const isSelected = value === dateString;
 
           return (
-            <TouchableOpacity
+            <Pressable
               style={[styles.dateItem, isSelected && styles.selectedItem]}
               onPress={() => handleSelectDay(item)}
             >
@@ -268,7 +268,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
                   year: 'numeric',
                 })}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         }}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -284,7 +284,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
         </Text>
       )}
 
-      <TouchableOpacity
+      <Pressable
         style={[styles.selector, error && styles.selectorError]}
         onPress={handleOpenModal}
       >
@@ -299,7 +299,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
           </Text>
         </View>
         <ChevronDown size={20} color={colors.textSecondary} />
-      </TouchableOpacity>
+      </Pressable>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -313,12 +313,9 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               {isDateOfBirth && viewMode !== 'year' ? (
-                <TouchableOpacity
-                  onPress={handleBack}
-                  style={styles.backButton}
-                >
+                <Pressable onPress={handleBack} style={styles.backButton}>
                   <Text style={styles.backButtonText}>Back</Text>
-                </TouchableOpacity>
+                </Pressable>
               ) : (
                 <View style={styles.placeholder} />
               )}
@@ -333,14 +330,14 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
                   : 'Select a Date'}
               </Text>
 
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   setModalVisible(false);
                   if (isDateOfBirth) setViewMode('year');
                 }}
               >
                 <Text style={styles.closeButton}>Close</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {renderModalContent()}

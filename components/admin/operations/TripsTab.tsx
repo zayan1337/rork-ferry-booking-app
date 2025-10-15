@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useTripManagement } from '@/hooks/useTripManagement';
@@ -318,13 +318,10 @@ export default function TripsTab({
       </View>
 
       {/* View All Button */}
-      <TouchableOpacity
-        style={styles.viewAllButton}
-        onPress={handleViewAllTrips}
-      >
+      <Pressable style={styles.viewAllButton} onPress={handleViewAllTrips}>
         <Text style={styles.viewAllText}>View All Trips</Text>
         <Eye size={16} color={colors.primary} />
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Trip Generator Modal */}
       <TripGenerator

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { X } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import SectionHeader from '@/components/admin/SectionHeader';
@@ -44,14 +44,14 @@ const UserListHeader: React.FC<UserListHeaderProps> = ({
               {currentFilterText.sort}
             </Text>
             {hasActiveFilters && (
-              <TouchableOpacity
+              <Pressable
                 style={styles.clearFiltersButton}
                 onPress={onClearFilters}
                 accessibilityRole='button'
                 accessibilityLabel='Clear all filters'
               >
                 <X size={14} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         </View>

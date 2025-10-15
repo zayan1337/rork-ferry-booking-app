@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   RefreshControl,
   Dimensions,
@@ -303,9 +303,9 @@ export default function TripsScreen() {
             <CalendarRange size={16} color={colors.primary} />
             <Text style={styles.dateRangeTitleText}>Date Range</Text>
           </View>
-          <TouchableOpacity style={styles.resetButton} onPress={resetDateRange}>
+          <Pressable style={styles.resetButton} onPress={resetDateRange}>
             <Text style={styles.resetButtonText}>Reset</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         <View style={styles.dateRangeInputsRow}>
@@ -385,7 +385,7 @@ export default function TripsScreen() {
       {/* Controls Row */}
       <View style={styles.controlsRow}>
         <View style={styles.controlsLeft}>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.controlButton,
               showFilters && styles.controlButtonActive,
@@ -404,11 +404,11 @@ export default function TripsScreen() {
             >
               Filters
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.sortControl}>
             <Text style={styles.sortLabel}>Sort:</Text>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'travel_date' && styles.sortButtonActive,
@@ -429,8 +429,8 @@ export default function TripsScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'departure_time' && styles.sortButtonActive,
@@ -451,8 +451,8 @@ export default function TripsScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.sortButton,
                 sortBy === 'status' && styles.sortButtonActive,
@@ -473,7 +473,7 @@ export default function TripsScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -490,7 +490,7 @@ export default function TripsScreen() {
         <View style={styles.filtersSection}>
           <Text style={styles.filterSectionTitle}>Filter by Status</Text>
           <View style={styles.filterRow}>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === null && styles.filterChipActive,
@@ -505,8 +505,8 @@ export default function TripsScreen() {
               >
                 All Trips
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'scheduled' && styles.filterChipActive,
@@ -521,8 +521,8 @@ export default function TripsScreen() {
               >
                 Scheduled
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'completed' && styles.filterChipActive,
@@ -537,8 +537,8 @@ export default function TripsScreen() {
               >
                 Completed
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'boarding' && styles.filterChipActive,
@@ -553,8 +553,8 @@ export default function TripsScreen() {
               >
                 Boarding
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'departed' && styles.filterChipActive,
@@ -569,8 +569,8 @@ export default function TripsScreen() {
               >
                 Departed
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'arrived' && styles.filterChipActive,
@@ -585,8 +585,8 @@ export default function TripsScreen() {
               >
                 Arrived
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'cancelled' && styles.filterChipActive,
@@ -601,8 +601,8 @@ export default function TripsScreen() {
               >
                 Cancelled
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 filterActive === 'delayed' && styles.filterChipActive,
@@ -617,7 +617,7 @@ export default function TripsScreen() {
               >
                 Delayed
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       )}
@@ -661,12 +661,12 @@ export default function TripsScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -694,12 +694,9 @@ export default function TripsScreen() {
         options={{
           title: 'Trips',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -731,13 +728,9 @@ export default function TripsScreen() {
       )}
 
       {canManageTrips() && filteredAndSortedTrips.length > 0 && (
-        <TouchableOpacity
-          style={styles.floatingButton}
-          onPress={handleAddTrip}
-          activeOpacity={0.8}
-        >
+        <Pressable style={styles.floatingButton} onPress={handleAddTrip}>
           <Plus size={24} color={colors.white} />
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   StyleSheet,
   RefreshControl,
@@ -274,7 +274,7 @@ export default function PromotionsScreen() {
       {/* Controls Row */}
       <View style={styles.controlsRow}>
         <View style={styles.controlsLeft}>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.controlButton,
               showFilters && styles.controlButtonActive,
@@ -293,11 +293,11 @@ export default function PromotionsScreen() {
             >
               Filters
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.sortControl}>
             <Text style={styles.sortLabel}>Sort:</Text>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.sortButton,
                 sortField === 'name' && styles.sortButtonActive,
@@ -318,8 +318,8 @@ export default function PromotionsScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.sortButton,
                 sortField === 'discount_percentage' && styles.sortButtonActive,
@@ -341,7 +341,7 @@ export default function PromotionsScreen() {
                 ) : (
                   <SortDesc size={12} color={colors.primary} />
                 ))}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -358,7 +358,7 @@ export default function PromotionsScreen() {
         <View style={styles.filtersSection}>
           <Text style={styles.filterSectionTitle}>Filter by Status</Text>
           <View style={styles.filterRow}>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.filterChip,
                 statusFilter === 'all' && styles.filterChipActive,
@@ -373,8 +373,8 @@ export default function PromotionsScreen() {
               >
                 All Promotions
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 statusFilter === 'current' && styles.filterChipActive,
@@ -389,8 +389,8 @@ export default function PromotionsScreen() {
               >
                 Current
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 statusFilter === 'upcoming' && styles.filterChipActive,
@@ -405,8 +405,8 @@ export default function PromotionsScreen() {
               >
                 Upcoming
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 statusFilter === 'expired' && styles.filterChipActive,
@@ -421,8 +421,8 @@ export default function PromotionsScreen() {
               >
                 Expired
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 statusFilter === 'active' && styles.filterChipActive,
@@ -437,8 +437,8 @@ export default function PromotionsScreen() {
               >
                 Active
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.filterChip,
                 statusFilter === 'inactive' && styles.filterChipActive,
@@ -453,7 +453,7 @@ export default function PromotionsScreen() {
               >
                 Inactive
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       )}
@@ -498,12 +498,12 @@ export default function PromotionsScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -531,12 +531,9 @@ export default function PromotionsScreen() {
         options={{
           title: 'Promotions',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -569,13 +566,9 @@ export default function PromotionsScreen() {
 
       {/* Floating Add Button */}
       {canManageContent() && filteredAndSortedPromotions.length > 0 && (
-        <TouchableOpacity
-          style={styles.floatingButton}
-          onPress={handleAddPromotion}
-          activeOpacity={0.8}
-        >
+        <Pressable style={styles.floatingButton} onPress={handleAddPromotion}>
           <Plus size={24} color={colors.white} />
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );

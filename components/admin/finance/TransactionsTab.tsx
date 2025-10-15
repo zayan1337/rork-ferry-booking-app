@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useFinanceStore } from '@/store/admin/financeStore';
@@ -137,7 +137,7 @@ export default function TransactionsTab({
         {displayTransactions.length > 0 ? (
           displayTransactions.map(
             (transaction: WalletTransaction, index: number) => (
-              <TouchableOpacity
+              <Pressable
                 key={`transaction-${transaction.id}-${index}`}
                 style={styles.transactionItem}
                 onPress={() => handleTransactionPress(transaction.id)}
@@ -199,7 +199,7 @@ export default function TransactionsTab({
                     </Text>
                   </View>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             )
           )
         ) : (
@@ -216,13 +216,13 @@ export default function TransactionsTab({
       </View>
 
       {/* View All Button */}
-      <TouchableOpacity
+      <Pressable
         style={styles.viewAllButton}
         onPress={handleViewAllTransactions}
       >
         <Text style={styles.viewAllText}>View All Transactions</Text>
         <Eye size={16} color={colors.primary} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

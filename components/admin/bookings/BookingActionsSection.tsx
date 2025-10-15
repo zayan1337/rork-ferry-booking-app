@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking, BookingStatus } from '@/types/admin/management';
@@ -63,7 +63,7 @@ export default function BookingActionsSection({
     switch (booking.status) {
       case 'reserved':
         actions.push(
-          <TouchableOpacity
+          <Pressable
             key='confirm'
             style={[styles.actionButton, styles.primaryAction]}
             onPress={() => handleStatusUpdate('confirmed')}
@@ -71,12 +71,12 @@ export default function BookingActionsSection({
           >
             <CheckCircle size={18} color='#FFFFFF' />
             <Text style={styles.actionButtonText}>Confirm Booking</Text>
-          </TouchableOpacity>
+          </Pressable>
         );
         break;
       case 'pending_payment':
         actions.push(
-          <TouchableOpacity
+          <Pressable
             key='confirm'
             style={[styles.actionButton, styles.primaryAction]}
             onPress={() => handleStatusUpdate('confirmed')}
@@ -84,12 +84,12 @@ export default function BookingActionsSection({
           >
             <CheckCircle size={18} color='#FFFFFF' />
             <Text style={styles.actionButtonText}>Confirm Payment</Text>
-          </TouchableOpacity>
+          </Pressable>
         );
         break;
       case 'confirmed':
         actions.push(
-          <TouchableOpacity
+          <Pressable
             key='checkin'
             style={[styles.actionButton, styles.primaryAction]}
             onPress={() => handleStatusUpdate('checked_in')}
@@ -97,12 +97,12 @@ export default function BookingActionsSection({
           >
             <Eye size={18} color='#FFFFFF' />
             <Text style={styles.actionButtonText}>Check In</Text>
-          </TouchableOpacity>
+          </Pressable>
         );
         break;
       case 'checked_in':
         actions.push(
-          <TouchableOpacity
+          <Pressable
             key='complete'
             style={[styles.actionButton, styles.primaryAction]}
             onPress={() => handleStatusUpdate('completed')}
@@ -110,7 +110,7 @@ export default function BookingActionsSection({
           >
             <CheckCircle size={18} color='#FFFFFF' />
             <Text style={styles.actionButtonText}>Mark Complete</Text>
-          </TouchableOpacity>
+          </Pressable>
         );
         break;
     }
@@ -126,7 +126,7 @@ export default function BookingActionsSection({
     switch (booking.payment_status) {
       case 'pending':
         actions.push(
-          <TouchableOpacity
+          <Pressable
             key='mark-paid'
             style={[styles.actionButton, styles.primaryAction]}
             onPress={() => handlePaymentStatusUpdate('completed')}
@@ -134,12 +134,12 @@ export default function BookingActionsSection({
           >
             <CheckCircle size={18} color='#FFFFFF' />
             <Text style={styles.actionButtonText}>Mark as Paid</Text>
-          </TouchableOpacity>
+          </Pressable>
         );
         break;
       case 'completed':
         actions.push(
-          <TouchableOpacity
+          <Pressable
             key='refund'
             style={[styles.actionButton, styles.outlineAction]}
             onPress={() => handlePaymentStatusUpdate('refunded')}
@@ -149,7 +149,7 @@ export default function BookingActionsSection({
             <Text style={[styles.actionButtonText, { color: colors.primary }]}>
               Process Refund
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         );
         break;
     }
@@ -210,7 +210,7 @@ export default function BookingActionsSection({
         </View>
         <View style={styles.actionButtons}>
           {onViewCustomer && (
-            <TouchableOpacity
+            <Pressable
               style={[styles.actionButton, styles.outlineAction]}
               onPress={onViewCustomer}
             >
@@ -220,9 +220,9 @@ export default function BookingActionsSection({
               >
                 View Customer
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
-          <TouchableOpacity
+          <Pressable
             style={[styles.actionButton, styles.outlineAction]}
             onPress={() =>
               Alert.alert(
@@ -235,7 +235,7 @@ export default function BookingActionsSection({
             <Text style={[styles.actionButtonText, { color: colors.primary }]}>
               Contact Customer
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
@@ -249,7 +249,7 @@ export default function BookingActionsSection({
             <Text style={styles.groupTitle}>Booking Management</Text>
           </View>
           <View style={styles.actionButtons}>
-            <TouchableOpacity
+            <Pressable
               style={[styles.actionButton, styles.outlineAction]}
               onPress={() =>
                 router.push(`/(admin)/booking/${booking.id}/modify` as any)
@@ -262,8 +262,8 @@ export default function BookingActionsSection({
               >
                 Modify Booking
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[styles.actionButton, styles.dangerAction]}
               onPress={() =>
                 router.push(`/(admin)/booking/${booking.id}/cancel` as any)
@@ -272,7 +272,7 @@ export default function BookingActionsSection({
             >
               <Trash2 size={18} color='#FFFFFF' />
               <Text style={styles.actionButtonText}>Cancel Booking</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       )}
@@ -284,7 +284,7 @@ export default function BookingActionsSection({
           <Text style={styles.groupTitle}>Documents & Reports</Text>
         </View>
         <View style={styles.actionButtons}>
-          <TouchableOpacity
+          <Pressable
             style={[styles.actionButton, styles.outlineAction]}
             onPress={() =>
               Alert.alert(
@@ -297,8 +297,8 @@ export default function BookingActionsSection({
             <Text style={[styles.actionButtonText, { color: colors.primary }]}>
               Print Ticket
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             style={[styles.actionButton, styles.outlineAction]}
             onPress={() =>
               Alert.alert(
@@ -311,7 +311,7 @@ export default function BookingActionsSection({
             <Text style={[styles.actionButtonText, { color: colors.primary }]}>
               Generate Receipt
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </View>

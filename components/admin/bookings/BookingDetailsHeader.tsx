@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking, BookingStatus } from '@/types/admin/management';
 import StatusBadge from '@/components/admin/StatusBadge';
@@ -55,14 +55,14 @@ export default function BookingDetailsHeader({
         </View>
 
         {canUpdateBookings && onEdit && (
-          <TouchableOpacity
+          <Pressable
             style={styles.editButton}
             onPress={onEdit}
             accessibilityRole='button'
             accessibilityLabel='Edit booking'
           >
             <Edit size={16} color={colors.primary} />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 

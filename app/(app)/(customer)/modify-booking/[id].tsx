@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  TouchableOpacity,
+  Pressable,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useUserBookingsStore, useTripStore, useSeatStore } from '@/store';
@@ -761,7 +761,7 @@ export default function ModifyBookingScreen() {
             <View style={styles.tripSelection}>
               <Text style={styles.sectionTitle}>Select New Trip</Text>
               {trips.map(trip => (
-                <TouchableOpacity
+                <Pressable
                   key={trip.id}
                   style={[
                     styles.tripOption,
@@ -794,7 +794,7 @@ export default function ModifyBookingScreen() {
                       </Text>
                     )}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
               {errors.trip ? (
                 <Text style={styles.errorText}>{errors.trip}</Text>
@@ -903,7 +903,7 @@ export default function ModifyBookingScreen() {
 
                 <View style={styles.paymentOptions}>
                   {fareDifference > 0 && (
-                    <TouchableOpacity
+                    <Pressable
                       style={[
                         styles.paymentOption,
                         selectedPaymentMethod === 'mib' &&
@@ -920,10 +920,10 @@ export default function ModifyBookingScreen() {
                       >
                         MIB Payment
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
 
-                  {/* <TouchableOpacity
+                  {/* <Pressable
                     style={[
                       styles.paymentOption,
                       selectedPaymentMethod === 'wallet' &&
@@ -942,9 +942,9 @@ export default function ModifyBookingScreen() {
                         ? 'Online Payment'
                         : 'Original Method'}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
 
-                  <TouchableOpacity
+                  <Pressable
                     style={[
                       styles.paymentOption,
                       selectedPaymentMethod === 'bank_transfer' &&
@@ -961,7 +961,7 @@ export default function ModifyBookingScreen() {
                     >
                       Bank Transfer
                     </Text>
-                  </TouchableOpacity> */}
+                  </Pressable> */}
                 </View>
               </View>
             )}

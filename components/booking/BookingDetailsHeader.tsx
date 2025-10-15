@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Share2 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
@@ -63,9 +63,9 @@ const BookingDetailsHeader: React.FC<BookingDetailsHeaderProps> = ({
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </Text>
         </View>
-        <TouchableOpacity style={styles.shareButton} onPress={onShare}>
+        <Pressable style={styles.shareButton} onPress={onShare}>
           <Share2 size={20} color={Colors.primary} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );

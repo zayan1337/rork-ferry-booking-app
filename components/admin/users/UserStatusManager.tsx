@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, Alert } from 'react-native';
 import { Shield, X, CheckCircle, AlertCircle, Ban } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { UserProfile } from '@/types/userManagement';
@@ -112,9 +105,9 @@ export default function UserStatusManager({
               <Shield size={24} color={colors.primary} />
               <Text style={styles.title}>Manage User Status</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Pressable onPress={onClose} style={styles.closeButton}>
               <X size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <View style={styles.userInfo}>
@@ -137,7 +130,7 @@ export default function UserStatusManager({
 
           <View style={styles.options}>
             {statusOptions.map(option => (
-              <TouchableOpacity
+              <Pressable
                 key={option.status}
                 style={[
                   styles.option,
@@ -158,7 +151,7 @@ export default function UserStatusManager({
                 {user.status === option.status && (
                   <CheckCircle size={20} color={colors.primary} />
                 )}
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
 

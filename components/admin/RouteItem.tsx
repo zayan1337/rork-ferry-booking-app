@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import {
   Navigation,
@@ -76,11 +76,7 @@ export default function RouteItem({
     (route.status as StatusType) || (route.is_active ? 'active' : 'inactive');
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={() => onPress(route.id)}
-      activeOpacity={0.8}
-    >
+    <Pressable style={styles.container} onPress={() => onPress(route.id)}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.iconContainer}>
@@ -241,7 +237,7 @@ export default function RouteItem({
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

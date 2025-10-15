@@ -10,7 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   Text,
 } from 'react-native';
@@ -370,11 +370,10 @@ export default function SettingsScreen() {
             const isActive = activeTab === tab.key;
 
             return (
-              <TouchableOpacity
+              <Pressable
                 key={tab.key}
                 style={[styles.tab, isActive && styles.tabActive]}
                 onPress={() => setActiveTab(tab.key as SettingsTab)}
-                activeOpacity={0.7}
               >
                 <View style={styles.tabIconContainer}>
                   <IconComponent
@@ -388,7 +387,7 @@ export default function SettingsScreen() {
                   {tab.label}
                 </Text>
                 {isActive && <View style={styles.tabIndicator} />}
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </ScrollView>

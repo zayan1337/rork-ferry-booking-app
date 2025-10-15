@@ -4,7 +4,7 @@ import {
   Text,
   TextInput as RNTextInput,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Modal,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
@@ -102,7 +102,7 @@ export default function UnitInput({
               placeholderTextColor={colors.textSecondary}
             />
 
-            <TouchableOpacity
+            <Pressable
               style={styles.unitButton}
               onPress={() => setShowUnitDropdown(true)}
             >
@@ -114,7 +114,7 @@ export default function UnitInput({
                 color={colors.textSecondary}
                 style={styles.chevron}
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -127,15 +127,14 @@ export default function UnitInput({
         animationType='fade'
         onRequestClose={() => setShowUnitDropdown(false)}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.modalOverlay}
-          activeOpacity={1}
           onPress={() => setShowUnitDropdown(false)}
         >
           <View style={styles.modalContent}>
             <View style={styles.dropdown}>
               {units.map(unitOption => (
-                <TouchableOpacity
+                <Pressable
                   key={unitOption.value}
                   style={[
                     styles.dropdownItem,
@@ -153,11 +152,11 @@ export default function UnitInput({
                   >
                     {unitOption.suffix}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       </Modal>
     </>
   );

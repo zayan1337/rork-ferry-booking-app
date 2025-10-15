@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -103,10 +103,9 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
     const isAgent = item.user_role === 'agent';
 
     return (
-      <TouchableOpacity
+      <Pressable
         style={styles.walletItem}
         onPress={() => handleWalletPress(item.id)}
-        activeOpacity={0.7}
       >
         <View style={styles.walletIcon}>
           {isAgent ? (
@@ -198,7 +197,7 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
             <Text style={styles.walletDate}>{formatDate(item.updated_at)}</Text>
           </View>
         </View>
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
@@ -220,7 +219,7 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
     <>
       {/* Status Filter */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.filterButton,
             filterStatus === 'all' && styles.filterButtonActive,
@@ -235,8 +234,8 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
           >
             All Status
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[
             styles.filterButton,
             filterStatus === 'active' && styles.filterButtonActive,
@@ -255,8 +254,8 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
           >
             Active
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[
             styles.filterButton,
             filterStatus === 'inactive' && styles.filterButtonActive,
@@ -275,12 +274,12 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
           >
             Inactive
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Role Filter */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.filterButton,
             filterRole === 'all' && styles.filterButtonActive,
@@ -295,8 +294,8 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
           >
             All Users
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[
             styles.filterButton,
             filterRole === 'agent' && styles.filterButtonActive,
@@ -315,8 +314,8 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
           >
             Agents Only
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[
             styles.filterButton,
             filterRole === 'customer' && styles.filterButtonActive,
@@ -337,7 +336,7 @@ function WalletsListPage({ agentOnly = false }: WalletsListPageProps) {
           >
             Customers
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </>
   );

@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   RefreshControl,
   Dimensions,
@@ -144,12 +144,12 @@ export default function FAQCategoryDetailScreen() {
           options={{
             title: 'FAQ Category Details',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -165,12 +165,12 @@ export default function FAQCategoryDetailScreen() {
           options={{
             title: 'FAQ Category Not Found',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -197,30 +197,27 @@ export default function FAQCategoryDetailScreen() {
         options={{
           title: category.name,
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
           headerRight: () =>
             canManageSettings() ? (
               <View style={styles.headerActions}>
-                <TouchableOpacity
+                <Pressable
                   onPress={handleEdit}
                   style={styles.headerAction}
                   disabled={deleting}
                 >
                   <Edit size={20} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity
+                </Pressable>
+                <Pressable
                   onPress={handleDelete}
                   style={styles.headerAction}
                   disabled={deleting}
                 >
                   <Trash2 size={20} color={colors.error} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             ) : null,
         }}
@@ -313,7 +310,7 @@ export default function FAQCategoryDetailScreen() {
             <Text style={styles.sectionTitle}>FAQs in this Category</Text>
             <View style={styles.faqsList}>
               {categoryFAQs.map((faq, index) => (
-                <TouchableOpacity
+                <Pressable
                   key={faq.id}
                   style={styles.faqItem}
                   onPress={() => router.push(`../faq/${faq.id}` as any)}
@@ -329,7 +326,7 @@ export default function FAQCategoryDetailScreen() {
                       Updated {new Date(faq.updated_at).toLocaleDateString()}
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </View>

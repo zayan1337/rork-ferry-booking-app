@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking } from '@/types/admin/management';
 import StatusBadge from './StatusBadge';
@@ -43,10 +37,9 @@ export default function AdminBookingItem({
 }: AdminBookingItemProps) {
   if (compact) {
     return (
-      <TouchableOpacity
+      <Pressable
         style={styles.compactContainer}
         onPress={() => onPress(booking)}
-        activeOpacity={0.7}
       >
         <View style={styles.compactHeader}>
           <View style={styles.compactLeft}>
@@ -90,16 +83,12 @@ export default function AdminBookingItem({
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={() => onPress(booking)}
-      activeOpacity={0.7}
-    >
+    <Pressable style={styles.container} onPress={() => onPress(booking)}>
       <View style={styles.header}>
         <View style={styles.leftSection}>
           <Text style={styles.bookingNumber}>
@@ -217,7 +206,7 @@ export default function AdminBookingItem({
           )}
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

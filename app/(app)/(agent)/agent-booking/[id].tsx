@@ -5,7 +5,7 @@ import {
   View,
   ScrollView,
   Alert,
-  TouchableOpacity,
+  Pressable,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -149,10 +149,9 @@ export default function BookingDetailsScreen() {
 
       {/* Check-in & Boarding */}
       <View style={styles.policySection}>
-        <TouchableOpacity
+        <Pressable
           style={styles.policySectionHeader}
           onPress={() => togglePolicySection('checkin')}
-          activeOpacity={0.7}
         >
           <Timer size={18} color={Colors.primary} />
           <Text style={styles.policySectionTitle}>Check-in & Boarding</Text>
@@ -161,7 +160,7 @@ export default function BookingDetailsScreen() {
           ) : (
             <ChevronDown size={18} color={Colors.primary} />
           )}
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.policyText}>
           Check-in: 30 min before departure • Boarding: 10 min before departure
         </Text>
@@ -179,10 +178,9 @@ export default function BookingDetailsScreen() {
 
       {/* Luggage Policy */}
       <View style={styles.policySection}>
-        <TouchableOpacity
+        <Pressable
           style={styles.policySectionHeader}
           onPress={() => togglePolicySection('luggage')}
-          activeOpacity={0.7}
         >
           <Luggage size={18} color={Colors.primary} />
           <Text style={styles.policySectionTitle}>Luggage Policy</Text>
@@ -191,7 +189,7 @@ export default function BookingDetailsScreen() {
           ) : (
             <ChevronDown size={18} color={Colors.primary} />
           )}
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.policyText}>
           1 luggage per ticket • 1 handbag per ticket • Prohibited items apply
         </Text>
@@ -220,10 +218,9 @@ export default function BookingDetailsScreen() {
 
       {/* Cancellation & Modification Policy */}
       <View style={styles.policySection}>
-        <TouchableOpacity
+        <Pressable
           style={styles.policySectionHeader}
           onPress={() => togglePolicySection('cancellation')}
-          activeOpacity={0.7}
         >
           <FileText size={18} color={Colors.primary} />
           <Text style={styles.policySectionTitle}>
@@ -234,7 +231,7 @@ export default function BookingDetailsScreen() {
           ) : (
             <ChevronDown size={18} color={Colors.primary} />
           )}
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.policyText}>
           Cancel: 48+ hrs allowed • Modify: 72+ hrs • 50% charge applies
         </Text>
@@ -263,10 +260,9 @@ export default function BookingDetailsScreen() {
 
       {/* Refund Policy */}
       <View style={styles.policySection}>
-        <TouchableOpacity
+        <Pressable
           style={styles.policySectionHeader}
           onPress={() => togglePolicySection('refund')}
-          activeOpacity={0.7}
         >
           <DollarSign size={18} color={Colors.primary} />
           <Text style={styles.policySectionTitle}>Refund Policy</Text>
@@ -275,7 +271,7 @@ export default function BookingDetailsScreen() {
           ) : (
             <ChevronDown size={18} color={Colors.primary} />
           )}
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.policyText}>
           Processing: 72 hrs • Bank transfer • 50% charge applies
         </Text>
@@ -303,10 +299,9 @@ export default function BookingDetailsScreen() {
 
       {/* Conditions of Carriage */}
       <View style={styles.policySection}>
-        <TouchableOpacity
+        <Pressable
           style={styles.policySectionHeader}
           onPress={() => togglePolicySection('conditions')}
-          activeOpacity={0.7}
         >
           <Info size={18} color={Colors.primary} />
           <Text style={styles.policySectionTitle}>Conditions of Carriage</Text>
@@ -315,7 +310,7 @@ export default function BookingDetailsScreen() {
           ) : (
             <ChevronDown size={18} color={Colors.primary} />
           )}
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.policyText}>
           Contract terms • ID required • Age restrictions • Behavior rules
         </Text>
@@ -455,18 +450,18 @@ export default function BookingDetailsScreen() {
             {/* Header with buttons */}
             <View style={styles.modalHeader}>
               {/* Close Button */}
-              <TouchableOpacity
+              <Pressable
                 style={styles.modalCloseButton}
                 onPress={handleCloseTicketPopup}
               >
                 <X size={24} color={Colors.text} />
-              </TouchableOpacity>
+              </Pressable>
 
               {/* Title */}
               <Text style={styles.modalTitle}>Ticket Details</Text>
 
               {/* Share Button */}
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.modalShareButton,
                   isSharing && styles.shareIconButtonDisabled,
@@ -478,7 +473,7 @@ export default function BookingDetailsScreen() {
                   size={24}
                   color={isSharing ? Colors.textSecondary : Colors.primary}
                 />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {/* Ticket Content */}
@@ -572,16 +567,15 @@ export default function BookingDetailsScreen() {
 
         {/* Terms and Conditions Link */}
         <View style={styles.termsLinkSection}>
-          <TouchableOpacity
+          <Pressable
             style={styles.termsLinkButton}
             onPress={() => router.push('/(app)/terms-and-conditions')}
-            activeOpacity={0.7}
           >
             <FileText size={18} color={Colors.primary} />
             <Text style={styles.termsLinkText}>
               View Full Terms & Conditions
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Action Buttons */}

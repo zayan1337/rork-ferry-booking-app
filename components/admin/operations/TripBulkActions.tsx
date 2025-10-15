@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Text, Alert } from 'react-native';
+import { StyleSheet, View, Pressable, Text, Alert } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Download, Clock, X, CheckCircle, Calendar } from 'lucide-react-native';
 
@@ -113,27 +113,21 @@ export default function TripBulkActions({
           </Text>
           <View style={styles.selectionActions}>
             {selectedCount < totalCount && (
-              <TouchableOpacity
-                onPress={onSelectAll}
-                style={styles.selectAllButton}
-              >
+              <Pressable onPress={onSelectAll} style={styles.selectAllButton}>
                 <Text style={styles.selectAllText}>
                   Select All ({totalCount})
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
-            <TouchableOpacity
-              onPress={onClearSelection}
-              style={styles.clearButton}
-            >
+            <Pressable onPress={onClearSelection} style={styles.clearButton}>
               <Text style={styles.clearText}>Clear</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
         <View style={styles.actionsContainer}>
           {bulkActions.map(action => (
-            <TouchableOpacity
+            <Pressable
               key={action.key}
               style={[
                 styles.actionButton,
@@ -150,7 +144,7 @@ export default function TripBulkActions({
               >
                 {action.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
       </View>

@@ -4,7 +4,7 @@ import {
   TextInput,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Platform,
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
@@ -75,7 +75,7 @@ const Input: React.FC<InputProps> = ({
         />
 
         {secureTextEntry && (
-          <TouchableOpacity
+          <Pressable
             style={styles.iconContainer}
             onPress={togglePasswordVisibility}
           >
@@ -84,7 +84,7 @@ const Input: React.FC<InputProps> = ({
             ) : (
               <Eye size={20} color={Colors.textSecondary} />
             )}
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 

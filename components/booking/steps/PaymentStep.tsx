@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Dropdown from '@/components/Dropdown';
 import { formatCurrency } from '@/utils/agentFormatters';
 import { AGENT_PAYMENT_OPTIONS } from '@/utils/bookingFormUtils';
@@ -194,14 +194,14 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
 
       {/* Terms and Conditions */}
       <View style={styles.termsContainer}>
-        <TouchableOpacity style={styles.checkbox} onPress={handleTermsToggle}>
+        <Pressable style={styles.checkbox} onPress={handleTermsToggle}>
           <View
             style={[
               styles.checkboxInner,
               termsAccepted && styles.checkboxChecked,
             ]}
           />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.termsText}>
           I accept the{' '}
           <Text style={styles.termsLink}>Terms and Conditions</Text> and confirm

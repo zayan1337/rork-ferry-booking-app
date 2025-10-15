@@ -3,7 +3,7 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Text,
   Alert,
 } from 'react-native';
@@ -133,12 +133,12 @@ export default function VesselSeatLayoutScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -167,12 +167,12 @@ export default function VesselSeatLayoutScreen() {
           options={{
             title: 'Loading...',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -191,12 +191,12 @@ export default function VesselSeatLayoutScreen() {
           options={{
             title: 'Vessel Not Found',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -224,12 +224,9 @@ export default function VesselSeatLayoutScreen() {
         options={{
           title: `${vesselData.name} - Seat Layout`,
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -246,12 +243,12 @@ export default function VesselSeatLayoutScreen() {
               <AlertCircle size={20} color={colors.error} />
             </View>
             <Text style={styles.errorBannerText}>{saveError}</Text>
-            <TouchableOpacity
+            <Pressable
               onPress={() => setSaveError(null)}
               style={styles.errorBannerClose}
             >
               <Text style={styles.errorBannerCloseText}>×</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
 

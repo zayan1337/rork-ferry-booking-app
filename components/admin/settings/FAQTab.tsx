@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   Alert,
   RefreshControl,
@@ -198,7 +198,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = '' }) => {
 
       {/* Tab Toggle */}
       <View style={styles.tabToggleContainer}>
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.tabToggle,
             activeTab === 'categories' && styles.tabToggleActive,
@@ -223,8 +223,8 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = '' }) => {
               : categoriesWithCounts.length}
             )
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[
             styles.tabToggle,
             activeTab === 'faqs' && styles.tabToggleActive,
@@ -243,7 +243,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = '' }) => {
           >
             FAQs ({searchQuery ? filteredFaqs.length : faqs.length})
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
@@ -315,13 +315,10 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = '' }) => {
 
   const renderFooter = () => (
     <View style={styles.footerContainer}>
-      <TouchableOpacity
-        style={styles.viewAllButton}
-        onPress={handleViewAllFAQs}
-      >
+      <Pressable style={styles.viewAllButton} onPress={handleViewAllFAQs}>
         <Text style={styles.viewAllText}>View All FAQs</Text>
         <HelpCircle size={16} color={colors.primary} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 

@@ -5,7 +5,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   RefreshControl,
 } from 'react-native';
@@ -323,12 +323,12 @@ export default function TripDetailsPage() {
             title: 'Loading...',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -346,12 +346,12 @@ export default function TripDetailsPage() {
             title: 'Trip Not Found',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -360,10 +360,10 @@ export default function TripDetailsPage() {
           The requested trip could not be found. It may have been cancelled or
           moved.
         </Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => loadTrip()}>
+        <Pressable style={styles.retryButton} onPress={() => loadTrip()}>
           <RefreshCw size={16} color='#FFFFFF' />
           <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -379,36 +379,32 @@ export default function TripDetailsPage() {
             headerShown: true,
             presentation: 'card',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => (editMode ? setEditMode(false) : router.back())}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
             headerRight: () =>
               !editMode && canManageTrips() ? (
-                <TouchableOpacity
-                  onPress={handleEdit}
-                  style={styles.editButton}
-                >
+                <Pressable onPress={handleEdit} style={styles.editButton}>
                   <Edit size={20} color={colors.primary} />
-                </TouchableOpacity>
+                </Pressable>
               ) : null,
           }}
         />
 
         {/* Action Menu Overlay */}
         {actionMenuVisible && (
-          <TouchableOpacity
+          <Pressable
             style={styles.actionMenuOverlay}
             onPress={() => setActionMenuVisible(false)}
-            activeOpacity={1}
           >
             <View style={styles.actionMenuContainer}>
               {/* This section is removed as per the new_code, but the state variable remains */}
             </View>
-          </TouchableOpacity>
+          </Pressable>
         )}
 
         {editMode ? (
@@ -567,7 +563,7 @@ export default function TripDetailsPage() {
             <View style={styles.managementCard}>
               <Text style={styles.sectionTitle}>Trip Management</Text>
 
-              <TouchableOpacity
+              <Pressable
                 style={styles.managementAction}
                 onPress={handleViewPassengers}
               >
@@ -585,9 +581,9 @@ export default function TripDetailsPage() {
                   </View>
                 </View>
                 <ChevronRight size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={styles.managementAction}
                 onPress={handleViewBookings}
               >
@@ -605,9 +601,9 @@ export default function TripDetailsPage() {
                   </View>
                 </View>
                 <ChevronRight size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={styles.managementAction}
                 onPress={() => {
                   Alert.alert(
@@ -630,10 +626,10 @@ export default function TripDetailsPage() {
                   </View>
                 </View>
                 <ChevronRight size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Pressable>
 
               {trip.status !== 'completed' && trip.status !== 'cancelled' && (
-                <TouchableOpacity
+                <Pressable
                   style={[styles.managementAction, styles.dangerAction]}
                   onPress={handleCancel}
                 >
@@ -661,11 +657,11 @@ export default function TripDetailsPage() {
                     </View>
                   </View>
                   <ChevronRight size={20} color={colors.danger} />
-                </TouchableOpacity>
+                </Pressable>
               )}
 
               {canManageTrips() && (
-                <TouchableOpacity
+                <Pressable
                   style={[styles.managementAction, styles.deleteAction]}
                   onPress={handleDelete}
                 >
@@ -693,7 +689,7 @@ export default function TripDetailsPage() {
                     </View>
                   </View>
                   <ChevronRight size={20} color={colors.danger} />
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
 

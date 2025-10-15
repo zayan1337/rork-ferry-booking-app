@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ActivityIndicator,
   RefreshControl,
@@ -265,7 +265,7 @@ export default function TripBookingsPage() {
     const PaymentIcon = getPaymentMethodIcon(item.payment_method);
 
     return (
-      <TouchableOpacity
+      <Pressable
         style={styles.bookingCard}
         onPress={() => handleBookingAction(item, 'view')}
       >
@@ -288,7 +288,7 @@ export default function TripBookingsPage() {
                 {statusInfo.label}
               </Text>
             </View>
-            <TouchableOpacity
+            <Pressable
               style={styles.moreButton}
               onPress={() => {
                 Alert.alert(
@@ -322,7 +322,7 @@ export default function TripBookingsPage() {
               }}
             >
               <MoreHorizontal size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -388,7 +388,7 @@ export default function TripBookingsPage() {
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
@@ -400,12 +400,12 @@ export default function TripBookingsPage() {
             title: 'Loading...',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -423,20 +423,20 @@ export default function TripBookingsPage() {
             title: 'Trip Bookings',
             headerShown: true,
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
             headerRight: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => console.log('Export')}
                 style={styles.exportButton}
               >
                 <Download size={20} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -479,12 +479,12 @@ export default function TripBookingsPage() {
               placeholderTextColor={colors.textSecondary}
             />
           </View>
-          <TouchableOpacity
+          <Pressable
             style={styles.filterButton}
             onPress={() => setShowFilterModal(true)}
           >
             <Filter size={20} color={colors.primary} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Bookings List */}
@@ -515,7 +515,7 @@ export default function TripBookingsPage() {
             <View style={styles.filterModal}>
               <Text style={styles.filterTitle}>Filter Bookings</Text>
               {['all', 'confirmed', 'pending', 'cancelled'].map(status => (
-                <TouchableOpacity
+                <Pressable
                   key={status}
                   style={[
                     styles.filterOption,
@@ -537,7 +537,7 @@ export default function TripBookingsPage() {
                       ? 'All Bookings'
                       : status.charAt(0).toUpperCase() + status.slice(1)}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </View>

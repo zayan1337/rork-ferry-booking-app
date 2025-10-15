@@ -4,7 +4,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -797,21 +797,21 @@ export default function MibPaymentWebView({
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           {showPaymentPage && (
-            <TouchableOpacity
+            <Pressable
               onPress={() => {
                 setShowPaymentPage(false);
               }}
               style={styles.backButton}
             >
               <ArrowLeft size={20} color={Colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           )}
           <Text style={styles.headerTitle}>
             {showPaymentPage ? 'MIB Payment' : 'Payment Summary'}
           </Text>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+          <Pressable onPress={handleClose} style={styles.closeButton}>
             <X size={20} color={Colors.textSecondary} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {isLoading && (

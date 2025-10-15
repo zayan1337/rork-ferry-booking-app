@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   Dimensions,
   RefreshControl,
@@ -225,12 +225,12 @@ export default function RouteDetailsScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -259,12 +259,12 @@ export default function RouteDetailsScreen() {
           options={{
             title: 'Loading...',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -283,12 +283,12 @@ export default function RouteDetailsScreen() {
           options={{
             title: 'Route Not Found',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -316,31 +316,28 @@ export default function RouteDetailsScreen() {
         options={{
           title: routeData.name || 'Route Details',
           headerLeft: () => (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
           headerRight: () => (
             <View style={styles.headerActions}>
               {canUpdateRoutes() && (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleEdit}
                   style={styles.headerActionButton}
                 >
                   <Edit size={20} color={colors.primary} />
-                </TouchableOpacity>
+                </Pressable>
               )}
               {canDeleteRoutes() && (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleDelete}
                   style={[styles.headerActionButton, styles.deleteActionButton]}
                   disabled={isDeleting}
                 >
                   <Trash2 size={20} color={colors.error} />
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           ),

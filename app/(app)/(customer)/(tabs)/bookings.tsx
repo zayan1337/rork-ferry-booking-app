@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -79,7 +79,7 @@ export default function BookingsScreen() {
       <View style={styles.filtersContainer}>
         <Text style={styles.filtersLabel}>Filter by status:</Text>
         <View style={styles.filterButtons}>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.filterButton,
               statusFilter === 'all' && styles.filterButtonActive,
@@ -94,9 +94,9 @@ export default function BookingsScreen() {
             >
               All
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.filterButton,
               statusFilter === 'confirmed' && styles.filterButtonActive,
@@ -111,9 +111,9 @@ export default function BookingsScreen() {
             >
               Confirmed
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.filterButton,
               statusFilter === 'completed' && styles.filterButtonActive,
@@ -128,9 +128,9 @@ export default function BookingsScreen() {
             >
               Completed
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.filterButton,
               statusFilter === 'cancelled' && styles.filterButtonActive,
@@ -145,7 +145,7 @@ export default function BookingsScreen() {
             >
               Cancelled
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 

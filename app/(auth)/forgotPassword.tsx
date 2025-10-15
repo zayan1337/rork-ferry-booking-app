@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -228,7 +228,7 @@ export default function ForgotPasswordScreen() {
 
               <View style={styles.loginContainer}>
                 <Text style={styles.loginText}>Remember your password? </Text>
-                <TouchableOpacity
+                <Pressable
                   disabled={isLoading || isNavigating || isSendingOTP}
                   onPress={() => {
                     if (!isNavigating && !isLoading && !isSendingOTP) {
@@ -248,7 +248,7 @@ export default function ForgotPasswordScreen() {
                   >
                     Login
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </>
           )}

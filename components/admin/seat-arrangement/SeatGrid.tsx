@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminManagement } from '@/types';
 import {
@@ -76,7 +70,7 @@ export default function SeatGrid({
     if (!seat) {
       // Render empty space - different styling for ferry layout
       return (
-        <TouchableOpacity
+        <Pressable
           key={`empty_${position.row}_${position.col}`}
           style={[
             styles.emptySeat,
@@ -89,10 +83,9 @@ export default function SeatGrid({
             onSeatPress(position.row, position.col)
           }
           disabled={disabled || mode !== 'edit'}
-          activeOpacity={0.7}
         >
           {mode === 'edit' && <Plus size={16} color={colors.textSecondary} />}
-        </TouchableOpacity>
+        </Pressable>
       );
     }
 
@@ -100,7 +93,7 @@ export default function SeatGrid({
     const seatColor = getSeatColor(seat);
 
     return (
-      <TouchableOpacity
+      <Pressable
         key={seat.id}
         style={[
           styles.seat,
@@ -111,7 +104,6 @@ export default function SeatGrid({
         ]}
         onPress={() => !disabled && onSeatPress(position.row, position.col)}
         disabled={disabled}
-        activeOpacity={0.7}
       >
         {showSeatTypes && (
           <Icon size={12} color={colors.white} style={styles.seatIcon} />
@@ -121,7 +113,7 @@ export default function SeatGrid({
         )}
         {seat.is_window && <View style={styles.windowIndicator} />}
         {seat.is_aisle && <View style={styles.aisleIndicator} />}
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
@@ -133,7 +125,7 @@ export default function SeatGrid({
       <View key={`aisle_${afterColumn}`} style={styles.aisleControl}>
         <View style={styles.aisleControlContent}>
           <Text style={styles.aisleLabel}>Col {afterColumn}</Text>
-          <TouchableOpacity
+          <Pressable
             style={[styles.aisleButton, hasAisle && styles.aisleButtonActive]}
             onPress={() => {
               if (hasAisle && onRemoveAisle) {
@@ -149,7 +141,7 @@ export default function SeatGrid({
             ) : (
               <Plus size={12} color={colors.primary} />
             )}
-          </TouchableOpacity>
+          </Pressable>
           <Text style={styles.aisleLabel}>Col {afterColumn + 1}</Text>
         </View>
         {hasAisle && <View style={styles.aisleVisual} />}
@@ -165,7 +157,7 @@ export default function SeatGrid({
       <View key={`row_aisle_${afterRow}`} style={styles.rowAisleControl}>
         <View style={styles.rowAisleControlContent}>
           <Text style={styles.rowAisleLabel}>Row {afterRow}</Text>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.rowAisleButton,
               hasAisle && styles.rowAisleButtonActive,
@@ -184,7 +176,7 @@ export default function SeatGrid({
             ) : (
               <Plus size={12} color={colors.primary} />
             )}
-          </TouchableOpacity>
+          </Pressable>
           <Text style={styles.rowAisleLabel}>Row {afterRow + 1}</Text>
         </View>
         {hasAisle && <View style={styles.rowAisleVisual} />}

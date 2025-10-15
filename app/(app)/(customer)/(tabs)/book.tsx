@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -19,7 +19,7 @@ import {
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
-import DatePicker from '@/components/DatePicker';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 import Dropdown from '@/components/Dropdown';
 import SeatSelector from '@/components/SeatSelector';
 import Input from '@/components/Input';
@@ -635,7 +635,7 @@ export default function BookScreen() {
             <Text style={styles.stepTitle}>Select Trip Type & Date</Text>
 
             <View style={styles.tripTypeContainer}>
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.tripTypeButton,
                   currentBooking.tripType === TRIP_TYPES.ONE_WAY &&
@@ -655,9 +655,9 @@ export default function BookScreen() {
                 >
                   One Way
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.tripTypeButton,
                   currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
@@ -677,14 +677,14 @@ export default function BookScreen() {
                 >
                   Round Trip
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {errors.tripType ? (
               <Text style={styles.errorText}>{errors.tripType}</Text>
             ) : null}
 
-            <DatePicker
+            <CalendarDatePicker
               label='Departure Date'
               value={currentBooking.departureDate}
               onChange={date => {
@@ -698,7 +698,7 @@ export default function BookScreen() {
             />
 
             {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
-              <DatePicker
+              <CalendarDatePicker
                 label='Return Date'
                 value={currentBooking.returnDate}
                 onChange={date => {
@@ -727,6 +727,15 @@ export default function BookScreen() {
               items={routeOptions}
               value={currentBooking.route?.id || ''}
               onChange={routeId => {
+                // Handle clear action
+                if (!routeId) {
+                  setRoute(null as any);
+                  setTrip(null);
+                  if (errors.route) setErrors({ ...errors, route: '' });
+                  if (errors.trip) setErrors({ ...errors, trip: '' });
+                  return;
+                }
+
                 const selectedRoute = availableRoutes.find(
                   r => r.id === routeId
                 );
@@ -763,6 +772,13 @@ export default function BookScreen() {
                     }))}
                     value={currentBooking.trip?.id || ''}
                     onChange={tripId => {
+                      // Handle clear action
+                      if (!tripId) {
+                        setTrip(null);
+                        if (errors.trip) setErrors({ ...errors, trip: '' });
+                        return;
+                      }
+
                       const selectedTrip = trips.find(t => t.id === tripId);
                       if (selectedTrip) {
                         setTrip(selectedTrip);
@@ -792,6 +808,17 @@ export default function BookScreen() {
                 items={routeOptions}
                 value={currentBooking.returnRoute?.id || ''}
                 onChange={routeId => {
+                  // Handle clear action
+                  if (!routeId) {
+                    setReturnRoute(null as any);
+                    setReturnTrip(null);
+                    if (errors.returnRoute)
+                      setErrors({ ...errors, returnRoute: '' });
+                    if (errors.returnTrip)
+                      setErrors({ ...errors, returnTrip: '' });
+                    return;
+                  }
+
                   const selectedRoute = availableRoutes.find(
                     r => r.id === routeId
                   );
@@ -833,6 +860,14 @@ export default function BookScreen() {
                       }))}
                       value={currentBooking.returnTrip?.id || ''}
                       onChange={tripId => {
+                        // Handle clear action
+                        if (!tripId) {
+                          setReturnTrip(null);
+                          if (errors.returnTrip)
+                            setErrors({ ...errors, returnTrip: '' });
+                          return;
+                        }
+
                         const selectedTrip = returnTrips.find(
                           t => t.id === tripId
                         );
@@ -899,6 +934,7 @@ export default function BookScreen() {
               isLoading={isLoading}
               loadingSeats={loadingSeats}
               seatErrors={seatErrors}
+              maxSeats={10}
             />
 
             {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
@@ -911,6 +947,7 @@ export default function BookScreen() {
                   isLoading={isLoading}
                   loadingSeats={loadingSeats}
                   seatErrors={seatErrors}
+                  maxSeats={10}
                 />
               </>
             )}
@@ -1083,7 +1120,7 @@ export default function BookScreen() {
             />
 
             <View style={styles.termsContainer}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.checkbox}
                 onPress={() => {
                   setTermsAccepted(!termsAccepted);
@@ -1096,7 +1133,7 @@ export default function BookScreen() {
                     termsAccepted && styles.checkboxChecked,
                   ]}
                 />
-              </TouchableOpacity>
+              </Pressable>
               <Text style={styles.termsText}>
                 I accept the{' '}
                 <Text
@@ -1108,7 +1145,7 @@ export default function BookScreen() {
               </Text>
             </View>
             <View style={styles.termsContainer}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.checkbox}
                 onPress={() => {
                   setPricingNoticeAccepted(!pricingNoticeAccepted);
@@ -1122,7 +1159,7 @@ export default function BookScreen() {
                     pricingNoticeAccepted && styles.checkboxChecked,
                   ]}
                 />
-              </TouchableOpacity>
+              </Pressable>
               <Text style={styles.termsText}>
                 I acknowledge that the ticket prices shown are valid for locals
                 and Work Permit holders only. For tourist pricing, I will

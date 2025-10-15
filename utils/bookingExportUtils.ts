@@ -78,7 +78,7 @@ export const exportBookings = async (
       booking.route_name || '',
       booking.from_island_name || '',
       booking.to_island_name || '',
-      formatExportDate(booking.trip_travel_date),
+      formatExportDate(booking.trip_travel_date ?? null),
       booking.trip_departure_time || '',
       booking.passenger_count?.toString() || '0',
       booking.total_fare ? `$${booking.total_fare.toFixed(2)}` : '$0.00',

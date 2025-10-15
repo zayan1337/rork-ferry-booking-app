@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   Dimensions,
 } from 'react-native';
@@ -191,12 +191,12 @@ export default function UserDetails({
         </View>
         {showActions && (
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconButton} onPress={onEdit}>
+            <Pressable style={styles.iconButton} onPress={onEdit}>
               <Edit size={20} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton} onPress={handleArchive}>
+            </Pressable>
+            <Pressable style={styles.iconButton} onPress={handleArchive}>
               <Archive size={20} color={colors.danger} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
       </View>

@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   Dimensions,
@@ -102,14 +102,13 @@ const FilterTabs: React.FC<FilterTabsProps> = ({
         scrollEventThrottle={16}
       >
         {roles.map(role => (
-          <TouchableOpacity
+          <Pressable
             key={role}
             style={[
               styles.filterTab,
               filterRole === role && styles.filterTabActive,
             ]}
             onPress={() => onRoleChange(role)}
-            activeOpacity={0.7}
           >
             <Text
               style={[
@@ -128,7 +127,7 @@ const FilterTabs: React.FC<FilterTabsProps> = ({
               {getCount(role)}
             </Text>
             {filterRole === role && <View style={styles.tabIndicator} />}
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </ScrollView>
     </View>

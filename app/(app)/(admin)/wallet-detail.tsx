@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useFinanceData } from '@/hooks/useFinanceData';
@@ -65,13 +65,13 @@ export default function WalletDetailPage() {
           <Text style={styles.notFoundText}>
             The wallet you're looking for doesn't exist or has been removed.
           </Text>
-          <TouchableOpacity
+          <Pressable
             style={styles.backToListButton}
             onPress={() => router.back()}
           >
             <ArrowLeft size={20} color={colors.primary} />
             <Text style={styles.backToListText}>Back to Wallets</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     );
@@ -83,12 +83,12 @@ export default function WalletDetailPage() {
         options={{
           title: 'Wallet Details',
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => router.back()}
               style={styles.backButton}
             >
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       /> */}

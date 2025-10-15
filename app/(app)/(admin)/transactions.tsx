@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   RefreshControl,
   FlatList,
@@ -97,7 +97,7 @@ export default function TransactionsListingScreen() {
     .reduce((sum, t) => sum + t.amount, 0);
 
   const renderTransactionItem = ({ item }: { item: WalletTransaction }) => (
-    <TouchableOpacity
+    <Pressable
       style={styles.transactionCard}
       onPress={() => handleTransactionPress(item.id)}
     >
@@ -151,7 +151,7 @@ export default function TransactionsListingScreen() {
           <ChevronRight size={16} color={colors.textSecondary} />
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   if (!canViewWallets()) {
@@ -239,7 +239,7 @@ export default function TransactionsListingScreen() {
               { key: 'credit', label: 'Credits' },
               { key: 'debit', label: 'Debits' },
             ].map(filter => (
-              <TouchableOpacity
+              <Pressable
                 key={filter.key}
                 style={[
                   styles.filterChip,
@@ -255,7 +255,7 @@ export default function TransactionsListingScreen() {
                 >
                   {filter.label}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
         </View>

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Alert,
   Modal,
   ScrollView,
@@ -322,9 +322,9 @@ export default function BulkTripOperations({
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Bulk Trip Operations</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Pressable onPress={onClose} style={styles.closeButton}>
             <X size={24} color={colors.text} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -371,7 +371,7 @@ export default function BulkTripOperations({
             <Text style={styles.sectionTitle}>Select Operation</Text>
             <View style={styles.operationsList}>
               {operations.map(operation => (
-                <TouchableOpacity
+                <Pressable
                   key={operation.type}
                   style={[
                     styles.operationCard,
@@ -390,7 +390,7 @@ export default function BulkTripOperations({
                   {selectedOperation === operation.type && (
                     <CheckCircle size={20} color={colors.primary} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </View>

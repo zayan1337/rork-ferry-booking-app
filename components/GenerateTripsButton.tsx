@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Alert, Pressable, Text, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
 import Colors from '@/constants/colors';
@@ -111,7 +111,7 @@ export default function GenerateTripsButton({
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={[styles.button, isGenerating && styles.buttonDisabled]}
       onPress={generateTripsForDate}
       disabled={isGenerating}
@@ -125,7 +125,7 @@ export default function GenerateTripsButton({
       >
         {isGenerating ? 'Generating...' : 'Generate Trips'}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

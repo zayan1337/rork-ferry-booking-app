@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   Alert,
   TextInput as RNTextInput,
@@ -193,7 +193,7 @@ export default function SeatEditModal({
           value === items[0].class;
 
         return (
-          <TouchableOpacity
+          <Pressable
             key={value}
             style={[
               styles.selectionOption,
@@ -210,7 +210,7 @@ export default function SeatEditModal({
             >
               {label}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </View>
@@ -249,12 +249,9 @@ export default function SeatEditModal({
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
-          <TouchableOpacity
-            style={styles.modalCloseButton}
-            onPress={handleCancel}
-          >
+          <Pressable style={styles.modalCloseButton} onPress={handleCancel}>
             <X size={24} color={colors.text} />
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.modalTitleContainer}>
             <Text style={styles.modalTitle}>
@@ -321,7 +318,7 @@ export default function SeatEditModal({
               <Text style={styles.sectionTitle}>Seat Type</Text>
               <View style={styles.seatTypeGrid}>
                 {SEAT_TYPES.map(type => (
-                  <TouchableOpacity
+                  <Pressable
                     key={type.type}
                     style={[
                       styles.seatTypeCard,
@@ -371,7 +368,7 @@ export default function SeatEditModal({
                         <Check size={16} color={colors.primary} />
                       </View>
                     )}
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </View>
             </View>
@@ -398,7 +395,7 @@ export default function SeatEditModal({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Position & Features</Text>
               <View style={styles.propertiesGrid}>
-                <TouchableOpacity
+                <Pressable
                   style={[
                     styles.propertyCard,
                     editedSeat.is_window && styles.propertyCardActive,
@@ -425,9 +422,9 @@ export default function SeatEditModal({
                   >
                     Window
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity
+                <Pressable
                   style={[
                     styles.propertyCard,
                     editedSeat.is_aisle && styles.propertyCardActive,
@@ -452,9 +449,9 @@ export default function SeatEditModal({
                   >
                     Aisle
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity
+                <Pressable
                   style={[
                     styles.propertyCard,
                     editedSeat.is_disabled && styles.propertyCardActive,
@@ -481,7 +478,7 @@ export default function SeatEditModal({
                   >
                     Disabled
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
 
@@ -523,35 +520,23 @@ export default function SeatEditModal({
         <View style={styles.modalFooter}>
           <View style={styles.footerButtonContainer}>
             {!isNewSeat && onDelete && (
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={handleDelete}
-                activeOpacity={0.7}
-              >
+              <Pressable style={styles.deleteButton} onPress={handleDelete}>
                 <Trash2 size={18} color={colors.white} />
                 <Text style={styles.deleteButtonText}>Delete</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
 
             <View style={styles.primaryButtonContainer}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={handleCancel}
-                activeOpacity={0.7}
-              >
+              <Pressable style={styles.cancelButton} onPress={handleCancel}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleSave}
-                activeOpacity={0.7}
-              >
+              <Pressable style={styles.saveButton} onPress={handleSave}>
                 <Save size={18} color={colors.white} />
                 <Text style={styles.saveButtonText}>
                   {isNewSeat ? 'Add Seat' : 'Save Changes'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Percent, Calendar, Tag, Users } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { Promotion } from '@/types/content';
@@ -95,11 +95,7 @@ export default function PromotionItem({
   const { status, color, bgColor } = getPromotionStatus();
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={() => onPress(promotion.id)}
-      activeOpacity={0.7}
-    >
+    <Pressable style={styles.container} onPress={() => onPress(promotion.id)}>
       <View style={styles.iconContainer}>
         <Percent size={20} color={discountColor} />
       </View>
@@ -147,7 +143,7 @@ export default function PromotionItem({
       <View style={styles.chevron}>
         <View style={styles.chevronIcon} />
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

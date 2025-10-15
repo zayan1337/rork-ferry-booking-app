@@ -1,5 +1,5 @@
 import React, { Component, ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { AlertTriangle, RefreshCw } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
@@ -50,13 +50,10 @@ export class AuthErrorBoundary extends Component<Props, State> {
             <Text style={styles.message}>
               {this.state.error?.message || 'An unexpected error occurred'}
             </Text>
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={this.handleRetry}
-            >
+            <Pressable style={styles.retryButton} onPress={this.handleRetry}>
               <RefreshCw size={20} color='#FFFFFF' />
               <Text style={styles.retryText}>Try Again</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       );

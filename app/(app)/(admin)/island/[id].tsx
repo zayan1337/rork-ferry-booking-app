@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   RefreshControl,
   Dimensions,
@@ -218,12 +218,12 @@ export default function IslandDetailScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -252,12 +252,12 @@ export default function IslandDetailScreen() {
           options={{
             title: 'Loading...',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -276,12 +276,12 @@ export default function IslandDetailScreen() {
           options={{
             title: 'Island Not Found',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -309,31 +309,28 @@ export default function IslandDetailScreen() {
         options={{
           title: island.name,
           headerLeft: () => (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
           headerRight: () => (
             <View style={styles.headerActions}>
               {canUpdateIslands() && (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleEdit}
                   style={styles.headerActionButton}
                 >
                   <Edit size={20} color={colors.primary} />
-                </TouchableOpacity>
+                </Pressable>
               )}
               {canDeleteIslands() && (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleDelete}
                   style={[styles.headerActionButton, styles.deleteActionButton]}
                   disabled={deleting}
                 >
                   <Trash2 size={20} color={colors.error} />
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           ),

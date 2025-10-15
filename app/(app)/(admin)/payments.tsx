@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
@@ -114,10 +114,9 @@ export default function PaymentsListPage() {
   };
 
   const renderPayment = ({ item }: { item: Payment }) => (
-    <TouchableOpacity
+    <Pressable
       style={styles.paymentItem}
       onPress={() => handlePaymentPress(item.id)}
-      activeOpacity={0.7}
     >
       <View
         style={[
@@ -186,7 +185,7 @@ export default function PaymentsListPage() {
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   const renderEmpty = () => (
@@ -249,7 +248,7 @@ export default function PaymentsListPage() {
 
       {/* Filter Buttons */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.filterButton,
             statusFilter === 'all' && styles.filterButtonActive,
@@ -264,8 +263,8 @@ export default function PaymentsListPage() {
           >
             All ({filteredPayments.length})
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[
             styles.filterButton,
             statusFilter === 'completed' && styles.filterButtonActive,
@@ -284,8 +283,8 @@ export default function PaymentsListPage() {
           >
             Completed ({paymentStats?.completedPayments || 0})
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[
             styles.filterButton,
             statusFilter === 'pending' && styles.filterButtonActive,
@@ -304,8 +303,8 @@ export default function PaymentsListPage() {
           >
             Pending ({paymentStats?.pendingPayments || 0})
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[
             styles.filterButton,
             statusFilter === 'failed' && styles.filterButtonActive,
@@ -324,7 +323,7 @@ export default function PaymentsListPage() {
           >
             Failed ({paymentStats?.failedPayments || 0})
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Results Count */}
@@ -346,12 +345,12 @@ export default function PaymentsListPage() {
           options={{
             title: 'All Payments',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -374,12 +373,9 @@ export default function PaymentsListPage() {
         options={{
           title: 'All Payments',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />

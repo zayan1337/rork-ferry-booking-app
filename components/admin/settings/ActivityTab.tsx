@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Activity, Clock, Users, Filter, Download } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { ActivityLog as AdminActivityLog } from '@/types/admin';
@@ -59,7 +59,7 @@ export default function ActivityTab({
         <Text style={styles.filterLabel}>Timeframe:</Text>
         <View style={styles.timeframeButtons}>
           {(['24h', '7d', '30d'] as const).map(period => (
-            <TouchableOpacity
+            <Pressable
               key={period}
               style={[
                 styles.timeframeButton,
@@ -80,7 +80,7 @@ export default function ActivityTab({
                     ? '7 Days'
                     : '30 Days'}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
       </View>

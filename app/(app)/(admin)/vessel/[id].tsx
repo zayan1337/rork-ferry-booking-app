@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Alert,
   Dimensions,
 } from 'react-native';
@@ -243,12 +243,12 @@ export default function VesselDetailScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -278,12 +278,12 @@ export default function VesselDetailScreen() {
           options={{
             title: 'Loading...',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -303,12 +303,12 @@ export default function VesselDetailScreen() {
           options={{
             title: 'Error',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -328,24 +328,21 @@ export default function VesselDetailScreen() {
         options={{
           title: vessel.name,
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
           headerRight: () => (
             <View style={styles.headerActions}>
               {canManageVessels() && (
                 <>
-                  <TouchableOpacity
+                  <Pressable
                     onPress={handleEdit}
                     style={styles.headerActionButton}
                   >
                     <Edit size={20} color={colors.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
+                  </Pressable>
+                  <Pressable
                     onPress={handleDelete}
                     style={[
                       styles.headerActionButton,
@@ -354,7 +351,7 @@ export default function VesselDetailScreen() {
                     disabled={isDeleting}
                   >
                     <Trash2 size={20} color={colors.error} />
-                  </TouchableOpacity>
+                  </Pressable>
                 </>
               )}
             </View>

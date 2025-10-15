@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -181,7 +181,7 @@ export default function NewPasswordScreen() {
                 <ActivityIndicator size='small' color={Colors.primary} />
                 <Text style={styles.loadingText}>Redirecting to login...</Text>
               </View>
-              <TouchableOpacity
+              <Pressable
                 style={styles.backToLoginButton}
                 onPress={() => {
                   if (!isNavigating) {
@@ -194,7 +194,7 @@ export default function NewPasswordScreen() {
                 disabled={isNavigating}
               >
                 <Text style={styles.backToLoginText}>Go to Login Now</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           ) : (
             <>
@@ -246,7 +246,7 @@ export default function NewPasswordScreen() {
 
               <View style={styles.loginContainer}>
                 <Text style={styles.loginText}>Remember your password? </Text>
-                <TouchableOpacity
+                <Pressable
                   disabled={isLoading || isNavigating || isResetting}
                   onPress={() => handleNavigation('/')}
                 >
@@ -259,7 +259,7 @@ export default function NewPasswordScreen() {
                   >
                     Login
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </>
           )}

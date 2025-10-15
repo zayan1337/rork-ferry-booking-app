@@ -5,7 +5,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   RefreshControl,
 } from 'react-native';
@@ -494,12 +494,9 @@ export default function CaptainTripDetailsScreen() {
         options={{
           title: trip?.route_name || 'Trip Details',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={Colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -763,32 +760,29 @@ export default function CaptainTripDetailsScreen() {
             <View style={styles.passengerCount}>
               <Text style={styles.passengerCountText}>{totalPassengers}</Text>
             </View>
-            <TouchableOpacity
-              style={styles.refreshButton}
-              onPress={handleRefresh}
-            >
+            <Pressable style={styles.refreshButton} onPress={handleRefresh}>
               <RefreshCw size={16} color={Colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
         {/* Passenger Filter Tabs */}
         <View style={styles.passengerTabs}>
-          <TouchableOpacity style={[styles.passengerTab, styles.activeTab]}>
+          <Pressable style={[styles.passengerTab, styles.activeTab]}>
             <Text style={[styles.passengerTabText, styles.activeTabText]}>
               All ({totalPassengers})
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.passengerTab}>
+          </Pressable>
+          <Pressable style={styles.passengerTab}>
             <Text style={styles.passengerTabText}>
               Checked In ({checkedInCount})
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.passengerTab}>
+          </Pressable>
+          <Pressable style={styles.passengerTab}>
             <Text style={styles.passengerTabText}>
               Pending ({remainingToCheckIn})
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {loading.passengers ? (
@@ -884,7 +878,7 @@ export default function CaptainTripDetailsScreen() {
                 </View>
 
                 {!passenger.check_in_status && trip.status === 'boarding' && (
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.checkInButton}
                     onPress={() => {
                       Alert.alert(
@@ -908,7 +902,7 @@ export default function CaptainTripDetailsScreen() {
                   >
                     <UserCheck size={16} color={Colors.primary} />
                     <Text style={styles.checkInButtonText}>Check In</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )}
               </View>
             ))}

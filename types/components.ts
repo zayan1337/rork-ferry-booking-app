@@ -74,6 +74,9 @@ export type DatePickerProps = {
   error?: string;
   disabled?: boolean;
   required?: boolean;
+  hideInput?: boolean; // Hide the input field, show only calendar in modal
+  visible?: boolean; // Control modal visibility externally
+  onClose?: () => void; // Callback when modal is closed
 };
 
 export type CardProps = {

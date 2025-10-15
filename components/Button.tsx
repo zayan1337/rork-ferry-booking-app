@@ -2,7 +2,7 @@ import React from 'react';
 import {
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
@@ -91,7 +91,7 @@ export default function Button({
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={[
         styles.button,
         getButtonStyle(),
@@ -128,7 +128,7 @@ export default function Button({
           </Text>
         </>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

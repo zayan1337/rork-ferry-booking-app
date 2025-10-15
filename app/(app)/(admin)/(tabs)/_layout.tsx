@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, TouchableOpacity, Alert } from 'react-native';
+import { View, Pressable, Alert } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { usePermissionStore } from '@/store/admin/permissionStore';
@@ -83,7 +83,7 @@ export default function AdminTabLayout() {
         marginRight: 12,
       }}
     >
-      <TouchableOpacity
+      <Pressable
         style={{
           padding: 8,
           borderRadius: 8,
@@ -94,8 +94,8 @@ export default function AdminTabLayout() {
         accessibilityLabel='Profile'
       >
         <User size={20} color={colors.text} />
-      </TouchableOpacity>
-      <TouchableOpacity
+      </Pressable>
+      <Pressable
         style={{
           padding: 8,
           borderRadius: 8,
@@ -106,7 +106,7 @@ export default function AdminTabLayout() {
         accessibilityLabel='Logout'
       >
         <LogOut size={20} color={colors.danger} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 

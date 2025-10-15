@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Dimensions,
-} from 'react-native';
+import { StyleSheet, Text, Pressable, View, Dimensions } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { Calendar, Clock, Users, MapPin } from 'lucide-react-native';
 import StatusBadge from './StatusBadge';
@@ -79,7 +73,7 @@ export default function BookingItem({
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={[
         styles.container,
         {
@@ -88,7 +82,6 @@ export default function BookingItem({
         },
       ]}
       onPress={onPress}
-      activeOpacity={0.7}
       accessibilityRole='button'
       accessibilityLabel={`Booking ${booking.id} for ${booking.customerName}`}
     >
@@ -182,7 +175,7 @@ export default function BookingItem({
           {formatAmount(booking.totalAmount)}
         </Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

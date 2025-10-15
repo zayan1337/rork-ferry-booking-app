@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   Alert,
 } from 'react-native';
@@ -403,7 +403,7 @@ export default function UsersScreen() {
     ({ item: user }: { item: UserProfile }) => (
       <View style={styles.userItemWrapper}>
         {canUpdateUsers() && (
-          <TouchableOpacity
+          <Pressable
             style={styles.selectionCheckbox}
             onPress={() => toggleUserSelection(user.id)}
           >
@@ -417,7 +417,7 @@ export default function UsersScreen() {
                 <Check size={14} color='white' />
               )}
             </View>
-          </TouchableOpacity>
+          </Pressable>
         )}
         <View style={styles.userItemContent}>
           <UserItem user={user} onPress={() => handleUserPress(user)} />
@@ -487,14 +487,14 @@ export default function UsersScreen() {
               headerRight: () => (
                 <View style={styles.headerActions}>
                   {canExportReports() && (
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.headerButton}
                       onPress={handleExport}
                       accessibilityRole='button'
                       accessibilityLabel='Export'
                     >
                       <Download size={18} color={colors.primary} />
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
                 </View>
               ),
@@ -587,14 +587,14 @@ export default function UsersScreen() {
               headerRight: () => (
                 <View style={styles.headerActions}>
                   {canExportReports() && (
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.headerButton}
                       onPress={handleExport}
                       accessibilityRole='button'
                       accessibilityLabel='Export'
                     >
                       <Download size={18} color={colors.primary} />
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
                 </View>
               ),

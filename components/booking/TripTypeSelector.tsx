@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Colors from '@/constants/colors';
 
 type TripType = 'one_way' | 'round_trip';
@@ -26,7 +26,7 @@ const TripTypeSelector: React.FC<TripTypeSelectorProps> = ({
     <View style={styles.container}>
       <View style={styles.buttonContainer}>
         {options.map(option => (
-          <TouchableOpacity
+          <Pressable
             key={option.value}
             style={[
               styles.button,
@@ -43,7 +43,7 @@ const TripTypeSelector: React.FC<TripTypeSelectorProps> = ({
             >
               {option.label}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
       {error && <Text style={styles.errorText}>{error}</Text>}

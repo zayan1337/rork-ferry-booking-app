@@ -6,7 +6,7 @@ import {
   ScrollView,
   Alert,
   Share,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -290,12 +290,12 @@ export default function PromotionDetailScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -325,12 +325,12 @@ export default function PromotionDetailScreen() {
           options={{
             title: 'Access Denied',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -360,12 +360,12 @@ export default function PromotionDetailScreen() {
           options={{
             title: loading.singlePromotion ? 'Loading...' : 'Not Found',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -405,12 +405,12 @@ export default function PromotionDetailScreen() {
           options={{
             title: 'Error',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -446,12 +446,12 @@ export default function PromotionDetailScreen() {
           options={{
             title: 'Promotion Not Found',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -480,12 +480,12 @@ export default function PromotionDetailScreen() {
           options={{
             title: 'Promotion Details',
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.back()}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             ),
           }}
         />
@@ -502,32 +502,29 @@ export default function PromotionDetailScreen() {
         options={{
           title: promotion.name,
           headerLeft: () => (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
           headerRight: () => (
             <View style={styles.headerActions}>
               {canManageContent() && (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleEdit}
                   style={styles.headerActionButton}
                   disabled={isDeleting}
                 >
                   <Edit size={20} color={colors.primary} />
-                </TouchableOpacity>
+                </Pressable>
               )}
               {canManageContent() && (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleDelete}
                   style={[styles.headerActionButton, styles.deleteActionButton]}
                   disabled={isDeleting || isDuplicating}
                 >
                   <Trash2 size={20} color={colors.error} />
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           ),

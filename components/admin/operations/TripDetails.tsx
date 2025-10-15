@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   Dimensions,
 } from 'react-native';
@@ -247,17 +247,14 @@ export default function TripDetails({
         {showActions && (
           <View style={styles.headerActions}>
             {onEdit && (
-              <TouchableOpacity style={styles.iconButton} onPress={onEdit}>
+              <Pressable style={styles.iconButton} onPress={onEdit}>
                 <Edit size={20} color={colors.primary} />
-              </TouchableOpacity>
+              </Pressable>
             )}
             {canCancel && onCancel && (
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={handleCancel}
-              >
+              <Pressable style={styles.iconButton} onPress={handleCancel}>
                 <X size={20} color={colors.danger} />
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         )}

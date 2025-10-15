@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, TouchableOpacity, Alert } from 'react-native';
+import { View, Pressable, Alert } from 'react-native';
 import { UserCheck, LogOut, Home, Ship, Settings } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useAuthStore } from '@/store/authStore';
@@ -39,7 +39,7 @@ export default function CaptainTabLayout() {
         marginRight: 12,
       }}
     >
-      {/* <TouchableOpacity
+      {/* <Pressable
         style={{
           padding: 8,
           borderRadius: 8,
@@ -50,8 +50,8 @@ export default function CaptainTabLayout() {
         accessibilityLabel='Profile'
       >
         <User size={20} color={Colors.text} />
-      </TouchableOpacity> */}
-      <TouchableOpacity
+      </Pressable> */}
+      <Pressable
         style={{
           padding: 8,
           borderRadius: 8,
@@ -62,7 +62,7 @@ export default function CaptainTabLayout() {
         accessibilityLabel='Logout'
       >
         <LogOut size={20} color={Colors.error} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 

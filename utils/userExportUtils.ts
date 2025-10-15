@@ -57,8 +57,8 @@ export const exportUsers = async (
       user.mobile_number || '',
       user.role || '',
       user.status || '',
-      formatExportDate(user.created_at),
-      formatExportDateTime(user.last_login),
+      formatExportDate(user.created_at ?? null),
+      formatExportDateTime(user.last_login ?? null),
       user.wallet_balance ? `$${user.wallet_balance.toFixed(2)}` : '$0.00',
     ]);
 

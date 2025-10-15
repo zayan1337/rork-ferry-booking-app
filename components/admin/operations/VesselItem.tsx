@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminManagement } from '@/types';
 import {
@@ -68,11 +68,7 @@ export default function VesselItem({
   };
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={() => onPress(vessel.id)}
-      activeOpacity={0.7}
-    >
+    <Pressable style={styles.container} onPress={() => onPress(vessel.id)}>
       <View style={styles.header}>
         <View style={styles.vesselInfo}>
           <View style={styles.nameRow}>
@@ -94,7 +90,7 @@ export default function VesselItem({
         </View>
 
         {canManage && (
-          <TouchableOpacity
+          <Pressable
             style={styles.actionButton}
             onPress={e => {
               e.stopPropagation();
@@ -102,7 +98,7 @@ export default function VesselItem({
             }}
           >
             <MoreVertical size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
@@ -152,7 +148,7 @@ export default function VesselItem({
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

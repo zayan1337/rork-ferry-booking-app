@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Modal,
   StyleSheet,
   ScrollView,
-  Pressable,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { ChevronDown, Check } from 'lucide-react-native';
@@ -54,7 +53,7 @@ export default function Dropdown({
         {required && <Text style={styles.required}> *</Text>}
       </Text>
 
-      <TouchableOpacity
+      <Pressable
         style={[
           styles.dropdown,
           error && styles.dropdownError,
@@ -76,7 +75,7 @@ export default function Dropdown({
           size={20}
           color={disabled ? colors.textSecondary : colors.text}
         />
-      </TouchableOpacity>
+      </Pressable>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -93,17 +92,17 @@ export default function Dropdown({
           <Pressable style={styles.modalContent} onPress={() => {}}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select {label}</Text>
-              <TouchableOpacity
+              <Pressable
                 style={styles.closeButton}
                 onPress={() => setIsModalVisible(false)}
               >
                 <Text style={styles.closeButtonText}>✕</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <ScrollView style={styles.optionsList}>
               {options?.map(option => (
-                <TouchableOpacity
+                <Pressable
                   key={option.value}
                   style={[
                     styles.option,
@@ -122,7 +121,7 @@ export default function Dropdown({
                   {value === option.value && (
                     <Check size={20} color={colors.primary} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </ScrollView>
           </Pressable>

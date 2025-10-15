@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ScrollView,
   RefreshControl,
@@ -250,13 +250,12 @@ export default function PermissionsTab() {
       ) : (
         <View style={styles.usersList}>
           {adminUsers.map((user: AdminUser) => (
-            <TouchableOpacity
+            <Pressable
               key={user.id}
               style={styles.modernUserCard}
               onPress={() => {
                 router.push(`../user/${user.id}/permissions` as any);
               }}
-              activeOpacity={0.7}
             >
               {/* Card Header */}
               <View style={styles.userCardHeader}>
@@ -324,7 +323,7 @@ export default function PermissionsTab() {
               <View style={styles.actionIndicator}>
                 <ChevronRight size={16} color={colors.textSecondary} />
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
       )}
@@ -393,16 +392,16 @@ export default function PermissionsTab() {
                   </Text>
                 </View>
                 <View style={styles.roleActions}>
-                  <TouchableOpacity style={styles.roleActionButton}>
+                  <Pressable style={styles.roleActionButton}>
                     <Edit size={16} color={colors.textSecondary} />
-                  </TouchableOpacity>
+                  </Pressable>
                   {!template.is_system_role && (
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.roleActionButton}
                       onPress={() => handleDeleteRole(template.id)}
                     >
                       <Trash2 size={16} color={colors.danger} />
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
                 </View>
               </View>
@@ -556,7 +555,7 @@ export default function PermissionsTab() {
           const isActive = permissionView === tab.key;
 
           return (
-            <TouchableOpacity
+            <Pressable
               key={tab.key}
               style={[
                 styles.permissionNavTab,
@@ -576,7 +575,7 @@ export default function PermissionsTab() {
               >
                 {tab.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>

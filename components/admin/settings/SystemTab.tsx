@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, Pressable, Dimensions } from 'react-native';
 import {
   Server,
   Zap,
@@ -195,7 +195,7 @@ export default function SystemTab({
           <View style={styles.actionCategory}>
             <Text style={styles.actionCategoryTitle}>Database & Backup</Text>
             <View style={styles.actionRow}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.enhancedActionCard}
                 onPress={onSystemBackup}
               >
@@ -209,9 +209,9 @@ export default function SystemTab({
                 <Text style={styles.actionCardTime}>
                   Last: {stats.lastBackup}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity style={styles.enhancedActionCard}>
+              <Pressable style={styles.enhancedActionCard}>
                 <View style={styles.actionCardIcon}>
                   <Upload size={20} color={colors.secondary} />
                 </View>
@@ -220,7 +220,7 @@ export default function SystemTab({
                   Restore from backup
                 </Text>
                 <Text style={styles.actionCardTime}>Available: 5 backups</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 
@@ -228,7 +228,7 @@ export default function SystemTab({
           <View style={styles.actionCategory}>
             <Text style={styles.actionCategoryTitle}>System Maintenance</Text>
             <View style={styles.actionRow}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.enhancedActionCard}
                 onPress={onClearCache}
               >
@@ -238,9 +238,9 @@ export default function SystemTab({
                 <Text style={styles.actionCardTitle}>Clear Cache</Text>
                 <Text style={styles.actionCardDescription}>Free up space</Text>
                 <Text style={styles.actionCardTime}>Cache: 145MB</Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={styles.enhancedActionCard}
                 onPress={onRestartSystem}
               >
@@ -252,7 +252,7 @@ export default function SystemTab({
                   Restart services
                 </Text>
                 <Text style={styles.actionCardTime}>Uptime: 30 days</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 
@@ -260,7 +260,7 @@ export default function SystemTab({
           <View style={styles.actionCategory}>
             <Text style={styles.actionCategoryTitle}>Configuration</Text>
             <View style={styles.actionRow}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.enhancedActionCard}
                 onPress={onShowSystemModal}
               >
@@ -270,16 +270,16 @@ export default function SystemTab({
                 <Text style={styles.actionCardTitle}>Settings</Text>
                 <Text style={styles.actionCardDescription}>System config</Text>
                 <Text style={styles.actionCardTime}>Modified: Today</Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity style={styles.enhancedActionCard}>
+              <Pressable style={styles.enhancedActionCard}>
                 <View style={styles.actionCardIcon}>
                   <Activity size={20} color={colors.success} />
                 </View>
                 <Text style={styles.actionCardTitle}>Monitoring</Text>
                 <Text style={styles.actionCardDescription}>View logs</Text>
                 <Text style={styles.actionCardTime}>Real-time</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>

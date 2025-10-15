@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   Alert,
   TextInput,
@@ -280,12 +280,12 @@ function WalletDetailCard({
           <View style={styles.sectionHeader}>
             <CreditCard size={20} color={colors.primary} />
             <Text style={styles.sectionTitle}>Agent Credit Information</Text>
-            <TouchableOpacity
+            <Pressable
               onPress={handleEditCreditLimit}
               style={styles.editButton}
             >
               <Edit size={18} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <View style={styles.creditInfoCard}>
@@ -368,20 +368,18 @@ function WalletDetailCard({
               <View style={styles.paymentOptionsContainer}>
                 <Text style={styles.paymentOptionsTitle}>Pay Balance</Text>
                 <View style={styles.paymentButtons}>
-                  <TouchableOpacity
+                  <Pressable
                     style={[styles.paymentButton, styles.gatewayPaymentButton]}
                     onPress={handlePayViaGateway}
-                    activeOpacity={0.7}
                   >
                     <CreditCard size={20} color={colors.white} />
                     <Text style={styles.paymentButtonText}>
                       Pay via Gateway
                     </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
+                  </Pressable>
+                  <Pressable
                     style={[styles.paymentButton, styles.manualPaymentButton]}
                     onPress={handleManualPayment}
-                    activeOpacity={0.7}
                   >
                     <DollarSign size={20} color={colors.primary} />
                     <Text
@@ -392,7 +390,7 @@ function WalletDetailCard({
                     >
                       Manual Payment
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               </View>
             )}
@@ -406,11 +404,7 @@ function WalletDetailCard({
           <User size={20} color={colors.primary} />
           <Text style={styles.sectionTitle}>User Information</Text>
         </View>
-        <TouchableOpacity
-          style={styles.infoCard}
-          onPress={handleViewUser}
-          activeOpacity={0.7}
-        >
+        <Pressable style={styles.infoCard} onPress={handleViewUser}>
           <InfoRow label='Full Name' value={wallet.user_name} />
           <InfoRow label='Email' value={wallet.user_email} />
           <InfoRow label='User ID' value={wallet.user_id} />
@@ -422,7 +416,7 @@ function WalletDetailCard({
               style={{ transform: [{ rotate: '180deg' }] }}
             />
           </View>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Transaction Statistics */}
@@ -532,9 +526,9 @@ function WalletDetailCard({
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Credit Limit</Text>
-              <TouchableOpacity onPress={handleCancelEdit}>
+              <Pressable onPress={handleCancelEdit}>
                 <X size={24} color={colors.text} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalBody}>
@@ -559,16 +553,16 @@ function WalletDetailCard({
             </View>
 
             <View style={styles.modalFooter}>
-              <TouchableOpacity
+              <Pressable
                 style={[styles.modalButton, styles.modalCancelButton]}
                 onPress={handleCancelEdit}
                 disabled={isUpdating}
               >
                 <X size={18} color={colors.textSecondary} />
                 <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.modalButton,
                   styles.modalSaveButton,
@@ -581,7 +575,7 @@ function WalletDetailCard({
                 <Text style={styles.modalSaveText}>
                   {isUpdating ? 'Saving...' : 'Save'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>

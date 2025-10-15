@@ -2,7 +2,7 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Modal,
   ScrollView,
@@ -80,9 +80,9 @@ const FilterModal: React.FC<FilterModalProps> = ({
         <View style={styles.filterModal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Filter & Sort</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Pressable onPress={onClose}>
               <X size={24} color={colors.text} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <ScrollView
@@ -92,7 +92,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Status</Text>
               {statusOptions.map(option => (
-                <TouchableOpacity
+                <Pressable
                   key={option.key}
                   style={[
                     styles.filterOption,
@@ -112,14 +112,14 @@ const FilterModal: React.FC<FilterModalProps> = ({
                   {filterStatus === option.key && (
                     <Check size={16} color={colors.primary} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
 
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Sort by</Text>
               {sortOptions.map(option => (
-                <TouchableOpacity
+                <Pressable
                   key={`${option.key}_${option.order}`}
                   style={[
                     styles.filterOption,
@@ -142,7 +142,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
                   {sortBy === option.key && sortOrder === option.order && (
                     <Check size={16} color={colors.primary} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </ScrollView>

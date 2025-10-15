@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { TermsAndConditions } from '@/types/content';
 import {
@@ -80,11 +74,7 @@ const TermsItem: React.FC<TermsItemProps> = ({
   };
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={handlePress}
-      activeOpacity={0.7}
-    >
+    <Pressable style={styles.container} onPress={handlePress}>
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -118,33 +108,33 @@ const TermsItem: React.FC<TermsItemProps> = ({
           {showActions && (
             <View style={styles.actionsContainer}>
               {onDuplicate && (
-                <TouchableOpacity
+                <Pressable
                   style={styles.actionButton}
                   onPress={handleDuplicate}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Copy size={16} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </Pressable>
               )}
 
               {onEdit && (
-                <TouchableOpacity
+                <Pressable
                   style={styles.actionButton}
                   onPress={handleEdit}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Edit size={16} color={colors.primary} />
-                </TouchableOpacity>
+                </Pressable>
               )}
 
               {onDelete && (
-                <TouchableOpacity
+                <Pressable
                   style={styles.actionButton}
                   onPress={handleDelete}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Trash2 size={16} color={colors.error} />
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           )}
@@ -184,7 +174,7 @@ const TermsItem: React.FC<TermsItemProps> = ({
           </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

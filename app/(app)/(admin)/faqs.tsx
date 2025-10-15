@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   RefreshControl,
   Dimensions,
@@ -373,7 +373,7 @@ export default function FAQsScreen() {
       {/* Action Bar */}
       <View style={styles.actionBar}>
         <View style={styles.actionBarLeft}>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.filterButton,
               showFilters && styles.filterButtonActive,
@@ -392,9 +392,9 @@ export default function FAQsScreen() {
             >
               Filters
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.sortButton}
             onPress={() => toggleSort('question' as const)}
           >
@@ -408,11 +408,11 @@ export default function FAQsScreen() {
               <SortAsc size={16} color={colors.textSecondary} />
             )}
             <Text style={styles.sortButtonText}>Question</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         <View style={styles.actionBarRight}>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.manageButton,
               currentView === 'categories' && styles.manageButtonActive,
@@ -427,7 +427,7 @@ export default function FAQsScreen() {
             <Text style={[styles.manageButtonText]}>
               {currentView === 'faqs' ? 'Categories' : 'FAQs'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
@@ -437,7 +437,7 @@ export default function FAQsScreen() {
           <View style={styles.filterRow}>
             <Text style={styles.filterLabel}>Category:</Text>
             <View style={styles.filterChips}>
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.filterChip,
                   filterCategory === null && styles.filterChipActive,
@@ -452,9 +452,9 @@ export default function FAQsScreen() {
                 >
                   All
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
               {categories.map(category => (
-                <TouchableOpacity
+                <Pressable
                   key={category.id}
                   style={[
                     styles.filterChip,
@@ -471,7 +471,7 @@ export default function FAQsScreen() {
                   >
                     {category.name}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </View>
@@ -479,7 +479,7 @@ export default function FAQsScreen() {
           <View style={styles.filterRow}>
             <Text style={styles.filterLabel}>Status:</Text>
             <View style={styles.filterChips}>
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.filterChip,
                   filterActive === null && styles.filterChipActive,
@@ -494,8 +494,8 @@ export default function FAQsScreen() {
                 >
                   All
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={[
                   styles.filterChip,
                   filterActive === true && styles.filterChipActive,
@@ -510,8 +510,8 @@ export default function FAQsScreen() {
                 >
                   Active
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={[
                   styles.filterChip,
                   filterActive === false && styles.filterChipActive,
@@ -526,7 +526,7 @@ export default function FAQsScreen() {
                 >
                   Inactive
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -678,7 +678,7 @@ export default function FAQsScreen() {
       {/* Action Bar */}
       <View style={styles.actionBar}>
         <View style={styles.actionBarLeft}>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.filterButton,
               showFilters && styles.filterButtonActive,
@@ -697,9 +697,9 @@ export default function FAQsScreen() {
             >
               Filters
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.sortButton}
             onPress={() => toggleCategorySort('name')}
           >
@@ -713,11 +713,11 @@ export default function FAQsScreen() {
               <SortAsc size={16} color={colors.textSecondary} />
             )}
             <Text style={styles.sortButtonText}>Name</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         <View style={styles.actionBarRight}>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.manageButton,
               currentView === 'faqs' && styles.manageButtonActive,
@@ -730,7 +730,7 @@ export default function FAQsScreen() {
             >
               FAQs
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
@@ -740,7 +740,7 @@ export default function FAQsScreen() {
           <View style={styles.filterRow}>
             <Text style={styles.filterLabel}>Status:</Text>
             <View style={styles.filterChips}>
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.filterChip,
                   categoryFilterActive === null && styles.filterChipActive,
@@ -756,8 +756,8 @@ export default function FAQsScreen() {
                 >
                   All
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={[
                   styles.filterChip,
                   categoryFilterActive === true && styles.filterChipActive,
@@ -773,8 +773,8 @@ export default function FAQsScreen() {
                 >
                   Active
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={[
                   styles.filterChip,
                   categoryFilterActive === false && styles.filterChipActive,
@@ -790,7 +790,7 @@ export default function FAQsScreen() {
                 >
                   Inactive
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -834,12 +834,9 @@ export default function FAQsScreen() {
         options={{
           title: 'FAQs',
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.primary} />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -898,17 +895,16 @@ export default function FAQsScreen() {
 
       {/* Floating Add Button */}
       {canManageSettings() && (
-        <TouchableOpacity
+        <Pressable
           style={styles.floatingButton}
           onPress={
             currentView === 'faqs'
               ? handleAddFAQ
               : () => router.push('./faq-categories/new' as any)
           }
-          activeOpacity={0.8}
         >
           <Plus size={24} color={colors.white} />
-        </TouchableOpacity>
+        </Pressable>
       )}
 
       {/* Error Display */}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { Bell, AlertTriangle, X, Filter, Trash2 } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { Alert as AdminAlert } from '@/types/admin';
@@ -89,12 +89,12 @@ export default function AlertsTab({
                 alert={alert}
                 onPress={() => onAlertAction(alert, 'read')}
               />
-              <TouchableOpacity
+              <Pressable
                 style={styles.deleteAlertButton}
                 onPress={() => onAlertAction(alert, 'delete')}
               >
                 <Trash2 size={16} color={colors.danger} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           ))}
         </View>

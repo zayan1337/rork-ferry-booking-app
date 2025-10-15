@@ -4,7 +4,7 @@ import {
   Text,
   View,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -111,10 +111,10 @@ const QuickActionCard = ({
   icon: React.ReactNode;
   onPress: () => void;
 }) => (
-  <TouchableOpacity style={styles.quickActionCard} onPress={onPress}>
+  <Pressable style={styles.quickActionCard} onPress={onPress}>
     {icon}
     <Text style={styles.quickActionText}>{title}</Text>
-  </TouchableOpacity>
+  </Pressable>
 );
 
 // Enhanced Credit Overview Component
@@ -388,7 +388,7 @@ const UpcomingDeparturesCard = ({
       </ScrollView>
 
       {upcomingBookings.length > 3 && (
-        <TouchableOpacity
+        <Pressable
           style={styles.upcomingViewAll}
           onPress={() =>
             router.push({
@@ -400,7 +400,7 @@ const UpcomingDeparturesCard = ({
           <Text style={styles.upcomingViewAllText}>
             View all {upcomingBookings.length} upcoming departures
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
     </Card>
   );
@@ -533,13 +533,10 @@ export default function AgentDashboardScreen() {
             <Text style={styles.headerBadgeText}>Agent Portal</Text>
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.newBookingButton}
-          onPress={handleNewBooking}
-        >
+        <Pressable style={styles.newBookingButton} onPress={handleNewBooking}>
           <Plus size={20} color='white' />
           <Text style={styles.newBookingText}>New Booking</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Agent Information Card */}
@@ -666,9 +663,9 @@ export default function AgentDashboardScreen() {
             Recent Activity
           </Text>
         </View>
-        <TouchableOpacity onPress={handleViewAllBookings}>
+        <Pressable onPress={handleViewAllBookings}>
           <Text style={styles.viewAllText}>View All</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {isLoadingBookings || isInitializing ? (

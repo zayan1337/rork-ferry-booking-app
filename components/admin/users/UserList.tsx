@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import UserItem from '@/components/admin/UserItem';
@@ -44,7 +44,7 @@ const UserList = memo<UserListProps>(
         {users.map(user => (
           <View key={user.id} style={styles.userItemWrapper}>
             {canUpdateUsers && (
-              <TouchableOpacity
+              <Pressable
                 style={styles.selectionCheckbox}
                 onPress={() => onUserSelect(user.id)}
               >
@@ -58,7 +58,7 @@ const UserList = memo<UserListProps>(
                     <Check size={14} color='white' />
                   )}
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             )}
             <View style={styles.userItemContent}>
               <UserItem user={user} onPress={() => onUserPress(user)} />

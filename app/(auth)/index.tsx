@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   Image,
-  TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -191,13 +191,13 @@ export default function LoginScreen() {
             required
           />
 
-          <TouchableOpacity
+          <Pressable
             style={styles.forgotPasswordContainer}
             disabled={isLoading || isNavigating}
             onPress={() => handleNavigation('forgotPassword')}
           >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <Button
             title='Login'
@@ -210,12 +210,12 @@ export default function LoginScreen() {
 
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Don't have an account? </Text>
-            <TouchableOpacity
+            <Pressable
               disabled={isLoading || isNavigating}
               onPress={() => handleNavigation('register')}
             >
               <Text style={styles.registerLink}>Sign Up</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </Card>
       </ScrollView>

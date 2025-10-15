@@ -4,7 +4,7 @@
 //   Text,
 //   StyleSheet,
 //   ScrollView,
-//   TouchableOpacity,
+//   Pressable,
 //   Alert,
 //   Dimensions,
 //   FlatList,
@@ -226,7 +226,7 @@
 //             const dayTrips = tripsByDate[dateKey] || [];
 
 //             return (
-//               <TouchableOpacity
+//               <Pressable
 //                 key={day}
 //                 style={[
 //                   styles.calendarDay,
@@ -251,7 +251,7 @@
 //                     <Text style={styles.tripCount}>{dayTrips.length}</Text>
 //                   </View>
 //                 )}
-//               </TouchableOpacity>
+//               </Pressable>
 //             );
 //           })}
 //         </View>
@@ -276,7 +276,7 @@
 //         keyExtractor={item => item.id}
 //         renderItem={({ item }) => (
 //           <View style={styles.tripItemContainer}>
-//             <TouchableOpacity
+//             <Pressable
 //               style={styles.selectButton}
 //               onPress={() => handleTripSelect(item.id)}
 //             >
@@ -290,7 +290,7 @@
 //                   <CheckCircle size={14} color='white' />
 //                 )}
 //               </View>
-//             </TouchableOpacity>
+//             </Pressable>
 //             <View style={styles.tripItemContent}>
 //               <TripItem
 //                 trip={item as any}
@@ -320,7 +320,7 @@
 //               </Text>
 //               <View style={styles.dayTrips}>
 //                 {dayTrips.map(trip => (
-//                   <TouchableOpacity
+//                   <Pressable
 //                     key={trip.id}
 //                     style={styles.gridTripItem}
 //                     onPress={() => handleTripPress(trip)}
@@ -335,7 +335,7 @@
 //                         {trip.bookings || 0}/{trip.capacity || 0}
 //                       </Text>
 //                     </View>
-//                   </TouchableOpacity>
+//                   </Pressable>
 //                 ))}
 //               </View>
 //             </View>
@@ -355,10 +355,10 @@
 //             {stats.totalTrips} trips • {conflicts.length} conflicts
 //           </Text>
 //         </View>
-//         <TouchableOpacity style={styles.createButton} onPress={onCreateTrip}>
+//         <Pressable style={styles.createButton} onPress={onCreateTrip}>
 //           <Plus size={20} color='white' />
 //           <Text style={styles.createButtonText}>New Trip</Text>
-//         </TouchableOpacity>
+//         </Pressable>
 //       </View>
 
 //       {/* Stats Summary */}
@@ -397,7 +397,7 @@
 //         </View>
 
 //         <View style={styles.viewControls}>
-//           <TouchableOpacity
+//           <Pressable
 //             style={[
 //               styles.viewButton,
 //               viewMode === 'calendar' && styles.viewButtonActive,
@@ -410,8 +410,8 @@
 //                 viewMode === 'calendar' ? colors.primary : colors.textSecondary
 //               }
 //             />
-//           </TouchableOpacity>
-//           <TouchableOpacity
+//           </Pressable>
+//           <Pressable
 //             style={[
 //               styles.viewButton,
 //               viewMode === 'list' && styles.viewButtonActive,
@@ -424,8 +424,8 @@
 //                 viewMode === 'list' ? colors.primary : colors.textSecondary
 //               }
 //             />
-//           </TouchableOpacity>
-//           <TouchableOpacity
+//           </Pressable>
+//           <Pressable
 //             style={[
 //               styles.viewButton,
 //               viewMode === 'grid' && styles.viewButtonActive,
@@ -438,28 +438,28 @@
 //                 viewMode === 'grid' ? colors.primary : colors.textSecondary
 //               }
 //             />
-//           </TouchableOpacity>
+//           </Pressable>
 //         </View>
 
 //         <View style={styles.actionButtons}>
-//           <TouchableOpacity
+//           <Pressable
 //             style={styles.actionButton}
 //             onPress={handleOptimizeSchedule}
 //           >
 //             <Zap size={16} color={colors.primary} />
-//           </TouchableOpacity>
-//           <TouchableOpacity
+//           </Pressable>
+//           <Pressable
 //             style={styles.actionButton}
 //             onPress={onBulkSchedule}
 //           >
 //             <Upload size={16} color={colors.primary} />
-//           </TouchableOpacity>
-//           <TouchableOpacity
+//           </Pressable>
+//           <Pressable
 //             style={styles.actionButton}
 //             onPress={onExportSchedule}
 //           >
 //             <Download size={16} color={colors.primary} />
-//           </TouchableOpacity>
+//           </Pressable>
 //         </View>
 //       </View>
 
@@ -471,12 +471,12 @@
 //             {conflicts.length} schedule conflict
 //             {conflicts.length > 1 ? 's' : ''} detected
 //           </Text>
-//           <TouchableOpacity
+//           <Pressable
 //             style={styles.resolveButton}
 //             onPress={handleOptimizeSchedule}
 //           >
 //             <Text style={styles.resolveButtonText}>Auto-Resolve</Text>
-//           </TouchableOpacity>
+//           </Pressable>
 //         </View>
 //       )}
 
