@@ -263,6 +263,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
     setError(null);
 
     try {
+      // Calculate current time for filtering
+      const now = new Date();
+      const currentDate = now.toISOString().split('T')[0];
+      const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
+
       // Fetch trips with vessel information and fare data
       const { data: trips, error } = await supabase
         .from('trips')
@@ -275,6 +280,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
                     vessel_id,
                     is_active,
                     fare_multiplier,
+                    status,
                     routes!inner(
                         base_fare
                     ),
@@ -292,9 +298,43 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
       if (error) throw error;
 
-      // Calculate available seats for each trip
+      // Filter out trips that have departed or are in non-bookable statuses
+      const bookableTrips = trips.filter((trip: any) => {
+        // Filter by status - exclude departed, arrived, completed, cancelled trips
+        const nonBookableStatuses = [
+          'departed',
+          'arrived',
+          'completed',
+          'cancelled',
+        ];
+        if (trip.status && nonBookableStatuses.includes(trip.status)) {
+          return false;
+        }
+
+        // If trip is for a future date, it's bookable
+        if (trip.travel_date > currentDate) {
+          return true;
+        }
+
+        // If trip is today, check if departure time has passed (with 15-minute buffer)
+        if (trip.travel_date === currentDate) {
+          const [hours, minutes] = trip.departure_time.split(':').map(Number);
+          const [nowHours, nowMinutes] = currentTime.split(':').map(Number);
+
+          const departureInMinutes = hours * 60 + minutes;
+          const nowInMinutes = nowHours * 60 + nowMinutes;
+
+          // Allow booking only if departure is at least 15 minutes away
+          return departureInMinutes > nowInMinutes + 15;
+        }
+
+        // Trip is in the past
+        return false;
+      });
+
+      // Calculate available seats for each bookable trip
       const tripsWithAvailableSeats = await Promise.all(
-        trips.map(async (trip: any) => {
+        bookableTrips.map(async (trip: any) => {
           // Get seat reservations for this trip
           const { data: seatReservations, error: reservationsError } =
             await supabase

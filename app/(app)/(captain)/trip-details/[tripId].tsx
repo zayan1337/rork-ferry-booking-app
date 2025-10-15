@@ -124,11 +124,18 @@ export default function CaptainTripDetailsScreen() {
         reservationMap.set(reservation.seat_id, reservation);
       });
 
-      // Create a map of passenger seat assignments
+      // Create a map of passenger seat assignments (only active bookings)
       const passengerSeatMap = new Map();
-      passengers.forEach(passenger => {
-        if (passenger.seat_number) {
-          passengerSeatMap.set(passenger.seat_number, {
+      const activeBookingPassengers = passengers.filter(
+        p =>
+          p.booking_status &&
+          ['confirmed', 'checked_in', 'completed'].includes(p.booking_status)
+      );
+
+      activeBookingPassengers.forEach(passenger => {
+        if (passenger.seat_number && passenger.seat_number !== 'Not assigned') {
+          const seatNumber = passenger.seat_number.trim().toUpperCase();
+          passengerSeatMap.set(seatNumber, {
             isBooked: true,
             isCheckedIn: passenger.check_in_status,
             passengerName: passenger.passenger_name,
@@ -139,7 +146,8 @@ export default function CaptainTripDetailsScreen() {
       // Process all seats with their status
       const processedSeats: Seat[] = (vesselSeats || []).map((seat: any) => {
         const reservation = reservationMap.get(seat.id);
-        const passengerInfo = passengerSeatMap.get(seat.seat_number);
+        const seatNumberNormalized = seat.seat_number.trim().toUpperCase();
+        const passengerInfo = passengerSeatMap.get(seatNumberNormalized);
 
         let isAvailable = true;
         let seatStatus = 'available';
@@ -154,7 +162,7 @@ export default function CaptainTripDetailsScreen() {
 
         return {
           id: seat.id,
-          number: seat.seat_number,
+          number: seatNumberNormalized,
           rowNumber: seat.row_number,
           isWindow: seat.is_window,
           isAisle: seat.is_aisle,
@@ -254,8 +262,14 @@ export default function CaptainTripDetailsScreen() {
     );
   }
 
-  const checkedInPassengers = passengers.filter(p => p.check_in_status);
-  const totalPassengers = passengers.length;
+  // Filter only active bookings (exclude cancelled)
+  const activePassengers = passengers.filter(
+    p =>
+      p.booking_status &&
+      ['confirmed', 'checked_in', 'completed'].includes(p.booking_status)
+  );
+  const checkedInPassengers = activePassengers.filter(p => p.check_in_status);
+  const totalPassengers = activePassengers.length;
   const checkedInCount = checkedInPassengers.length;
   const remainingToCheckIn = totalPassengers - checkedInCount;
   const checkInProgress =
@@ -792,14 +806,14 @@ export default function CaptainTripDetailsScreen() {
               Loading passengers...
             </Text>
           </View>
-        ) : passengers.length === 0 ? (
+        ) : activePassengers.length === 0 ? (
           <View style={styles.emptyPassengers}>
             <Users size={32} color={Colors.textSecondary} />
             <Text style={styles.emptyPassengersText}>No passengers found</Text>
           </View>
         ) : (
           <View style={styles.passengerList}>
-            {passengers.map(passenger => (
+            {activePassengers.map(passenger => (
               <View key={passenger.id} style={styles.passengerItem}>
                 <View style={styles.passengerInfo}>
                   <View style={styles.passengerItemHeader}>

@@ -326,3 +326,115 @@ export const formatFare = (fare: number, currency: string = 'MVR'): string => {
     return `${currency} 0.00`;
   }
 };
+
+/**
+ * Check if a trip has departed or is about to depart
+ * @param travelDate - Trip travel date (YYYY-MM-DD)
+ * @param departureTime - Trip departure time (HH:MM or HH:MM:SS)
+ * @param bufferMinutes - Buffer time before departure to prevent booking (default: 15)
+ * @returns true if trip is still bookable, false if departed or within buffer time
+ */
+export const isTripBookable = (
+  travelDate: string,
+  departureTime: string,
+  bufferMinutes: number = 15
+): boolean => {
+  try {
+    if (!travelDate || !departureTime) {
+      return false;
+    }
+
+    const now = new Date();
+
+    // Parse departure time (handle both HH:MM and HH:MM:SS formats)
+    const timeStr = departureTime.substring(0, 5); // Get HH:MM part
+    const tripDateTime = new Date(`${travelDate}T${timeStr}:00`);
+
+    // Check if date parsing was successful
+    if (isNaN(tripDateTime.getTime())) {
+      console.error('Invalid trip date/time:', travelDate, departureTime);
+      return false;
+    }
+
+    // Calculate buffer time in milliseconds
+    const bufferMs = bufferMinutes * 60 * 1000;
+    const cutoffTime = new Date(tripDateTime.getTime() - bufferMs);
+
+    return now < cutoffTime;
+  } catch (error) {
+    console.error('Error checking if trip is bookable:', error);
+    return false;
+  }
+};
+
+/**
+ * Get user-friendly message for why a trip cannot be booked
+ * @param travelDate - Trip travel date (YYYY-MM-DD)
+ * @param departureTime - Trip departure time (HH:MM or HH:MM:SS)
+ * @param bufferMinutes - Buffer time before departure (default: 15)
+ * @returns User-friendly error message
+ */
+export const getTripUnavailableMessage = (
+  travelDate: string,
+  departureTime: string,
+  bufferMinutes: number = 15
+): string => {
+  try {
+    if (!travelDate || !departureTime) {
+      return 'Trip information is incomplete.';
+    }
+
+    const now = new Date();
+    const timeStr = departureTime.substring(0, 5);
+    const tripDateTime = new Date(`${travelDate}T${timeStr}:00`);
+
+    if (isNaN(tripDateTime.getTime())) {
+      return 'Trip information is invalid.';
+    }
+
+    const bufferMs = bufferMinutes * 60 * 1000;
+    const cutoffTime = new Date(tripDateTime.getTime() - bufferMs);
+
+    if (tripDateTime < now) {
+      return 'This trip has already departed and is no longer available for booking.';
+    } else if (now >= cutoffTime) {
+      return `Booking closes ${bufferMinutes} minutes before departure. This trip is no longer available.`;
+    } else {
+      return 'This trip is no longer available for booking.';
+    }
+  } catch (error) {
+    console.error('Error getting trip unavailable message:', error);
+    return 'This trip is no longer available for booking.';
+  }
+};
+
+/**
+ * Calculate minutes until trip departure
+ * @param travelDate - Trip travel date (YYYY-MM-DD)
+ * @param departureTime - Trip departure time (HH:MM or HH:MM:SS)
+ * @returns Minutes until departure (negative if past departure)
+ */
+export const getMinutesUntilDeparture = (
+  travelDate: string,
+  departureTime: string
+): number => {
+  try {
+    if (!travelDate || !departureTime) {
+      return -1;
+    }
+
+    const now = new Date();
+    const timeStr = departureTime.substring(0, 5);
+    const tripDateTime = new Date(`${travelDate}T${timeStr}:00`);
+
+    if (isNaN(tripDateTime.getTime())) {
+      return -1;
+    }
+
+    const diffMs = tripDateTime.getTime() - now.getTime();
+    return Math.floor(diffMs / (60 * 1000));
+  } catch (error) {
+    console.error('Error calculating minutes until departure:', error);
+    return -1;
+  }
+};

@@ -30,6 +30,10 @@ import {
   formatTime,
   createEmptyFormErrors,
 } from '@/utils/customerUtils';
+import {
+  isTripBookable,
+  getTripUnavailableMessage,
+} from '@/utils/bookingUtils';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
 // Removed unused SeatStatusIndicator import
 import {
@@ -436,6 +440,87 @@ export default function BookScreen() {
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
+      // Additional validation before advancing to seat selection
+      if (currentStep === BOOKING_STEPS.ROUTE_SELECTION) {
+        // Validate departure trip hasn't departed
+        if (currentBooking.trip) {
+          if (
+            !isTripBookable(
+              currentBooking.trip.travel_date,
+              currentBooking.trip.departure_time
+            )
+          ) {
+            Alert.alert(
+              'Trip No Longer Available',
+              getTripUnavailableMessage(
+                currentBooking.trip.travel_date,
+                currentBooking.trip.departure_time
+              ),
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    // Clear the trip selection and refresh trips
+                    setTrip(null);
+                    if (
+                      currentBooking.route?.id &&
+                      currentBooking.departureDate
+                    ) {
+                      fetchTrips(
+                        currentBooking.route.id,
+                        currentBooking.departureDate,
+                        false
+                      );
+                    }
+                  },
+                },
+              ]
+            );
+            return;
+          }
+        }
+
+        // Validate return trip if round trip
+        if (
+          currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+          currentBooking.returnTrip
+        ) {
+          if (
+            !isTripBookable(
+              currentBooking.returnTrip.travel_date,
+              currentBooking.returnTrip.departure_time
+            )
+          ) {
+            Alert.alert(
+              'Return Trip No Longer Available',
+              getTripUnavailableMessage(
+                currentBooking.returnTrip.travel_date,
+                currentBooking.returnTrip.departure_time
+              ),
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    setReturnTrip(null);
+                    if (
+                      currentBooking.returnRoute?.id &&
+                      currentBooking.returnDate
+                    ) {
+                      fetchTrips(
+                        currentBooking.returnRoute.id,
+                        currentBooking.returnDate,
+                        true
+                      );
+                    }
+                  },
+                },
+              ]
+            );
+            return;
+          }
+        }
+      }
+
       const nextStep = currentStep + 1;
       setCurrentStep(nextStep);
 
@@ -456,6 +541,61 @@ export default function BookScreen() {
   };
   const handleConfirmBooking = async () => {
     if (validateStep(5)) {
+      // Final validation before creating booking - check trip hasn't departed
+      if (currentBooking.trip) {
+        if (
+          !isTripBookable(
+            currentBooking.trip.travel_date,
+            currentBooking.trip.departure_time
+          )
+        ) {
+          Alert.alert(
+            'Booking Failed',
+            'The selected trip has departed and is no longer available. Your booking could not be completed.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // Reset to trip selection step
+                  setCurrentStep(BOOKING_STEPS.ROUTE_SELECTION);
+                  setTrip(null);
+                },
+              },
+            ]
+          );
+          return;
+        }
+      }
+
+      // Validate return trip if round trip
+      if (
+        currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+        currentBooking.returnTrip
+      ) {
+        if (
+          !isTripBookable(
+            currentBooking.returnTrip.travel_date,
+            currentBooking.returnTrip.departure_time
+          )
+        ) {
+          Alert.alert(
+            'Booking Failed',
+            'The selected return trip has departed and is no longer available. Your booking could not be completed.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // Reset to trip selection step
+                  setCurrentStep(BOOKING_STEPS.ROUTE_SELECTION);
+                  setReturnTrip(null);
+                },
+              },
+            ]
+          );
+          return;
+        }
+      }
+
       try {
         const bookingResult = await createCustomerBooking(paymentMethod);
 

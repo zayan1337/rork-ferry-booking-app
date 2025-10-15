@@ -105,13 +105,18 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
 
       // Fetch checked-in passenger counts for each trip using captain_passengers_view
       for (const trip of trips) {
-        const { data: checkedInData } = await supabase
+        const { data: checkedInData, error: checkedInError } = await supabase
           .from('captain_passengers_view')
-          .select('id')
+          .select('id', { count: 'exact', head: false })
           .eq('trip_id', trip.id)
           .eq('check_in_status', true);
 
-        trip.checked_in_passengers = checkedInData?.length || 0;
+        if (checkedInError) {
+          console.error('Error fetching checked-in count:', checkedInError);
+          trip.checked_in_passengers = 0;
+        } else {
+          trip.checked_in_passengers = checkedInData?.length || 0;
+        }
       }
 
       set(state => ({
@@ -204,13 +209,18 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
 
       // Fetch checked-in passenger counts for each trip using captain_passengers_view
       for (const trip of trips) {
-        const { data: checkedInData } = await supabase
+        const { data: checkedInData, error: checkedInError } = await supabase
           .from('captain_passengers_view')
-          .select('id')
+          .select('id', { count: 'exact', head: false })
           .eq('trip_id', trip.id)
           .eq('check_in_status', true);
 
-        trip.checked_in_passengers = checkedInData?.length || 0;
+        if (checkedInError) {
+          console.error('Error fetching checked-in count:', checkedInError);
+          trip.checked_in_passengers = 0;
+        } else {
+          trip.checked_in_passengers = checkedInData?.length || 0;
+        }
       }
 
       set(state => ({
@@ -259,9 +269,13 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         `
         )
         .eq('trip_id', tripId)
+        .in('booking_status', ['confirmed', 'checked_in', 'completed'])
         .order('seat_number');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching trip passengers:', error);
+        throw error;
+      }
 
       const passengers: CaptainPassenger[] = (data || []).map(
         (passenger: any) => ({
@@ -504,14 +518,16 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
       // Fetch checked-in passengers count using captain_passengers_view
       const { data: checkedInData, error: checkedInError } = await supabase
         .from('captain_passengers_view')
-        .select('id')
+        .select('id', { count: 'exact', head: false })
         .in(
           'trip_id',
           (tripStats || []).map(t => t.id)
         )
         .eq('check_in_status', true);
 
-      if (checkedInError) throw checkedInError;
+      if (checkedInError) {
+        console.error('Error fetching checked-in passengers:', checkedInError);
+      }
 
       const stats: CaptainDashboardStats = {
         todayTrips: tripStats?.length || 0,
