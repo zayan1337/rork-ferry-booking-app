@@ -16,6 +16,11 @@ import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from '@/types';
+import type { RouteStop, RouteSegmentFare } from '@/types/multiStopRoute';
+import { getMultiStopRoute } from '@/utils/multiStopRouteUtils';
+import RouteStopsDisplay from '@/components/admin/routes/RouteStopsDisplay';
+import RouteSegmentFaresDisplay from '@/components/admin/routes/RouteSegmentFaresDisplay';
+import { updateRouteSegmentFare } from '@/utils/multiStopRouteUtils';
 import {
   ArrowLeft,
   Edit,
@@ -66,6 +71,9 @@ export default function RouteDetailsScreen() {
   const [routeData, setRouteData] = useState<Route | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
+  const [segmentFares, setSegmentFares] = useState<RouteSegmentFare[]>([]);
+  const [loadingMultiStopData, setLoadingMultiStopData] = useState(false);
 
   const isTablet = screenWidth >= 768;
 
@@ -80,16 +88,46 @@ export default function RouteDetailsScreen() {
       const route = getById(id);
       if (route) {
         setRouteData(route);
+        // Always load stop data for all routes (all are multi-stop now)
+        await loadMultiStopData();
       } else {
         // Try to get detailed route data
         const detailedRoute = await getRouteWithDetails(id);
         if (detailedRoute) {
           setRouteData(detailedRoute as Route);
+          await loadMultiStopData();
         }
       }
     } catch (error) {
       console.error('Error loading route:', error);
       Alert.alert('Error', 'Failed to load route details');
+    }
+  };
+
+  const loadMultiStopData = async () => {
+    if (!id) return;
+
+    setLoadingMultiStopData(true);
+    try {
+      const multiRoute = await getMultiStopRoute(id);
+      if (multiRoute) {
+        setRouteStops(multiRoute.stops);
+        setSegmentFares(multiRoute.segment_fares);
+      }
+    } catch (error) {
+      console.error('Error loading multi-stop data:', error);
+    } finally {
+      setLoadingMultiStopData(false);
+    }
+  };
+
+  const handleEditSegmentFare = async (fareId: string, newAmount: number) => {
+    try {
+      await updateRouteSegmentFare(fareId, newAmount);
+      await loadMultiStopData(); // Reload data
+      Alert.alert('Success', 'Segment fare updated successfully');
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -367,13 +405,22 @@ export default function RouteDetailsScreen() {
               <Text style={styles.routeName}>{routeData.name}</Text>
               <View style={styles.routeDirection}>
                 <MapPin size={16} color={colors.textSecondary} />
-                <Text style={styles.routeDescription}>
-                  {routeData.from_island_name || routeData.origin || 'Unknown'}{' '}
-                  →{' '}
-                  {routeData.to_island_name ||
-                    routeData.destination ||
-                    'Unknown'}
-                </Text>
+                {routeData.is_multi_stop ? (
+                  <Text style={styles.routeDescription}>
+                    Multi-stop route with{' '}
+                    {routeData.total_stops || routeStops.length} stops
+                  </Text>
+                ) : (
+                  <Text style={styles.routeDescription}>
+                    {routeData.from_island_name ||
+                      routeData.origin ||
+                      'Unknown'}{' '}
+                    →{' '}
+                    {routeData.to_island_name ||
+                      routeData.destination ||
+                      'Unknown'}
+                  </Text>
+                )}
               </View>
             </View>
           </View>
@@ -492,7 +539,7 @@ export default function RouteDetailsScreen() {
                   <MapPin size={20} color={colors.primary} />
                 </View>
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Origin</Text>
+                  <Text style={styles.infoLabel}>First Stop</Text>
                   <Text style={styles.infoValue}>
                     {routeData.from_island_name ||
                       routeData.origin ||
@@ -511,11 +558,43 @@ export default function RouteDetailsScreen() {
                   <Navigation size={20} color={colors.info} />
                 </View>
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Destination</Text>
+                  <Text style={styles.infoLabel}>Last Stop</Text>
                   <Text style={styles.infoValue}>
                     {routeData.to_island_name ||
                       routeData.destination ||
                       'Unknown'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <View style={styles.infoIcon}>
+                  <RouteIcon size={20} color={colors.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Total Stops</Text>
+                  <Text style={styles.infoValue}>
+                    {routeData.total_stops || routeStops.length || 2} stops
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.infoItem}>
+                <View
+                  style={[
+                    styles.infoIcon,
+                    { backgroundColor: colors.infoLight },
+                  ]}
+                >
+                  <Navigation size={20} color={colors.info} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Segments</Text>
+                  <Text style={styles.infoValue}>
+                    {routeData.total_segments || segmentFares.length || 1}{' '}
+                    bookable
                   </Text>
                 </View>
               </View>
@@ -727,6 +806,38 @@ export default function RouteDetailsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Description</Text>
             <Text style={styles.description}>{routeData.description}</Text>
+          </View>
+        )}
+
+        {/* Route Stops - Always show for all routes */}
+        {routeStops.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Route Stops ({routeStops.length})
+            </Text>
+            {loadingMultiStopData ? (
+              <Text style={styles.loadingText}>Loading stops...</Text>
+            ) : (
+              <RouteStopsDisplay stops={routeStops} showTravelTimes />
+            )}
+          </View>
+        )}
+
+        {/* Segment Fares - Always show for all routes */}
+        {segmentFares.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Segment Fares ({segmentFares.length})
+            </Text>
+            {loadingMultiStopData ? (
+              <Text style={styles.loadingText}>Loading fares...</Text>
+            ) : (
+              <RouteSegmentFaresDisplay
+                segmentFares={segmentFares}
+                editable={canUpdateRoutes()}
+                onEditFare={handleEditSegmentFare}
+              />
+            )}
           </View>
         )}
 
@@ -1164,5 +1275,11 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     borderColor: colors.error,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    padding: 20,
   },
 });

@@ -29,6 +29,7 @@ import Dropdown from '@/components/admin/Dropdown';
 import DatePicker from '@/components/admin/DatePicker';
 import TimePicker from '@/components/admin/TimePicker';
 import Switch from '@/components/admin/Switch';
+import TripRouteInfo from '@/components/admin/trips/TripRouteInfo';
 
 type TripFormData = AdminManagement.TripFormData;
 
@@ -896,6 +897,14 @@ export default function TripForm({
               required
             />
           </View>
+
+          {/* Show multi-stop route info if applicable */}
+          {formData.route_id && (
+            <TripRouteInfo
+              routeId={formData.route_id}
+              showOverrideOption={false}
+            />
+          )}
 
           <View style={styles.formGroup}>
             <Dropdown

@@ -143,6 +143,7 @@ export default function TripsTab({
 
   const handleAddTrip = () => {
     if (canManageTrips()) {
+      // Go directly to the unified trip form
       router.push('../trip/new' as any);
     } else {
       Alert.alert(

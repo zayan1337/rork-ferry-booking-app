@@ -563,19 +563,26 @@ export interface ZoneActivityLog {
 // ============================================================================
 
 export interface Route extends BaseEntity, ActivatableEntity, NamedEntity {
-  from_island_id: string;
-  to_island_id: string;
+  // Core fields
   base_fare: number;
   distance?: string;
   duration?: string;
   description?: string;
   status: 'active' | 'inactive' | 'maintenance';
 
-  // Island information (from joins)
+  // Legacy fields (nullable - only used for backward compatibility)
+  from_island_id?: string | null;
+  to_island_id?: string | null;
+
+  // Island information (from joins/stops)
   from_island_name?: string;
   to_island_name?: string;
   origin?: string; // Legacy compatibility
   destination?: string; // Legacy compatibility
+
+  // Multi-stop information
+  total_stops: number;
+  total_segments: number;
 
   // Statistics from routes_stats_view
   total_trips_30d: number;
@@ -598,14 +605,32 @@ export interface Route extends BaseEntity, ActivatableEntity, NamedEntity {
 
 export interface RouteFormData {
   name: string;
-  from_island_id: string;
-  to_island_id: string;
   base_fare: number;
   distance?: string;
   duration?: string;
   description?: string;
   status: 'active' | 'inactive' | 'maintenance';
   is_active: boolean;
+
+  // Legacy fields (not used for new multi-stop routes)
+  from_island_id?: string;
+  to_island_id?: string;
+
+  // Multi-stop route data (all routes now use this)
+  route_stops: Array<{
+    island_id: string;
+    stop_sequence: number;
+    stop_type: 'pickup' | 'dropoff' | 'both';
+    estimated_travel_time: number | null;
+    notes?: string;
+  }>;
+
+  // Segment fares
+  segment_fares: Array<{
+    from_index: number;
+    to_index: number;
+    fare_amount: number;
+  }>;
 }
 
 export interface RouteWithDetails extends Route {

@@ -202,3 +202,7 @@ export * from './content';
 
 // Terms and Conditions types - explicit re-export to avoid conflicts
 export type { TermsAndConditions as Terms, TermsStore } from './terms';
+
+// Multi-Stop Trip types
+export * from './multiStopTrip';
+export * from './multiStopRoute';

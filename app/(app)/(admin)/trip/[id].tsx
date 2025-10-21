@@ -26,6 +26,14 @@ import { useTripStore } from '@/store/admin/tripStore';
 import RoleGuard from '@/components/RoleGuard';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatTripStatus, getTripOccupancy } from '@/utils/tripUtils';
+import type {
+  RouteSegmentFare,
+  TripFareOverride,
+} from '@/types/multiStopRoute';
+import { getMultiStopRoute } from '@/utils/multiStopRouteUtils';
+import RouteSegmentFaresDisplay from '@/components/admin/routes/RouteSegmentFaresDisplay';
+import TripFareOverrideEditor from '@/components/admin/trips/TripFareOverrideEditor';
+import { supabase } from '@/utils/supabase';
 import {
   BarChart3,
   Edit,
@@ -42,6 +50,7 @@ import {
   Percent,
   Navigation,
   AlertTriangle,
+  AlertCircle,
   CheckCircle,
   Bookmark,
   ChevronRight,
@@ -88,6 +97,14 @@ export default function TripDetailsPage() {
     'details' | 'analytics' | 'passengers' | 'bookings'
   >('details');
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [routeSegmentFares, setRouteSegmentFares] = useState<
+    RouteSegmentFare[]
+  >([]);
+  const [tripFareOverrides, setTripFareOverrides] = useState<
+    TripFareOverride[]
+  >([]);
+  const [showFareOverrideEditor, setShowFareOverrideEditor] = useState(false);
+  const [loadingSegmentData, setLoadingSegmentData] = useState(false);
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -118,11 +135,22 @@ export default function TripDetailsPage() {
       if (tripData) {
         // Use the trip data directly with type assertion (both types are compatible in practice)
         setTrip(tripData as Trip);
+
+        // Load multi-stop route data if applicable
+        if (tripData.route_id) {
+          await loadMultiStopRouteData(tripData.route_id);
+        }
       } else {
         // Fallback to operations store
         const operationsTripData = await fetchTrip(id);
         if (operationsTripData) {
-          setTrip(mapOperationsTripToTrip(operationsTripData));
+          const mappedTrip = mapOperationsTripToTrip(operationsTripData);
+          setTrip(mappedTrip);
+
+          // Load multi-stop route data if applicable
+          if (mappedTrip.route_id) {
+            await loadMultiStopRouteData(mappedTrip.route_id);
+          }
         }
       }
     } catch (error) {
@@ -133,6 +161,63 @@ export default function TripDetailsPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const loadMultiStopRouteData = async (routeId: string) => {
+    setLoadingSegmentData(true);
+    try {
+      const multiRoute = await getMultiStopRoute(routeId);
+      if (multiRoute && multiRoute.is_multi_stop) {
+        setRouteSegmentFares(multiRoute.segment_fares);
+
+        // Load trip fare overrides if they exist
+        if (id) {
+          const { data: overrides } = await supabase
+            .from('trip_fare_overrides')
+            .select('*')
+            .eq('trip_id', id);
+
+          if (overrides) {
+            setTripFareOverrides(overrides);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading multi-stop route data:', error);
+    } finally {
+      setLoadingSegmentData(false);
+    }
+  };
+
+  const handleSaveFareOverrides = async (overrides: TripFareOverride[]) => {
+    if (!id) return;
+
+    try {
+      // Delete existing overrides
+      await supabase.from('trip_fare_overrides').delete().eq('trip_id', id);
+
+      // Insert new overrides
+      if (overrides.length > 0) {
+        const { error } = await supabase.from('trip_fare_overrides').insert(
+          overrides.map(o => ({
+            trip_id: id,
+            from_stop_id: o.from_stop_id,
+            to_stop_id: o.to_stop_id,
+            override_fare_amount: o.override_fare_amount,
+            reason: o.reason,
+          }))
+        );
+
+        if (error) throw error;
+      }
+
+      setShowFareOverrideEditor(false);
+      await loadTrip(true); // Reload trip data
+      Alert.alert('Success', 'Fare overrides saved successfully');
+    } catch (error) {
+      console.error('Error saving fare overrides:', error);
+      Alert.alert('Error', 'Failed to save fare overrides');
     }
   };
 
@@ -693,6 +778,62 @@ export default function TripDetailsPage() {
               )}
             </View>
 
+            {/* Segment Breakdown for Multi-Stop Routes */}
+            {routeSegmentFares.length > 0 && (
+              <View style={styles.managementCard}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionTitle}>Segment Fares</Text>
+                  {canManageTrips() && (
+                    <Pressable
+                      style={styles.editFaresButton}
+                      onPress={() => setShowFareOverrideEditor(true)}
+                    >
+                      <Edit size={16} color={colors.primary} />
+                      <Text style={styles.editFaresText}>Edit Fares</Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                {loadingSegmentData ? (
+                  <Text style={styles.loadingText}>
+                    Loading segment data...
+                  </Text>
+                ) : (
+                  <>
+                    <RouteSegmentFaresDisplay
+                      segmentFares={routeSegmentFares.map(fare => {
+                        // Check if this segment has an override
+                        const override = tripFareOverrides.find(
+                          o =>
+                            o.from_stop_id === fare.from_stop_id &&
+                            o.to_stop_id === fare.to_stop_id
+                        );
+
+                        return {
+                          ...fare,
+                          fare_amount:
+                            override?.override_fare_amount || fare.fare_amount,
+                        };
+                      })}
+                      editable={false}
+                    />
+
+                    {/* Show override indicators */}
+                    {tripFareOverrides.length > 0 && (
+                      <View style={styles.overrideIndicator}>
+                        <AlertCircle size={14} color={colors.warning} />
+                        <Text style={styles.overrideText}>
+                          {tripFareOverrides.length} segment
+                          {tripFareOverrides.length > 1 ? 's' : ''} with custom
+                          fares
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+            )}
+
             {/* Enhanced Analytics */}
             <View style={styles.analyticsCard}>
               <Text style={styles.sectionTitle}>Performance Analytics</Text>
@@ -735,6 +876,21 @@ export default function TripDetailsPage() {
             </View>
           </ScrollView>
         )}
+
+        {/* Fare Override Editor Modal */}
+        {showFareOverrideEditor && routeSegmentFares.length > 0 && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <TripFareOverrideEditor
+                tripId={id || ''}
+                routeSegmentFares={routeSegmentFares}
+                existingOverrides={tripFareOverrides}
+                onSave={handleSaveFareOverrides}
+                onCancel={() => setShowFareOverrideEditor(false)}
+              />
+            </View>
+          </View>
+        )}
       </View>
     </RoleGuard>
   );
@@ -767,8 +923,10 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
+    textAlign: 'center',
+    padding: 20,
   },
   errorTitle: {
     fontSize: 24,
@@ -1064,5 +1222,61 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  editFaresButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: colors.primaryLight,
+  },
+  editFaresText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  overrideIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: colors.warningLight,
+    borderRadius: 8,
+  },
+  overrideText: {
+    fontSize: 12,
+    color: colors.warning,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxHeight: '80%',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
 });
