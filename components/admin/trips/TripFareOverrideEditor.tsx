@@ -12,7 +12,7 @@ import type {
   RouteSegmentFare,
   TripFareOverride,
 } from '@/types/multiStopRoute';
-import Input from '@/components/Input';
+import TextInput from '@/components/admin/TextInput';
 import Button from '@/components/admin/Button';
 import { formatCurrency } from '@/utils/currencyUtils';
 
@@ -63,14 +63,34 @@ export default function TripFareOverrideEditor({
     value: string
   ) => {
     const key = `${fromStopId}-${toStopId}`;
-    const newFare = parseFloat(value) || 0;
+    console.log('handleFareChange called:', { fromStopId, toStopId, defaultFare, value, key });
+    
+    // Handle empty input
+    if (value === '' || value === null || value === undefined) {
+      console.log('Empty input, removing override for key:', key);
+      const newOverrides = new Map(overrides);
+      newOverrides.delete(key);
+      setOverrides(newOverrides);
+      return;
+    }
+
+    const newFare = parseFloat(value);
+    console.log('Parsed fare:', newFare);
+    
+    // Validate number
+    if (isNaN(newFare) || newFare < 0) {
+      console.log('Invalid fare input, ignoring');
+      return; // Invalid input, don't update
+    }
 
     // If fare matches default, remove override
     if (newFare === defaultFare) {
+      console.log('Fare matches default, removing override');
       const newOverrides = new Map(overrides);
       newOverrides.delete(key);
       setOverrides(newOverrides);
     } else {
+      console.log('Setting new override:', { fare: newFare, reason: overrides.get(key)?.reason || '' });
       const newOverrides = new Map(overrides);
       newOverrides.set(key, {
         fare: newFare,
@@ -95,6 +115,10 @@ export default function TripFareOverrideEditor({
         reason: value,
       });
       setOverrides(newOverrides);
+    } else {
+      // If no override exists yet but user is entering reason,
+      // don't create one (they need to change fare first)
+      console.log('No override exists for this segment yet');
     }
   };
 
@@ -165,11 +189,10 @@ export default function TripFareOverrideEditor({
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
+      {/* Info subtitle */}
       <View style={styles.header}>
-        <Text style={styles.title}>Override Segment Fares</Text>
         <Text style={styles.subtitle}>
-          Modify fares for this specific trip only. Overrides will not affect
+          Modify fares for this specific trip only. Changes will not affect
           other trips on this route.
         </Text>
       </View>
@@ -210,7 +233,7 @@ export default function TripFareOverrideEditor({
                   <Text style={styles.segmentFrom}>
                     {segment.from_island_name}
                   </Text>
-                  <ArrowRight size={16} color={colors.textSecondary} />
+                  <ArrowRight size={14} color={colors.textSecondary} />
                   <Text style={styles.segmentTo}>{segment.to_island_name}</Text>
                 </View>
 
@@ -247,26 +270,35 @@ export default function TripFareOverrideEditor({
                   </Text>
                 </View>
 
-                <Input
-                  label='Override Fare (MVR)'
-                  value={displayFare.toString()}
-                  onChangeText={value =>
-                    handleFareChange(
-                      segment.from_stop_id,
-                      segment.to_stop_id,
-                      segment.fare_amount,
-                      value
-                    )
-                  }
-                  keyboardType='numeric'
-                  placeholder='Enter custom fare'
-                />
+                <View>
+                  <TextInput
+                    label='Override Fare (MVR)'
+                    value={displayFare.toString()}
+                    onChangeText={value => {
+                      console.log('Fare changed:', value);
+                      handleFareChange(
+                        segment.from_stop_id,
+                        segment.to_stop_id,
+                        segment.fare_amount,
+                        value
+                      );
+                    }}
+                    keyboardType='decimal-pad'
+                    placeholder='Enter custom fare amount'
+                    editable={true}
+                  />
+                  {override && (
+                    <Text style={styles.fareHint}>
+                      Modified from {formatCurrency(segment.fare_amount, 'MVR')}
+                    </Text>
+                  )}
+                </View>
               </View>
 
               {/* Reason input (only if overridden) */}
               {override && (
                 <View style={styles.reasonContainer}>
-                  <Input
+                  <TextInput
                     label='Reason for Override'
                     value={override.reason}
                     onChangeText={value =>
@@ -279,6 +311,7 @@ export default function TripFareOverrideEditor({
                     placeholder='e.g., Weekend promotion, Peak hour pricing'
                     multiline
                     numberOfLines={2}
+                    required
                   />
                 </View>
               )}
@@ -289,19 +322,25 @@ export default function TripFareOverrideEditor({
 
       {/* Action buttons */}
       <View style={styles.actionButtons}>
-        <Button
-          title='Cancel'
-          variant='outline'
-          onPress={onCancel}
-          disabled={saving}
-        />
-        <Button
-          title={`Save ${overrides.size} Override${overrides.size !== 1 ? 's' : ''}`}
-          variant='primary'
-          onPress={handleSave}
-          loading={saving}
-          disabled={overrides.size === 0}
-        />
+        <View style={styles.buttonRow}>
+          <View style={styles.buttonHalf}>
+            <Button
+              title='Cancel'
+              variant='outline'
+              onPress={onCancel}
+              disabled={saving}
+            />
+          </View>
+          <View style={styles.buttonHalf}>
+            <Button
+              title={overrides.size === 0 ? 'No Changes' : `Save ${overrides.size} Override${overrides.size !== 1 ? 's' : ''}`}
+              variant='primary'
+              onPress={handleSave}
+              loading={saving}
+              disabled={overrides.size === 0}
+            />
+          </View>
+        </View>
       </View>
     </ScrollView>
   );
@@ -310,20 +349,16 @@ export default function TripFareOverrideEditor({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 20,
   },
   header: {
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   infoBanner: {
     flexDirection: 'row',
@@ -345,16 +380,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   segmentCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.border,
+    marginBottom: 4,
   },
   segmentCardOverridden: {
     borderColor: colors.warning,
     borderWidth: 2,
-    backgroundColor: `${colors.warning}05`,
+    backgroundColor: `${colors.warning}08`,
   },
   segmentHeader: {
     flexDirection: 'row',
@@ -400,14 +436,17 @@ const styles = StyleSheet.create({
   },
   fareInputs: {
     gap: 12,
+    marginTop: 4,
   },
   defaultFareContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: colors.card,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   defaultFareLabel: {
     fontSize: 13,
@@ -422,9 +461,22 @@ const styles = StyleSheet.create({
   reasonContainer: {
     marginTop: 12,
   },
+  fareHint: {
+    fontSize: 11,
+    color: colors.warning,
+    fontStyle: 'italic',
+    marginTop: 4,
+    marginLeft: 4,
+  },
   actionButtons: {
+    marginTop: 24,
+    marginBottom: 20,
+  },
+  buttonRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 24,
+  },
+  buttonHalf: {
+    flex: 1,
   },
 });

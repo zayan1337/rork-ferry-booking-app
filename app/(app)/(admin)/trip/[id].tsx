@@ -8,6 +8,9 @@ import {
   Pressable,
   ScrollView,
   RefreshControl,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   Stack,
@@ -32,7 +35,6 @@ import type {
 } from '@/types/multiStopRoute';
 import { getMultiStopRoute } from '@/utils/multiStopRouteUtils';
 import RouteSegmentFaresDisplay from '@/components/admin/routes/RouteSegmentFaresDisplay';
-import TripFareOverrideEditor from '@/components/admin/trips/TripFareOverrideEditor';
 import { supabase } from '@/utils/supabase';
 import {
   BarChart3,
@@ -103,8 +105,9 @@ export default function TripDetailsPage() {
   const [tripFareOverrides, setTripFareOverrides] = useState<
     TripFareOverride[]
   >([]);
-  const [showFareOverrideEditor, setShowFareOverrideEditor] = useState(false);
   const [loadingSegmentData, setLoadingSegmentData] = useState(false);
+  const [routeStops, setRouteStops] = useState<any[]>([]);
+  const [isMultiStopRoute, setIsMultiStopRoute] = useState(false);
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -167,21 +170,42 @@ export default function TripDetailsPage() {
   const loadMultiStopRouteData = async (routeId: string) => {
     setLoadingSegmentData(true);
     try {
+      console.log('Loading multi-stop route data for route:', routeId);
       const multiRoute = await getMultiStopRoute(routeId);
-      if (multiRoute && multiRoute.is_multi_stop) {
+      console.log('Multi-route data:', multiRoute);
+      
+      if (multiRoute) {
+        // Always load stops (both simple and multi-stop routes have stops now)
+        setRouteStops(multiRoute.stops || []);
+        setIsMultiStopRoute(multiRoute.stops?.length > 2 || false);
+        
+        console.log('Route stops:', multiRoute.stops);
+        console.log('Is multi-stop:', multiRoute.stops?.length > 2);
+        
+        if (multiRoute.segment_fares) {
+          console.log('Setting segment fares:', multiRoute.segment_fares);
         setRouteSegmentFares(multiRoute.segment_fares);
+        } else {
+          console.log('No segment fares found for route');
+        }
 
         // Load trip fare overrides if they exist
         if (id) {
-          const { data: overrides } = await supabase
+          console.log('Loading trip fare overrides for trip:', id);
+          const { data: overrides, error } = await supabase
             .from('trip_fare_overrides')
             .select('*')
             .eq('trip_id', id);
 
-          if (overrides) {
-            setTripFareOverrides(overrides);
+          if (error) {
+            console.error('Error loading trip fare overrides:', error);
+          } else {
+            console.log('Trip fare overrides:', overrides);
+            setTripFareOverrides(overrides || []);
           }
         }
+      } else {
+        console.log('No multi-route data found for route:', routeId);
       }
     } catch (error) {
       console.error('Error loading multi-stop route data:', error);
@@ -190,36 +214,6 @@ export default function TripDetailsPage() {
     }
   };
 
-  const handleSaveFareOverrides = async (overrides: TripFareOverride[]) => {
-    if (!id) return;
-
-    try {
-      // Delete existing overrides
-      await supabase.from('trip_fare_overrides').delete().eq('trip_id', id);
-
-      // Insert new overrides
-      if (overrides.length > 0) {
-        const { error } = await supabase.from('trip_fare_overrides').insert(
-          overrides.map(o => ({
-            trip_id: id,
-            from_stop_id: o.from_stop_id,
-            to_stop_id: o.to_stop_id,
-            override_fare_amount: o.override_fare_amount,
-            reason: o.reason,
-          }))
-        );
-
-        if (error) throw error;
-      }
-
-      setShowFareOverrideEditor(false);
-      await loadTrip(true); // Reload trip data
-      Alert.alert('Success', 'Fare overrides saved successfully');
-    } catch (error) {
-      console.error('Error saving fare overrides:', error);
-      Alert.alert('Error', 'Failed to save fare overrides');
-    }
-  };
 
   const handleRefresh = () => {
     loadTrip(true);
@@ -240,7 +234,7 @@ export default function TripDetailsPage() {
         travel_date: tripData.travel_date,
         departure_time: tripData.departure_time,
         available_seats: trip?.available_seats || 0, // Keep current available seats
-        captain_id: tripData.captain_id || '', // Include captain assignment
+        captain_id: tripData.captain_id?.trim() || undefined, // Include captain assignment (undefined if empty)
         is_active: true,
       });
 
@@ -516,12 +510,25 @@ export default function TripDetailsPage() {
               {/* Header */}
               <View style={styles.overviewHeader}>
                 <View style={styles.overviewHeaderLeft}>
-                  <Text style={styles.tripId}>Trip #{trip.id}</Text>
+                  <Text style={styles.tripId}>Trip #{trip.id.slice(0, 8)}</Text>
                   <View style={styles.routeInfo}>
                     <MapPin size={16} color={colors.primary} />
                     <Text style={styles.routeName}>
-                      {tripInfo.route?.origin || 'Unknown'} →{' '}
-                      {tripInfo.route?.destination || 'Unknown'}
+                      {routeStops.length > 0
+                        ? isMultiStopRoute
+                          ? `${routeStops[0]?.island_name || 'Start'} → ${
+                              routeStops.length - 2
+                            } stops → ${
+                              routeStops[routeStops.length - 1]?.island_name ||
+                              'End'
+                            }`
+                          : `${routeStops[0]?.island_name || 'Start'} → ${
+                              routeStops[routeStops.length - 1]?.island_name ||
+                              'End'
+                            }`
+                        : `${tripInfo.route?.origin || 'Unknown'} → ${
+                            tripInfo.route?.destination || 'Unknown'
+                          }`}
                     </Text>
                   </View>
                 </View>
@@ -594,6 +601,128 @@ export default function TripDetailsPage() {
                 </View>
               </View>
             </View>
+
+            {/* Route Stops Display */}
+            {routeStops.length > 0 && (
+              <View style={styles.routeStopsCard}>
+                <View style={styles.routeStopsHeader}>
+                  <MapPin size={20} color={colors.primary} />
+                  <Text style={styles.sectionTitle}>
+                    {isMultiStopRoute ? 'Multi-Stop Route' : 'Route Path'}
+                  </Text>
+                  <View style={styles.stopCountBadge}>
+                    <Text style={styles.stopCountText}>
+                      {routeStops.length} stops
+                    </Text>
+                  </View>
+                </View>
+
+                {loadingSegmentData ? (
+                  <View style={styles.loadingStopsContainer}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.loadingText}>Loading route stops...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.stopsTimeline}>
+                    {routeStops
+                      .sort((a, b) => a.stop_sequence - b.stop_sequence)
+                      .map((stop, index) => {
+                        const isFirst = index === 0;
+                        const isLast = index === routeStops.length - 1;
+                        const travelTime = stop.estimated_travel_time_from_previous;
+
+                        return (
+                          <View key={stop.id} style={styles.stopItem}>
+                            {/* Timeline connector */}
+                            {!isLast && (
+                              <View style={styles.timelineConnector}>
+                                <View style={styles.timelineLine} />
+                                {travelTime && (
+                                  <View style={styles.travelTimeContainer}>
+                                    <Clock size={10} color={colors.textSecondary} />
+                                    <Text style={styles.travelTimeText}>
+                                      {travelTime} min
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                            )}
+
+                            {/* Stop marker */}
+                            <View
+                              style={[
+                                styles.stopMarker,
+                                isFirst && styles.stopMarkerFirst,
+                                isLast && styles.stopMarkerLast,
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.stopDot,
+                                  isFirst && styles.stopDotFirst,
+                                  isLast && styles.stopDotLast,
+                                ]}
+                              />
+                            </View>
+
+                            {/* Stop details */}
+                            <View style={styles.stopDetails}>
+                              <View style={styles.stopMainInfo}>
+                                <Text style={styles.stopSequence}>
+                                  Stop {stop.stop_sequence}
+                                </Text>
+                                <View
+                                  style={[
+                                    styles.stopTypeBadge,
+                                    stop.stop_type === 'pickup' &&
+                                      styles.stopTypePickup,
+                                    stop.stop_type === 'dropoff' &&
+                                      styles.stopTypeDropoff,
+                                    stop.stop_type === 'both' &&
+                                      styles.stopTypeBoth,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.stopTypeText,
+                                      stop.stop_type === 'pickup' &&
+                                        styles.stopTypeTextPickup,
+                                      stop.stop_type === 'dropoff' &&
+                                        styles.stopTypeTextDropoff,
+                                      stop.stop_type === 'both' &&
+                                        styles.stopTypeTextBoth,
+                                    ]}
+                                  >
+                                    {stop.stop_type === 'pickup'
+                                      ? 'Pick-up'
+                                      : stop.stop_type === 'dropoff'
+                                      ? 'Drop-off'
+                                      : 'Both'}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              <Text style={styles.stopIslandName}>
+                                {stop.island_name || 'Unknown Island'}
+                              </Text>
+
+                              {stop.island_zone && (
+                                <Text style={styles.stopZone}>
+                                  Zone: {stop.island_zone}
+                                </Text>
+                              )}
+
+                              {stop.notes && (
+                                <Text style={styles.stopNotes}>{stop.notes}</Text>
+                              )}
+                            </View>
+                          </View>
+                        );
+                      })}
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Quick Stats Cards */}
             <View style={styles.quickStatsContainer}>
@@ -778,26 +907,26 @@ export default function TripDetailsPage() {
               )}
             </View>
 
-            {/* Segment Breakdown for Multi-Stop Routes */}
+            {/* Segment Fares Display - Read Only */}
             {routeSegmentFares.length > 0 && (
               <View style={styles.managementCard}>
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionTitle}>Segment Fares</Text>
-                  {canManageTrips() && (
-                    <Pressable
-                      style={styles.editFaresButton}
-                      onPress={() => setShowFareOverrideEditor(true)}
-                    >
-                      <Edit size={16} color={colors.primary} />
-                      <Text style={styles.editFaresText}>Edit Fares</Text>
-                    </Pressable>
+                  {tripFareOverrides.length > 0 && (
+                    <View style={styles.customFaresBadge}>
+                      <AlertCircle size={12} color={colors.warning} />
+                      <Text style={styles.customFaresText}>Custom Fares</Text>
+                    </View>
                   )}
                 </View>
 
                 {loadingSegmentData ? (
-                  <Text style={styles.loadingText}>
-                    Loading segment data...
-                  </Text>
+                  <View style={styles.loadingStopsContainer}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.loadingText}>
+                      Loading segment fares...
+                    </Text>
+                  </View>
                 ) : (
                   <>
                     <RouteSegmentFaresDisplay
@@ -813,20 +942,54 @@ export default function TripDetailsPage() {
                           ...fare,
                           fare_amount:
                             override?.override_fare_amount || fare.fare_amount,
+                          hasOverride: !!override,
+                          overrideReason: override?.reason,
                         };
                       })}
                       editable={false}
                     />
 
-                    {/* Show override indicators */}
+                    {/* Show override details */}
                     {tripFareOverrides.length > 0 && (
-                      <View style={styles.overrideIndicator}>
-                        <AlertCircle size={14} color={colors.warning} />
-                        <Text style={styles.overrideText}>
-                          {tripFareOverrides.length} segment
-                          {tripFareOverrides.length > 1 ? 's' : ''} with custom
-                          fares
-                        </Text>
+                      <View style={styles.overrideDetailsContainer}>
+                        <View style={styles.overrideHeader}>
+                          <AlertCircle size={16} color={colors.warning} />
+                          <Text style={styles.overrideHeaderText}>
+                            Custom Fare Overrides ({tripFareOverrides.length})
+                          </Text>
+                        </View>
+                        {tripFareOverrides.map((override, index) => {
+                          const segment = routeSegmentFares.find(
+                            f =>
+                              f.from_stop_id === override.from_stop_id &&
+                              f.to_stop_id === override.to_stop_id
+                          );
+                          if (!segment) return null;
+
+                          return (
+                            <View key={index} style={styles.overrideItem}>
+                              <View style={styles.overrideSegment}>
+                                <Text style={styles.overrideSegmentText}>
+                                  {segment.from_island_name} → {segment.to_island_name}
+                                </Text>
+                                <View style={styles.overrideFares}>
+                                  <Text style={styles.originalFare}>
+                                    {formatCurrency(segment.fare_amount, 'MVR')}
+                                  </Text>
+                                  <Text style={styles.fareArrow}>→</Text>
+                                  <Text style={styles.overrideFare}>
+                                    {formatCurrency(override.override_fare_amount, 'MVR')}
+                                  </Text>
+                                </View>
+                              </View>
+                              {override.reason && (
+                                <Text style={styles.overrideReason}>
+                                  Reason: {override.reason}
+                                </Text>
+                              )}
+                            </View>
+                          );
+                        })}
                       </View>
                     )}
                   </>
@@ -877,20 +1040,6 @@ export default function TripDetailsPage() {
           </ScrollView>
         )}
 
-        {/* Fare Override Editor Modal */}
-        {showFareOverrideEditor && routeSegmentFares.length > 0 && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <TripFareOverrideEditor
-                tripId={id || ''}
-                routeSegmentFares={routeSegmentFares}
-                existingOverrides={tripFareOverrides}
-                onSave={handleSaveFareOverrides}
-                onCancel={() => setShowFareOverrideEditor(false)}
-              />
-            </View>
-          </View>
-        )}
       </View>
     </RoleGuard>
   );
@@ -1229,54 +1378,256 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  editFaresButton: {
+  customFaresBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    padding: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: colors.warningLight,
+  },
+  customFaresText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.warning,
+    textTransform: 'uppercase',
+  },
+  overrideDetailsContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
-    backgroundColor: colors.primaryLight,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.warning,
   },
-  editFaresText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  overrideIndicator: {
+  overrideHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: colors.warningLight,
-    borderRadius: 8,
+    marginBottom: 12,
   },
-  overrideText: {
-    fontSize: 12,
-    color: colors.warning,
+  overrideHeaderText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  overrideItem: {
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  overrideSegment: {
+    marginBottom: 6,
+  },
+  overrideSegmentText: {
+    fontSize: 13,
     fontWeight: '600',
+    color: colors.text,
+    marginBottom: 6,
   },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
+  overrideFares: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    gap: 8,
   },
-  modalContainer: {
+  originalFare: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textDecorationLine: 'line-through',
+  },
+  fareArrow: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  overrideFare: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.warning,
+  },
+  overrideReason: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  // Route Stops Styles
+  routeStopsCard: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
-    maxHeight: '80%',
+    borderRadius: 12,
+    padding: 16,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  routeStopsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  stopCountBadge: {
+    marginLeft: 'auto',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  stopCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  loadingStopsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 20,
+  },
+  stopsTimeline: {
+    gap: 0,
+  },
+  stopItem: {
+    position: 'relative',
+    paddingLeft: 40,
+    paddingBottom: 20,
+  },
+  timelineConnector: {
+    position: 'absolute',
+    left: 15,
+    top: 24,
+    bottom: 0,
+    width: 2,
+    alignItems: 'center',
+  },
+  timelineLine: {
+    flex: 1,
+    width: 2,
+    backgroundColor: colors.border,
+  },
+  travelTimeContainer: {
+    position: 'absolute',
+    top: '50%',
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.card,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    transform: [{ translateY: -12 }],
+  },
+  travelTimeText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  stopMarker: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopMarkerFirst: {
+    // Special styling for first stop
+  },
+  stopMarkerLast: {
+    // Special styling for last stop
+  },
+  stopDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.border,
+    borderWidth: 3,
+    borderColor: colors.card,
+  },
+  stopDotFirst: {
+    backgroundColor: colors.success,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 4,
+  },
+  stopDotLast: {
+    backgroundColor: colors.danger,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 4,
+  },
+  stopDetails: {
+    flex: 1,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    padding: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  stopMainInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  stopSequence: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  stopTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  stopTypePickup: {
+    backgroundColor: `${colors.success}20`,
+  },
+  stopTypeDropoff: {
+    backgroundColor: `${colors.warning}20`,
+  },
+  stopTypeBoth: {
+    backgroundColor: `${colors.primary}20`,
+  },
+  stopTypeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  stopTypeTextPickup: {
+    color: colors.success,
+  },
+  stopTypeTextDropoff: {
+    color: colors.warning,
+  },
+  stopTypeTextBoth: {
+    color: colors.primary,
+  },
+  stopIslandName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  stopZone: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  stopNotes: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });

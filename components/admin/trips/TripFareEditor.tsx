@@ -1,0 +1,673 @@
+/**
+ * Trip Fare Editor Component
+ *
+ * Allows editing of segment fares for trips during creation or editing
+ */
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
+import { colors } from '@/constants/adminColors';
+import { ArrowRight, AlertCircle, Edit } from 'lucide-react-native';
+import type {
+  RouteSegmentFare,
+  TripFareOverride,
+} from '@/types/multiStopRoute';
+import TextInput from '@/components/admin/TextInput';
+import Button from '@/components/admin/Button';
+import { formatCurrency } from '@/utils/currencyUtils';
+
+interface TripFareEditorProps {
+  routeSegmentFares: RouteSegmentFare[];
+  existingOverrides?: TripFareOverride[];
+  onSave: (overrides: TripFareOverride[]) => Promise<void>;
+  onCancel: () => void;
+  visible: boolean;
+  title?: string;
+}
+
+interface OverrideData {
+  fare: number;
+  reason: string;
+}
+
+export default function TripFareEditor({
+  routeSegmentFares,
+  existingOverrides = [],
+  onSave,
+  onCancel,
+  visible,
+  title = 'Edit Segment Fares',
+}: TripFareEditorProps) {
+  const [overrides, setOverrides] = useState<Map<string, OverrideData>>(
+    new Map()
+  );
+  const [saving, setSaving] = useState(false);
+
+  // Load existing overrides
+  useEffect(() => {
+    const initialOverrides = new Map<string, OverrideData>();
+
+    existingOverrides.forEach(override => {
+      const key = `${override.from_stop_id}::${override.to_stop_id}`;
+      initialOverrides.set(key, {
+        fare: override.override_fare_amount,
+        reason: override.reason || '',
+      });
+    });
+
+    setOverrides(initialOverrides);
+  }, [existingOverrides]);
+
+  const handleFareChange = (
+    fromStopId: string,
+    toStopId: string,
+    defaultFare: number,
+    value: string
+  ) => {
+    const key = `${fromStopId}::${toStopId}`;
+    console.log('handleFareChange called:', { fromStopId, toStopId, defaultFare, value, key });
+    
+    // Handle empty input
+    if (value === '' || value === null || value === undefined) {
+      console.log('Empty input, removing override for key:', key);
+      const newOverrides = new Map(overrides);
+      newOverrides.delete(key);
+      setOverrides(newOverrides);
+      return;
+    }
+
+    const newFare = parseFloat(value);
+    console.log('Parsed fare:', newFare);
+    
+    // Validate number
+    if (isNaN(newFare) || newFare < 0) {
+      console.log('Invalid fare input, ignoring');
+      return; // Invalid input, don't update
+    }
+
+    // Additional validation for reasonable fare amounts
+    if (newFare > 10000) {
+      Alert.alert(
+        'Invalid Fare',
+        'Fare amount seems too high. Please enter a reasonable amount.'
+      );
+      return;
+    }
+
+    // If fare matches default, remove override
+    if (newFare === defaultFare) {
+      console.log('Fare matches default, removing override');
+      const newOverrides = new Map(overrides);
+      newOverrides.delete(key);
+      setOverrides(newOverrides);
+    } else {
+      console.log('Setting new override:', { fare: newFare, reason: overrides.get(key)?.reason || '' });
+      const newOverrides = new Map(overrides);
+      newOverrides.set(key, {
+        fare: newFare,
+        reason: overrides.get(key)?.reason || '',
+      });
+      setOverrides(newOverrides);
+    }
+  };
+
+  const handleReasonChange = (
+    fromStopId: string,
+    toStopId: string,
+    value: string
+  ) => {
+    const key = `${fromStopId}::${toStopId}`;
+    const currentOverride = overrides.get(key);
+
+    if (currentOverride) {
+      const newOverrides = new Map(overrides);
+      newOverrides.set(key, {
+        ...currentOverride,
+        reason: value,
+      });
+      setOverrides(newOverrides);
+    } else {
+      // If no override exists yet but user is entering reason,
+      // don't create one (they need to change fare first)
+      console.log('No override exists for this segment yet');
+    }
+  };
+
+  const handleSave = async () => {
+    // Validate all overrides have reasons
+    const overridesWithoutReasons: string[] = [];
+    const invalidFares: string[] = [];
+
+    overrides.forEach((override, key) => {
+      if (!override.reason.trim()) {
+        overridesWithoutReasons.push(key);
+      }
+      
+      // Validate fare amount
+      if (override.fare <= 0) {
+        invalidFares.push(key);
+      }
+    });
+
+    if (invalidFares.length > 0) {
+      Alert.alert(
+        'Validation Error',
+        'All fare amounts must be greater than 0'
+      );
+      return;
+    }
+
+    if (overridesWithoutReasons.length > 0) {
+      Alert.alert(
+        'Validation Error',
+        'Please provide a reason for all fare overrides'
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const overrideArray: TripFareOverride[] = Array.from(
+        overrides.entries()
+      ).map(([key, data]) => {
+        const [fromStopId, toStopId] = key.split('::');
+        return {
+          id: '', // Will be generated by database
+          trip_id: '', // Will be set by parent
+          from_stop_id: fromStopId,
+          to_stop_id: toStopId,
+          override_fare_amount: data.fare,
+          reason: data.reason,
+          created_at: '',
+          updated_at: '',
+        };
+      });
+
+      await onSave(overrideArray);
+    } catch (error) {
+      console.error('Error saving fare overrides:', error);
+      Alert.alert('Error', 'Failed to save fare overrides. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getOverrideStatus = (
+    fromStopId: string,
+    toStopId: string,
+    defaultFare: number
+  ) => {
+    const key = `${fromStopId}::${toStopId}`;
+    const override = overrides.get(key);
+
+    if (!override) return null;
+
+    const percentChange = ((override.fare - defaultFare) / defaultFare) * 100;
+    return {
+      isIncrease: percentChange > 0,
+      percentChange: Math.abs(Math.round(percentChange * 10) / 10),
+    };
+  };
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onCancel}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={onCancel}
+        />
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <Pressable
+              onPress={onCancel}
+              style={styles.modalCloseButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.modalCloseText}>✕</Text>
+            </Pressable>
+          </View>
+          
+          <ScrollView style={styles.modalContent}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.subtitle}>
+                Customize fares for individual route segments. Override the default fare to set special pricing for this trip.
+              </Text>
+            </View>
+
+            {/* Info banner */}
+            <View style={styles.infoBanner}>
+              <AlertCircle size={16} color={colors.info} />
+              <View style={styles.infoBannerContent}>
+                <Text style={styles.infoBannerText}>
+                  {overrides.size === 0
+                    ? 'Using default route fares for all segments'
+                    : `${overrides.size} custom fare${overrides.size > 1 ? 's' : ''} set`}
+                </Text>
+                <Text style={styles.infoBannerSubtext}>
+                  {overrides.size === 0
+                    ? 'Tap a fare amount below to customize pricing'
+                    : 'All overrides require a reason'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Segment list */}
+            <View style={styles.segmentsList}>
+              {routeSegmentFares.map(segment => {
+                const overrideStatus = getOverrideStatus(
+                  segment.from_stop_id,
+                  segment.to_stop_id,
+                  segment.fare_amount
+                );
+                const key = `${segment.from_stop_id}::${segment.to_stop_id}`;
+                const override = overrides.get(key);
+                const displayFare = override?.fare || segment.fare_amount;
+
+                return (
+                  <View
+                    key={segment.id}
+                    style={[
+                      styles.segmentCard,
+                      overrideStatus && styles.segmentCardOverridden,
+                    ]}
+                  >
+                    {/* Segment header */}
+                    <View style={styles.segmentHeader}>
+                      <View style={styles.segmentRoute}>
+                        <View style={styles.stopBadge}>
+                          <Text style={styles.stopBadgeText}>
+                            {segment.from_island_name}
+                          </Text>
+                        </View>
+                        <ArrowRight size={16} color={colors.primary} />
+                        <View style={styles.stopBadge}>
+                          <Text style={styles.stopBadgeText}>
+                            {segment.to_island_name}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {overrideStatus && (
+                        <View
+                          style={[
+                            styles.changeBadge,
+                            overrideStatus.isIncrease
+                              ? styles.changeBadgeIncrease
+                              : styles.changeBadgeDecrease,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.changeText,
+                              overrideStatus.isIncrease
+                                ? styles.changeTextIncrease
+                                : styles.changeTextDecrease,
+                            ]}
+                          >
+                            {overrideStatus.isIncrease ? '↑' : '↓'}
+                            {overrideStatus.percentChange}%
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Fare inputs */}
+                    <View style={styles.fareInputs}>
+                      <View style={styles.fareComparison}>
+                        <View style={styles.defaultFareContainer}>
+                          <Text style={styles.defaultFareLabel}>
+                            Route Default
+                          </Text>
+                          <Text style={styles.defaultFareAmount}>
+                            {formatCurrency(segment.fare_amount, 'MVR')}
+                          </Text>
+                        </View>
+
+                        <View style={styles.fareArrowContainer}>
+                          {override && <ArrowRight size={16} color={colors.warning} />}
+                        </View>
+
+                        <View style={styles.customFareContainer}>
+                          <TextInput
+                            label='Custom Fare'
+                            value={displayFare.toString()}
+                            onChangeText={value => {
+                              handleFareChange(
+                                segment.from_stop_id,
+                                segment.to_stop_id,
+                                segment.fare_amount,
+                                value
+                              );
+                            }}
+                            keyboardType='decimal-pad'
+                            placeholder={segment.fare_amount.toString()}
+                            editable={true}
+                          />
+                        </View>
+                      </View>
+                      {override && (
+                        <View style={styles.fareChangeIndicator}>
+                          <Text style={styles.fareHint}>
+                            {override.fare > segment.fare_amount ? '↑ Increased' : '↓ Decreased'} by {formatCurrency(Math.abs(override.fare - segment.fare_amount), 'MVR')}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Reason input (only if overridden) */}
+                    {override && (
+                      <View style={styles.reasonContainer}>
+                        <View style={styles.reasonHeader}>
+                          <Text style={styles.reasonLabel}>
+                            Why are you changing this fare? *
+                          </Text>
+                        </View>
+                        <TextInput
+                          label=''
+                          value={override.reason}
+                          onChangeText={value =>
+                            handleReasonChange(
+                              segment.from_stop_id,
+                              segment.to_stop_id,
+                              value
+                            )
+                          }
+                          placeholder='e.g., "Weekend discount", "Peak season pricing", "Special promotion"'
+                          multiline
+                          numberOfLines={2}
+                          required
+                        />
+                        {!override.reason.trim() && (
+                          <Text style={styles.reasonRequired}>
+                            ⚠️ Reason is required for all fare changes
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Action buttons */}
+            <View style={styles.actionButtons}>
+              <View style={styles.buttonRow}>
+                <View style={styles.buttonHalf}>
+                  <Button
+                    title='Cancel'
+                    variant='outline'
+                    onPress={onCancel}
+                    disabled={saving}
+                  />
+                </View>
+                <View style={styles.buttonHalf}>
+                  <Button
+                    title={overrides.size === 0 ? 'No Changes' : `Save ${overrides.size} Override${overrides.size !== 1 ? 's' : ''}`}
+                    variant='primary'
+                    onPress={handleSave}
+                    loading={saving}
+                    disabled={overrides.size === 0}
+                  />
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    fontSize: 20,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  modalContent: {
+    maxHeight: '85%',
+    padding: 20,
+  },
+  header: {
+    marginBottom: 16,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 16,
+    backgroundColor: colors.infoLight,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  infoBannerContent: {
+    flex: 1,
+  },
+  infoBannerText: {
+    fontSize: 13,
+    color: colors.info,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  infoBannerSubtext: {
+    fontSize: 11,
+    color: colors.info,
+    fontWeight: '500',
+    opacity: 0.8,
+  },
+  segmentsList: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  segmentCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 4,
+  },
+  segmentCardOverridden: {
+    borderColor: colors.warning,
+    borderWidth: 2,
+    backgroundColor: `${colors.warning}08`,
+  },
+  segmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  segmentRoute: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  stopBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  stopBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  changeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  changeBadgeIncrease: {
+    backgroundColor: colors.errorLight,
+  },
+  changeBadgeDecrease: {
+    backgroundColor: colors.successLight,
+  },
+  changeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  changeTextIncrease: {
+    color: colors.error,
+  },
+  changeTextDecrease: {
+    color: colors.success,
+  },
+  fareInputs: {
+    marginTop: 8,
+  },
+  fareComparison: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  defaultFareContainer: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  defaultFareLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  defaultFareAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  fareArrowContainer: {
+    width: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customFareContainer: {
+    flex: 1,
+  },
+  fareChangeIndicator: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: colors.warningLight,
+    borderRadius: 6,
+  },
+  fareHint: {
+    fontSize: 11,
+    color: colors.warning,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  reasonContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: colors.warningLight,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
+  reasonHeader: {
+    marginBottom: 8,
+  },
+  reasonLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  reasonRequired: {
+    fontSize: 11,
+    color: colors.danger,
+    fontWeight: '600',
+    marginTop: 6,
+  },
+  actionButtons: {
+    marginTop: 24,
+    marginBottom: 20,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  buttonHalf: {
+    flex: 1,
+  },
+});
