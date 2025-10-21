@@ -627,8 +627,29 @@ export default function TripDetailsPage() {
                       .map((stop, index) => {
                         const isFirst = index === 0;
                         const isLast = index === routeStops.length - 1;
-                        const travelTime =
-                          stop.estimated_travel_time_from_previous;
+                        const travelTime = stop.estimated_travel_time; // Minutes from previous stop (NULL for first stop)
+
+                        // Calculate arrival time for this stop
+                        let arrivalTime = '';
+                        if (trip?.departure_time) {
+                          // Calculate cumulative travel time from start
+                          let cumulativeMinutes = 0;
+                          for (let i = 0; i <= index; i++) {
+                            if (i > 0 && routeStops[i].estimated_travel_time) {
+                              cumulativeMinutes += routeStops[i].estimated_travel_time;
+                            }
+                          }
+
+                          // Parse departure time and add cumulative minutes
+                          const [hours, minutes] = trip.departure_time.split(':').map(Number);
+                          const departureDate = new Date();
+                          departureDate.setHours(hours, minutes, 0, 0);
+                          departureDate.setMinutes(departureDate.getMinutes() + cumulativeMinutes);
+
+                          const arrivalHours = departureDate.getHours().toString().padStart(2, '0');
+                          const arrivalMinutes = departureDate.getMinutes().toString().padStart(2, '0');
+                          arrivalTime = `${arrivalHours}:${arrivalMinutes}`;
+                        }
 
                         return (
                           <View key={stop.id} style={styles.stopItem}>
@@ -670,9 +691,19 @@ export default function TripDetailsPage() {
                             {/* Stop details */}
                             <View style={styles.stopDetails}>
                               <View style={styles.stopMainInfo}>
-                                <Text style={styles.stopSequence}>
-                                  Stop {stop.stop_sequence}
-                                </Text>
+                                <View style={styles.stopSequenceContainer}>
+                                  <Text style={styles.stopSequence}>
+                                    Stop {stop.stop_sequence}
+                                  </Text>
+                                  {arrivalTime && (
+                                    <View style={styles.arrivalTimeContainer}>
+                                      <Clock size={12} color={colors.primary} />
+                                      <Text style={styles.arrivalTime}>
+                                        {isFirst ? 'Departs' : 'Arrives'} {arrivalTime}
+                                      </Text>
+                                    </View>
+                                  )}
+                                </View>
                                 <View
                                   style={[
                                     styles.stopTypeBadge,
@@ -1583,14 +1614,29 @@ const styles = StyleSheet.create({
   },
   stopMainInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 8,
+  },
+  stopSequenceContainer: {
+    flex: 1,
+    gap: 4,
   },
   stopSequence: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
+  },
+  arrivalTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  arrivalTime: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
   },
   stopTypeBadge: {
     paddingHorizontal: 8,
