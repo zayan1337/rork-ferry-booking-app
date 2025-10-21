@@ -5,15 +5,11 @@
  * with the existing booking flow
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useBookingStore } from '@/store/bookingStore';
 import { useMultiStopStore } from '@/store/multiStopStore';
 import { supabase } from '@/utils/supabase';
-import type {
-  MultiStopTrip,
-  AvailableSegment,
-  SegmentSelection,
-} from '@/types/multiStopTrip';
+import type { MultiStopTrip, SegmentSelection } from '@/types/multiStopTrip';
 import {
   getMultiStopTripsForDate,
   validateSegment,
@@ -175,5 +171,3 @@ export const useMultiStopBooking = () => {
     selectSegment: multiStopStore.selectSegment,
   };
 };
-
-

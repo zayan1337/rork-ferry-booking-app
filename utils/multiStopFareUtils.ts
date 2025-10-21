@@ -262,7 +262,7 @@ export function linearPricingStrategy(
  */
 export function tieredPricingStrategy(
   baseFarePerStop: number,
-  tiers: Array<{ minStops: number; discountPercent: number }>
+  tiers: { minStops: number; discountPercent: number }[]
 ): (fromStop: TripStop, toStop: TripStop) => number {
   return (fromStop, toStop) => {
     const distance = toStop.stop_sequence - fromStop.stop_sequence;
@@ -368,12 +368,12 @@ export async function deleteAllStopFares(tripId: string): Promise<boolean> {
  * Get revenue breakdown by segment
  */
 export async function getSegmentRevenue(tripId: string): Promise<
-  Array<{
+  {
     from_stop: string;
     to_stop: string;
     bookings: number;
     revenue: number;
-  }>
+  }[]
 > {
   try {
     const { data, error } = await supabase.rpc('get_segment_revenue', {
@@ -396,12 +396,12 @@ export async function getSegmentRevenue(tripId: string): Promise<
  * Manual segment revenue calculation (fallback)
  */
 async function getSegmentRevenueManual(tripId: string): Promise<
-  Array<{
+  {
     from_stop: string;
     to_stop: string;
     bookings: number;
     revenue: number;
-  }>
+  }[]
 > {
   try {
     const { data: bookings, error } = await supabase
@@ -658,5 +658,3 @@ export function applyAgentDiscount(
 
 export // All functions are already exported above
  {};
-
-

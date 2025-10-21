@@ -160,5 +160,3 @@ export const useAdminMultiStopTrips = () => {
     createMultiStopTrip: multiStopStore.createMultiStopTrip,
   };
 };
-
-

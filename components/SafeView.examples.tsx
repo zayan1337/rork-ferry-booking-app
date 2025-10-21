@@ -95,5 +95,3 @@ export const SettingsScreenExample = () => (
     </ScrollView>
   </SafeView>
 );
-
-

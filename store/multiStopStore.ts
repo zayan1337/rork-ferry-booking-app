@@ -9,11 +9,9 @@ import { supabase } from '@/utils/supabase';
 import type {
   MultiStopTrip,
   TripStop,
-  AvailableSegment,
   SegmentSelection,
   MultiStopStoreState,
   MultiStopStoreActions,
-  MultiStopTripFormData,
   StopStatus,
 } from '@/types/multiStopTrip';
 import {
@@ -31,7 +29,6 @@ import {
 import {
   generateStopFares,
   generateCustomStopFares,
-  linearPricingStrategy,
 } from '@/utils/multiStopFareUtils';
 
 // ============================================================================

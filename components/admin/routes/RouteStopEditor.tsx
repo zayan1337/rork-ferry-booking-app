@@ -16,11 +16,9 @@ import {
 import { colors } from '@/constants/adminColors';
 import {
   Plus,
-  GripVertical,
   Trash2,
   ChevronUp,
   ChevronDown,
-  MapPin,
   Clock,
 } from 'lucide-react-native';
 import Dropdown from '@/components/admin/Dropdown';

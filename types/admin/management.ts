@@ -617,20 +617,20 @@ export interface RouteFormData {
   to_island_id?: string;
 
   // Multi-stop route data (all routes now use this)
-  route_stops: Array<{
+  route_stops: {
     island_id: string;
     stop_sequence: number;
     stop_type: 'pickup' | 'dropoff' | 'both';
     estimated_travel_time: number | null;
     notes?: string;
-  }>;
+  }[];
 
   // Segment fares
-  segment_fares: Array<{
+  segment_fares: {
     from_index: number;
     to_index: number;
     fare_amount: number;
-  }>;
+  }[];
 }
 
 export interface RouteWithDetails extends Route {

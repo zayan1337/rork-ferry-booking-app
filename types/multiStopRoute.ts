@@ -227,5 +227,3 @@ export interface BookingSegmentInfo {
   fare_paid: number;
   is_overridden_fare: boolean;
 }
-
-

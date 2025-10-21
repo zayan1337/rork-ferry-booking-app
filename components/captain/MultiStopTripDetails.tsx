@@ -14,7 +14,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Navigation, AlertCircle } from 'lucide-react-native';
+import { Navigation, AlertCircle, CheckCircle } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -356,5 +356,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
-

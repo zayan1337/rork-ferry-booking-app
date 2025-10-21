@@ -292,5 +292,3 @@ export async function getCheckInEligibility(bookingNumber: string): Promise<{
     };
   }
 }
-
-

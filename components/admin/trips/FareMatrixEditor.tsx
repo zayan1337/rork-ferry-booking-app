@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { DollarSign, Edit2, Check, X } from 'lucide-react-native';
+import { Edit2, Check, X } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
@@ -15,7 +15,7 @@ import type { TripStopFormData } from '@/types/multiStopTrip';
 
 interface FareMatrixEditorProps {
   stops: TripStopFormData[];
-  islands: Array<{ id: string; name: string }>;
+  islands: { id: string; name: string }[];
   customFares: Map<string, number>;
   onFareChange: (fromIndex: number, toIndex: number, fare: number) => void;
   baseFarePerStop?: number;
@@ -60,13 +60,13 @@ export default function FareMatrixEditor({
 
   // Get all valid segment combinations
   const getSegments = () => {
-    const segments: Array<{
+    const segments: {
       fromIndex: number;
       toIndex: number;
       fromStop: TripStopFormData;
       toStop: TripStopFormData;
       distance: number;
-    }> = [];
+    }[] = [];
 
     for (let i = 0; i < stops.length; i++) {
       const fromStop = stops[i];
@@ -382,5 +382,3 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
 });
-
-

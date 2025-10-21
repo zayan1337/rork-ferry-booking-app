@@ -443,16 +443,16 @@ export function formatSegmentDescription(
 /**
  * Get all valid segments for a route
  */
-export function getValidSegments(stops: RouteStop[]): Array<{
+export function getValidSegments(stops: RouteStop[]): {
   fromStop: RouteStop;
   toStop: RouteStop;
   segmentCount: number;
-}> {
-  const segments: Array<{
+}[] {
+  const segments: {
     fromStop: RouteStop;
     toStop: RouteStop;
     segmentCount: number;
-  }> = [];
+  }[] = [];
 
   for (let i = 0; i < stops.length; i++) {
     const fromStop = stops[i];
@@ -482,4 +482,3 @@ export function calculateExpectedFare(
 ): number {
   return baseFare * segmentCount;
 }
-

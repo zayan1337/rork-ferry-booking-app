@@ -293,5 +293,3 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.success,
   },
 });
-
-

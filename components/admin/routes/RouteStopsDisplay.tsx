@@ -287,5 +287,3 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 });
-
-

@@ -6,7 +6,46 @@
  * multiple islands along a route.
  */
 
-import type { Trip, Booking } from './index';
+// Base types - define here to avoid circular dependencies
+interface Trip {
+  id: string;
+  route_id: string;
+  vessel_id: string;
+  travel_date: string;
+  departure_time: string;
+  arrival_time?: string;
+  estimated_duration: string;
+  status:
+    | 'scheduled'
+    | 'boarding'
+    | 'departed'
+    | 'arrived'
+    | 'cancelled'
+    | 'delayed'
+    | 'completed';
+  delay_reason?: string;
+  available_seats: number;
+  booked_seats: number;
+  fare_multiplier: number;
+  weather_conditions?: string;
+  captain_id?: string;
+  crew_ids?: string[];
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  routeName?: string;
+  vesselName?: string;
+  bookings?: number;
+  capacity?: number;
+  is_active?: boolean;
+}
+
+interface Booking {
+  id: string;
+  trip_id: string;
+  user_id: string;
+  // Add other booking properties as needed
+}
 
 // ============================================================================
 // CORE TYPES
@@ -296,7 +335,7 @@ export interface StopPassengerInfo {
   stop_name: string;
   stop_sequence: number;
   action: 'boarding' | 'dropoff';
-  passengers: Array<{
+  passengers: {
     id: string;
     booking_id: string;
     booking_number: string;
@@ -304,7 +343,7 @@ export interface StopPassengerInfo {
     seat_number: string;
     check_in_status: boolean;
     special_assistance?: string;
-  }>;
+  }[];
   total_count: number;
   checked_in_count: number;
 }
@@ -346,12 +385,12 @@ export interface StopStatistics {
 export interface MultiStopTripStatistics {
   trip_id: string;
   total_segments_booked: number;
-  revenue_by_segment: Array<{
+  revenue_by_segment: {
     from_stop: string;
     to_stop: string;
     bookings: number;
     revenue: number;
-  }>;
+  }[];
   most_popular_segment: {
     from_stop: string;
     to_stop: string;
@@ -370,5 +409,3 @@ export type {
   Trip,
   Booking,
 };
-
-

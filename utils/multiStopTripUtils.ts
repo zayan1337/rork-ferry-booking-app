@@ -10,7 +10,6 @@
 import { supabase } from './supabase';
 import type {
   TripStop,
-  StopFare,
   AvailableSegment,
   StopOption,
   MultiStopTrip,
@@ -982,5 +981,3 @@ export function validateStopTimes(stops: TripStop[]): boolean {
 
 export // Already exported above
  {};
-
-

@@ -405,22 +405,15 @@ export default function RouteDetailsScreen() {
               <Text style={styles.routeName}>{routeData.name}</Text>
               <View style={styles.routeDirection}>
                 <MapPin size={16} color={colors.textSecondary} />
-                {routeData.is_multi_stop ? (
-                  <Text style={styles.routeDescription}>
-                    Multi-stop route with{' '}
-                    {routeData.total_stops || routeStops.length} stops
-                  </Text>
-                ) : (
-                  <Text style={styles.routeDescription}>
-                    {routeData.from_island_name ||
-                      routeData.origin ||
-                      'Unknown'}{' '}
-                    →{' '}
-                    {routeData.to_island_name ||
-                      routeData.destination ||
-                      'Unknown'}
-                  </Text>
-                )}
+                <Text style={styles.routeDescription}>
+                  {routeData.from_island_name || routeData.origin || 'Unknown'}{' '}
+                  → ... →{' '}
+                  {routeData.to_island_name ||
+                    routeData.destination ||
+                    'Unknown'}
+                  {' • '}
+                  {routeData.total_stops || routeStops.length || 2} stops
+                </Text>
               </View>
             </View>
           </View>
@@ -768,7 +761,7 @@ export default function RouteDetailsScreen() {
               />
 
               <Button
-                title='Schedule New Trip'
+                title='New Trip'
                 variant='primary'
                 onPress={() => router.push(`../trip/new?route=${id}` as any)}
                 icon={<Plane size={16} color={colors.white} />}
@@ -1275,11 +1268,5 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     borderColor: colors.error,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    padding: 20,
   },
 });

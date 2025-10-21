@@ -12,7 +12,6 @@ import type {
   MultiStopRouteFormData,
   RouteWithStopsResponse,
   AvailableRouteSegment,
-  FareMatrix,
 } from '@/types/multiStopRoute';
 
 // ============================================================================
@@ -52,13 +51,13 @@ export async function getRouteStops(routeId: string): Promise<RouteStop[]> {
  */
 export async function createRouteStops(
   routeId: string,
-  stops: Array<{
+  stops: {
     island_id: string;
     stop_sequence: number;
     stop_type: string;
     estimated_travel_time_from_previous: number | null;
     notes: string;
-  }>
+  }[]
 ): Promise<RouteStop[]> {
   const { data, error } = await supabase
     .from('route_stops')
@@ -153,12 +152,12 @@ export async function generateRouteSegmentFares(
   stops: RouteStop[],
   fareMatrix: Map<string, number>
 ): Promise<RouteSegmentFare[]> {
-  const segmentFares: Array<{
+  const segmentFares: {
     route_id: string;
     from_stop_id: string;
     to_stop_id: string;
     fare_amount: number;
-  }> = [];
+  }[] = [];
 
   // Generate all valid segment combinations
   for (let i = 0; i < stops.length; i++) {
@@ -220,7 +219,7 @@ export async function deleteRouteSegmentFare(fareId: string): Promise<void> {
  * Auto-fill segment fares based on distance and base fare
  */
 export function autoFillSegmentFares(
-  stops: Array<{ island_id: string }>,
+  stops: { island_id: string }[],
   baseFarePerStop: number
 ): Map<string, number> {
   const fareMatrix = new Map<string, number>();
@@ -448,7 +447,7 @@ export function calculateTotalRouteDistance(stops: RouteStop[]): string {
  * Validate route stops
  */
 export function validateRouteStops(
-  stops: Array<{ island_id: string; stop_sequence: number; stop_type: string }>
+  stops: { island_id: string; stop_sequence: number; stop_type: string }[]
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
@@ -498,7 +497,7 @@ export function validateRouteStops(
  * Validate segment fares
  */
 export function validateSegmentFares(
-  stops: Array<any>,
+  stops: any[],
   fareMatrix: Map<string, number>
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
