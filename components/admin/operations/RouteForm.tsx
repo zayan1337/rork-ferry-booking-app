@@ -23,6 +23,8 @@ import {
   DollarSign,
   Sparkles,
   Settings,
+  Ship,
+  Flag,
 } from 'lucide-react-native';
 
 // Components
@@ -565,10 +567,18 @@ export default function RouteForm({
   // HELPERS
   // ========================================================================
 
-  const islandOptions = (islands || []).map(island => ({
-    label: island.name,
-    value: island.id,
-  }));
+  const getAvailableIslands = (currentStopId: string) => {
+    const selectedIslandIds = formData.route_stops
+      .filter(stop => stop.id !== currentStopId && stop.island_id)
+      .map(stop => stop.island_id);
+
+    return (islands || [])
+      .filter(island => !selectedIslandIds.includes(island.id))
+      .map(island => ({
+        label: island.name,
+        value: island.id,
+      }));
+  };
 
   const getIslandName = (islandId: string) => {
     return islands?.find(i => i.id === islandId)?.name || 'Unknown';
@@ -660,7 +670,8 @@ export default function RouteForm({
                 fare)
               </Text>
             </View>
-
+          </View>
+          <View style={styles.formRow}>
             <View style={styles.formHalf}>
               <UnitInput
                 label='Total Distance'
@@ -713,13 +724,20 @@ export default function RouteForm({
                 <View style={styles.stopBadge}>
                   <Text style={styles.stopNumber}>{index + 1}</Text>
                 </View>
-                <Text style={styles.stopLabel}>
-                  {index === 0
-                    ? '🚢 Starting Point'
-                    : index === formData.route_stops.length - 1
-                      ? '🏁 Final Destination'
-                      : `Stop ${index + 1}`}
-                </Text>
+                <View style={styles.stopLabelContainer}>
+                  {index === 0 ? (
+                    <Ship size={16} color={colors.primary} />
+                  ) : index === formData.route_stops.length - 1 ? (
+                    <Flag size={16} color={colors.primary} />
+                  ) : null}
+                  <Text style={styles.stopLabel}>
+                    {index === 0
+                      ? 'Starting Point'
+                      : index === formData.route_stops.length - 1
+                        ? 'Final Destination'
+                        : `Stop ${index + 1}`}
+                  </Text>
+                </View>
 
                 {/* Reorder & Delete Actions */}
                 <View style={styles.stopActions}>
@@ -760,7 +778,7 @@ export default function RouteForm({
                     onValueChange={value =>
                       updateStop(stop.id, { island_id: value })
                     }
-                    options={islandOptions}
+                    options={getAvailableIslands(stop.id)}
                     placeholder='Select island'
                     required
                   />
@@ -777,43 +795,43 @@ export default function RouteForm({
                         })
                       }
                       options={[
-                        { label: 'Pickup Only', value: 'pickup' },
-                        { label: '🏁 Dropoff Only', value: 'dropoff' },
-                        { label: '🔄 Both', value: 'both' },
+                        { label: 'Pickup', value: 'pickup' },
+                        { label: 'Dropoff', value: 'dropoff' },
+                        { label: 'Both', value: 'both' },
                       ]}
                     />
                     {index === 0 && (
                       <Text style={styles.fieldHint}>
-                        ℹ️ First stop should typically allow pickup
+                        First stop should typically allow pickup
                       </Text>
                     )}
                     {index === formData.route_stops.length - 1 && (
                       <Text style={styles.fieldHint}>
-                        ℹ️ Last stop should typically allow dropoff
+                        Last stop should typically allow dropoff
                       </Text>
                     )}
                   </View>
-
-                  {index > 0 && (
-                    <View style={styles.formHalf}>
-                      <Input
-                        label='Travel Time (min)'
-                        value={
-                          stop.estimated_travel_time_from_previous?.toString() ||
-                          '30'
-                        }
-                        onChangeText={text => {
-                          const time = parseInt(text) || 30;
-                          updateStop(stop.id, {
-                            estimated_travel_time_from_previous: time,
-                          });
-                        }}
-                        placeholder='30'
-                        keyboardType='numeric'
-                      />
-                    </View>
-                  )}
                 </View>
+                {index > 0 && (
+                  <View style={styles.formHalf}>
+                    <Input
+                      label='Travel Time (min)'
+                      value={
+                        stop.estimated_travel_time_from_previous?.toString() ||
+                        '30'
+                      }
+                      onChangeText={text => {
+                        const time = parseInt(text) || 30;
+                        updateStop(stop.id, {
+                          estimated_travel_time_from_previous: time,
+                        });
+                      }}
+                      placeholder='30'
+                      keyboardType='numeric'
+                      inputStyle={styles.travelTimeInput}
+                    />
+                  </View>
+                )}
               </View>
             </View>
           ))}
@@ -941,23 +959,6 @@ export default function RouteForm({
                 setFormData(prev => ({ ...prev, is_active: value }))
               }
               description='Enable this route for trip scheduling and booking operations'
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Dropdown
-              label='Route Status'
-              value={formData.status}
-              onValueChange={value =>
-                setFormData(prev => ({
-                  ...prev,
-                  status: value as 'active' | 'inactive' | 'maintenance',
-                }))
-              }
-              options={[
-                { label: 'Active', value: 'active' },
-                { label: 'Inactive', value: 'inactive' },
-              ]}
             />
           </View>
         </View>
@@ -1167,11 +1168,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
   },
+  stopLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
   stopLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    flex: 1,
   },
   stopActions: {
     flexDirection: 'row',
@@ -1319,5 +1325,12 @@ const styles = StyleSheet.create({
   },
   switchContainer: {
     marginBottom: 8,
+  },
+  travelTimeInput: {
+    minHeight: 48,
+    paddingVertical: 14,
+    textAlignVertical: 'center',
+    lineHeight: 20,
+    fontSize: 16,
   },
 });

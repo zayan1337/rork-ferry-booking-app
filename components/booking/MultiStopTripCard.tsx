@@ -34,7 +34,9 @@ export default function MultiStopTripCard({
     <Pressable onPress={onPress}>
       <Card
         variant={selected ? 'elevated' : 'outlined'}
-        style={[styles.card, selected && styles.cardSelected]}
+        style={
+          selected ? { ...styles.card, ...styles.cardSelected } : styles.card
+        }
       >
         {/* Multi-Stop Badge */}
         <View style={styles.badge}>
@@ -45,7 +47,7 @@ export default function MultiStopTripCard({
         <View style={styles.header}>
           <View style={styles.vesselInfo}>
             <Ship size={18} color={Colors.primary} />
-            <Text style={styles.vesselName}>{trip.vessel_name}</Text>
+            <Text style={styles.vesselName}>{trip.vesselName}</Text>
           </View>
           <View style={styles.timeInfo}>
             <Clock size={14} color={Colors.textSecondary} />
@@ -74,7 +76,7 @@ export default function MultiStopTripCard({
           <View style={styles.statItem}>
             <Users size={14} color={Colors.textSecondary} />
             <Text style={styles.statText}>
-              {trip.available_seats || trip.seating_capacity} seats available
+              {trip.available_seats || trip.capacity} seats available
             </Text>
           </View>
         </View>

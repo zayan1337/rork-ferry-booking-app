@@ -178,8 +178,8 @@ export default function RoutesTab({
                     {route.total_segments || 0} segments
                   </Text>
                   <Text style={styles.routeMetaSeparator}>•</Text>
-                  <Text style={styles.routeFare}>
-                    MVR {route.base_fare || 0}/segment
+                  <Text style={styles.routeMeta}>
+                    {route.distance || 'N/A km'}
                   </Text>
                 </View>
               </View>
@@ -299,11 +299,6 @@ const styles = StyleSheet.create({
   routeMetaSeparator: {
     fontSize: 12,
     color: colors.textTertiary,
-  },
-  routeFare: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
   },
   routeStats: {
     alignItems: 'flex-end',

@@ -142,9 +142,8 @@ export default function FareMatrixEditor({
                         value={tempValue}
                         onChangeText={setTempValue}
                         placeholder='0.00'
-                        keyboardType='decimal-pad'
+                        keyboardType='numeric'
                         style={styles.fareInput}
-                        autoFocus
                       />
                     </View>
                     <View style={styles.editActions}>

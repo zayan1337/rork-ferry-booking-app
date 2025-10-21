@@ -87,7 +87,7 @@ export default function MultiStopTripCard({
         <View style={styles.tripInfo}>
           <View style={styles.titleRow}>
             <Ship size={18} color={Colors.primary} />
-            <Text style={styles.vesselName}>{trip.vessel_name}</Text>
+            <Text style={styles.vesselName}>{trip.vesselName}</Text>
           </View>
           <View style={styles.dateTimeRow}>
             <Text style={styles.date}>{formatDate(trip.travel_date)}</Text>
@@ -143,12 +143,12 @@ export default function MultiStopTripCard({
         <View style={styles.statItem}>
           <Users size={14} color={Colors.textSecondary} />
           <Text style={styles.statText}>
-            {trip.available_seats || trip.seating_capacity} seats
+            {trip.available_seats || trip.capacity} seats
           </Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>Capacity:</Text>
-          <Text style={styles.statValue}>{trip.seating_capacity}</Text>
+          <Text style={styles.statValue}>{trip.capacity}</Text>
         </View>
       </View>
 
@@ -173,7 +173,7 @@ export default function MultiStopTripCard({
           onPress={onDelete}
           variant='outline'
           icon={<Trash2 size={16} color={Colors.error} />}
-          style={[styles.actionButton, styles.deleteActionButton]}
+          style={styles.deleteActionButton}
         />
       </View>
     </Card>
@@ -344,6 +344,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deleteActionButton: {
+    flex: 1,
     borderColor: Colors.error,
   },
 });

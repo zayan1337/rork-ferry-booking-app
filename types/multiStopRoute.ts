@@ -171,7 +171,7 @@ export interface StopOption {
   stop_type: string;
 }
 
-export type StopType = 'pickup' | 'dropoff' | 'both';
+// StopType is already defined in multiStopTrip.ts to avoid conflicts
 
 export interface RouteStopValidation {
   isValid: boolean;

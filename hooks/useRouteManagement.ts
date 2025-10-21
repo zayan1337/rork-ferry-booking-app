@@ -160,13 +160,15 @@ export const useRouteManagement = (
 
     routes.forEach(route => {
       // Group by origin island
-      if (!grouped[route.from_island_id]) {
-        grouped[route.from_island_id] = [];
+      if (route.from_island_id) {
+        if (!grouped[route.from_island_id]) {
+          grouped[route.from_island_id] = [];
+        }
+        grouped[route.from_island_id].push(route);
       }
-      grouped[route.from_island_id].push(route);
 
       // Group by destination island (if different)
-      if (route.to_island_id !== route.from_island_id) {
+      if (route.to_island_id && route.to_island_id !== route.from_island_id) {
         if (!grouped[route.to_island_id]) {
           grouped[route.to_island_id] = [];
         }

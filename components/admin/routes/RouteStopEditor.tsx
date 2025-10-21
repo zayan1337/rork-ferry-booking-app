@@ -329,7 +329,7 @@ export default function RouteStopEditor({
                     }
                     keyboardType='numeric'
                     placeholder='Minutes'
-                    containerStyle={styles.travelTimeInput}
+                    style={styles.travelTimeInput}
                   />
                 </View>
               )}

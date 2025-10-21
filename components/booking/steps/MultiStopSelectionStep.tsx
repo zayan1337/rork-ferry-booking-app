@@ -116,6 +116,10 @@ export default function MultiStopSelectionStep({
     selectSegment(null);
   };
 
+  const isTripSelected = (tripId: string): boolean => {
+    return selectedTrip !== null && selectedTrip.id === tripId;
+  };
+
   const displayError = externalError || localError;
 
   return (
@@ -159,7 +163,7 @@ export default function MultiStopSelectionStep({
                   key={trip.id}
                   trip={trip}
                   onPress={() => handleTripSelect(trip)}
-                  selected={selectedTrip?.id === trip.id}
+                  selected={isTripSelected(trip.id)}
                 />
               ))}
             </View>
