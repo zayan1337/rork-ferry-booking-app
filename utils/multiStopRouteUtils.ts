@@ -41,6 +41,7 @@ export async function getRouteStops(routeId: string): Promise<RouteStop[]> {
 
   return (data || []).map((stop: any) => ({
     ...stop,
+    estimated_travel_time_from_previous: stop.estimated_travel_time, // Map database field to TypeScript field
     island_name: stop.island?.name,
     island_zone: stop.island?.zone,
   }));
@@ -64,7 +65,11 @@ export async function createRouteStops(
     .insert(
       stops.map(stop => ({
         route_id: routeId,
-        ...stop,
+        island_id: stop.island_id,
+        stop_sequence: stop.stop_sequence,
+        stop_type: stop.stop_type,
+        estimated_travel_time: stop.estimated_travel_time_from_previous, // Map to correct column name
+        notes: stop.notes,
       }))
     )
     .select();
@@ -80,9 +85,19 @@ export async function updateRouteStop(
   stopId: string,
   updates: Partial<RouteStop>
 ): Promise<RouteStop> {
+  // Map estimated_travel_time_from_previous to estimated_travel_time for database
+  const dbUpdates: any = { ...updates };
+  if ('estimated_travel_time_from_previous' in dbUpdates) {
+    dbUpdates.estimated_travel_time = dbUpdates.estimated_travel_time_from_previous;
+    delete dbUpdates.estimated_travel_time_from_previous;
+  }
+  // Remove readonly/computed fields
+  delete dbUpdates.island_name;
+  delete dbUpdates.island_zone;
+
   const { data, error } = await supabase
     .from('route_stops')
-    .update(updates)
+    .update(dbUpdates)
     .eq('id', stopId)
     .select()
     .single();

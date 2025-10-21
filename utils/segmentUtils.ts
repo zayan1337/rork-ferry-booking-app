@@ -123,6 +123,7 @@ export async function getRouteStops(routeId: string): Promise<RouteStop[]> {
     return (
       (data || []).map((stop: any) => ({
         ...stop,
+        estimated_travel_time_from_previous: stop.estimated_travel_time, // Map database field to TypeScript field
         island_name: stop.island?.name,
         island_zone: stop.island?.zone,
       })) || []

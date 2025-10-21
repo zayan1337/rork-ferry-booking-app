@@ -13,6 +13,8 @@ import { useTripManagement } from '@/hooks/useTripManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
 import { useUserStore } from '@/store/admin/userStore';
+import { supabase } from '@/utils/supabase';
+import { RouteStop } from '@/types/multiStopRoute';
 import {
   TripGenerationRequest,
   getCommonTimeSlots,
@@ -88,6 +90,8 @@ export default function TripGenerator({
   const [customTimeSlots, setCustomTimeSlots] = useState<string[]>([]);
   const [newTimeSlot, setNewTimeSlot] = useState('');
   const [hasChanges, setHasChanges] = useState<boolean>(false);
+  const [routeStops, setRouteStops] = useState<Record<string, RouteStop[]>>({});
+  const [loadingRouteStops, setLoadingRouteStops] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -97,6 +101,68 @@ export default function TripGenerator({
       fetchUsers();
     }
   }, [visible]);
+
+  // Load route stops when routes are loaded
+  useEffect(() => {
+    if (routes.length > 0) {
+      loadAllRouteStops();
+    }
+  }, [routes]);
+
+  // Load route stops for all routes
+  const loadAllRouteStops = async () => {
+    setLoadingRouteStops(true);
+    try {
+      const { data, error } = await supabase
+        .from('route_stops')
+        .select(`
+          id,
+          route_id,
+          island_id,
+          stop_sequence,
+          stop_type,
+          estimated_travel_time,
+          notes,
+          created_at,
+          updated_at,
+          island:islands (
+            id,
+            name,
+            zone
+          )
+        `)
+        .order('stop_sequence', { ascending: true });
+
+      if (error) throw error;
+
+      // Group stops by route_id
+      const stopsByRoute: Record<string, RouteStop[]> = {};
+      data?.forEach((stop: any) => {
+        if (!stopsByRoute[stop.route_id]) {
+          stopsByRoute[stop.route_id] = [];
+        }
+        stopsByRoute[stop.route_id].push({
+          id: stop.id,
+          route_id: stop.route_id,
+          island_id: stop.island_id,
+          island_name: stop.island?.name || 'Unknown',
+          island_zone: stop.island?.zone,
+          stop_sequence: stop.stop_sequence,
+          stop_type: stop.stop_type,
+          estimated_travel_time_from_previous: stop.estimated_travel_time,
+          notes: stop.notes,
+          created_at: stop.created_at,
+          updated_at: stop.updated_at,
+        });
+      });
+
+      setRouteStops(stopsByRoute);
+    } catch (error) {
+      console.error('Error loading route stops:', error);
+    } finally {
+      setLoadingRouteStops(false);
+    }
+  };
 
   // Update vessel capacity when vessel changes
   useEffect(() => {
@@ -114,6 +180,29 @@ export default function TripGenerator({
   // Static data
   const timeSlots = getCommonTimeSlots();
   const daysOfWeek = getDaysOfWeek();
+
+  // Helper function to format route name with stops
+  const getRouteLabel = (route: any): string => {
+    // Check if route has custom name
+    if (route.name && route.name !== '') {
+      return route.name;
+    }
+
+    // Check if we have route stops loaded
+    const stops = routeStops[route.id];
+    if (stops && stops.length > 0) {
+      // Multi-stop route: show all stops
+      const stopNames = stops.map(stop => stop.island_name);
+      return stopNames.join(' → ');
+    }
+
+    // Fallback to from_island_name and to_island_name (for legacy routes)
+    if (route.from_island_name && route.to_island_name) {
+      return `${route.from_island_name} → ${route.to_island_name}`;
+    }
+
+    return 'Unnamed Route';
+  };
 
   // Captain options
   const captainOptions = [
@@ -361,9 +450,7 @@ export default function TripGenerator({
             handleUpdateField('route_id', value)
           }
           options={routes.map(route => ({
-            label:
-              route.name ||
-              `${route.from_island_name} → ${route.to_island_name}`,
+            label: getRouteLabel(route),
             value: route.id,
           }))}
           placeholder='Select route'
@@ -397,13 +484,21 @@ export default function TripGenerator({
           <View style={styles.selectionPreviewIcon}>
             <Ship size={16} color={colors.primary} />
           </View>
-          <Text style={styles.selectionPreviewText}>
-            {routes.find(r => r.id === formData.route_id)?.name ||
-              'Selected Route'}{' '}
-            •{' '}
-            {vessels.find(v => v.id === formData.vessel_id)?.name ||
-              'Selected Vessel'}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.selectionPreviewText}>
+              {getRouteLabel(routes.find(r => r.id === formData.route_id) || {})}
+              {' • '}
+              {vessels.find(v => v.id === formData.vessel_id)?.name ||
+                'Selected Vessel'}
+            </Text>
+            {routeStops[formData.route_id] &&
+              routeStops[formData.route_id].length > 2 && (
+                <Text style={styles.multiStopIndicator}>
+                  Multi-stop route with {routeStops[formData.route_id].length}{' '}
+                  stops
+                </Text>
+              )}
+          </View>
         </View>
       )}
     </View>
@@ -1049,10 +1144,16 @@ const styles = StyleSheet.create({
   },
   selectionPreviewText: {
     fontSize: 14,
-    flex: 1,
     fontWeight: '600',
     lineHeight: 18,
     color: colors.primary,
+  },
+  multiStopIndicator: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.primary,
+    opacity: 0.8,
+    marginTop: 4,
   },
   infoPreview: {
     flexDirection: 'row',
