@@ -636,18 +636,29 @@ export default function TripDetailsPage() {
                           let cumulativeMinutes = 0;
                           for (let i = 0; i <= index; i++) {
                             if (i > 0 && routeStops[i].estimated_travel_time) {
-                              cumulativeMinutes += routeStops[i].estimated_travel_time;
+                              cumulativeMinutes +=
+                                routeStops[i].estimated_travel_time;
                             }
                           }
 
                           // Parse departure time and add cumulative minutes
-                          const [hours, minutes] = trip.departure_time.split(':').map(Number);
+                          const [hours, minutes] = trip.departure_time
+                            .split(':')
+                            .map(Number);
                           const departureDate = new Date();
                           departureDate.setHours(hours, minutes, 0, 0);
-                          departureDate.setMinutes(departureDate.getMinutes() + cumulativeMinutes);
+                          departureDate.setMinutes(
+                            departureDate.getMinutes() + cumulativeMinutes
+                          );
 
-                          const arrivalHours = departureDate.getHours().toString().padStart(2, '0');
-                          const arrivalMinutes = departureDate.getMinutes().toString().padStart(2, '0');
+                          const arrivalHours = departureDate
+                            .getHours()
+                            .toString()
+                            .padStart(2, '0');
+                          const arrivalMinutes = departureDate
+                            .getMinutes()
+                            .toString()
+                            .padStart(2, '0');
                           arrivalTime = `${arrivalHours}:${arrivalMinutes}`;
                         }
 
@@ -699,7 +710,8 @@ export default function TripDetailsPage() {
                                     <View style={styles.arrivalTimeContainer}>
                                       <Clock size={12} color={colors.primary} />
                                       <Text style={styles.arrivalTime}>
-                                        {isFirst ? 'Departs' : 'Arrives'} {arrivalTime}
+                                        {isFirst ? 'Departs' : 'Arrives'}{' '}
+                                        {arrivalTime}
                                       </Text>
                                     </View>
                                   )}

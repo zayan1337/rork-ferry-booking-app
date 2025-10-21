@@ -202,14 +202,14 @@ export default function RouteForm({
             island_id: '',
             stop_type: 'pickup',
             estimated_travel_time_from_previous: null,
-            notes: 'Starting point',
+            notes: '',
           },
           {
             id: 'stop_2',
             island_id: '',
             stop_type: 'dropoff',
             estimated_travel_time_from_previous: 30,
-            notes: 'Final destination',
+            notes: '',
           },
         ],
       }));
@@ -227,14 +227,14 @@ export default function RouteForm({
           island_id: '',
           stop_type: 'pickup',
           estimated_travel_time_from_previous: null,
-          notes: 'Starting point',
+          notes: '',
         },
         {
           id: `stop_${Date.now()}_2`,
           island_id: '',
           stop_type: 'dropoff',
           estimated_travel_time_from_previous: 30,
-          notes: 'Final destination',
+          notes: '',
         },
       ],
     }));
@@ -764,15 +764,17 @@ export default function RouteForm({
                   <Text style={styles.stopNumber}>{index + 1}</Text>
                 </View>
                 <View style={styles.stopLabelContainer}>
-                  {index === 0 ? (
+                  {index === 0 && stop.stop_type === 'pickup' ? (
                     <Ship size={16} color={colors.primary} />
-                  ) : index === formData.route_stops.length - 1 ? (
+                  ) : index === formData.route_stops.length - 1 &&
+                    stop.stop_type === 'dropoff' ? (
                     <Flag size={16} color={colors.primary} />
                   ) : null}
                   <Text style={styles.stopLabel}>
-                    {index === 0
+                    {index === 0 && stop.stop_type === 'pickup'
                       ? 'Starting Point'
-                      : index === formData.route_stops.length - 1
+                      : index === formData.route_stops.length - 1 &&
+                          stop.stop_type === 'dropoff'
                         ? 'Final Destination'
                         : `Stop ${index + 1}`}
                   </Text>
@@ -839,16 +841,17 @@ export default function RouteForm({
                         { label: 'Both', value: 'both' },
                       ]}
                     />
-                    {index === 0 && (
+                    {index === 0 && stop.stop_type !== 'pickup' && (
                       <Text style={styles.fieldHint}>
                         First stop should typically allow pickup
                       </Text>
                     )}
-                    {index === formData.route_stops.length - 1 && (
-                      <Text style={styles.fieldHint}>
-                        Last stop should typically allow dropoff
-                      </Text>
-                    )}
+                    {index === formData.route_stops.length - 1 &&
+                      stop.stop_type !== 'dropoff' && (
+                        <Text style={styles.fieldHint}>
+                          Last stop should typically allow dropoff
+                        </Text>
+                      )}
                   </View>
                 </View>
                 {index > 0 && (
@@ -871,6 +874,25 @@ export default function RouteForm({
                     />
                   </View>
                 )}
+
+                {/* Notes field */}
+                <View style={styles.formGroup}>
+                  <Input
+                    label='Notes'
+                    value={stop.notes || ''}
+                    onChangeText={text => updateStop(stop.id, { notes: text })}
+                    placeholder={
+                      index === 0 && stop.stop_type === 'pickup'
+                        ? 'Starting point notes (optional)'
+                        : index === formData.route_stops.length - 1 &&
+                            stop.stop_type === 'dropoff'
+                          ? 'Final destination notes (optional)'
+                          : `Stop ${index + 1} notes (optional)`
+                    }
+                    multiline
+                    numberOfLines={2}
+                  />
+                </View>
               </View>
             </View>
           ))}
