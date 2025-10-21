@@ -104,6 +104,8 @@ export default function RouteForm({
   );
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [initialStopsSnapshot, setInitialStopsSnapshot] = useState<string>('');
+  const [initialFaresSnapshot, setInitialFaresSnapshot] = useState<string>('');
 
   // Load islands on mount
   useEffect(() => {
@@ -116,10 +118,10 @@ export default function RouteForm({
   useEffect(() => {
     if (currentRoute && routeId) {
       initializeFormData();
-    } else {
+    } else if (!routeId) {
       initializeNewRoute();
     }
-  }, [routeId]);
+  }, [routeId, currentRoute]);
 
   const initializeFormData = async () => {
     if (!routeId) return;
@@ -161,12 +163,30 @@ export default function RouteForm({
       });
 
       // Update form data with loaded data
-      setFormData(prev => ({
-        ...prev,
-        route_stops: routeStops.length > 0 ? routeStops : prev.route_stops,
-        segment_fares:
-          segmentFares.size > 0 ? segmentFares : prev.segment_fares,
-      }));
+      setFormData(prev => {
+        const newStops = routeStops.length > 0 ? routeStops : prev.route_stops;
+        const newFares =
+          segmentFares.size > 0 ? segmentFares : prev.segment_fares;
+
+        // Create snapshots of initial state for change detection
+        setInitialStopsSnapshot(JSON.stringify(newStops));
+        setInitialFaresSnapshot(
+          JSON.stringify(Array.from(newFares.entries()).sort())
+        );
+
+        return {
+          ...prev,
+          name: currentRoute?.name || prev.name,
+          base_fare: currentRoute?.base_fare || prev.base_fare,
+          distance: currentRoute?.distance || prev.distance,
+          duration: currentRoute?.duration || prev.duration,
+          description: currentRoute?.description || prev.description,
+          status: currentRoute?.status || prev.status,
+          is_active: currentRoute?.is_active ?? prev.is_active,
+          route_stops: newStops,
+          segment_fares: newFares,
+        };
+      });
     } catch (error) {
       console.error('Error loading route data:', error);
       Alert.alert(
@@ -223,7 +243,8 @@ export default function RouteForm({
   // Track form changes
   useEffect(() => {
     if (currentRoute) {
-      const hasFormChanges =
+      // Check basic field changes
+      const hasBasicChanges =
         formData.name !== (currentRoute.name || '') ||
         formData.base_fare !== (currentRoute.base_fare || 0) ||
         formData.distance !== (currentRoute.distance || '') ||
@@ -231,17 +252,35 @@ export default function RouteForm({
         formData.description !== (currentRoute.description || '') ||
         formData.status !== (currentRoute.status || 'active') ||
         formData.is_active !== (currentRoute.is_active ?? true);
-      setHasChanges(hasFormChanges);
+
+      // Check if stops have changed by comparing snapshots
+      const currentStopsSnapshot = JSON.stringify(formData.route_stops);
+      const hasStopsChanges =
+        initialStopsSnapshot !== '' &&
+        currentStopsSnapshot !== initialStopsSnapshot;
+
+      // Check if fares have changed by comparing snapshots
+      const currentFaresSnapshot = JSON.stringify(
+        Array.from(formData.segment_fares.entries()).sort()
+      );
+      const hasFaresChanges =
+        initialFaresSnapshot !== '' &&
+        currentFaresSnapshot !== initialFaresSnapshot;
+
+      setHasChanges(hasBasicChanges || hasStopsChanges || hasFaresChanges);
     } else {
+      // For new routes
       const hasFormChanges =
         formData.name.trim() !== '' ||
         formData.base_fare !== 50 ||
         formData.distance.trim() !== '' ||
         formData.duration.trim() !== '' ||
-        formData.description.trim() !== '';
+        formData.description.trim() !== '' ||
+        formData.route_stops.length > 0 ||
+        formData.segment_fares.size > 0;
       setHasChanges(hasFormChanges);
     }
-  }, [formData, currentRoute]);
+  }, [formData, currentRoute, initialStopsSnapshot, initialFaresSnapshot]);
 
   // ========================================================================
   // STOP MANAGEMENT

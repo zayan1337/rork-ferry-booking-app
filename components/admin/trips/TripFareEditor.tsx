@@ -17,7 +17,7 @@ import {
   Alert,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import { ArrowRight, AlertCircle, Edit } from 'lucide-react-native';
+import { ArrowRight, AlertCircle } from 'lucide-react-native';
 import type {
   RouteSegmentFare,
   TripFareOverride,
@@ -75,8 +75,14 @@ export default function TripFareEditor({
     value: string
   ) => {
     const key = `${fromStopId}::${toStopId}`;
-    console.log('handleFareChange called:', { fromStopId, toStopId, defaultFare, value, key });
-    
+    console.log('handleFareChange called:', {
+      fromStopId,
+      toStopId,
+      defaultFare,
+      value,
+      key,
+    });
+
     // Handle empty input
     if (value === '' || value === null || value === undefined) {
       console.log('Empty input, removing override for key:', key);
@@ -88,7 +94,7 @@ export default function TripFareEditor({
 
     const newFare = parseFloat(value);
     console.log('Parsed fare:', newFare);
-    
+
     // Validate number
     if (isNaN(newFare) || newFare < 0) {
       console.log('Invalid fare input, ignoring');
@@ -111,7 +117,10 @@ export default function TripFareEditor({
       newOverrides.delete(key);
       setOverrides(newOverrides);
     } else {
-      console.log('Setting new override:', { fare: newFare, reason: overrides.get(key)?.reason || '' });
+      console.log('Setting new override:', {
+        fare: newFare,
+        reason: overrides.get(key)?.reason || '',
+      });
       const newOverrides = new Map(overrides);
       newOverrides.set(key, {
         fare: newFare,
@@ -152,7 +161,7 @@ export default function TripFareEditor({
       if (!override.reason.trim()) {
         overridesWithoutReasons.push(key);
       }
-      
+
       // Validate fare amount
       if (override.fare <= 0) {
         invalidFares.push(key);
@@ -224,7 +233,7 @@ export default function TripFareEditor({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType='slide'
       transparent={true}
       onRequestClose={onCancel}
     >
@@ -232,10 +241,7 @@ export default function TripFareEditor({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalOverlay}
       >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={onCancel}
-        />
+        <Pressable style={styles.modalBackdrop} onPress={onCancel} />
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{title}</Text>
@@ -247,12 +253,13 @@ export default function TripFareEditor({
               <Text style={styles.modalCloseText}>✕</Text>
             </Pressable>
           </View>
-          
+
           <ScrollView style={styles.modalContent}>
             {/* Header */}
             <View style={styles.header}>
               <Text style={styles.subtitle}>
-                Customize fares for individual route segments. Override the default fare to set special pricing for this trip.
+                Customize fares for individual route segments. Override the
+                default fare to set special pricing for this trip.
               </Text>
             </View>
 
@@ -346,7 +353,9 @@ export default function TripFareEditor({
                         </View>
 
                         <View style={styles.fareArrowContainer}>
-                          {override && <ArrowRight size={16} color={colors.warning} />}
+                          {override && (
+                            <ArrowRight size={16} color={colors.warning} />
+                          )}
                         </View>
 
                         <View style={styles.customFareContainer}>
@@ -370,7 +379,14 @@ export default function TripFareEditor({
                       {override && (
                         <View style={styles.fareChangeIndicator}>
                           <Text style={styles.fareHint}>
-                            {override.fare > segment.fare_amount ? '↑ Increased' : '↓ Decreased'} by {formatCurrency(Math.abs(override.fare - segment.fare_amount), 'MVR')}
+                            {override.fare > segment.fare_amount
+                              ? '↑ Increased'
+                              : '↓ Decreased'}{' '}
+                            by{' '}
+                            {formatCurrency(
+                              Math.abs(override.fare - segment.fare_amount),
+                              'MVR'
+                            )}
                           </Text>
                         </View>
                       )}
@@ -424,7 +440,11 @@ export default function TripFareEditor({
                 </View>
                 <View style={styles.buttonHalf}>
                   <Button
-                    title={overrides.size === 0 ? 'No Changes' : `Save ${overrides.size} Override${overrides.size !== 1 ? 's' : ''}`}
+                    title={
+                      overrides.size === 0
+                        ? 'No Changes'
+                        : `Save ${overrides.size} Override${overrides.size !== 1 ? 's' : ''}`
+                    }
                     variant='primary'
                     onPress={handleSave}
                     loading={saving}

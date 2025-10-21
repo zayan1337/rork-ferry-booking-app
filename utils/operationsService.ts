@@ -329,17 +329,23 @@ export const updateTrip = async (
 ): Promise<OperationsTrip | null> => {
   try {
     // Filter out undefined values and convert empty strings to null for UUID fields
-    const cleanedUpdates = Object.entries(updates).reduce((acc, [key, value]) => {
-      if (value === undefined) return acc;
-      
-      // Convert empty strings to null for UUID fields
-      if ((key === 'captain_id' || key === 'route_id' || key === 'vessel_id') && value === '') {
-        acc[key] = null;
-      } else {
-        acc[key] = value;
-      }
-      return acc;
-    }, {} as any);
+    const cleanedUpdates = Object.entries(updates).reduce(
+      (acc, [key, value]) => {
+        if (value === undefined) return acc;
+
+        // Convert empty strings to null for UUID fields
+        if (
+          (key === 'captain_id' || key === 'route_id' || key === 'vessel_id') &&
+          value === ''
+        ) {
+          acc[key] = null;
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      },
+      {} as any
+    );
 
     const { data, error } = await supabase
       .from('trips')

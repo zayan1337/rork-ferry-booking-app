@@ -29,7 +29,7 @@ export default function NewTripPage() {
   // - Supports both simple (2-stop) and multi-stop routes
   // - Query params (route_id, vessel_id) are validated before pre-filling
   // - If no params or invalid, user selects from database dropdown
-  
+
   // Validate query parameters against database
   useEffect(() => {
     validateInitialData();

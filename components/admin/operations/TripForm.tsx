@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  ActivityIndicator,
+  Pressable,
+} from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useTripManagement } from '@/hooks/useTripManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
@@ -34,7 +42,10 @@ import Switch from '@/components/admin/Switch';
 import TripRouteInfo from '@/components/admin/trips/TripRouteInfo';
 import TripFareEditor from '@/components/admin/trips/TripFareEditor';
 import { getMultiStopRoute } from '@/utils/multiStopRouteUtils';
-import type { RouteSegmentFare, TripFareOverride } from '@/types/multiStopRoute';
+import type {
+  RouteSegmentFare,
+  TripFareOverride,
+} from '@/types/multiStopRoute';
 
 type TripFormData = AdminManagement.TripFormData;
 
@@ -142,8 +153,12 @@ export default function TripForm({
 
   // Fare editing state
   const [showFareEditor, setShowFareEditor] = useState(false);
-  const [routeSegmentFares, setRouteSegmentFares] = useState<RouteSegmentFare[]>([]);
-  const [tripFareOverrides, setTripFareOverrides] = useState<TripFareOverride[]>([]);
+  const [routeSegmentFares, setRouteSegmentFares] = useState<
+    RouteSegmentFare[]
+  >([]);
+  const [tripFareOverrides, setTripFareOverrides] = useState<
+    TripFareOverride[]
+  >([]);
   const [loadingSegmentData, setLoadingSegmentData] = useState(false);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
@@ -151,18 +166,14 @@ export default function TripForm({
   useEffect(() => {
     const loadData = async () => {
       try {
-        await Promise.all([
-          loadRoutes(),
-          loadVessels(),
-          fetchUsers(),
-        ]);
+        await Promise.all([loadRoutes(), loadVessels(), fetchUsers()]);
         setInitialDataLoaded(true);
       } catch (error) {
         console.error('Error loading initial data:', error);
         setInitialDataLoaded(true); // Set to true even on error to prevent infinite loading
       }
     };
-    
+
     loadData();
   }, []);
 
@@ -257,7 +268,7 @@ export default function TripForm({
       console.log('Loading segment data for route:', routeId);
       const multiRoute = await getMultiStopRoute(routeId);
       console.log('Multi-route data:', multiRoute);
-      
+
       if (multiRoute && multiRoute.segment_fares) {
         console.log('Setting segment fares:', multiRoute.segment_fares);
         setRouteSegmentFares(multiRoute.segment_fares);
@@ -297,7 +308,10 @@ export default function TripForm({
     try {
       if (tripId) {
         // Delete existing overrides
-        await supabase.from('trip_fare_overrides').delete().eq('trip_id', tripId);
+        await supabase
+          .from('trip_fare_overrides')
+          .delete()
+          .eq('trip_id', tripId);
 
         // Insert new overrides
         if (overrides.length > 0) {
@@ -929,7 +943,9 @@ export default function TripForm({
   const routeOptions = useMemo(() => {
     if (!routes || routes.length === 0) return [];
     return routes.map(route => ({
-      label: route.name || `${route.from_island_name || 'Unknown'} → ${route.to_island_name || 'Unknown'}`,
+      label:
+        route.name ||
+        `${route.from_island_name || 'Unknown'} → ${route.to_island_name || 'Unknown'}`,
       value: route.id,
     }));
   }, [routes]);
@@ -969,7 +985,9 @@ export default function TripForm({
       <View style={styles.loadingContainer}>
         <ActivityIndicator size='large' color={colors.primary} />
         <Text style={styles.loadingText}>
-          {loading || tripLoading.data ? 'Loading trip data...' : 'Loading routes and vessels...'}
+          {loading || tripLoading.data
+            ? 'Loading trip data...'
+            : 'Loading routes and vessels...'}
         </Text>
       </View>
     );
@@ -1042,19 +1060,21 @@ export default function TripForm({
 
               <View style={styles.fareInfo}>
                 <Text style={styles.fareInfoText}>
-                  {routeSegmentFares.length} segment{routeSegmentFares.length > 1 ? 's' : ''} configured
+                  {routeSegmentFares.length} segment
+                  {routeSegmentFares.length > 1 ? 's' : ''} configured
                   {tripFareOverrides.length > 0 && (
                     <Text style={styles.overrideText}>
-                      {' '}({tripFareOverrides.length} overridden)
+                      {' '}
+                      ({tripFareOverrides.length} overridden)
                     </Text>
                   )}
                 </Text>
-                
+
                 <Pressable
                   style={styles.editFaresButton}
                   onPress={handleOpenFareEditor}
                 >
-                  <Edit size={14} color="#FFFFFF" />
+                  <Edit size={14} color='#FFFFFF' />
                   <Text style={styles.editFaresText}>Edit Fares</Text>
                 </Pressable>
               </View>
@@ -1447,20 +1467,20 @@ export default function TripForm({
             <Text style={styles.statusText}>You have unsaved changes</Text>
           </View>
         )}
-        </ScrollView>
+      </ScrollView>
 
-        {/* Fare Editor Modal */}
-        <TripFareEditor
-          routeSegmentFares={routeSegmentFares}
-          existingOverrides={tripFareOverrides}
-          onSave={handleSaveFareOverrides}
-          onCancel={handleCancelFareEditor}
-          visible={showFareEditor}
-          title={tripId ? 'Edit Trip Fares' : 'Set Trip Fares'}
-        />
-      </View>
-    );
-  }
+      {/* Fare Editor Modal */}
+      <TripFareEditor
+        routeSegmentFares={routeSegmentFares}
+        existingOverrides={tripFareOverrides}
+        onSave={handleSaveFareOverrides}
+        onCancel={handleCancelFareEditor}
+        visible={showFareEditor}
+        title={tripId ? 'Edit Trip Fares' : 'Set Trip Fares'}
+      />
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {

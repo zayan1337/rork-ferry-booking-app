@@ -280,7 +280,9 @@ export async function setTripFareOverride(
 /**
  * Delete trip fare override
  */
-export async function deleteTripFareOverride(overrideId: string): Promise<boolean> {
+export async function deleteTripFareOverride(
+  overrideId: string
+): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('trip_fare_overrides')
@@ -331,7 +333,7 @@ export async function clearTripFareOverrides(tripId: string): Promise<boolean> {
  */
 export async function calculateMultiSegmentFare(
   tripId: string,
-  segments: Array<{ fromStopId: string; toStopId: string }>
+  segments: { fromStopId: string; toStopId: string }[]
 ): Promise<number> {
   let totalFare = 0;
 
@@ -395,7 +397,8 @@ export async function getBookableSegmentsWithFares(
         baseFare: fare.fare_amount,
         overrideFare: override?.override_fare_amount || null,
         finalFare,
-        segmentCount: (fare.to_stop_sequence || 0) - (fare.from_stop_sequence || 0),
+        segmentCount:
+          (fare.to_stop_sequence || 0) - (fare.from_stop_sequence || 0),
       };
     });
 
@@ -574,7 +577,10 @@ export async function getTripFareOverrideStatistics(tripId: string): Promise<{
         override.to_stop_id
       );
 
-      const comparison = compareFareToBase(override.override_fare_amount, baseFare);
+      const comparison = compareFareToBase(
+        override.override_fare_amount,
+        baseFare
+      );
 
       if (comparison.isIncrease) {
         increasedFares++;
@@ -601,4 +607,3 @@ export async function getTripFareOverrideStatistics(tripId: string): Promise<{
     };
   }
 }
-

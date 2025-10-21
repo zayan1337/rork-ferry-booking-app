@@ -8,9 +8,6 @@ import {
   Pressable,
   ScrollView,
   RefreshControl,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import {
   Stack,
@@ -173,18 +170,18 @@ export default function TripDetailsPage() {
       console.log('Loading multi-stop route data for route:', routeId);
       const multiRoute = await getMultiStopRoute(routeId);
       console.log('Multi-route data:', multiRoute);
-      
+
       if (multiRoute) {
         // Always load stops (both simple and multi-stop routes have stops now)
         setRouteStops(multiRoute.stops || []);
         setIsMultiStopRoute(multiRoute.stops?.length > 2 || false);
-        
+
         console.log('Route stops:', multiRoute.stops);
         console.log('Is multi-stop:', multiRoute.stops?.length > 2);
-        
+
         if (multiRoute.segment_fares) {
           console.log('Setting segment fares:', multiRoute.segment_fares);
-        setRouteSegmentFares(multiRoute.segment_fares);
+          setRouteSegmentFares(multiRoute.segment_fares);
         } else {
           console.log('No segment fares found for route');
         }
@@ -213,7 +210,6 @@ export default function TripDetailsPage() {
       setLoadingSegmentData(false);
     }
   };
-
 
   const handleRefresh = () => {
     loadTrip(true);
@@ -619,8 +615,10 @@ export default function TripDetailsPage() {
 
                 {loadingSegmentData ? (
                   <View style={styles.loadingStopsContainer}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.loadingText}>Loading route stops...</Text>
+                    <ActivityIndicator size='small' color={colors.primary} />
+                    <Text style={styles.loadingText}>
+                      Loading route stops...
+                    </Text>
                   </View>
                 ) : (
                   <View style={styles.stopsTimeline}>
@@ -629,7 +627,8 @@ export default function TripDetailsPage() {
                       .map((stop, index) => {
                         const isFirst = index === 0;
                         const isLast = index === routeStops.length - 1;
-                        const travelTime = stop.estimated_travel_time_from_previous;
+                        const travelTime =
+                          stop.estimated_travel_time_from_previous;
 
                         return (
                           <View key={stop.id} style={styles.stopItem}>
@@ -639,7 +638,10 @@ export default function TripDetailsPage() {
                                 <View style={styles.timelineLine} />
                                 {travelTime && (
                                   <View style={styles.travelTimeContainer}>
-                                    <Clock size={10} color={colors.textSecondary} />
+                                    <Clock
+                                      size={10}
+                                      color={colors.textSecondary}
+                                    />
                                     <Text style={styles.travelTimeText}>
                                       {travelTime} min
                                     </Text>
@@ -696,8 +698,8 @@ export default function TripDetailsPage() {
                                     {stop.stop_type === 'pickup'
                                       ? 'Pick-up'
                                       : stop.stop_type === 'dropoff'
-                                      ? 'Drop-off'
-                                      : 'Both'}
+                                        ? 'Drop-off'
+                                        : 'Both'}
                                   </Text>
                                 </View>
                               </View>
@@ -713,7 +715,9 @@ export default function TripDetailsPage() {
                               )}
 
                               {stop.notes && (
-                                <Text style={styles.stopNotes}>{stop.notes}</Text>
+                                <Text style={styles.stopNotes}>
+                                  {stop.notes}
+                                </Text>
                               )}
                             </View>
                           </View>
@@ -922,7 +926,7 @@ export default function TripDetailsPage() {
 
                 {loadingSegmentData ? (
                   <View style={styles.loadingStopsContainer}>
-                    <ActivityIndicator size="small" color={colors.primary} />
+                    <ActivityIndicator size='small' color={colors.primary} />
                     <Text style={styles.loadingText}>
                       Loading segment fares...
                     </Text>
@@ -970,7 +974,8 @@ export default function TripDetailsPage() {
                             <View key={index} style={styles.overrideItem}>
                               <View style={styles.overrideSegment}>
                                 <Text style={styles.overrideSegmentText}>
-                                  {segment.from_island_name} → {segment.to_island_name}
+                                  {segment.from_island_name} →{' '}
+                                  {segment.to_island_name}
                                 </Text>
                                 <View style={styles.overrideFares}>
                                   <Text style={styles.originalFare}>
@@ -978,7 +983,10 @@ export default function TripDetailsPage() {
                                   </Text>
                                   <Text style={styles.fareArrow}>→</Text>
                                   <Text style={styles.overrideFare}>
-                                    {formatCurrency(override.override_fare_amount, 'MVR')}
+                                    {formatCurrency(
+                                      override.override_fare_amount,
+                                      'MVR'
+                                    )}
                                   </Text>
                                 </View>
                               </View>
@@ -1039,7 +1047,6 @@ export default function TripDetailsPage() {
             </View>
           </ScrollView>
         )}
-
       </View>
     </RoleGuard>
   );

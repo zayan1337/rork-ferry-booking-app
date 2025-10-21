@@ -56,12 +56,15 @@ export async function checkSeatAvailabilityForSegment(
   destinationSequence: number
 ): Promise<boolean> {
   try {
-    const { data, error } = await supabase.rpc('is_seat_available_for_segment', {
-      p_trip_id: tripId,
-      p_seat_id: seatId,
-      p_boarding_sequence: boardingSequence,
-      p_destination_sequence: destinationSequence,
-    });
+    const { data, error } = await supabase.rpc(
+      'is_seat_available_for_segment',
+      {
+        p_trip_id: tripId,
+        p_seat_id: seatId,
+        p_boarding_sequence: boardingSequence,
+        p_destination_sequence: destinationSequence,
+      }
+    );
 
     if (error) {
       console.error('Error checking seat availability:', error);
@@ -85,11 +88,14 @@ export async function getAvailableSeatsForSegment(
   toStopSequence: number
 ): Promise<any[]> {
   try {
-    const { data, error } = await supabase.rpc('get_available_seats_for_segment', {
-      p_trip_id: tripId,
-      p_from_stop_sequence: fromStopSequence,
-      p_to_stop_sequence: toStopSequence,
-    });
+    const { data, error } = await supabase.rpc(
+      'get_available_seats_for_segment',
+      {
+        p_trip_id: tripId,
+        p_from_stop_sequence: fromStopSequence,
+        p_to_stop_sequence: toStopSequence,
+      }
+    );
 
     if (error) {
       console.error('Error getting available seats:', error);
@@ -178,7 +184,7 @@ export async function reserveSeatForSegment(
  */
 export async function reserveMultipleSeatsForSegment(
   tripId: string,
-  seats: Array<{
+  seats: {
     seatId: string;
     bookingId: string;
     passengerId?: string;
@@ -186,7 +192,7 @@ export async function reserveMultipleSeatsForSegment(
     destinationStopId: string;
     boardingSequence: number;
     destinationSequence: number;
-  }>,
+  }[],
   userId?: string,
   sessionId?: string
 ): Promise<string[]> {
@@ -388,17 +394,15 @@ export async function getSeatReservationsForBooking(
  * Get seat occupancy map for a trip
  * Returns which seats are occupied for each segment
  */
-export async function getTripSeatOccupancyMap(
-  tripId: string
-): Promise<
+export async function getTripSeatOccupancyMap(tripId: string): Promise<
   Map<
     string,
-    Array<{
+    {
       seatId: string;
       boardingSequence: number;
       destinationSequence: number;
       bookingId: string;
-    }>
+    }[]
   >
 > {
   const reservations = await getSeatReservationsForTrip(tripId);
@@ -522,4 +526,3 @@ export async function calculateSeatUtilizationRate(
 
   return (totalSegmentSeats / maxPossibleSegmentSeats) * 100;
 }
-

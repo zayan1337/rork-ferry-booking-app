@@ -505,30 +505,78 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
         }
       }
 
-      const updateData: any = {};
-      if (data.name !== undefined) updateData.name = data.name.trim();
-      if (data.from_island_id !== undefined)
-        updateData.from_island_id = data.from_island_id;
-      if (data.to_island_id !== undefined)
-        updateData.to_island_id = data.to_island_id;
-      if (data.base_fare !== undefined) updateData.base_fare = data.base_fare;
-      if (data.distance !== undefined)
-        updateData.distance = data.distance?.trim();
-      if (data.duration !== undefined)
-        updateData.duration = data.duration?.trim();
-      if (data.description !== undefined)
-        updateData.description = data.description?.trim();
-      if (data.status !== undefined) updateData.status = data.status;
-      if (data.is_active !== undefined) updateData.is_active = data.is_active;
+      // Check if we need to update stops or segment fares
+      if (data.route_stops || data.segment_fares) {
+        // Use RPC function for complete route update including stops and fares
+        const stopsData = data.route_stops
+          ? data.route_stops.map((stop, index) => ({
+              island_id: stop.island_id,
+              stop_type: stop.stop_type,
+              estimated_travel_time:
+                index === 0 ? null : stop.estimated_travel_time,
+              notes: stop.notes || null,
+            }))
+          : undefined;
 
-      const { data: updatedRoute, error } = await supabase
-        .from('routes')
-        .update(updateData)
-        .eq('id', id)
+        const segmentFaresData = data.segment_fares
+          ? data.segment_fares.map(fare => ({
+              from_index: fare.from_index,
+              to_index: fare.to_index,
+              fare_amount: fare.fare_amount,
+            }))
+          : undefined;
+
+        const { error: updateError } = await supabase.rpc(
+          'update_multi_stop_route',
+          {
+            p_route_id: id,
+            p_name: data.name?.trim(),
+            p_base_fare: data.base_fare,
+            p_distance: data.distance?.trim() || null,
+            p_duration: data.duration?.trim() || null,
+            p_description: data.description?.trim() || null,
+            p_status: data.status,
+            p_is_active: data.is_active,
+            p_stops: stopsData,
+            p_segment_fares: segmentFaresData,
+          }
+        );
+
+        if (updateError) throw updateError;
+      } else {
+        // Simple update of basic route fields only
+        const updateData: any = {};
+        if (data.name !== undefined) updateData.name = data.name.trim();
+        if (data.from_island_id !== undefined)
+          updateData.from_island_id = data.from_island_id;
+        if (data.to_island_id !== undefined)
+          updateData.to_island_id = data.to_island_id;
+        if (data.base_fare !== undefined) updateData.base_fare = data.base_fare;
+        if (data.distance !== undefined)
+          updateData.distance = data.distance?.trim();
+        if (data.duration !== undefined)
+          updateData.duration = data.duration?.trim();
+        if (data.description !== undefined)
+          updateData.description = data.description?.trim();
+        if (data.status !== undefined) updateData.status = data.status;
+        if (data.is_active !== undefined) updateData.is_active = data.is_active;
+
+        const { error } = await supabase
+          .from('routes')
+          .update(updateData)
+          .eq('id', id);
+
+        if (error) throw error;
+      }
+
+      // Fetch updated route data
+      const { data: updatedRoute, error: fetchError } = await supabase
+        .from('routes_with_stops_view')
         .select('*')
+        .eq('id', id)
         .single();
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
 
       // Get existing route data and merge with updates (avoid expensive stats view query)
       const existingRoute = get().data.find(route => route.id === id);

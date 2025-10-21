@@ -19,7 +19,12 @@ export default function EditRouteScreen() {
   const { canUpdateRoutes } = useAdminPermissions();
 
   // UPDATED: Use new route management hook
-  const { getById } = useRouteManagement();
+  const { getById, loadAll, loading } = useRouteManagement();
+
+  // Load routes on mount
+  React.useEffect(() => {
+    loadAll();
+  }, []);
 
   // Find the current route data
   const currentRoute = getById(id || '');
