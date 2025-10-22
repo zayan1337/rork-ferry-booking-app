@@ -526,3 +526,4 @@ export async function calculateSeatUtilizationRate(
 
   return (totalSegmentSeats / maxPossibleSegmentSeats) * 100;
 }
+

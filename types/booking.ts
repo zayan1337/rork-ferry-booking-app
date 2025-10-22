@@ -1,4 +1,5 @@
 import type { Island, Route, Seat, Passenger, Booking } from './index';
+import type { RouteStop } from './multiStopRoute';
 
 export interface Vessel {
   id: string;
@@ -50,6 +51,22 @@ export interface BookingData {
 
 export interface CurrentBooking extends BookingData {
   returnRoute: Route | null;
+  // Multi-stop route segment information (island selection)
+  boardingIslandId: string | null;
+  boardingIslandName: string | null;
+  destinationIslandId: string | null;
+  destinationIslandName: string | null;
+  returnBoardingIslandId: string | null;
+  returnBoardingIslandName: string | null;
+  returnDestinationIslandId: string | null;
+  returnDestinationIslandName: string | null;
+  // Stop information (determined after selecting trip)
+  boardingStop: RouteStop | null;
+  destinationStop: RouteStop | null;
+  returnBoardingStop: RouteStop | null;
+  returnDestinationStop: RouteStop | null;
+  segmentFare: number | null;
+  returnSegmentFare: number | null;
 }
 
 // Store interfaces

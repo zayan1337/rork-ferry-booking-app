@@ -24,6 +24,7 @@ import Dropdown from '@/components/Dropdown';
 import SeatSelector from '@/components/SeatSelector';
 import Input from '@/components/Input';
 import type { Seat } from '@/types';
+import type { RouteStop } from '@/types/multiStopRoute';
 // Removed unused imports
 import {
   createRouteLabel,
@@ -34,6 +35,11 @@ import {
   isTripBookable,
   getTripUnavailableMessage,
 } from '@/utils/bookingUtils';
+import {
+  getAllBoardingIslands,
+  getDestinationIslandsFromBoarding,
+  getTripsForSegment,
+} from '@/utils/segmentBookingUtils';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
 // Removed unused SeatStatusIndicator import
 import {
@@ -60,6 +66,17 @@ export default function BookScreen() {
   const [loadingSeats, setLoadingSeats] = useState<Set<string>>(new Set());
   const [seatErrors, setSeatErrors] = useState<Record<string, string>>({});
 
+  // Island selection state
+  const [boardingIslands, setBoardingIslands] = useState<any[]>([]);
+  const [destinationIslands, setDestinationIslands] = useState<any[]>([]);
+  const [returnDestinationIslands, setReturnDestinationIslands] = useState<any[]>([]);
+  const [loadingIslands, setLoadingIslands] = useState(false);
+
+  // Available trips for selected segment
+  const [availableTripsForSegment, setAvailableTripsForSegment] = useState<any[]>([]);
+  const [returnAvailableTripsForSegment, setReturnAvailableTripsForSegment] = useState<any[]>([]);
+  const [loadingTripsForSegment, setLoadingTripsForSegment] = useState(false);
+
   const [errors, setErrors] = useState(createEmptyFormErrors());
 
   // MIB Payment WebView state
@@ -85,6 +102,18 @@ export default function BookScreen() {
     resetBooking: resetCurrentBooking,
     calculateTotalFare,
     createCustomerBooking,
+    // Multi-stop island selection actions
+    setBoardingIsland,
+    setDestinationIsland,
+    setReturnBoardingIsland,
+    setReturnDestinationIsland,
+    // Multi-stop segment actions
+    setBoardingStop,
+    setDestinationStop,
+    setReturnBoardingStop,
+    setReturnDestinationStop,
+    setSegmentFare,
+    setReturnSegmentFare,
   } = useBookingStore();
 
   // Route management
@@ -132,8 +161,19 @@ export default function BookScreen() {
 
   // Fetch initial data
   useEffect(() => {
-    fetchAvailableIslands();
-    fetchAvailableRoutes();
+    const loadBoardingIslands = async () => {
+      setLoadingIslands(true);
+      try {
+        const islands = await getAllBoardingIslands();
+        setBoardingIslands(islands);
+      } catch (error) {
+        console.error('Failed to load boarding islands:', error);
+      } finally {
+        setLoadingIslands(false);
+      }
+    };
+
+    loadBoardingIslands();
 
     // Set default trip type if none is selected
     if (!currentBooking.tripType) {
@@ -141,30 +181,121 @@ export default function BookScreen() {
     }
   }, []);
 
-  // Handle pre-populated data and step advancement in a separate effect
+  // Fetch destination islands when boarding island is selected
   useEffect(() => {
-    // If route and date are already selected from quick booking, advance to step 2
-    if (currentBooking.route && currentBooking.departureDate) {
-      setCurrentStep(2);
-    }
-  }, [currentBooking.route, currentBooking.departureDate]);
+    const loadDestinationIslands = async () => {
+      if (currentBooking.boardingIslandId) {
+        setLoadingIslands(true);
+        try {
+          const islands = await getDestinationIslandsFromBoarding(
+            currentBooking.boardingIslandId
+          );
+          setDestinationIslands(islands);
+        } catch (error) {
+          console.error('Failed to load destination islands:', error);
+          setDestinationIslands([]);
+        } finally {
+          setLoadingIslands(false);
+        }
+      } else {
+        setDestinationIslands([]);
+      }
+    };
 
-  // Fetch trips when route or date changes
-  useEffect(() => {
-    if (currentBooking.route?.id && currentBooking.departureDate) {
-      fetchTrips(currentBooking.route.id, currentBooking.departureDate, false);
-    }
-  }, [currentBooking.route?.id, currentBooking.departureDate]);
+    loadDestinationIslands();
+  }, [currentBooking.boardingIslandId]);
 
+  // Fetch return destination islands when return boarding island is selected
   useEffect(() => {
-    if (currentBooking.returnRoute?.id && currentBooking.returnDate) {
-      fetchTrips(
-        currentBooking.returnRoute.id,
-        currentBooking.returnDate,
-        true
-      );
-    }
-  }, [currentBooking.returnRoute?.id, currentBooking.returnDate]);
+    const loadReturnDestinationIslands = async () => {
+      if (currentBooking.returnBoardingIslandId) {
+        setLoadingIslands(true);
+        try {
+          const islands = await getDestinationIslandsFromBoarding(
+            currentBooking.returnBoardingIslandId
+          );
+          setReturnDestinationIslands(islands);
+        } catch (error) {
+          console.error('Failed to load return destination islands:', error);
+          setReturnDestinationIslands([]);
+        } finally {
+          setLoadingIslands(false);
+        }
+      } else {
+        setReturnDestinationIslands([]);
+      }
+    };
+
+    loadReturnDestinationIslands();
+  }, [currentBooking.returnBoardingIslandId]);
+
+  // Fetch available trips when both boarding and destination islands are selected
+  useEffect(() => {
+    const loadTripsForSegment = async () => {
+      if (
+        currentBooking.boardingIslandId &&
+        currentBooking.destinationIslandId &&
+        currentBooking.departureDate
+      ) {
+        setLoadingTripsForSegment(true);
+        try {
+          const trips = await getTripsForSegment(
+            currentBooking.boardingIslandId,
+            currentBooking.destinationIslandId,
+            currentBooking.departureDate
+          );
+          setAvailableTripsForSegment(trips);
+        } catch (error) {
+          console.error('Failed to load trips for segment:', error);
+          setAvailableTripsForSegment([]);
+        } finally {
+          setLoadingTripsForSegment(false);
+        }
+      } else {
+        setAvailableTripsForSegment([]);
+      }
+    };
+
+    loadTripsForSegment();
+  }, [
+    currentBooking.boardingIslandId,
+    currentBooking.destinationIslandId,
+    currentBooking.departureDate,
+  ]);
+
+  // Fetch available return trips when both return islands are selected
+  useEffect(() => {
+    const loadReturnTripsForSegment = async () => {
+      if (
+        currentBooking.returnBoardingIslandId &&
+        currentBooking.returnDestinationIslandId &&
+        currentBooking.returnDate
+      ) {
+        setLoadingTripsForSegment(true);
+        try {
+          const trips = await getTripsForSegment(
+            currentBooking.returnBoardingIslandId,
+            currentBooking.returnDestinationIslandId,
+            currentBooking.returnDate
+          );
+          setReturnAvailableTripsForSegment(trips);
+        } catch (error) {
+          console.error('Failed to load return trips for segment:', error);
+          setReturnAvailableTripsForSegment([]);
+        } finally {
+          setLoadingTripsForSegment(false);
+        }
+      } else {
+        setReturnAvailableTripsForSegment([]);
+      }
+    };
+
+    loadReturnTripsForSegment();
+  }, [
+    currentBooking.returnBoardingIslandId,
+    currentBooking.returnDestinationIslandId,
+    currentBooking.returnDate,
+  ]);
 
   // Fetch seats when trip is selected
   useEffect(() => {
@@ -857,184 +988,387 @@ export default function BookScreen() {
           </View>
         )}
 
-        {/* Step 2: Route Selection */}
+        {/* Step 2: Island & Trip Selection */}
         {currentStep === BOOKING_STEPS.ROUTE_SELECTION && (
           <View>
-            <Text style={styles.stepTitle}>Select Route</Text>
+            <Text style={styles.stepTitle}>Where do you want to go?</Text>
 
+            {/* Boarding Island Selection */}
             <Dropdown
-              label='Departure Route'
-              items={routeOptions}
-              value={currentBooking.route?.id || ''}
-              onChange={routeId => {
-                // Handle clear action
-                if (!routeId) {
-                  setRoute(null as any);
-                  setTrip(null);
-                  if (errors.route) setErrors({ ...errors, route: '' });
-                  if (errors.trip) setErrors({ ...errors, trip: '' });
+              label='From (Boarding Island)'
+              items={boardingIslands.map(island => ({
+                label: island.name,
+                value: island.id,
+              }))}
+              value={currentBooking.boardingIslandId || ''}
+              onChange={islandId => {
+                if (!islandId) {
+                  setBoardingIsland(null, null);
                   return;
                 }
 
-                const selectedRoute = availableRoutes.find(
-                  r => r.id === routeId
+                const selectedIsland = boardingIslands.find(
+                  i => i.id === islandId
                 );
-                if (selectedRoute) {
-                  setRoute(selectedRoute);
-                  // Clear any previously selected trip when route changes
-                  setTrip(null);
+                if (selectedIsland) {
+                  setBoardingIsland(selectedIsland.id, selectedIsland.name);
                   if (errors.route) setErrors({ ...errors, route: '' });
-                  if (errors.trip) setErrors({ ...errors, trip: '' });
                 }
               }}
-              placeholder='Select departure route'
+              placeholder='Select boarding island'
               error={errors.route}
               searchable
               required
             />
 
-            {currentBooking.route && currentBooking.departureDate && (
+            {/* Destination Island Selection */}
+            {currentBooking.boardingIslandId && destinationIslands.length > 0 && (
+              <Dropdown
+                label='To (Destination Island)'
+                items={destinationIslands.map(island => ({
+                  label: island.name,
+                  value: island.id,
+                }))}
+                value={currentBooking.destinationIslandId || ''}
+                onChange={islandId => {
+                  if (!islandId) {
+                    setDestinationIsland(null, null);
+                    return;
+                  }
+
+                  const selectedIsland = destinationIslands.find(
+                    i => i.id === islandId
+                  );
+                  if (selectedIsland) {
+                    setDestinationIsland(selectedIsland.id, selectedIsland.name);
+                  }
+                }}
+                placeholder='Select destination island'
+                searchable
+                required
+              />
+            )}
+
+            {/* Show Available Trips for Selected Segment */}
+            {currentBooking.boardingIslandId &&
+              currentBooking.destinationIslandId &&
+              currentBooking.departureDate && (
               <>
-                {tripLoading ? (
+                {loadingTripsForSegment ? (
                   <View style={styles.loadingContainer}>
                     <Text style={styles.loadingText}>
-                      Loading available trips...
+                      Finding available trips...
                     </Text>
                   </View>
-                ) : trips.length > 0 ? (
-                  <Dropdown
-                    label='Select Departure Time'
-                    items={trips.map(trip => ({
-                      label: `${formatTime(trip.departure_time)} - ${
-                        trip.vessel_name
-                      } (${trip.available_seats} seats)`,
-                      value: trip.id,
-                    }))}
-                    value={currentBooking.trip?.id || ''}
-                    onChange={tripId => {
-                      // Handle clear action
-                      if (!tripId) {
-                        setTrip(null);
-                        if (errors.trip) setErrors({ ...errors, trip: '' });
-                        return;
-                      }
+                ) : availableTripsForSegment.length > 0 ? (
+                  <>
+                    <Text style={styles.seatSectionTitle}>
+                      Available Trips ({availableTripsForSegment.length})
+                    </Text>
+                    <Dropdown
+                      label='Select Trip'
+                      items={availableTripsForSegment.map(tripData => ({
+                        label: `${formatTime(tripData.departure_time)} - ${
+                          tripData.vessel_name
+                        } via ${tripData.route_name} - MVR ${tripData.segment_fare.toFixed(
+                          2
+                        )} (${tripData.available_seats} seats)`,
+                        value: tripData.trip_id,
+                      }))}
+                      value={currentBooking.trip?.id || ''}
+                      onChange={tripId => {
+                        if (!tripId) {
+                          setTrip(null);
+                          setBoardingStop(null);
+                          setDestinationStop(null);
+                          if (errors.trip) setErrors({ ...errors, trip: '' });
+                          return;
+                        }
 
-                      const selectedTrip = trips.find(t => t.id === tripId);
-                      if (selectedTrip) {
-                        setTrip(selectedTrip);
-                        if (errors.trip) setErrors({ ...errors, trip: '' });
-                      }
-                    }}
-                    placeholder='Select departure time'
-                    error={errors.trip}
-                    required
-                  />
+                        const tripData = availableTripsForSegment.find(
+                          t => t.trip_id === tripId
+                        );
+                        if (tripData) {
+                          // IMPORTANT: Set route FIRST, then trip (to avoid route resetting trip)
+                          // Create a minimal route object
+                          const route = {
+                            id: tripData.route_id,
+                            fromIsland: {
+                              id: currentBooking.boardingIslandId!,
+                              name: currentBooking.boardingIslandName!,
+                              zone: 'A' as const,
+                            },
+                            toIsland: {
+                              id: currentBooking.destinationIslandId!,
+                              name: currentBooking.destinationIslandName!,
+                              zone: 'A' as const,
+                            },
+                            baseFare: tripData.segment_fare,
+                          };
+                          setRoute(route);
+
+                          // Set boarding and destination stops
+                          setBoardingStop({
+                            id: tripData.boarding_stop_id,
+                            route_id: tripData.route_id,
+                            island_id: currentBooking.boardingIslandId!,
+                            island_name: currentBooking.boardingIslandName!,
+                            stop_sequence: tripData.boarding_stop_sequence,
+                            stop_type: 'pickup' as const,
+                            estimated_travel_time_from_previous: null,
+                            notes: null,
+                            created_at: '',
+                            updated_at: '',
+                          });
+                          setDestinationStop({
+                            id: tripData.destination_stop_id,
+                            route_id: tripData.route_id,
+                            island_id: currentBooking.destinationIslandId!,
+                            island_name: currentBooking.destinationIslandName!,
+                            stop_sequence: tripData.destination_stop_sequence,
+                            stop_type: 'dropoff' as const,
+                            estimated_travel_time_from_previous: null,
+                            notes: null,
+                            created_at: '',
+                            updated_at: '',
+                          });
+
+                          // Set the segment fare
+                          setSegmentFare(tripData.segment_fare);
+
+                          // Create trip object - SET THIS LAST so route doesn't reset it
+                          const trip = {
+                            id: tripData.trip_id,
+                            route_id: tripData.route_id,
+                            travel_date: tripData.travel_date,
+                            departure_time: tripData.departure_time,
+                            vessel_id: tripData.vessel_id,
+                            vessel_name: tripData.vessel_name,
+                            available_seats: tripData.available_seats,
+                            is_active: tripData.is_active,
+                            base_fare: tripData.segment_fare,
+                            fare_multiplier: 1.0, // Already included in segment_fare
+                          };
+                          setTrip(trip);
+
+                          if (errors.trip) setErrors({ ...errors, trip: '' });
+                        }
+                      }}
+                      placeholder='Choose your trip'
+                      error={errors.trip}
+                      required
+                    />
+                  </>
                 ) : (
                   <View style={styles.noTripsContainer}>
                     <Text style={styles.noTripsTitle}>No Trips Available</Text>
                     <Text style={styles.noTripsMessage}>
-                      There are no trips available for the selected route on{' '}
-                      {currentBooking.departureDate}. Please try a different
-                      date or route.
+                      No trips available from {currentBooking.boardingIslandName} to{' '}
+                      {currentBooking.destinationIslandName} on{' '}
+                      {currentBooking.departureDate}. Please try a different date or
+                      destination.
                     </Text>
                   </View>
                 )}
               </>
             )}
 
+            {/* Return Trip for Round Trip */}
             {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
-              <Dropdown
-                label='Return Route'
-                items={routeOptions}
-                value={currentBooking.returnRoute?.id || ''}
-                onChange={routeId => {
-                  // Handle clear action
-                  if (!routeId) {
-                    setReturnRoute(null as any);
-                    setReturnTrip(null);
-                    if (errors.returnRoute)
-                      setErrors({ ...errors, returnRoute: '' });
-                    if (errors.returnTrip)
-                      setErrors({ ...errors, returnTrip: '' });
-                    return;
-                  }
+              <>
+                <View style={styles.sectionDivider} />
+                <Text style={styles.sectionTitle}>Return Trip</Text>
 
-                  const selectedRoute = availableRoutes.find(
-                    r => r.id === routeId
-                  );
-                  if (selectedRoute) {
-                    setReturnRoute(selectedRoute);
-                    // Clear any previously selected return trip when return route changes
-                    setReturnTrip(null);
-                    if (errors.returnRoute)
-                      setErrors({ ...errors, returnRoute: '' });
-                    if (errors.returnTrip)
-                      setErrors({ ...errors, returnTrip: '' });
-                  }
-                }}
-                placeholder='Select return route'
-                error={errors.returnRoute}
-                searchable
-                required
-              />
-            )}
+                {/* Return Boarding Island */}
+                <Dropdown
+                  label='Return From (Boarding Island)'
+                  items={boardingIslands.map(island => ({
+                    label: island.name,
+                    value: island.id,
+                  }))}
+                  value={currentBooking.returnBoardingIslandId || ''}
+                  onChange={islandId => {
+                    if (!islandId) {
+                      setReturnBoardingIsland(null, null);
+                      return;
+                    }
 
-            {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
-              currentBooking.returnRoute &&
-              currentBooking.returnDate && (
-                <>
-                  {tripLoading ? (
-                    <View style={styles.loadingContainer}>
-                      <Text style={styles.loadingText}>
-                        Loading available return trips...
-                      </Text>
-                    </View>
-                  ) : returnTrips.length > 0 ? (
+                    const selectedIsland = boardingIslands.find(
+                      i => i.id === islandId
+                    );
+                    if (selectedIsland) {
+                      setReturnBoardingIsland(selectedIsland.id, selectedIsland.name);
+                      if (errors.returnRoute) setErrors({ ...errors, returnRoute: '' });
+                    }
+                  }}
+                  placeholder='Select return boarding island'
+                  error={errors.returnRoute}
+                  searchable
+                  required
+                />
+
+                {/* Return Destination Island */}
+                {currentBooking.returnBoardingIslandId &&
+                  returnDestinationIslands.length > 0 && (
                     <Dropdown
-                      label='Select Return Time'
-                      items={returnTrips.map(trip => ({
-                        label: `${formatTime(trip.departure_time)} - ${
-                          trip.vessel_name
-                        } (${trip.available_seats} seats available)`,
-                        value: trip.id,
+                      label='Return To (Destination Island)'
+                      items={returnDestinationIslands.map(island => ({
+                        label: island.name,
+                        value: island.id,
                       }))}
-                      value={currentBooking.returnTrip?.id || ''}
-                      onChange={tripId => {
-                        // Handle clear action
-                        if (!tripId) {
-                          setReturnTrip(null);
-                          if (errors.returnTrip)
-                            setErrors({ ...errors, returnTrip: '' });
+                      value={currentBooking.returnDestinationIslandId || ''}
+                      onChange={islandId => {
+                        if (!islandId) {
+                          setReturnDestinationIsland(null, null);
                           return;
                         }
 
-                        const selectedTrip = returnTrips.find(
-                          t => t.id === tripId
+                        const selectedIsland = returnDestinationIslands.find(
+                          i => i.id === islandId
                         );
-                        if (selectedTrip) {
-                          setReturnTrip(selectedTrip);
-                          if (errors.returnTrip)
-                            setErrors({ ...errors, returnTrip: '' });
+                        if (selectedIsland) {
+                          setReturnDestinationIsland(
+                            selectedIsland.id,
+                            selectedIsland.name
+                          );
                         }
                       }}
-                      placeholder='Select return time'
-                      error={errors.returnTrip}
+                      placeholder='Select return destination island'
+                      searchable
                       required
                     />
-                  ) : (
-                    <View style={styles.noTripsContainer}>
-                      <Text style={styles.noTripsTitle}>
-                        No Return Trips Available
-                      </Text>
-                      <Text style={styles.noTripsMessage}>
-                        There are no return trips available for the selected
-                        route on {currentBooking.returnDate}. Please try a
-                        different date or route.
-                      </Text>
-                    </View>
                   )}
-                </>
-              )}
+
+                {/* Show Available Return Trips */}
+                {currentBooking.returnBoardingIslandId &&
+                  currentBooking.returnDestinationIslandId &&
+                  currentBooking.returnDate && (
+                    <>
+                      {loadingTripsForSegment ? (
+                        <View style={styles.loadingContainer}>
+                          <Text style={styles.loadingText}>
+                            Finding available return trips...
+                          </Text>
+                        </View>
+                      ) : returnAvailableTripsForSegment.length > 0 ? (
+                        <>
+                          <Text style={styles.seatSectionTitle}>
+                            Available Return Trips ({returnAvailableTripsForSegment.length})
+                          </Text>
+                          <Dropdown
+                            label='Select Return Trip'
+                            items={returnAvailableTripsForSegment.map(tripData => ({
+                              label: `${formatTime(tripData.departure_time)} - ${
+                                tripData.vessel_name
+                              } via ${tripData.route_name} - MVR ${tripData.segment_fare.toFixed(
+                                2
+                              )} (${tripData.available_seats} seats)`,
+                              value: tripData.trip_id,
+                            }))}
+                            value={currentBooking.returnTrip?.id || ''}
+                            onChange={tripId => {
+                              if (!tripId) {
+                                setReturnTrip(null);
+                                setReturnBoardingStop(null);
+                                setReturnDestinationStop(null);
+                                if (errors.returnTrip)
+                                  setErrors({ ...errors, returnTrip: '' });
+                                return;
+                              }
+
+                              const tripData = returnAvailableTripsForSegment.find(
+                                t => t.trip_id === tripId
+                              );
+                              if (tripData) {
+                                // IMPORTANT: Set route FIRST, then trip (to avoid route resetting trip)
+                                // Create return route object
+                                const route = {
+                                  id: tripData.route_id,
+                                  fromIsland: {
+                                    id: currentBooking.returnBoardingIslandId!,
+                                    name: currentBooking.returnBoardingIslandName!,
+                                    zone: 'A' as const,
+                                  },
+                                  toIsland: {
+                                    id: currentBooking.returnDestinationIslandId!,
+                                    name: currentBooking.returnDestinationIslandName!,
+                                    zone: 'A' as const,
+                                  },
+                                  baseFare: tripData.segment_fare,
+                                };
+                                setReturnRoute(route);
+
+                                // Set return boarding and destination stops
+                                setReturnBoardingStop({
+                                  id: tripData.boarding_stop_id,
+                                  route_id: tripData.route_id,
+                                  island_id: currentBooking.returnBoardingIslandId!,
+                                  island_name: currentBooking.returnBoardingIslandName!,
+                                  stop_sequence: tripData.boarding_stop_sequence,
+                                  stop_type: 'pickup' as const,
+                                  estimated_travel_time_from_previous: null,
+                                  notes: null,
+                                  created_at: '',
+                                  updated_at: '',
+                                });
+                                setReturnDestinationStop({
+                                  id: tripData.destination_stop_id,
+                                  route_id: tripData.route_id,
+                                  island_id: currentBooking.returnDestinationIslandId!,
+                                  island_name: currentBooking.returnDestinationIslandName!,
+                                  stop_sequence: tripData.destination_stop_sequence,
+                                  stop_type: 'dropoff' as const,
+                                  estimated_travel_time_from_previous: null,
+                                  notes: null,
+                                  created_at: '',
+                                  updated_at: '',
+                                });
+
+                                // Set the return segment fare
+                                setReturnSegmentFare(tripData.segment_fare);
+
+                                // Create return trip object - SET THIS LAST so route doesn't reset it
+                                const trip = {
+                                  id: tripData.trip_id,
+                                  route_id: tripData.route_id,
+                                  travel_date: tripData.travel_date,
+                                  departure_time: tripData.departure_time,
+                                  vessel_id: tripData.vessel_id,
+                                  vessel_name: tripData.vessel_name,
+                                  available_seats: tripData.available_seats,
+                                  is_active: tripData.is_active,
+                                  base_fare: tripData.segment_fare,
+                                  fare_multiplier: 1.0,
+                                };
+                                setReturnTrip(trip);
+
+                                if (errors.returnTrip)
+                                  setErrors({ ...errors, returnTrip: '' });
+                              }
+                            }}
+                            placeholder='Choose your return trip'
+                            error={errors.returnTrip}
+                            required
+                          />
+                        </>
+                      ) : (
+                        <View style={styles.noTripsContainer}>
+                          <Text style={styles.noTripsTitle}>
+                            No Return Trips Available
+                          </Text>
+                          <Text style={styles.noTripsMessage}>
+                            No return trips available from{' '}
+                            {currentBooking.returnBoardingIslandName} to{' '}
+                            {currentBooking.returnDestinationIslandName} on{' '}
+                            {currentBooking.returnDate}. Please try a different date or
+                            destination.
+                          </Text>
+                        </View>
+                      )}
+                    </>
+                  )}
+              </>
+            )}
 
             {currentBooking.trip && (
               <View style={styles.fareContainer}>
@@ -1177,8 +1511,11 @@ export default function BookScreen() {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Route:</Text>
                 <Text style={styles.summaryValue}>
-                  {currentBooking.route?.fromIsland.name} →{' '}
-                  {currentBooking.route?.toIsland.name}
+                  {currentBooking.boardingStop?.island_name ||
+                    currentBooking.route?.fromIsland.name}{' '}
+                  →{' '}
+                  {currentBooking.destinationStop?.island_name ||
+                    currentBooking.route?.toIsland.name}
                 </Text>
               </View>
 
@@ -1187,8 +1524,11 @@ export default function BookScreen() {
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Return Route:</Text>
                     <Text style={styles.summaryValue}>
-                      {currentBooking.returnRoute.fromIsland.name} →{' '}
-                      {currentBooking.returnRoute.toIsland.name}
+                      {currentBooking.returnBoardingStop?.island_name ||
+                        currentBooking.returnRoute.fromIsland.name}{' '}
+                      →{' '}
+                      {currentBooking.returnDestinationStop?.island_name ||
+                        currentBooking.returnRoute.toIsland.name}
                     </Text>
                   </View>
                 )}
@@ -1684,5 +2024,16 @@ const styles = StyleSheet.create({
   hotlineNumber: {
     fontWeight: '700',
     color: Colors.primary,
+  },
+  sectionDivider: {
+    height: 2,
+    backgroundColor: Colors.border,
+    marginVertical: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 16,
   },
 });

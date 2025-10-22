@@ -7,11 +7,17 @@ import type {
   Trip,
 } from '@/types/booking';
 import type { Route, Seat, Passenger, PaymentMethod } from '@/types';
+import type { RouteStop } from '@/types/multiStopRoute';
 import { calculateBookingFare } from '@/utils/bookingUtils';
 import {
   confirmSeatReservations,
   cleanupUserTempReservations,
 } from '@/utils/realtimeSeatReservation';
+import {
+  getEffectiveSegmentFare,
+  createBookingSegment,
+  calculateSegmentFareWithSeats,
+} from '@/utils/segmentBookingUtils';
 
 const initialCurrentBooking: CurrentBooking = {
   tripType: 'one_way',
@@ -25,6 +31,22 @@ const initialCurrentBooking: CurrentBooking = {
   selectedSeats: [],
   returnSelectedSeats: [],
   totalFare: 0,
+  // Multi-stop segment information (island selection)
+  boardingIslandId: null,
+  boardingIslandName: null,
+  destinationIslandId: null,
+  destinationIslandName: null,
+  returnBoardingIslandId: null,
+  returnBoardingIslandName: null,
+  returnDestinationIslandId: null,
+  returnDestinationIslandName: null,
+  // Stop information (determined after selecting trip)
+  boardingStop: null,
+  destinationStop: null,
+  returnBoardingStop: null,
+  returnDestinationStop: null,
+  segmentFare: null,
+  returnSegmentFare: null,
 };
 
 interface BookingStoreActions {
@@ -44,6 +66,22 @@ interface BookingStoreActions {
   setLoading: (isLoading: boolean) => void;
   setQuickBookingData: (route: Route, departureDate: string) => void;
   resetCurrentBooking: () => void;
+
+  // Multi-stop island selection actions
+  setBoardingIsland: (islandId: string | null, islandName: string | null) => void;
+  setDestinationIsland: (islandId: string | null, islandName: string | null) => void;
+  setReturnBoardingIsland: (islandId: string | null, islandName: string | null) => void;
+  setReturnDestinationIsland: (islandId: string | null, islandName: string | null) => void;
+
+  // Multi-stop segment actions (used after trip selection)
+  setBoardingStop: (stop: RouteStop | null) => void;
+  setDestinationStop: (stop: RouteStop | null) => void;
+  setReturnBoardingStop: (stop: RouteStop | null) => void;
+  setReturnDestinationStop: (stop: RouteStop | null) => void;
+  setSegmentFare: (fare: number | null) => void;
+  setReturnSegmentFare: (fare: number | null) => void;
+  fetchSegmentFare: () => Promise<void>;
+  fetchReturnSegmentFare: () => Promise<void>;
 
   // Navigation actions
   nextStep: () => void;
@@ -185,6 +223,9 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         route,
         trip: null, // Reset trip when route changes
         selectedSeats: [], // Reset selected seats
+        boardingStop: null, // Reset segment selection
+        destinationStop: null,
+        segmentFare: null,
       },
     }));
     get().calculateTotalFare();
@@ -197,6 +238,9 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         returnRoute: route,
         returnTrip: null, // Reset return trip when route changes
         returnSelectedSeats: [], // Reset return selected seats
+        returnBoardingStop: null, // Reset return segment selection
+        returnDestinationStop: null,
+        returnSegmentFare: null,
       },
     }));
     get().calculateTotalFare();
@@ -261,30 +305,66 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
   calculateTotalFare: () => {
     const { currentBooking } = get();
 
-    // Only calculate fare if we have the minimum required data
-    // Changed: now we need trip (with fare multiplier), not just route
-    if (!currentBooking.trip) {
-      set(state => ({
-        currentBooking: {
-          ...state.currentBooking,
-          totalFare: 0,
-        },
-      }));
-      return;
+    // Check if we're using multi-stop segments
+    const useSegments =
+      currentBooking.boardingStop && currentBooking.destinationStop;
+    const useReturnSegments =
+      currentBooking.returnBoardingStop && currentBooking.returnDestinationStop;
+
+    let totalFare = 0;
+
+    // Calculate departure fare
+    if (currentBooking.trip && currentBooking.selectedSeats.length > 0) {
+      if (useSegments && currentBooking.segmentFare !== null) {
+        // Use segment-based fare
+        totalFare += calculateSegmentFareWithSeats(
+          currentBooking.segmentFare,
+          currentBooking.selectedSeats,
+          1.0 // Segment fare already includes trip multiplier
+        );
+      } else {
+        // Fall back to legacy route-based fare
+        const tripFare =
+          (currentBooking.trip.base_fare || 0) *
+          (currentBooking.trip.fare_multiplier || 1.0);
+        totalFare +=
+          currentBooking.selectedSeats.reduce((sum, seat) => {
+            const seatMultiplier = seat.priceMultiplier || 1.0;
+            return sum + tripFare * seatMultiplier;
+          }, 0);
+      }
     }
 
-    const fareCalculation = calculateBookingFare(
-      currentBooking.trip,
-      currentBooking.returnTrip,
-      currentBooking.selectedSeats,
-      currentBooking.returnSelectedSeats,
-      currentBooking.tripType
-    );
+    // Calculate return fare
+    if (
+      currentBooking.tripType === 'round_trip' &&
+      currentBooking.returnTrip &&
+      currentBooking.returnSelectedSeats.length > 0
+    ) {
+      if (useReturnSegments && currentBooking.returnSegmentFare !== null) {
+        // Use segment-based fare for return trip
+        totalFare += calculateSegmentFareWithSeats(
+          currentBooking.returnSegmentFare,
+          currentBooking.returnSelectedSeats,
+          1.0 // Segment fare already includes trip multiplier
+        );
+      } else {
+        // Fall back to legacy route-based fare for return trip
+        const returnTripFare =
+          (currentBooking.returnTrip.base_fare || 0) *
+          (currentBooking.returnTrip.fare_multiplier || 1.0);
+        totalFare +=
+          currentBooking.returnSelectedSeats.reduce((sum, seat) => {
+            const seatMultiplier = seat.priceMultiplier || 1.0;
+            return sum + returnTripFare * seatMultiplier;
+          }, 0);
+      }
+    }
 
     set(state => ({
       currentBooking: {
         ...state.currentBooking,
-        totalFare: fareCalculation.totalFare,
+        totalFare,
       },
     }));
   },
@@ -327,6 +407,212 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     set(state => ({
       currentBooking: { ...initialCurrentBooking },
     }));
+  },
+
+  // Multi-stop island selection actions
+  setBoardingIsland: (islandId: string | null, islandName: string | null) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        boardingIslandId: islandId,
+        boardingIslandName: islandName,
+        destinationIslandId: null, // Reset destination when boarding changes
+        destinationIslandName: null,
+        route: null,
+        trip: null,
+        boardingStop: null,
+        destinationStop: null,
+        selectedSeats: [],
+        segmentFare: null,
+      },
+    }));
+  },
+
+  setDestinationIsland: (islandId: string | null, islandName: string | null) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        destinationIslandId: islandId,
+        destinationIslandName: islandName,
+        route: null,
+        trip: null,
+        boardingStop: null,
+        destinationStop: null,
+        selectedSeats: [],
+        segmentFare: null,
+      },
+    }));
+  },
+
+  setReturnBoardingIsland: (islandId: string | null, islandName: string | null) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        returnBoardingIslandId: islandId,
+        returnBoardingIslandName: islandName,
+        returnDestinationIslandId: null,
+        returnDestinationIslandName: null,
+        returnRoute: null,
+        returnTrip: null,
+        returnBoardingStop: null,
+        returnDestinationStop: null,
+        returnSelectedSeats: [],
+        returnSegmentFare: null,
+      },
+    }));
+  },
+
+  setReturnDestinationIsland: (islandId: string | null, islandName: string | null) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        returnDestinationIslandId: islandId,
+        returnDestinationIslandName: islandName,
+        returnRoute: null,
+        returnTrip: null,
+        returnBoardingStop: null,
+        returnDestinationStop: null,
+        returnSelectedSeats: [],
+        returnSegmentFare: null,
+      },
+    }));
+  },
+
+  // Multi-stop segment actions (used after trip selection)
+  setBoardingStop: (stop: RouteStop | null) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        boardingStop: stop,
+        destinationStop: null, // Reset destination when boarding changes
+        selectedSeats: [], // Reset seats when segment changes
+        segmentFare: null,
+      },
+    }));
+    get().calculateTotalFare();
+  },
+
+  setDestinationStop: (stop: RouteStop | null) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        destinationStop: stop,
+        selectedSeats: [], // Reset seats when segment changes
+      },
+    }));
+    // Fetch segment fare when destination is set
+    if (stop) {
+      get().fetchSegmentFare();
+    }
+    get().calculateTotalFare();
+  },
+
+  setReturnBoardingStop: (stop: RouteStop | null) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        returnBoardingStop: stop,
+        returnDestinationStop: null, // Reset return destination when boarding changes
+        returnSelectedSeats: [], // Reset return seats when segment changes
+        returnSegmentFare: null,
+      },
+    }));
+    get().calculateTotalFare();
+  },
+
+  setReturnDestinationStop: (stop: RouteStop | null) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        returnDestinationStop: stop,
+        returnSelectedSeats: [], // Reset return seats when segment changes
+      },
+    }));
+    // Fetch return segment fare when destination is set
+    if (stop) {
+      get().fetchReturnSegmentFare();
+    }
+    get().calculateTotalFare();
+  },
+
+  setSegmentFare: (fare: number | null) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        segmentFare: fare,
+      },
+    }));
+    get().calculateTotalFare();
+  },
+
+  setReturnSegmentFare: (fare: number | null) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        returnSegmentFare: fare,
+      },
+    }));
+    get().calculateTotalFare();
+  },
+
+  fetchSegmentFare: async () => {
+    const { currentBooking } = get();
+    if (
+      !currentBooking.trip?.id ||
+      !currentBooking.boardingStop?.id ||
+      !currentBooking.destinationStop?.id
+    ) {
+      return;
+    }
+
+    try {
+      const fare = await getEffectiveSegmentFare(
+        currentBooking.trip.id,
+        currentBooking.boardingStop.id,
+        currentBooking.destinationStop.id
+      );
+
+      set(state => ({
+        currentBooking: {
+          ...state.currentBooking,
+          segmentFare: fare,
+        },
+      }));
+
+      get().calculateTotalFare();
+    } catch (error) {
+      console.error('Failed to fetch segment fare:', error);
+    }
+  },
+
+  fetchReturnSegmentFare: async () => {
+    const { currentBooking } = get();
+    if (
+      !currentBooking.returnTrip?.id ||
+      !currentBooking.returnBoardingStop?.id ||
+      !currentBooking.returnDestinationStop?.id
+    ) {
+      return;
+    }
+
+    try {
+      const fare = await getEffectiveSegmentFare(
+        currentBooking.returnTrip.id,
+        currentBooking.returnBoardingStop.id,
+        currentBooking.returnDestinationStop.id
+      );
+
+      set(state => ({
+        currentBooking: {
+          ...state.currentBooking,
+          returnSegmentFare: fare,
+        },
+      }));
+
+      get().calculateTotalFare();
+    } catch (error) {
+      console.error('Failed to fetch return segment fare:', error);
+    }
   },
 
   // Navigation actions
@@ -609,14 +895,32 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         throw new Error('User must be authenticated to create booking');
       }
 
-      // Calculate fare from trip (includes fare multiplier)
-      const tripFare = (trip.base_fare || 0) * (trip.fare_multiplier || 1.0);
+      // Calculate total fare (use segment fare if available, otherwise use trip base fare)
+      const useSegments =
+        currentBooking.boardingStop && currentBooking.destinationStop;
+      let totalFare = 0;
+
+      if (useSegments && currentBooking.segmentFare !== null) {
+        // Use segment-based fare
+        totalFare = calculateSegmentFareWithSeats(
+          currentBooking.segmentFare,
+          selectedSeats,
+          1.0
+        );
+      } else {
+        // Fall back to legacy route-based fare
+        const tripFare = (trip.base_fare || 0) * (trip.fare_multiplier || 1.0);
+        totalFare = selectedSeats.reduce((sum, seat) => {
+          const seatMultiplier = seat.priceMultiplier || 1.0;
+          return sum + tripFare * seatMultiplier;
+        }, 0);
+      }
 
       // Create the main booking first with user_id for RLS policy
       const bookingData = {
         user_id: user.id, // Required for RLS policy
         trip_id: trip.id,
-        total_fare: selectedSeats.length * tripFare, // Use trip fare with multiplier
+        total_fare: totalFare,
         payment_method_type: paymentMethod,
         status: 'pending_payment' as const, // Start with pending_payment like booking operations
         is_round_trip: tripType === 'round_trip',
@@ -638,6 +942,28 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
 
       // Update booking with QR code
       await updateBookingWithQrCode(booking.id, qrCodeUrl);
+
+      // Create booking segment if using multi-stop
+      if (
+        useSegments &&
+        currentBooking.boardingStop &&
+        currentBooking.destinationStop &&
+        currentBooking.segmentFare !== null
+      ) {
+        try {
+          await createBookingSegment(
+            booking.id,
+            currentBooking.boardingStop.id,
+            currentBooking.destinationStop.id,
+            currentBooking.boardingStop.stop_sequence,
+            currentBooking.destinationStop.stop_sequence,
+            currentBooking.segmentFare
+          );
+        } catch (segmentError) {
+          console.error('Failed to create booking segment:', segmentError);
+          // Non-critical - continue with booking
+        }
+      }
 
       // Create passengers and seat reservations for main booking
       const passengerInserts = passengers.map((passenger, index) => ({
@@ -692,7 +1018,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         const { error: paymentError } = await supabase.from('payments').insert({
           booking_id: booking.id,
           payment_method: paymentMethod as PaymentMethod,
-          amount: selectedSeats.length * tripFare,
+          amount: totalFare,
           currency: 'MVR',
           status: 'pending', // Start with pending for MIB
         });
@@ -732,7 +1058,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         const { error: paymentError } = await supabase.from('payments').insert({
           booking_id: booking.id,
           payment_method: paymentMethod as PaymentMethod,
-          amount: selectedSeats.length * tripFare,
+          amount: totalFare,
           currency: 'MVR',
           status: 'completed', // Mark as completed for immediate confirmation
         });
@@ -762,14 +1088,36 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         returnRoute &&
         returnSelectedSeats.length > 0
       ) {
-        // Calculate fare from return trip (includes fare multiplier)
-        const returnTripFare =
-          (returnTrip.base_fare || 0) * (returnTrip.fare_multiplier || 1.0);
+        // Calculate return trip fare (use segment fare if available)
+        const useReturnSegments =
+          currentBooking.returnBoardingStop &&
+          currentBooking.returnDestinationStop;
+        let returnTotalFare = 0;
+
+        if (
+          useReturnSegments &&
+          currentBooking.returnSegmentFare !== null
+        ) {
+          // Use segment-based fare for return trip
+          returnTotalFare = calculateSegmentFareWithSeats(
+            currentBooking.returnSegmentFare,
+            returnSelectedSeats,
+            1.0
+          );
+        } else {
+          // Fall back to legacy route-based fare for return trip
+          const returnTripFare =
+            (returnTrip.base_fare || 0) * (returnTrip.fare_multiplier || 1.0);
+          returnTotalFare = returnSelectedSeats.reduce((sum, seat) => {
+            const seatMultiplier = seat.priceMultiplier || 1.0;
+            return sum + returnTripFare * seatMultiplier;
+          }, 0);
+        }
 
         const returnBookingData = {
           user_id: user.id, // Required for RLS policy
           trip_id: returnTrip.id,
-          total_fare: returnSelectedSeats.length * returnTripFare,
+          total_fare: returnTotalFare,
           payment_method_type: paymentMethod,
           status: 'pending_payment' as const, // Start with pending_payment like booking operations
           is_round_trip: true,
@@ -794,6 +1142,31 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
 
           // Update return booking with QR code
           await updateBookingWithQrCode(returnBooking.id, returnQrCodeUrl);
+
+          // Create return booking segment if using multi-stop
+          if (
+            useReturnSegments &&
+            currentBooking.returnBoardingStop &&
+            currentBooking.returnDestinationStop &&
+            currentBooking.returnSegmentFare !== null
+          ) {
+            try {
+              await createBookingSegment(
+                returnBooking.id,
+                currentBooking.returnBoardingStop.id,
+                currentBooking.returnDestinationStop.id,
+                currentBooking.returnBoardingStop.stop_sequence,
+                currentBooking.returnDestinationStop.stop_sequence,
+                currentBooking.returnSegmentFare
+              );
+            } catch (segmentError) {
+              console.error(
+                'Failed to create return booking segment:',
+                segmentError
+              );
+              // Non-critical - continue with booking
+            }
+          }
 
           // Create passengers for return trip
           const returnPassengerInserts = passengers.map((passenger, index) => ({
@@ -837,7 +1210,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             .insert({
               booking_id: returnBooking.id,
               payment_method: paymentMethod as PaymentMethod,
-              amount: returnSelectedSeats.length * returnTripFare,
+              amount: returnTotalFare,
               currency: 'MVR',
               status: paymentMethod === 'mib' ? 'pending' : 'completed', // Pending for MIB, completed for others
             });
