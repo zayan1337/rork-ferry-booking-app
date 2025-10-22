@@ -28,6 +28,9 @@ export { useUserBookingsStore } from './userBookingsStore';
 // Ticket validation
 export { useTicketStore } from './ticketStore';
 
+// Multi-stop trip management
+export { useMultiStopStore } from './multiStopStore';
+
 // ========================================
 // AUTHENTICATION AND USER MANAGEMENT
 // ========================================

@@ -1,5 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  ActivityIndicator,
+  Pressable,
+} from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useTripManagement } from '@/hooks/useTripManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
@@ -20,6 +28,8 @@ import {
   Settings,
   Users,
   RefreshCw,
+  DollarSign,
+  Edit,
 } from 'lucide-react-native';
 
 // Components
@@ -29,6 +39,13 @@ import Dropdown from '@/components/admin/Dropdown';
 import DatePicker from '@/components/admin/DatePicker';
 import TimePicker from '@/components/admin/TimePicker';
 import Switch from '@/components/admin/Switch';
+import TripRouteInfo from '@/components/admin/trips/TripRouteInfo';
+import TripFareEditor from '@/components/admin/trips/TripFareEditor';
+import { getMultiStopRoute } from '@/utils/multiStopRouteUtils';
+import type {
+  RouteSegmentFare,
+  TripFareOverride,
+} from '@/types/multiStopRoute';
 
 type TripFormData = AdminManagement.TripFormData;
 
@@ -134,12 +151,41 @@ export default function TripForm({
   >('idle');
   const [rearrangementPreview, setRearrangementPreview] = useState<any[]>([]);
 
+  // Fare editing state
+  const [showFareEditor, setShowFareEditor] = useState(false);
+  const [routeSegmentFares, setRouteSegmentFares] = useState<
+    RouteSegmentFare[]
+  >([]);
+  const [tripFareOverrides, setTripFareOverrides] = useState<
+    TripFareOverride[]
+  >([]);
+  const [loadingSegmentData, setLoadingSegmentData] = useState(false);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+
   // Load routes, vessels, and users on component mount
   useEffect(() => {
-    loadRoutes();
-    loadVessels();
-    fetchUsers();
+    const loadData = async () => {
+      try {
+        await Promise.all([loadRoutes(), loadVessels(), fetchUsers()]);
+        setInitialDataLoaded(true);
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        setInitialDataLoaded(true); // Set to true even on error to prevent infinite loading
+      }
+    };
+
+    loadData();
   }, []);
+
+  // Load segment data when route changes
+  useEffect(() => {
+    if (formData.route_id) {
+      loadSegmentData(formData.route_id);
+    } else {
+      setRouteSegmentFares([]);
+      setTripFareOverrides([]);
+    }
+  }, [formData.route_id]);
 
   // Initialize original vessel ID for change detection
   useEffect(() => {
@@ -214,6 +260,87 @@ export default function TripForm({
     const timeoutId = setTimeout(detectVesselChange, 300);
     return () => clearTimeout(timeoutId);
   }, [formData.vessel_id, originalVesselId, tripId]);
+
+  // Load segment data for fare editing
+  const loadSegmentData = async (routeId: string) => {
+    setLoadingSegmentData(true);
+    try {
+      console.log('Loading segment data for route:', routeId);
+      const multiRoute = await getMultiStopRoute(routeId);
+      console.log('Multi-route data:', multiRoute);
+
+      if (multiRoute && multiRoute.segment_fares) {
+        console.log('Setting segment fares:', multiRoute.segment_fares);
+        setRouteSegmentFares(multiRoute.segment_fares);
+      } else {
+        console.log('No segment fares found for route');
+        setRouteSegmentFares([]);
+      }
+
+      // Load existing trip fare overrides if editing
+      if (tripId) {
+        console.log('Loading trip fare overrides for trip:', tripId);
+        const { data: overrides, error } = await supabase
+          .from('trip_fare_overrides')
+          .select('*')
+          .eq('trip_id', tripId);
+
+        if (error) {
+          console.error('Error loading trip fare overrides:', error);
+        } else {
+          console.log('Trip fare overrides:', overrides);
+          setTripFareOverrides(overrides || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading segment data:', error);
+    } finally {
+      setLoadingSegmentData(false);
+    }
+  };
+
+  // Fare editing handlers
+  const handleOpenFareEditor = () => {
+    setShowFareEditor(true);
+  };
+
+  const handleSaveFareOverrides = async (overrides: TripFareOverride[]) => {
+    try {
+      if (tripId) {
+        // Delete existing overrides
+        await supabase
+          .from('trip_fare_overrides')
+          .delete()
+          .eq('trip_id', tripId);
+
+        // Insert new overrides
+        if (overrides.length > 0) {
+          const { error } = await supabase.from('trip_fare_overrides').insert(
+            overrides.map(o => ({
+              trip_id: tripId,
+              from_stop_id: o.from_stop_id,
+              to_stop_id: o.to_stop_id,
+              override_fare_amount: o.override_fare_amount,
+              reason: o.reason,
+            }))
+          );
+
+          if (error) throw error;
+        }
+      }
+
+      setTripFareOverrides(overrides);
+      setShowFareEditor(false);
+      Alert.alert('Success', 'Fare overrides saved successfully');
+    } catch (error) {
+      console.error('Error saving fare overrides:', error);
+      Alert.alert('Error', 'Failed to save fare overrides');
+    }
+  };
+
+  const handleCancelFareEditor = () => {
+    setShowFareEditor(false);
+  };
 
   // Generate seat rearrangement preview
   const generateSeatRearrangementPreview = useCallback(
@@ -588,10 +715,10 @@ export default function TripForm({
         vessel_id: formData.vessel_id,
         travel_date: formData.travel_date,
         departure_time: formData.departure_time,
-        arrival_time: formData.arrival_time,
+        arrival_time: formData.arrival_time?.trim() || undefined,
         status: formData.status,
         fare_multiplier: formData.fare_multiplier,
-        captain_id: formData.captain_id,
+        captain_id: formData.captain_id?.trim() || undefined,
         is_active: formData.is_active,
         // Note: delay_reason, weather_conditions, notes, and crew_ids are not in the trips table
         // These fields need to be handled separately or added to the database schema
@@ -812,17 +939,27 @@ export default function TripForm({
     }
   };
 
-  const routeOptions = (routes || []).map(route => ({
-    label: route.name || `${route.from_island_name} → ${route.to_island_name}`,
-    value: route.id,
-  }));
-
-  const vesselOptions = (vessels || [])
-    .filter(vessel => vessel.is_active)
-    .map(vessel => ({
-      label: `${vessel.name} (${vessel.seating_capacity} seats)`,
-      value: vessel.id,
+  // Safely generate route options
+  const routeOptions = useMemo(() => {
+    if (!routes || routes.length === 0) return [];
+    return routes.map(route => ({
+      label:
+        route.name ||
+        `${route.from_island_name || 'Unknown'} → ${route.to_island_name || 'Unknown'}`,
+      value: route.id,
     }));
+  }, [routes]);
+
+  // Safely generate vessel options
+  const vesselOptions = useMemo(() => {
+    if (!vessels || vessels.length === 0) return [];
+    return vessels
+      .filter(vessel => vessel.is_active)
+      .map(vessel => ({
+        label: `${vessel.name} (${vessel.seating_capacity || 0} seats)`,
+        value: vessel.id,
+      }));
+  }, [vessels]);
 
   const statusOptions = [
     { label: 'Scheduled', value: 'scheduled' },
@@ -843,10 +980,15 @@ export default function TripForm({
       })),
   ];
 
-  if (loading || tripLoading.data) {
+  if (loading || tripLoading.data || !initialDataLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading trip data...</Text>
+        <ActivityIndicator size='large' color={colors.primary} />
+        <Text style={styles.loadingText}>
+          {loading || tripLoading.data
+            ? 'Loading trip data...'
+            : 'Loading routes and vessels...'}
+        </Text>
       </View>
     );
   }
@@ -896,6 +1038,48 @@ export default function TripForm({
               required
             />
           </View>
+
+          {/* Show multi-stop route info if applicable */}
+          {formData.route_id && (
+            <TripRouteInfo
+              routeId={formData.route_id}
+              showOverrideOption={routeSegmentFares.length > 0}
+              onOverrideFares={handleOpenFareEditor}
+            />
+          )}
+
+          {/* Fare editing section */}
+          {routeSegmentFares.length > 0 && (
+            <View style={styles.fareSection}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderIcon}>
+                  <DollarSign size={20} color={colors.primary} />
+                </View>
+                <Text style={styles.sectionTitle}>Segment Fares</Text>
+              </View>
+
+              <View style={styles.fareInfo}>
+                <Text style={styles.fareInfoText}>
+                  {routeSegmentFares.length} segment
+                  {routeSegmentFares.length > 1 ? 's' : ''} configured
+                  {tripFareOverrides.length > 0 && (
+                    <Text style={styles.overrideText}>
+                      {' '}
+                      ({tripFareOverrides.length} overridden)
+                    </Text>
+                  )}
+                </Text>
+
+                <Pressable
+                  style={styles.editFaresButton}
+                  onPress={handleOpenFareEditor}
+                >
+                  <Edit size={14} color='#FFFFFF' />
+                  <Text style={styles.editFaresText}>Edit Fares</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
 
           <View style={styles.formGroup}>
             <Dropdown
@@ -1284,6 +1468,16 @@ export default function TripForm({
           </View>
         )}
       </ScrollView>
+
+      {/* Fare Editor Modal */}
+      <TripFareEditor
+        routeSegmentFares={routeSegmentFares}
+        existingOverrides={tripFareOverrides}
+        onSave={handleSaveFareOverrides}
+        onCancel={handleCancelFareEditor}
+        visible={showFareEditor}
+        title={tripId ? 'Edit Trip Fares' : 'Set Trip Fares'}
+      />
     </View>
   );
 }
@@ -1648,5 +1842,53 @@ const styles = StyleSheet.create({
     color: colors.error,
     fontWeight: '600',
     flex: 1,
+  },
+  // Fare editing styles
+  fareSection: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  fareInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  fareInfoText: {
+    fontSize: 14,
+    color: colors.text,
+    flex: 1,
+  },
+  overrideText: {
+    color: colors.warning,
+    fontWeight: '600',
+  },
+  editFaresButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  editFaresText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

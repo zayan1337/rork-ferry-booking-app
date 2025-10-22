@@ -129,8 +129,8 @@ const initialState: RouteStoreState = {
 const processRouteData = (route: any): Route => ({
   id: route.id,
   name: route.name,
-  from_island_id: route.from_island_id,
-  to_island_id: route.to_island_id,
+  from_island_id: route.from_island_id || null,
+  to_island_id: route.to_island_id || null,
   base_fare: route.base_fare,
   distance: route.distance,
   duration: route.duration,
@@ -140,11 +140,15 @@ const processRouteData = (route: any): Route => ({
   created_at: route.created_at,
   updated_at: route.updated_at,
 
-  // Island information
+  // Island information (from joins/stops)
   from_island_name: route.from_island_name || route.origin,
   to_island_name: route.to_island_name || route.destination,
   origin: route.from_island_name || route.origin,
   destination: route.to_island_name || route.destination,
+
+  // Multi-stop information
+  total_stops: route.total_stops || route.actual_stops_count || 2,
+  total_segments: route.total_segments || route.segment_fares_count || 1,
 
   // Statistics
   total_trips_30d: route.total_trips_30d || 0,
@@ -168,6 +172,7 @@ const validateRouteFormData = (
 ): ValidationResult => {
   const errors: Record<string, string> = {};
 
+  // Name validation
   if (!data.name?.trim()) {
     errors.name = 'Route name is required';
   } else if (data.name.trim().length < 2) {
@@ -176,30 +181,55 @@ const validateRouteFormData = (
     errors.name = 'Route name must be less than 200 characters';
   }
 
-  if (!data.from_island_id?.trim()) {
-    errors.from_island_id = 'Origin island is required';
-  }
-
-  if (!data.to_island_id?.trim()) {
-    errors.to_island_id = 'Destination island is required';
-  }
-
-  if (
-    data.from_island_id &&
-    data.to_island_id &&
-    data.from_island_id === data.to_island_id
-  ) {
-    errors.route = 'Origin and destination cannot be the same island';
-  }
-
+  // Base fare validation
   if (data.base_fare !== undefined) {
-    if (data.base_fare < 0) {
+    if (data.base_fare <= 0) {
       errors.base_fare = 'Base fare must be positive';
     } else if (data.base_fare > 10000) {
       errors.base_fare = 'Base fare seems too high';
     }
   }
 
+  // Route stops validation (ALL routes must have stops)
+  if (!data.route_stops || data.route_stops.length < 2) {
+    errors.route_stops = 'Route must have at least 2 stops';
+  } else {
+    // Check for duplicate islands
+    const islandIds = data.route_stops
+      .map(stop => stop.island_id)
+      .filter(Boolean);
+    const uniqueIslands = new Set(islandIds);
+    if (islandIds.length !== uniqueIslands.size) {
+      errors.route_stops = 'Each stop must have a different island';
+    }
+
+    // Check for empty islands
+    const emptyStops = data.route_stops.filter(stop => !stop.island_id);
+    if (emptyStops.length > 0) {
+      errors.route_stops = 'All stops must have an island selected';
+    }
+
+    // Validate first stop allows pickup
+    if (data.route_stops[0].stop_type === 'dropoff') {
+      errors.route_stops = 'First stop must allow passenger pickup';
+    }
+
+    // Validate last stop allows dropoff
+    const lastStop = data.route_stops[data.route_stops.length - 1];
+    if (lastStop.stop_type === 'pickup') {
+      errors.route_stops = 'Last stop must allow passenger dropoff';
+    }
+  }
+
+  // Segment fares validation
+  if (data.segment_fares && data.segment_fares.length > 0) {
+    const invalidFares = data.segment_fares.filter(f => f.fare_amount < 0);
+    if (invalidFares.length > 0) {
+      errors.segment_fares = 'All segment fares must be non-negative';
+    }
+  }
+
+  // Optional field validations
   if (data.distance && data.distance.length > 50) {
     errors.distance = 'Distance must be less than 50 characters';
   }
@@ -236,9 +266,9 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
     }));
 
     try {
-      // Use the same query structure as existing operationsService
+      // Use the new routes_with_stops_view which includes multi-stop data
       const { data: routes, error } = await supabase
-        .from('routes_stats_view')
+        .from('routes_with_stops_view')
         .select('*')
         .order('name', { ascending: true });
 
@@ -270,7 +300,7 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
 
     try {
       const { data: route, error } = await supabase
-        .from('routes_stats_view')
+        .from('routes_with_stops_view')
         .select('*')
         .eq('id', id)
         .single();
@@ -353,10 +383,24 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
 
   fetchRoutesByIsland: async (islandId: string) => {
     try {
+      // For multi-stop routes, we need to check if the island appears in any stop
+      const { data: routeStops, error: stopsError } = await supabase
+        .from('route_stops')
+        .select('route_id')
+        .eq('island_id', islandId);
+
+      if (stopsError) throw stopsError;
+
+      const routeIds = [...new Set((routeStops || []).map(s => s.route_id))];
+
+      if (routeIds.length === 0) {
+        return [];
+      }
+
       const { data: routes, error } = await supabase
-        .from('routes_stats_view')
+        .from('routes_with_stops_view')
         .select('*')
-        .or(`from_island_id.eq.${islandId},to_island_id.eq.${islandId}`)
+        .in('id', routeIds)
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -384,69 +428,55 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
         throw new Error(Object.values(validation.errors)[0]);
       }
 
-      // Check for existing route with same island combination (optimized query)
-      const { data: existingRoute, error: checkError } = await supabase
-        .from('routes')
-        .select('id')
-        .eq('from_island_id', data.from_island_id)
-        .eq('to_island_id', data.to_island_id)
-        .limit(1);
+      // Prepare stops data (ensure proper sequencing)
+      const stopsData = (data.route_stops || []).map((stop, index) => ({
+        island_id: stop.island_id,
+        stop_type: stop.stop_type,
+        estimated_travel_time: index === 0 ? null : stop.estimated_travel_time,
+        notes: stop.notes || null,
+      }));
 
-      if (checkError) {
-        throw checkError;
-      }
+      // Prepare segment fares data
+      const segmentFaresData = (data.segment_fares || []).map(fare => ({
+        from_index: fare.from_index,
+        to_index: fare.to_index,
+        fare_amount: fare.fare_amount,
+      }));
 
-      if (existingRoute && existingRoute.length > 0) {
-        throw new Error('A route already exists between these islands.');
-      }
+      // Call database function for atomic route creation
+      const { data: routeId, error: createError } = await supabase.rpc(
+        'create_multi_stop_route',
+        {
+          p_name: data.name.trim(),
+          p_base_fare: data.base_fare,
+          p_distance: data.distance?.trim() || null,
+          p_duration: data.duration?.trim() || null,
+          p_description: data.description?.trim() || null,
+          p_status: data.status,
+          p_is_active: data.is_active,
+          p_stops: stopsData,
+          p_segment_fares: segmentFaresData,
+        }
+      );
 
-      // Create route and get stats in a single optimized query
-      const { data: newRoute, error } = await supabase
-        .from('routes')
-        .insert([
-          {
-            name: data.name.trim(),
-            from_island_id: data.from_island_id,
-            to_island_id: data.to_island_id,
-            base_fare: data.base_fare,
-            distance: data.distance?.trim(),
-            duration: data.duration?.trim(),
-            description: data.description?.trim(),
-            status: data.status,
-            is_active: data.is_active,
-          },
-        ])
+      if (createError) throw createError;
+
+      // Fetch the created route with full details
+      const { data: newRoute, error: fetchError } = await supabase
+        .from('routes_with_stops_view')
         .select('*')
+        .eq('id', routeId)
         .single();
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
 
-      // Create a basic route object with default stats (no need for expensive stats view query)
-      const processedRoute = processRouteData({
-        ...newRoute,
-        // Set default stats for new route
-        total_trips_30d: 0,
-        total_bookings_30d: 0,
-        total_revenue_30d: 0,
-        average_occupancy_30d: 0,
-        cancellation_rate_30d: 0,
-        popularity_score: 0,
-        trips_today: 0,
-        trips_7d: 0,
-        bookings_today: 0,
-        bookings_7d: 0,
-        revenue_today: 0,
-        revenue_7d: 0,
-        on_time_performance_30d: 0,
-        avg_delay_minutes_30d: 0,
-      });
+      const processedRoute = processRouteData(newRoute);
 
       set(state => ({
         data: [processedRoute, ...state.data],
         loading: { ...state.loading, creating: false },
       }));
 
-      // Update stats efficiently without recalculating everything
       get().updateStatsAfterCreate(processedRoute);
       return processedRoute;
     } catch (error) {
@@ -475,30 +505,78 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
         }
       }
 
-      const updateData: any = {};
-      if (data.name !== undefined) updateData.name = data.name.trim();
-      if (data.from_island_id !== undefined)
-        updateData.from_island_id = data.from_island_id;
-      if (data.to_island_id !== undefined)
-        updateData.to_island_id = data.to_island_id;
-      if (data.base_fare !== undefined) updateData.base_fare = data.base_fare;
-      if (data.distance !== undefined)
-        updateData.distance = data.distance?.trim();
-      if (data.duration !== undefined)
-        updateData.duration = data.duration?.trim();
-      if (data.description !== undefined)
-        updateData.description = data.description?.trim();
-      if (data.status !== undefined) updateData.status = data.status;
-      if (data.is_active !== undefined) updateData.is_active = data.is_active;
+      // Check if we need to update stops or segment fares
+      if (data.route_stops || data.segment_fares) {
+        // Use RPC function for complete route update including stops and fares
+        const stopsData = data.route_stops
+          ? data.route_stops.map((stop, index) => ({
+              island_id: stop.island_id,
+              stop_type: stop.stop_type,
+              estimated_travel_time:
+                index === 0 ? null : stop.estimated_travel_time,
+              notes: stop.notes || null,
+            }))
+          : undefined;
 
-      const { data: updatedRoute, error } = await supabase
-        .from('routes')
-        .update(updateData)
-        .eq('id', id)
+        const segmentFaresData = data.segment_fares
+          ? data.segment_fares.map(fare => ({
+              from_index: fare.from_index,
+              to_index: fare.to_index,
+              fare_amount: fare.fare_amount,
+            }))
+          : undefined;
+
+        const { error: updateError } = await supabase.rpc(
+          'update_multi_stop_route',
+          {
+            p_route_id: id,
+            p_name: data.name?.trim(),
+            p_base_fare: data.base_fare,
+            p_distance: data.distance?.trim() || null,
+            p_duration: data.duration?.trim() || null,
+            p_description: data.description?.trim() || null,
+            p_status: data.status,
+            p_is_active: data.is_active,
+            p_stops: stopsData,
+            p_segment_fares: segmentFaresData,
+          }
+        );
+
+        if (updateError) throw updateError;
+      } else {
+        // Simple update of basic route fields only
+        const updateData: any = {};
+        if (data.name !== undefined) updateData.name = data.name.trim();
+        if (data.from_island_id !== undefined)
+          updateData.from_island_id = data.from_island_id;
+        if (data.to_island_id !== undefined)
+          updateData.to_island_id = data.to_island_id;
+        if (data.base_fare !== undefined) updateData.base_fare = data.base_fare;
+        if (data.distance !== undefined)
+          updateData.distance = data.distance?.trim();
+        if (data.duration !== undefined)
+          updateData.duration = data.duration?.trim();
+        if (data.description !== undefined)
+          updateData.description = data.description?.trim();
+        if (data.status !== undefined) updateData.status = data.status;
+        if (data.is_active !== undefined) updateData.is_active = data.is_active;
+
+        const { error } = await supabase
+          .from('routes')
+          .update(updateData)
+          .eq('id', id);
+
+        if (error) throw error;
+      }
+
+      // Fetch updated route data
+      const { data: updatedRoute, error: fetchError } = await supabase
+        .from('routes_with_stops_view')
         .select('*')
+        .eq('id', id)
         .single();
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
 
       // Get existing route data and merge with updates (avoid expensive stats view query)
       const existingRoute = get().data.find(route => route.id === id);

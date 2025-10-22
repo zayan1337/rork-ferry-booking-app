@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
 import {
   Stack,
@@ -11,18 +11,76 @@ import { TripForm } from '@/components/admin/operations';
 import { AdminManagement } from '@/types';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { ArrowLeft } from 'lucide-react-native';
+import { supabase } from '@/utils/supabase';
 
 type TripFormData = AdminManagement.TripFormData;
 
 export default function NewTripPage() {
   const { canManageTrips } = useAdminPermissions();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validatedInitialData, setValidatedInitialData] = useState<{
+    route_id?: string;
+    vessel_id?: string;
+  }>({});
   const params = useLocalSearchParams();
 
-  // Extract pre-fill data from query parameters
-  const initialData = {
-    route_id: (params.route_id as string) || '',
-    vessel_id: (params.vessel_id as string) || '',
+  // Route and vessel selection:
+  // - TripForm loads all routes/vessels from database
+  // - Supports both simple (2-stop) and multi-stop routes
+  // - Query params (route_id, vessel_id) are validated before pre-filling
+  // - If no params or invalid, user selects from database dropdown
+
+  // Validate query parameters against database
+  useEffect(() => {
+    validateInitialData();
+  }, [params.route_id, params.vessel_id]);
+
+  const validateInitialData = async () => {
+    const data: { route_id?: string; vessel_id?: string } = {};
+
+    // Validate route_id if provided
+    if (params.route_id && typeof params.route_id === 'string') {
+      try {
+        const { data: route, error } = await supabase
+          .from('routes')
+          .select('id, name, is_active')
+          .eq('id', params.route_id)
+          .eq('is_active', true)
+          .single();
+
+        if (!error && route) {
+          data.route_id = params.route_id;
+          console.log('Pre-selected route:', route.name);
+        } else {
+          console.warn('Route not found or inactive:', params.route_id);
+        }
+      } catch (error) {
+        console.error('Error validating route:', error);
+      }
+    }
+
+    // Validate vessel_id if provided
+    if (params.vessel_id && typeof params.vessel_id === 'string') {
+      try {
+        const { data: vessel, error } = await supabase
+          .from('vessels')
+          .select('id, name, is_active')
+          .eq('id', params.vessel_id)
+          .eq('is_active', true)
+          .single();
+
+        if (!error && vessel) {
+          data.vessel_id = params.vessel_id;
+          console.log('Pre-selected vessel:', vessel.name);
+        } else {
+          console.warn('Vessel not found or inactive:', params.vessel_id);
+        }
+      } catch (error) {
+        console.error('Error validating vessel:', error);
+      }
+    }
+
+    setValidatedInitialData(data);
   };
 
   // Reset state when page is focused
@@ -37,7 +95,11 @@ export default function NewTripPage() {
 
     setIsSubmitting(true);
     try {
-      // The TripForm component now handles validation and creation
+      // TripForm component handles:
+      // - Loading all active routes from database (including multi-stop routes)
+      // - Loading all active vessels from database
+      // - Validation and trip creation
+      // - Multi-stop route segment information
       Alert.alert('Success', 'Trip created successfully!', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -86,7 +148,7 @@ export default function NewTripPage() {
       <TripForm
         onSave={handleSave}
         onCancel={handleCancel}
-        initialData={initialData}
+        initialData={validatedInitialData}
       />
     </View>
   );

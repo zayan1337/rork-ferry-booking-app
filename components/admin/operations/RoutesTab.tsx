@@ -91,6 +91,7 @@ export default function RoutesTab({
 
   const handleAddRoute = () => {
     if (canManageRoutes()) {
+      // Go directly to the unified route form
       router.push('../route/new' as any);
     } else {
       Alert.alert(
@@ -165,10 +166,22 @@ export default function RoutesTab({
                   {route.name || 'Unknown Route'}
                 </Text>
                 <Text style={styles.routeDetails}>
-                  {route.from_island_name || route.origin || 'Unknown'} →{' '}
-                  {route.to_island_name || route.destination || 'Unknown'}
+                  {route.from_island_name || 'Unknown'} → ... →{' '}
+                  {route.to_island_name || 'Unknown'}
                 </Text>
-                <Text style={styles.routeFare}>MVR {route.base_fare || 0}</Text>
+                <View style={styles.routeMetaRow}>
+                  <Text style={styles.routeMeta}>
+                    {route.total_stops || 0} stops
+                  </Text>
+                  <Text style={styles.routeMetaSeparator}>•</Text>
+                  <Text style={styles.routeMeta}>
+                    {route.total_segments || 0} segments
+                  </Text>
+                  <Text style={styles.routeMetaSeparator}>•</Text>
+                  <Text style={styles.routeMeta}>
+                    {route.distance || 'N/A km'}
+                  </Text>
+                </View>
               </View>
               <View style={styles.routeStats}>
                 <View
@@ -272,10 +285,20 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 4,
   },
-  routeFare: {
-    fontSize: 14,
+  routeMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  routeMeta: {
+    fontSize: 12,
+    color: colors.textSecondary,
     fontWeight: '500',
-    color: colors.primary,
+  },
+  routeMetaSeparator: {
+    fontSize: 12,
+    color: colors.textTertiary,
   },
   routeStats: {
     alignItems: 'flex-end',

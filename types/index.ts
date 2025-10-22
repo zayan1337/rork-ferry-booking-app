@@ -202,3 +202,46 @@ export * from './content';
 
 // Terms and Conditions types - explicit re-export to avoid conflicts
 export type { TermsAndConditions as Terms, TermsStore } from './terms';
+
+// Multi-Stop Trip types - explicit exports to avoid conflicts
+export type {
+  MultiStopTrip,
+  TripStop,
+  TripStopFormData,
+  MultiStopTripFormData,
+  StopType,
+  StopStatus,
+  StopOption,
+  MultiStopBooking,
+  BookingStops,
+  StopFare,
+  AvailableSegment,
+  SegmentSelection,
+  StopValidationResult,
+  SegmentValidationResult,
+  StopPassengerInfo,
+  CaptainTripProgress,
+  StopStatistics,
+  MultiStopTripStatistics,
+} from './multiStopTrip';
+
+export type {
+  MultiStopRoute,
+  RouteStop,
+  RouteStopFormData,
+  MultiStopRouteFormData,
+  RouteSegmentFare,
+  TripFareOverride,
+  RouteSegmentFareFormData,
+  TripFareOverrideFormData,
+  RouteSegment,
+  AvailableRouteSegment,
+  RouteWithStopsResponse,
+  RouteSegmentFaresResponse,
+  FareMatrix,
+  RouteStopValidation,
+  FareCalculationOptions,
+  CalculatedSegmentFare,
+  TripWithRouteStops,
+  BookingSegmentInfo,
+} from './multiStopRoute';

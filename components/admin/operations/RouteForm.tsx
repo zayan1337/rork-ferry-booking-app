@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  Pressable,
+} from 'react-native';
 import { colors } from '@/constants/adminColors';
-// UPDATED: Use new route management hook and types
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useIslandStore } from '@/store/admin/islandStore';
 import { AdminManagement } from '@/types';
@@ -12,9 +18,13 @@ import {
   Save,
   RotateCcw,
   Info,
-  Activity,
-  Navigation,
+  Plus,
+  Trash2,
+  DollarSign,
+  Sparkles,
   Settings,
+  Ship,
+  Flag,
 } from 'lucide-react-native';
 
 // Components
@@ -23,6 +33,7 @@ import UnitInput from '@/components/admin/UnitInput';
 import Button from '@/components/admin/Button';
 import Dropdown from '@/components/admin/Dropdown';
 import Switch from '@/components/admin/Switch';
+import Input from '@/components/Input';
 
 type RouteFormData = AdminManagement.RouteFormData;
 
@@ -32,28 +43,32 @@ interface RouteFormProps {
   onCancel?: () => void;
 }
 
+interface RouteStopData {
+  id: string; // Temporary UI ID or database ID
+  island_id: string;
+  stop_type: 'pickup' | 'dropoff' | 'both';
+  estimated_travel_time_from_previous: number | null;
+  notes?: string;
+}
+
 interface FormData {
   name: string;
-  from_island_id: string;
-  to_island_id: string;
   base_fare: number;
   distance: string;
   duration: string;
   description: string;
   status: 'active' | 'inactive' | 'maintenance';
   is_active: boolean;
+  route_stops: RouteStopData[];
+  segment_fares: Map<string, number>;
 }
 
 interface ValidationErrors {
   name?: string;
-  from_island_id?: string;
-  to_island_id?: string;
   base_fare?: string;
-  distance?: string;
-  duration?: string;
-  description?: string;
+  route_stops?: string;
+  segment_fares?: string;
   general?: string;
-  route?: string;
 }
 
 export default function RouteForm({
@@ -61,7 +76,6 @@ export default function RouteForm({
   onSave,
   onCancel,
 }: RouteFormProps) {
-  // UPDATED: Use new route management hook and island store
   const {
     routes,
     getById,
@@ -71,19 +85,18 @@ export default function RouteForm({
   } = useRouteManagement();
   const { data: islands, fetchAll: fetchIslands } = useIslandStore();
 
-  // Find current route data for editing
   const currentRoute = routeId ? getById(routeId) : null;
 
   const [formData, setFormData] = useState<FormData>({
     name: currentRoute?.name || '',
-    from_island_id: currentRoute?.from_island_id || '',
-    to_island_id: currentRoute?.to_island_id || '',
-    base_fare: currentRoute?.base_fare || 0,
+    base_fare: currentRoute?.base_fare || 50,
     distance: currentRoute?.distance || '',
     duration: currentRoute?.duration || '',
     description: currentRoute?.description || '',
     status: currentRoute?.status || 'active',
     is_active: currentRoute?.is_active ?? true,
+    route_stops: [],
+    segment_fares: new Map(),
   });
 
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
@@ -91,89 +104,341 @@ export default function RouteForm({
   );
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [initialStopsSnapshot, setInitialStopsSnapshot] = useState<string>('');
+  const [initialFaresSnapshot, setInitialFaresSnapshot] = useState<string>('');
 
-  // Fetch islands on component mount
+  // Load islands on mount
   useEffect(() => {
     if (!islands || islands.length === 0) {
       fetchIslands();
     }
   }, []);
 
+  // Initialize form data
+  useEffect(() => {
+    if (currentRoute && routeId) {
+      initializeFormData();
+    } else if (!routeId) {
+      initializeNewRoute();
+    }
+  }, [routeId, currentRoute]);
+
+  const initializeFormData = async () => {
+    if (!routeId) return;
+
+    setLoading(true);
+    try {
+      // Import the utility functions
+      const { getRouteStops, getRouteSegmentFares } = await import(
+        '@/utils/multiStopRouteUtils'
+      );
+
+      // Load route stops from database
+      const stops = await getRouteStops(routeId);
+
+      // Load segment fares from database
+      const fares = await getRouteSegmentFares(routeId);
+
+      // Convert stops to form data format
+      const routeStops: RouteStopData[] = stops.map((stop, index) => ({
+        id: stop.id,
+        island_id: stop.island_id,
+        stop_type: stop.stop_type as 'pickup' | 'dropoff' | 'both',
+        estimated_travel_time_from_previous:
+          stop.estimated_travel_time_from_previous,
+        notes: stop.notes || '',
+      }));
+
+      // Convert fares to Map format
+      const segmentFares = new Map<string, number>();
+      fares.forEach(fare => {
+        // Find the index of from and to stops
+        const fromIndex = stops.findIndex(s => s.id === fare.from_stop_id);
+        const toIndex = stops.findIndex(s => s.id === fare.to_stop_id);
+
+        if (fromIndex !== -1 && toIndex !== -1) {
+          const key = `${fromIndex}-${toIndex}`;
+          segmentFares.set(key, fare.fare_amount);
+        }
+      });
+
+      // Update form data with loaded data
+      setFormData(prev => {
+        const newStops = routeStops.length > 0 ? routeStops : prev.route_stops;
+        const newFares =
+          segmentFares.size > 0 ? segmentFares : prev.segment_fares;
+
+        // Create snapshots of initial state for change detection
+        setInitialStopsSnapshot(JSON.stringify(newStops));
+        setInitialFaresSnapshot(
+          JSON.stringify(Array.from(newFares.entries()).sort())
+        );
+
+        return {
+          ...prev,
+          name: currentRoute?.name || prev.name,
+          base_fare: currentRoute?.base_fare || prev.base_fare,
+          distance: currentRoute?.distance || prev.distance,
+          duration: currentRoute?.duration || prev.duration,
+          description: currentRoute?.description || prev.description,
+          status: currentRoute?.status || prev.status,
+          is_active: currentRoute?.is_active ?? prev.is_active,
+          route_stops: newStops,
+          segment_fares: newFares,
+        };
+      });
+    } catch (error) {
+      console.error('Error loading route data:', error);
+      Alert.alert(
+        'Error Loading Route',
+        'Failed to load route stops and fares. Please try again.'
+      );
+      // Initialize with default data as fallback
+      setFormData(prev => ({
+        ...prev,
+        route_stops: [
+          {
+            id: 'stop_1',
+            island_id: '',
+            stop_type: 'pickup',
+            estimated_travel_time_from_previous: null,
+            notes: '',
+          },
+          {
+            id: 'stop_2',
+            island_id: '',
+            stop_type: 'dropoff',
+            estimated_travel_time_from_previous: 30,
+            notes: '',
+          },
+        ],
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const initializeNewRoute = () => {
+    setFormData(prev => ({
+      ...prev,
+      route_stops: [
+        {
+          id: `stop_${Date.now()}_1`,
+          island_id: '',
+          stop_type: 'pickup',
+          estimated_travel_time_from_previous: null,
+          notes: '',
+        },
+        {
+          id: `stop_${Date.now()}_2`,
+          island_id: '',
+          stop_type: 'dropoff',
+          estimated_travel_time_from_previous: 30,
+          notes: '',
+        },
+      ],
+    }));
+  };
+
   // Track form changes
   useEffect(() => {
     if (currentRoute) {
-      const hasFormChanges =
+      // Check basic field changes
+      const hasBasicChanges =
         formData.name !== (currentRoute.name || '') ||
-        formData.from_island_id !== (currentRoute.from_island_id || '') ||
-        formData.to_island_id !== (currentRoute.to_island_id || '') ||
         formData.base_fare !== (currentRoute.base_fare || 0) ||
         formData.distance !== (currentRoute.distance || '') ||
         formData.duration !== (currentRoute.duration || '') ||
         formData.description !== (currentRoute.description || '') ||
         formData.status !== (currentRoute.status || 'active') ||
         formData.is_active !== (currentRoute.is_active ?? true);
-      setHasChanges(hasFormChanges);
+
+      // Check if stops have changed by comparing snapshots
+      const currentStopsSnapshot = JSON.stringify(formData.route_stops);
+      const hasStopsChanges =
+        initialStopsSnapshot !== '' &&
+        currentStopsSnapshot !== initialStopsSnapshot;
+
+      // Check if fares have changed by comparing snapshots
+      const currentFaresSnapshot = JSON.stringify(
+        Array.from(formData.segment_fares.entries()).sort()
+      );
+      const hasFaresChanges =
+        initialFaresSnapshot !== '' &&
+        currentFaresSnapshot !== initialFaresSnapshot;
+
+      setHasChanges(hasBasicChanges || hasStopsChanges || hasFaresChanges);
     } else {
+      // For new routes
       const hasFormChanges =
         formData.name.trim() !== '' ||
-        formData.from_island_id !== '' ||
-        formData.to_island_id !== '' ||
-        formData.base_fare !== 0 ||
+        formData.base_fare !== 50 ||
         formData.distance.trim() !== '' ||
         formData.duration.trim() !== '' ||
         formData.description.trim() !== '' ||
-        formData.status !== 'active' ||
-        formData.is_active !== true;
+        formData.route_stops.length > 0 ||
+        formData.segment_fares.size > 0;
       setHasChanges(hasFormChanges);
     }
-  }, [formData, currentRoute]);
+  }, [formData, currentRoute, initialStopsSnapshot, initialFaresSnapshot]);
+
+  // ========================================================================
+  // STOP MANAGEMENT
+  // ========================================================================
+
+  const addStop = () => {
+    setFormData(prev => {
+      const currentStops = [...prev.route_stops];
+
+      // If there are existing stops, update the previous last stop to 'both'
+      if (currentStops.length > 0) {
+        const lastIndex = currentStops.length - 1;
+        currentStops[lastIndex] = {
+          ...currentStops[lastIndex],
+          stop_type: 'both',
+        };
+      }
+
+      // Create new stop as the last stop (dropoff)
+      const newStop: RouteStopData = {
+        id: `stop_${Date.now()}`,
+        island_id: '',
+        stop_type: 'dropoff',
+        estimated_travel_time_from_previous: 30,
+        notes: '',
+      };
+
+      return {
+        ...prev,
+        route_stops: [...currentStops, newStop],
+      };
+    });
+  };
+
+  const removeStop = (stopId: string) => {
+    if (formData.route_stops.length <= 2) {
+      Alert.alert('Minimum Stops', 'A route must have at least 2 stops');
+      return;
+    }
+
+    setFormData(prev => {
+      const updatedStops = prev.route_stops.filter(s => s.id !== stopId);
+
+      // After removing, ensure the last stop is set to 'dropoff'
+      if (updatedStops.length > 0) {
+        const lastIndex = updatedStops.length - 1;
+        updatedStops[lastIndex] = {
+          ...updatedStops[lastIndex],
+          stop_type: 'dropoff',
+        };
+      }
+
+      return {
+        ...prev,
+        route_stops: updatedStops,
+      };
+    });
+  };
+
+  const updateStop = (stopId: string, updates: Partial<RouteStopData>) => {
+    setFormData(prev => ({
+      ...prev,
+      route_stops: prev.route_stops.map(s =>
+        s.id === stopId ? { ...s, ...updates } : s
+      ),
+    }));
+  };
+
+  const moveStop = (stopId: string, direction: 'up' | 'down') => {
+    const index = formData.route_stops.findIndex(s => s.id === stopId);
+    if (
+      (direction === 'up' && index === 0) ||
+      (direction === 'down' && index === formData.route_stops.length - 1)
+    ) {
+      return;
+    }
+
+    const newStops = [...formData.route_stops];
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    [newStops[index], newStops[swapIndex]] = [
+      newStops[swapIndex],
+      newStops[index],
+    ];
+
+    setFormData(prev => ({ ...prev, route_stops: newStops }));
+  };
+
+  // ========================================================================
+  // SEGMENT FARES
+  // ========================================================================
+
+  const autoGenerateFares = () => {
+    if (formData.route_stops.length < 2) {
+      Alert.alert('Not Enough Stops', 'Add at least 2 stops to generate fares');
+      return;
+    }
+
+    // Check if all stops have islands selected
+    const missingIslands = formData.route_stops.filter(s => !s.island_id);
+    if (missingIslands.length > 0) {
+      Alert.alert(
+        'Missing Islands',
+        'Please select an island for all stops before generating fares'
+      );
+      return;
+    }
+
+    const newFares = new Map<string, number>();
+    const stops = formData.route_stops;
+
+    // Generate fares for all valid segments
+    for (let i = 0; i < stops.length; i++) {
+      const fromStop = stops[i];
+      if (fromStop.stop_type === 'dropoff') continue;
+
+      for (let j = i + 1; j < stops.length; j++) {
+        const toStop = stops[j];
+        if (toStop.stop_type === 'pickup') continue;
+
+        const segments = j - i;
+        const fare = formData.base_fare * segments;
+        newFares.set(`${i}-${j}`, fare);
+      }
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      segment_fares: newFares,
+    }));
+
+    Alert.alert(
+      'Fares Generated',
+      `Generated ${newFares.size} segment fares based on MVR ${formData.base_fare} per segment`
+    );
+  };
+
+  const updateSegmentFare = (key: string, fare: number) => {
+    setFormData(prev => {
+      const newFares = new Map(prev.segment_fares);
+      newFares.set(key, fare);
+      return { ...prev, segment_fares: newFares };
+    });
+  };
+
+  // ========================================================================
+  // VALIDATION
+  // ========================================================================
 
   const validateForm = (): boolean => {
     const errors: ValidationErrors = {};
 
-    // Route name validation
+    // Name validation
     if (!formData.name.trim()) {
       errors.name = 'Route name is required';
     } else if (formData.name.trim().length < 3) {
-      errors.name = 'Route name must be at least 3 characters long';
+      errors.name = 'Route name must be at least 3 characters';
     } else if (formData.name.trim().length > 255) {
       errors.name = 'Route name must be less than 255 characters';
-    }
-
-    // Origin island validation
-    if (!formData.from_island_id) {
-      errors.from_island_id = 'Origin island is required';
-    }
-
-    // Destination island validation
-    if (!formData.to_island_id) {
-      errors.to_island_id = 'Destination island is required';
-    }
-
-    // Check for same origin and destination
-    if (
-      formData.from_island_id &&
-      formData.to_island_id &&
-      formData.from_island_id === formData.to_island_id
-    ) {
-      errors.to_island_id = 'Origin and destination islands must be different';
-    }
-
-    // Check for existing route between the same islands
-    if (formData.from_island_id && formData.to_island_id && !currentRoute) {
-      const existingRoute = routes.find(
-        route =>
-          route.from_island_id === formData.from_island_id &&
-          route.to_island_id === formData.to_island_id
-      );
-      if (existingRoute) {
-        const fromIsland =
-          islands?.find(i => i.id === formData.from_island_id)?.name ||
-          'Unknown';
-        const toIsland =
-          islands?.find(i => i.id === formData.to_island_id)?.name || 'Unknown';
-        errors.route = `A route already exists between ${fromIsland} and ${toIsland}. Please edit the existing route instead.`;
-      }
     }
 
     // Base fare validation
@@ -183,38 +448,44 @@ export default function RouteForm({
       errors.base_fare = 'Base fare seems too high (max: 10,000 MVR)';
     }
 
-    // Distance validation (optional but if provided should be valid)
-    if (
-      formData.distance.trim() &&
-      !/^[\d.]+\s*(km|mi|miles|kilometers?)$/i.test(formData.distance.trim())
-    ) {
-      errors.distance =
-        'Distance should be in format like "25 km" or "15 miles"';
+    // Stops validation
+    if (formData.route_stops.length < 2) {
+      errors.route_stops = 'Route must have at least 2 stops';
+    } else {
+      // Check for duplicate islands
+      const islandIds = formData.route_stops.map(s => s.island_id);
+      if (islandIds.some(id => !id)) {
+        errors.route_stops = 'All stops must have an island selected';
+      } else if (new Set(islandIds).size !== islandIds.length) {
+        errors.route_stops = 'Each stop must be at a different island';
+      }
+
+      // Check stop types
+      const firstStop = formData.route_stops[0];
+      const lastStop = formData.route_stops[formData.route_stops.length - 1];
+
+      if (firstStop.stop_type !== 'pickup' && firstStop.stop_type !== 'both') {
+        errors.route_stops =
+          'First stop must allow passenger pickup (pickup or both)';
+      }
+      if (lastStop.stop_type !== 'dropoff' && lastStop.stop_type !== 'both') {
+        errors.route_stops =
+          'Last stop must allow passenger dropoff (dropoff or both)';
+      }
     }
 
-    // Duration validation (optional but if provided should be valid)
-    if (
-      formData.duration.trim() &&
-      !/^[\d.]+\s*(min|mins|minutes?|hr|hrs|hours?)$/i.test(
-        formData.duration.trim()
-      )
-    ) {
-      errors.duration = 'Duration should be in format like "30 min" or "2 hrs"';
+    // Segment fares validation
+    if (formData.segment_fares.size === 0) {
+      errors.segment_fares = 'Please generate or add segment fares';
     }
-
-    // Description validation (optional but if provided should be reasonable length)
-    if (
-      formData.description.trim() &&
-      formData.description.trim().length > 1000
-    ) {
-      errors.description = 'Description must be less than 1000 characters';
-    }
-
-    // Status validation is not needed for boolean switch
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
+
+  // ========================================================================
+  // SUBMIT
+  // ========================================================================
 
   const handleSubmit = async () => {
     if (!validateForm()) {
@@ -225,107 +496,86 @@ export default function RouteForm({
     setValidationErrors({});
 
     try {
-      let success = false;
+      // Prepare route data
+      const routeData: RouteFormData = {
+        name: formData.name.trim(),
+        base_fare: formData.base_fare,
+        distance: formData.distance.trim() || undefined,
+        duration: formData.duration.trim() || undefined,
+        description: formData.description.trim() || undefined,
+        status: formData.status,
+        is_active: formData.is_active,
+        route_stops: formData.route_stops.map((stop, index) => ({
+          island_id: stop.island_id,
+          stop_sequence: index + 1, // 1-based sequence
+          stop_type: stop.stop_type,
+          estimated_travel_time:
+            index === 0 ? null : stop.estimated_travel_time_from_previous,
+          notes: stop.notes || '',
+        })),
+        segment_fares: Array.from(formData.segment_fares.entries()).map(
+          ([key, fare]) => {
+            const [fromIndex, toIndex] = key.split('-').map(Number);
+            return {
+              from_index: fromIndex,
+              to_index: toIndex,
+              fare_amount: fare,
+            };
+          }
+        ),
+      };
 
       if (currentRoute) {
         // Update existing route
-        await update(currentRoute.id, {
-          name: formData.name.trim(),
-          from_island_id: formData.from_island_id,
-          to_island_id: formData.to_island_id,
-          base_fare: formData.base_fare,
-          distance: formData.distance.trim(),
-          duration: formData.duration.trim(),
-          description: formData.description.trim(),
-          status: formData.status,
-          is_active: formData.is_active,
-        });
-        success = true;
+        await update(currentRoute.id, routeData);
+        Alert.alert('Success', 'Route updated successfully', [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (onSave) {
+                onSave(routeData);
+              }
+            },
+          },
+        ]);
       } else {
         // Create new route
-        await create({
-          name: formData.name.trim(),
-          from_island_id: formData.from_island_id,
-          to_island_id: formData.to_island_id,
-          base_fare: formData.base_fare,
-          distance: formData.distance.trim(),
-          duration: formData.duration.trim(),
-          description: formData.description.trim(),
-          status: formData.status,
-          is_active: formData.is_active,
-        });
-        success = true;
-      }
-
-      if (success) {
-        Alert.alert(
-          'Success',
-          currentRoute
-            ? 'Route updated successfully'
-            : 'Route created successfully',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                if (onSave) {
-                  onSave(formData);
-                }
-              },
+        await create(routeData);
+        Alert.alert('Success', 'Route created successfully', [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (onSave) {
+                onSave(routeData);
+              }
             },
-          ]
-        );
+          },
+        ]);
 
-        // Reset form if creating new route
-        if (!currentRoute) {
-          setFormData({
-            name: '',
-            from_island_id: '',
-            to_island_id: '',
-            base_fare: 0,
-            distance: '',
-            duration: '',
-            description: '',
-            status: 'active',
-            is_active: true,
-          });
-          setHasChanges(false);
-        }
-      } else {
-        const errorMessage = currentRoute
-          ? 'Failed to update route'
-          : 'Failed to create route';
-        setValidationErrors({ general: errorMessage });
+        // Reset form
+        initializeNewRoute();
+        setFormData(prev => ({
+          ...prev,
+          name: '',
+          base_fare: 50,
+          distance: '',
+          duration: '',
+          description: '',
+          segment_fares: new Map(),
+        }));
+        setHasChanges(false);
       }
     } catch (error) {
       console.error('Error saving route:', error);
-
-      // Handle specific database constraint errors
       let errorMessage =
         'Failed to save route. Please check your connection and try again.';
 
       if (error instanceof Error) {
-        // Check for duplicate route constraint error
-        if (
-          error.message.includes('unique_route_islands') ||
-          error.message.includes('duplicate key value')
-        ) {
-          const fromIsland =
-            islands?.find(i => i.id === formData.from_island_id)?.name ||
-            'Unknown';
-          const toIsland =
-            islands?.find(i => i.id === formData.to_island_id)?.name ||
-            'Unknown';
-          errorMessage = `A route already exists between ${fromIsland} and ${toIsland}. Please edit the existing route instead.`;
-        } else if (error.message.includes('different_islands')) {
-          errorMessage = 'Origin and destination islands must be different.';
-        } else if (error.message.includes('chk_route_fare_positive')) {
-          errorMessage = 'Base fare must be a positive number.';
-        } else {
-          errorMessage = error.message;
-        }
+        errorMessage = error.message;
       }
 
       setValidationErrors({ general: errorMessage });
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -333,65 +583,59 @@ export default function RouteForm({
 
   const handleReset = () => {
     if (currentRoute) {
-      setFormData({
-        name: currentRoute.name || '',
-        from_island_id: currentRoute.from_island_id || '',
-        to_island_id: currentRoute.to_island_id || '',
-        base_fare: currentRoute.base_fare || 0,
-        distance: currentRoute.distance || '',
-        duration: currentRoute.duration || '',
-        description: currentRoute.description || '',
-        status: currentRoute.status || 'active',
-        is_active: currentRoute.is_active ?? true,
-      });
+      initializeFormData();
     } else {
-      setFormData({
+      initializeNewRoute();
+      setFormData(prev => ({
+        ...prev,
         name: '',
-        from_island_id: '',
-        to_island_id: '',
-        base_fare: 0,
+        base_fare: 50,
         distance: '',
         duration: '',
         description: '',
         status: 'active',
         is_active: true,
-      });
+        segment_fares: new Map(),
+      }));
     }
     setValidationErrors({});
     setHasChanges(false);
   };
 
-  const getStatusDescription = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'Route is operational and available for trip scheduling';
-      case 'inactive':
-        return 'Route is temporarily disabled and not available for new trips';
-      default:
-        return '';
+  // ========================================================================
+  // HELPERS
+  // ========================================================================
+
+  const getAvailableIslands = (currentStopId: string) => {
+    const selectedIslandIds = formData.route_stops
+      .filter(stop => stop.id !== currentStopId && stop.island_id)
+      .map(stop => stop.island_id);
+
+    return (islands || [])
+      .filter(island => !selectedIslandIds.includes(island.id))
+      .map(island => ({
+        label: island.name,
+        value: island.id,
+      }));
+  };
+
+  const getIslandName = (islandId: string) => {
+    return islands?.find(i => i.id === islandId)?.name || 'Unknown';
+  };
+
+  // Calculate expected segments
+  const expectedSegments = useMemo(() => {
+    const stops = formData.route_stops;
+    let count = 0;
+    for (let i = 0; i < stops.length; i++) {
+      if (stops[i].stop_type === 'dropoff') continue;
+      for (let j = i + 1; j < stops.length; j++) {
+        if (stops[j].stop_type === 'pickup') continue;
+        count++;
+      }
     }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return colors.success;
-      case 'inactive':
-        return colors.textSecondary;
-      default:
-        return colors.textSecondary;
-    }
-  };
-
-  const islandOptions = (islands || []).map(island => ({
-    label: island.name,
-    value: island.id,
-  }));
-
-  const getSelectedIslandName = (islandId: string) => {
-    const island = islands?.find(i => i.id === islandId);
-    return island ? island.name : '';
-  };
+    return count;
+  }, [formData.route_stops]);
 
   return (
     <View style={styles.container}>
@@ -405,9 +649,7 @@ export default function RouteForm({
             {currentRoute ? 'Edit Route' : 'Create New Route'}
           </Text>
           <Text style={styles.subtitle}>
-            {currentRoute
-              ? 'Update route information and settings'
-              : 'Add a new ferry route to the system'}
+            Define a multi-stop ferry route with segment-based pricing
           </Text>
         </View>
       </View>
@@ -419,7 +661,7 @@ export default function RouteForm({
             <View style={styles.sectionHeaderIcon}>
               <Info size={20} color={colors.primary} />
             </View>
-            <Text style={styles.sectionTitle}>Basic Information</Text>
+            <Text style={styles.sectionTitle}>Route Information</Text>
           </View>
 
           <View style={styles.formGroup}>
@@ -429,7 +671,7 @@ export default function RouteForm({
               onChangeText={text =>
                 setFormData(prev => ({ ...prev, name: text }))
               }
-              placeholder='Enter route name (e.g., Malé to Hulhumalé)'
+              placeholder='Enter route name (e.g., Malé Circle Route)'
               error={validationErrors.name}
               required
             />
@@ -445,96 +687,38 @@ export default function RouteForm({
               placeholder='Enter route description (optional)'
               multiline
               numberOfLines={3}
-              error={validationErrors.description}
-            />
-          </View>
-        </View>
-
-        {/* Route Points */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderIcon}>
-              <MapPin size={20} color={colors.primary} />
-            </View>
-            <Text style={styles.sectionTitle}>Route Points</Text>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Dropdown
-              label='Origin Island'
-              value={formData.from_island_id}
-              onValueChange={value =>
-                setFormData(prev => ({ ...prev, from_island_id: value }))
-              }
-              options={islandOptions}
-              placeholder='Select origin island'
-              error={validationErrors.from_island_id}
-              required
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Dropdown
-              label='Destination Island'
-              value={formData.to_island_id}
-              onValueChange={value =>
-                setFormData(prev => ({ ...prev, to_island_id: value }))
-              }
-              options={islandOptions}
-              placeholder='Select destination island'
-              error={validationErrors.to_island_id}
-              required
-            />
-          </View>
-
-          {/* Route Preview */}
-          {formData.from_island_id && formData.to_island_id && (
-            <View style={styles.routePreview}>
-              <View style={styles.routePreviewIcon}>
-                <Navigation size={16} color={colors.primary} />
-              </View>
-              <Text style={styles.routePreviewText}>
-                {getSelectedIslandName(formData.from_island_id)} →{' '}
-                {getSelectedIslandName(formData.to_island_id)}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Route Details */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderIcon}>
-              <Activity size={20} color={colors.primary} />
-            </View>
-            <Text style={styles.sectionTitle}>Route Details</Text>
-          </View>
-
-          <View style={styles.formGroup}>
-            <TextInput
-              label='Base Fare (MVR)'
-              value={formData.base_fare.toString()}
-              onChangeText={text => {
-                const numericValue = parseFloat(text) || 0;
-                setFormData(prev => ({ ...prev, base_fare: numericValue }));
-              }}
-              placeholder='Enter base fare amount'
-              keyboardType='numeric'
-              error={validationErrors.base_fare}
-              required
             />
           </View>
 
           <View style={styles.formRow}>
             <View style={styles.formHalf}>
+              <TextInput
+                label='Base Fare per Segment (MVR)'
+                value={formData.base_fare.toString()}
+                onChangeText={text => {
+                  const numericValue = parseFloat(text) || 0;
+                  setFormData(prev => ({ ...prev, base_fare: numericValue }));
+                }}
+                placeholder='Enter base fare per segment'
+                keyboardType='numeric'
+                error={validationErrors.base_fare}
+                required
+              />
+              <Text style={styles.fieldHint}>
+                Used to auto-calculate segment fares (e.g., 2 segments = 2x base
+                fare)
+              </Text>
+            </View>
+          </View>
+          <View style={styles.formRow}>
+            <View style={styles.formHalf}>
               <UnitInput
-                label='Distance'
+                label='Total Distance'
                 value={formData.distance}
                 onChangeText={text =>
                   setFormData(prev => ({ ...prev, distance: text }))
                 }
                 placeholder='Enter distance'
-                error={validationErrors.distance}
                 units={[
                   { label: 'Kilometers', value: 'km', suffix: 'km' },
                   { label: 'Miles', value: 'mi', suffix: 'mi' },
@@ -543,46 +727,287 @@ export default function RouteForm({
                 keyboardType='numeric'
               />
             </View>
-
-            <View style={styles.formHalf}>
-              <UnitInput
-                label='Duration'
-                value={formData.duration}
-                onChangeText={text =>
-                  setFormData(prev => ({ ...prev, duration: text }))
-                }
-                placeholder='Enter duration'
-                error={validationErrors.duration}
-                units={[
-                  { label: 'Minutes', value: 'min', suffix: 'min' },
-                  { label: 'Hours', value: 'hr', suffix: 'hr' },
-                ]}
-                defaultUnit='min'
-                keyboardType='numeric'
-              />
-            </View>
           </View>
         </View>
+
+        {/* Route Stops */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderIcon}>
+              <MapPin size={20} color={colors.primary} />
+            </View>
+            <View style={styles.sectionHeaderContent}>
+              <Text style={styles.sectionTitle}>
+                Route Stops ({formData.route_stops.length})
+              </Text>
+              <Text style={styles.sectionSubtitle}>
+                {expectedSegments} possible journey segments
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.infoBox}>
+            <Info size={16} color={colors.info} />
+            <Text style={styles.infoText}>
+              Define the islands this route visits in order. The first stop
+              should allow pickup, the last stop should allow dropoff, and
+              intermediate stops can be set to both. All stop types are
+              editable.
+            </Text>
+          </View>
+
+          {formData.route_stops.map((stop, index) => (
+            <View key={stop.id} style={styles.stopCard}>
+              {/* Stop Header */}
+              <View style={styles.stopHeader}>
+                <View style={styles.stopBadge}>
+                  <Text style={styles.stopNumber}>{index + 1}</Text>
+                </View>
+                <View style={styles.stopLabelContainer}>
+                  {index === 0 && stop.stop_type === 'pickup' ? (
+                    <Ship size={16} color={colors.primary} />
+                  ) : index === formData.route_stops.length - 1 &&
+                    stop.stop_type === 'dropoff' ? (
+                    <Flag size={16} color={colors.primary} />
+                  ) : null}
+                  <Text style={styles.stopLabel}>
+                    {index === 0 && stop.stop_type === 'pickup'
+                      ? 'Starting Point'
+                      : index === formData.route_stops.length - 1 &&
+                          stop.stop_type === 'dropoff'
+                        ? 'Final Destination'
+                        : `Stop ${index + 1}`}
+                  </Text>
+                </View>
+
+                {/* Reorder & Delete Actions */}
+                <View style={styles.stopActions}>
+                  {index > 0 && (
+                    <Pressable
+                      style={styles.actionBtn}
+                      onPress={() => moveStop(stop.id, 'up')}
+                    >
+                      <Text style={styles.actionIcon}>↑</Text>
+                    </Pressable>
+                  )}
+                  {index < formData.route_stops.length - 1 && (
+                    <Pressable
+                      style={styles.actionBtn}
+                      onPress={() => moveStop(stop.id, 'down')}
+                    >
+                      <Text style={styles.actionIcon}>↓</Text>
+                    </Pressable>
+                  )}
+
+                  {formData.route_stops.length > 2 && (
+                    <Pressable
+                      style={[styles.actionBtn, styles.deleteBtn]}
+                      onPress={() => removeStop(stop.id)}
+                    >
+                      <Trash2 size={14} color={colors.error} />
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+
+              {/* Stop Content */}
+              <View style={styles.stopContent}>
+                <View style={styles.formGroup}>
+                  <Dropdown
+                    label='Island'
+                    value={stop.island_id}
+                    onValueChange={value =>
+                      updateStop(stop.id, { island_id: value })
+                    }
+                    options={getAvailableIslands(stop.id)}
+                    placeholder='Select island'
+                    required
+                  />
+                </View>
+
+                <View style={styles.formRow}>
+                  <View style={styles.formHalf}>
+                    <Dropdown
+                      label='Stop Type'
+                      value={stop.stop_type}
+                      onValueChange={value =>
+                        updateStop(stop.id, {
+                          stop_type: value as 'pickup' | 'dropoff' | 'both',
+                        })
+                      }
+                      options={[
+                        { label: 'Pickup', value: 'pickup' },
+                        { label: 'Dropoff', value: 'dropoff' },
+                        { label: 'Both', value: 'both' },
+                      ]}
+                    />
+                    {index === 0 && stop.stop_type !== 'pickup' && (
+                      <Text style={styles.fieldHint}>
+                        First stop should typically allow pickup
+                      </Text>
+                    )}
+                    {index === formData.route_stops.length - 1 &&
+                      stop.stop_type !== 'dropoff' && (
+                        <Text style={styles.fieldHint}>
+                          Last stop should typically allow dropoff
+                        </Text>
+                      )}
+                  </View>
+                </View>
+                {index > 0 && (
+                  <View style={styles.formHalf}>
+                    <Input
+                      label='Travel Time (min)'
+                      value={
+                        stop.estimated_travel_time_from_previous?.toString() ||
+                        '30'
+                      }
+                      onChangeText={text => {
+                        const time = parseInt(text) || 30;
+                        updateStop(stop.id, {
+                          estimated_travel_time_from_previous: time,
+                        });
+                      }}
+                      placeholder='30'
+                      keyboardType='numeric'
+                      inputStyle={styles.travelTimeInput}
+                    />
+                  </View>
+                )}
+
+                {/* Notes field */}
+                <View style={styles.formGroup}>
+                  <Input
+                    label='Notes'
+                    value={stop.notes || ''}
+                    onChangeText={text => updateStop(stop.id, { notes: text })}
+                    placeholder={
+                      index === 0 && stop.stop_type === 'pickup'
+                        ? 'Starting point notes (optional)'
+                        : index === formData.route_stops.length - 1 &&
+                            stop.stop_type === 'dropoff'
+                          ? 'Final destination notes (optional)'
+                          : `Stop ${index + 1} notes (optional)`
+                    }
+                    multiline
+                    numberOfLines={2}
+                  />
+                </View>
+              </View>
+            </View>
+          ))}
+
+          <Button
+            title='Add Another Stop'
+            onPress={addStop}
+            variant='outline'
+            icon={<Plus size={16} color={colors.primary} />}
+            style={styles.addStopButton}
+          />
+
+          {validationErrors.route_stops && (
+            <Text style={styles.errorText}>{validationErrors.route_stops}</Text>
+          )}
+        </View>
+
+        {/* Segment Fares */}
+        {formData.route_stops.length >= 2 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderIcon}>
+                <DollarSign size={20} color={colors.primary} />
+              </View>
+              <View style={styles.sectionHeaderContent}>
+                <Text style={styles.sectionTitle}>Segment Fares</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {formData.segment_fares.size} of {expectedSegments} configured
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.sectionDescription}>
+              Set the fare for each possible journey segment. Click
+              "Auto-Generate" to calculate based on base fare × number of
+              segments.
+            </Text>
+
+            <Button
+              title='Auto-Generate All Fares'
+              onPress={autoGenerateFares}
+              variant='outline'
+              icon={<Sparkles size={16} color={colors.primary} />}
+              style={styles.autoGenerateButton}
+            />
+
+            {/* Display segment fares */}
+            <View style={styles.faresList}>
+              {Array.from(formData.segment_fares.entries())
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([key, fare]) => {
+                  const [fromIdx, toIdx] = key.split('-').map(Number);
+                  const fromStop = formData.route_stops[fromIdx];
+                  const toStop = formData.route_stops[toIdx];
+
+                  if (!fromStop || !toStop) return null;
+
+                  const fromIsland = getIslandName(fromStop.island_id);
+                  const toIsland = getIslandName(toStop.island_id);
+                  const segmentCount = toIdx - fromIdx;
+
+                  return (
+                    <View key={key} style={styles.fareCard}>
+                      <View style={styles.fareInfo}>
+                        <View style={styles.fareRoute}>
+                          <View style={styles.fareBadge}>
+                            <Text style={styles.fareBadgeText}>
+                              {fromIdx + 1}
+                            </Text>
+                          </View>
+                          <Text style={styles.fareArrow}>→</Text>
+                          <View style={styles.fareBadge}>
+                            <Text style={styles.fareBadgeText}>
+                              {toIdx + 1}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.fareIslands}>
+                          {fromIsland} → {toIsland}
+                        </Text>
+                        <Text style={styles.fareSegments}>
+                          {segmentCount} segment{segmentCount > 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                      <View style={styles.fareInputGroup}>
+                        <Input
+                          value={fare.toString()}
+                          onChangeText={text => {
+                            const newFare = parseFloat(text) || 0;
+                            updateSegmentFare(key, newFare);
+                          }}
+                          placeholder='0'
+                          keyboardType='numeric'
+                          style={styles.fareInput}
+                        />
+                        <Text style={styles.fareCurrency}>MVR</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+            </View>
+
+            {validationErrors.segment_fares && (
+              <Text style={styles.errorText}>
+                {validationErrors.segment_fares}
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Settings */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View
-              style={[
-                styles.sectionHeaderIcon,
-                {
-                  backgroundColor: formData.is_active
-                    ? colors.successLight
-                    : colors.backgroundTertiary,
-                },
-              ]}
-            >
-              <Settings
-                size={20}
-                color={
-                  formData.is_active ? colors.success : colors.textSecondary
-                }
-              />
+            <View style={styles.sectionHeaderIcon}>
+              <Settings size={20} color={colors.primary} />
             </View>
             <Text style={styles.sectionTitle}>Settings</Text>
           </View>
@@ -600,14 +1025,12 @@ export default function RouteForm({
         </View>
 
         {/* Error Display */}
-        {(validationErrors.general || validationErrors.route) && (
+        {validationErrors.general && (
           <View style={styles.errorContainer}>
             <View style={styles.errorIcon}>
               <AlertCircle size={16} color={colors.error} />
             </View>
-            <Text style={styles.errorText}>
-              {validationErrors.route || validationErrors.general}
-            </Text>
+            <Text style={styles.errorText}>{validationErrors.general}</Text>
           </View>
         )}
 
@@ -698,9 +1121,9 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 18,
     fontWeight: '500',
   },
   section: {
@@ -728,11 +1151,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sectionHeaderContent: {
+    flex: 1,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
     lineHeight: 24,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  sectionDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.infoLight,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 10,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.info,
+    lineHeight: 16,
   },
   formGroup: {
     marginBottom: 20,
@@ -744,32 +1196,140 @@ const styles = StyleSheet.create({
   formHalf: {
     flex: 1,
   },
-  routePreview: {
+  fieldHint: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  stopCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  stopHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginTop: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: `${colors.primary}10`,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    marginBottom: 12,
   },
-  routePreviewIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: `${colors.primary}20`,
+  stopBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  stopNumber: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  stopLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  stopLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  stopActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  actionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  routePreviewText: {
-    fontSize: 14,
-    flex: 1,
-    fontWeight: '600',
-    lineHeight: 18,
+  actionIcon: {
+    fontSize: 16,
+    fontWeight: '700',
     color: colors.primary,
+  },
+  deleteBtn: {
+    backgroundColor: colors.errorLight,
+  },
+  stopContent: {
+    gap: 12,
+  },
+  addStopButton: {
+    marginTop: 8,
+  },
+  autoGenerateButton: {
+    marginBottom: 16,
+  },
+  faresList: {
+    gap: 12,
+  },
+  fareCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fareInfo: {
+    flex: 1,
+  },
+  fareRoute: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  fareBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fareBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  fareArrow: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  fareIslands: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  fareSegments: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  fareInputGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fareInput: {
+    width: 90,
+  },
+  fareCurrency: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -826,5 +1386,12 @@ const styles = StyleSheet.create({
   },
   switchContainer: {
     marginBottom: 8,
+  },
+  travelTimeInput: {
+    minHeight: 48,
+    paddingVertical: 14,
+    textAlignVertical: 'center',
+    lineHeight: 20,
+    fontSize: 16,
   },
 });

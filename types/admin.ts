@@ -81,6 +81,8 @@ export type Route = {
   duration: string;
   base_fare: number;
   status: 'active' | 'inactive';
+  is_multi_stop?: boolean;
+  total_stops?: number;
   total_trips_30d?: number;
   total_bookings_30d?: number;
   total_revenue_30d?: number;

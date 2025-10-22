@@ -16,12 +16,16 @@ import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from '@/types';
+import type { RouteStop, RouteSegmentFare } from '@/types/multiStopRoute';
+import { getMultiStopRoute } from '@/utils/multiStopRouteUtils';
+import RouteStopsDisplay from '@/components/admin/routes/RouteStopsDisplay';
+import RouteSegmentFaresDisplay from '@/components/admin/routes/RouteSegmentFaresDisplay';
+import { updateRouteSegmentFare } from '@/utils/multiStopRouteUtils';
 import {
   ArrowLeft,
   Edit,
   Trash2,
   MapPin,
-  Clock,
   DollarSign,
   Calendar,
   Users,
@@ -29,11 +33,9 @@ import {
   Activity,
   Navigation,
   BarChart3,
-  Target,
   Route as RouteIcon,
   Plane,
   Timer,
-  Star,
   AlertCircle,
   Info,
 } from 'lucide-react-native';
@@ -66,6 +68,9 @@ export default function RouteDetailsScreen() {
   const [routeData, setRouteData] = useState<Route | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
+  const [segmentFares, setSegmentFares] = useState<RouteSegmentFare[]>([]);
+  const [loadingMultiStopData, setLoadingMultiStopData] = useState(false);
 
   const isTablet = screenWidth >= 768;
 
@@ -80,16 +85,46 @@ export default function RouteDetailsScreen() {
       const route = getById(id);
       if (route) {
         setRouteData(route);
+        // Always load stop data for all routes (all are multi-stop now)
+        await loadMultiStopData();
       } else {
         // Try to get detailed route data
         const detailedRoute = await getRouteWithDetails(id);
         if (detailedRoute) {
           setRouteData(detailedRoute as Route);
+          await loadMultiStopData();
         }
       }
     } catch (error) {
       console.error('Error loading route:', error);
       Alert.alert('Error', 'Failed to load route details');
+    }
+  };
+
+  const loadMultiStopData = async () => {
+    if (!id) return;
+
+    setLoadingMultiStopData(true);
+    try {
+      const multiRoute = await getMultiStopRoute(id);
+      if (multiRoute) {
+        setRouteStops(multiRoute.stops);
+        setSegmentFares(multiRoute.segment_fares);
+      }
+    } catch (error) {
+      console.error('Error loading multi-stop data:', error);
+    } finally {
+      setLoadingMultiStopData(false);
+    }
+  };
+
+  const handleEditSegmentFare = async (fareId: string, newAmount: number) => {
+    try {
+      await updateRouteSegmentFare(fareId, newAmount);
+      await loadMultiStopData(); // Reload data
+      Alert.alert('Success', 'Segment fare updated successfully');
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -368,13 +403,17 @@ export default function RouteDetailsScreen() {
               <View style={styles.routeDirection}>
                 <MapPin size={16} color={colors.textSecondary} />
                 <Text style={styles.routeDescription}>
-                  {routeData.from_island_name || routeData.origin || 'Unknown'}{' '}
-                  →{' '}
-                  {routeData.to_island_name ||
-                    routeData.destination ||
-                    'Unknown'}
+                  {routeStops.length > 0
+                    ? routeStops.map(stop => stop.island_name).join(' → ')
+                    : `${routeData.from_island_name || routeData.origin || 'Unknown'} → ${routeData.to_island_name || routeData.destination || 'Unknown'}`}
                 </Text>
               </View>
+              {routeStops.length > 0 && (
+                <Text style={styles.routeSubtext}>
+                  {routeStops.length} stops • {segmentFares.length} bookable
+                  segments
+                </Text>
+              )}
             </View>
           </View>
           <View
@@ -483,20 +522,18 @@ export default function RouteDetailsScreen() {
 
         {/* Route Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Route Information</Text>
+          <Text style={styles.sectionTitle}>Route Configuration</Text>
 
           <View style={styles.infoGrid}>
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
                 <View style={styles.infoIcon}>
-                  <MapPin size={20} color={colors.primary} />
+                  <RouteIcon size={20} color={colors.primary} />
                 </View>
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Origin</Text>
+                  <Text style={styles.infoLabel}>Total Stops</Text>
                   <Text style={styles.infoValue}>
-                    {routeData.from_island_name ||
-                      routeData.origin ||
-                      'Unknown'}
+                    {routeData.total_stops || routeStops.length || 2}
                   </Text>
                 </View>
               </View>
@@ -511,112 +548,81 @@ export default function RouteDetailsScreen() {
                   <Navigation size={20} color={colors.info} />
                 </View>
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Destination</Text>
+                  <Text style={styles.infoLabel}>Bookable Segments</Text>
                   <Text style={styles.infoValue}>
-                    {routeData.to_island_name ||
-                      routeData.destination ||
-                      'Unknown'}
+                    {routeData.total_segments || segmentFares.length || 1}
                   </Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.infoRow}>
-              <View style={styles.infoItem}>
-                <View
-                  style={[
-                    styles.infoIcon,
-                    { backgroundColor: colors.successLight },
-                  ]}
-                >
-                  <Activity size={20} color={colors.success} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Distance</Text>
-                  <Text style={styles.infoValue}>
-                    {routeData.distance || 'N/A'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.infoItem}>
-                <View
-                  style={[
-                    styles.infoIcon,
-                    { backgroundColor: colors.warningLight },
-                  ]}
-                >
-                  <Clock size={20} color={colors.warning} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Duration</Text>
-                  <Text style={styles.infoValue}>
-                    {routeData.duration || 'N/A'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.infoRow}>
-              <View style={styles.infoItem}>
-                <View
-                  style={[
-                    styles.infoIcon,
-                    { backgroundColor: colors.primaryLight },
-                  ]}
-                >
-                  <DollarSign size={20} color={colors.primary} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Base Fare</Text>
-                  <Text style={styles.infoValue}>
-                    {formatCurrency(routeData.base_fare || 0)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.infoItem}>
-                <View
-                  style={[
-                    styles.infoIcon,
-                    {
-                      backgroundColor:
-                        routeData.status === 'active'
-                          ? colors.successLight
-                          : colors.backgroundTertiary,
-                    },
-                  ]}
-                >
-                  <Target
-                    size={20}
-                    color={
-                      routeData.status === 'active'
-                        ? colors.success
-                        : colors.textSecondary
-                    }
-                  />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Status</Text>
-                  <Text
+            {routeData.distance && (
+              <View style={styles.infoRow}>
+                <View style={styles.infoItem}>
+                  <View
                     style={[
-                      styles.infoValue,
-                      { color: getStatusColor(routeData.status) },
+                      styles.infoIcon,
+                      { backgroundColor: colors.successLight },
                     ]}
                   >
-                    {routeData.status?.charAt(0).toUpperCase() +
-                      routeData.status?.slice(1)}
-                  </Text>
+                    <Activity size={20} color={colors.success} />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Total Distance</Text>
+                    <Text style={styles.infoValue}>{routeData.distance}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.infoItem}>
+                  <View
+                    style={[
+                      styles.infoIcon,
+                      { backgroundColor: colors.primaryLight },
+                    ]}
+                  >
+                    <DollarSign size={20} color={colors.primary} />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Base Fare/Segment</Text>
+                    <Text style={styles.infoValue}>
+                      {formatCurrency(routeData.base_fare || 0)}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
+            )}
+
+            {!routeData.distance && (
+              <View style={styles.infoRow}>
+                <View style={styles.infoItem}>
+                  <View
+                    style={[
+                      styles.infoIcon,
+                      { backgroundColor: colors.primaryLight },
+                    ]}
+                  >
+                    <DollarSign size={20} color={colors.primary} />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Base Fare/Segment</Text>
+                    <Text style={styles.infoValue}>
+                      {formatCurrency(routeData.base_fare || 0)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.infoItem} />
+              </View>
+            )}
           </View>
         </View>
 
         {/* Performance Metrics */}
-        {routeStats && (
+        {routeStats && routeStats.totalTrips > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Performance Metrics</Text>
+            <Text style={styles.sectionTitle}>
+              Performance Metrics (Last 30 Days)
+            </Text>
 
             <View style={styles.performanceGrid}>
               <View style={styles.performanceCard}>
@@ -624,13 +630,12 @@ export default function RouteDetailsScreen() {
                   <BarChart3 size={20} color={colors.success} />
                 </View>
                 <View style={styles.performanceContent}>
-                  <Text style={styles.performanceTitle}>Trip Statistics</Text>
                   <Text style={styles.performanceValue}>
                     {routeStats.totalTrips}
                   </Text>
-                  <Text style={styles.performanceLabel}>Total Trips (30d)</Text>
+                  <Text style={styles.performanceLabel}>Total Trips</Text>
                   <Text style={styles.performanceSubtext}>
-                    Cancellation rate: {routeStats.cancellationRate}%
+                    {routeStats.cancellationRate}% cancellation rate
                   </Text>
                 </View>
               </View>
@@ -642,18 +647,35 @@ export default function RouteDetailsScreen() {
                     { backgroundColor: colors.warningLight },
                   ]}
                 >
-                  <Star size={20} color={colors.warning} />
+                  <Timer size={20} color={colors.warning} />
                 </View>
                 <View style={styles.performanceContent}>
-                  <Text style={styles.performanceTitle}>Reliability</Text>
                   <Text style={styles.performanceValue}>
                     {routeStats.onTimePerformance}%
                   </Text>
-                  <Text style={styles.performanceLabel}>
-                    On-Time Performance
-                  </Text>
+                  <Text style={styles.performanceLabel}>On-Time</Text>
                   <Text style={styles.performanceSubtext}>
-                    Rating: {routeStats.performanceRating}
+                    {routeStats.performanceRating} rating
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.performanceCard}>
+                <View
+                  style={[
+                    styles.performanceIcon,
+                    { backgroundColor: colors.primaryLight },
+                  ]}
+                >
+                  <Users size={20} color={colors.primary} />
+                </View>
+                <View style={styles.performanceContent}>
+                  <Text style={styles.performanceValue}>
+                    {routeStats.averageOccupancy}%
+                  </Text>
+                  <Text style={styles.performanceLabel}>Avg. Occupancy</Text>
+                  <Text style={styles.performanceSubtext}>
+                    {formatCurrency(routeStats.estimatedRevenue)} revenue
                   </Text>
                 </View>
               </View>
@@ -689,7 +711,7 @@ export default function RouteDetailsScreen() {
               />
 
               <Button
-                title='Schedule New Trip'
+                title='New Trip'
                 variant='primary'
                 onPress={() => router.push(`../trip/new?route=${id}` as any)}
                 icon={<Plane size={16} color={colors.white} />}
@@ -700,33 +722,69 @@ export default function RouteDetailsScreen() {
         </View>
 
         {/* System Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>System Information</Text>
+        {routeData.created_at && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Additional Information</Text>
 
-          <View style={styles.systemInfo}>
-            <View style={styles.systemRow}>
-              <Text style={styles.systemLabel}>Route ID</Text>
-              <Text style={styles.systemValue} selectable>
-                {routeData.id}
-              </Text>
-            </View>
-
-            {routeData.created_at && (
+            <View style={styles.systemInfo}>
               <View style={styles.systemRow}>
-                <Text style={styles.systemLabel}>Created Date</Text>
+                <Text style={styles.systemLabel}>Created</Text>
                 <Text style={styles.systemValue}>
-                  {formatDate(routeData.created_at)}
+                  {new Date(routeData.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
                 </Text>
               </View>
-            )}
+
+              <View style={styles.systemRow}>
+                <Text style={styles.systemLabel}>Route ID</Text>
+                <Text style={styles.systemValue} selectable>
+                  {routeData.id.slice(0, 8)}...
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Description */}
         {routeData.description && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Description</Text>
             <Text style={styles.description}>{routeData.description}</Text>
+          </View>
+        )}
+
+        {/* Route Stops - Always show for all routes */}
+        {routeStops.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Route Stops ({routeStops.length})
+            </Text>
+            {loadingMultiStopData ? (
+              <Text style={styles.loadingText}>Loading stops...</Text>
+            ) : (
+              <RouteStopsDisplay stops={routeStops} showTravelTimes />
+            )}
+          </View>
+        )}
+
+        {/* Segment Fares - Always show for all routes */}
+        {segmentFares.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Segment Fares ({segmentFares.length})
+            </Text>
+            {loadingMultiStopData ? (
+              <Text style={styles.loadingText}>Loading fares...</Text>
+            ) : (
+              <RouteSegmentFaresDisplay
+                segmentFares={segmentFares}
+                editable={canUpdateRoutes()}
+                onEditFare={handleEditSegmentFare}
+              />
+            )}
           </View>
         )}
 
@@ -911,6 +969,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
   },
+  routeSubtext: {
+    fontSize: 13,
+    color: colors.textTertiary,
+    fontWeight: '500',
+    marginTop: 4,
+  },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1049,49 +1113,49 @@ const styles = StyleSheet.create({
   performanceGrid: {
     flexDirection: 'row',
     gap: 12,
+    flexWrap: 'wrap',
   },
   performanceCard: {
     flex: 1,
+    minWidth: 100,
     backgroundColor: colors.backgroundSecondary,
     padding: 16,
     borderRadius: 12,
-    gap: 12,
+    gap: 8,
+    alignItems: 'center',
   },
   performanceIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.successLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   performanceContent: {
     gap: 2,
-  },
-  performanceTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
+    alignItems: 'center',
   },
   performanceValue: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.text,
-    lineHeight: 24,
+    lineHeight: 28,
   },
   performanceLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
   performanceSubtext: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 4,
+    fontSize: 10,
+    color: colors.textTertiary,
+    marginTop: 2,
     lineHeight: 14,
+    textAlign: 'center',
   },
   operationsSummary: {
     gap: 20,

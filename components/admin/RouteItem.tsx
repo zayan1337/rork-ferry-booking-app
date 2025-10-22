@@ -4,7 +4,6 @@ import { colors } from '@/constants/adminColors';
 import {
   Navigation,
   MapPin,
-  DollarSign,
   Activity,
   Clock,
   ChevronRight,
@@ -60,10 +59,6 @@ export default function RouteItem({
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return `MVR ${amount.toLocaleString()}`;
-  };
-
   const getOccupancyColor = (occupancy: number) => {
     if (occupancy >= 80) return colors.success;
     if (occupancy >= 60) return colors.warning;
@@ -107,22 +102,10 @@ export default function RouteItem({
 
       <View style={styles.content}>
         <View style={styles.primaryInfo}>
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}>
-              <DollarSign size={16} color={colors.primary} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Base Fare</Text>
-              <Text style={styles.infoValue}>
-                {formatCurrency(route.base_fare || 0)}
-              </Text>
-            </View>
-          </View>
-
           {route.distance && (
             <View style={styles.infoItem}>
               <View style={styles.infoIcon}>
-                <Activity size={16} color={colors.textSecondary} />
+                <Activity size={16} color={colors.primary} />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Distance</Text>
@@ -142,6 +125,16 @@ export default function RouteItem({
               </View>
             </View>
           )}
+
+          <View style={styles.infoItem}>
+            <View style={styles.infoIcon}>
+              <Navigation size={16} color={colors.textSecondary} />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Route Type</Text>
+              <Text style={styles.infoValue}>Multi-Stop</Text>
+            </View>
+          </View>
         </View>
 
         {showStats && (

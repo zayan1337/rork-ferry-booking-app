@@ -82,6 +82,7 @@ export default function RoutesScreen() {
 
   const handleAddRoute = () => {
     if (canManageRoutes()) {
+      // Go directly to the unified route form
       router.push('./route/new' as any);
     } else {
       Alert.alert(
@@ -124,11 +125,17 @@ export default function RoutesScreen() {
     }
   }, []);
 
-  // UPDATED: Cast route to content Route type for component compatibility
+  // Render route item with multi-stop information
   const renderRouteItem = ({ item, index }: { item: Route; index: number }) => (
     <RouteItem
       key={item.id}
-      route={item as any} // Safe cast since our Route type includes all required fields
+      route={
+        {
+          ...item,
+          total_stops: item.total_stops || 2,
+          total_segments: item.total_segments || 1,
+        } as any
+      }
       onPress={handleRoutePress}
     />
   );
