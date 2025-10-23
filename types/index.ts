@@ -30,6 +30,11 @@ export interface Route {
   toIsland: Island;
   baseFare: number;
   duration?: string; // Optional since it's not in DB
+  routeStops?: {
+    id: string;
+    stopSequence: number;
+    island: Island;
+  }[];
 }
 
 export interface Seat {

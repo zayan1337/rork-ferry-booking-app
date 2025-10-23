@@ -106,7 +106,7 @@ export async function findRoutesServingSegment(
   boardingIslandId: string,
   destinationIslandId: string
 ): Promise<
-  Array<{
+  {
     route_id: string;
     route_name: string;
     boarding_stop_id: string;
@@ -114,7 +114,7 @@ export async function findRoutesServingSegment(
     destination_stop_id: string;
     destination_stop_sequence: number;
     base_fare: number;
-  }>
+  }[]
 > {
   // Find all boarding stops for this island
   const { data: boardingStops, error: boardingError } = await supabase
@@ -141,7 +141,7 @@ export async function findRoutesServingSegment(
     return [];
   }
 
-  const routeSegments: Array<{
+  const routeSegments: {
     route_id: string;
     route_name: string;
     boarding_stop_id: string;
@@ -149,7 +149,7 @@ export async function findRoutesServingSegment(
     destination_stop_id: string;
     destination_stop_sequence: number;
     base_fare: number;
-  }> = [];
+  }[] = [];
 
   // For each boarding stop, check if there's a valid destination stop on the same route
   for (const boardingStop of boardingStops as any[]) {
@@ -187,7 +187,7 @@ export async function getTripsForSegment(
   destinationIslandId: string,
   travelDate: string
 ): Promise<
-  Array<{
+  {
     trip_id: string;
     route_id: string;
     route_name: string;
@@ -199,11 +199,14 @@ export async function getTripsForSegment(
     destination_stop_id: string;
     boarding_stop_sequence: number;
     destination_stop_sequence: number;
+    boarding_island_name: string;
+    destination_island_name: string;
     segment_fare: number;
-    available_seats: number;
+    available_seats_for_segment: number;
     is_active: boolean;
     fare_multiplier: number;
-  }>
+    total_stops: number;
+  }[]
 > {
   // First, find all routes serving this segment
   const routeSegments = await findRoutesServingSegment(
@@ -215,10 +218,35 @@ export async function getTripsForSegment(
     return [];
   }
 
-  const trips: Array<any> = [];
+  // Get island names
+  const { data: boardingIsland, error: boardingIslandError } = await supabase
+    .from('islands')
+    .select('id, name')
+    .eq('id', boardingIslandId)
+    .single();
+
+  const { data: destinationIsland, error: destinationIslandError } =
+    await supabase
+      .from('islands')
+      .select('id, name')
+      .eq('id', destinationIslandId)
+      .single();
+
+  const boardingIslandName = boardingIsland?.name || 'Unknown';
+  const destinationIslandName = destinationIsland?.name || 'Unknown';
+
+  const trips: any[] = [];
 
   // For each route segment, get trips for the travel date
   for (const segment of routeSegments) {
+    // Get total stops for this route
+    const { data: routeStops, error: stopsError } = await supabase
+      .from('route_stops')
+      .select('id')
+      .eq('route_id', segment.route_id);
+
+    const totalStops = !stopsError && routeStops ? routeStops.length : 0;
+
     const { data: tripData, error: tripError } = await supabase
       .from('trips')
       .select(
@@ -230,6 +258,7 @@ export async function getTripsForSegment(
         vessel_id,
         is_active,
         fare_multiplier,
+        available_seats,
         vessels!inner (
           id,
           name,
@@ -256,17 +285,19 @@ export async function getTripsForSegment(
 
         const segmentFare = fareError ? 0 : fareData || 0;
 
-        // Get available seats for this segment
-        const { data: seatData, error: seatError } = await supabase.rpc(
-          'get_available_seats_for_segment',
-          {
-            p_trip_id: trip.id,
-            p_from_stop_sequence: segment.boarding_stop_sequence,
-            p_to_stop_sequence: segment.destination_stop_sequence,
-          }
-        );
+        // Get available seats - calculate from vessel capacity minus booked seats
+        // This is more reliable than checking is_available flag which can be stale
+        const vesselCapacity = trip.vessels.seating_capacity;
 
-        const availableSeats = seatError ? 0 : (seatData || []).length;
+        // Count only booked seats (where booking_id is NOT NULL)
+        const { count: bookedSeatCount, error: bookedError } = await supabase
+          .from('seat_reservations')
+          .select('id', { count: 'exact', head: true })
+          .eq('trip_id', trip.id)
+          .not('booking_id', 'is', null); // Count only booked seats
+
+        const bookedSeats = bookedError ? 0 : bookedSeatCount || 0;
+        const availableSeats = Math.max(0, vesselCapacity - bookedSeats);
 
         trips.push({
           trip_id: trip.id,
@@ -280,10 +311,13 @@ export async function getTripsForSegment(
           destination_stop_id: segment.destination_stop_id,
           boarding_stop_sequence: segment.boarding_stop_sequence,
           destination_stop_sequence: segment.destination_stop_sequence,
+          boarding_island_name: boardingIslandName,
+          destination_island_name: destinationIslandName,
           segment_fare: segmentFare,
-          available_seats: availableSeats,
+          available_seats_for_segment: availableSeats,
           is_active: trip.is_active,
           fare_multiplier: trip.fare_multiplier || 1.0,
+          total_stops: totalStops,
         });
       }
     }
@@ -720,4 +754,3 @@ export function validateSegmentSelection(
 
   return { isValid: true };
 }
-

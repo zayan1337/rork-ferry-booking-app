@@ -836,6 +836,11 @@ export async function getMultiStopTrip(
         vessel_id: '',
         available_seats: 0,
         is_active: true,
+        estimated_duration: data.estimated_duration || '0h',
+        booked_seats: data.booked_seats || 0,
+        fare_multiplier: data.fare_multiplier || 1.0,
+        created_at: data.created_at || new Date().toISOString(),
+        updated_at: data.updated_at || new Date().toISOString(),
       } as MultiStopTrip;
     }
 
@@ -880,6 +885,11 @@ export async function getMultiStopTripsForDate(
       vessel_id: '',
       available_seats: 0,
       is_active: true,
+      estimated_duration: trip.estimated_duration || '0h',
+      booked_seats: trip.booked_seats || 0,
+      fare_multiplier: trip.fare_multiplier || 1.0,
+      created_at: trip.created_at || new Date().toISOString(),
+      updated_at: trip.updated_at || new Date().toISOString(),
     })) as MultiStopTrip[];
   } catch (error) {
     console.error('Error fetching multi-stop trips for date:', error);

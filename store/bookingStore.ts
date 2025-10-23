@@ -8,7 +8,6 @@ import type {
 } from '@/types/booking';
 import type { Route, Seat, Passenger, PaymentMethod } from '@/types';
 import type { RouteStop } from '@/types/multiStopRoute';
-import { calculateBookingFare } from '@/utils/bookingUtils';
 import {
   confirmSeatReservations,
   cleanupUserTempReservations,
@@ -68,10 +67,22 @@ interface BookingStoreActions {
   resetCurrentBooking: () => void;
 
   // Multi-stop island selection actions
-  setBoardingIsland: (islandId: string | null, islandName: string | null) => void;
-  setDestinationIsland: (islandId: string | null, islandName: string | null) => void;
-  setReturnBoardingIsland: (islandId: string | null, islandName: string | null) => void;
-  setReturnDestinationIsland: (islandId: string | null, islandName: string | null) => void;
+  setBoardingIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => void;
+  setDestinationIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => void;
+  setReturnBoardingIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => void;
+  setReturnDestinationIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => void;
 
   // Multi-stop segment actions (used after trip selection)
   setBoardingStop: (stop: RouteStop | null) => void;
@@ -327,11 +338,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         const tripFare =
           (currentBooking.trip.base_fare || 0) *
           (currentBooking.trip.fare_multiplier || 1.0);
-        totalFare +=
-          currentBooking.selectedSeats.reduce((sum, seat) => {
-            const seatMultiplier = seat.priceMultiplier || 1.0;
-            return sum + tripFare * seatMultiplier;
-          }, 0);
+        totalFare += currentBooking.selectedSeats.reduce((sum, seat) => {
+          const seatMultiplier = seat.priceMultiplier || 1.0;
+          return sum + tripFare * seatMultiplier;
+        }, 0);
       }
     }
 
@@ -353,11 +363,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         const returnTripFare =
           (currentBooking.returnTrip.base_fare || 0) *
           (currentBooking.returnTrip.fare_multiplier || 1.0);
-        totalFare +=
-          currentBooking.returnSelectedSeats.reduce((sum, seat) => {
-            const seatMultiplier = seat.priceMultiplier || 1.0;
-            return sum + returnTripFare * seatMultiplier;
-          }, 0);
+        totalFare += currentBooking.returnSelectedSeats.reduce((sum, seat) => {
+          const seatMultiplier = seat.priceMultiplier || 1.0;
+          return sum + returnTripFare * seatMultiplier;
+        }, 0);
       }
     }
 
@@ -389,8 +398,13 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         ...state.currentBooking,
         tripType: 'one_way',
         route,
-        returnRoute: null,
         departureDate,
+        // Extract and set island IDs and names from the route
+        boardingIslandId: route.fromIsland?.id || null,
+        boardingIslandName: route.fromIsland?.name || null,
+        destinationIslandId: route.toIsland?.id || null,
+        destinationIslandName: route.toIsland?.name || null,
+        returnRoute: null,
         returnDate: null,
         trip: null,
         returnTrip: null,
@@ -428,7 +442,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     }));
   },
 
-  setDestinationIsland: (islandId: string | null, islandName: string | null) => {
+  setDestinationIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => {
     set(state => ({
       currentBooking: {
         ...state.currentBooking,
@@ -444,7 +461,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     }));
   },
 
-  setReturnBoardingIsland: (islandId: string | null, islandName: string | null) => {
+  setReturnBoardingIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => {
     set(state => ({
       currentBooking: {
         ...state.currentBooking,
@@ -462,7 +482,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     }));
   },
 
-  setReturnDestinationIsland: (islandId: string | null, islandName: string | null) => {
+  setReturnDestinationIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => {
     set(state => ({
       currentBooking: {
         ...state.currentBooking,
@@ -1094,10 +1117,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           currentBooking.returnDestinationStop;
         let returnTotalFare = 0;
 
-        if (
-          useReturnSegments &&
-          currentBooking.returnSegmentFare !== null
-        ) {
+        if (useReturnSegments && currentBooking.returnSegmentFare !== null) {
           // Use segment-based fare for return trip
           returnTotalFare = calculateSegmentFareWithSeats(
             currentBooking.returnSegmentFare,

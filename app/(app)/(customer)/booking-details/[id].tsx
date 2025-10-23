@@ -38,6 +38,7 @@ import TicketDesign from '@/components/TicketDesign';
 import { shareBookingTicket } from '@/utils/shareUtils';
 import { formatBookingDate } from '@/utils/dateUtils';
 import { formatPaymentMethod } from '@/utils/paymentUtils';
+import { formatTimeAMPM } from '@/utils/dateUtils';
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -167,7 +168,11 @@ export default function BookingDetailsScreen() {
         </View>
         <View style={styles.detailContent}>
           <Text style={styles.detailLabel}>Departure Time</Text>
-          <Text style={styles.detailValue}>{booking.departureTime}</Text>
+          <Text style={styles.detailValue}>
+            {booking.departureTime
+              ? formatTimeAMPM(booking.departureTime)
+              : '-'}
+          </Text>
         </View>
       </View>
 
@@ -191,7 +196,9 @@ export default function BookingDetailsScreen() {
             </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Return Time</Text>
-              <Text style={styles.detailValue}>{booking.returnTime}</Text>
+              <Text style={styles.detailValue}>
+                {booking.returnTime ? formatTimeAMPM(booking.returnTime) : '-'}
+              </Text>
             </View>
           </View>
         </>
@@ -203,9 +210,22 @@ export default function BookingDetailsScreen() {
         </View>
         <View style={styles.detailContent}>
           <Text style={styles.detailLabel}>Route</Text>
-          <Text style={styles.detailValue}>
-            {booking.route.fromIsland.name} → {booking.route.toIsland.name}
-          </Text>
+          {booking.route.routeStops && booking.route.routeStops.length > 0 ? (
+            <View>
+              <Text style={styles.detailValue}>
+                {booking.route.routeStops
+                  .map(stop => stop.island.name)
+                  .join(' → ')}
+              </Text>
+              <Text style={styles.routeNote}>
+                {booking.route.routeStops.length} stops
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.detailValue}>
+              {booking.route.fromIsland.name} → {booking.route.toIsland.name}
+            </Text>
+          )}
         </View>
       </View>
 
@@ -818,6 +838,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
+  },
+  routeNote: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
   passengersCard: {
     marginBottom: 16,

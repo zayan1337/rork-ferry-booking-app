@@ -115,7 +115,8 @@ export default function TripGenerator({
     try {
       const { data, error } = await supabase
         .from('route_stops')
-        .select(`
+        .select(
+          `
           id,
           route_id,
           island_id,
@@ -130,7 +131,8 @@ export default function TripGenerator({
             name,
             zone
           )
-        `)
+        `
+        )
         .order('stop_sequence', { ascending: true });
 
       if (error) throw error;
@@ -486,7 +488,9 @@ export default function TripGenerator({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.selectionPreviewText}>
-              {getRouteLabel(routes.find(r => r.id === formData.route_id) || {})}
+              {getRouteLabel(
+                routes.find(r => r.id === formData.route_id) || {}
+              )}
               {' • '}
               {vessels.find(v => v.id === formData.vessel_id)?.name ||
                 'Selected Vessel'}

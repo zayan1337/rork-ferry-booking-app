@@ -24,6 +24,20 @@ export interface Trip {
   };
 }
 
+// Trip with segment information for multi-stop bookings
+export interface TripWithSegment extends Trip {
+  boarding_stop_id: string;
+  destination_stop_id: string;
+  boarding_stop_sequence: number;
+  destination_stop_sequence: number;
+  boarding_island_name: string;
+  destination_island_name: string;
+  segment_fare: number;
+  available_seats_for_segment: number;
+  total_stops: number;
+  route_name?: string;
+}
+
 export interface SeatReservation {
   id: string;
   trip_id: string;

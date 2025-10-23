@@ -2,8 +2,8 @@ import type { CustomerFAQ } from '@/types/customer';
 
 // Booking steps
 export const BOOKING_STEPS = {
-  TRIP_TYPE_DATE: 1,
-  ROUTE_SELECTION: 2,
+  ISLAND_DATE_SELECTION: 1,
+  TRIP_SELECTION: 2,
   SEAT_SELECTION: 3,
   PASSENGER_DETAILS: 4,
   PAYMENT: 5,
@@ -11,8 +11,8 @@ export const BOOKING_STEPS = {
 
 // Step labels
 export const STEP_LABELS = {
-  [BOOKING_STEPS.TRIP_TYPE_DATE]: 'Trip',
-  [BOOKING_STEPS.ROUTE_SELECTION]: 'Route',
+  [BOOKING_STEPS.ISLAND_DATE_SELECTION]: 'Route & Date',
+  [BOOKING_STEPS.TRIP_SELECTION]: 'Select Trip',
   [BOOKING_STEPS.SEAT_SELECTION]: 'Seats',
   [BOOKING_STEPS.PASSENGER_DETAILS]: 'Details',
   [BOOKING_STEPS.PAYMENT]: 'Payment',
@@ -27,7 +27,7 @@ export const TRIP_TYPES = {
 // Payment methods
 export const PAYMENT_OPTIONS = [
   // { label: 'Bank Transfer', value: 'bank_transfer' },
-  // { label: 'BML', value: 'bml' },
+  { label: 'BML', value: 'bml' },
   { label: 'MIB', value: 'mib' },
   // { label: 'Ooredoo', value: 'ooredoo_m_faisa' },
   // { label: 'FahiPay', value: 'fahipay' },

@@ -88,7 +88,8 @@ export async function updateRouteStop(
   // Map estimated_travel_time_from_previous to estimated_travel_time for database
   const dbUpdates: any = { ...updates };
   if ('estimated_travel_time_from_previous' in dbUpdates) {
-    dbUpdates.estimated_travel_time = dbUpdates.estimated_travel_time_from_previous;
+    dbUpdates.estimated_travel_time =
+      dbUpdates.estimated_travel_time_from_previous;
     delete dbUpdates.estimated_travel_time_from_previous;
   }
   // Remove readonly/computed fields

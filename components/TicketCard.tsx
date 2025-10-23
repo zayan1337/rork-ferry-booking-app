@@ -5,6 +5,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { TicketCardProps } from '@/types/components';
 import Colors from '@/constants/colors';
 import Card from './Card';
+import { formatTimeAMPM } from '@/utils/dateUtils';
 
 const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
   const formatDate = (dateString: string) => {
@@ -83,7 +84,9 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
               style={styles.infoIcon}
             />
             <Text style={styles.infoLabel}>Time</Text>
-            <Text style={styles.infoValue}>{booking.departureTime}</Text>
+            <Text style={styles.infoValue}>
+              {formatTimeAMPM(booking.departureTime)}
+            </Text>
           </View>
         </View>
 
