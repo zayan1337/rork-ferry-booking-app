@@ -175,7 +175,13 @@ export type Notification = {
   id: string;
   title: string;
   message: string;
-  type: 'system' | 'booking' | 'payment' | 'maintenance' | 'emergency';
+  type:
+    | 'system'
+    | 'booking'
+    | 'payment'
+    | 'maintenance'
+    | 'emergency'
+    | 'contact_form';
   priority: 'low' | 'medium' | 'high' | 'critical';
   target_users: 'all' | 'customers' | 'agents' | 'admins';
   is_read: boolean;
@@ -185,6 +191,25 @@ export type Notification = {
   failed_count?: number;
   created_at: string;
   expires_at?: string;
+};
+
+// Contact Form Types
+export type ContactFormNotification = {
+  id: string;
+  title: string;
+  message: string;
+  notification_type: 'contact_form';
+  recipient_role: 'admin';
+  priority: number;
+  is_read: boolean;
+  metadata: {
+    contact_name: string;
+    contact_email: string;
+    contact_message: string;
+    submitted_at: string;
+  };
+  created_at: string;
+  read_at?: string;
 };
 
 export type BulkMessage = {

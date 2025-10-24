@@ -36,6 +36,8 @@ import type {
   ModifyBookingData,
   BookingFormErrors,
 } from '@/types/pages/booking';
+import { getTripsForSegment } from '@/utils/segmentBookingUtils';
+import { formatTimeAMPM } from '@/utils/dateUtils';
 
 export default function ModifyBookingScreen() {
   const { id } = useLocalSearchParams();
@@ -87,6 +89,8 @@ export default function ModifyBookingScreen() {
     accountName: '',
     bankName: '',
   });
+  const [localTrips, setLocalTrips] = useState<any[]>([]);
+  const [localTripsLoading, setLocalTripsLoading] = useState(false);
 
   // MIB Payment WebView state
   const [showMibPayment, setShowMibPayment] = useState(false);
@@ -104,7 +108,7 @@ export default function ModifyBookingScreen() {
     bankName: null as any,
   });
 
-  const isLoading = bookingsLoading || tripLoading || seatLoading;
+  const isLoading = bookingsLoading || localTripsLoading || seatLoading;
 
   // Find the specific booking
   const booking =
@@ -143,8 +147,8 @@ export default function ModifyBookingScreen() {
     return () => {
       cleanupAllSeatSubscriptions();
       // Also cleanup any temporary reservations
-      if (selectedTrip?.id) {
-        cleanupUserTempReservations(selectedTrip.id).catch(() => {
+      if (selectedTrip?.trip_id) {
+        cleanupUserTempReservations(selectedTrip.trip_id).catch(() => {
           // Silently handle cleanup errors
         });
       }
@@ -153,17 +157,17 @@ export default function ModifyBookingScreen() {
 
   // Periodic seat refresh as fallback for real-time updates
   useEffect(() => {
-    if (selectedTrip?.id) {
+    if (selectedTrip?.trip_id) {
       const refreshInterval = setInterval(() => {
         // Refresh seat availability without showing loading
-        refreshAvailableSeatsSilently(selectedTrip.id, false).catch(() => {
+        refreshAvailableSeatsSilently(selectedTrip.trip_id, false).catch(() => {
           // Silently handle refresh errors
         });
       }, 30000); // Refresh every 30 seconds
 
       return () => clearInterval(refreshInterval);
     }
-  }, [selectedTrip?.id, refreshAvailableSeatsSilently]);
+  }, [selectedTrip?.trip_id, refreshAvailableSeatsSilently]);
 
   // Monitor seat availability changes and notify user
   // Skip initial check to avoid false alerts for currently booked seats
@@ -277,25 +281,56 @@ export default function ModifyBookingScreen() {
 
   // Fetch trips when date changes
   useEffect(() => {
-    if (selectedDate && booking?.route?.id) {
-      fetchTrips(booking.route.id, selectedDate);
+    if (
+      selectedDate &&
+      booking?.route?.fromIsland?.id &&
+      booking?.route?.toIsland?.id
+    ) {
+      setLocalTripsLoading(true);
+      getTripsForSegment(
+        booking.route.fromIsland.id,
+        booking.route.toIsland.id,
+        selectedDate
+      )
+        .then((fetchedTrips: any[]) => {
+          setLocalTrips(fetchedTrips);
+          // Populate seat counts from the fetched trips
+          const seatCounts: Record<string, number> = {};
+          fetchedTrips.forEach(trip => {
+            seatCounts[trip.trip_id] = trip.available_seats_for_segment || 0;
+          });
+          setTripSeatCounts(seatCounts);
+          setSelectedTrip(null);
+          setSelectedSeats([]);
+        })
+        .catch((error: any) => {
+          console.error('Error fetching trips:', error);
+          setLocalTrips([]);
+        })
+        .finally(() => {
+          setLocalTripsLoading(false);
+        });
     }
-  }, [selectedDate, booking?.route?.id, fetchTrips]);
+  }, [
+    selectedDate,
+    booking?.route?.fromIsland?.id,
+    booking?.route?.toIsland?.id,
+  ]);
 
   // Fetch seats when trip is selected
   useEffect(() => {
     const initializeSeatsForTrip = async () => {
-      if (selectedTrip?.id) {
+      if (selectedTrip?.trip_id) {
         // Reset interaction flag when trip changes to prevent false alerts
         setHasUserInteracted(false);
 
         try {
           // Use real-time seat status fetching
-          await fetchRealtimeSeatStatus(selectedTrip.id, false);
+          await fetchRealtimeSeatStatus(selectedTrip.trip_id, false);
           // Subscribe to real-time updates for this trip
-          subscribeSeatUpdates(selectedTrip.id, false);
+          subscribeSeatUpdates(selectedTrip.trip_id, false);
           // Also fetch trip seat availability for display
-          fetchTripSeatAvailability(selectedTrip.id);
+          fetchTripSeatAvailability(selectedTrip.trip_id);
         } catch (error) {
           // Silently handle seat initialization errors
         }
@@ -306,12 +341,12 @@ export default function ModifyBookingScreen() {
 
     // Cleanup subscriptions when trip changes
     return () => {
-      if (selectedTrip?.id) {
-        unsubscribeSeatUpdates(selectedTrip.id);
+      if (selectedTrip?.trip_id) {
+        unsubscribeSeatUpdates(selectedTrip.trip_id);
       }
     };
   }, [
-    selectedTrip?.id,
+    selectedTrip?.trip_id,
     fetchRealtimeSeatStatus,
     subscribeSeatUpdates,
     unsubscribeSeatUpdates,
@@ -320,9 +355,8 @@ export default function ModifyBookingScreen() {
   // Calculate fare difference when trip changes
   useEffect(() => {
     if (selectedTrip && booking && booking.passengers) {
-      // Calculate fare using trip data (base_fare * fare_multiplier)
-      const newFarePerSeat =
-        (selectedTrip.base_fare || 0) * (selectedTrip.fare_multiplier || 1.0);
+      // Calculate fare using segment_fare (already includes fare_multiplier consideration)
+      const newFarePerSeat = selectedTrip.segment_fare || 0;
       const newTotalFare = newFarePerSeat * booking.passengers.length;
       const difference = calculateFareDifference(
         booking.totalFare,
@@ -379,7 +413,7 @@ export default function ModifyBookingScreen() {
 
     try {
       const isSelected = selectedSeats.some(s => s.id === seat.id);
-      const tripId = selectedTrip?.id;
+      const tripId = selectedTrip?.trip_id;
 
       if (!tripId) {
         throw new Error('No trip selected');
@@ -437,9 +471,9 @@ export default function ModifyBookingScreen() {
       Alert.alert('Seat Selection Error', errorMessage);
 
       // Refresh seat availability to show current status
-      if (selectedTrip?.id) {
+      if (selectedTrip?.trip_id) {
         try {
-          await fetchRealtimeSeatStatus(selectedTrip.id, false);
+          await fetchRealtimeSeatStatus(selectedTrip.trip_id, false);
         } catch (refreshError) {
           // Silently handle refresh errors
         }
@@ -535,7 +569,7 @@ export default function ModifyBookingScreen() {
       }
 
       const modificationData: ModifyBookingData = {
-        newTripId: selectedTrip.id,
+        newTripId: selectedTrip.trip_id,
         newDate: selectedDate,
         selectedSeats,
         modificationReason,
@@ -550,9 +584,9 @@ export default function ModifyBookingScreen() {
       );
 
       // Cleanup temporary seat reservations after modification is processed
-      if (selectedTrip?.id) {
+      if (selectedTrip?.trip_id) {
         try {
-          await cleanupUserTempReservations(selectedTrip.id);
+          await cleanupUserTempReservations(selectedTrip.trip_id);
         } catch (cleanupError) {
           console.warn(
             '[MODIFY] Failed to cleanup temp reservations (non-critical):',
@@ -709,13 +743,15 @@ export default function ModifyBookingScreen() {
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Current Date:</Text>
             <Text style={styles.detailValue}>
-              {new Date(booking.departureDate).toLocaleDateString()}
+              {new Date(booking.departureDate).toLocaleDateString('en-GB')}
             </Text>
           </View>
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Current Time:</Text>
-            <Text style={styles.detailValue}>{booking.departureTime}</Text>
+            <Text style={styles.detailValue}>
+              {formatTimeAMPM(booking.departureTime)}
+            </Text>
           </View>
 
           <View style={styles.detailRow}>
@@ -757,15 +793,16 @@ export default function ModifyBookingScreen() {
           />
 
           {/* Trip Selection */}
-          {trips.length > 0 && (
+          {localTrips.length > 0 && (
             <View style={styles.tripSelection}>
               <Text style={styles.sectionTitle}>Select New Trip</Text>
-              {trips.map(trip => (
+              {localTrips.map(trip => (
                 <Pressable
-                  key={trip.id}
+                  key={trip.trip_id}
                   style={[
                     styles.tripOption,
-                    selectedTrip?.id === trip.id && styles.tripOptionSelected,
+                    selectedTrip?.trip_id === trip.trip_id &&
+                      styles.tripOptionSelected,
                   ]}
                   onPress={() => {
                     setSelectedTrip(trip);
@@ -773,20 +810,18 @@ export default function ModifyBookingScreen() {
                     if (errors.trip) setErrors({ ...errors, trip: '' });
                   }}
                 >
-                  <Text style={styles.tripTime}>{trip.departure_time}</Text>
+                  <Text style={styles.tripTime}>
+                    {formatTimeAMPM(trip.departure_time)}
+                  </Text>
                   <Text style={styles.tripVessel}>{trip.vessel_name}</Text>
                   <Text style={styles.tripSeats}>
-                    {tripSeatCounts[trip.id] !== undefined
-                      ? tripSeatCounts[trip.id]
+                    {tripSeatCounts[trip.trip_id] !== undefined
+                      ? tripSeatCounts[trip.trip_id]
                       : '...'}{' '}
                     seats available
                   </Text>
                   <Text style={styles.tripFare}>
-                    MVR{' '}
-                    {(
-                      (trip.base_fare || 0) * (trip.fare_multiplier || 1.0)
-                    ).toFixed(2)}{' '}
-                    per seat
+                    MVR {trip.segment_fare.toFixed(2)} per seat
                     {trip.fare_multiplier && trip.fare_multiplier !== 1.0 && (
                       <Text style={styles.tripFareMultiplier}>
                         {' '}
