@@ -180,17 +180,37 @@ export default function CaptainDashboardScreen() {
           <View style={styles.nextTripHeader}>
             <View style={styles.routeInfo}>
               <MapPin size={16} color={Colors.primary} />
-              <Text style={styles.routeName}>
-                {nextTrip.from_island_name} → {nextTrip.to_island_name}
-              </Text>
+              <Text style={styles.routeName}>{nextTrip.route_name}</Text>
             </View>
-            <View style={styles.timeInfo}>
-              <Clock size={16} color={Colors.textSecondary} />
-              <Text style={styles.departureTime}>
-                {formatTripTime(nextTrip.departure_time)}
-              </Text>
+            <View style={styles.headerBadges}>
+              <View style={styles.timeInfo}>
+                <Clock size={16} color={Colors.textSecondary} />
+                <Text style={styles.departureTime}>
+                  {formatTripTime(nextTrip.departure_time)}
+                </Text>
+              </View>
             </View>
           </View>
+
+          {/* Progress indicator */}
+          {nextTrip.total_stops && nextTrip.total_stops > 1 && (
+            <View style={styles.multiStopProgress}>
+              <Text style={styles.progressText}>
+                Stop {nextTrip.current_stop_sequence || 1} of{' '}
+                {nextTrip.total_stops}
+              </Text>
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${((nextTrip.current_stop_sequence || 1) / (nextTrip.total_stops || 1)) * 100}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
 
           <View style={styles.nextTripDetails}>
             <View style={styles.tripDetail}>
@@ -641,5 +661,31 @@ const styles = StyleSheet.create({
   nextTripAction: {
     borderLeftWidth: 4,
     borderLeftColor: Colors.warning,
+  },
+  // Multi-stop styles
+  headerBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  multiStopProgress: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: Colors.border,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 2,
   },
 });

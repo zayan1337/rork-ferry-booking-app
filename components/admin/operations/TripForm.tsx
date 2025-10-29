@@ -265,21 +265,16 @@ export default function TripForm({
   const loadSegmentData = async (routeId: string) => {
     setLoadingSegmentData(true);
     try {
-      console.log('Loading segment data for route:', routeId);
       const multiRoute = await getMultiStopRoute(routeId);
-      console.log('Multi-route data:', multiRoute);
 
       if (multiRoute && multiRoute.segment_fares) {
-        console.log('Setting segment fares:', multiRoute.segment_fares);
         setRouteSegmentFares(multiRoute.segment_fares);
       } else {
-        console.log('No segment fares found for route');
         setRouteSegmentFares([]);
       }
 
       // Load existing trip fare overrides if editing
       if (tripId) {
-        console.log('Loading trip fare overrides for trip:', tripId);
         const { data: overrides, error } = await supabase
           .from('trip_fare_overrides')
           .select('*')
@@ -288,7 +283,6 @@ export default function TripForm({
         if (error) {
           console.error('Error loading trip fare overrides:', error);
         } else {
-          console.log('Trip fare overrides:', overrides);
           setTripFareOverrides(overrides || []);
         }
       }

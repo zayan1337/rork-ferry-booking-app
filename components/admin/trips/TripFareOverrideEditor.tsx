@@ -63,17 +63,9 @@ export default function TripFareOverrideEditor({
     value: string
   ) => {
     const key = `${fromStopId}-${toStopId}`;
-    console.log('handleFareChange called:', {
-      fromStopId,
-      toStopId,
-      defaultFare,
-      value,
-      key,
-    });
 
     // Handle empty input
     if (value === '' || value === null || value === undefined) {
-      console.log('Empty input, removing override for key:', key);
       const newOverrides = new Map(overrides);
       newOverrides.delete(key);
       setOverrides(newOverrides);
@@ -81,25 +73,18 @@ export default function TripFareOverrideEditor({
     }
 
     const newFare = parseFloat(value);
-    console.log('Parsed fare:', newFare);
 
     // Validate number
     if (isNaN(newFare) || newFare < 0) {
-      console.log('Invalid fare input, ignoring');
       return; // Invalid input, don't update
     }
 
     // If fare matches default, remove override
     if (newFare === defaultFare) {
-      console.log('Fare matches default, removing override');
       const newOverrides = new Map(overrides);
       newOverrides.delete(key);
       setOverrides(newOverrides);
     } else {
-      console.log('Setting new override:', {
-        fare: newFare,
-        reason: overrides.get(key)?.reason || '',
-      });
       const newOverrides = new Map(overrides);
       newOverrides.set(key, {
         fare: newFare,
@@ -284,7 +269,6 @@ export default function TripFareOverrideEditor({
                     label='Override Fare (MVR)'
                     value={displayFare.toString()}
                     onChangeText={value => {
-                      console.log('Fare changed:', value);
                       handleFareChange(
                         segment.from_stop_id,
                         segment.to_stop_id,

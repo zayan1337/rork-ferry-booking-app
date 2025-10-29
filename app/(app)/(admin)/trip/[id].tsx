@@ -167,28 +167,19 @@ export default function TripDetailsPage() {
   const loadMultiStopRouteData = async (routeId: string) => {
     setLoadingSegmentData(true);
     try {
-      console.log('Loading multi-stop route data for route:', routeId);
       const multiRoute = await getMultiStopRoute(routeId);
-      console.log('Multi-route data:', multiRoute);
 
       if (multiRoute) {
         // Always load stops (both simple and multi-stop routes have stops now)
         setRouteStops(multiRoute.stops || []);
         setIsMultiStopRoute(multiRoute.stops?.length > 2 || false);
 
-        console.log('Route stops:', multiRoute.stops);
-        console.log('Is multi-stop:', multiRoute.stops?.length > 2);
-
         if (multiRoute.segment_fares) {
-          console.log('Setting segment fares:', multiRoute.segment_fares);
           setRouteSegmentFares(multiRoute.segment_fares);
-        } else {
-          console.log('No segment fares found for route');
         }
 
         // Load trip fare overrides if they exist
         if (id) {
-          console.log('Loading trip fare overrides for trip:', id);
           const { data: overrides, error } = await supabase
             .from('trip_fare_overrides')
             .select('*')
@@ -197,7 +188,6 @@ export default function TripDetailsPage() {
           if (error) {
             console.error('Error loading trip fare overrides:', error);
           } else {
-            console.log('Trip fare overrides:', overrides);
             setTripFareOverrides(overrides || []);
           }
         }

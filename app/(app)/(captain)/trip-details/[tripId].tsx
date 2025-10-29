@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Pressable,
   ScrollView,
   RefreshControl,
+  Animated,
+  Easing,
 } from 'react-native';
 import {
   Stack,
@@ -30,14 +32,11 @@ import {
   ScanLine,
   Grid3X3,
   AlertCircle,
-  Info,
-  Phone,
-  Mail,
 } from 'lucide-react-native';
 
 import { useCaptainStore } from '@/store/captainStore';
 import { useAuthStore } from '@/store/authStore';
-import { CaptainTrip } from '@/types/captain';
+import { CaptainTrip, CaptainRouteStop } from '@/types/captain';
 import { Seat } from '@/types';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
@@ -55,15 +54,64 @@ export default function CaptainTripDetailsScreen() {
     loading,
     error,
     fetchTodayTrips,
+    fetchTripById,
     fetchTripPassengers,
     closeCheckin,
     updateTripStatus,
+    fetchTripStops,
+    fetchPassengersForStop,
+    moveToNextStop,
+    completeStopBoarding,
+    processMultiStopCheckIn,
+    sendManifest,
   } = useCaptainStore();
 
   const [trip, setTrip] = useState<CaptainTrip | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [allSeats, setAllSeats] = useState<any[]>([]);
   const [loadingSeats, setLoadingSeats] = useState(false);
+
+  // Multi-stop state
+  const [routeStops, setRouteStops] = useState<CaptainRouteStop[]>([]);
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
+  const [loadingStops, setLoadingStops] = useState(false);
+
+  // New multi-stop workflow state
+  const [currentStop, setCurrentStop] = useState<any>(null);
+  const [stopPassengers, setStopPassengers] = useState<any[]>([]);
+
+  // Bulk check-in state
+  const [selectedPassengers, setSelectedPassengers] = useState<Set<string>>(
+    new Set()
+  );
+  const [bulkCheckInMode, setBulkCheckInMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'checked_in' | 'pending'>(
+    'all'
+  );
+
+  // Animated value for refresh icon rotation
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  // Animate refresh icon when refreshing
+  useEffect(() => {
+    if (refreshing) {
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      rotateAnim.setValue(0);
+    }
+  }, [refreshing, rotateAnim]);
+
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   // Find the trip from trips
   useEffect(() => {
@@ -191,11 +239,20 @@ export default function CaptainTripDetailsScreen() {
     if (!tripId) return;
 
     try {
-      await Promise.all([fetchTodayTrips(), fetchTripPassengers(tripId)]);
+      // Check if trip exists in store
+      const existingTrip = trips.find(t => t.id === tripId);
+
+      if (!existingTrip) {
+        // If trip not in store, fetch it individually
+        await fetchTripById(tripId);
+      }
+
+      // Always fetch passengers for this trip
+      await fetchTripPassengers(tripId);
     } catch (error) {
       console.error('Error loading trip data:', error);
     }
-  }, [tripId, fetchTodayTrips, fetchTripPassengers]);
+  }, [tripId, trips, fetchTripById, fetchTripPassengers]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {
@@ -217,6 +274,841 @@ export default function CaptainTripDetailsScreen() {
       loadTripData();
     }, [loadTripData])
   );
+
+  // Load multi-stop data for all trips
+  useEffect(() => {
+    if (tripId) {
+      loadMultiStopData();
+    }
+  }, [tripId]);
+
+  // Load multi-stop data with enhanced workflow
+  const loadMultiStopData = useCallback(async () => {
+    if (!tripId) return;
+
+    setLoadingStops(true);
+    try {
+      const stops = await fetchTripStops(tripId);
+
+      setRouteStops(stops);
+
+      // Find the correct current stop based on workflow
+      let selectedStop = null;
+
+      // 1. First, check if there's a stop with status 'boarding' or 'arrived'
+      const activeBoardingStop = stops.find(
+        stop => stop.status === 'boarding' || stop.status === 'arrived'
+      );
+      if (activeBoardingStop) {
+        selectedStop = activeBoardingStop;
+      } else {
+        // 2. Check if all pickup stops are completed
+        const pickupStops = stops.filter(
+          s => s.stop_type === 'pickup' || s.stop_type === 'both'
+        );
+        const allPickupsCompleted = pickupStops.every(s => s.is_completed);
+
+        if (allPickupsCompleted) {
+          // 3. Find first incomplete dropoff stop
+          selectedStop = stops.find(
+            s =>
+              (s.stop_type === 'dropoff' || s.stop_type === 'both') &&
+              !s.is_completed
+          );
+        } else {
+          // 4. Find first incomplete pickup stop
+          selectedStop = stops.find(s => !s.is_completed);
+        }
+      }
+
+      // 5. Fallback to first stop if nothing found
+      if (!selectedStop) {
+        selectedStop = stops[0];
+      }
+
+      if (selectedStop) {
+        setSelectedStopId(selectedStop.id);
+        setCurrentStop(selectedStop);
+
+        // Load passengers for current stop
+        // Note: Simplified for now as fetchPassengersForStop uses different parameters
+        // You can enhance this based on your needs
+      }
+    } catch (error) {
+      console.error(
+        '[loadMultiStopData] Error loading multi-stop data:',
+        error
+      );
+    } finally {
+      setLoadingStops(false);
+    }
+  }, [tripId, fetchTripStops]);
+
+  // Get smart button state based on current stop and trip status
+  const getButtonState = useCallback(() => {
+    if (!currentStop || !trip || !routeStops.length) return null;
+
+    // Hide button if trip is already completed
+    if (trip.status === 'completed') return null;
+
+    const stopType = currentStop.stop_type || 'both';
+    const status = currentStop.status || 'pending';
+    const isLastStop = currentStop.stop_sequence === trip.total_stops;
+
+    // Check if ALL pickup stops are completed
+    const allPickupStopsCompleted = routeStops
+      .filter(s => s.stop_type === 'pickup' || s.stop_type === 'both')
+      .every(s => s.is_completed);
+
+    // If all pickups completed, find FIRST incomplete dropoff (not next one)
+    if (allPickupStopsCompleted) {
+      // Check if current stop is a dropoff that has arrived
+      const isCurrentDropoff =
+        currentStop.stop_type === 'dropoff' || currentStop.stop_type === 'both';
+
+      if (isCurrentDropoff && status === 'arrived') {
+        // At a dropoff stop that we've arrived at
+        if (isLastStop) {
+          return {
+            text: `Complete Trip at ${currentStop.island.name}`,
+            action: 'complete_trip',
+            variant: 'destructive' as const,
+          };
+        }
+
+        // Find next incomplete stop
+        const nextStop = routeStops.find(
+          s => s.stop_sequence > currentStop.stop_sequence && !s.is_completed
+        );
+
+        if (nextStop) {
+          if (nextStop.stop_sequence === trip.total_stops) {
+            return {
+              text: `Complete Trip at ${nextStop.island.name}`,
+              action: 'complete_trip',
+              variant: 'destructive' as const,
+            };
+          }
+          return {
+            text: `Arrive at ${nextStop.island.name}`,
+            action: 'arrive',
+            variant: 'primary' as const,
+          };
+        }
+      }
+
+      // Find the FIRST incomplete dropoff stop (not the next one after current)
+      const firstIncompleteDropoff = routeStops.find(
+        s =>
+          (s.stop_type === 'dropoff' || s.stop_type === 'both') &&
+          !s.is_completed
+      );
+
+      if (firstIncompleteDropoff) {
+        // Check if this is the last stop
+        if (firstIncompleteDropoff.stop_sequence === trip.total_stops) {
+          return {
+            text: `Complete Trip at ${firstIncompleteDropoff.island.name}`,
+            action: 'complete_trip',
+            variant: 'destructive' as const,
+          };
+        }
+
+        return {
+          text: `Arrive at ${firstIncompleteDropoff.island.name}`,
+          action: 'arrive',
+          variant: 'primary' as const,
+        };
+      }
+
+      // If no incomplete dropoff found, check if current stop is a dropoff
+      if (
+        currentStop.stop_type === 'dropoff' ||
+        currentStop.stop_type === 'both'
+      ) {
+        // If we're at the last stop, show complete trip
+        if (isLastStop) {
+          return {
+            text: `Complete Trip at ${currentStop.island.name}`,
+            action: 'complete_trip',
+            variant: 'destructive' as const,
+          };
+        }
+
+        // If we're at a dropoff but not the last, show arrive at next stop
+        const nextStop = routeStops.find(
+          s => s.stop_sequence > currentStop.stop_sequence && !s.is_completed
+        );
+
+        if (nextStop) {
+          return {
+            text: `Arrive at ${nextStop.island.name}`,
+            action: 'arrive',
+            variant: 'primary' as const,
+          };
+        }
+      }
+
+      // All stops completed
+      return {
+        text: 'Complete Trip',
+        action: 'complete_trip',
+        variant: 'destructive' as const,
+      };
+    }
+
+    // Check if there are any more pickup stops ahead
+    const hasMorePickupStops = routeStops.some(
+      s =>
+        s.stop_sequence > currentStop.stop_sequence &&
+        (s.stop_type === 'pickup' || s.stop_type === 'both') &&
+        !s.is_completed
+    );
+
+    // Check if this is a pickup stop
+    const isPickupStop = stopType === 'pickup' || stopType === 'both';
+
+    // PICKUP STOP WORKFLOW
+    if (isPickupStop) {
+      // 1. Start Boarding
+      if (status === 'pending' || status === 'arrived') {
+        return {
+          text: `Start Boarding at ${currentStop.island.name}`,
+          action: 'start_boarding',
+          variant: 'primary' as const,
+        };
+      }
+
+      // 2. After boarding started, show Depart button
+      if (status === 'boarding') {
+        return {
+          text: `Depart from ${currentStop.island.name}`,
+          action: 'depart',
+          variant: 'destructive' as const,
+        };
+      }
+
+      // 3. After departed, check if more pickup stops exist
+      if (status === 'departed' || status === 'completed') {
+        if (hasMorePickupStops) {
+          const nextPickupStop = routeStops.find(
+            s =>
+              s.stop_sequence > currentStop.stop_sequence &&
+              (s.stop_type === 'pickup' || s.stop_type === 'both') &&
+              !s.is_completed
+          );
+          return {
+            text: `Arrive at ${nextPickupStop?.island.name || 'Next Stop'}`,
+            action: 'arrive',
+            variant: 'primary' as const,
+          };
+        } else {
+          // No more pickup stops, move to first dropoff
+          const firstDropoff = routeStops.find(
+            s =>
+              (s.stop_type === 'dropoff' || s.stop_type === 'both') &&
+              !s.is_completed
+          );
+          if (firstDropoff) {
+            return {
+              text: `Arrive at ${firstDropoff.island.name}`,
+              action: 'arrive',
+              variant: 'primary' as const,
+            };
+          }
+        }
+      }
+    }
+
+    return null;
+  }, [currentStop, trip, routeStops]);
+
+  // Handle button press
+  const handleButtonPress = useCallback(async () => {
+    const buttonState = getButtonState();
+    if (!buttonState || !tripId || !user?.id || !currentStop) return;
+
+    try {
+      switch (buttonState.action) {
+        case 'start_boarding':
+          await handleStartBoarding();
+          break;
+        case 'depart':
+          await handleDepart();
+          break;
+        case 'arrive':
+          await handleArrive();
+          break;
+        case 'send_manifest':
+          await handleSendManifest();
+          break;
+        case 'complete_trip':
+          await handleCompleteTrip();
+          break;
+      }
+    } catch (error) {
+      console.error('Error handling button press:', error);
+      Alert.alert('Error', 'An error occurred. Please try again.');
+    }
+  }, [getButtonState, tripId, user?.id, currentStop]);
+
+  // Action handlers
+  const handleStartBoarding = async () => {
+    if (!currentStop || !tripId) return;
+
+    Alert.alert(
+      'Start Boarding',
+      `Allow passengers to board at ${currentStop.island.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Start Boarding',
+          onPress: async () => {
+            try {
+              // First, check if trip progress is initialized
+              const { data: progressCheck, error: checkError } = await supabase
+                .from('trip_stop_progress')
+                .select('id, status, stop_id')
+                .eq('trip_id', tripId);
+
+              // If no progress exists, initialize it first
+              if (!progressCheck || progressCheck.length === 0) {
+                const { data: initData, error: initError } = await supabase.rpc(
+                  'initialize_trip_stop_progress',
+                  {
+                    p_trip_id: tripId,
+                    p_captain_id: user?.id,
+                  }
+                );
+
+                if (initError) {
+                  console.error('Error initializing trip progress:', initError);
+                  Alert.alert(
+                    'Error',
+                    `Failed to initialize trip progress: ${initError.message}`
+                  );
+                  return;
+                }
+              }
+
+              // Now update stop status to 'boarding'
+              // FIXED: Use stop_id (route_stops.id) not currentStop.id (trip_stop_progress.id)
+              const { data: updateData, error: updateError } =
+                await supabase.rpc('update_stop_status', {
+                  p_trip_id: tripId,
+                  p_stop_id: currentStop.stop_id, // FIXED: Use stop_id
+                  p_status: 'boarding',
+                  p_captain_id: user?.id,
+                });
+
+              if (updateError) {
+                console.error('Error starting boarding:', updateError);
+                Alert.alert(
+                  'Error',
+                  `Failed to start boarding: ${updateError.message}`
+                );
+                return;
+              }
+
+              if (!updateData) {
+                Alert.alert(
+                  'Error',
+                  'Failed to update stop status. Please try again.'
+                );
+                return;
+              }
+
+              // Update trip status to 'boarding'
+              const { error: tripUpdateError } = await supabase
+                .from('trips')
+                .update({
+                  status: 'boarding',
+                  current_stop_sequence: currentStop.stop_sequence,
+                  current_stop_id: currentStop.stop_id,
+                  trip_progress_status: 'boarding_in_progress',
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', tripId);
+
+              if (tripUpdateError) {
+                console.error('Error updating trip status:', tripUpdateError);
+                Alert.alert('Error', 'Failed to update trip status');
+                return;
+              }
+
+              // Optimistic UI Update: Update local state immediately
+              if (trip) {
+                setTrip({
+                  ...trip,
+                  status: 'boarding',
+                  current_stop_sequence: currentStop.stop_sequence,
+                  current_stop_id: currentStop.stop_id,
+                } as CaptainTrip);
+              }
+
+              // Update route stops state immediately
+              setRouteStops(prevStops =>
+                prevStops.map(stop =>
+                  stop.stop_id === currentStop.stop_id
+                    ? { ...stop, status: 'boarding', is_current_stop: true }
+                    : { ...stop, is_current_stop: false }
+                )
+              );
+
+              // Update current stop state
+              setCurrentStop((prev: any) => ({
+                ...prev,
+                status: 'boarding',
+                is_current_stop: true,
+              }));
+
+              // Reload data in background (non-blocking)
+              Promise.all([loadMultiStopData(), loadTripData()]).catch(err => {
+                console.error('Error reloading data:', err);
+              });
+            } catch (err: any) {
+              console.error('Unexpected error:', err);
+              Alert.alert(
+                'Error',
+                `An unexpected error occurred: ${err.message || 'Unknown error'}`
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDepart = async () => {
+    if (!currentStop || !tripId) return;
+
+    Alert.alert('Depart', `Ready to depart from ${currentStop.island.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Depart',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            // Update stop status to 'departed'
+            const { data, error } = await supabase.rpc('update_stop_status', {
+              p_trip_id: tripId,
+              p_stop_id: currentStop.stop_id, // FIXED: Use stop_id
+              p_status: 'departed',
+              p_captain_id: user?.id,
+            });
+
+            if (!error && data) {
+              // Determine if there are more pickup stops
+              const remainingPickups = routeStops.filter(
+                s =>
+                  s.stop_sequence > currentStop.stop_sequence &&
+                  (s.stop_type === 'pickup' || s.stop_type === 'both') &&
+                  !s.is_completed
+              );
+
+              const newTripStatus =
+                remainingPickups.length > 0 ? 'boarding' : 'departed';
+              const newProgressStatus =
+                remainingPickups.length > 0
+                  ? 'boarding_in_progress'
+                  : 'in_transit';
+
+              // Update trip status
+              const { error: tripUpdateError } = await supabase
+                .from('trips')
+                .update({
+                  status: newTripStatus,
+                  trip_progress_status: newProgressStatus,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', tripId);
+
+              if (tripUpdateError) {
+                console.error('Error updating trip status:', tripUpdateError);
+                Alert.alert('Error', 'Failed to update trip status');
+                return;
+              }
+
+              // Optimistic UI Update: Update local state immediately
+              if (trip) {
+                setTrip({
+                  ...trip,
+                  status: newTripStatus,
+                } as CaptainTrip);
+              }
+
+              // Update route stops state immediately
+              setRouteStops(prevStops =>
+                prevStops.map(stop =>
+                  stop.stop_id === currentStop.stop_id
+                    ? { ...stop, status: 'departed', is_completed: true }
+                    : stop
+                )
+              );
+
+              // Update current stop state
+              setCurrentStop((prev: any) => ({
+                ...prev,
+                status: 'departed',
+                is_completed: true,
+              }));
+
+              // Send manifest in background if this was the last pickup stop
+              if (remainingPickups.length === 0) {
+                sendManifest(tripId, currentStop.id).catch(manifestError => {
+                  console.error('Error sending manifest:', manifestError);
+                });
+              }
+
+              // Reload data in background (non-blocking)
+              Promise.all([loadMultiStopData(), loadTripData()]).catch(err => {
+                console.error('Error reloading data:', err);
+              });
+            } else {
+              console.error('Error departing:', error);
+              Alert.alert(
+                'Error',
+                'Failed to depart: ' + (error?.message || 'Unknown error')
+              );
+            }
+          } catch (err) {
+            console.error('Unexpected error:', err);
+            Alert.alert('Error', 'An unexpected error occurred');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleArrive = async () => {
+    if (!tripId) return;
+
+    // Determine which stop we're arriving at
+    let targetStop = null;
+
+    // Check if all pickup stops are completed
+    const pickupStops = routeStops.filter(
+      s => s.stop_type === 'pickup' || s.stop_type === 'both'
+    );
+    const allPickupsCompleted = pickupStops.every(s => s.is_completed);
+
+    if (allPickupsCompleted) {
+      // Find first incomplete dropoff
+      targetStop = routeStops.find(
+        s =>
+          (s.stop_type === 'dropoff' || s.stop_type === 'both') &&
+          !s.is_completed
+      );
+    } else {
+      // Find next incomplete pickup
+      targetStop = routeStops.find(
+        s =>
+          s.stop_sequence > (currentStop?.stop_sequence || 0) &&
+          (s.stop_type === 'pickup' || s.stop_type === 'both') &&
+          !s.is_completed
+      );
+    }
+
+    if (!targetStop) return;
+
+    Alert.alert('Arrive at Next Stop', `Arrive at ${targetStop.island.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Arrive',
+        onPress: async () => {
+          try {
+            // Use the move_to_next_stop RPC function
+            const { data, error } = await supabase.rpc('move_to_next_stop', {
+              p_trip_id: tripId,
+              p_captain_id: user?.id,
+            });
+
+            if (!error && data && data.success) {
+              // Optimistic UI Update: Update current stop to arrived
+              if (targetStop) {
+                setRouteStops(prevStops =>
+                  prevStops.map(stop =>
+                    stop.stop_id === targetStop.stop_id
+                      ? { ...stop, status: 'arrived', is_current_stop: true }
+                      : { ...stop, is_current_stop: false }
+                  )
+                );
+
+                setCurrentStop({
+                  ...targetStop,
+                  status: 'arrived',
+                  is_current_stop: true,
+                });
+              }
+
+              // Reload data in background (non-blocking)
+              Promise.all([loadMultiStopData(), loadTripData()])
+                .then(() => {
+                  // Check completion after reload to ensure accuracy
+                  if (data.is_completed) {
+                    Alert.alert(
+                      'Trip Completed',
+                      data.message || 'Trip completed successfully!',
+                      [{ text: 'OK', onPress: () => router.back() }]
+                    );
+                  }
+                })
+                .catch(err => {
+                  console.error('Error reloading data:', err);
+                });
+            } else {
+              console.error('Error arriving:', error || data);
+              Alert.alert(
+                'Error',
+                data?.message ||
+                  error?.message ||
+                  'Failed to arrive at next stop'
+              );
+            }
+          } catch (err) {
+            console.error('Error in handleArrive:', err);
+            Alert.alert('Error', 'Failed to arrive at next stop');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleSendManifest = async () => {
+    if (!currentStop || !tripId) return;
+
+    Alert.alert(
+      'Send Manifest',
+      'Send passenger manifest to operations team?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Manifest',
+          onPress: async () => {
+            const success = await sendManifest(tripId, currentStop.id);
+
+            if (success) {
+              await loadMultiStopData();
+              await loadTripData();
+            } else {
+              Alert.alert('Error', 'Failed to send manifest');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCompleteTrip = async () => {
+    if (!tripId || !trip) return;
+
+    // Find the last stop
+    const lastStop = routeStops.find(s => s.stop_sequence === trip.total_stops);
+
+    if (!lastStop) {
+      Alert.alert('Error', 'Could not find final stop');
+      return;
+    }
+
+    Alert.alert(
+      'Complete Trip',
+      `Mark this trip as completed? This will close the trip.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Complete Trip',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Mark the last stop as arrived (if not already)
+              if (!lastStop.is_completed) {
+                const { data: arriveData, error: arriveError } =
+                  await supabase.rpc('update_stop_status', {
+                    p_trip_id: tripId,
+                    p_stop_id: lastStop.stop_id,
+                    p_status: 'arrived',
+                    p_captain_id: user?.id,
+                  });
+
+                if (arriveError || !arriveData) {
+                  console.error(
+                    'Error marking last stop as arrived:',
+                    arriveError
+                  );
+                  Alert.alert('Error', 'Failed to update last stop');
+                  return;
+                }
+              }
+
+              // Mark final stop as completed
+              const { data: stopData, error: stopError } = await supabase.rpc(
+                'update_stop_status',
+                {
+                  p_trip_id: tripId,
+                  p_stop_id: lastStop.stop_id,
+                  p_status: 'completed',
+                  p_captain_id: user?.id,
+                }
+              );
+
+              if (stopError || !stopData) {
+                console.error('Error updating stop status:', stopError);
+                Alert.alert('Error', 'Failed to complete stop');
+                return;
+              }
+
+              // Update trip status to 'completed'
+              const success = await updateTripStatus(tripId, 'completed');
+
+              if (success) {
+                Alert.alert(
+                  'Trip Completed',
+                  'Trip has been marked as completed successfully.',
+                  [{ text: 'OK', onPress: () => router.back() }]
+                );
+              } else {
+                Alert.alert('Error', 'Failed to complete trip');
+              }
+            } catch (error) {
+              console.error('Error completing trip:', error);
+              Alert.alert('Error', 'Failed to complete trip');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle completing stop boarding
+  const handleCompleteStopBoarding = useCallback(
+    async (stopId: string) => {
+      if (!user?.id) return;
+
+      const success = await completeStopBoarding(stopId, user.id);
+      if (success) {
+        await loadMultiStopData();
+        await loadTripData();
+      }
+    },
+    [user?.id, completeStopBoarding, loadMultiStopData, loadTripData]
+  );
+
+  // Bulk check-in handlers
+  const togglePassengerSelection = (passengerId: string) => {
+    const newSelection = new Set(selectedPassengers);
+    if (newSelection.has(passengerId)) {
+      newSelection.delete(passengerId);
+    } else {
+      newSelection.add(passengerId);
+    }
+    setSelectedPassengers(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    // Only select passengers who are not checked in
+    const pendingPassengers = activePassengers.filter(p => !p.check_in_status);
+
+    if (
+      selectedPassengers.size === pendingPassengers.length &&
+      pendingPassengers.length > 0
+    ) {
+      setSelectedPassengers(new Set());
+    } else {
+      const allPendingIds = new Set(pendingPassengers.map(p => p.id));
+      setSelectedPassengers(allPendingIds);
+    }
+  };
+
+  const handleBulkCheckIn = async () => {
+    if (selectedPassengers.size === 0) {
+      Alert.alert('No Selection', 'Please select passengers to check in.');
+      return;
+    }
+
+    const selectedCount = selectedPassengers.size;
+
+    // Get the list of selected passengers
+    const selectedList = activePassengers.filter(p =>
+      selectedPassengers.has(p.id)
+    );
+
+    Alert.alert(
+      'Bulk Check-in',
+      `Check in ${selectedCount} passenger${selectedCount > 1 ? 's' : ''}?\n\nPassengers: ${selectedList.map(p => p.passenger_name).join(', ')}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Check In',
+          onPress: async () => {
+            try {
+              let successCount = 0;
+              let errorCount = 0;
+              const processedBookingIds = new Set<string>();
+
+              for (const passenger of selectedList) {
+                // Skip if we've already processed this booking
+                // (in case multiple passengers share the same booking)
+                if (processedBookingIds.has(passenger.booking_id)) {
+                  continue;
+                }
+
+                try {
+                  const { error } = await supabase
+                    .from('bookings')
+                    .update({
+                      check_in_status: true,
+                      checked_in_at: new Date().toISOString(),
+                      checked_in_by: user?.id,
+                    })
+                    .eq('id', passenger.booking_id);
+
+                  if (!error) {
+                    successCount++;
+                    processedBookingIds.add(passenger.booking_id);
+                  } else {
+                    errorCount++;
+                    console.error(
+                      `Error checking in ${passenger.passenger_name}:`,
+                      error
+                    );
+                  }
+                } catch (err) {
+                  errorCount++;
+                  console.error(
+                    `Exception checking in ${passenger.passenger_name}:`,
+                    err
+                  );
+                }
+              }
+
+              // Clear selection
+              setSelectedPassengers(new Set());
+              setBulkCheckInMode(false);
+
+              // Reload data
+              await loadTripData();
+
+              // Show result
+              if (errorCount === 0) {
+                Alert.alert(
+                  'Success',
+                  `Successfully checked in ${successCount} passenger${successCount > 1 ? 's' : ''}.`
+                );
+              } else {
+                Alert.alert(
+                  'Partial Success',
+                  `Checked in ${successCount} passenger${successCount > 1 ? 's' : ''}. ${errorCount} failed.`
+                );
+              }
+            } catch (err) {
+              console.error('Bulk check-in error:', err);
+              Alert.alert('Error', 'Failed to check in passengers.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Remove this function from here - it will be moved below
 
@@ -274,6 +1166,14 @@ export default function CaptainTripDetailsScreen() {
   const remainingToCheckIn = totalPassengers - checkedInCount;
   const checkInProgress =
     totalPassengers > 0 ? (checkedInCount / totalPassengers) * 100 : 0;
+
+  // Filter passengers based on active tab
+  const filteredPassengers =
+    activeTab === 'checked_in'
+      ? checkedInPassengers
+      : activeTab === 'pending'
+        ? activePassengers.filter(p => !p.check_in_status)
+        : activePassengers;
 
   // Handle close check-in
   const handleCloseCheckIn = () => {
@@ -561,12 +1461,158 @@ export default function CaptainTripDetailsScreen() {
             <View style={styles.detailItem}>
               <MapPin size={16} color={Colors.textSecondary} />
               <Text style={styles.detailText}>
-                {trip.from_island_name} → {trip.to_island_name}
+                {routeStops.length > 0
+                  ? `${routeStops[0].island.name} → ${routeStops[routeStops.length - 1].island.name}`
+                  : `${trip.from_island_name} → ${trip.to_island_name}`}
               </Text>
             </View>
           </View>
         </View>
       </Card>
+
+      {/* Route Progress */}
+      {trip && (
+        <Card style={styles.multiStopCard}>
+          <View style={styles.multiStopHeader}>
+            <View style={styles.multiStopIcon}>
+              <MapPin size={20} color={Colors.primary} />
+            </View>
+            <Text style={styles.multiStopTitle}>Route Progress</Text>
+            {trip.current_stop_sequence && trip.total_stops && (
+              <Text style={styles.multiStopProgress}>
+                Stop {trip.current_stop_sequence} of {trip.total_stops}
+              </Text>
+            )}
+          </View>
+
+          {loadingStops ? (
+            <View style={styles.loadingStopsContainer}>
+              <ActivityIndicator size='small' color={Colors.primary} />
+              <Text style={styles.loadingStopsText}>Loading stops...</Text>
+            </View>
+          ) : (
+            <View style={styles.stopsContainer}>
+              {routeStops.map((stop, index) => {
+                // Determine stop type for display
+                const stopType = stop.stop_type || 'both';
+                const isPickup = stopType === 'pickup' || stopType === 'both';
+                const isDropoff = stopType === 'dropoff' || stopType === 'both';
+
+                return (
+                  <View key={stop.id} style={styles.stopItem}>
+                    <View style={styles.stopIndicator}>
+                      <View
+                        style={[
+                          styles.stopDot,
+                          {
+                            backgroundColor: stop.is_current_stop
+                              ? Colors.primary
+                              : stop.is_completed
+                                ? Colors.success
+                                : Colors.border,
+                          },
+                        ]}
+                      >
+                        {/* Show P/D/B indicator inside dot */}
+                        <Text style={styles.stopTypeIndicator}>
+                          {isPickup && isDropoff ? 'B' : isPickup ? 'P' : 'D'}
+                        </Text>
+                      </View>
+                      {index < routeStops.length - 1 && (
+                        <View
+                          style={[
+                            styles.stopLine,
+                            {
+                              backgroundColor: stop.is_completed
+                                ? Colors.success
+                                : Colors.border,
+                            },
+                          ]}
+                        />
+                      )}
+                    </View>
+                    <View style={styles.stopInfo}>
+                      <Text
+                        style={[
+                          styles.stopName,
+                          {
+                            color: stop.is_current_stop
+                              ? Colors.primary
+                              : stop.is_completed
+                                ? Colors.success
+                                : Colors.text,
+                          },
+                        ]}
+                      >
+                        {stop.island.name}
+                      </Text>
+                      <View style={styles.stopMetaRow}>
+                        <Text style={styles.stopSequence}>
+                          Stop {stop.stop_sequence}
+                        </Text>
+                        <View
+                          style={[
+                            styles.stopTypeBadge,
+                            {
+                              backgroundColor:
+                                isPickup && isDropoff
+                                  ? `${Colors.warning}20`
+                                  : isPickup
+                                    ? `${Colors.success}20`
+                                    : `${Colors.error}20`,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.stopTypeBadgeText,
+                              {
+                                color:
+                                  isPickup && isDropoff
+                                    ? Colors.warning
+                                    : isPickup
+                                      ? Colors.success
+                                      : Colors.error,
+                              },
+                            ]}
+                          >
+                            {isPickup && isDropoff
+                              ? 'Pickup & Dropoff'
+                              : isPickup
+                                ? 'Pickup'
+                                : 'Dropoff'}
+                          </Text>
+                        </View>
+                      </View>
+                      {stop.is_current_stop && (
+                        <Text style={styles.currentStopText}>
+                          📍 Current Stop
+                        </Text>
+                      )}
+                      {stop.is_completed && (
+                        <Text style={styles.completedStopText}>
+                          ✓ Completed
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Smart Multi-stop Action Button */}
+          {trip.total_stops && trip.total_stops > 1 && getButtonState() && (
+            <View style={styles.multiStopActions}>
+              <Button
+                title={getButtonState()!.text}
+                onPress={handleButtonPress}
+                variant={getButtonState()!.variant as any}
+              />
+            </View>
+          )}
+        </Card>
+      )}
 
       {/* Passenger Summary */}
       <Card style={styles.summaryCard}>
@@ -775,26 +1821,108 @@ export default function CaptainTripDetailsScreen() {
               <Text style={styles.passengerCountText}>{totalPassengers}</Text>
             </View>
             <Pressable style={styles.refreshButton} onPress={handleRefresh}>
-              <RefreshCw size={16} color={Colors.primary} />
+              <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                <RefreshCw size={16} color={Colors.primary} />
+              </Animated.View>
             </Pressable>
           </View>
         </View>
 
-        {/* Passenger Filter Tabs */}
-        <View style={styles.passengerTabs}>
-          <Pressable style={[styles.passengerTab, styles.activeTab]}>
-            <Text style={[styles.passengerTabText, styles.activeTabText]}>
-              All ({totalPassengers})
+        {/* Compact Bulk Actions Bar */}
+        {trip.status === 'boarding' &&
+          (() => {
+            const pendingPassengers = activePassengers.filter(
+              p => !p.check_in_status
+            );
+            const allPendingSelected =
+              selectedPassengers.size === pendingPassengers.length &&
+              pendingPassengers.length > 0;
+
+            return selectedPassengers.size > 0 ? (
+              <View style={styles.bulkActionsBarCompact}>
+                <Pressable
+                  style={styles.compactButton}
+                  onPress={toggleSelectAll}
+                >
+                  <CheckCircle
+                    size={16}
+                    color={
+                      allPendingSelected ? Colors.primary : Colors.textSecondary
+                    }
+                  />
+                </Pressable>
+                <Text style={styles.selectedCountTextCompact}>
+                  {selectedPassengers.size} selected
+                </Text>
+                <Pressable
+                  style={styles.bulkCheckInButtonCompact}
+                  onPress={handleBulkCheckIn}
+                >
+                  <UserCheck size={14} color='white' />
+                  <Text style={styles.bulkCheckInButtonTextCompact}>
+                    Check In
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                style={styles.selectAllButtonCompact}
+                onPress={toggleSelectAll}
+              >
+                <CheckCircle size={14} color={Colors.textSecondary} />
+                <Text style={styles.selectAllTextCompact}>Select All</Text>
+              </Pressable>
+            );
+          })()}
+
+        {/* Compact Passenger Filter Tabs */}
+        <View style={styles.passengerTabsCompact}>
+          <Pressable
+            style={[
+              styles.passengerTabCompact,
+              activeTab === 'all' && styles.activeTabCompact,
+            ]}
+            onPress={() => setActiveTab('all')}
+          >
+            <Text
+              style={[
+                styles.passengerTabTextCompact,
+                activeTab === 'all' && styles.activeTabTextCompact,
+              ]}
+            >
+              All {totalPassengers}
             </Text>
           </Pressable>
-          <Pressable style={styles.passengerTab}>
-            <Text style={styles.passengerTabText}>
-              Checked In ({checkedInCount})
+          <Pressable
+            style={[
+              styles.passengerTabCompact,
+              activeTab === 'checked_in' && styles.activeTabCompact,
+            ]}
+            onPress={() => setActiveTab('checked_in')}
+          >
+            <Text
+              style={[
+                styles.passengerTabTextCompact,
+                activeTab === 'checked_in' && styles.activeTabTextCompact,
+              ]}
+            >
+              Checked {checkedInCount}
             </Text>
           </Pressable>
-          <Pressable style={styles.passengerTab}>
-            <Text style={styles.passengerTabText}>
-              Pending ({remainingToCheckIn})
+          <Pressable
+            style={[
+              styles.passengerTabCompact,
+              activeTab === 'pending' && styles.activeTabCompact,
+            ]}
+            onPress={() => setActiveTab('pending')}
+          >
+            <Text
+              style={[
+                styles.passengerTabTextCompact,
+                activeTab === 'pending' && styles.activeTabTextCompact,
+              ]}
+            >
+              Pending {remainingToCheckIn}
             </Text>
           </Pressable>
         </View>
@@ -806,119 +1934,104 @@ export default function CaptainTripDetailsScreen() {
               Loading passengers...
             </Text>
           </View>
-        ) : activePassengers.length === 0 ? (
+        ) : filteredPassengers.length === 0 ? (
           <View style={styles.emptyPassengers}>
             <Users size={32} color={Colors.textSecondary} />
-            <Text style={styles.emptyPassengersText}>No passengers found</Text>
+            <Text style={styles.emptyPassengersText}>
+              {activeTab === 'checked_in'
+                ? 'No checked-in passengers'
+                : activeTab === 'pending'
+                  ? 'No pending passengers'
+                  : 'No passengers found'}
+            </Text>
           </View>
         ) : (
           <View style={styles.passengerList}>
-            {activePassengers.map(passenger => (
-              <View key={passenger.id} style={styles.passengerItem}>
-                <View style={styles.passengerInfo}>
-                  <View style={styles.passengerItemHeader}>
-                    <View style={styles.passengerNameSection}>
-                      <Text style={styles.passengerName}>
-                        {passenger.passenger_name}
-                      </Text>
-                      <View style={styles.seatBadge}>
-                        <Text style={styles.seatBadgeText}>
-                          {passenger.seat_number || 'No Seat'}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.passengerStatus}>
-                      {passenger.check_in_status ? (
-                        <View style={styles.passengerStatusBadge}>
-                          <CheckCircle size={14} color={Colors.success} />
-                          <Text
-                            style={[
-                              styles.passengerStatusText,
-                              { color: Colors.success },
-                            ]}
-                          >
-                            Checked In
-                          </Text>
-                        </View>
-                      ) : (
-                        <View style={styles.passengerStatusBadge}>
-                          <AlertCircle size={14} color={Colors.warning} />
-                          <Text
-                            style={[
-                              styles.passengerStatusText,
-                              { color: Colors.warning },
-                            ]}
-                          >
-                            Pending
-                          </Text>
-                        </View>
+            {filteredPassengers.map(passenger => (
+              <Pressable
+                key={passenger.id}
+                style={[
+                  styles.passengerItem,
+                  passenger.check_in_status && styles.passengerItemCheckedIn,
+                ]}
+                onPress={() => {
+                  // Toggle selection when tapping the card (only if boarding and not checked in)
+                  if (
+                    trip.status === 'boarding' &&
+                    !passenger.check_in_status
+                  ) {
+                    togglePassengerSelection(passenger.id);
+                  }
+                }}
+              >
+                {/* Left Section: Checkbox and Seat */}
+                <View style={styles.passengerLeftSection}>
+                  {trip.status === 'boarding' && !passenger.check_in_status ? (
+                    <View
+                      style={[
+                        styles.checkboxNew,
+                        selectedPassengers.has(passenger.id) &&
+                          styles.checkboxNewSelected,
+                      ]}
+                    >
+                      {selectedPassengers.has(passenger.id) && (
+                        <CheckCircle size={18} color='white' />
                       )}
                     </View>
-                  </View>
-
-                  <View style={styles.passengerDetails}>
-                    <View style={styles.passengerDetailRow}>
-                      <Info size={12} color={Colors.textSecondary} />
-                      <Text style={styles.passengerDetail}>
-                        Booking: {passenger.booking_number}
-                      </Text>
+                  ) : passenger.check_in_status ? (
+                    <View style={styles.checkIconContainer}>
+                      <CheckCircle size={22} color={Colors.success} />
                     </View>
-                    {passenger.passenger_contact_number && (
-                      <View style={styles.passengerDetailRow}>
-                        <Phone size={12} color={Colors.textSecondary} />
-                        <Text style={styles.passengerDetail}>
-                          {passenger.passenger_contact_number}
-                        </Text>
-                      </View>
-                    )}
-                    {passenger.client_email && (
-                      <View style={styles.passengerDetailRow}>
-                        <Mail size={12} color={Colors.textSecondary} />
-                        <Text style={styles.passengerDetail}>
-                          {passenger.client_email}
-                        </Text>
-                      </View>
-                    )}
-                    {passenger.special_assistance_request && (
-                      <View style={styles.specialAssistance}>
-                        <AlertCircle size={12} color={Colors.warning} />
-                        <Text style={styles.specialAssistanceText}>
-                          Special Assistance:{' '}
-                          {passenger.special_assistance_request}
-                        </Text>
-                      </View>
-                    )}
+                  ) : null}
+
+                  <View style={styles.seatBadgeNew}>
+                    <Text style={styles.seatNumberLarge}>
+                      {passenger.seat_number || '--'}
+                    </Text>
                   </View>
                 </View>
 
-                {!passenger.check_in_status && trip.status === 'boarding' && (
-                  <Pressable
-                    style={styles.checkInButton}
-                    onPress={() => {
-                      Alert.alert(
-                        'Check In Passenger',
-                        `Check in ${passenger.passenger_name}?\n\nSeat: ${passenger.seat_number || 'Not assigned'}\nBooking: ${passenger.booking_number}`,
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Check In',
-                            onPress: () => {
-                              // TODO: Implement manual check-in functionality
-                              Alert.alert(
-                                'Info',
-                                'Manual check-in feature coming soon. Please use QR scanner.'
-                              );
-                            },
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <UserCheck size={16} color={Colors.primary} />
-                    <Text style={styles.checkInButtonText}>Check In</Text>
-                  </Pressable>
-                )}
-              </View>
+                {/* Main Content */}
+                <View style={styles.passengerMainContent}>
+                  <View style={styles.passengerTopRow}>
+                    <Text
+                      style={[
+                        styles.passengerNameNew,
+                        passenger.check_in_status &&
+                          styles.passengerNameCheckedIn,
+                      ]}
+                    >
+                      {passenger.passenger_name}
+                    </Text>
+                    {passenger.check_in_status ? (
+                      <View style={styles.statusBadgeSuccess}>
+                        <Text style={styles.statusBadgeSuccessText}>
+                          Checked In
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.statusBadgePending}>
+                        <Text style={styles.statusBadgePendingText}>
+                          Pending
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <Text style={styles.bookingNumberSmall}>
+                    {passenger.booking_number}
+                  </Text>
+
+                  {passenger.special_assistance_request && (
+                    <View style={styles.specialAssistanceNew}>
+                      <AlertCircle size={14} color={Colors.error} />
+                      <Text style={styles.specialAssistanceTextNew}>
+                        {passenger.special_assistance_request}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </Pressable>
             ))}
           </View>
         )}
@@ -1143,53 +2256,122 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   passengerList: {
-    gap: 0,
+    gap: 8,
   },
   passengerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    padding: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  passengerInfo: {
+  // New Improved Passenger Item Styles
+  passengerItemCheckedIn: {
+    opacity: 0.7,
+    backgroundColor: `${Colors.success}05`,
+  },
+  passengerLeftSection: {
+    alignItems: 'center',
+    marginRight: 16,
+    gap: 8,
+  },
+  checkboxNew: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxNewSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary,
+  },
+  checkIconContainer: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  seatBadgeNew: {
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 48,
+    alignItems: 'center',
+  },
+  seatNumberLarge: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'white',
+  },
+  passengerMainContent: {
     flex: 1,
+    gap: 6,
   },
-  passengerItemHeader: {
+  passengerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
   },
-  passengerName: {
+  passengerNameNew: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
+    flex: 1,
+    marginRight: 8,
   },
-  passengerStatus: {
-    marginLeft: 12,
-  },
-  passengerDetails: {
-    gap: 4,
-  },
-  passengerDetail: {
-    fontSize: 14,
+  passengerNameCheckedIn: {
     color: Colors.textSecondary,
   },
-  checkInButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: `${Colors.primary}10`,
-    borderRadius: 8,
-    marginLeft: 16,
+  statusBadgeSuccess: {
+    backgroundColor: `${Colors.success}15`,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  checkInButtonText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: Colors.primary,
+  statusBadgeSuccessText: {
+    fontSize: 11,
     fontWeight: '600',
+    color: Colors.success,
+  },
+  statusBadgePending: {
+    backgroundColor: `${Colors.warning}15`,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgePendingText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.warning,
+  },
+  bookingNumberSmall: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontFamily: 'monospace',
+  },
+  specialAssistanceNew: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: `${Colors.error}08`,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.error,
+    borderRadius: 4,
+    padding: 8,
+    gap: 6,
+  },
+  specialAssistanceTextNew: {
+    fontSize: 12,
+    color: Colors.error,
+    fontWeight: '500',
+    flex: 1,
+    flexWrap: 'wrap',
   },
   // Seat Availability Styles
   seatCard: {
@@ -1467,78 +2649,195 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  passengerTabs: {
-    flexDirection: 'row',
+  // Multi-stop styles
+  multiStopCard: {
     marginBottom: 16,
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    padding: 4,
   },
-  passengerTab: {
+  multiStopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  multiStopIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${Colors.primary}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  multiStopTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+  },
+  multiStopProgress: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  loadingStopsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  loadingStopsText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginLeft: 8,
+  },
+  stopsContainer: {
+    marginBottom: 16,
+  },
+  stopItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  stopIndicator: {
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  stopDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: Colors.card,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  activeTab: {
-    backgroundColor: Colors.primary,
-  },
-  passengerTabText: {
+  stopTypeIndicator: {
     fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  stopLine: {
+    width: 2,
+    height: 24,
+    marginTop: 4,
+  },
+  stopInfo: {
+    flex: 1,
+  },
+  stopName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  stopMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  stopSequence: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  stopTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  stopTypeBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  currentStopText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  completedStopText: {
+    fontSize: 12,
+    color: Colors.success,
+    fontWeight: '600',
+  },
+  multiStopActions: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  // Compact Bulk Actions Styles
+  bulkActionsBarCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  compactButton: {
+    padding: 4,
+  },
+  selectedCountTextCompact: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text,
+    flex: 1,
+  },
+  bulkCheckInButtonCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  bulkCheckInButtonTextCompact: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+  },
+  selectAllButtonCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  selectAllTextCompact: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+  },
+  // Compact Tabs Styles
+  passengerTabsCompact: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 12,
+  },
+  passengerTabCompact: {
+    flex: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  activeTabCompact: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  passengerTabTextCompact: {
+    fontSize: 11,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
-  activeTabText: {
+  activeTabTextCompact: {
     color: 'white',
-  },
-  passengerNameSection: {
-    flex: 1,
-  },
-  seatBadge: {
-    backgroundColor: Colors.surface,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginTop: 4,
-    alignSelf: 'flex-start',
-  },
-  seatBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  passengerStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  passengerStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  passengerDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  specialAssistance: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: `${Colors.warning}10`,
-    borderRadius: 4,
-    padding: 6,
-    marginTop: 4,
-  },
-  specialAssistanceText: {
-    fontSize: 12,
-    color: Colors.warning,
-    fontWeight: '500',
-    marginLeft: 4,
-    flex: 1,
   },
 });

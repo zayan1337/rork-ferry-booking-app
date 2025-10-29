@@ -7,6 +7,8 @@ import {
   Pressable,
   Alert,
   BackHandler,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -359,305 +361,327 @@ export default function BookScreen() {
   };
 
   return (
-    <ScrollView
+    <KeyboardAvoidingView
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.select({ ios: 64, android: 0 })}
     >
-      {/* Progress Steps */}
-      <View style={styles.progressContainer}>
-        {Object.values(BOOKING_STEPS).map(step => (
-          <View key={step} style={styles.progressStep}>
-            <View
-              style={[
-                styles.progressDot,
-                currentStep >= step && styles.progressDotActive,
-              ]}
-            >
-              {currentStep > step && <Check size={12} color='#fff' />}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps='handled'
+        automaticallyAdjustKeyboardInsets
+      >
+        {/* Progress Steps */}
+        <View style={styles.progressContainer}>
+          {Object.values(BOOKING_STEPS).map(step => (
+            <View key={step} style={styles.progressStep}>
+              <View
+                style={[
+                  styles.progressDot,
+                  currentStep >= step && styles.progressDotActive,
+                ]}
+              >
+                {currentStep > step && <Check size={12} color='#fff' />}
+              </View>
+              <Text
+                style={[
+                  styles.progressText,
+                  currentStep >= step && styles.progressTextActive,
+                ]}
+              >
+                {STEP_LABELS[step]}
+              </Text>
             </View>
-            <Text
-              style={[
-                styles.progressText,
-                currentStep >= step && styles.progressTextActive,
-              ]}
-            >
-              {STEP_LABELS[step]}
-            </Text>
-          </View>
-        ))}
-        <View style={styles.progressLine} />
-      </View>
+          ))}
+          <View style={styles.progressLine} />
+        </View>
 
-      <Card variant='elevated' style={styles.bookingCard}>
-        {/* Step 1: Island & Date Selection */}
-        {currentStep === BOOKING_STEPS.ISLAND_DATE_SELECTION && (
-          <IslandDateStep onFindTrips={handleFindTrips} />
-        )}
+        <Card variant='elevated' style={styles.bookingCard}>
+          {/* Step 1: Island & Date Selection */}
+          {currentStep === BOOKING_STEPS.ISLAND_DATE_SELECTION && (
+            <IslandDateStep onFindTrips={handleFindTrips} />
+          )}
 
-        {/* Step 2: Trip Selection */}
-        {currentStep === BOOKING_STEPS.TRIP_SELECTION && <TripSelectionStep />}
+          {/* Step 2: Trip Selection */}
+          {currentStep === BOOKING_STEPS.TRIP_SELECTION && (
+            <TripSelectionStep />
+          )}
 
-        {/* Step 3: Seat Selection */}
-        {currentStep === BOOKING_STEPS.SEAT_SELECTION && (
-          <View>
-            <Text style={styles.stepTitle}>Select Seats</Text>
+          {/* Step 3: Seat Selection */}
+          {currentStep === BOOKING_STEPS.SEAT_SELECTION && (
+            <View>
+              <Text style={styles.stepTitle}>Select Seats</Text>
 
-            <Text style={styles.seatSectionTitle}>Departure Seats</Text>
-            <SeatSelector
-              seats={availableSeats}
-              selectedSeats={localSelectedSeats}
-              onSeatToggle={seat => handleSeatToggle(seat, false)}
-              isLoading={isLoading}
-              loadingSeats={loadingSeats}
-              seatErrors={seatErrors}
-              maxSeats={10}
-            />
-
-            {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
-              <>
-                <Text style={styles.seatSectionTitle}>Return Seats</Text>
-                <SeatSelector
-                  seats={availableReturnSeats}
-                  selectedSeats={localReturnSelectedSeats}
-                  onSeatToggle={seat => handleSeatToggle(seat, true)}
-                  isLoading={isLoading}
-                  loadingSeats={loadingSeats}
-                  seatErrors={seatErrors}
-                  maxSeats={10}
-                />
-              </>
-            )}
-
-            {errors.seats && (
-              <Text style={styles.errorText}>{errors.seats}</Text>
-            )}
-
-            {localSelectedSeats.length > 0 && (
-              <View style={styles.fareContainer}>
-                <Text style={styles.fareLabel}>Total Fare:</Text>
-                <Text style={styles.fareValue}>
-                  MVR {currentBooking.totalFare.toFixed(2)}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Step 4: Passenger Details */}
-        {currentStep === BOOKING_STEPS.PASSENGER_DETAILS && (
-          <View>
-            <Text style={styles.stepTitle}>Passenger Details</Text>
-
-            {currentBooking.passengers.map((passenger, index) => (
-              <View key={index} style={styles.passengerContainer}>
-                <Text style={styles.passengerTitle}>
-                  Passenger {index + 1} - Seat{' '}
-                  {localSelectedSeats[index]?.number}
-                </Text>
-
-                <Input
-                  label='Full Name'
-                  placeholder='Enter passenger name'
-                  value={passenger.fullName}
-                  onChangeText={text =>
-                    updatePassengerDetail(index, 'fullName', text)
-                  }
-                  required
-                />
-
-                <Input
-                  label='ID Number'
-                  placeholder='Enter ID number (optional)'
-                  value={passenger.idNumber || ''}
-                  onChangeText={text =>
-                    updatePassengerDetail(index, 'idNumber', text)
-                  }
-                />
-
-                <Input
-                  label='Special Assistance'
-                  placeholder='Any special requirements? (optional)'
-                  value={passenger.specialAssistance || ''}
-                  onChangeText={text =>
-                    updatePassengerDetail(index, 'specialAssistance', text)
-                  }
-                  multiline
-                  numberOfLines={2}
-                />
-              </View>
-            ))}
-
-            {errors.passengers && (
-              <Text style={styles.errorText}>{errors.passengers}</Text>
-            )}
-          </View>
-        )}
-
-        {/* Step 5: Payment */}
-        {currentStep === BOOKING_STEPS.PAYMENT && (
-          <View>
-            <Text style={styles.stepTitle}>Payment</Text>
-
-            <View style={styles.summaryContainer}>
-              <Text style={styles.summaryTitle}>Booking Summary</Text>
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Trip Type:</Text>
-                <Text style={styles.summaryValue}>
-                  {currentBooking.tripType === 'one_way'
-                    ? 'One Way'
-                    : 'Round Trip'}
-                </Text>
-              </View>
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Route:</Text>
-                <Text style={styles.summaryValue}>
-                  {currentBooking.boardingIslandName} →{' '}
-                  {currentBooking.destinationIslandName}
-                </Text>
-              </View>
+              <Text style={styles.seatSectionTitle}>Departure Seats</Text>
+              <SeatSelector
+                seats={availableSeats}
+                selectedSeats={localSelectedSeats}
+                onSeatToggle={seat => handleSeatToggle(seat, false)}
+                isLoading={isLoading}
+                loadingSeats={loadingSeats}
+                seatErrors={seatErrors}
+                maxSeats={10}
+              />
 
               {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Return Route:</Text>
-                  <Text style={styles.summaryValue}>
-                    {currentBooking.returnBoardingIslandName} →{' '}
-                    {currentBooking.returnDestinationIslandName}
+                <>
+                  <Text style={styles.seatSectionTitle}>Return Seats</Text>
+                  <SeatSelector
+                    seats={availableReturnSeats}
+                    selectedSeats={localReturnSelectedSeats}
+                    onSeatToggle={seat => handleSeatToggle(seat, true)}
+                    isLoading={isLoading}
+                    loadingSeats={loadingSeats}
+                    seatErrors={seatErrors}
+                    maxSeats={10}
+                  />
+                </>
+              )}
+
+              {errors.seats && (
+                <Text style={styles.errorText}>{errors.seats}</Text>
+              )}
+
+              {localSelectedSeats.length > 0 && (
+                <View style={styles.fareContainer}>
+                  <Text style={styles.fareLabel}>Total Fare:</Text>
+                  <Text style={styles.fareValue}>
+                    MVR {currentBooking.totalFare.toFixed(2)}
                   </Text>
                 </View>
               )}
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Departure Date:</Text>
-                <Text style={styles.summaryValue}>
-                  {currentBooking.departureDate &&
-                    new Date(currentBooking.departureDate).toLocaleDateString()}
-                </Text>
-              </View>
-
-              {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
-                currentBooking.returnDate && (
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Return Date:</Text>
-                    <Text style={styles.summaryValue}>
-                      {new Date(currentBooking.returnDate).toLocaleDateString()}
-                    </Text>
-                  </View>
-                )}
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Passengers:</Text>
-                <Text style={styles.summaryValue}>
-                  {currentBooking.passengers.length}
-                </Text>
-              </View>
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Seats:</Text>
-                <Text style={styles.summaryValue}>
-                  {localSelectedSeats.map(seat => seat.number).join(', ')}
-                </Text>
-              </View>
-
-              {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
-                localReturnSelectedSeats.length > 0 && (
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Return Seats:</Text>
-                    <Text style={styles.summaryValue}>
-                      {localReturnSelectedSeats
-                        .map(seat => seat.number)
-                        .join(', ')}
-                    </Text>
-                  </View>
-                )}
-
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total Amount:</Text>
-                <Text style={styles.totalValue}>
-                  MVR {currentBooking.totalFare.toFixed(2)}
-                </Text>
-              </View>
             </View>
+          )}
 
-            <Dropdown
-              label='Payment Method'
-              items={[...PAYMENT_OPTIONS]}
-              value={paymentMethod}
-              onChange={value => {
-                setPaymentMethod(value);
-                if (errors.paymentMethod)
-                  setErrors({ ...errors, paymentMethod: '' });
-              }}
-              placeholder='Select payment method'
-              error={errors.paymentMethod}
-              required
-            />
+          {/* Step 4: Passenger Details */}
+          {currentStep === BOOKING_STEPS.PASSENGER_DETAILS && (
+            <View>
+              <Text style={styles.stepTitle}>Passenger Details</Text>
 
-            <View style={styles.termsContainer}>
-              <Pressable
-                style={styles.checkbox}
-                onPress={() => {
-                  setTermsAccepted(!termsAccepted);
-                  if (errors.terms) setErrors({ ...errors, terms: '' });
+              {currentBooking.passengers.map((passenger, index) => (
+                <View key={index} style={styles.passengerContainer}>
+                  <Text style={styles.passengerTitle}>
+                    Passenger {index + 1} - Seat{' '}
+                    {localSelectedSeats[index]?.number}
+                  </Text>
+
+                  <Input
+                    label='Full Name'
+                    placeholder='Enter passenger name'
+                    value={passenger.fullName}
+                    onChangeText={text =>
+                      updatePassengerDetail(index, 'fullName', text)
+                    }
+                    required
+                  />
+
+                  <Input
+                    label='ID Number'
+                    placeholder='Enter ID number (optional)'
+                    value={passenger.idNumber || ''}
+                    onChangeText={text =>
+                      updatePassengerDetail(index, 'idNumber', text)
+                    }
+                  />
+
+                  <Input
+                    label='Special Assistance'
+                    placeholder='Any special requirements? (optional)'
+                    value={passenger.specialAssistance || ''}
+                    onChangeText={text =>
+                      updatePassengerDetail(index, 'specialAssistance', text)
+                    }
+                    multiline
+                    numberOfLines={2}
+                  />
+                </View>
+              ))}
+
+              {errors.passengers && (
+                <Text style={styles.errorText}>{errors.passengers}</Text>
+              )}
+            </View>
+          )}
+
+          {/* Step 5: Payment */}
+          {currentStep === BOOKING_STEPS.PAYMENT && (
+            <View>
+              <Text style={styles.stepTitle}>Payment</Text>
+
+              <View style={styles.summaryContainer}>
+                <Text style={styles.summaryTitle}>Booking Summary</Text>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Trip Type:</Text>
+                  <Text style={styles.summaryValue}>
+                    {currentBooking.tripType === 'one_way'
+                      ? 'One Way'
+                      : 'Round Trip'}
+                  </Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Route:</Text>
+                  <Text style={styles.summaryValue}>
+                    {currentBooking.boardingIslandName} →{' '}
+                    {currentBooking.destinationIslandName}
+                  </Text>
+                </View>
+
+                {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Return Route:</Text>
+                    <Text style={styles.summaryValue}>
+                      {currentBooking.returnBoardingIslandName} →{' '}
+                      {currentBooking.returnDestinationIslandName}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Departure Date:</Text>
+                  <Text style={styles.summaryValue}>
+                    {currentBooking.departureDate &&
+                      new Date(
+                        currentBooking.departureDate
+                      ).toLocaleDateString()}
+                  </Text>
+                </View>
+
+                {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+                  currentBooking.returnDate && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Return Date:</Text>
+                      <Text style={styles.summaryValue}>
+                        {new Date(
+                          currentBooking.returnDate
+                        ).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  )}
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Passengers:</Text>
+                  <Text style={styles.summaryValue}>
+                    {currentBooking.passengers.length}
+                  </Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Seats:</Text>
+                  <Text style={styles.summaryValue}>
+                    {localSelectedSeats.map(seat => seat.number).join(', ')}
+                  </Text>
+                </View>
+
+                {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+                  localReturnSelectedSeats.length > 0 && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Return Seats:</Text>
+                      <Text style={styles.summaryValue}>
+                        {localReturnSelectedSeats
+                          .map(seat => seat.number)
+                          .join(', ')}
+                      </Text>
+                    </View>
+                  )}
+
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Total Amount:</Text>
+                  <Text style={styles.totalValue}>
+                    MVR {currentBooking.totalFare.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+
+              <Dropdown
+                label='Payment Method'
+                items={[...PAYMENT_OPTIONS]}
+                value={paymentMethod}
+                onChange={value => {
+                  setPaymentMethod(value);
+                  if (errors.paymentMethod)
+                    setErrors({ ...errors, paymentMethod: '' });
                 }}
-              >
-                <View
-                  style={[
-                    styles.checkboxInner,
-                    termsAccepted && styles.checkboxChecked,
-                  ]}
-                />
-              </Pressable>
-              <Text style={styles.termsText}>
-                I accept the{' '}
-                <Text
-                  style={styles.termsLink}
-                  onPress={() => router.push('/(app)/terms-and-conditions')}
+                placeholder='Select payment method'
+                error={errors.paymentMethod}
+                required
+              />
+
+              <View style={styles.termsContainer}>
+                <Pressable
+                  style={styles.checkbox}
+                  onPress={() => {
+                    setTermsAccepted(!termsAccepted);
+                    if (errors.terms) setErrors({ ...errors, terms: '' });
+                  }}
                 >
-                  Terms and Conditions
+                  <View
+                    style={[
+                      styles.checkboxInner,
+                      termsAccepted && styles.checkboxChecked,
+                    ]}
+                  />
+                </Pressable>
+                <Text style={styles.termsText}>
+                  I accept the{' '}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => router.push('/(app)/terms-and-conditions')}
+                  >
+                    Terms and Conditions
+                  </Text>
                 </Text>
-              </Text>
-            </View>
+              </View>
 
-            <View style={styles.termsContainer}>
-              <Pressable
-                style={styles.checkbox}
-                onPress={() => {
-                  setPricingNoticeAccepted(!pricingNoticeAccepted);
-                  if (errors.pricingNotice)
-                    setErrors({ ...errors, pricingNotice: '' });
-                }}
-              >
-                <View
-                  style={[
-                    styles.checkboxInner,
-                    pricingNoticeAccepted && styles.checkboxChecked,
-                  ]}
+              <View style={styles.termsContainer}>
+                <Pressable
+                  style={styles.checkbox}
+                  onPress={() => {
+                    setPricingNoticeAccepted(!pricingNoticeAccepted);
+                    if (errors.pricingNotice)
+                      setErrors({ ...errors, pricingNotice: '' });
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.checkboxInner,
+                      pricingNoticeAccepted && styles.checkboxChecked,
+                    ]}
+                  />
+                </Pressable>
+                <Text style={styles.termsText}>
+                  I acknowledge that the ticket prices shown are valid for
+                  locals and Work Permit holders only. For tourist pricing, I
+                  will contact the hotlines{' '}
+                  <Text style={styles.hotlineNumber}>3323113</Text> or{' '}
+                  <Text style={styles.hotlineNumber}>7892929</Text>.
+                </Text>
+              </View>
+
+              {errors.terms && (
+                <Text style={styles.errorText}>{errors.terms}</Text>
+              )}
+              {errors.pricingNotice && (
+                <Text style={styles.errorText}>{errors.pricingNotice}</Text>
+              )}
+            </View>
+          )}
+
+          {/* Navigation Buttons */}
+          <View style={styles.buttonContainer}>
+            {currentStep > BOOKING_STEPS.ISLAND_DATE_SELECTION &&
+              currentStep !== BOOKING_STEPS.TRIP_SELECTION && (
+                <Button
+                  title='Back'
+                  onPress={handleBack}
+                  variant='outline'
+                  style={styles.navigationButton}
                 />
-              </Pressable>
-              <Text style={styles.termsText}>
-                I acknowledge that the ticket prices shown are valid for locals
-                and Work Permit holders only. For tourist pricing, I will
-                contact the hotlines{' '}
-                <Text style={styles.hotlineNumber}>3323113</Text> or{' '}
-                <Text style={styles.hotlineNumber}>7892929</Text>.
-              </Text>
-            </View>
+              )}
 
-            {errors.terms && (
-              <Text style={styles.errorText}>{errors.terms}</Text>
-            )}
-            {errors.pricingNotice && (
-              <Text style={styles.errorText}>{errors.pricingNotice}</Text>
-            )}
-          </View>
-        )}
-
-        {/* Navigation Buttons */}
-        <View style={styles.buttonContainer}>
-          {currentStep > BOOKING_STEPS.ISLAND_DATE_SELECTION &&
-            currentStep !== BOOKING_STEPS.TRIP_SELECTION && (
+            {currentStep === BOOKING_STEPS.TRIP_SELECTION && (
               <Button
                 title='Back'
                 onPress={handleBack}
@@ -666,107 +690,99 @@ export default function BookScreen() {
               />
             )}
 
-          {currentStep === BOOKING_STEPS.TRIP_SELECTION && (
-            <Button
-              title='Back'
-              onPress={handleBack}
-              variant='outline'
-              style={styles.navigationButton}
-            />
-          )}
-
-          {currentStep === BOOKING_STEPS.TRIP_SELECTION && (
-            <Button
-              title='Next'
-              onPress={handleNext}
-              style={styles.navigationButton}
-              disabled={!currentBooking.trip}
-            />
-          )}
-
-          {currentStep > BOOKING_STEPS.TRIP_SELECTION &&
-            currentStep < BOOKING_STEPS.PAYMENT && (
+            {currentStep === BOOKING_STEPS.TRIP_SELECTION && (
               <Button
                 title='Next'
                 onPress={handleNext}
                 style={styles.navigationButton}
+                disabled={!currentBooking.trip}
               />
             )}
 
-          {currentStep === BOOKING_STEPS.PAYMENT && (
-            <Button
-              title='Confirm Booking'
-              onPress={handleConfirmBooking}
-              loading={isLoading}
-              disabled={isLoading}
-              style={styles.navigationButton}
-            />
-          )}
-        </View>
-      </Card>
+            {currentStep > BOOKING_STEPS.TRIP_SELECTION &&
+              currentStep < BOOKING_STEPS.PAYMENT && (
+                <Button
+                  title='Next'
+                  onPress={handleNext}
+                  style={styles.navigationButton}
+                />
+              )}
 
-      {/* MIB Payment WebView */}
-      {showMibPayment && mibBookingDetails && currentBookingId && (
-        <MibPaymentWebView
-          visible={showMibPayment}
-          bookingDetails={mibBookingDetails}
-          bookingId={currentBookingId}
-          sessionData={mibSessionData}
-          onClose={() => {
-            setShowMibPayment(false);
-            setCurrentBookingId('');
-            setMibSessionData(null);
-            setMibBookingDetails(null);
-          }}
-          onSuccess={result => {
-            setShowMibPayment(false);
-            setCurrentBookingId('');
-            setMibSessionData(null);
-            setMibBookingDetails(null);
+            {currentStep === BOOKING_STEPS.PAYMENT && (
+              <Button
+                title='Confirm Booking'
+                onPress={handleConfirmBooking}
+                loading={isLoading}
+                disabled={isLoading}
+                style={styles.navigationButton}
+              />
+            )}
+          </View>
+        </Card>
 
-            router.push({
-              pathname: '/(app)/(customer)/payment-success',
-              params: {
-                bookingId: currentBookingId,
-                result: 'SUCCESS',
-                sessionId: result.sessionId,
-                resetBooking: 'true',
-              },
-            });
-          }}
-          onFailure={error => {
-            setShowMibPayment(false);
-            setCurrentBookingId('');
-            setMibSessionData(null);
-            setMibBookingDetails(null);
+        {/* MIB Payment WebView */}
+        {showMibPayment && mibBookingDetails && currentBookingId && (
+          <MibPaymentWebView
+            visible={showMibPayment}
+            bookingDetails={mibBookingDetails}
+            bookingId={currentBookingId}
+            sessionData={mibSessionData}
+            onClose={() => {
+              setShowMibPayment(false);
+              setCurrentBookingId('');
+              setMibSessionData(null);
+              setMibBookingDetails(null);
+            }}
+            onSuccess={result => {
+              setShowMibPayment(false);
+              setCurrentBookingId('');
+              setMibSessionData(null);
+              setMibBookingDetails(null);
 
-            router.push({
-              pathname: '/(app)/(customer)/payment-success',
-              params: {
-                bookingId: currentBookingId,
-                result: 'FAILURE',
-                resetBooking: 'false',
-              },
-            });
-          }}
-          onCancel={() => {
-            setShowMibPayment(false);
-            setCurrentBookingId('');
-            setMibSessionData(null);
-            setMibBookingDetails(null);
+              router.push({
+                pathname: '/(app)/(customer)/payment-success',
+                params: {
+                  bookingId: currentBookingId,
+                  result: 'SUCCESS',
+                  sessionId: result.sessionId,
+                  resetBooking: 'true',
+                },
+              });
+            }}
+            onFailure={error => {
+              setShowMibPayment(false);
+              setCurrentBookingId('');
+              setMibSessionData(null);
+              setMibBookingDetails(null);
 
-            router.push({
-              pathname: '/(app)/(customer)/payment-success',
-              params: {
-                bookingId: currentBookingId,
-                result: 'CANCELLED',
-                resetBooking: 'false',
-              },
-            });
-          }}
-        />
-      )}
-    </ScrollView>
+              router.push({
+                pathname: '/(app)/(customer)/payment-success',
+                params: {
+                  bookingId: currentBookingId,
+                  result: 'FAILURE',
+                  resetBooking: 'false',
+                },
+              });
+            }}
+            onCancel={() => {
+              setShowMibPayment(false);
+              setCurrentBookingId('');
+              setMibSessionData(null);
+              setMibBookingDetails(null);
+
+              router.push({
+                pathname: '/(app)/(customer)/payment-success',
+                params: {
+                  bookingId: currentBookingId,
+                  result: 'CANCELLED',
+                  resetBooking: 'false',
+                },
+              });
+            }}
+          />
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

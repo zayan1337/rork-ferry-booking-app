@@ -32,6 +32,8 @@ interface PassengerManifestData {
     client_name: string;
     client_email: string;
     client_phone: string;
+    board_from?: string;
+    drop_off_to?: string;
   }>;
   captain_notes?: string;
   weather_conditions?: string;
@@ -161,17 +163,24 @@ async function sendEmailViaGmailSMTP(
     }
 
     // Send email headers and body
-    const emailContent = [
-      `From: ${gmailUser}`,
-      `To: ${emailData.to}`,
-      `Subject: ${emailData.subject}`,
-      'MIME-Version: 1.0',
-      'Content-Type: text/html; charset=UTF-8',
-      'Content-Transfer-Encoding: 8bit',
-      '',
-      emailData.html,
-      '.',
-    ].join('\r\n');
+    // If multipartBody is provided, use it directly (for emails with attachments)
+    // Otherwise, build simple HTML email
+    let emailContent: string;
+    if (emailData.multipartBody) {
+      emailContent = emailData.multipartBody + '\r\n.';
+    } else {
+      emailContent = [
+        `From: ${gmailUser}`,
+        `To: ${emailData.to}`,
+        `Subject: ${emailData.subject}`,
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=UTF-8',
+        'Content-Transfer-Encoding: 8bit',
+        '',
+        emailData.html || '',
+        '.',
+      ].join('\r\n');
+    }
 
     await tlsConn.write(encoder.encode(emailContent + '\r\n'));
     response = await readTlsResponse();
@@ -279,6 +288,237 @@ function formatDateInAsiaTimezone(utcTimeString: string): string {
   } catch (error) {
     return utcTimeString;
   }
+}
+
+// Helper function to Base64 encode UTF-8 string
+function base64EncodeUtf8(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+// Helper function to get ordered seat list (A1-A8, B1-B8, etc.)
+function getOrderedSeats(maxSeats: number = 38): string[] {
+  const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J']; // Skipping 'I' as per image
+  const cols = [1, 2, 3, 4, 5, 6, 7, 8];
+  const seats: string[] = [];
+
+  for (const row of rows) {
+    for (const col of cols) {
+      seats.push(`${row}${col}`);
+      if (seats.length >= maxSeats) break;
+    }
+    if (seats.length >= maxSeats) break;
+  }
+
+  return seats;
+}
+
+// Helper function to escape XML content
+function escapeXml(unsafe: string): string {
+  if (!unsafe) return '';
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+// Helper function to format day of week
+function getDayOfWeek(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    const days = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ];
+    return days[date.getDay()];
+  } catch {
+    return 'Monday'; // default
+  }
+}
+
+// Generate Excel XML (SpreadsheetML) manifest
+function generateExcelXml(data: PassengerManifestData): string {
+  // Get ordered seat list
+  const allSeats = getOrderedSeats(50); // Get enough seats to cover all
+
+  // Create a map of passengers by seat number
+  const passengerMap = new Map<string, (typeof data.passengers)[0]>();
+  for (const passenger of data.passengers) {
+    const seatNum = (passenger.seat_number || '').trim().toUpperCase();
+    if (seatNum && seatNum !== 'NOT ASSIGNED') {
+      passengerMap.set(seatNum, passenger);
+    }
+  }
+
+  // Format date info - Match image format: "27 Oct 2025"
+  const tripDate = formatDateInAsiaTimezone(data.trip_date);
+  // Convert to format: DD MMM YYYY
+  let displayDate: string;
+  try {
+    const date = new Date(data.trip_date);
+    const day = date.getDate().toString().padStart(2, '0');
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    displayDate = `${day} ${month} ${year}`;
+  } catch {
+    displayDate = tripDate;
+  }
+
+  const dayOfWeek = getDayOfWeek(data.trip_date);
+  // Format time like "1030Hrs" (24-hour format: HHMMHrs)
+  let formattedTime: string;
+  try {
+    const timeString = data.departure_time || data.actual_departure_time;
+    const date = new Date(timeString);
+    if (!isNaN(date.getTime())) {
+      // Get hours and minutes in local timezone (Maldives)
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      formattedTime = `${hours}${minutes}Hrs`;
+    } else {
+      // Fallback: try to extract from formatted string
+      const departureTime = formatTimeOnlyInAsiaTimezone(timeString);
+      formattedTime =
+        departureTime.replace(/\s/g, '').replace(/(AM|PM)/i, '') + 'Hrs';
+    }
+  } catch {
+    formattedTime = '1030Hrs'; // Default fallback
+  }
+
+  // Route name - extract from/to for individual passenger use
+  const routeParts = data.route_name.split(' to ');
+  const fromLocation = routeParts[0] || data.route_name || 'Male';
+  const toLocation = routeParts[1] || '';
+
+  // Start building XML
+  const xmlHeader = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Header">
+   <Interior ss:Color="#B0E0E6" ss:Pattern="Solid"/>
+   <Font ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Alignment ss:Horizontal="Center"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Passenger Manifest">
+  <Table>`;
+
+  // Header rows (3 rows as shown in image)
+  const headerRows = `
+   <Row>
+    <Cell><Data ss:Type="String">${dayOfWeek}</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">${displayDate}</Data></Cell>
+    <Cell><Data ss:Type="String">${data.route_name}</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">${formattedTime}</Data></Cell>
+    <Cell><Data ss:Type="String">in front of Jogging Track (near Marrybrown Restaurant)</Data></Cell>
+   </Row>
+   <Row>
+   </Row>`;
+
+  // Column headers (matching image exactly - no Gender column)
+  const columnHeaders = `
+   <Row ss:StyleID="Header">
+    <Cell><Data ss:Type="String">Seat</Data></Cell>
+    <Cell><Data ss:Type="String">Name</Data></Cell>
+    <Cell><Data ss:Type="String">Contact No.</Data></Cell>
+    <Cell><Data ss:Type="String">Board from</Data></Cell>
+    <Cell><Data ss:Type="String">Drop off to</Data></Cell>
+   </Row>`;
+
+  // Generate rows for all seats (matching image format exactly)
+  const seatRows = allSeats
+    .map(seat => {
+      const passenger = passengerMap.get(seat);
+
+      return `
+   <Row>
+    <Cell><Data ss:Type="String">${seat}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(passenger?.passenger_name || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(passenger?.contact_number || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(passenger?.board_from || fromLocation || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(passenger?.drop_off_to || toLocation || '')}</Data></Cell>
+   </Row>`;
+    })
+    .join('');
+
+  const xmlFooter = `
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+  return xmlHeader + headerRows + columnHeaders + seatRows + xmlFooter;
+}
+
+// Build multipart email with HTML body and XML attachment
+function buildMultipartEmail(
+  htmlContent: string,
+  attachmentName: string,
+  attachmentBase64: string,
+  to: string,
+  from: string,
+  subject: string
+): string {
+  const boundary = `----=_NextPart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  const parts = [
+    `From: ${from}`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    htmlContent,
+    '',
+    `--${boundary}`,
+    `Content-Type: application/vnd.ms-excel; name="${attachmentName}"`,
+    'Content-Transfer-Encoding: base64',
+    `Content-Disposition: attachment; filename="${attachmentName}"`,
+    '',
+    // Split base64 into 76-character lines as per RFC 2045
+    attachmentBase64.match(/.{1,76}/g)?.join('\r\n') || attachmentBase64,
+    '',
+    `--${boundary}--`,
+  ];
+
+  return parts.join('\r\n');
 }
 
 // Helper function to format time only in Asia timezone
@@ -427,7 +667,15 @@ function generateManifestHTML(data: PassengerManifestData): string {
                     <div class="stat-label">No Show</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">${Math.round((data.checked_in_passengers / data.total_passengers) * 100)}%</div>
+                    <div class="stat-number">${
+                      data.total_passengers > 0
+                        ? Math.round(
+                            (data.checked_in_passengers /
+                              data.total_passengers) *
+                              100
+                          )
+                        : 0
+                    }%</div>
                     <div class="stat-label">Check-in Rate</div>
                 </div>
             </div>
@@ -561,12 +809,29 @@ serve(async req => {
 
     const htmlContent = generateManifestHTML(manifestData);
 
-    // Prepare email data
+    // Generate Excel XML manifest
+    const excelXml = generateExcelXml(manifestData);
+    const excelBase64 = base64EncodeUtf8(excelXml);
+    const excelFileName = `Manifest-${manifestData.manifest_number}.xml`;
+
+    // Build multipart email with HTML body and XML attachment
+    const recipientsStr = recipients.join(',');
+    const subject = `Passenger Manifest - ${manifestData.manifest_number} | ${manifestData.route_name}`;
+    const multipartEmail = buildMultipartEmail(
+      htmlContent,
+      excelFileName,
+      excelBase64,
+      recipientsStr,
+      gmailUser,
+      subject
+    );
+
+    // Prepare email data (now using full multipart body)
     const emailData = {
       from: gmailUser,
-      to: recipients.join(','),
-      subject: `Passenger Manifest - ${manifestData.manifest_number} | ${manifestData.route_name}`,
-      html: htmlContent,
+      to: recipientsStr,
+      subject: subject,
+      multipartBody: multipartEmail, // Full multipart email body
     };
 
     // Send email using Gmail SMTP
