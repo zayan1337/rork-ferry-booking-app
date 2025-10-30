@@ -507,8 +507,8 @@ function generateExcelXml(data: PassengerManifestData): string {
     <Cell><Data ss:Type="String">${seat}</Data></Cell>
     <Cell><Data ss:Type="String">${escapeXml(passenger?.passenger_name || '')}</Data></Cell>
     <Cell><Data ss:Type="String">${escapeXml(getPassengerContact(passenger))}</Data></Cell>
-    <Cell><Data ss:Type="String">${escapeXml(passenger?.board_from || fromLocation || '')}</Data></Cell>
-    <Cell><Data ss:Type="String">${escapeXml(passenger?.drop_off_to || toLocation || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(passenger?.board_from || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(passenger?.drop_off_to || '')}</Data></Cell>
    </Row>`;
     })
     .join('');
@@ -521,8 +521,8 @@ function generateExcelXml(data: PassengerManifestData): string {
     <Cell><Data ss:Type="String"></Data></Cell>
     <Cell><Data ss:Type="String">${escapeXml(p.passenger_name || '')}</Data></Cell>
     <Cell><Data ss:Type="String">${escapeXml(getPassengerContact(p))}</Data></Cell>
-    <Cell><Data ss:Type="String">${escapeXml(p.board_from || fromLocation || '')}</Data></Cell>
-    <Cell><Data ss:Type="String">${escapeXml(p.drop_off_to || toLocation || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(p.board_from || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(p.drop_off_to || '')}</Data></Cell>
    </Row>`
     )
     .join('');

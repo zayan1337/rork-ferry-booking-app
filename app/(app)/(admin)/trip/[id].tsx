@@ -104,6 +104,7 @@ export default function TripDetailsPage() {
   const [loadingSegmentData, setLoadingSegmentData] = useState(false);
   const [routeStops, setRouteStops] = useState<any[]>([]);
   const [isMultiStopRoute, setIsMultiStopRoute] = useState(false);
+  const [specialAssistanceCount, setSpecialAssistanceCount] = useState(0);
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -139,6 +140,22 @@ export default function TripDetailsPage() {
         if (tripData.route_id) {
           await loadMultiStopRouteData(tripData.route_id);
         }
+
+        // Load special assistance count
+        try {
+          const { count } = await supabase
+            .from('passengers')
+            .select('id, bookings!inner(trip_id)', {
+              count: 'exact',
+              head: true,
+            })
+            .not('special_assistance_request', 'is', null)
+            .neq('special_assistance_request', '')
+            .eq('bookings.trip_id', tripData.id);
+          setSpecialAssistanceCount(count || 0);
+        } catch (e) {
+          setSpecialAssistanceCount(0);
+        }
       } else {
         // Fallback to operations store
         const operationsTripData = await fetchTrip(id);
@@ -149,6 +166,22 @@ export default function TripDetailsPage() {
           // Load multi-stop route data if applicable
           if (mappedTrip.route_id) {
             await loadMultiStopRouteData(mappedTrip.route_id);
+          }
+
+          // Load special assistance count
+          try {
+            const { count } = await supabase
+              .from('passengers')
+              .select('id, bookings!inner(trip_id)', {
+                count: 'exact',
+                head: true,
+              })
+              .not('special_assistance_request', 'is', null)
+              .neq('special_assistance_request', '')
+              .eq('bookings.trip_id', mappedTrip.id);
+            setSpecialAssistanceCount(count || 0);
+          } catch (e) {
+            setSpecialAssistanceCount(0);
           }
         }
       }
@@ -819,7 +852,16 @@ export default function TripDetailsPage() {
                     </Text>
                   </View>
                 </View>
-                <ChevronRight size={20} color={colors.textSecondary} />
+                <View style={styles.managementRightArea}>
+                  {specialAssistanceCount > 0 && (
+                    <View style={styles.assistanceBadge}>
+                      <Text style={styles.assistanceBadgeText}>
+                        {specialAssistanceCount}
+                      </Text>
+                    </View>
+                  )}
+                  <ChevronRight size={20} color={colors.textSecondary} />
+                </View>
               </Pressable>
 
               <Pressable
@@ -1336,6 +1378,25 @@ const styles = StyleSheet.create({
   },
   dangerAction: {
     backgroundColor: `${colors.danger}10`,
+  },
+  managementRightArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  assistanceBadge: {
+    backgroundColor: colors.danger,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  assistanceBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '700',
   },
   actionMenuOverlay: {
     position: 'absolute',

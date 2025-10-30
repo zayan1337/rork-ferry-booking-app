@@ -14,7 +14,7 @@ import {
   Dimensions,
   Text,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminStore } from '@/store/admin/adminStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -55,6 +55,7 @@ import { SettingsTab } from '@/types/settings';
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function SettingsScreen() {
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const tabScrollRef = useRef<ScrollView>(null);
   const [currentScrollX, setCurrentScrollX] = useState(0);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
@@ -129,6 +130,28 @@ export default function SettingsScreen() {
     const interval = setInterval(loadNotificationCount, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Handle deep link param to open a specific tab (e.g., ?tab=alerts)
+  useEffect(() => {
+    if (typeof tab === 'string') {
+      const t = tab.toLowerCase();
+      const validTabs: SettingsTab[] = [
+        'permissions',
+        'alerts',
+        'activity',
+        'system',
+        'reports',
+        'islands',
+        'zones',
+        'faq',
+        'content',
+      ];
+      if ((validTabs as string[]).includes(t)) {
+        setActiveTab(t as SettingsTab);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   // Calculate statistics - memoized to prevent unnecessary recalculations
   const stats = useMemo(

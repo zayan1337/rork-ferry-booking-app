@@ -11,14 +11,7 @@ import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { Alert as AdminAlert } from '@/types/admin';
 import { useAdminStore } from '@/store/admin/adminStore';
-import {
-  ArrowLeft,
-  Bell,
-  AlertTriangle,
-  X,
-  Filter,
-  Trash2,
-} from 'lucide-react-native';
+import { ArrowLeft, Bell, AlertTriangle, X, Filter } from 'lucide-react-native';
 
 // Components
 import AlertItem from '@/components/admin/AlertItem';
@@ -52,12 +45,8 @@ export default function AlertsScreen() {
     }
   };
 
-  const handleAlertAction = (alert: AdminAlert, action: 'read' | 'delete') => {
-    if (action === 'read') {
-      markAlertAsRead(alert.id);
-    } else {
-      dismissAlert(alert.id);
-    }
+  const handleAlertAction = (alert: AdminAlert) => {
+    markAlertAsRead(alert.id);
   };
 
   // Calculate stats
@@ -266,13 +255,7 @@ export default function AlertsScreen() {
 
   const renderItem = ({ item }: { item: AdminAlert }) => (
     <View style={styles.alertWrapper}>
-      <AlertItem alert={item} onPress={() => handleAlertAction(item, 'read')} />
-      <Pressable
-        style={styles.deleteAlertButton}
-        onPress={() => handleAlertAction(item, 'delete')}
-      >
-        <Trash2 size={16} color={colors.danger} />
-      </Pressable>
+      <AlertItem alert={item} onPress={() => handleAlertAction(item)} />
     </View>
   );
 
@@ -485,15 +468,6 @@ const styles = StyleSheet.create({
   },
   alertWrapper: {
     paddingHorizontal: 16,
-    position: 'relative',
-  },
-  deleteAlertButton: {
-    position: 'absolute',
-    top: 12,
-    right: 28,
-    padding: 8,
-    backgroundColor: colors.dangerLight,
-    borderRadius: 8,
   },
   emptyState: {
     flex: 1,

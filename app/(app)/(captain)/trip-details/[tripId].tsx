@@ -71,6 +71,9 @@ export default function CaptainTripDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [allSeats, setAllSeats] = useState<any[]>([]);
   const [loadingSeats, setLoadingSeats] = useState(false);
+  const [passengerStops, setPassengerStops] = useState<
+    Map<string, { board_from: string; drop_off_to: string }>
+  >(new Map());
 
   // Multi-stop state
   const [routeStops, setRouteStops] = useState<CaptainRouteStop[]>([]);
@@ -235,6 +238,66 @@ export default function CaptainTripDetailsScreen() {
     }
   }, [trip?.vessel_id, tripId, passengers]);
 
+  // Fetch boarding and dropoff stops for passengers
+  const fetchPassengerStops = useCallback(async () => {
+    if (!tripId || passengers.length === 0) return;
+
+    try {
+      const bookingIds = passengers.map(p => p.booking_id).filter(Boolean);
+      if (bookingIds.length === 0) return;
+
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(
+          `
+          id,
+          booking_segments(
+            boarding_stop_id,
+            destination_stop_id,
+            boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
+              id,
+              islands(name)
+            ),
+            destination_stop:route_stops!booking_segments_destination_stop_id_fkey(
+              id,
+              islands(name)
+            )
+          )
+        `
+        )
+        .in('id', bookingIds);
+
+      if (error) throw error;
+
+      const stopsMap = new Map();
+      (data || []).forEach((booking: any) => {
+        // Handle both array and object response from Supabase
+        const segments = booking.booking_segments;
+        let seg = null;
+
+        if (Array.isArray(segments)) {
+          // If it's an array, get the first element
+          seg = segments[0];
+        } else if (segments && typeof segments === 'object') {
+          // If it's an object (single record), use it directly
+          seg = segments;
+        }
+
+        if (seg) {
+          const stops = {
+            board_from: seg?.boarding_stop?.islands?.name || '',
+            drop_off_to: seg?.destination_stop?.islands?.name || '',
+          };
+          stopsMap.set(booking.id, stops);
+        }
+      });
+
+      setPassengerStops(stopsMap);
+    } catch (error) {
+      console.error('Error fetching passenger stops:', error);
+    }
+  }, [tripId, passengers]);
+
   // Load trip data
   const loadTripData = useCallback(async () => {
     if (!tripId) return;
@@ -266,8 +329,9 @@ export default function CaptainTripDetailsScreen() {
   useEffect(() => {
     if (trip && passengers.length >= 0) {
       fetchAllSeats();
+      fetchPassengerStops();
     }
-  }, [trip, passengers, fetchAllSeats]);
+  }, [trip, passengers, fetchAllSeats, fetchPassengerStops]);
 
   // Load data on focus
   useFocusEffect(
@@ -1228,6 +1292,10 @@ export default function CaptainTripDetailsScreen() {
     return fallback;
   };
 
+  const specialAssistanceCount = activePassengers.filter(
+    p => (p.special_assistance_request || '').trim() !== ''
+  ).length;
+
   // Filter passengers based on active tab
   const filteredPassengers =
     activeTab === 'checked_in'
@@ -1878,6 +1946,13 @@ export default function CaptainTripDetailsScreen() {
           </View>
           <Text style={styles.passengerTitle}>Passenger Manifest</Text>
           <View style={styles.passengerHeaderActions}>
+            {specialAssistanceCount > 0 && (
+              <View style={styles.assistanceBadge}>
+                <Text style={styles.assistanceBadgeText}>
+                  {specialAssistanceCount}
+                </Text>
+              </View>
+            )}
             <View style={styles.passengerCount}>
               <Text style={styles.passengerCountText}>{totalPassengers}</Text>
             </View>
@@ -2104,6 +2179,33 @@ export default function CaptainTripDetailsScreen() {
                       ID: {passenger.passenger_id_proof}
                     </Text>
                   ) : null}
+
+                  {/* Boarding and Dropoff Stops */}
+                  {(() => {
+                    const stops = passengerStops.get(passenger.booking_id);
+                    if (!stops || (!stops.board_from && !stops.drop_off_to))
+                      return null;
+                    return (
+                      <View style={styles.tripStopsRow}>
+                        {stops.board_from && (
+                          <View style={styles.passengerStopInfo}>
+                            <MapPin size={12} color={Colors.success} />
+                            <Text style={styles.passengerStopText}>
+                              From: {stops.board_from}
+                            </Text>
+                          </View>
+                        )}
+                        {stops.drop_off_to && (
+                          <View style={styles.passengerStopInfo}>
+                            <MapPin size={12} color={Colors.error} />
+                            <Text style={styles.passengerStopText}>
+                              To: {stops.drop_off_to}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })()}
 
                   {passenger.special_assistance_request && (
                     <View style={styles.specialAssistanceNew}>
@@ -2466,6 +2568,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
   },
+  tripStopsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  passengerStopInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  passengerStopText: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
   // Seat Availability Styles
   seatCard: {
     marginBottom: 16,
@@ -2736,6 +2856,21 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     minWidth: 24,
     alignItems: 'center',
+  },
+  assistanceBadge: {
+    backgroundColor: Colors.error,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    paddingHorizontal: 6,
+  },
+  assistanceBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '700',
   },
   passengerCountText: {
     color: 'white',

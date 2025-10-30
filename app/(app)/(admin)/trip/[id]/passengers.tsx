@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
+  Linking,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -40,6 +41,8 @@ interface Passenger {
   passenger_type: 'adult' | 'child' | 'infant';
   special_requirements?: string;
   checked_in_at?: string;
+  board_from?: string;
+  drop_off_to?: string;
 }
 
 export default function TripPassengersPage() {
@@ -84,6 +87,72 @@ export default function TripPassengersPage() {
               : undefined,
         })
       );
+
+      // Fetch boarding and dropoff stops for each booking
+      if (transformedPassengers.length > 0) {
+        const { supabase } = await import('@/utils/supabase');
+        const bookingIds = transformedPassengers
+          .map(p => p.booking_id)
+          .filter(Boolean);
+
+        const { data: bookingsData, error } = await supabase
+          .from('bookings')
+          .select(
+            `
+            id,
+            booking_segments(
+              boarding_stop_id,
+              destination_stop_id,
+              boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
+                id,
+                islands(name)
+              ),
+              destination_stop:route_stops!booking_segments_destination_stop_id_fkey(
+                id,
+                islands(name)
+              )
+            )
+          `
+          )
+          .in('id', bookingIds);
+
+        if (!error && bookingsData) {
+          const stopsMap = new Map();
+          bookingsData.forEach((booking: any) => {
+            // Handle both array and object response from Supabase
+            const segments = booking.booking_segments;
+            let seg = null;
+
+            if (Array.isArray(segments)) {
+              // If it's an array, get the first element
+              seg = segments[0];
+            } else if (segments && typeof segments === 'object') {
+              // If it's an object (single record), use it directly
+              seg = segments;
+            }
+
+            if (seg) {
+              stopsMap.set(booking.id, {
+                board_from: seg?.boarding_stop?.islands?.name || '',
+                drop_off_to: seg?.destination_stop?.islands?.name || '',
+              });
+            }
+          });
+
+          // Merge stop data into passengers
+          const enrichedPassengers = transformedPassengers.map(p => {
+            const stops = stopsMap.get(p.booking_id);
+            return {
+              ...p,
+              board_from: stops?.board_from || '',
+              drop_off_to: stops?.drop_off_to || '',
+            };
+          });
+
+          setPassengers(enrichedPassengers);
+          return;
+        }
+      }
 
       setPassengers(transformedPassengers);
     } catch (error) {
@@ -227,15 +296,40 @@ export default function TripPassengersPage() {
           {(item.email || item.phone) && (
             <View style={styles.detailRow}>
               {item.phone && (
-                <View style={styles.detailItem}>
+                <Pressable
+                  style={styles.detailItem}
+                  onPress={() => Linking.openURL(`tel:${item.phone}`)}
+                >
                   <Phone size={14} color={colors.textSecondary} />
-                  <Text style={styles.detailText}>{item.phone}</Text>
-                </View>
+                  <Text style={[styles.detailText, { color: colors.primary }]}>
+                    {item.phone}
+                  </Text>
+                </Pressable>
               )}
               {item.email && (
                 <View style={styles.detailItem}>
                   <Mail size={14} color={colors.textSecondary} />
                   <Text style={styles.detailText}>{item.email}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Boarding and Dropoff Stops */}
+          {(item.board_from || item.drop_off_to) && (
+            <View style={styles.tripStopsRow}>
+              {item.board_from && (
+                <View style={styles.stopInfo}>
+                  <MapPin size={14} color={colors.success} />
+                  <Text style={styles.stopText}>Pickup: {item.board_from}</Text>
+                </View>
+              )}
+              {item.drop_off_to && (
+                <View style={styles.stopInfo}>
+                  <MapPin size={14} color={colors.danger} />
+                  <Text style={styles.stopText}>
+                    Dropoff: {item.drop_off_to}
+                  </Text>
                 </View>
               )}
             </View>
@@ -500,6 +594,24 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  tripStopsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  stopInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stopText: {
+    fontSize: 13,
     color: colors.text,
     fontWeight: '500',
   },

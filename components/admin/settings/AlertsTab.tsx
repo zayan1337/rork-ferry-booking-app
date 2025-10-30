@@ -11,8 +11,6 @@ import {
   Bell,
   AlertTriangle,
   X,
-  Filter,
-  Trash2,
   AlertCircle,
   Users,
   Calendar,
@@ -57,8 +55,8 @@ export default function AlertsTab({
   const [activeSubTab, setActiveSubTab] = useState<AlertSubTab>('system');
 
   // Preview items - show first 10 items
-  const previewSystemAlerts = filteredData.slice(0, 1);
-  const previewAssistanceNotifications = notifications.slice(0, 1);
+  const previewSystemAlerts = filteredData.slice(0, 10);
+  const previewAssistanceNotifications = notifications.slice(0, 10);
 
   useEffect(() => {
     if (isActive) {
@@ -190,22 +188,13 @@ export default function AlertsTab({
       </View>
 
       {/* Action Buttons for System Alerts */}
-      {activeSubTab === 'system' && (
+      {activeSubTab === 'system' && stats.unreadAlerts > 0 && (
         <View style={assistanceStyles.actionRow}>
-          {stats.unreadAlerts > 0 && (
-            <Button
-              title='Mark All Read'
-              variant='outline'
-              size='small'
-              onPress={onMarkAllAlertsAsRead}
-            />
-          )}
           <Button
-            title='Filter'
-            variant='ghost'
+            title='Mark All Read'
+            variant='outline'
             size='small'
-            icon={<Filter size={16} color={colors.primary} />}
-            onPress={() => {}}
+            onPress={onMarkAllAlertsAsRead}
           />
         </View>
       )}
@@ -214,15 +203,12 @@ export default function AlertsTab({
 
   const renderSystemAlert = ({ item }: { item: AdminAlert }) => (
     <View style={assistanceStyles.itemContainer}>
-      <View style={styles.alertWrapper}>
-        <AlertItem alert={item} onPress={() => onAlertAction(item, 'read')} />
-        <Pressable
-          style={styles.deleteAlertButton}
-          onPress={() => onAlertAction(item, 'delete')}
-        >
-          <Trash2 size={16} color={colors.danger} />
-        </Pressable>
-      </View>
+      <AlertItem
+        alert={item}
+        onPress={() => {
+          onAlertAction(item, 'read');
+        }}
+      />
     </View>
   );
 
@@ -338,7 +324,7 @@ export default function AlertsTab({
   const renderFooter = () => {
     const hasMore =
       activeSubTab === 'system'
-        ? filteredData.length >= 1
+        ? filteredData.length > 1
         : notifications.length > 1;
 
     if (!hasMore) return null;

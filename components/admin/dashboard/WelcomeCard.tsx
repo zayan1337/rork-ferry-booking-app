@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { Bell, Shield, Activity } from 'lucide-react-native';
 import { getInitials } from '@/utils/dashboardUtils';
@@ -83,7 +84,10 @@ export default function WelcomeCard({
           </View>
         </View>
         <View style={styles.headerActions}>
-          <View style={styles.notificationBadge}>
+          <Pressable
+            style={styles.notificationBadge}
+            onPress={() => router.push('/(admin)/(tabs)/settings?tab=alerts' as any)}
+          >
             <Bell size={isTablet ? 24 : 20} color={colors.primary} />
             {unreadNotifications > 0 && (
               <View style={styles.badgeCount}>
@@ -92,7 +96,7 @@ export default function WelcomeCard({
                 </Text>
               </View>
             )}
-          </View>
+          </Pressable>
           <View style={styles.activityIndicator}>
             <Activity size={isTablet ? 24 : 20} color={colors.success} />
           </View>

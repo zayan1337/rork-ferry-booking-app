@@ -64,8 +64,8 @@ interface AdminState {
 
   // Alert management
   unreadAlertsCount: number;
-  markAlertAsRead: (id: string) => void;
-  markAllAlertsAsRead: () => void;
+  markAlertAsRead: (id: string) => Promise<void>;
+  markAllAlertsAsRead: () => Promise<void>;
   addAlert: (alert: Alert) => void;
   dismissAlert: (id: string) => void;
 
@@ -334,23 +334,59 @@ export const useAdminStore = create<AdminState>()(
       unreadAlertsCount: 0,
 
       // Alert management
-      markAlertAsRead: id =>
-        set(state => {
-          const updatedAlerts = state.alerts.map(alert =>
-            alert.id === id ? { ...alert, read: true } : alert
-          );
-          return {
-            alerts: updatedAlerts,
-            unreadAlertsCount: updatedAlerts.filter(alert => !alert.read)
-              .length,
-          };
-        }),
+      markAlertAsRead: async id => {
+        try {
+          // Update in database
+          const { supabase } = await import('@/utils/supabase');
+          const { error } = await supabase
+            .from('admin_notifications')
+            .update({ is_read: true })
+            .eq('id', id);
 
-      markAllAlertsAsRead: () =>
-        set(state => ({
-          alerts: state.alerts.map(alert => ({ ...alert, read: true })),
-          unreadAlertsCount: 0,
-        })),
+          if (error) {
+            console.error('Error marking alert as read:', error);
+            throw error;
+          }
+
+          // Update state
+          set(state => {
+            const updatedAlerts = state.alerts.map(alert =>
+              alert.id === id ? { ...alert, read: true } : alert
+            );
+            return {
+              alerts: updatedAlerts,
+              unreadAlertsCount: updatedAlerts.filter(alert => !alert.read)
+                .length,
+            };
+          });
+        } catch (error) {
+          console.error('Failed to mark alert as read:', error);
+        }
+      },
+
+      markAllAlertsAsRead: async () => {
+        try {
+          // Update all in database
+          const { supabase } = await import('@/utils/supabase');
+          const { error } = await supabase
+            .from('admin_notifications')
+            .update({ is_read: true })
+            .eq('is_read', false);
+
+          if (error) {
+            console.error('Error marking all alerts as read:', error);
+            throw error;
+          }
+
+          // Update state
+          set(state => ({
+            alerts: state.alerts.map(alert => ({ ...alert, read: true })),
+            unreadAlertsCount: 0,
+          }));
+        } catch (error) {
+          console.error('Failed to mark all alerts as read:', error);
+        }
+      },
 
       addAlert: alert =>
         set(state => ({
@@ -1004,7 +1040,7 @@ export const useAdminStore = create<AdminState>()(
             .neq('special_assistance_request', '')
             .gte('bookings.trips.travel_date', today)
             .lte('bookings.trips.travel_date', endDate)
-            .in('bookings.trips.status', ['scheduled', 'boarding', 'departed']);
+            .in('bookings.trips.status', ['scheduled', 'boarding']);
 
           if (error) {
             console.error(
@@ -1025,12 +1061,12 @@ export const useAdminStore = create<AdminState>()(
           if (userIds.length > 0) {
             const { data: profiles } = await supabase
               .from('user_profiles')
-              .select('id, contact_number')
+              .select('id, mobile_number')
               .in('id', userIds);
 
             if (profiles) {
               userProfiles = profiles.reduce((acc: any, profile: any) => {
-                acc[profile.id] = profile.contact_number;
+                acc[profile.id] = profile.mobile_number;
                 return acc;
               }, {});
             }

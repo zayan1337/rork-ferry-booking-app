@@ -41,6 +41,90 @@ async function getTotalStopsForTrip(tripId: string): Promise<number> {
   }
 }
 
+// Helper function to enrich passengers with board_from/drop_off_to using booking segments
+async function enrichPassengerStops(passengers: any[]): Promise<any[]> {
+  try {
+    const bookingNumbers = Array.from(
+      new Set(
+        passengers
+          .map(p => (p.booking_number || '').trim())
+          .filter(Boolean)
+      )
+    );
+
+    if (bookingNumbers.length === 0) return passengers;
+
+    // Fetch booking → segments → route stops → island names in one go
+    const { data: bookingsData, error } = await supabase
+      .from('bookings')
+      .select(`
+        id,
+        booking_number,
+        booking_segments(
+          boarding_stop_id,
+          destination_stop_id,
+          boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
+            id,
+            stop_sequence,
+            island_id,
+            islands(name)
+          ),
+          destination_stop:route_stops!booking_segments_destination_stop_id_fkey(
+            id,
+            stop_sequence,
+            island_id,
+            islands(name)
+          )
+        )
+      `)
+      .in('booking_number', bookingNumbers);
+
+    if (error) {
+      console.error('Failed to fetch booking segments for manifest:', error);
+      return passengers;
+    }
+
+    const byBookingNumber: Record<string, any> = {};
+    (bookingsData || []).forEach((b: any) => {
+      // Handle both array and object response from Supabase
+      const segments = b.booking_segments;
+      let seg = null;
+      
+      if (Array.isArray(segments)) {
+        // If it's an array, get the first element
+        seg = segments[0];
+      } else if (segments && typeof segments === 'object') {
+        // If it's an object (single record), use it directly
+        seg = segments;
+      }
+      
+      const boardingName = seg?.boarding_stop?.islands?.name || '';
+      const destinationName = seg?.destination_stop?.islands?.name || '';
+      byBookingNumber[(b.booking_number || '').trim()] = {
+        board_from: boardingName,
+        drop_off_to: destinationName,
+      };
+    });
+
+    // Merge back into passengers
+    return passengers.map((p: any) => {
+      const bn = (p.booking_number || '').trim();
+      const resolved = byBookingNumber[bn];
+      if (resolved) {
+        return {
+          ...p,
+          board_from: p.board_from || resolved.board_from || '',
+          drop_off_to: p.drop_off_to || resolved.drop_off_to || '',
+        };
+      }
+      return p;
+    });
+  } catch (err) {
+    console.error('enrichPassengerStops error:', err);
+    return passengers;
+  }
+}
+
 const initialState = {
   trips: [],
   passengers: [],
@@ -566,6 +650,9 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         actual_departure_time:
           data.actual_departure_time || new Date().toISOString(),
       };
+
+      // Enrich passengers with boarding/dropoff stops before sending
+      manifestData.passengers = await enrichPassengerStops(manifestData.passengers);
 
       // Send email with passenger manifest
       try {
@@ -1505,6 +1592,9 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         delay_reason: null,
         actual_departure_time: new Date().toISOString(),
       } as any;
+
+      // Enrich passengers with boarding/dropoff stops before sending
+      manifestData.passengers = await enrichPassengerStops(manifestData.passengers);
 
       // Send via Edge Function using configured recipients
       const recipients: string[] = closeResult.email_recipients || [];
