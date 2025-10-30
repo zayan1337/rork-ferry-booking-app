@@ -428,6 +428,23 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         throw error;
       }
 
+      // Enrich with passenger_id_proof by querying passengers table
+      const idProofMap: Record<string, string> = {};
+      try {
+        const passengerIds = (data || []).map((p: any) => p.id).filter(Boolean);
+        if (passengerIds.length > 0) {
+          const { data: idRows } = await supabase
+            .from('passengers')
+            .select('id, passenger_id_proof')
+            .in('id', passengerIds);
+          (idRows || []).forEach((row: any) => {
+            if (row?.id) idProofMap[row.id] = row.passenger_id_proof || '';
+          });
+        }
+      } catch (e) {
+        console.warn('Unable to enrich passenger_id_proof:', e);
+      }
+
       const passengers: CaptainPassenger[] = (data || []).map(
         (passenger: any) => ({
           id: passenger.id,
@@ -435,6 +452,7 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
           booking_number: passenger.booking_number || '',
           passenger_name: passenger.passenger_name,
           passenger_contact_number: passenger.passenger_contact_number,
+          passenger_id_proof: idProofMap[passenger.id] || '',
           seat_number: passenger.seat_number || 'Not assigned',
           seat_id: passenger.seat_id,
           check_in_status: passenger.check_in_status || false,
@@ -656,25 +674,24 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
       // Get total stops count
       const totalStops = await getTotalStopsForTrip(tripId);
 
-      // Get booking counts
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from('bookings')
+      // Get passenger counts (use captain_passengers_view; special assistance lives on passengers)
+      const { data: passengerRows, error: passengerError } = await supabase
+        .from('captain_passengers_view')
         .select('id, check_in_status, special_assistance_request')
-        .eq('trip_id', tripId)
-        .in('status', ['confirmed', 'checked_in', 'completed']);
+        .eq('trip_id', tripId);
 
-      if (bookingsError) {
-        console.warn('Error fetching bookings:', bookingsError);
+      if (passengerError) {
+        console.warn('Error fetching passengers:', passengerError);
       }
 
-      const bookedSeats = bookingsData?.length || 0;
+      const bookedSeats = passengerRows?.length || 0;
       const checkedInPassengers =
-        bookingsData?.filter(b => b.check_in_status).length || 0;
+        passengerRows?.filter(p => p.check_in_status).length || 0;
       const specialAssistanceCount =
-        bookingsData?.filter(
-          b =>
-            b.special_assistance_request &&
-            b.special_assistance_request.trim() !== ''
+        passengerRows?.filter(
+          p =>
+            p.special_assistance_request &&
+            p.special_assistance_request.trim() !== ''
         ).length || 0;
 
       // Map to CaptainTrip format

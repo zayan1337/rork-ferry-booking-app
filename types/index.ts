@@ -66,6 +66,7 @@ export interface Passenger {
   id?: string;
   fullName: string;
   idNumber?: string;
+  phoneNumber?: string;
   specialAssistance?: string;
 }
 

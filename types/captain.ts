@@ -75,6 +75,7 @@ export interface CaptainPassenger {
   booking_number: string;
   passenger_name: string;
   passenger_contact_number: string;
+  passenger_id_proof?: string;
   seat_number: string;
   seat_id: string;
   check_in_status: boolean;

@@ -988,12 +988,28 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         }
       }
 
+      // Resolve fallback contact from booking user's profile
+      let fallbackPhone = '' as string;
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('mobile_number')
+          .eq('id', user.id)
+          .single();
+        fallbackPhone = (profile?.mobile_number || '').trim();
+      } catch {}
+
       // Create passengers and seat reservations for main booking
       const passengerInserts = passengers.map((passenger, index) => ({
         booking_id: booking.id,
         seat_id: selectedSeats[index]?.id,
         passenger_name: passenger.fullName,
-        passenger_contact_number: passenger.idNumber || '',
+        passenger_contact_number:
+          (passenger.phoneNumber && passenger.phoneNumber.trim()) ||
+          fallbackPhone ||
+          '',
+        passenger_id_proof:
+          (passenger.idNumber && passenger.idNumber.trim()) || null,
         special_assistance_request: passenger.specialAssistance || null,
       }));
 

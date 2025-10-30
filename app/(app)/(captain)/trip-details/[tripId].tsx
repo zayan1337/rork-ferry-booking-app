@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Animated,
   Easing,
+  Linking,
 } from 'react-native';
 import {
   Stack,
@@ -27,7 +28,7 @@ import {
   Ship,
   Calendar,
   RefreshCw,
-  ClipboardList,
+  Phone,
   Ticket,
   ScanLine,
   Grid3X3,
@@ -824,14 +825,31 @@ export default function CaptainTripDetailsScreen() {
             });
 
             if (!error && data && data.success) {
-              // Optimistic UI Update: Update current stop to arrived
+              // Optimistic UI Update: advance stops
               if (targetStop) {
+                const prevCurrent = routeStops.find(s => s.is_current_stop);
+
                 setRouteStops(prevStops =>
-                  prevStops.map(stop =>
-                    stop.stop_id === targetStop.stop_id
-                      ? { ...stop, status: 'arrived', is_current_stop: true }
-                      : { ...stop, is_current_stop: false }
-                  )
+                  prevStops.map(stop => {
+                    if (prevCurrent && stop.stop_id === prevCurrent.stop_id) {
+                      // Previous current becomes completed
+                      return {
+                        ...stop,
+                        status: 'completed',
+                        is_completed: true,
+                        is_current_stop: false,
+                      } as any;
+                    }
+                    if (stop.stop_id === targetStop.stop_id) {
+                      // Target becomes arrived/current
+                      return {
+                        ...stop,
+                        status: 'arrived',
+                        is_current_stop: true,
+                      } as any;
+                    }
+                    return { ...stop, is_current_stop: false } as any;
+                  })
                 );
 
                 setCurrentStop({
@@ -839,6 +857,14 @@ export default function CaptainTripDetailsScreen() {
                   status: 'arrived',
                   is_current_stop: true,
                 });
+
+                // Update trip progress sequence optimistically
+                if (trip) {
+                  setTrip({
+                    ...trip,
+                    current_stop_sequence: targetStop.stop_sequence,
+                  } as CaptainTrip);
+                }
               }
 
               // Reload data in background (non-blocking)
@@ -1004,6 +1030,27 @@ export default function CaptainTripDetailsScreen() {
     setSelectedPassengers(newSelection);
   };
 
+  // Select/deselect all passengers that belong to the same booking
+  const togglePassengerSelectionByBooking = (bookingId: string) => {
+    // Only consider pending passengers for selection
+    const relatedPendingIds = activePassengers
+      .filter(p => p.booking_id === bookingId && !p.check_in_status)
+      .map(p => p.id);
+
+    if (relatedPendingIds.length === 0) return;
+
+    setSelectedPassengers(prev => {
+      const allAlreadySelected = relatedPendingIds.every(id => prev.has(id));
+      const next = new Set(prev);
+      if (allAlreadySelected) {
+        relatedPendingIds.forEach(id => next.delete(id));
+      } else {
+        relatedPendingIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
   const toggleSelectAll = () => {
     // Only select passengers who are not checked in
     const pendingPassengers = activePassengers.filter(p => !p.check_in_status);
@@ -1032,9 +1079,15 @@ export default function CaptainTripDetailsScreen() {
       selectedPassengers.has(p.id)
     );
 
+    // Compute number of unique bookings represented in the selection
+    const selectedBookingIds = Array.from(
+      new Set(selectedList.map(p => p.booking_id))
+    );
+    const selectedBookingCount = selectedBookingIds.length;
+
     Alert.alert(
       'Bulk Check-in',
-      `Check in ${selectedCount} passenger${selectedCount > 1 ? 's' : ''}?\n\nPassengers: ${selectedList.map(p => p.passenger_name).join(', ')}`,
+      `Check in ${selectedBookingCount} booking${selectedBookingCount > 1 ? 's' : ''}?\n\nPassengers: ${selectedList.map(p => p.passenger_name).join(', ')}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -1092,12 +1145,12 @@ export default function CaptainTripDetailsScreen() {
               if (errorCount === 0) {
                 Alert.alert(
                   'Success',
-                  `Successfully checked in ${successCount} passenger${successCount > 1 ? 's' : ''}.`
+                  `Successfully checked in ${successCount} booking${successCount > 1 ? 's' : ''}.`
                 );
               } else {
                 Alert.alert(
                   'Partial Success',
-                  `Checked in ${successCount} passenger${successCount > 1 ? 's' : ''}. ${errorCount} failed.`
+                  `Checked in ${successCount} booking${successCount > 1 ? 's' : ''}. ${errorCount} failed.`
                 );
               }
             } catch (err) {
@@ -1166,6 +1219,14 @@ export default function CaptainTripDetailsScreen() {
   const remainingToCheckIn = totalPassengers - checkedInCount;
   const checkInProgress =
     totalPassengers > 0 ? (checkedInCount / totalPassengers) * 100 : 0;
+
+  // Resolve passenger contact number (passenger first, then booking owner)
+  const getPassengerContact = (p: any): string => {
+    const contact = (p?.passenger_contact_number || '').trim();
+    if (contact) return contact;
+    const fallback = (p?.client_phone || '').trim();
+    return fallback;
+  };
 
   // Filter passengers based on active tab
   const filteredPassengers =
@@ -1789,7 +1850,7 @@ export default function CaptainTripDetailsScreen() {
               icon={<ScanLine size={18} color={Colors.primary} />}
               style={styles.actionButton}
             />
-            <Button
+            {/* <Button
               title={
                 trip.is_checkin_closed ? 'Check-in Closed' : 'Close Check-in'
               }
@@ -1804,7 +1865,7 @@ export default function CaptainTripDetailsScreen() {
                 )
               }
               style={styles.actionButton}
-            />
+            /> */}
           </View>
         </Card>
       )}
@@ -1960,7 +2021,7 @@ export default function CaptainTripDetailsScreen() {
                     trip.status === 'boarding' &&
                     !passenger.check_in_status
                   ) {
-                    togglePassengerSelection(passenger.id);
+                    togglePassengerSelectionByBooking(passenger.booking_id);
                   }
                 }}
               >
@@ -2021,6 +2082,28 @@ export default function CaptainTripDetailsScreen() {
                   <Text style={styles.bookingNumberSmall}>
                     {passenger.booking_number}
                   </Text>
+
+                  {/* Contact Number (clickable) */}
+                  {(() => {
+                    const phone = getPassengerContact(passenger);
+                    if (!phone) return null;
+                    return (
+                      <Pressable
+                        style={styles.contactRow}
+                        onPress={() => Linking.openURL(`tel:${phone}`)}
+                      >
+                        <Phone size={12} color={Colors.textSecondary} />
+                        <Text style={styles.contactText}>{phone}</Text>
+                      </Pressable>
+                    );
+                  })()}
+
+                  {/* ID Number */}
+                  {passenger.passenger_id_proof ? (
+                    <Text style={styles.contactText}>
+                      ID: {passenger.passenger_id_proof}
+                    </Text>
+                  ) : null}
 
                   {passenger.special_assistance_request && (
                     <View style={styles.specialAssistanceNew}>
@@ -2372,6 +2455,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
     flexWrap: 'wrap',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  contactText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
   // Seat Availability Styles
   seatCard: {

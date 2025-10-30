@@ -92,8 +92,37 @@ export default function CaptainTabLayout() {
       setLoadingNotifications(true);
       startSpin();
       const data = await captainStore.fetchSpecialAssistanceNotifications();
-      setNotifications(data);
-      setNotificationCount(data.length);
+
+      // Sort by upcoming first (travelDate + departureTime)
+      const getTripSortTime = (n: any): number => {
+        const baseDate = new Date(n.travelDate);
+        const validBase = isNaN(baseDate.getTime()) ? new Date() : baseDate;
+        const dep = n.departureTime;
+        if (dep) {
+          const depDate = new Date(dep);
+          if (!isNaN(depDate.getTime())) return depDate.getTime();
+          const m = String(dep).match(/^\s*(\d{1,2}):?(\d{2})\s*(AM|PM)?\s*$/i);
+          if (m) {
+            let h = parseInt(m[1], 10);
+            const min = parseInt(m[2], 10);
+            const ampm = m[3];
+            if (ampm) {
+              if (/PM/i.test(ampm) && h < 12) h += 12;
+              if (/AM/i.test(ampm) && h === 12) h = 0;
+            }
+            const d = new Date(validBase);
+            d.setHours(h, min, 0, 0);
+            return d.getTime();
+          }
+        }
+        return validBase.getTime();
+      };
+
+      const sorted = [...data].sort(
+        (a, b) => getTripSortTime(a) - getTripSortTime(b)
+      );
+      setNotifications(sorted);
+      setNotificationCount(sorted.length);
     } catch (error) {
       console.error('Error loading notifications:', error);
       setNotifications([]);

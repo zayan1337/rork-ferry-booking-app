@@ -290,6 +290,30 @@ function formatDateInAsiaTimezone(utcTimeString: string): string {
   }
 }
 
+// Helper: return HHMMHrs in Asia/Maldives for a given time string
+function formatHHMMHrsAsia(timeString: string): string {
+  try {
+    const date = new Date(timeString);
+    if (!isNaN(date.getTime())) {
+      try {
+        const t = date.toLocaleTimeString('en-GB', {
+          timeZone: 'Asia/Maldives',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+        return t.replace(':', '') + 'Hrs';
+      } catch {
+        const mv = new Date(date.getTime() + 5 * 60 * 60 * 1000);
+        const hh = mv.getUTCHours().toString().padStart(2, '0');
+        const mm = mv.getUTCMinutes().toString().padStart(2, '0');
+        return `${hh}${mm}Hrs`;
+      }
+    }
+  } catch {}
+  return '';
+}
+
 // Helper function to Base64 encode UTF-8 string
 function base64EncodeUtf8(str: string): string {
   const bytes = new TextEncoder().encode(str);
@@ -349,25 +373,47 @@ function getDayOfWeek(dateString: string): string {
 
 // Generate Excel XML (SpreadsheetML) manifest
 function generateExcelXml(data: PassengerManifestData): string {
-  // Get ordered seat list
-  const allSeats = getOrderedSeats(50); // Get enough seats to cover all
-
-  // Create a map of passengers by seat number
+  // Build seat list based ONLY on seats present for this trip's passengers
+  // This avoids showing non-existent seats for the vessel in Excel
   const passengerMap = new Map<string, (typeof data.passengers)[0]>();
-  for (const passenger of data.passengers) {
-    const seatNum = (passenger.seat_number || '').trim().toUpperCase();
-    if (seatNum && seatNum !== 'NOT ASSIGNED') {
-      passengerMap.set(seatNum, passenger);
+  const assignedSeats: string[] = [];
+  const unassigned: (typeof data.passengers)[0][] = [];
+
+  for (const p of data.passengers) {
+    const seat = (p.seat_number || '').trim().toUpperCase();
+    if (seat && seat !== 'NOT ASSIGNED') {
+      if (!passengerMap.has(seat)) assignedSeats.push(seat);
+      passengerMap.set(seat, p);
+    } else {
+      unassigned.push(p);
     }
   }
 
-  // Format date info - Match image format: "27 Oct 2025"
-  const tripDate = formatDateInAsiaTimezone(data.trip_date);
-  // Convert to format: DD MMM YYYY
+  // Sort seat labels by row letter then seat number (e.g., A1, A2, ..., B1, ...)
+  const sortSeatLabels = (a: string, b: string): number => {
+    const ra = a.match(/^[A-Za-z]+/g)?.[0] || '';
+    const rb = b.match(/^[A-Za-z]+/g)?.[0] || '';
+    if (ra !== rb) return ra.localeCompare(rb);
+    const na = parseInt(a.replace(/^[A-Za-z]+/, '')) || 0;
+    const nb = parseInt(b.replace(/^[A-Za-z]+/, '')) || 0;
+    return na - nb;
+  };
+  assignedSeats.sort(sortSeatLabels);
+
+  // Robust day/date/time for header
+  const baseDateStr =
+    data.trip_date || data.actual_departure_time || new Date().toISOString();
+  const baseDate = new Date(baseDateStr);
+
+  // Day of week
+  const dayOfWeek = !isNaN(baseDate.getTime())
+    ? getDayOfWeek(baseDate.toISOString())
+    : getDayOfWeek(new Date().toISOString());
+
+  // Date "DD MMM YYYY"
   let displayDate: string;
-  try {
-    const date = new Date(data.trip_date);
-    const day = date.getDate().toString().padStart(2, '0');
+  if (!isNaN(baseDate.getTime())) {
+    const day = baseDate.getDate().toString().padStart(2, '0');
     const months = [
       'Jan',
       'Feb',
@@ -382,38 +428,31 @@ function generateExcelXml(data: PassengerManifestData): string {
       'Nov',
       'Dec',
     ];
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
+    const month = months[baseDate.getMonth()];
+    const year = baseDate.getFullYear();
     displayDate = `${day} ${month} ${year}`;
-  } catch {
-    displayDate = tripDate;
+  } else {
+    displayDate = formatDateInAsiaTimezone(baseDateStr) || '';
   }
 
-  const dayOfWeek = getDayOfWeek(data.trip_date);
-  // Format time like "1030Hrs" (24-hour format: HHMMHrs)
-  let formattedTime: string;
-  try {
-    const timeString = data.departure_time || data.actual_departure_time;
-    const date = new Date(timeString);
-    if (!isNaN(date.getTime())) {
-      // Get hours and minutes in local timezone (Maldives)
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-      formattedTime = `${hours}${minutes}Hrs`;
-    } else {
-      // Fallback: try to extract from formatted string
-      const departureTime = formatTimeOnlyInAsiaTimezone(timeString);
-      formattedTime =
-        departureTime.replace(/\s/g, '').replace(/(AM|PM)/i, '') + 'Hrs';
-    }
-  } catch {
-    formattedTime = '1030Hrs'; // Default fallback
-  }
+  // Time like "1030Hrs"
+  const timeSource =
+    data.departure_time || data.actual_departure_time || baseDateStr;
+  const formattedTime = formatHHMMHrsAsia(timeSource) || '0000Hrs';
 
   // Route name - extract from/to for individual passenger use
   const routeParts = data.route_name.split(' to ');
   const fromLocation = routeParts[0] || data.route_name || 'Male';
   const toLocation = routeParts[1] || '';
+
+  // Helper to resolve passenger contact number (passenger first, then booking owner)
+  const getPassengerContact = (
+    p: PassengerManifestData['passengers'][number] | undefined
+  ): string => {
+    return p?.contact_number && p.contact_number.trim()
+      ? p.contact_number.trim()
+      : (p?.client_phone || '').trim();
+  };
 
   // Start building XML
   const xmlHeader = `<?xml version="1.0"?>
@@ -439,12 +478,12 @@ function generateExcelXml(data: PassengerManifestData): string {
     <Cell><Data ss:Type="String">${dayOfWeek}</Data></Cell>
    </Row>
    <Row>
-    <Cell><Data ss:Type="String">${displayDate}</Data></Cell>
+    <Cell><Data ss:Type="String">${displayDate || 'N/A'}</Data></Cell>
     <Cell><Data ss:Type="String">${data.route_name}</Data></Cell>
    </Row>
    <Row>
-    <Cell><Data ss:Type="String">${formattedTime}</Data></Cell>
-    <Cell><Data ss:Type="String">in front of Jogging Track (near Marrybrown Restaurant)</Data></Cell>
+   <Cell><Data ss:Type="String">${formattedTime || 'N/A'}</Data></Cell>
+   <Cell><Data ss:Type="String"></Data></Cell>
    </Row>
    <Row>
    </Row>`;
@@ -459,20 +498,33 @@ function generateExcelXml(data: PassengerManifestData): string {
     <Cell><Data ss:Type="String">Drop off to</Data></Cell>
    </Row>`;
 
-  // Generate rows for all seats (matching image format exactly)
-  const seatRows = allSeats
+  // Generate rows for seats present in this trip only
+  const seatRowsAssigned = assignedSeats
     .map(seat => {
       const passenger = passengerMap.get(seat);
-
       return `
    <Row>
     <Cell><Data ss:Type="String">${seat}</Data></Cell>
     <Cell><Data ss:Type="String">${escapeXml(passenger?.passenger_name || '')}</Data></Cell>
-    <Cell><Data ss:Type="String">${escapeXml(passenger?.contact_number || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(getPassengerContact(passenger))}</Data></Cell>
     <Cell><Data ss:Type="String">${escapeXml(passenger?.board_from || fromLocation || '')}</Data></Cell>
     <Cell><Data ss:Type="String">${escapeXml(passenger?.drop_off_to || toLocation || '')}</Data></Cell>
    </Row>`;
     })
+    .join('');
+
+  // Optionally, list passengers without assigned seats at the end
+  const seatRowsUnassigned = unassigned
+    .map(
+      p => `
+   <Row>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(p.passenger_name || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(getPassengerContact(p))}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(p.board_from || fromLocation || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(p.drop_off_to || toLocation || '')}</Data></Cell>
+   </Row>`
+    )
     .join('');
 
   const xmlFooter = `
@@ -480,7 +532,14 @@ function generateExcelXml(data: PassengerManifestData): string {
  </Worksheet>
 </Workbook>`;
 
-  return xmlHeader + headerRows + columnHeaders + seatRows + xmlFooter;
+  return (
+    xmlHeader +
+    headerRows +
+    columnHeaders +
+    seatRowsAssigned +
+    seatRowsUnassigned +
+    xmlFooter
+  );
 }
 
 // Build multipart email with HTML body and XML attachment
@@ -574,6 +633,14 @@ function generateManifestHTML(data: PassengerManifestData): string {
   const checkedInPassengers = data.passengers.filter(p => p.check_in_status);
   const noShowPassengers = data.passengers.filter(p => !p.check_in_status);
 
+  const getPassengerContact = (
+    p: PassengerManifestData['passengers'][number]
+  ): string => {
+    return p.contact_number && p.contact_number.trim()
+      ? p.contact_number.trim()
+      : (p.client_phone || '').trim();
+  };
+
   return `
 <!DOCTYPE html>
 <html>
@@ -636,7 +703,11 @@ function generateManifestHTML(data: PassengerManifestData): string {
                     </div>
                     <div class="info-item">
                         <span class="info-label">Travel Date:</span>
-                        <span class="info-value">${formatDateInAsiaTimezone(data.trip_date)}</span>
+                        <span class="info-value">${formatDateInAsiaTimezone(
+                          data.trip_date ||
+                            data.departure_time ||
+                            data.actual_departure_time
+                        )}</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Scheduled Departure:</span>
@@ -703,7 +774,7 @@ function generateManifestHTML(data: PassengerManifestData): string {
                             <td>${p.passenger_name}</td>
                             <td>${p.seat_number}</td>
                             <td>${p.booking_number}</td>
-                            <td>${p.contact_number}</td>
+                            <td>${getPassengerContact(p)}</td>
                             <td class="status-checked-in">${p.checked_in_at ? formatTimeOnlyInAsiaTimezone(p.checked_in_at) : 'N/A'}</td>
                         </tr>
                         `
@@ -812,7 +883,8 @@ serve(async req => {
     // Generate Excel XML manifest
     const excelXml = generateExcelXml(manifestData);
     const excelBase64 = base64EncodeUtf8(excelXml);
-    const excelFileName = `Manifest-${manifestData.manifest_number}.xml`;
+    // Use .xls extension so clients (Gmail) prefer download/open in Excel
+    const excelFileName = `Manifest-${manifestData.manifest_number}.xls`;
 
     // Build multipart email with HTML body and XML attachment
     const recipientsStr = recipients.join(',');

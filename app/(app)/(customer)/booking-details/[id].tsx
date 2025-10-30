@@ -273,6 +273,12 @@ export default function BookingDetailsScreen() {
             <Text style={styles.passengerDetail}>ID: {passenger.idNumber}</Text>
           )}
 
+          {passenger.phoneNumber && (
+            <Text style={styles.passengerDetail}>
+              Phone: {passenger.phoneNumber}
+            </Text>
+          )}
+
           {passenger.specialAssistance && (
             <Text style={styles.passengerDetail}>
               Special Assistance: {passenger.specialAssistance}

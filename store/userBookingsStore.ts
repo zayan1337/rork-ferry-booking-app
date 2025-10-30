@@ -130,6 +130,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             id,
             passenger_name,
             passenger_contact_number,
+            passenger_id_proof,
             special_assistance_request,
             seat:seat_id(
               id,
@@ -227,7 +228,8 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             (p: any) => ({
               id: p?.id || '',
               fullName: p?.passenger_name || '',
-              idNumber: p?.passenger_contact_number || '',
+              idNumber: p?.passenger_id_proof || '',
+              phoneNumber: p?.passenger_contact_number || '',
               specialAssistance: p?.special_assistance_request || '',
             })
           );
@@ -523,12 +525,28 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
         if (seatUpdateError) throw seatUpdateError;
       }
 
+      // Resolve fallback contact from booking user's profile
+      let fallbackPhone = '' as string;
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('mobile_number')
+          .eq('id', newBookingData.user_id)
+          .single();
+        fallbackPhone = (profile?.mobile_number || '').trim();
+      } catch {}
+
       // 6. Create passengers for new booking
       const passengers = originalBooking.passengers.map(
         (passenger: any, index: number) => ({
           booking_id: newBookingData.id,
           passenger_name: passenger.fullName,
-          passenger_contact_number: passenger.idNumber,
+          passenger_contact_number:
+            (passenger.phoneNumber && passenger.phoneNumber.trim()) ||
+            fallbackPhone ||
+            '',
+          passenger_id_proof:
+            (passenger.idNumber && passenger.idNumber.trim()) || null,
           special_assistance_request: passenger.specialAssistance,
           seat_id: modifications.selectedSeats[index]?.id,
         })

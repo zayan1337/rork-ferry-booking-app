@@ -486,6 +486,16 @@ export default function BookScreen() {
                   />
 
                   <Input
+                    label='Phone Number'
+                    placeholder='Enter phone number (optional)'
+                    value={passenger.phoneNumber || ''}
+                    onChangeText={text =>
+                      updatePassengerDetail(index, 'phoneNumber', text)
+                    }
+                    keyboardType='phone-pad'
+                  />
+
+                  <Input
                     label='Special Assistance'
                     placeholder='Any special requirements? (optional)'
                     value={passenger.specialAssistance || ''}
