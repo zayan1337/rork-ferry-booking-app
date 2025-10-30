@@ -550,7 +550,7 @@ export default function RouteDetailsScreen() {
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Bookable Segments</Text>
                   <Text style={styles.infoValue}>
-                    {routeData.total_segments || segmentFares.length || 1}
+                    {segmentFares.length || routeData.total_segments || 1}
                   </Text>
                 </View>
               </View>

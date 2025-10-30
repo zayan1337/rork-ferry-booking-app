@@ -182,6 +182,10 @@ interface AdminState {
   // Real data fetching functions
   fetchDashboardData: () => Promise<void>;
   refreshData: () => Promise<void>;
+
+  // Special assistance notifications
+  fetchSpecialAssistanceNotifications: () => Promise<any[]>;
+  fetchSpecialAssistanceCount: () => Promise<number>;
 }
 
 // Mock data for new entities
@@ -954,6 +958,156 @@ export const useAdminStore = create<AdminState>()(
           await get().fetchDashboardData();
         } catch (error) {
           console.error('Error refreshing data:', error);
+        }
+      },
+
+      // Special assistance notifications
+      fetchSpecialAssistanceNotifications: async () => {
+        try {
+          const { supabase } = await import('@/utils/supabase');
+
+          // Get upcoming trips (next 7 days) with special assistance
+          const today = new Date().toISOString().split('T')[0];
+          const endDateObj = new Date(today);
+          endDateObj.setDate(endDateObj.getDate() + 7);
+          const endDate = endDateObj.toISOString().split('T')[0];
+
+          const { data, error } = await supabase
+            .from('passengers')
+            .select(
+              `
+              id,
+              booking_id,
+              passenger_name,
+              passenger_contact_number,
+              special_assistance_request,
+              seats(seat_number),
+              bookings!inner(
+                id,
+                booking_number,
+                user_id,
+                trip_id,
+                trips!inner(
+                  id,
+                  departure_time,
+                  travel_date,
+                  status,
+                  route_id,
+                  vessel_id,
+                  routes(name),
+                  vessels(name)
+                )
+              )
+            `
+            )
+            .not('special_assistance_request', 'is', null)
+            .neq('special_assistance_request', '')
+            .gte('bookings.trips.travel_date', today)
+            .lte('bookings.trips.travel_date', endDate)
+            .in('bookings.trips.status', ['scheduled', 'boarding', 'departed']);
+
+          if (error) {
+            console.error(
+              'Error fetching special assistance notifications:',
+              error
+            );
+            return [];
+          }
+
+          // Get user contact numbers if passenger contact is missing
+          const userIds = [
+            ...new Set(
+              (data || []).map((p: any) => p.bookings?.user_id).filter(Boolean)
+            ),
+          ];
+          let userProfiles: any = {};
+
+          if (userIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('user_profiles')
+              .select('id, contact_number')
+              .in('id', userIds);
+
+            if (profiles) {
+              userProfiles = profiles.reduce((acc: any, profile: any) => {
+                acc[profile.id] = profile.contact_number;
+                return acc;
+              }, {});
+            }
+          }
+
+          // Group by trip
+          const grouped = (data || []).reduce((acc: any, passenger: any) => {
+            const booking = passenger.bookings;
+            if (!booking || !booking.trips) return acc;
+
+            const trip = booking.trips;
+            const tripId = trip.id;
+
+            if (!acc[tripId]) {
+              acc[tripId] = {
+                tripId,
+                tripName: trip.routes?.name || 'Unknown Route',
+                vesselName: trip.vessels?.name || 'Unknown Vessel',
+                departureTime: trip.departure_time || 'Unknown Time',
+                travelDate: trip.travel_date || 'Unknown Date',
+                tripStatus: trip.status || 'unknown',
+                routeName: trip.routes?.name || 'Unknown Route',
+                passengers: [],
+              };
+            }
+
+            let contactNumber = passenger.passenger_contact_number;
+            if (
+              !contactNumber &&
+              booking.user_id &&
+              userProfiles[booking.user_id]
+            ) {
+              contactNumber = userProfiles[booking.user_id];
+            }
+
+            acc[tripId].passengers.push({
+              name: passenger.passenger_name,
+              assistance: passenger.special_assistance_request,
+              seatNumber: passenger.seats?.seat_number || 'Not assigned',
+              bookingNumber: booking.booking_number || 'N/A',
+              contactNumber: contactNumber || 'N/A',
+            });
+
+            return acc;
+          }, {});
+
+          // Sort by date and time
+          const sortedNotifications = Object.values(grouped).sort(
+            (a: any, b: any) => {
+              const dateA = new Date(
+                a.travelDate + ' ' + a.departureTime
+              ).getTime();
+              const dateB = new Date(
+                b.travelDate + ' ' + b.departureTime
+              ).getTime();
+              return dateA - dateB;
+            }
+          );
+
+          return sortedNotifications;
+        } catch (error) {
+          console.error(
+            'Error fetching special assistance notifications:',
+            error
+          );
+          return [];
+        }
+      },
+
+      fetchSpecialAssistanceCount: async () => {
+        try {
+          const notifications =
+            await get().fetchSpecialAssistanceNotifications();
+          return notifications.length;
+        } catch (error) {
+          console.error('Error fetching special assistance count:', error);
+          return 0;
         }
       },
     }),

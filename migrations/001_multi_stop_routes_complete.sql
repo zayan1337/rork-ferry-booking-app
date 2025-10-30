@@ -525,7 +525,7 @@ SELECT
   
   -- Counts
   COALESCE(stop_counts.total_stops, 0) as total_stops,
-  COALESCE(stop_counts.segment_count, 0) as total_segments,
+  COALESCE(segment_counts.actual_segments, 0) as total_segments,
   
   -- Stats (from existing routes_stats_view logic)
   COALESCE(stats.total_trips_30d, 0::BIGINT) as total_trips_30d,
@@ -551,14 +551,21 @@ LEFT JOIN (
   ORDER BY rs.route_id, rs.stop_sequence DESC
 ) last_stop ON r.id = last_stop.route_id
 LEFT JOIN (
-  -- Count stops and segments
+  -- Count stops
   SELECT 
     route_id,
-    COUNT(*) as total_stops,
-    (COUNT(*) * (COUNT(*) - 1)) / 2 as segment_count
+    COUNT(*) as total_stops
   FROM route_stops
   GROUP BY route_id
 ) stop_counts ON r.id = stop_counts.route_id
+LEFT JOIN (
+  -- Count actual configured segments
+  SELECT 
+    route_id,
+    COUNT(*) as actual_segments
+  FROM route_segment_fares
+  GROUP BY route_id
+) segment_counts ON r.id = segment_counts.route_id
 LEFT JOIN (
   -- Calculate stats (reuse logic from original routes_stats_view)
   SELECT

@@ -1,10 +1,11 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, Pressable, Alert } from 'react-native';
+import { View, Pressable, Alert, Text } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { usePermissionStore } from '@/store/admin/permissionStore';
 import { useAuthStore } from '@/store/authStore';
+import { useAdminStore } from '@/store/admin/adminStore';
 import NoPermissionsWelcome from '@/components/admin/NoPermissionsWelcome';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import AuthLoadingScreen from '@/components/AuthLoadingScreen';
@@ -24,6 +25,9 @@ import {
 
 export default function AdminTabLayout() {
   const { user, signOut } = useAuthStore();
+  const { fetchSpecialAssistanceCount } = useAdminStore();
+  const [notificationCount, setNotificationCount] = React.useState(0);
+
   const {
     canViewDashboard,
     canViewBookings,
@@ -51,6 +55,20 @@ export default function AdminTabLayout() {
   const isUserDataLoaded = user?.profile?.id
     ? currentAdminUser !== undefined
     : true;
+
+  // Load notification count for special assistance
+  React.useEffect(() => {
+    const loadNotificationCount = async () => {
+      const count = await fetchSpecialAssistanceCount();
+      setNotificationCount(count);
+    };
+
+    loadNotificationCount();
+
+    // Refresh every 5 minutes
+    const interval = setInterval(loadNotificationCount, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Header button handlers
   const handleProfilePress = () => {
@@ -223,7 +241,36 @@ export default function AdminTabLayout() {
           title: 'Settings',
           href: canAccessSettingsTab() ? undefined : null,
           tabBarIcon: ({ color, size }) => (
-            <Settings size={size} color={color} />
+            <View style={{ position: 'relative' }}>
+              <Settings size={size} color={color} />
+              {notificationCount > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    backgroundColor: colors.danger,
+                    borderRadius: 8,
+                    minWidth: 16,
+                    height: 16,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderWidth: 2,
+                    borderColor: colors.card,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: 'white',
+                      fontSize: 10,
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {notificationCount > 9 ? '9+' : String(notificationCount)}
+                  </Text>
+                </View>
+              )}
+            </View>
           ),
         }}
       />

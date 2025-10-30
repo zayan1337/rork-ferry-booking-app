@@ -175,7 +175,7 @@ export default function RoutesTab({
                   </Text>
                   <Text style={styles.routeMetaSeparator}>•</Text>
                   <Text style={styles.routeMeta}>
-                    {route.total_segments || 0} segments
+                    {route.total_segments || 1} segments
                   </Text>
                   <Text style={styles.routeMetaSeparator}>•</Text>
                   <Text style={styles.routeMeta}>

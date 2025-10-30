@@ -36,7 +36,6 @@ import { supabase } from '@/utils/supabase';
 import {
   BarChart3,
   Edit,
-  Trash,
   Users,
   MapPin,
   Clock,
@@ -658,17 +657,6 @@ export default function TripDetailsPage() {
                             {!isLast && (
                               <View style={styles.timelineConnector}>
                                 <View style={styles.timelineLine} />
-                                {travelTime && (
-                                  <View style={styles.travelTimeContainer}>
-                                    <Clock
-                                      size={10}
-                                      color={colors.textSecondary}
-                                    />
-                                    <Text style={styles.travelTimeText}>
-                                      {travelTime} min
-                                    </Text>
-                                  </View>
-                                )}
                               </View>
                             )}
 
@@ -911,37 +899,7 @@ export default function TripDetailsPage() {
                 </Pressable>
               )}
 
-              {canManageTrips() && (
-                <Pressable
-                  style={[styles.managementAction, styles.deleteAction]}
-                  onPress={handleDelete}
-                >
-                  <View style={styles.managementActionLeft}>
-                    <View
-                      style={[
-                        styles.managementIconContainer,
-                        styles.deleteIconContainer,
-                      ]}
-                    >
-                      <Trash size={20} color={colors.danger} />
-                    </View>
-                    <View>
-                      <Text
-                        style={[
-                          styles.managementActionTitle,
-                          styles.deleteActionTitle,
-                        ]}
-                      >
-                        Delete Trip
-                      </Text>
-                      <Text style={styles.managementActionSubtitle}>
-                        Permanently remove trip from system
-                      </Text>
-                    </View>
-                  </View>
-                  <ChevronRight size={20} color={colors.danger} />
-                </Pressable>
-              )}
+              {/* Delete action removed per requirements */}
             </View>
 
             {/* Segment Fares Display - Read Only */}
@@ -1379,18 +1337,6 @@ const styles = StyleSheet.create({
   dangerAction: {
     backgroundColor: `${colors.danger}10`,
   },
-  deleteAction: {
-    backgroundColor: `${colors.danger}15`,
-    borderWidth: 1,
-    borderColor: `${colors.danger}30`,
-  },
-  deleteIconContainer: {
-    backgroundColor: `${colors.danger}25`,
-  },
-  deleteActionTitle: {
-    color: colors.danger,
-    fontWeight: '700',
-  },
   actionMenuOverlay: {
     position: 'absolute',
     top: 0,
@@ -1548,26 +1494,6 @@ const styles = StyleSheet.create({
     flex: 1,
     width: 2,
     backgroundColor: colors.border,
-  },
-  travelTimeContainer: {
-    position: 'absolute',
-    top: '50%',
-    left: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.card,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    transform: [{ translateY: -12 }],
-  },
-  travelTimeText: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontWeight: '500',
   },
   stopMarker: {
     position: 'absolute',

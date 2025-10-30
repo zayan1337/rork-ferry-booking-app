@@ -395,17 +395,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             // Admin can manually process refund later
           }
 
-          if (refundData) {
-            console.log(
-              '[CANCEL] Refund API response:',
-              JSON.stringify(refundData, null, 2)
-            );
-          } else if (!refundError) {
-            console.warn(
-              '[CANCEL] No refund data and no error - unexpected state'
-            );
-          }
-
           if (!refundData?.success) {
             console.warn(
               '[CANCEL] Refund processing failed:',

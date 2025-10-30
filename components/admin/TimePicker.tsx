@@ -18,6 +18,8 @@ interface TimePickerProps {
   error?: string;
   required?: boolean;
   disabled?: boolean;
+  // When true, removes outer margins so it fits inside inline layouts
+  compact?: boolean;
 }
 
 export default function TimePicker({
@@ -28,8 +30,12 @@ export default function TimePicker({
   error,
   required = false,
   disabled = false,
+  compact = false,
 }: TimePickerProps) {
   const [isVisible, setIsVisible] = useState(false);
+  // Local temp selections so the modal doesn't close immediately on first tap
+  const [tempHour, setTempHour] = useState<number | undefined>(undefined);
+  const [tempMinute, setTempMinute] = useState<number | undefined>(undefined);
 
   const { selectedHour, selectedMinute } = useMemo(() => {
     const [h, m] = (value || '').split(':');
@@ -42,7 +48,7 @@ export default function TimePicker({
   const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
   const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
 
-  const handleSelect = (hour: number, minute: number) => {
+  const finalizeSelection = (hour: number, minute: number) => {
     const hh = String(hour).padStart(2, '0');
     const mm = String(minute).padStart(2, '0');
     onChange(`${hh}:${mm}`);
@@ -50,7 +56,7 @@ export default function TimePicker({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, compact && { marginBottom: 0 }]}>
       {label && (
         <Text style={styles.label}>
           {label}
@@ -114,7 +120,14 @@ export default function TimePicker({
                         styles.option,
                         selectedHour === h && styles.optionSelected,
                       ]}
-                      onPress={() => handleSelect(h, selectedMinute ?? 0)}
+                      onPress={() => {
+                        setTempHour(h);
+                        // If minute already chosen in this session or existing value, finalize
+                        const minuteToUse = tempMinute ?? selectedMinute ?? 0;
+                        if (minuteToUse !== undefined && minuteToUse !== null) {
+                          finalizeSelection(h, minuteToUse);
+                        }
+                      }}
                     >
                       <Text
                         style={[
@@ -143,7 +156,12 @@ export default function TimePicker({
                         styles.option,
                         selectedMinute === m && styles.optionSelected,
                       ]}
-                      onPress={() => handleSelect(selectedHour ?? 0, m)}
+                      onPress={() => {
+                        setTempMinute(m);
+                        // If hour already chosen in this session or existing value, finalize
+                        const hourToUse = tempHour ?? selectedHour ?? 0;
+                        finalizeSelection(hourToUse, m);
+                      }}
                     >
                       <Text
                         style={[

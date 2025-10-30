@@ -3453,7 +3453,7 @@ select
   first_stop.island_name as from_island_name,
   last_stop.island_name as to_island_name,
   COALESCE(stop_counts.total_stops, 0::bigint) as total_stops,
-  COALESCE(stop_counts.segment_count, 0::bigint) as total_segments,
+  COALESCE(segment_counts.actual_segments, 0::bigint) as total_segments,
   COALESCE(stats.total_trips_30d, 0::bigint) as total_trips_30d,
   COALESCE(stats.total_bookings_30d, 0::bigint) as total_bookings_30d,
   COALESCE(stats.average_occupancy_30d, 0::numeric) as average_occupancy_30d,
@@ -3486,13 +3486,21 @@ from
   left join (
     select
       route_stops.route_id,
-      count(*) as total_stops,
-      count(*) * (count(*) - 1) / 2 as segment_count
+      count(*) as total_stops
     from
       route_stops
     group by
       route_stops.route_id
   ) stop_counts on r.id = stop_counts.route_id
+  left join (
+    select
+      route_id,
+      count(*) as actual_segments
+    from
+      route_segment_fares
+    group by
+      route_id
+  ) segment_counts on r.id = segment_counts.route_id
   left join (
     select
       t.route_id,

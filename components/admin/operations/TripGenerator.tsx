@@ -93,12 +93,13 @@ export default function TripGenerator({
   const [routeStops, setRouteStops] = useState<Record<string, RouteStop[]>>({});
   const [loadingRouteStops, setLoadingRouteStops] = useState(false);
 
-  // Load data
+  // Load data and clear errors when modal opens
   useEffect(() => {
     if (visible) {
       loadRoutes();
       loadVessels();
       fetchUsers();
+      setErrors({}); // Clear any previous errors
     }
   }, [visible]);
 
@@ -232,6 +233,20 @@ export default function TripGenerator({
     setHasChanges(!!hasFormData);
   }, [formData]);
 
+  // Helper function to format time labels
+  const formatTimeLabel = (time: string) => {
+    try {
+      const [hours, minutes] = time.split(':');
+      const hour = parseInt(hours);
+      const minute = parseInt(minutes);
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
+    } catch {
+      return time;
+    }
+  };
+
   // Combine predefined and custom time slots
   const allTimeSlots = useMemo(() => {
     const predefined = getCommonTimeSlots();
@@ -254,19 +269,6 @@ export default function TripGenerator({
     });
     return grouped;
   }, [allTimeSlots]);
-
-  const formatTimeLabel = (time: string) => {
-    try {
-      const [hours, minutes] = time.split(':');
-      const hour = parseInt(hours);
-      const minute = parseInt(minutes);
-      const period = hour >= 12 ? 'PM' : 'AM';
-      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-      return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
-    } catch {
-      return time;
-    }
-  };
 
   const addCustomTimeSlot = () => {
     if (!newTimeSlot) return;
@@ -313,7 +315,12 @@ export default function TripGenerator({
     value: any
   ) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    setErrors(prev => ({ ...prev, [field]: '' }));
+    // Remove the error key completely instead of setting to empty string
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[field];
+      return newErrors;
+    });
     setHasChanges(true);
   };
 
@@ -647,6 +654,7 @@ export default function TripGenerator({
                 value={newTimeSlot}
                 onChange={setNewTimeSlot}
                 placeholder='HH:MM (24-hour)'
+                compact
               />
             </View>
             <Pressable
@@ -700,8 +708,8 @@ export default function TripGenerator({
                       <Pressable
                         style={[
                           styles.timeSlotChip,
+                          isCustom && !isSelected && styles.customTimeSlotChip,
                           isSelected && styles.timeSlotChipSelected,
-                          isCustom && styles.customTimeSlotChip,
                         ]}
                         onPress={() => handleTimeSlotToggle(slot.value)}
                       >
@@ -924,7 +932,10 @@ export default function TripGenerator({
   if (!visible) return null;
 
   const renderErrorDisplay = () => {
-    const errorKeys = Object.keys(errors);
+    const errorKeys = Object.keys(errors).filter(
+      key => errors[key] && errors[key].trim() !== ''
+    );
+
     if (errorKeys.length === 0) return null;
 
     return (
@@ -1326,8 +1337,8 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   customTimeSlotChip: {
-    backgroundColor: colors.warningLight,
-    borderColor: `${colors.warning}50`,
+    backgroundColor: `${colors.primary}15`,
+    borderColor: `${colors.primary}50`,
   },
   timeSlotText: {
     fontSize: 13,
