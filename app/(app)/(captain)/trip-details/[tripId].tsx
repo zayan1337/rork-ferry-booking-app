@@ -65,12 +65,14 @@ export default function CaptainTripDetailsScreen() {
     completeStopBoarding,
     processMultiStopCheckIn,
     sendManifest,
+    activateTrip,
   } = useCaptainStore();
 
   const [trip, setTrip] = useState<CaptainTrip | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [allSeats, setAllSeats] = useState<any[]>([]);
   const [loadingSeats, setLoadingSeats] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
   const [passengerStops, setPassengerStops] = useState<
     Map<string, { board_from: string; drop_off_to: string }>
   >(new Map());
@@ -324,6 +326,44 @@ export default function CaptainTripDetailsScreen() {
     await loadTripData();
     setRefreshing(false);
   }, [loadTripData]);
+
+  // Handle trip activation
+  const handleActivateTrip = useCallback(async () => {
+    if (!trip || !tripId) return;
+
+    Alert.alert(
+      'Activate Trip',
+      `Do you want to activate this trip?\n\nRoute: ${trip.route_name}\nDate: ${formatSimpleDate(trip.travel_date)}\nTime: ${formatTripTime(trip.departure_time)}\n\nOnce activated, passengers will be able to check in.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Activate',
+          style: 'default',
+          onPress: async () => {
+            setIsActivating(true);
+            try {
+              const result = await activateTrip(tripId);
+              if (result.success) {
+                Alert.alert('Success', result.message);
+                // Refresh trip data
+                await loadTripData();
+              } else {
+                Alert.alert('Error', result.message);
+              }
+            } catch (error) {
+              console.error('Error activating trip:', error);
+              Alert.alert(
+                'Error',
+                'Failed to activate trip. Please try again.'
+              );
+            } finally {
+              setIsActivating(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [trip, tripId, activateTrip, loadTripData]);
 
   // Fetch seats when trip or passengers change
   useEffect(() => {
@@ -1544,6 +1584,28 @@ export default function CaptainTripDetailsScreen() {
         }}
       />
 
+      {/* Inactive Trip Alert Card */}
+      {trip && !trip.is_active && (
+        <Card style={styles.inactiveAlertCard}>
+          <View style={styles.inactiveAlertHeader}>
+            <AlertCircle size={24} color={Colors.warning} />
+            <Text style={styles.inactiveAlertTitle}>Trip is Inactive</Text>
+          </View>
+          <Text style={styles.inactiveAlertText}>
+            This trip is currently inactive. You need to activate it before
+            passengers can check in and before you can manage boarding.
+          </Text>
+          <Button
+            title={isActivating ? 'Activating...' : 'Activate This Trip'}
+            onPress={handleActivateTrip}
+            variant='primary'
+            disabled={isActivating}
+            icon={<CheckCircle size={18} color='white' />}
+            style={styles.activateButton}
+          />
+        </Card>
+      )}
+
       {/* Trip Info Card */}
       <Card style={styles.tripCard}>
         <View style={styles.tripHeader}>
@@ -1554,20 +1616,28 @@ export default function CaptainTripDetailsScreen() {
             <Text style={styles.tripTitle}>{trip.route_name}</Text>
             <Text style={styles.tripSubtitle}>{trip.vessel_name}</Text>
           </View>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: `${getStatusColor(trip.status)}20` },
-            ]}
-          >
-            <Text
+          <View style={styles.statusBadgeContainer}>
+            <View
               style={[
-                styles.statusText,
-                { color: getStatusColor(trip.status) },
+                styles.statusBadge,
+                { backgroundColor: `${getStatusColor(trip.status)}20` },
               ]}
             >
-              {trip.status.toUpperCase()}
-            </Text>
+              <Text
+                style={[
+                  styles.statusText,
+                  { color: getStatusColor(trip.status) },
+                ]}
+              >
+                {trip.status.toUpperCase()}
+              </Text>
+            </View>
+            {/* Inactive indicator */}
+            {!trip.is_active && (
+              <View style={styles.inactiveIndicator}>
+                <Text style={styles.inactiveIndicatorText}>INACTIVE</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -1731,15 +1801,18 @@ export default function CaptainTripDetailsScreen() {
           )}
 
           {/* Smart Multi-stop Action Button */}
-          {trip.total_stops && trip.total_stops > 1 && getButtonState() && (
-            <View style={styles.multiStopActions}>
-              <Button
-                title={getButtonState()!.text}
-                onPress={handleButtonPress}
-                variant={getButtonState()!.variant as any}
-              />
-            </View>
-          )}
+          {trip.is_active &&
+            trip.total_stops &&
+            trip.total_stops > 1 &&
+            getButtonState() && (
+              <View style={styles.multiStopActions}>
+                <Button
+                  title={getButtonState()!.text}
+                  onPress={handleButtonPress}
+                  variant={getButtonState()!.variant as any}
+                />
+              </View>
+            )}
         </Card>
       )}
 
@@ -1903,7 +1976,7 @@ export default function CaptainTripDetailsScreen() {
       </Card>
 
       {/* Actions */}
-      {trip.status === 'boarding' && (
+      {trip.is_active && trip.status === 'boarding' && (
         <Card style={styles.actionsCard}>
           <View style={styles.actionsHeader}>
             <Text style={styles.actionsTitle}>Trip Actions</Text>
@@ -1965,7 +2038,8 @@ export default function CaptainTripDetailsScreen() {
         </View>
 
         {/* Compact Bulk Actions Bar */}
-        {trip.status === 'boarding' &&
+        {trip.is_active &&
+          trip.status === 'boarding' &&
           (() => {
             const pendingPassengers = activePassengers.filter(
               p => !p.check_in_status
@@ -2091,8 +2165,9 @@ export default function CaptainTripDetailsScreen() {
                   passenger.check_in_status && styles.passengerItemCheckedIn,
                 ]}
                 onPress={() => {
-                  // Toggle selection when tapping the card (only if boarding and not checked in)
+                  // Toggle selection when tapping the card (only if active, boarding and not checked in)
                   if (
+                    trip.is_active &&
                     trip.status === 'boarding' &&
                     !passenger.check_in_status
                   ) {
@@ -2102,7 +2177,9 @@ export default function CaptainTripDetailsScreen() {
               >
                 {/* Left Section: Checkbox and Seat */}
                 <View style={styles.passengerLeftSection}>
-                  {trip.status === 'boarding' && !passenger.check_in_status ? (
+                  {trip.is_active &&
+                  trip.status === 'boarding' &&
+                  !passenger.check_in_status ? (
                     <View
                       style={[
                         styles.checkboxNew,
@@ -3067,5 +3144,51 @@ const styles = StyleSheet.create({
   },
   activeTabTextCompact: {
     color: 'white',
+  },
+  // Inactive Trip Styles
+  inactiveAlertCard: {
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: `${Colors.warning}05`,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.warning,
+  },
+  inactiveAlertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  inactiveAlertTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.warning,
+  },
+  inactiveAlertText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  activateButton: {
+    marginTop: 8,
+  },
+  statusBadgeContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  inactiveIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: `${Colors.textSecondary}20`,
+    borderWidth: 1,
+    borderColor: Colors.textSecondary,
+  },
+  inactiveIndicatorText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textSecondary,
   },
 });

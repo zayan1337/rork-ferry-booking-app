@@ -86,7 +86,9 @@ export default function WelcomeCard({
         <View style={styles.headerActions}>
           <Pressable
             style={styles.notificationBadge}
-            onPress={() => router.push('/(admin)/(tabs)/settings?tab=alerts' as any)}
+            onPress={() =>
+              router.push('/(admin)/(tabs)/settings?tab=alerts' as any)
+            }
           >
             <Bell size={isTablet ? 24 : 20} color={colors.primary} />
             {unreadNotifications > 0 && (

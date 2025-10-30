@@ -178,15 +178,27 @@ export default function TripItem({
           </View>
         </View>
         <View style={styles.headerRight}>
-          <View style={styles.statusBadge}>
-            <Text
-              style={[
-                styles.statusText,
-                { color: getStatusColor(trip.status) },
-              ]}
-            >
-              {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
-            </Text>
+          <View style={styles.badgesContainer}>
+            <View style={styles.statusBadge}>
+              <Text
+                style={[
+                  styles.statusText,
+                  { color: getStatusColor(trip.status) },
+                ]}
+              >
+                {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+              </Text>
+            </View>
+            {trip.is_active === true && (
+              <View style={styles.activeBadge}>
+                <Text style={styles.activeBadgeText}>ACTIVE</Text>
+              </View>
+            )}
+            {trip.is_active === false && (
+              <View style={styles.inactiveBadge}>
+                <Text style={styles.inactiveBadgeText}>INACTIVE</Text>
+              </View>
+            )}
           </View>
           <ChevronRight size={20} color={colors.textTertiary} />
         </View>
@@ -338,6 +350,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  badgesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
   routeInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -477,5 +495,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'capitalize',
+  },
+  activeBadge: {
+    backgroundColor: `${colors.success}20`,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.success,
+  },
+  activeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.success,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inactiveBadge: {
+    backgroundColor: `${colors.textSecondary}20`,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.textSecondary,
+  },
+  inactiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

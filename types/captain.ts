@@ -19,6 +19,7 @@ export interface CaptainTrip {
   booked_seats: number;
   checked_in_passengers: number;
   captain_id?: string;
+  is_active: boolean;
   is_checkin_closed: boolean;
   checkin_closed_at?: string;
   checkin_closed_by?: string;
@@ -185,6 +186,9 @@ export interface CaptainStoreActions {
     tripId: string,
     status: CaptainTrip['status']
   ) => Promise<boolean>;
+  activateTrip: (
+    tripId: string
+  ) => Promise<{ success: boolean; message: string }>;
 
   // Multi-stop trip management
   fetchTripStops: (tripId: string) => Promise<CaptainRouteStop[]>;

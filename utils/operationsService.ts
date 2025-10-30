@@ -199,7 +199,6 @@ export const fetchTrips = async (): Promise<OperationsTrip[]> => {
     const { data, error } = await supabase
       .from('operations_trips_view')
       .select('*')
-      .eq('is_active', true)
       .gte('travel_date', new Date().toISOString().split('T')[0])
       .order('travel_date', { ascending: true })
       .order('departure_time', { ascending: true });

@@ -46,9 +46,7 @@ async function enrichPassengerStops(passengers: any[]): Promise<any[]> {
   try {
     const bookingNumbers = Array.from(
       new Set(
-        passengers
-          .map(p => (p.booking_number || '').trim())
-          .filter(Boolean)
+        passengers.map(p => (p.booking_number || '').trim()).filter(Boolean)
       )
     );
 
@@ -57,7 +55,8 @@ async function enrichPassengerStops(passengers: any[]): Promise<any[]> {
     // Fetch booking → segments → route stops → island names in one go
     const { data: bookingsData, error } = await supabase
       .from('bookings')
-      .select(`
+      .select(
+        `
         id,
         booking_number,
         booking_segments(
@@ -76,7 +75,8 @@ async function enrichPassengerStops(passengers: any[]): Promise<any[]> {
             islands(name)
           )
         )
-      `)
+      `
+      )
       .in('booking_number', bookingNumbers);
 
     if (error) {
@@ -89,7 +89,7 @@ async function enrichPassengerStops(passengers: any[]): Promise<any[]> {
       // Handle both array and object response from Supabase
       const segments = b.booking_segments;
       let seg = null;
-      
+
       if (Array.isArray(segments)) {
         // If it's an array, get the first element
         seg = segments[0];
@@ -97,7 +97,7 @@ async function enrichPassengerStops(passengers: any[]): Promise<any[]> {
         // If it's an object (single record), use it directly
         seg = segments;
       }
-      
+
       const boardingName = seg?.boarding_stop?.islands?.name || '';
       const destinationName = seg?.destination_stop?.islands?.name || '';
       byBookingNumber[(b.booking_number || '').trim()] = {
@@ -202,7 +202,6 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         )
         .eq('captain_id', user.id)
         .eq('travel_date', today)
-        .eq('is_active', true)
         .order('departure_time');
 
       if (error) throw error;
@@ -226,6 +225,7 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
           booked_seats: trip.booked_seats || 0,
           checked_in_passengers: 0, // Will be fetched separately
           captain_id: trip.captain_id,
+          is_active: trip.is_active,
           is_checkin_closed: false, // Will be determined by status
           current_stop_sequence: trip.current_stop_sequence || 1,
           current_stop_id: trip.current_stop_id,
@@ -340,6 +340,7 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
           available_seats,
           booked_seats,
           captain_id,
+          is_active,
           current_stop_sequence,
           current_stop_id,
           trip_progress_status,
@@ -358,7 +359,6 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         )
         .eq('captain_id', user.id)
         .eq('travel_date', date)
-        .eq('is_active', true)
         .order('departure_time');
 
       if (error) throw error;
@@ -391,6 +391,7 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
             booked_seats: trip.booked_seats || 0,
             checked_in_passengers: 0,
             captain_id: trip.captain_id,
+            is_active: trip.is_active,
             is_checkin_closed: ['departed', 'arrived', 'completed'].includes(
               trip.status
             ),
@@ -652,7 +653,9 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
       };
 
       // Enrich passengers with boarding/dropoff stops before sending
-      manifestData.passengers = await enrichPassengerStops(manifestData.passengers);
+      manifestData.passengers = await enrichPassengerStops(
+        manifestData.passengers
+      );
 
       // Send email with passenger manifest
       try {
@@ -731,6 +734,7 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
           route_id,
           captain_id,
           available_seats,
+          is_active,
           is_checkin_closed,
           current_stop_sequence,
           current_stop_id,
@@ -810,6 +814,7 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         available_seats: tripData.available_seats || 0,
         occupancy_rate: (bookedSeats / (vessel?.seating_capacity || 1)) * 100,
         revenue: 0,
+        is_active: tripData.is_active ?? true,
         is_checkin_closed: tripData.is_checkin_closed || false,
         current_stop_id: tripData.current_stop_id,
         total_stops: totalStops,
@@ -1594,7 +1599,9 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
       } as any;
 
       // Enrich passengers with boarding/dropoff stops before sending
-      manifestData.passengers = await enrichPassengerStops(manifestData.passengers);
+      manifestData.passengers = await enrichPassengerStops(
+        manifestData.passengers
+      );
 
       // Send via Edge Function using configured recipients
       const recipients: string[] = closeResult.email_recipients || [];
@@ -1697,6 +1704,57 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
     } catch (error) {
       console.error('Error processing check-in:', error);
       return false;
+    }
+  },
+
+  // Activate trip function
+  activateTrip: async (tripId: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        return {
+          success: false,
+          message: 'Not authenticated',
+        };
+      }
+
+      const { data, error } = await supabase.rpc('activate_trip_by_captain', {
+        p_trip_id: tripId,
+        p_captain_id: user.id,
+      });
+
+      if (error) {
+        console.error('Error activating trip:', error);
+        return {
+          success: false,
+          message: error.message || 'Failed to activate trip',
+        };
+      }
+
+      if (!data?.success) {
+        return {
+          success: false,
+          message: data?.message || 'Failed to activate trip',
+        };
+      }
+
+      // Refresh trips after activation
+      await get().fetchTodayTrips();
+
+      return {
+        success: true,
+        message: data.message || 'Trip activated successfully',
+      };
+    } catch (error) {
+      console.error('Error activating trip:', error);
+      return {
+        success: false,
+        message:
+          error instanceof Error ? error.message : 'Failed to activate trip',
+      };
     }
   },
 }));

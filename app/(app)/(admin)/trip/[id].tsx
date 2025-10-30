@@ -253,7 +253,7 @@ export default function TripDetailsPage() {
         departure_time: tripData.departure_time,
         available_seats: trip?.available_seats || 0, // Keep current available seats
         captain_id: tripData.captain_id?.trim() || undefined, // Include captain assignment (undefined if empty)
-        is_active: true,
+        is_active: tripData.is_active,
       });
 
       if (success) {
@@ -550,22 +550,47 @@ export default function TripDetailsPage() {
                     </Text>
                   </View>
                 </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: `${tripInfo.status.color}20` },
-                  ]}
-                >
-                  <Text
+                <View style={styles.statusBadgesContainer}>
+                  <View
                     style={[
-                      styles.statusText,
-                      { color: tripInfo.status.color },
+                      styles.statusBadge,
+                      { backgroundColor: `${tripInfo.status.color}20` },
                     ]}
                   >
-                    {tripInfo.status.label}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: tripInfo.status.color },
+                      ]}
+                    >
+                      {tripInfo.status.label}
+                    </Text>
+                  </View>
+                  {trip.is_active === true && (
+                    <View style={styles.activeStatusBadge}>
+                      <CheckCircle size={12} color={colors.success} />
+                      <Text style={styles.activeStatusText}>ACTIVE</Text>
+                    </View>
+                  )}
+                  {trip.is_active === false && (
+                    <View style={styles.inactiveStatusBadge}>
+                      <AlertCircle size={12} color={colors.textSecondary} />
+                      <Text style={styles.inactiveStatusText}>INACTIVE</Text>
+                    </View>
+                  )}
                 </View>
               </View>
+
+              {/* Inactive Trip Warning */}
+              {trip.is_active === false && (
+                <View style={styles.inactiveWarning}>
+                  <AlertTriangle size={16} color={colors.warning} />
+                  <Text style={styles.inactiveWarningText}>
+                    This trip is currently inactive and not available for
+                    booking
+                  </Text>
+                </View>
+              )}
 
               {/* Details Grid */}
               <View style={styles.detailsGrid}>
@@ -1186,6 +1211,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
+  statusBadgesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
   statusBadge: {
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -1194,6 +1225,61 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  activeStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: `${colors.success}20`,
+    borderWidth: 1,
+    borderColor: colors.success,
+  },
+  activeStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.success,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inactiveStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: `${colors.textSecondary}20`,
+    borderWidth: 1,
+    borderColor: colors.textSecondary,
+  },
+  inactiveStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inactiveWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: `${colors.warning}15`,
+    borderWidth: 1,
+    borderColor: `${colors.warning}40`,
+    marginBottom: 16,
+  },
+  inactiveWarningText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.warning,
+    lineHeight: 18,
   },
   detailsGrid: {
     gap: 12,

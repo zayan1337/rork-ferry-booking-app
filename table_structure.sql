@@ -2222,8 +2222,6 @@ from
     group by
       b.trip_id
   ) booking_stats on t.id = booking_stats.trip_id
-where
-  t.is_active = true
 order by
   t.travel_date,
   t.departure_time;

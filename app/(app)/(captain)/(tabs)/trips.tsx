@@ -18,6 +18,7 @@ import {
   Search,
   Filter,
   CheckCircle,
+  AlertCircle,
 } from 'lucide-react-native';
 import { useFocusEffect, router } from 'expo-router';
 
@@ -241,6 +242,13 @@ export default function CaptainTripsScreen() {
               </Text>
             </View>
 
+            {/* Inactive Badge */}
+            {!trip.is_active && (
+              <View style={styles.inactiveBadge}>
+                <Text style={styles.inactiveBadgeText}>INACTIVE</Text>
+              </View>
+            )}
+
             {/* Special Assistance Badge */}
             {typeof trip.special_assistance_count === 'number' &&
               trip.special_assistance_count > 0 && (
@@ -252,6 +260,16 @@ export default function CaptainTripsScreen() {
               )}
           </View>
         </View>
+
+        {/* Inactive Trip Warning */}
+        {!trip.is_active && (
+          <View style={styles.inactiveWarning}>
+            <AlertCircle size={14} color={Colors.warning} />
+            <Text style={styles.inactiveWarningText}>
+              This trip is currently inactive. Tap to view and activate it.
+            </Text>
+          </View>
+        )}
 
         {/* Progress indicator - only show if we have valid stop data */}
         {trip.total_stops &&
@@ -661,5 +679,36 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  inactiveBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: `${Colors.textSecondary}20`,
+    borderWidth: 1,
+    borderColor: Colors.textSecondary,
+  },
+  inactiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    letterSpacing: 0.5,
+  },
+  inactiveWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: `${Colors.warning}10`,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  inactiveWarningText: {
+    fontSize: 12,
+    color: Colors.warning,
+    fontWeight: '500',
+    flex: 1,
   },
 });
