@@ -221,7 +221,8 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
             is_reserved,
             booking_id,
             user_id,
-            temp_reservation_expiry
+            temp_reservation_expiry,
+            is_admin_blocked
           `
           )
           .eq('trip_id', tripId);
@@ -243,11 +244,15 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
         let isCurrentUserReservation = false;
 
         if (reservation) {
-          // Check if seat is confirmed (has booking_id)
-          if (reservation.booking_id) {
+          // FIRST: Check if admin blocked - always unavailable to customers
+          if (reservation.is_admin_blocked) {
             isAvailable = false;
           }
-          // Check if seat is temporarily reserved and not expired
+          // SECOND: Check if seat is confirmed (has booking_id)
+          else if (reservation.booking_id) {
+            isAvailable = false;
+          }
+          // THIRD: Check if seat is temporarily reserved and not expired
           else if (reservation.temp_reservation_expiry) {
             const expiryTime = new Date(reservation.temp_reservation_expiry);
             const currentTime = new Date();
@@ -255,12 +260,15 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
             if (currentTime < expiryTime) {
               isTempReserved = true;
               isCurrentUserReservation = reservation.user_id === currentUserId;
-              isAvailable = isCurrentUserReservation; // Available to current user if they reserved it
+              // Available to current user if they reserved it, unavailable to others
+              isAvailable = isCurrentUserReservation;
             } else {
-              isAvailable = true; // Expired reservation, seat is available
+              // Expired reservation, seat is available
+              isAvailable = reservation.is_available !== false;
             }
           } else {
-            isAvailable = reservation.is_available && !reservation.booking_id;
+            // Check is_available flag (legacy support)
+            isAvailable = reservation.is_available !== false;
           }
         }
 

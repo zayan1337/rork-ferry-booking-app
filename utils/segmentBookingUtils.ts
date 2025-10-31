@@ -285,19 +285,35 @@ export async function getTripsForSegment(
 
         const segmentFare = fareError ? 0 : fareData || 0;
 
-        // Get available seats - calculate from vessel capacity minus booked seats
+        // Get available seats - calculate from vessel capacity minus booked and admin-blocked seats
         // This is more reliable than checking is_available flag which can be stale
         const vesselCapacity = trip.vessels.seating_capacity;
 
-        // Count only booked seats (where booking_id is NOT NULL)
+        // Count booked seats (where booking_id is NOT NULL)
         const { count: bookedSeatCount, error: bookedError } = await supabase
           .from('seat_reservations')
           .select('id', { count: 'exact', head: true })
           .eq('trip_id', trip.id)
           .not('booking_id', 'is', null); // Count only booked seats
 
+        // Count admin-blocked seats (where is_admin_blocked = true)
+        const { count: adminBlockedCount, error: adminBlockedError } =
+          await supabase
+            .from('seat_reservations')
+            .select('id', { count: 'exact', head: true })
+            .eq('trip_id', trip.id)
+            .eq('is_admin_blocked', true);
+
         const bookedSeats = bookedError ? 0 : bookedSeatCount || 0;
-        const availableSeats = Math.max(0, vesselCapacity - bookedSeats);
+        const adminBlockedSeats = adminBlockedError
+          ? 0
+          : adminBlockedCount || 0;
+
+        // Available seats = total capacity - booked seats - admin blocked seats
+        const availableSeats = Math.max(
+          0,
+          vesselCapacity - bookedSeats - adminBlockedSeats
+        );
 
         trips.push({
           trip_id: trip.id,

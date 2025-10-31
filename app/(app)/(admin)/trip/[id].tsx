@@ -936,7 +936,9 @@ export default function TripDetailsPage() {
                     size={20}
                     color={colors.textSecondary}
                     style={{
-                      transform: [{ rotate: showSeatBlocking ? '90deg' : '0deg' }],
+                      transform: [
+                        { rotate: showSeatBlocking ? '90deg' : '0deg' },
+                      ],
                     }}
                   />
                 </Pressable>
@@ -1006,7 +1008,9 @@ export default function TripDetailsPage() {
             {showSeatBlocking && canManageTrips() && trip?.vessel_id && (
               <View style={styles.seatBlockingCard}>
                 <View style={styles.seatBlockingHeader}>
-                  <Text style={styles.sectionTitle}>Seat Blocking Management</Text>
+                  <Text style={styles.sectionTitle}>
+                    Seat Blocking Management
+                  </Text>
                   <Pressable
                     onPress={() => setShowSeatBlocking(false)}
                     style={styles.closeButton}

@@ -25,6 +25,10 @@ interface SeatReservation {
   seat_id: string;
   booking_id: string | null;
   is_available: boolean;
+  is_admin_blocked?: boolean;
+  temp_reserved_at?: string | null;
+  temp_reservation_expiry?: string | null;
+  user_id?: string | null;
   seat?: Seat;
 }
 
@@ -46,6 +50,7 @@ export default function SeatBlockingManager({
     available: 0,
     booked: 0,
     blocked: 0,
+    tempBlocked: 0,
   });
   const [isRealTimeConnected, setIsRealTimeConnected] = useState(false);
   const [recentlyUpdatedSeats, setRecentlyUpdatedSeats] = useState<Set<string>>(
@@ -90,7 +95,9 @@ export default function SeatBlockingManager({
       // Fetch seat reservations for this trip first
       const { data: reservations, error: reservationsError } = await supabase
         .from('seat_reservations')
-        .select('id, seat_id, booking_id, is_available')
+        .select(
+          'id, seat_id, booking_id, is_available, is_admin_blocked, temp_reserved_at, temp_reservation_expiry, user_id'
+        )
         .eq('trip_id', tripId);
 
       if (reservationsError) throw reservationsError;
@@ -98,7 +105,16 @@ export default function SeatBlockingManager({
       // Create a map of reservations
       const reservationMap = new Map<string, SeatReservation>();
       (reservations || []).forEach((res: any) => {
-        reservationMap.set(res.seat_id, res);
+        reservationMap.set(res.seat_id, {
+          id: res.id,
+          seat_id: res.seat_id,
+          booking_id: res.booking_id,
+          is_available: res.is_available,
+          is_admin_blocked: res.is_admin_blocked || false,
+          temp_reserved_at: res.temp_reserved_at,
+          temp_reservation_expiry: res.temp_reservation_expiry,
+          user_id: res.user_id,
+        });
       });
 
       // Now map seats with reservation data
@@ -142,6 +158,7 @@ export default function SeatBlockingManager({
     let available = 0;
     let booked = 0;
     let blocked = 0;
+    let tempBlocked = 0;
 
     seatList.forEach(seat => {
       const reservation = reservations.get(seat.id);
@@ -150,10 +167,43 @@ export default function SeatBlockingManager({
         if (reservation.booking_id != null) {
           booked++;
         } else if (!reservation.is_available) {
-          // Blocked: has reservation, not available, but not booked
-          blocked++;
+          // Check if it's a temporary reservation (has temp_reservation_expiry that hasn't expired)
+          if (reservation.temp_reservation_expiry) {
+            const expiryTime = new Date(reservation.temp_reservation_expiry);
+            const currentTime = new Date();
+            if (currentTime < expiryTime) {
+              // Temporary reservation still active
+              tempBlocked++;
+            } else {
+              // Expired temp reservation but still blocked
+              // Check if it's admin blocked or just expired temp reservation
+              if (reservation.is_admin_blocked) {
+                blocked++;
+              } else {
+                // Expired temp reservation - should be available but still marked unavailable
+                blocked++; // Count as blocked until cleaned up
+              }
+            }
+          } else if (reservation.is_admin_blocked) {
+            // Permanently blocked by admin (is_admin_blocked = true, no temp reservation)
+            blocked++;
+          } else {
+            // Not available but not clearly identified - treat as blocked
+            blocked++;
+          }
         } else {
-          available++;
+          // Check if there's an active temporary reservation even if is_available is true
+          if (reservation.temp_reservation_expiry) {
+            const expiryTime = new Date(reservation.temp_reservation_expiry);
+            const currentTime = new Date();
+            if (currentTime < expiryTime) {
+              tempBlocked++;
+            } else {
+              available++;
+            }
+          } else {
+            available++;
+          }
         }
       } else {
         // No reservation record means seat is available
@@ -166,6 +216,7 @@ export default function SeatBlockingManager({
       available,
       booked,
       blocked,
+      tempBlocked,
     });
   };
 
@@ -271,12 +322,41 @@ export default function SeatBlockingManager({
       });
     }, 2000);
 
+    // Determine availability based on status
+    // If admin blocked, seat is not available
+    // If booked, seat is not available
+    // If temp reservation active and not expired, check expiry
+    let isAvailable = reservation.is_available;
+
+    if (reservation.booking_id) {
+      // Booked - always unavailable
+      isAvailable = false;
+    } else if (reservation.is_admin_blocked) {
+      // Admin blocked - always unavailable
+      isAvailable = false;
+    } else if (reservation.temp_reservation_expiry) {
+      // Check if temp reservation is still active
+      const expiryTime = new Date(reservation.temp_reservation_expiry);
+      const currentTime = new Date();
+      if (currentTime < expiryTime) {
+        // Active temp reservation - unavailable unless it's the current user's
+        isAvailable = false;
+      } else {
+        // Expired temp reservation - available
+        isAvailable = true;
+      }
+    }
+
     // Update the reservation in our map
     const updatedReservation: SeatReservation = {
       id: reservation.id,
       seat_id: reservation.seat_id,
       booking_id: reservation.booking_id,
-      is_available: reservation.is_available,
+      is_available: isAvailable,
+      is_admin_blocked: reservation.is_admin_blocked || false,
+      temp_reserved_at: reservation.temp_reserved_at,
+      temp_reservation_expiry: reservation.temp_reservation_expiry,
+      user_id: reservation.user_id,
     };
 
     // Update reservations map
@@ -287,9 +367,7 @@ export default function SeatBlockingManager({
       // Update seats array with new availability
       setSeats(currentSeats => {
         const updatedSeats = currentSeats.map(seat =>
-          seat.id === reservation.seat_id
-            ? { ...seat, isAvailable: reservation.is_available }
-            : seat
+          seat.id === reservation.seat_id ? { ...seat, isAvailable } : seat
         );
 
         // Recalculate stats with updated data
@@ -351,15 +429,29 @@ export default function SeatBlockingManager({
     if (processingSeats.has(seat.id)) return;
 
     const reservation = seatReservations.get(seat.id);
-    const isCurrentlyBlocked =
-      reservation && !reservation.booking_id && !reservation.is_available;
+    // Check if currently blocked by admin
+    const isCurrentlyBlocked = reservation?.is_admin_blocked === true;
     // Check if seat is actually booked (has a booking_id that is not null or undefined)
     const isBooked = reservation?.booking_id != null;
+
+    // Also check if there's an active temp reservation
+    const hasActiveTempReservation = reservation?.temp_reservation_expiry
+      ? new Date(reservation.temp_reservation_expiry) > new Date()
+      : false;
 
     if (isBooked) {
       Alert.alert(
         'Cannot Block Seat',
         'This seat is already booked and cannot be blocked.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    if (hasActiveTempReservation && !isCurrentlyBlocked) {
+      Alert.alert(
+        'Cannot Block Seat',
+        'This seat has an active temporary reservation. Please wait for it to expire or release it first.',
         [{ text: 'OK' }]
       );
       return;
@@ -371,10 +463,13 @@ export default function SeatBlockingManager({
       if (isCurrentlyBlocked) {
         // Release/Unblock the seat
         if (reservation) {
-          // Update existing reservation to make it available
+          // Update existing reservation to release admin block
           const { error } = await supabase
             .from('seat_reservations')
-            .update({ is_available: true })
+            .update({
+              is_available: true,
+              is_admin_blocked: false,
+            })
             .eq('id', reservation.id);
 
           if (error) throw error;
@@ -383,6 +478,7 @@ export default function SeatBlockingManager({
           const updatedReservation = {
             ...reservation,
             is_available: true,
+            is_admin_blocked: false,
           };
           const updatedMap = new Map(seatReservations);
           updatedMap.set(seat.id, updatedReservation);
@@ -401,6 +497,7 @@ export default function SeatBlockingManager({
             seat_id: seat.id,
             booking_id: null,
             is_available: true,
+            is_admin_blocked: false,
             is_reserved: false,
           });
 
@@ -410,12 +507,21 @@ export default function SeatBlockingManager({
           await loadSeatData();
         }
       } else {
-        // Block the seat
+        // Block the seat (admin block)
         if (reservation) {
           // Update existing reservation to block it
+          // Clear temp reservation fields when admin blocks (to avoid confusion)
           const { error } = await supabase
             .from('seat_reservations')
-            .update({ is_available: false })
+            .update({
+              is_available: false,
+              is_admin_blocked: true,
+              temp_reservation_expiry: null,
+              temp_reserved_at: null,
+              user_id: null,
+              session_id: null,
+              is_reserved: false,
+            })
             .eq('id', reservation.id);
 
           if (error) throw error;
@@ -424,6 +530,10 @@ export default function SeatBlockingManager({
           const updatedReservation = {
             ...reservation,
             is_available: false,
+            is_admin_blocked: true,
+            temp_reservation_expiry: null,
+            temp_reserved_at: null,
+            user_id: null,
           };
           const updatedMap = new Map(seatReservations);
           updatedMap.set(seat.id, updatedReservation);
@@ -436,13 +546,18 @@ export default function SeatBlockingManager({
           setSeats(updatedSeats);
           calculateStats(updatedSeats, updatedMap);
         } else {
-          // Create new reservation entry as blocked
+          // Create new reservation entry as admin blocked
           const { error } = await supabase.from('seat_reservations').insert({
             trip_id: tripId,
             seat_id: seat.id,
             booking_id: null,
             is_available: false,
-            is_reserved: true,
+            is_admin_blocked: true,
+            is_reserved: false,
+            temp_reservation_expiry: null,
+            temp_reserved_at: null,
+            user_id: null,
+            session_id: null,
           });
 
           if (error) throw error;
@@ -472,9 +587,29 @@ export default function SeatBlockingManager({
     const reservation = seatReservations.get(seat.id);
     // Check if actually booked (booking_id is not null/undefined)
     if (reservation?.booking_id != null) return 'booked';
-    // Check if blocked (has reservation but not available and not booked)
-    if (reservation && !reservation.is_available && !reservation.booking_id)
+
+    // Check for temporary reservations (customer temp reservations)
+    if (reservation?.temp_reservation_expiry) {
+      const expiryTime = new Date(reservation.temp_reservation_expiry);
+      const currentTime = new Date();
+      if (currentTime < expiryTime) {
+        // Active temporary reservation - only if not admin blocked
+        if (!reservation.is_admin_blocked) {
+          return 'tempBlocked';
+        }
+      }
+    }
+
+    // Check if permanently blocked by admin (is_admin_blocked = true)
+    if (reservation?.is_admin_blocked) {
       return 'blocked';
+    }
+
+    // Fallback: Check if not available and no booking_id (legacy blocked seats)
+    if (reservation && !reservation.is_available && !reservation.booking_id) {
+      return 'blocked';
+    }
+
     return 'available';
   };
 
@@ -491,6 +626,8 @@ export default function SeatBlockingManager({
         return styles.bookedSeat;
       case 'blocked':
         return styles.blockedSeat;
+      case 'tempBlocked':
+        return styles.tempBlockedSeat;
       case 'available':
         if (seat.isDisabled || seat.seatType === 'disabled') {
           return styles.disabledSeat;
@@ -616,6 +753,10 @@ export default function SeatBlockingManager({
           <Text style={styles.statText}>{stats.blocked} Blocked</Text>
         </View>
         <View style={styles.statItem}>
+          <View style={[styles.statBox, styles.tempBlockedStatBox]} />
+          <Text style={styles.statText}>{stats.tempBlocked} Temp</Text>
+        </View>
+        <View style={styles.statItem}>
           <Text style={styles.statText}>{stats.total} Total</Text>
         </View>
       </View>
@@ -640,6 +781,10 @@ export default function SeatBlockingManager({
           <Text style={styles.legendText}>Blocked</Text>
         </View>
         <View style={styles.legendItem}>
+          <View style={[styles.legendBox, styles.tempBlockedSeat]} />
+          <Text style={styles.legendText}>Temp Blocked</Text>
+        </View>
+        <View style={styles.legendItem}>
           <View style={[styles.legendBox, styles.disabledSeat]} />
           <Text style={styles.legendText}>Disabled</Text>
         </View>
@@ -656,8 +801,10 @@ export default function SeatBlockingManager({
       {/* Instructions */}
       <View style={styles.instructionsContainer}>
         <Text style={styles.instructionsText}>
-          Tap on available seats to block them. Tap on blocked seats to release
-          them.
+          Tap on available seats to block them. Tap on permanently blocked seats
+          to release them.{'\n'}
+          Temporarily blocked seats (yellow) are customer reservations and
+          cannot be toggled.
         </Text>
       </View>
 
@@ -696,6 +843,7 @@ export default function SeatBlockingManager({
                           {group.map(seat => {
                             const status = getSeatStatus(seat);
                             const isProcessing = processingSeats.has(seat.id);
+                            // Can toggle available seats or permanently blocked seats (not temp blocked or booked)
                             const canToggle =
                               status === 'available' || status === 'blocked';
                             const isRecentlyUpdated = recentlyUpdatedSeats.has(
@@ -730,12 +878,21 @@ export default function SeatBlockingManager({
                                           styles.bookedSeatText,
                                         status === 'blocked' &&
                                           styles.blockedSeatText,
+                                        status === 'tempBlocked' &&
+                                          styles.tempBlockedSeatText,
                                       ]}
                                     >
                                       {seat.number}
                                     </Text>
                                     {status === 'blocked' && (
                                       <Lock size={10} color={colors.danger} />
+                                    )}
+                                    {status === 'tempBlocked' && (
+                                      <Lock
+                                        size={10}
+                                        color={colors.warning}
+                                        style={{ opacity: 0.8 }}
+                                      />
                                     )}
                                     {seat.isWindow && (
                                       <View style={styles.windowIndicator} />
@@ -856,6 +1013,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
     borderColor: colors.danger,
   },
+  tempBlockedStatBox: {
+    backgroundColor: colors.warning,
+    borderColor: colors.warning,
+  },
   statText: {
     fontSize: 12,
     fontWeight: '600',
@@ -896,6 +1057,11 @@ const styles = StyleSheet.create({
   blockedSeat: {
     backgroundColor: colors.danger,
     borderColor: colors.danger,
+  },
+  tempBlockedSeat: {
+    backgroundColor: colors.warning,
+    borderColor: colors.warning,
+    opacity: 0.7,
   },
   disabledSeat: {
     backgroundColor: colors.textSecondary,
@@ -1027,6 +1193,9 @@ const styles = StyleSheet.create({
     color: colors.card,
   },
   blockedSeatText: {
+    color: colors.card,
+  },
+  tempBlockedSeatText: {
     color: colors.card,
   },
   seatNumber: {

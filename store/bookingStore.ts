@@ -701,7 +701,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
                     is_available,
                     is_reserved,
                     booking_id,
-                    reservation_expiry
+                    reservation_expiry,
+                    is_admin_blocked,
+                    temp_reservation_expiry,
+                    user_id
                 `
           )
           .eq('trip_id', tripId);
@@ -721,16 +724,43 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         let isAvailable = true;
 
         if (reservation) {
-          isAvailable = reservation.is_available && !reservation.booking_id;
+          // FIRST: Check if admin blocked - always unavailable to customers
+          if (reservation.is_admin_blocked) {
+            isAvailable = false;
+          }
+          // SECOND: Check if booked
+          else if (reservation.booking_id) {
+            isAvailable = false;
+          }
+          // THIRD: Check if temporarily reserved
+          else if (reservation.temp_reservation_expiry) {
+            const expiryTime = new Date(reservation.temp_reservation_expiry);
+            const currentTime = new Date();
 
-          // Handle temporary reservations
-          if (reservation.is_reserved && reservation.reservation_expiry) {
+            if (currentTime < expiryTime) {
+              // Active temp reservation - unavailable to others
+              isAvailable = false;
+            } else {
+              // Expired temp reservation - available
+              isAvailable = reservation.is_available !== false;
+            }
+          }
+          // FOURTH: Check is_available flag
+          else {
+            isAvailable = reservation.is_available !== false;
+          }
+
+          // Handle legacy reservation_expiry (if exists)
+          if (
+            reservation.reservation_expiry &&
+            !reservation.temp_reservation_expiry
+          ) {
             const expiryTime = new Date(reservation.reservation_expiry);
             const currentTime = new Date();
 
             if (currentTime > expiryTime) {
-              isAvailable = reservation.is_available && !reservation.booking_id;
-            } else {
+              isAvailable = reservation.is_available !== false;
+            } else if (reservation.is_reserved) {
               isAvailable = false;
             }
           }

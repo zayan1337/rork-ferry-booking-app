@@ -99,9 +99,34 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     setLocalSeats(currentSeats => {
       const updatedSeats = currentSeats.map(seat => {
         if (seat.id === reservation.seat_id) {
-          // Update seat availability based on reservation status
-          const isAvailable =
-            reservation.is_available !== false && !reservation.booking_id;
+          // Calculate availability with proper priority:
+          // 1. Admin blocked - always unavailable
+          // 2. Booked - unavailable
+          // 3. Temp reserved (check expiry)
+          // 4. is_available flag
+          let isAvailable = true;
+
+          if (reservation.is_admin_blocked) {
+            // Admin blocked - always unavailable to customers
+            isAvailable = false;
+          } else if (reservation.booking_id) {
+            // Booked - unavailable
+            isAvailable = false;
+          } else if (reservation.temp_reservation_expiry) {
+            // Check if temp reservation is still active
+            const expiryTime = new Date(reservation.temp_reservation_expiry);
+            const currentTime = new Date();
+            if (currentTime < expiryTime) {
+              // Active temp reservation - unavailable
+              isAvailable = false;
+            } else {
+              // Expired - available
+              isAvailable = reservation.is_available !== false;
+            }
+          } else {
+            // Check is_available flag
+            isAvailable = reservation.is_available !== false;
+          }
 
           // If seat becomes unavailable and was selected, alert user
           if (!isAvailable && selectedSeats.some(s => s.id === seat.id)) {
