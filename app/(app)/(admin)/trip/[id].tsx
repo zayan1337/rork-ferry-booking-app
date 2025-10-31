@@ -32,6 +32,7 @@ import type {
 } from '@/types/multiStopRoute';
 import { getMultiStopRoute } from '@/utils/multiStopRouteUtils';
 import RouteSegmentFaresDisplay from '@/components/admin/routes/RouteSegmentFaresDisplay';
+import SeatBlockingManager from '@/components/admin/operations/SeatBlockingManager';
 import { supabase } from '@/utils/supabase';
 import {
   BarChart3,
@@ -52,6 +53,7 @@ import {
   CheckCircle,
   Bookmark,
   ChevronRight,
+  X,
 } from 'lucide-react-native';
 
 // Function to convert OperationsTrip to Trip type expected by components
@@ -105,6 +107,7 @@ export default function TripDetailsPage() {
   const [routeStops, setRouteStops] = useState<any[]>([]);
   const [isMultiStopRoute, setIsMultiStopRoute] = useState(false);
   const [specialAssistanceCount, setSpecialAssistanceCount] = useState(0);
+  const [showSeatBlocking, setShowSeatBlocking] = useState(false);
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -909,6 +912,36 @@ export default function TripDetailsPage() {
                 <ChevronRight size={20} color={colors.textSecondary} />
               </Pressable>
 
+              {canManageTrips() && trip.vessel_id && (
+                <Pressable
+                  style={styles.managementAction}
+                  onPress={() => setShowSeatBlocking(!showSeatBlocking)}
+                >
+                  <View style={styles.managementActionLeft}>
+                    <View style={styles.managementIconContainer}>
+                      <Users size={20} color={colors.warning} />
+                    </View>
+                    <View>
+                      <Text style={styles.managementActionTitle}>
+                        Seat Blocking
+                      </Text>
+                      <Text style={styles.managementActionSubtitle}>
+                        {showSeatBlocking
+                          ? 'Hide seat blocking panel'
+                          : 'Block or release seats on this trip'}
+                      </Text>
+                    </View>
+                  </View>
+                  <ChevronRight
+                    size={20}
+                    color={colors.textSecondary}
+                    style={{
+                      transform: [{ rotate: showSeatBlocking ? '90deg' : '0deg' }],
+                    }}
+                  />
+                </Pressable>
+              )}
+
               <Pressable
                 style={styles.managementAction}
                 onPress={() => {
@@ -968,6 +1001,36 @@ export default function TripDetailsPage() {
 
               {/* Delete action removed per requirements */}
             </View>
+
+            {/* Seat Blocking Manager */}
+            {showSeatBlocking && canManageTrips() && trip?.vessel_id && (
+              <View style={styles.seatBlockingCard}>
+                <View style={styles.seatBlockingHeader}>
+                  <Text style={styles.sectionTitle}>Seat Blocking Management</Text>
+                  <Pressable
+                    onPress={() => setShowSeatBlocking(false)}
+                    style={styles.closeButton}
+                  >
+                    <X size={20} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+                {trip.vessel_id ? (
+                  <SeatBlockingManager
+                    tripId={trip.id}
+                    vesselId={trip.vessel_id}
+                    onSeatsChanged={() => {
+                      loadTrip(true);
+                    }}
+                  />
+                ) : (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>
+                      No vessel assigned to this trip
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Segment Fares Display - Read Only */}
             {routeSegmentFares.length > 0 && (
@@ -1757,5 +1820,25 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: 4,
+  },
+  seatBlockingCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 16,
+  },
+  seatBlockingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  closeButton: {
+    padding: 4,
   },
 });

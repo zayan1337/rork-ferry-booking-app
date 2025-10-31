@@ -1,6 +1,7 @@
 // Operations Components
 export { default as OperationsStats } from './OperationsStats';
 export { default as SectionSelector } from './SectionSelector';
+export { default as SeatBlockingManager } from './SeatBlockingManager';
 
 // Operations Tab Components
 export { default as RoutesTab } from './RoutesTab';
