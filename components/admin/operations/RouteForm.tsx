@@ -496,6 +496,12 @@ export default function RouteForm({
     setValidationErrors({});
 
     try {
+      // Extract first and last stop island IDs for backward compatibility
+      const firstStop = formData.route_stops[0];
+      const lastStop = formData.route_stops[formData.route_stops.length - 1];
+      const from_island_id = firstStop?.island_id;
+      const to_island_id = lastStop?.island_id;
+
       // Prepare route data
       const routeData: RouteFormData = {
         name: formData.name.trim(),
@@ -505,6 +511,9 @@ export default function RouteForm({
         description: formData.description.trim() || undefined,
         status: formData.status,
         is_active: formData.is_active,
+        // Set from_island_id and to_island_id from first and last stops
+        from_island_id: from_island_id,
+        to_island_id: to_island_id,
         route_stops: formData.route_stops.map((stop, index) => ({
           island_id: stop.island_id,
           stop_sequence: index + 1, // 1-based sequence
