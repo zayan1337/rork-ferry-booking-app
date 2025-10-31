@@ -272,8 +272,7 @@ export default function SeatBlockingManager({
           onSeatsChanged?.();
         }
       )
-      .subscribe(status => {
-      });
+      .subscribe(status => {});
   };
 
   // Clean up real-time subscriptions
@@ -852,9 +851,8 @@ export default function SeatBlockingManager({
                               // Can toggle available seats or permanently blocked seats (not temp blocked or booked)
                               const canToggle =
                                 status === 'available' || status === 'blocked';
-                              const isRecentlyUpdated = recentlyUpdatedSeats.has(
-                                seat.id
-                              );
+                              const isRecentlyUpdated =
+                                recentlyUpdatedSeats.has(seat.id);
 
                               return (
                                 <Pressable

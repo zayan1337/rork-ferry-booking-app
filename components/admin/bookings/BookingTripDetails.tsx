@@ -120,7 +120,10 @@ export default function BookingTripDetails({
         </View>
 
         {/* Boarding/Departure Stop Details - Using booking_segments table */}
-        {(bookingSegment || boardingStop || boardingStopName || booking.from_island_name) && (
+        {(bookingSegment ||
+          boardingStop ||
+          boardingStopName ||
+          booking.from_island_name) && (
           <View style={styles.row}>
             <View style={styles.iconContainer}>
               <MapPin size={20} color={colors.success} />
@@ -147,7 +150,11 @@ export default function BookingTripDetails({
                       )}
                       {bookingSegment.boarding_stop.stop_type && (
                         <Text style={styles.subValue}>
-                          Type: {bookingSegment.boarding_stop.stop_type.replace('_', ' ')}
+                          Type:{' '}
+                          {bookingSegment.boarding_stop.stop_type.replace(
+                            '_',
+                            ' '
+                          )}
                         </Text>
                       )}
                       {bookingSegment.boarding_stop.notes && (
@@ -173,7 +180,9 @@ export default function BookingTripDetails({
                     )}
                   </Text>
                   {boardingStop.notes && (
-                    <Text style={styles.subValue}>Note: {boardingStop.notes}</Text>
+                    <Text style={styles.subValue}>
+                      Note: {boardingStop.notes}
+                    </Text>
                   )}
                 </>
               )}
@@ -185,7 +194,10 @@ export default function BookingTripDetails({
         )}
 
         {/* Dropoff/Destination Stop Details - Using booking_segments table */}
-        {(bookingSegment || destinationStop || destinationStopName || booking.to_island_name) && (
+        {(bookingSegment ||
+          destinationStop ||
+          destinationStopName ||
+          booking.to_island_name) && (
           <View style={styles.row}>
             <View style={styles.iconContainer}>
               <MapPin size={20} color={colors.warning} />
@@ -205,14 +217,18 @@ export default function BookingTripDetails({
                   </Text>
                   {bookingSegment.fare_amount && (
                     <Text style={styles.subValue}>
-                      Segment Fare: {formatCurrency(Number(bookingSegment.fare_amount))}
+                      Segment Fare:{' '}
+                      {formatCurrency(Number(bookingSegment.fare_amount))}
                     </Text>
                   )}
-                  {bookingSegment.destination_stop_sequence && bookingSegment.boarding_stop_sequence && (
-                    <Text style={styles.subValue}>
-                      Segments Traveled: {bookingSegment.destination_stop_sequence - bookingSegment.boarding_stop_sequence}
-                    </Text>
-                  )}
+                  {bookingSegment.destination_stop_sequence &&
+                    bookingSegment.boarding_stop_sequence && (
+                      <Text style={styles.subValue}>
+                        Segments Traveled:{' '}
+                        {bookingSegment.destination_stop_sequence -
+                          bookingSegment.boarding_stop_sequence}
+                      </Text>
+                    )}
                   {bookingSegment.destination_stop && (
                     <>
                       {bookingSegment.destination_stop.island?.zone && (
@@ -222,12 +238,22 @@ export default function BookingTripDetails({
                       )}
                       {bookingSegment.destination_stop.stop_type && (
                         <Text style={styles.subValue}>
-                          Type: {bookingSegment.destination_stop.stop_type.replace('_', ' ')}
+                          Type:{' '}
+                          {bookingSegment.destination_stop.stop_type.replace(
+                            '_',
+                            ' '
+                          )}
                         </Text>
                       )}
-                      {bookingSegment.destination_stop.estimated_travel_time && (
+                      {bookingSegment.destination_stop
+                        .estimated_travel_time && (
                         <Text style={styles.subValue}>
-                          Travel time: {bookingSegment.destination_stop.estimated_travel_time} minutes
+                          Travel time:{' '}
+                          {
+                            bookingSegment.destination_stop
+                              .estimated_travel_time
+                          }{' '}
+                          minutes
                         </Text>
                       )}
                       {bookingSegment.destination_stop.notes && (
@@ -254,7 +280,8 @@ export default function BookingTripDetails({
                   </Text>
                   {destinationStop.estimated_travel_time && (
                     <Text style={styles.subValue}>
-                      Travel time: {destinationStop.estimated_travel_time} minutes
+                      Travel time: {destinationStop.estimated_travel_time}{' '}
+                      minutes
                     </Text>
                   )}
                   {destinationStop.notes && (
@@ -264,9 +291,11 @@ export default function BookingTripDetails({
                   )}
                 </>
               )}
-              {!bookingSegment && !destinationStop && booking.to_island_name && (
-                <Text style={styles.subValue}>Destination</Text>
-              )}
+              {!bookingSegment &&
+                !destinationStop &&
+                booking.to_island_name && (
+                  <Text style={styles.subValue}>Destination</Text>
+                )}
             </View>
           </View>
         )}

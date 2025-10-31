@@ -73,8 +73,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
           }
         }
       )
-      .subscribe(status => {
-      });
+      .subscribe(status => {});
 
     // Cleanup subscription on unmount
     return () => {
