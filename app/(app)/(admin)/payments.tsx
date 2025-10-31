@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundSecondary,
   },
   backButton: {
-    padding: 8,
+    padding: 4,
     marginLeft: -8,
   },
   headerContainer: {
@@ -420,7 +420,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
-    marginHorizontal: 16,
     marginTop: 8,
     marginBottom: 16,
     shadowColor: colors.shadow,
@@ -459,12 +458,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   searchContainer: {
-    paddingHorizontal: 16,
     paddingBottom: 12,
   },
   filterContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
     paddingBottom: 12,
     gap: 8,
     flexWrap: 'wrap',
@@ -493,7 +490,6 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   resultsHeader: {
-    paddingHorizontal: 16,
     paddingBottom: 8,
   },
   resultsText: {

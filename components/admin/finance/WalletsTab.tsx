@@ -35,10 +35,12 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
 
   // Fetch wallets when tab becomes active
   useEffect(() => {
-    if (isActive && canViewWallets()) {
+    if (!isActive) return;
+    if (canViewWallets()) {
       fetchWallets();
     }
-  }, [isActive, canViewWallets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
 
   // Filter wallets based on search query - client-side only
   const filteredWallets = useMemo(() => {
@@ -109,9 +111,11 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
           <SectionHeader
             title='Wallet Management'
             subtitle={
-              loading.wallets
-                ? 'Loading wallets...'
-                : `${wallets?.length || 0} total wallets`
+              wallets
+                ? `${wallets.length || 0} total wallets`
+                : loading.wallets
+                  ? 'Loading wallets...'
+                  : 'No wallets'
             }
           />
         </View>

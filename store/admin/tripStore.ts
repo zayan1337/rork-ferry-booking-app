@@ -13,6 +13,9 @@ import {
   type TripGenerationRequest,
 } from '@/utils/admin/tripUtils';
 
+const TRIP_FETCH_BATCH_SIZE = 1000;
+const MAX_TRIP_FETCH_BATCHES = 20; // safeguard ~20k rows
+
 // Utility function to format time for PostgreSQL
 const formatTimeForDB = (time: string): string => {
   if (!time) return time;
@@ -189,26 +192,50 @@ export const useTripStore = create<TripStore>((set, get) => ({
     set({ loading: { ...get().loading, data: true }, error: null });
 
     try {
-      // Fetch from operations_trips_view which has all the necessary data pre-calculated
-      const { data, error } = await supabase
-        .from('operations_trips_view')
-        .select('*')
-        .order('departure_time', { ascending: false });
+      const allTripRows: any[] = [];
+      let batchIndex = 0;
+      let totalCount: number | null = null;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore && batchIndex < MAX_TRIP_FETCH_BATCHES) {
+        const rangeFrom = batchIndex * TRIP_FETCH_BATCH_SIZE;
+        const rangeTo = rangeFrom + TRIP_FETCH_BATCH_SIZE - 1;
 
-      // Process the data from the view
-      const trips = (data || []).map(item => {
-        return processTripData({
+        const { data, error, count } = await supabase
+          .from('operations_trips_view')
+          .select('*', { count: batchIndex === 0 ? 'exact' : 'estimated' })
+          .order('departure_time', { ascending: false })
+          .range(rangeFrom, rangeTo);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allTripRows.push(...data);
+        }
+
+        if (totalCount === null && typeof count === 'number') {
+          totalCount = count;
+        }
+
+        if (!data || data.length < TRIP_FETCH_BATCH_SIZE) {
+          hasMore = false;
+        } else {
+          batchIndex += 1;
+          if (totalCount !== null && allTripRows.length >= totalCount) {
+            hasMore = false;
+          }
+        }
+      }
+
+      const trips = allTripRows.map(item =>
+        processTripData({
           ...item,
-          // Map view fields to expected trip fields
           confirmed_bookings: item.confirmed_bookings || item.bookings,
           seating_capacity: item.capacity,
-          // Keep computed values from the view
           computed_status: item.computed_status,
           occupancy_rate: item.occupancy_rate,
-        });
-      });
+        })
+      );
 
       set({ data: trips });
       get().calculateComputedData();
