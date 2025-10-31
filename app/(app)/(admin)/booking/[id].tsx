@@ -45,6 +45,10 @@ import {
   formatDateTime,
   formatCurrency,
 } from '@/utils/admin/bookingManagementUtils';
+import { supabase } from '@/utils/supabase';
+import { getRouteStops } from '@/utils/segmentUtils';
+import { getBookingSegment } from '@/utils/segmentBookingUtils';
+import type { RouteStop } from '@/types/multiStopRoute';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -63,6 +67,9 @@ export default function BookingDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
+  const [boardingStopName, setBoardingStopName] = useState<string | null>(null);
+  const [destinationStopName, setDestinationStopName] = useState<string | null>(null);
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -93,6 +100,16 @@ export default function BookingDetailsPage() {
 
       if (fetchedBooking) {
         setBooking(fetchedBooking);
+        
+        // For multi-stop routes, fetch route stops and booking segments
+        if (!fetchedBooking.from_island_name || !fetchedBooking.to_island_name) {
+          await loadMultiStopRouteData(fetchedBooking);
+        } else {
+          // Reset multi-stop data for regular routes
+          setRouteStops([]);
+          setBoardingStopName(null);
+          setDestinationStopName(null);
+        }
       } else {
         setError(`Booking with ID "${id}" not found`);
       }
@@ -102,6 +119,44 @@ export default function BookingDetailsPage() {
     } finally {
       setLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  const loadMultiStopRouteData = async (booking: AdminBooking) => {
+    try {
+      // Fetch booking segments to get boarding and destination stops
+      const bookingSegment = await getBookingSegment(booking.id);
+
+      if (bookingSegment) {
+        // Extract boarding and destination stop names
+        const boardingStop = bookingSegment.boarding_stop;
+        const destinationStop = bookingSegment.destination_stop;
+
+        setBoardingStopName(
+          boardingStop?.island?.name || null
+        );
+        setDestinationStopName(
+          destinationStop?.island?.name || null
+        );
+
+        // Fetch trip to get route_id
+        const { data: trip, error: tripError } = await supabase
+          .from('trips')
+          .select('route_id')
+          .eq('id', booking.trip_id)
+          .single();
+
+        if (!tripError && trip) {
+          // Fetch all route stops
+          const stops = await getRouteStops(trip.route_id);
+          setRouteStops(stops);
+        }
+      }
+    } catch (err: any) {
+      // If booking segment doesn't exist, it's okay - not all bookings have segments
+      if (err?.code !== 'PGRST116') {
+        console.error('Error loading multi-stop route data:', err);
+      }
     }
   };
 
@@ -402,8 +457,23 @@ export default function BookingDetailsPage() {
               <View style={styles.routeInfo}>
                 <MapPin size={16} color={colors.primary} />
                 <Text style={styles.routeName}>
-                  {booking.from_island_name || 'Unknown'} →{' '}
-                  {booking.to_island_name || 'Unknown'}
+                  {(() => {
+                    // For multi-stop routes, use boarding and destination stops
+                    if (!booking.from_island_name || !booking.to_island_name) {
+                      if (boardingStopName && destinationStopName) {
+                        return `${boardingStopName} → ${destinationStopName}`;
+                      }
+                      // If we have route stops, show first and last
+                      if (routeStops.length > 0) {
+                        const firstStop = routeStops[0];
+                        const lastStop = routeStops[routeStops.length - 1];
+                        return `${firstStop.island_name || 'Unknown'} → ${lastStop.island_name || 'Unknown'}`;
+                      }
+                      return 'Multi-stop Route';
+                    }
+                    // For regular routes, use from/to island names
+                    return `${booking.from_island_name || 'Unknown'} → ${booking.to_island_name || 'Unknown'}`;
+                  })()}
                 </Text>
               </View>
             </View>
@@ -600,7 +670,11 @@ export default function BookingDetailsPage() {
         />
 
         {/* Trip Details Section */}
-        <BookingTripDetails booking={booking} />
+        <BookingTripDetails
+          booking={booking}
+          boardingStopName={boardingStopName}
+          destinationStopName={destinationStopName}
+        />
 
         {/* Payment Details Section */}
         <BookingPaymentDetails booking={booking} />

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking } from '@/types/admin/management';
@@ -16,14 +16,74 @@ import {
   formatTime,
   formatCurrency,
 } from '@/utils/admin/bookingManagementUtils';
+import { getBookingSegment } from '@/utils/segmentBookingUtils';
 
 interface BookingTripDetailsProps {
   booking: AdminBooking;
+  boardingStopName?: string | null;
+  destinationStopName?: string | null;
 }
 
 export default function BookingTripDetails({
   booking,
+  boardingStopName,
+  destinationStopName,
 }: BookingTripDetailsProps) {
+  const [routeDisplay, setRouteDisplay] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const loadRouteDisplay = async () => {
+      // If from_island_name and to_island_name exist, use them
+      if (booking.from_island_name && booking.to_island_name) {
+        setRouteDisplay({
+          from: booking.from_island_name,
+          to: booking.to_island_name,
+        });
+        return;
+      }
+
+      // For multi-stop routes, use provided props or fetch booking segment
+      if (boardingStopName && destinationStopName) {
+        setRouteDisplay({
+          from: boardingStopName,
+          to: destinationStopName,
+        });
+      } else {
+        // Try to fetch booking segment if props not provided
+        try {
+          const bookingSegment = await getBookingSegment(booking.id);
+          if (bookingSegment) {
+            const boardingStop = bookingSegment.boarding_stop;
+            const destinationStop = bookingSegment.destination_stop;
+
+            setRouteDisplay({
+              from: boardingStop?.island?.name || 'Unknown',
+              to: destinationStop?.island?.name || 'Unknown',
+            });
+          } else {
+            setRouteDisplay({
+              from: 'Unknown',
+              to: 'Unknown',
+            });
+          }
+        } catch (err: any) {
+          // If booking segment doesn't exist, it's okay
+          if (err?.code !== 'PGRST116') {
+            console.error('Error loading booking segment:', err);
+          }
+          setRouteDisplay({
+            from: 'Multi-stop Route',
+            to: '',
+          });
+        }
+      }
+    };
+
+    loadRouteDisplay();
+  }, [booking, boardingStopName, destinationStopName]);
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -39,7 +99,13 @@ export default function BookingTripDetails({
           <View style={styles.content}>
             <Text style={styles.label}>Route</Text>
             <Text style={styles.value}>
-              {booking.from_island_name} → {booking.to_island_name}
+              {routeDisplay
+                ? routeDisplay.to
+                  ? `${routeDisplay.from} → ${routeDisplay.to}`
+                  : routeDisplay.from
+                : booking.from_island_name && booking.to_island_name
+                  ? `${booking.from_island_name} → ${booking.to_island_name}`
+                  : 'Loading route...'}
             </Text>
             {booking.route_name && (
               <Text style={styles.subValue}>{booking.route_name}</Text>

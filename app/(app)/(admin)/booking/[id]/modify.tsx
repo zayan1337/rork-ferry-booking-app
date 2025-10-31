@@ -19,6 +19,10 @@ import { useSeatStore } from '@/store/seatStore';
 import { AdminBooking } from '@/types/admin/management';
 import { DollarSign } from 'lucide-react-native';
 import { formatCurrency } from '@/utils/admin/bookingManagementUtils';
+import { supabase } from '@/utils/supabase';
+import { getBookingSegment } from '@/utils/segmentBookingUtils';
+import { getRouteStops } from '@/utils/segmentUtils';
+import type { RouteStop } from '@/types/multiStopRoute';
 
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -94,6 +98,9 @@ export default function AdminModifyBookingScreen() {
   const [selectedTrip, setSelectedTrip] = useState<any>(null);
   const [fareDifference, setFareDifference] = useState(0);
   const [currentSeats, setCurrentSeats] = useState<any[]>([]);
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
+  const [boardingStopName, setBoardingStopName] = useState<string | null>(null);
+  const [destinationStopName, setDestinationStopName] = useState<string | null>(null);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -208,6 +215,8 @@ export default function AdminModifyBookingScreen() {
       const fetchedBooking = await fetchBooking(bookingId);
       if (fetchedBooking) {
         setBooking(fetchedBooking);
+        // Load multi-stop route data if needed
+        await loadMultiStopRouteData(fetchedBooking);
         // Set current trip as selected by default
         setSelectedTrip({
           id: fetchedBooking.trip_id,
@@ -246,13 +255,71 @@ export default function AdminModifyBookingScreen() {
     }, 100);
   };
 
-  // Find route ID based on booking islands
-  const findRouteId = (booking: AdminBooking) => {
+  // Load multi-stop route data
+  const loadMultiStopRouteData = async (booking: AdminBooking) => {
+    try {
+      // For multi-stop routes, fetch booking segments to get boarding and destination stops
+      if (!booking.from_island_name || !booking.to_island_name) {
+        const bookingSegment = await getBookingSegment(booking.id);
+
+        if (bookingSegment) {
+          const boardingStop = bookingSegment.boarding_stop;
+          const destinationStop = bookingSegment.destination_stop;
+
+          setBoardingStopName(boardingStop?.island?.name || null);
+          setDestinationStopName(destinationStop?.island?.name || null);
+
+          // Fetch trip to get route_id
+          const { data: trip, error: tripError } = await supabase
+            .from('trips')
+            .select('route_id')
+            .eq('id', booking.trip_id)
+            .single();
+
+          if (!tripError && trip) {
+            const stops = await getRouteStops(trip.route_id);
+            setRouteStops(stops);
+          }
+        }
+      } else {
+        // Reset for regular routes
+        setRouteStops([]);
+        setBoardingStopName(null);
+        setDestinationStopName(null);
+      }
+    } catch (err: any) {
+      // If booking segment doesn't exist, it's okay - not all bookings have segments
+      if (err?.code !== 'PGRST116') {
+        console.error('Error loading multi-stop route data:', err);
+      }
+    }
+  };
+
+  // Find route ID based on booking - use trip's route_id for multi-stop routes
+  const findRouteId = async (booking: AdminBooking) => {
+    // For multi-stop routes, get route_id directly from trip
+    if (!booking.from_island_name || !booking.to_island_name) {
+      try {
+        const { data: trip, error } = await supabase
+          .from('trips')
+          .select('route_id')
+          .eq('id', booking.trip_id)
+          .single();
+
+        if (!error && trip) {
+          return trip.route_id;
+        }
+      } catch (err) {
+        console.error('Error fetching route_id from trip:', err);
+      }
+      return null;
+    }
+
+    // For regular routes, find by matching islands
     if (!availableRoutes || availableRoutes.length === 0) {
       return null;
     }
 
-    // Find route that matches the booking's from and to islands
     const matchingRoute = availableRoutes.find(
       route =>
         route.fromIsland?.name === booking.from_island_name &&
@@ -264,13 +331,20 @@ export default function AdminModifyBookingScreen() {
 
   // Fetch trips when date changes
   useEffect(() => {
-    if (newDate && booking && availableRoutes.length > 0) {
-      const routeId = findRouteId(booking);
-      if (routeId) {
-        fetchTrips(routeId, newDate, false);
-        setSelectedTrip(null);
-        setSelectedSeats([]);
-      }
+    if (newDate && booking) {
+      const fetchRouteAndTrips = async () => {
+        // For regular routes, need availableRoutes to be loaded
+        if (booking.from_island_name && booking.to_island_name && availableRoutes.length === 0) {
+          return; // Wait for routes to load
+        }
+        const routeId = await findRouteId(booking);
+        if (routeId) {
+          fetchTrips(routeId, newDate, false);
+          setSelectedTrip(null);
+          setSelectedSeats([]);
+        }
+      };
+      fetchRouteAndTrips();
     }
   }, [newDate, booking, availableRoutes, fetchTrips]);
 
@@ -342,19 +416,30 @@ export default function AdminModifyBookingScreen() {
 
   // Calculate fare difference when trip changes (similar to agent logic)
   useEffect(() => {
-    if (selectedTrip && booking && availableRoutes.length > 0) {
-      const currentPaidFare = booking.total_fare || 0;
-      const passengerCount = booking.passenger_count || 1;
+    if (selectedTrip && booking) {
+      const calculateFare = async () => {
+        const currentPaidFare = booking.total_fare || 0;
+        const passengerCount = booking.passenger_count || 1;
 
-      // Find the route to get base fare
-      const routeId = findRouteId(booking);
-      const route = availableRoutes.find(r => r.id === routeId);
-      const newFarePerPassenger =
-        route?.baseFare || booking.trip_base_fare || 150;
-      const newTotalFare = newFarePerPassenger * passengerCount;
+        // Find the route to get base fare
+        const routeId = await findRouteId(booking);
+        if (routeId && availableRoutes.length > 0) {
+          const route = availableRoutes.find(r => r.id === routeId);
+          const newFarePerPassenger =
+            route?.baseFare || booking.trip_base_fare || 150;
+          const newTotalFare = newFarePerPassenger * passengerCount;
 
-      const difference = newTotalFare - currentPaidFare;
-      setFareDifference(difference);
+          const difference = newTotalFare - currentPaidFare;
+          setFareDifference(difference);
+        } else {
+          // Fallback to trip base fare if route not found
+          const newFarePerPassenger = booking.trip_base_fare || 150;
+          const newTotalFare = newFarePerPassenger * passengerCount;
+          const difference = newTotalFare - currentPaidFare;
+          setFareDifference(difference);
+        }
+      };
+      calculateFare();
     }
   }, [selectedTrip, booking, availableRoutes]);
 
@@ -394,12 +479,12 @@ export default function AdminModifyBookingScreen() {
 
     setIsModifying(true);
     try {
-      // Update booking with comprehensive modification data
+      // Update booking - only update fields that exist in the bookings table
+      // trip_travel_date comes from trips table, so we only update trip_id
       const modificationData: Partial<AdminBooking> = {
         trip_id: selectedTrip.id,
-        trip_travel_date: newDate || undefined,
-        // Note: selectedSeats, modificationReason, etc. would need to be handled
-        // by the updateBooking function or stored in separate tables
+        // Note: trip_travel_date is not a column in bookings table - it comes from trips.travel_date
+        // The travel date is determined by which trip_id we set
         total_fare: booking.total_fare + fareDifference,
       };
 
@@ -514,8 +599,20 @@ export default function AdminModifyBookingScreen() {
           <CurrentTicketDetailsCard
             bookingNumber={booking.booking_number || ''}
             clientName={booking.user_name || 'Customer Name'}
-            origin={booking.from_island_name}
-            destination={booking.to_island_name}
+            origin={
+              booking.from_island_name ||
+              boardingStopName ||
+              (routeStops.length > 0 ? routeStops[0].island_name : null) ||
+              'Unknown'
+            }
+            destination={
+              booking.to_island_name ||
+              destinationStopName ||
+              (routeStops.length > 0
+                ? routeStops[routeStops.length - 1].island_name
+                : null) ||
+              'Unknown'
+            }
             currentDate={booking.trip_travel_date || booking.created_at}
             currentSeats={currentSeats}
             totalAmount={booking.total_fare || 0}

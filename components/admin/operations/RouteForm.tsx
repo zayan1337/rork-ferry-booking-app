@@ -291,13 +291,13 @@ export default function RouteForm({
       const currentStops = [...prev.route_stops];
 
       // If there are existing stops, update the previous last stop to 'both'
-      if (currentStops.length > 0) {
-        const lastIndex = currentStops.length - 1;
-        currentStops[lastIndex] = {
-          ...currentStops[lastIndex],
-          stop_type: 'both',
-        };
-      }
+      // if (currentStops.length > 0) {
+      //   const lastIndex = currentStops.length - 1;
+      //   currentStops[lastIndex] = {
+      //     ...currentStops[lastIndex],
+      //     stop_type: 'both',
+      //   };
+      // }
 
       // Create new stop as the last stop (dropoff)
       const newStop: RouteStopData = {

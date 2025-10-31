@@ -37,6 +37,10 @@ import {
   formatDateTime,
   formatCurrency,
 } from '@/utils/admin/bookingManagementUtils';
+import { supabase } from '@/utils/supabase';
+import { getBookingSegment } from '@/utils/segmentBookingUtils';
+import { getRouteStops } from '@/utils/segmentUtils';
+import type { RouteStop } from '@/types/multiStopRoute';
 import Input from '@/components/Input';
 
 type RefundMethod = 'original_payment' | 'bank_transfer' | 'credit_note';
@@ -75,6 +79,9 @@ export default function AdminCancelBookingScreen() {
   const [booking, setBooking] = useState<AdminBooking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
+  const [boardingStopName, setBoardingStopName] = useState<string | null>(null);
+  const [destinationStopName, setDestinationStopName] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [customerNotification, setCustomerNotification] = useState('');
@@ -127,6 +134,45 @@ export default function AdminCancelBookingScreen() {
     loadBooking();
   }, [bookingId]);
 
+  const loadMultiStopRouteData = async (booking: AdminBooking) => {
+    try {
+      // For multi-stop routes, fetch booking segments to get boarding and destination stops
+      if (!booking.from_island_name || !booking.to_island_name) {
+        const bookingSegment = await getBookingSegment(booking.id);
+
+        if (bookingSegment) {
+          const boardingStop = bookingSegment.boarding_stop;
+          const destinationStop = bookingSegment.destination_stop;
+
+          setBoardingStopName(boardingStop?.island?.name || null);
+          setDestinationStopName(destinationStop?.island?.name || null);
+
+          // Fetch trip to get route_id
+          const { data: trip, error: tripError } = await supabase
+            .from('trips')
+            .select('route_id')
+            .eq('id', booking.trip_id)
+            .single();
+
+          if (!tripError && trip) {
+            const stops = await getRouteStops(trip.route_id);
+            setRouteStops(stops);
+          }
+        }
+      } else {
+        // Reset for regular routes
+        setRouteStops([]);
+        setBoardingStopName(null);
+        setDestinationStopName(null);
+      }
+    } catch (err: any) {
+      // If booking segment doesn't exist, it's okay - not all bookings have segments
+      if (err?.code !== 'PGRST116') {
+        console.error('Error loading multi-stop route data:', err);
+      }
+    }
+  };
+
   const loadBooking = async (showRefreshIndicator = false) => {
     try {
       if (showRefreshIndicator) {
@@ -145,6 +191,8 @@ export default function AdminCancelBookingScreen() {
 
       if (fetchedBooking) {
         setBooking(fetchedBooking);
+        // Load multi-stop route data if needed
+        await loadMultiStopRouteData(fetchedBooking);
       } else {
         setError(`Booking with ID "${bookingId}" not found`);
       }
@@ -432,8 +480,23 @@ export default function AdminCancelBookingScreen() {
               <View style={styles.routeInfo}>
                 <MapPin size={16} color={colors.primary} />
                 <Text style={styles.routeName}>
-                  {booking.from_island_name || 'Unknown'} →{' '}
-                  {booking.to_island_name || 'Unknown'}
+                  {(() => {
+                    // For multi-stop routes, use boarding and destination stops
+                    if (!booking.from_island_name || !booking.to_island_name) {
+                      if (boardingStopName && destinationStopName) {
+                        return `${boardingStopName} → ${destinationStopName}`;
+                      }
+                      // If we have route stops, show first and last
+                      if (routeStops.length > 0) {
+                        const firstStop = routeStops[0];
+                        const lastStop = routeStops[routeStops.length - 1];
+                        return `${firstStop.island_name || 'Unknown'} → ${lastStop.island_name || 'Unknown'}`;
+                      }
+                      return 'Multi-stop Route';
+                    }
+                    // For regular routes, use from/to island names
+                    return `${booking.from_island_name || 'Unknown'} → ${booking.to_island_name || 'Unknown'}`;
+                  })()}
                 </Text>
               </View>
             </View>
