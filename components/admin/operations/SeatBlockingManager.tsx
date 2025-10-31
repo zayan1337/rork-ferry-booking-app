@@ -719,7 +719,16 @@ export default function SeatBlockingManager({
     <View style={styles.container}>
       {/* Real-time Connection Status */}
       <View style={styles.connectionStatusContainer}>
-        <View style={styles.connectionStatus}>
+        <View
+          style={[
+            styles.connectionStatus,
+            {
+              borderColor: isRealTimeConnected
+                ? colors.success
+                : colors.textSecondary,
+            },
+          ]}
+        >
           {isRealTimeConnected ? (
             <>
               <Wifi size={14} color={colors.success} />
@@ -740,24 +749,31 @@ export default function SeatBlockingManager({
 
       {/* Stats Section */}
       <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <View style={[styles.statBox, styles.availableStatBox]} />
-          <Text style={styles.statText}>{stats.available} Available</Text>
+        <View style={styles.statsCompactRow}>
+          <View style={[styles.statCard, styles.availableStatCard]}>
+            <View style={[styles.statBox, styles.availableStatBox]} />
+            <Text style={styles.statNumber}>{stats.available}</Text>
+            <Text style={styles.statLabel}>Available</Text>
+          </View>
+          <View style={[styles.statCard, styles.bookedStatCard]}>
+            <View style={[styles.statBox, styles.bookedStatBox]} />
+            <Text style={styles.statNumber}>{stats.booked}</Text>
+            <Text style={styles.statLabel}>Booked</Text>
+          </View>
+          <View style={[styles.statCard, styles.blockedStatCard]}>
+            <View style={[styles.statBox, styles.blockedStatBox]} />
+            <Text style={styles.statNumber}>{stats.blocked}</Text>
+            <Text style={styles.statLabel}>Blocked</Text>
+          </View>
+          <View style={[styles.statCard, styles.tempBlockedStatCard]}>
+            <View style={[styles.statBox, styles.tempBlockedStatBox]} />
+            <Text style={styles.statNumber}>{stats.tempBlocked}</Text>
+            <Text style={styles.statLabel}>Temp</Text>
+          </View>
         </View>
-        <View style={styles.statItem}>
-          <View style={[styles.statBox, styles.bookedStatBox]} />
-          <Text style={styles.statText}>{stats.booked} Booked</Text>
-        </View>
-        <View style={styles.statItem}>
-          <View style={[styles.statBox, styles.blockedStatBox]} />
-          <Text style={styles.statText}>{stats.blocked} Blocked</Text>
-        </View>
-        <View style={styles.statItem}>
-          <View style={[styles.statBox, styles.tempBlockedStatBox]} />
-          <Text style={styles.statText}>{stats.tempBlocked} Temp</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statText}>{stats.total} Total</Text>
+        <View style={styles.totalCompactContainer}>
+          <Text style={styles.totalNumber}>{stats.total}</Text>
+          <Text style={styles.totalLabel}>Total Seats</Text>
         </View>
       </View>
 
@@ -801,24 +817,31 @@ export default function SeatBlockingManager({
       {/* Instructions */}
       <View style={styles.instructionsContainer}>
         <Text style={styles.instructionsText}>
-          Tap on available seats to block them. Tap on permanently blocked seats
-          to release them.{'\n'}
-          Temporarily blocked seats (yellow) are customer reservations and
-          cannot be toggled.
+          • Tap <Text style={{ fontWeight: '700' }}>available seats</Text> to
+          block them{'\n'}• Tap{' '}
+          <Text style={{ fontWeight: '700' }}>blocked seats</Text> to release
+          them{'\n'}•{' '}
+          <Text style={{ fontWeight: '700', color: colors.warning }}>
+            Temp blocked
+          </Text>{' '}
+          seats are customer reservations (cannot be toggled)
         </Text>
       </View>
 
       {/* Seat Layout */}
-      <ScrollView
-        style={styles.seatLayoutScroll}
-        showsVerticalScrollIndicator={true}
-      >
-        <View style={styles.ferryContainer}>
-          {/* BOW Label */}
-          <View style={[styles.ferryLabel, styles.bowLabelContainer]}>
-            <Text style={styles.bowLabel}>BOW</Text>
-          </View>
+      <View style={styles.ferryContainer}>
+        {/* BOW Label */}
+        <View style={[styles.ferryLabel, styles.bowLabelContainer]}>
+          <Text style={styles.bowLabel}>BOW</Text>
+        </View>
 
+        {/* Ferry Shape Container */}
+        <ScrollView
+          horizontal={true}
+          showsHorizontalScrollIndicator={true}
+          contentContainerStyle={styles.ferryScrollContent}
+          style={styles.ferryScrollContainer}
+        >
           <View style={styles.ferryBodyContainer}>
             {/* Port Side Label */}
             <View style={styles.sideLabel}>
@@ -827,94 +850,97 @@ export default function SeatBlockingManager({
               </View>
             </View>
 
-            {/* Seat Grid */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.ferryScrollContainer}
-              contentContainerStyle={styles.ferryScrollContent}
-            >
-              <View style={styles.ferryBody}>
-                {seatLayout.map((rowData, rowIndex) => (
-                  <React.Fragment key={rowData.rowNumber}>
-                    <View style={styles.seatRow}>
-                      {rowData.seatGroups.map((group, groupIndex) => (
-                        <React.Fragment key={groupIndex}>
-                          {group.map(seat => {
-                            const status = getSeatStatus(seat);
-                            const isProcessing = processingSeats.has(seat.id);
-                            // Can toggle available seats or permanently blocked seats (not temp blocked or booked)
-                            const canToggle =
-                              status === 'available' || status === 'blocked';
-                            const isRecentlyUpdated = recentlyUpdatedSeats.has(
-                              seat.id
-                            );
+            {/* Ferry Body */}
+            <View style={styles.ferryBody}>
+              <ScrollView
+                style={styles.seatMapContainer}
+                contentContainerStyle={styles.seatMapContent}
+                showsVerticalScrollIndicator={true}
+                horizontal={false}
+                nestedScrollEnabled={true}
+              >
+                <View style={styles.seatsGrid}>
+                  {seatLayout.map((rowData, rowIndex) => (
+                    <React.Fragment key={rowData.rowNumber}>
+                      <View style={styles.seatRow}>
+                        {rowData.seatGroups.map((group, groupIndex) => (
+                          <React.Fragment key={groupIndex}>
+                            {group.map(seat => {
+                              const status = getSeatStatus(seat);
+                              const isProcessing = processingSeats.has(seat.id);
+                              // Can toggle available seats or permanently blocked seats (not temp blocked or booked)
+                              const canToggle =
+                                status === 'available' || status === 'blocked';
+                              const isRecentlyUpdated = recentlyUpdatedSeats.has(
+                                seat.id
+                              );
 
-                            return (
-                              <Pressable
-                                key={seat.id}
-                                style={[
-                                  styles.seatButton,
-                                  getSeatStyle(seat),
-                                  isRecentlyUpdated &&
-                                    styles.recentlyUpdatedSeat,
-                                ]}
-                                onPress={() =>
-                                  canToggle && toggleSeatBlock(seat)
-                                }
-                                disabled={!canToggle || isProcessing}
-                              >
-                                {isProcessing ? (
-                                  <ActivityIndicator
-                                    size='small'
-                                    color={colors.text}
-                                  />
-                                ) : (
-                                  <>
-                                    <Text
-                                      style={[
-                                        styles.seatNumber,
-                                        status === 'booked' &&
-                                          styles.bookedSeatText,
-                                        status === 'blocked' &&
-                                          styles.blockedSeatText,
-                                        status === 'tempBlocked' &&
-                                          styles.tempBlockedSeatText,
-                                      ]}
-                                    >
-                                      {seat.number}
-                                    </Text>
-                                    {status === 'blocked' && (
-                                      <Lock size={10} color={colors.danger} />
-                                    )}
-                                    {status === 'tempBlocked' && (
-                                      <Lock
-                                        size={10}
-                                        color={colors.warning}
-                                        style={{ opacity: 0.8 }}
-                                      />
-                                    )}
-                                    {seat.isWindow && (
-                                      <View style={styles.windowIndicator} />
-                                    )}
-                                  </>
-                                )}
-                              </Pressable>
-                            );
-                          })}
-                          {groupIndex < rowData.seatGroups.length - 1 && (
-                            <View style={styles.aisle} />
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </View>
-                    {rowIndex < seatLayout.length - 1 && (
-                      <View style={styles.rowSpacer} />
-                    )}
-                  </React.Fragment>
-                ))}
-              </View>
-            </ScrollView>
+                              return (
+                                <Pressable
+                                  key={seat.id}
+                                  style={[
+                                    styles.seatButton,
+                                    getSeatStyle(seat),
+                                    isRecentlyUpdated &&
+                                      styles.recentlyUpdatedSeat,
+                                  ]}
+                                  onPress={() =>
+                                    canToggle && toggleSeatBlock(seat)
+                                  }
+                                  disabled={!canToggle || isProcessing}
+                                >
+                                  {isProcessing ? (
+                                    <ActivityIndicator
+                                      size='small'
+                                      color={colors.text}
+                                    />
+                                  ) : (
+                                    <>
+                                      <Text
+                                        style={[
+                                          styles.seatNumber,
+                                          status === 'booked' &&
+                                            styles.bookedSeatText,
+                                          status === 'blocked' &&
+                                            styles.blockedSeatText,
+                                          status === 'tempBlocked' &&
+                                            styles.tempBlockedSeatText,
+                                        ]}
+                                      >
+                                        {seat.number}
+                                      </Text>
+                                      {status === 'blocked' && (
+                                        <Lock size={10} color={colors.danger} />
+                                      )}
+                                      {status === 'tempBlocked' && (
+                                        <Lock
+                                          size={10}
+                                          color={colors.warning}
+                                          style={{ opacity: 0.8 }}
+                                        />
+                                      )}
+                                      {seat.isWindow && (
+                                        <View style={styles.windowIndicator} />
+                                      )}
+                                    </>
+                                  )}
+                                </Pressable>
+                              );
+                            })}
+                            {groupIndex < rowData.seatGroups.length - 1 && (
+                              <View style={styles.aisle} />
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </View>
+                      {rowIndex < seatLayout.length - 1 && (
+                        <View style={styles.rowSpacer} />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
 
             {/* Starboard Side Label */}
             <View style={styles.sideLabel}>
@@ -923,13 +949,13 @@ export default function SeatBlockingManager({
               </View>
             </View>
           </View>
+        </ScrollView>
 
-          {/* STERN Label */}
-          <View style={[styles.ferryLabel, styles.sternLabelContainer]}>
-            <Text style={styles.sternLabel}>STERN</Text>
-          </View>
+        {/* STERN Label */}
+        <View style={[styles.ferryLabel, styles.sternLabelContainer]}>
+          <Text style={styles.sternLabel}>STERN</Text>
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -972,78 +998,143 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   connectionStatusTextConnected: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: colors.success,
+    letterSpacing: 0.3,
   },
   connectionStatusTextDisconnected: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: colors.textSecondary,
+    letterSpacing: 0.3,
   },
   statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    gap: 8,
   },
-  statItem: {
+  statsCompactRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statCard: {
+    flex: 1,
     alignItems: 'center',
-    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  availableStatCard: {
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1.5,
+    borderColor: '#4CAF50',
+  },
+  bookedStatCard: {
+    backgroundColor: '#E3F2FD',
+    borderWidth: 1.5,
+    borderColor: '#2196F3',
+  },
+  blockedStatCard: {
+    backgroundColor: '#FFEBEE',
+    borderWidth: 1.5,
+    borderColor: '#F44336',
+  },
+  tempBlockedStatCard: {
+    backgroundColor: '#FFF3E0',
+    borderWidth: 1.5,
+    borderColor: '#FF9800',
   },
   statBox: {
     width: 20,
     height: 20,
-    borderRadius: 4,
-    borderWidth: 1,
+    borderRadius: 5,
   },
   availableStatBox: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
+    backgroundColor: '#4CAF50',
   },
   bookedStatBox: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#2196F3',
   },
   blockedStatBox: {
-    backgroundColor: colors.danger,
-    borderColor: colors.danger,
+    backgroundColor: '#F44336',
   },
   tempBlockedStatBox: {
-    backgroundColor: colors.warning,
-    borderColor: colors.warning,
+    backgroundColor: '#FF9800',
   },
-  statText: {
-    fontSize: 12,
-    fontWeight: '600',
+  statNumber: {
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.text,
   },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+  },
+  totalCompactContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    gap: 6,
+  },
+  totalNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  totalLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
   legendContainer: {
-    paddingVertical: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: colors.backgroundSecondary,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   legendContent: {
-    paddingHorizontal: 16,
-    gap: 16,
+    gap: 6,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: colors.card,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   legendBox: {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
-    borderWidth: 1,
+    width: 14,
+    height: 14,
+    borderRadius: 3,
   },
   legendText: {
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: '500',
     color: colors.text,
   },
   availableSeat: {
@@ -1072,27 +1163,26 @@ const styles = StyleSheet.create({
     borderColor: colors.warning,
   },
   windowIndicator: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.info,
+    width: 20,
+    height: 2,
+    backgroundColor: colors.primary,
+    marginTop: 2,
   },
   instructionsContainer: {
-    padding: 12,
-    backgroundColor: colors.infoLight,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginHorizontal: 16,
+    marginVertical: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.info,
   },
   instructionsText: {
-    fontSize: 13,
+    fontSize: 11,
     color: colors.text,
-    textAlign: 'center',
-  },
-  seatLayoutScroll: {
-    maxHeight: 600,
+    textAlign: 'left',
+    lineHeight: 17,
   },
   ferryContainer: {
     alignItems: 'center',
@@ -1152,28 +1242,56 @@ const styles = StyleSheet.create({
     width: 80,
   },
   ferryScrollContainer: {
-    maxHeight: 500,
+    maxHeight: 400,
   },
   ferryScrollContent: {
     paddingHorizontal: 20,
     paddingVertical: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   ferryBody: {
-    gap: 4,
+    backgroundColor: colors.card,
+    borderTopEndRadius: 50,
+    borderBottomEndRadius: 8,
+    borderTopStartRadius: 50,
+    borderBottomStartRadius: 8,
+    padding: 12,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    minWidth: 200,
+  },
+  seatMapContainer: {
+    maxHeight: 400,
+    minHeight: 100,
+  },
+  seatMapContent: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    flexGrow: 1,
+  },
+  seatsGrid: {
+    flexDirection: 'column',
+    alignItems: 'center',
   },
   seatRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
+    marginVertical: 2,
+    borderRadius: 6,
+    padding: 4,
   },
   seatButton: {
     width: 40,
     height: 40,
-    borderRadius: 6,
-    borderWidth: 2,
+    borderRadius: 4,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    margin: 1,
   },
   processingSeat: {
     backgroundColor: colors.textSecondary,
@@ -1204,9 +1322,11 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   aisle: {
-    width: 20,
+    width: 12,
+    height: 24,
+    backgroundColor: 'transparent',
   },
   rowSpacer: {
-    height: 8,
+    height: 2,
   },
 });

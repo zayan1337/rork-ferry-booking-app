@@ -18,7 +18,6 @@ import {
   Ship,
   Users,
   DollarSign,
-  MessageSquare,
   User,
   LogOut,
 } from 'lucide-react-native';

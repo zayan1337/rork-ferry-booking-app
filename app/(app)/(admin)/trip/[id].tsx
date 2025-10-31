@@ -240,6 +240,63 @@ export default function TripDetailsPage() {
     loadTrip(true);
   };
 
+  // Silent update function for seat changes - updates data without showing loading indicators
+  const handleSeatChange = async () => {
+    if (!id) return;
+
+    try {
+      // Silently fetch updated trip data without setting loading states
+      const tripData = await tripStore.fetchById(id);
+
+      if (tripData) {
+        // Update trip state directly without loading indicators
+        setTrip(tripData as Trip);
+
+        // Update special assistance count silently
+        try {
+          const { count } = await supabase
+            .from('passengers')
+            .select('id, bookings!inner(trip_id)', {
+              count: 'exact',
+              head: true,
+            })
+            .not('special_assistance_request', 'is', null)
+            .neq('special_assistance_request', '')
+            .eq('bookings.trip_id', tripData.id);
+          setSpecialAssistanceCount(count || 0);
+        } catch (e) {
+          // Silently fail
+        }
+      } else {
+        // Fallback to operations store
+        const operationsTripData = await fetchTrip(id);
+        if (operationsTripData) {
+          const mappedTrip = mapOperationsTripToTrip(operationsTripData);
+          setTrip(mappedTrip);
+
+          // Update special assistance count silently
+          try {
+            const { count } = await supabase
+              .from('passengers')
+              .select('id, bookings!inner(trip_id)', {
+                count: 'exact',
+                head: true,
+              })
+              .not('special_assistance_request', 'is', null)
+              .neq('special_assistance_request', '')
+              .eq('bookings.trip_id', mappedTrip.id);
+            setSpecialAssistanceCount(count || 0);
+          } catch (e) {
+            // Silently fail
+          }
+        }
+      }
+    } catch (error) {
+      // Silently fail - don't show error alerts for background updates
+      console.error('Silent update failed:', error);
+    }
+  };
+
   const handleEdit = () => {
     setEditMode(true);
     setActionMenuVisible(false);
@@ -1022,9 +1079,7 @@ export default function TripDetailsPage() {
                   <SeatBlockingManager
                     tripId={trip.id}
                     vesselId={trip.vessel_id}
-                    onSeatsChanged={() => {
-                      loadTrip(true);
-                    }}
+                    onSeatsChanged={handleSeatChange}
                   />
                 ) : (
                   <View style={styles.loadingContainer}>
