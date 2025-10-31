@@ -45,11 +45,6 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
   useEffect(() => {
     if (!tripId) return; // Skip if no tripId provided
 
-    console.log(
-      '[SeatSelector] Setting up real-time subscription for trip:',
-      tripId
-    );
-
     // Subscribe to seat_reservations changes for this trip
     realtimeChannelRef.current = supabase
       .channel(`customer_seat_updates_${tripId}`)
@@ -62,8 +57,6 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
           filter: `trip_id=eq.${tripId}`,
         },
         async payload => {
-          console.log('[SeatSelector] Seat availability changed:', payload);
-
           // Update seat availability based on reservation changes
           if (
             payload.eventType === 'INSERT' ||
@@ -81,13 +74,11 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
         }
       )
       .subscribe(status => {
-        console.log('[SeatSelector] Real-time subscription status:', status);
       });
 
     // Cleanup subscription on unmount
     return () => {
       if (realtimeChannelRef.current) {
-        console.log('[SeatSelector] Cleaning up real-time subscription');
         supabase.removeChannel(realtimeChannelRef.current);
         realtimeChannelRef.current = null;
       }

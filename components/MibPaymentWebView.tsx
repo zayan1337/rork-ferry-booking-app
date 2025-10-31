@@ -63,10 +63,6 @@ export default function MibPaymentWebView({
       setCurrentSessionData(sessionData);
       setShowPaymentPage(true);
       setIsLoading(false);
-    } else {
-      console.log(
-        '[MIB WebView] ⚠️ Not showing payment page - missing session data'
-      );
     }
   }, [sessionData, visible]);
 

@@ -130,10 +130,6 @@ export default function TripFareEditor({
         reason: value,
       });
       setOverrides(newOverrides);
-    } else {
-      // If no override exists yet but user is entering reason,
-      // don't create one (they need to change fare first)
-      console.log('No override exists for this segment yet');
     }
   };
 

@@ -222,11 +222,6 @@ export default function SeatBlockingManager({
 
   // Real-time subscription setup
   const setupRealtimeSubscriptions = () => {
-    console.log(
-      '[SeatBlocking] Setting up real-time subscriptions for trip:',
-      tripId
-    );
-
     // Subscribe to seat_reservations changes for this trip
     reservationsChannelRef.current = supabase
       .channel(`seat_reservations_trip_${tripId}`)
@@ -239,11 +234,6 @@ export default function SeatBlockingManager({
           filter: `trip_id=eq.${tripId}`,
         },
         async payload => {
-          console.log(
-            '[SeatBlocking] Seat reservation change detected:',
-            payload
-          );
-
           // Handle different event types
           if (
             payload.eventType === 'INSERT' ||
@@ -258,7 +248,6 @@ export default function SeatBlockingManager({
         }
       )
       .subscribe(status => {
-        console.log('[SeatBlocking] Reservations subscription status:', status);
         if (status === 'SUBSCRIBED') {
           setIsRealTimeConnected(true);
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
@@ -278,21 +267,17 @@ export default function SeatBlockingManager({
           filter: `trip_id=eq.${tripId}`,
         },
         async payload => {
-          console.log('[SeatBlocking] Booking change detected:', payload);
           // When a booking changes, refresh all seat data to ensure consistency
           await loadSeatData();
           onSeatsChanged?.();
         }
       )
       .subscribe(status => {
-        console.log('[SeatBlocking] Bookings subscription status:', status);
       });
   };
 
   // Clean up real-time subscriptions
   const cleanupRealtimeSubscriptions = () => {
-    console.log('[SeatBlocking] Cleaning up real-time subscriptions');
-
     if (reservationsChannelRef.current) {
       supabase.removeChannel(reservationsChannelRef.current);
       reservationsChannelRef.current = null;
@@ -308,8 +293,6 @@ export default function SeatBlockingManager({
 
   // Handle real-time reservation updates
   const handleReservationUpdate = (reservation: any) => {
-    console.log('[SeatBlocking] Handling reservation update:', reservation);
-
     // Mark seat as recently updated for visual feedback
     setRecentlyUpdatedSeats(prev => new Set(prev).add(reservation.seat_id));
 
@@ -385,8 +368,6 @@ export default function SeatBlockingManager({
 
   // Handle real-time reservation deletions
   const handleReservationDelete = (reservation: any) => {
-    console.log('[SeatBlocking] Handling reservation delete:', reservation);
-
     // Mark seat as recently updated for visual feedback
     setRecentlyUpdatedSeats(prev => new Set(prev).add(reservation.seat_id));
 

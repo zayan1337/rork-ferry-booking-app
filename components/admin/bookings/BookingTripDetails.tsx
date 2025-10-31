@@ -22,12 +22,18 @@ interface BookingTripDetailsProps {
   booking: AdminBooking;
   boardingStopName?: string | null;
   destinationStopName?: string | null;
+  boardingStop?: any | null;
+  destinationStop?: any | null;
+  bookingSegment?: any | null;
 }
 
 export default function BookingTripDetails({
   booking,
   boardingStopName,
   destinationStopName,
+  boardingStop,
+  destinationStop,
+  bookingSegment,
 }: BookingTripDetailsProps) {
   const [routeDisplay, setRouteDisplay] = useState<{
     from: string;
@@ -36,7 +42,7 @@ export default function BookingTripDetails({
 
   useEffect(() => {
     const loadRouteDisplay = async () => {
-      // If from_island_name and to_island_name exist, use them
+      // Prioritize booking's from_island_name and to_island_name (from booking, not route)
       if (booking.from_island_name && booking.to_island_name) {
         setRouteDisplay({
           from: booking.from_island_name,
@@ -112,6 +118,158 @@ export default function BookingTripDetails({
             )}
           </View>
         </View>
+
+        {/* Boarding/Departure Stop Details - Using booking_segments table */}
+        {(bookingSegment || boardingStop || boardingStopName || booking.from_island_name) && (
+          <View style={styles.row}>
+            <View style={styles.iconContainer}>
+              <MapPin size={20} color={colors.success} />
+            </View>
+            <View style={styles.content}>
+              <Text style={styles.label}>Boarding Point</Text>
+              <Text style={styles.value}>
+                {boardingStop?.island?.name ||
+                  boardingStopName ||
+                  booking.from_island_name ||
+                  'Unknown'}
+              </Text>
+              {bookingSegment && (
+                <>
+                  <Text style={styles.subValue}>
+                    Stop Sequence: #{bookingSegment.boarding_stop_sequence}
+                  </Text>
+                  {bookingSegment.boarding_stop && (
+                    <>
+                      {bookingSegment.boarding_stop.island?.zone && (
+                        <Text style={styles.subValue}>
+                          Zone: {bookingSegment.boarding_stop.island.zone}
+                        </Text>
+                      )}
+                      {bookingSegment.boarding_stop.stop_type && (
+                        <Text style={styles.subValue}>
+                          Type: {bookingSegment.boarding_stop.stop_type.replace('_', ' ')}
+                        </Text>
+                      )}
+                      {bookingSegment.boarding_stop.notes && (
+                        <Text style={styles.subValue}>
+                          Note: {bookingSegment.boarding_stop.notes}
+                        </Text>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+              {!bookingSegment && boardingStop && (
+                <>
+                  {boardingStop.island?.zone && (
+                    <Text style={styles.subValue}>
+                      Zone: {boardingStop.island.zone}
+                    </Text>
+                  )}
+                  <Text style={styles.subValue}>
+                    Stop #{boardingStop.stop_sequence}
+                    {boardingStop.stop_type && (
+                      <> • {boardingStop.stop_type.replace('_', ' ')}</>
+                    )}
+                  </Text>
+                  {boardingStop.notes && (
+                    <Text style={styles.subValue}>Note: {boardingStop.notes}</Text>
+                  )}
+                </>
+              )}
+              {!bookingSegment && !boardingStop && booking.from_island_name && (
+                <Text style={styles.subValue}>Origin</Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Dropoff/Destination Stop Details - Using booking_segments table */}
+        {(bookingSegment || destinationStop || destinationStopName || booking.to_island_name) && (
+          <View style={styles.row}>
+            <View style={styles.iconContainer}>
+              <MapPin size={20} color={colors.warning} />
+            </View>
+            <View style={styles.content}>
+              <Text style={styles.label}>Dropoff Point</Text>
+              <Text style={styles.value}>
+                {destinationStop?.island?.name ||
+                  destinationStopName ||
+                  booking.to_island_name ||
+                  'Unknown'}
+              </Text>
+              {bookingSegment && (
+                <>
+                  <Text style={styles.subValue}>
+                    Stop Sequence: #{bookingSegment.destination_stop_sequence}
+                  </Text>
+                  {bookingSegment.fare_amount && (
+                    <Text style={styles.subValue}>
+                      Segment Fare: {formatCurrency(Number(bookingSegment.fare_amount))}
+                    </Text>
+                  )}
+                  {bookingSegment.destination_stop_sequence && bookingSegment.boarding_stop_sequence && (
+                    <Text style={styles.subValue}>
+                      Segments Traveled: {bookingSegment.destination_stop_sequence - bookingSegment.boarding_stop_sequence}
+                    </Text>
+                  )}
+                  {bookingSegment.destination_stop && (
+                    <>
+                      {bookingSegment.destination_stop.island?.zone && (
+                        <Text style={styles.subValue}>
+                          Zone: {bookingSegment.destination_stop.island.zone}
+                        </Text>
+                      )}
+                      {bookingSegment.destination_stop.stop_type && (
+                        <Text style={styles.subValue}>
+                          Type: {bookingSegment.destination_stop.stop_type.replace('_', ' ')}
+                        </Text>
+                      )}
+                      {bookingSegment.destination_stop.estimated_travel_time && (
+                        <Text style={styles.subValue}>
+                          Travel time: {bookingSegment.destination_stop.estimated_travel_time} minutes
+                        </Text>
+                      )}
+                      {bookingSegment.destination_stop.notes && (
+                        <Text style={styles.subValue}>
+                          Note: {bookingSegment.destination_stop.notes}
+                        </Text>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+              {!bookingSegment && destinationStop && (
+                <>
+                  {destinationStop.island?.zone && (
+                    <Text style={styles.subValue}>
+                      Zone: {destinationStop.island.zone}
+                    </Text>
+                  )}
+                  <Text style={styles.subValue}>
+                    Stop #{destinationStop.stop_sequence}
+                    {destinationStop.stop_type && (
+                      <> • {destinationStop.stop_type.replace('_', ' ')}</>
+                    )}
+                  </Text>
+                  {destinationStop.estimated_travel_time && (
+                    <Text style={styles.subValue}>
+                      Travel time: {destinationStop.estimated_travel_time} minutes
+                    </Text>
+                  )}
+                  {destinationStop.notes && (
+                    <Text style={styles.subValue}>
+                      Note: {destinationStop.notes}
+                    </Text>
+                  )}
+                </>
+              )}
+              {!bookingSegment && !destinationStop && booking.to_island_name && (
+                <Text style={styles.subValue}>Destination</Text>
+              )}
+            </View>
+          </View>
+        )}
 
         <View style={styles.row}>
           <View style={styles.iconContainer}>

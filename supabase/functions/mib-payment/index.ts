@@ -624,11 +624,6 @@ async function processPaymentResult(supabase, resultData) {
  */
 async function processRefund(supabase, bookingId, refundAmount, currency) {
   try {
-    var i = 5;
-    console.log(
-      `[REFUND] Starting refund process for booking: ${bookingId}, amount: ${refundAmount}`
-    );
-
     // Get booking details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')

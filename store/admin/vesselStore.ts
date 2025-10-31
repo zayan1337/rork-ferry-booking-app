@@ -530,8 +530,6 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>(
                 data.seating_capacity,
                 data.vessel_type || 'passenger'
               );
-            } else {
-              console.log('Vessel already has seats, skipping auto-generation');
             }
           } catch (layoutError) {
             console.warn(

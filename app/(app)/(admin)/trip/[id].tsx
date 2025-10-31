@@ -226,8 +226,6 @@ export default function TripDetailsPage() {
             setTripFareOverrides(overrides || []);
           }
         }
-      } else {
-        console.log('No multi-route data found for route:', routeId);
       }
     } catch (error) {
       console.error('Error loading multi-stop route data:', error);
@@ -449,8 +447,8 @@ export default function TripDetailsPage() {
     if (!trip) return;
 
     Alert.alert('Share Trip', 'Choose how to share this trip information:', [
-      { text: 'Copy Link', onPress: () => console.log('Copy link') },
-      { text: 'Export PDF', onPress: () => console.log('Export PDF') },
+      { text: 'Copy Link', onPress: () => {} },
+      { text: 'Export PDF', onPress: () => {} },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };

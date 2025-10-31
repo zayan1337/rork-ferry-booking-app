@@ -432,7 +432,7 @@ export default function TripBookingsPage() {
             ),
             headerRight: () => (
               <Pressable
-                onPress={() => console.log('Export')}
+                onPress={() => {}}
                 style={styles.exportButton}
               >
                 <Download size={20} color={colors.primary} />

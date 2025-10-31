@@ -213,8 +213,8 @@ export default function TripPassengersPage() {
 
   const handleExportManifest = () => {
     Alert.alert('Export Manifest', 'Choose export format:', [
-      { text: 'PDF', onPress: () => console.log('Export PDF') },
-      { text: 'Excel', onPress: () => console.log('Export Excel') },
+      { text: 'PDF', onPress: () => {} },
+      { text: 'Excel', onPress: () => {} },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };

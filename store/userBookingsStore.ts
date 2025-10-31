@@ -407,8 +407,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
                 status: 'refund_failed',
               })
               .eq('booking_id', bookingId);
-          } else {
-            console.log('[CANCEL] Refund processed successfully');
           }
         } catch (refundException) {
           console.error(
@@ -426,10 +424,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             updated_at: new Date().toISOString(),
           })
           .eq('booking_id', bookingId);
-      } else {
-        console.log(
-          `[CANCEL] Payment status is not completed: ${booking.payment?.status}, skipping refund processing`
-        );
       }
 
       await fetchUserBookings();
@@ -864,10 +858,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             originalSeatReleaseError
           );
           // Don't throw - modification is complete, seat release can be handled manually
-        } else {
-          console.log(
-            '[MODIFY] Successfully released seats from original booking'
-          );
         }
       }
 
