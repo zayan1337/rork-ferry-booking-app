@@ -69,7 +69,9 @@ export default function BookingDetailsPage() {
   const [updating, setUpdating] = useState(false);
   const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
   const [boardingStopName, setBoardingStopName] = useState<string | null>(null);
-  const [destinationStopName, setDestinationStopName] = useState<string | null>(null);
+  const [destinationStopName, setDestinationStopName] = useState<string | null>(
+    null
+  );
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -100,9 +102,12 @@ export default function BookingDetailsPage() {
 
       if (fetchedBooking) {
         setBooking(fetchedBooking);
-        
+
         // For multi-stop routes, fetch route stops and booking segments
-        if (!fetchedBooking.from_island_name || !fetchedBooking.to_island_name) {
+        if (
+          !fetchedBooking.from_island_name ||
+          !fetchedBooking.to_island_name
+        ) {
           await loadMultiStopRouteData(fetchedBooking);
         } else {
           // Reset multi-stop data for regular routes
@@ -132,12 +137,8 @@ export default function BookingDetailsPage() {
         const boardingStop = bookingSegment.boarding_stop;
         const destinationStop = bookingSegment.destination_stop;
 
-        setBoardingStopName(
-          boardingStop?.island?.name || null
-        );
-        setDestinationStopName(
-          destinationStop?.island?.name || null
-        );
+        setBoardingStopName(boardingStop?.island?.name || null);
+        setDestinationStopName(destinationStop?.island?.name || null);
 
         // Fetch trip to get route_id
         const { data: trip, error: tripError } = await supabase

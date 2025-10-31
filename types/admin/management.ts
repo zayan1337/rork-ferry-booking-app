@@ -1672,6 +1672,8 @@ export interface AdminBooking {
   total_fare: number;
   qr_code_url?: string;
   check_in_status: boolean;
+  checked_in_at?: string;
+  checked_in_by?: string;
   agent_id?: string;
   agent_client_id?: string;
   payment_method_type?: string;

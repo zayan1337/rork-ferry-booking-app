@@ -81,7 +81,9 @@ export default function AdminCancelBookingScreen() {
   const [error, setError] = useState<string | null>(null);
   const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
   const [boardingStopName, setBoardingStopName] = useState<string | null>(null);
-  const [destinationStopName, setDestinationStopName] = useState<string | null>(null);
+  const [destinationStopName, setDestinationStopName] = useState<string | null>(
+    null
+  );
   const [reason, setReason] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [customerNotification, setCustomerNotification] = useState('');

@@ -225,7 +225,7 @@ export default function AdminTabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name='communications'
         options={{
           title: 'Communications',
@@ -234,7 +234,7 @@ export default function AdminTabLayout() {
             <MessageSquare size={size} color={color} />
           ),
         }}
-      />
+      /> */}
       <Tabs.Screen
         name='settings'
         options={{

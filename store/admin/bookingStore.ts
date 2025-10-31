@@ -475,7 +475,7 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
     try {
       // Filter out fields that don't exist in the bookings table
       // These fields come from joins in views (like trip_travel_date, from_island_name, etc.)
-      const validBookingFields = [
+      const validBookingFields: (keyof AdminBooking)[] = [
         'user_id',
         'trip_id',
         'is_round_trip',
@@ -484,20 +484,26 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
         'total_fare',
         'qr_code_url',
         'check_in_status',
+        'checked_in_at',
+        'checked_in_by',
         'agent_id',
         'agent_client_id',
         'payment_method_type',
         'round_trip_group_id',
-        'checked_in_at',
-        'checked_in_by',
       ];
 
-      const filteredUpdates = Object.keys(updates).reduce((acc, key) => {
-        if (validBookingFields.includes(key)) {
-          acc[key] = updates[key as keyof AdminBooking];
+      const filteredUpdates: Partial<AdminBooking> = {};
+      for (const key of validBookingFields) {
+        const value = updates[key];
+        if (value !== undefined) {
+          (
+            filteredUpdates as Record<
+              keyof AdminBooking,
+              AdminBooking[keyof AdminBooking]
+            >
+          )[key] = value;
         }
-        return acc;
-      }, {} as Partial<AdminBooking>);
+      }
 
       const { error } = await supabase
         .from('bookings')

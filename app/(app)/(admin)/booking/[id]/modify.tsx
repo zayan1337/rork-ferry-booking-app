@@ -100,7 +100,9 @@ export default function AdminModifyBookingScreen() {
   const [currentSeats, setCurrentSeats] = useState<any[]>([]);
   const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
   const [boardingStopName, setBoardingStopName] = useState<string | null>(null);
-  const [destinationStopName, setDestinationStopName] = useState<string | null>(null);
+  const [destinationStopName, setDestinationStopName] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -334,7 +336,11 @@ export default function AdminModifyBookingScreen() {
     if (newDate && booking) {
       const fetchRouteAndTrips = async () => {
         // For regular routes, need availableRoutes to be loaded
-        if (booking.from_island_name && booking.to_island_name && availableRoutes.length === 0) {
+        if (
+          booking.from_island_name &&
+          booking.to_island_name &&
+          availableRoutes.length === 0
+        ) {
           return; // Wait for routes to load
         }
         const routeId = await findRouteId(booking);
