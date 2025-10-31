@@ -13,6 +13,8 @@ export type SeatSelectorProps = {
   isLoading?: boolean;
   loadingSeats?: Set<string>;
   seatErrors?: Record<string, string>;
+  tripId?: string; // Optional: for real-time seat availability updates
+  onSeatsUpdated?: (updatedSeats: Seat[]) => void; // Optional: callback when seats are updated via real-time
 };
 
 export type InputProps = {

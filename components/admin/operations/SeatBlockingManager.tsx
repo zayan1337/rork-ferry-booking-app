@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,8 @@ import {
 import { colors } from '@/constants/adminColors';
 import { supabase } from '@/utils/supabase';
 import { Seat } from '@/types';
-import {
-  Lock,
-  Users,
-  AlertTriangle,
-} from 'lucide-react-native';
+import { Lock, AlertTriangle, Wifi, WifiOff } from 'lucide-react-native';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface SeatBlockingManagerProps {
   tripId: string;
@@ -41,16 +38,34 @@ export default function SeatBlockingManager({
     Map<string, SeatReservation>
   >(new Map());
   const [loading, setLoading] = useState(true);
-  const [processingSeats, setProcessingSeats] = useState<Set<string>>(new Set());
+  const [processingSeats, setProcessingSeats] = useState<Set<string>>(
+    new Set()
+  );
   const [stats, setStats] = useState({
     total: 0,
     available: 0,
     booked: 0,
     blocked: 0,
   });
+  const [isRealTimeConnected, setIsRealTimeConnected] = useState(false);
+  const [recentlyUpdatedSeats, setRecentlyUpdatedSeats] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Refs for real-time subscriptions
+  const reservationsChannelRef = useRef<RealtimeChannel | null>(null);
+  const bookingsChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     loadSeatData();
+
+    // Set up real-time subscriptions
+    setupRealtimeSubscriptions();
+
+    // Cleanup function
+    return () => {
+      cleanupRealtimeSubscriptions();
+    };
   }, [tripId, vesselId]);
 
   const loadSeatData = async () => {
@@ -152,6 +167,184 @@ export default function SeatBlockingManager({
       booked,
       blocked,
     });
+  };
+
+  // Real-time subscription setup
+  const setupRealtimeSubscriptions = () => {
+    console.log(
+      '[SeatBlocking] Setting up real-time subscriptions for trip:',
+      tripId
+    );
+
+    // Subscribe to seat_reservations changes for this trip
+    reservationsChannelRef.current = supabase
+      .channel(`seat_reservations_trip_${tripId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'seat_reservations',
+          filter: `trip_id=eq.${tripId}`,
+        },
+        async payload => {
+          console.log(
+            '[SeatBlocking] Seat reservation change detected:',
+            payload
+          );
+
+          // Handle different event types
+          if (
+            payload.eventType === 'INSERT' ||
+            payload.eventType === 'UPDATE'
+          ) {
+            const newReservation = payload.new as any;
+            handleReservationUpdate(newReservation);
+          } else if (payload.eventType === 'DELETE') {
+            const oldReservation = payload.old as any;
+            handleReservationDelete(oldReservation);
+          }
+        }
+      )
+      .subscribe(status => {
+        console.log('[SeatBlocking] Reservations subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          setIsRealTimeConnected(true);
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setIsRealTimeConnected(false);
+        }
+      });
+
+    // Subscribe to bookings table for this trip to catch new bookings in real-time
+    bookingsChannelRef.current = supabase
+      .channel(`bookings_trip_${tripId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `trip_id=eq.${tripId}`,
+        },
+        async payload => {
+          console.log('[SeatBlocking] Booking change detected:', payload);
+          // When a booking changes, refresh all seat data to ensure consistency
+          await loadSeatData();
+          onSeatsChanged?.();
+        }
+      )
+      .subscribe(status => {
+        console.log('[SeatBlocking] Bookings subscription status:', status);
+      });
+  };
+
+  // Clean up real-time subscriptions
+  const cleanupRealtimeSubscriptions = () => {
+    console.log('[SeatBlocking] Cleaning up real-time subscriptions');
+
+    if (reservationsChannelRef.current) {
+      supabase.removeChannel(reservationsChannelRef.current);
+      reservationsChannelRef.current = null;
+    }
+
+    if (bookingsChannelRef.current) {
+      supabase.removeChannel(bookingsChannelRef.current);
+      bookingsChannelRef.current = null;
+    }
+
+    setIsRealTimeConnected(false);
+  };
+
+  // Handle real-time reservation updates
+  const handleReservationUpdate = (reservation: any) => {
+    console.log('[SeatBlocking] Handling reservation update:', reservation);
+
+    // Mark seat as recently updated for visual feedback
+    setRecentlyUpdatedSeats(prev => new Set(prev).add(reservation.seat_id));
+
+    // Remove the highlight after 2 seconds
+    setTimeout(() => {
+      setRecentlyUpdatedSeats(prev => {
+        const updated = new Set(prev);
+        updated.delete(reservation.seat_id);
+        return updated;
+      });
+    }, 2000);
+
+    // Update the reservation in our map
+    const updatedReservation: SeatReservation = {
+      id: reservation.id,
+      seat_id: reservation.seat_id,
+      booking_id: reservation.booking_id,
+      is_available: reservation.is_available,
+    };
+
+    // Update reservations map
+    setSeatReservations(prev => {
+      const updated = new Map(prev);
+      updated.set(reservation.seat_id, updatedReservation);
+
+      // Update seats array with new availability
+      setSeats(currentSeats => {
+        const updatedSeats = currentSeats.map(seat =>
+          seat.id === reservation.seat_id
+            ? { ...seat, isAvailable: reservation.is_available }
+            : seat
+        );
+
+        // Recalculate stats with updated data
+        calculateStats(updatedSeats, updated);
+
+        return updatedSeats;
+      });
+
+      return updated;
+    });
+
+    // Notify parent component
+    onSeatsChanged?.();
+  };
+
+  // Handle real-time reservation deletions
+  const handleReservationDelete = (reservation: any) => {
+    console.log('[SeatBlocking] Handling reservation delete:', reservation);
+
+    // Mark seat as recently updated for visual feedback
+    setRecentlyUpdatedSeats(prev => new Set(prev).add(reservation.seat_id));
+
+    // Remove the highlight after 2 seconds
+    setTimeout(() => {
+      setRecentlyUpdatedSeats(prev => {
+        const updated = new Set(prev);
+        updated.delete(reservation.seat_id);
+        return updated;
+      });
+    }, 2000);
+
+    // Remove the reservation from our map
+    setSeatReservations(prev => {
+      const updated = new Map(prev);
+      updated.delete(reservation.seat_id);
+
+      // Update seats array - deleted reservation means seat is available
+      setSeats(currentSeats => {
+        const updatedSeats = currentSeats.map(seat =>
+          seat.id === reservation.seat_id
+            ? { ...seat, isAvailable: true }
+            : seat
+        );
+
+        // Recalculate stats with updated data
+        calculateStats(updatedSeats, updated);
+
+        return updatedSeats;
+      });
+
+      return updated;
+    });
+
+    // Notify parent component
+    onSeatsChanged?.();
   };
 
   const toggleSeatBlock = async (seat: Seat) => {
@@ -280,7 +473,8 @@ export default function SeatBlockingManager({
     // Check if actually booked (booking_id is not null/undefined)
     if (reservation?.booking_id != null) return 'booked';
     // Check if blocked (has reservation but not available and not booked)
-    if (reservation && !reservation.is_available && !reservation.booking_id) return 'blocked';
+    if (reservation && !reservation.is_available && !reservation.booking_id)
+      return 'blocked';
     return 'available';
   };
 
@@ -367,7 +561,7 @@ export default function SeatBlockingManager({
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size='large' color={colors.primary} />
         <Text style={styles.loadingText}>Loading seat layout...</Text>
       </View>
     );
@@ -377,20 +571,41 @@ export default function SeatBlockingManager({
     return (
       <View style={styles.emptyContainer}>
         <AlertTriangle size={48} color={colors.textSecondary} />
-        <Text style={styles.emptyText}>No seats configured for this vessel</Text>
+        <Text style={styles.emptyText}>
+          No seats configured for this vessel
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      {/* Real-time Connection Status */}
+      <View style={styles.connectionStatusContainer}>
+        <View style={styles.connectionStatus}>
+          {isRealTimeConnected ? (
+            <>
+              <Wifi size={14} color={colors.success} />
+              <Text style={styles.connectionStatusTextConnected}>
+                Live Updates Active
+              </Text>
+            </>
+          ) : (
+            <>
+              <WifiOff size={14} color={colors.textSecondary} />
+              <Text style={styles.connectionStatusTextDisconnected}>
+                Connecting...
+              </Text>
+            </>
+          )}
+        </View>
+      </View>
+
       {/* Stats Section */}
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <View style={[styles.statBox, styles.availableStatBox]} />
-          <Text style={styles.statText}>
-            {stats.available} Available
-          </Text>
+          <Text style={styles.statText}>{stats.available} Available</Text>
         </View>
         <View style={styles.statItem}>
           <View style={[styles.statBox, styles.bookedStatBox]} />
@@ -401,9 +616,7 @@ export default function SeatBlockingManager({
           <Text style={styles.statText}>{stats.blocked} Blocked</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statText}>
-            {stats.total} Total
-          </Text>
+          <Text style={styles.statText}>{stats.total} Total</Text>
         </View>
       </View>
 
@@ -443,7 +656,8 @@ export default function SeatBlockingManager({
       {/* Instructions */}
       <View style={styles.instructionsContainer}>
         <Text style={styles.instructionsText}>
-          Tap on available seats to block them. Tap on blocked seats to release them.
+          Tap on available seats to block them. Tap on blocked seats to release
+          them.
         </Text>
       </View>
 
@@ -482,7 +696,11 @@ export default function SeatBlockingManager({
                           {group.map(seat => {
                             const status = getSeatStatus(seat);
                             const isProcessing = processingSeats.has(seat.id);
-                            const canToggle = status === 'available' || status === 'blocked';
+                            const canToggle =
+                              status === 'available' || status === 'blocked';
+                            const isRecentlyUpdated = recentlyUpdatedSeats.has(
+                              seat.id
+                            );
 
                             return (
                               <Pressable
@@ -490,13 +708,17 @@ export default function SeatBlockingManager({
                                 style={[
                                   styles.seatButton,
                                   getSeatStyle(seat),
+                                  isRecentlyUpdated &&
+                                    styles.recentlyUpdatedSeat,
                                 ]}
-                                onPress={() => canToggle && toggleSeatBlock(seat)}
+                                onPress={() =>
+                                  canToggle && toggleSeatBlock(seat)
+                                }
                                 disabled={!canToggle || isProcessing}
                               >
                                 {isProcessing ? (
                                   <ActivityIndicator
-                                    size="small"
+                                    size='small'
                                     color={colors.text}
                                   />
                                 ) : (
@@ -504,8 +726,10 @@ export default function SeatBlockingManager({
                                     <Text
                                       style={[
                                         styles.seatNumber,
-                                        status === 'booked' && styles.bookedSeatText,
-                                        status === 'blocked' && styles.blockedSeatText,
+                                        status === 'booked' &&
+                                          styles.bookedSeatText,
+                                        status === 'blocked' &&
+                                          styles.blockedSeatText,
                                       ]}
                                     >
                                       {seat.number}
@@ -578,6 +802,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  connectionStatusContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  connectionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  connectionStatusTextConnected: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  connectionStatusTextDisconnected: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -767,6 +1014,15 @@ const styles = StyleSheet.create({
     borderColor: colors.textSecondary,
     opacity: 0.6,
   },
+  recentlyUpdatedSeat: {
+    borderWidth: 3,
+    borderColor: colors.info,
+    shadowColor: colors.info,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   bookedSeatText: {
     color: colors.card,
   },
@@ -785,4 +1041,3 @@ const styles = StyleSheet.create({
     height: 8,
   },
 });
-

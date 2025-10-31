@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 import { Seat } from '@/types';
 import { SeatSelectorProps } from '@/types/components';
 import Colors from '@/constants/colors';
+import { supabase } from '@/utils/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const SeatSelector: React.FC<SeatSelectorProps> = ({
   seats,
@@ -21,16 +23,113 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
   isLoading = false,
   loadingSeats: externalLoadingSeats,
   seatErrors: externalSeatErrors,
+  tripId, // For real-time updates
+  onSeatsUpdated, // Callback when seats are updated
 }) => {
   const [internalLoadingSeats, setInternalLoadingSeats] = React.useState<
     Set<string>
   >(new Set());
+  const [localSeats, setLocalSeats] = React.useState<Seat[]>(seats);
+  const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
 
   // Use external loading seats if provided, otherwise use internal state
   const loadingSeats = externalLoadingSeats || internalLoadingSeats;
   const seatErrors = externalSeatErrors || {};
+
+  // Update local seats when prop changes
+  useEffect(() => {
+    setLocalSeats(seats);
+  }, [seats]);
+
+  // Set up real-time subscription if tripId is provided
+  useEffect(() => {
+    if (!tripId) return; // Skip if no tripId provided
+
+    console.log(
+      '[SeatSelector] Setting up real-time subscription for trip:',
+      tripId
+    );
+
+    // Subscribe to seat_reservations changes for this trip
+    realtimeChannelRef.current = supabase
+      .channel(`customer_seat_updates_${tripId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'seat_reservations',
+          filter: `trip_id=eq.${tripId}`,
+        },
+        async payload => {
+          console.log('[SeatSelector] Seat availability changed:', payload);
+
+          // Update seat availability based on reservation changes
+          if (
+            payload.eventType === 'INSERT' ||
+            payload.eventType === 'UPDATE'
+          ) {
+            const reservation = payload.new as any;
+            handleSeatAvailabilityChange(reservation);
+          } else if (payload.eventType === 'DELETE') {
+            const reservation = payload.old as any;
+            handleSeatAvailabilityChange({
+              ...reservation,
+              is_available: true,
+            });
+          }
+        }
+      )
+      .subscribe(status => {
+        console.log('[SeatSelector] Real-time subscription status:', status);
+      });
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (realtimeChannelRef.current) {
+        console.log('[SeatSelector] Cleaning up real-time subscription');
+        supabase.removeChannel(realtimeChannelRef.current);
+        realtimeChannelRef.current = null;
+      }
+    };
+  }, [tripId]);
+
+  // Handle seat availability changes from real-time events
+  const handleSeatAvailabilityChange = (reservation: any) => {
+    setLocalSeats(currentSeats => {
+      const updatedSeats = currentSeats.map(seat => {
+        if (seat.id === reservation.seat_id) {
+          // Update seat availability based on reservation status
+          const isAvailable =
+            reservation.is_available !== false && !reservation.booking_id;
+
+          // If seat becomes unavailable and was selected, alert user
+          if (!isAvailable && selectedSeats.some(s => s.id === seat.id)) {
+            Alert.alert(
+              'Seat No Longer Available',
+              `Seat ${seat.number} is no longer available and has been deselected.`,
+              [{ text: 'OK' }]
+            );
+          }
+
+          return {
+            ...seat,
+            isAvailable,
+          };
+        }
+        return seat;
+      });
+
+      // Notify parent component about updated seats
+      if (onSeatsUpdated) {
+        onSeatsUpdated(updatedSeats);
+      }
+
+      return updatedSeats;
+    });
+  };
   // Show loading state only when there are no seats AND we're loading
-  if (!seats || seats.length === 0) {
+  if (!localSeats || localSeats.length === 0) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -82,11 +181,11 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 
   // Generate seat layout by rows with aisle grouping (same logic as FerryLayoutDisplay)
   const generateSeatLayout = () => {
-    if (!seats || seats.length === 0) return [];
+    if (!localSeats || localSeats.length === 0) return [];
 
     // Group seats by row number
     const seatsByRow = new Map<number, Seat[]>();
-    seats.forEach(seat => {
+    localSeats.forEach(seat => {
       const rowNumber = seat.rowNumber;
       if (!seatsByRow.has(rowNumber)) {
         seatsByRow.set(rowNumber, []);

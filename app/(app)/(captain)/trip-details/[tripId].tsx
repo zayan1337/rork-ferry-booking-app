@@ -1213,6 +1213,7 @@ export default function CaptainTripDetailsScreen() {
                   const { error } = await supabase
                     .from('bookings')
                     .update({
+                      status: 'checked_in',
                       check_in_status: true,
                       checked_in_at: new Date().toISOString(),
                       checked_in_by: user?.id,
