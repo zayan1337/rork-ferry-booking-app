@@ -725,6 +725,10 @@ export default function TripForm({
   const performTripUpdate = async () => {
     setLoading(true);
     try {
+      // Get vessel capacity for available_seats
+      const selectedVessel = vessels?.find(v => v.id === formData.vessel_id);
+      const vesselCapacity = selectedVessel?.seating_capacity || 50; // Default fallback
+
       const tripFormData: TripFormData = {
         route_id: formData.route_id,
         vessel_id: formData.vessel_id,
@@ -735,6 +739,8 @@ export default function TripForm({
         fare_multiplier: formData.fare_multiplier,
         captain_id: formData.captain_id?.trim() || undefined,
         is_active: formData.is_active,
+        available_seats: vesselCapacity, // ✅ ADD missing available_seats field
+        booked_seats: 0, // ✅ ADD missing booked_seats field
         // Note: delay_reason, weather_conditions, notes, and crew_ids are not in the trips table
         // These fields need to be handled separately or added to the database schema
       };
@@ -778,8 +784,9 @@ export default function TripForm({
           }
         }
       } else {
+        // Create the trip
         await create(tripFormData);
-        Alert.alert('Success', 'Trip created successfully');
+        Alert.alert('Success', 'Trip created successfully!');
       }
 
       if (onSave) {

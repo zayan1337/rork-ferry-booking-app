@@ -141,7 +141,7 @@ export const useTripManagement = (
 
   const createTrip = useCallback(
     async (data: TripFormData) => {
-      await create(data);
+      return await create(data);
     },
     [create]
   );

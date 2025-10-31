@@ -310,31 +310,98 @@ export const useTripStore = create<TripStore>((set, get) => ({
         availableSeats = selectedVessel?.seating_capacity || 50;
       }
 
+      // Format time for database (ensure HH:MM:SS format)
+      const formattedDepartureTime = formatTimeForDB(tripData.departure_time);
+      const formattedArrivalTime = tripData.arrival_time
+        ? formatTimeForDB(tripData.arrival_time)
+        : null;
+
       // Only include fields that exist in the database
+      // Match the exact structure used by GenerateTripsButton
       const dbTripData = {
         route_id: tripData.route_id,
         vessel_id: tripData.vessel_id,
         travel_date: tripData.travel_date,
-        departure_time: tripData.departure_time,
+        departure_time: formattedDepartureTime,
+        arrival_time: formattedArrivalTime,
         available_seats: availableSeats,
-        fare_multiplier: tripData.fare_multiplier,
-        status: tripData.status || 'scheduled',
-        is_active: tripData.is_active,
-        booked_seats: 0, // Default for new trips
+        is_active: tripData.is_active ?? true, // Explicitly default to true like Generate button
+        booked_seats: 0, // Initialize booked_seats for new trips (matches Generate button)
+        status: tripData.status || 'scheduled', // Set default status (matches Generate button)
+        fare_multiplier: tripData.fare_multiplier || 1.0,
         captain_id: tripData.captain_id || null, // Include captain assignment
       };
 
       const { data, error } = await supabase
         .from('trips')
         .insert([dbTripData])
-        .select()
+        .select(
+          `
+          id,
+          route_id,
+          vessel_id,
+          travel_date,
+          departure_time,
+          arrival_time,
+          status,
+          available_seats,
+          booked_seats,
+          fare_multiplier,
+          is_active,
+          captain_id,
+          created_at,
+          updated_at
+        `
+        )
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database insert error:', error);
+        throw error;
+      }
 
-      // Refresh the data
-      await get().fetchAll();
-      return data;
+      if (!data) {
+        // If select didn't return data, try querying the trip directly
+        // This might happen due to RLS policies or timing issues
+        await new Promise(resolve => setTimeout(resolve, 200)); // Wait a moment
+
+        // Try to get the trip by querying with the unique constraint
+        const { data: queriedData, error: queryError } = await supabase
+          .from('trips')
+          .select('*')
+          .eq('route_id', dbTripData.route_id)
+          .eq('travel_date', dbTripData.travel_date)
+          .eq('departure_time', dbTripData.departure_time)
+          .eq('vessel_id', dbTripData.vessel_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (queryError || !queriedData) {
+          throw new Error(
+            'Trip was created but could not be retrieved. Please refresh the list.'
+          );
+        }
+
+        const createdTripData = queriedData;
+
+        // Refresh the data list
+        await get().fetchAll();
+        return createdTripData;
+      }
+
+      // Store the created trip data before refreshing
+      const createdTripData = data;
+
+      // Refresh the data list (this queries operations_trips_view)
+      try {
+        await get().fetchAll();
+      } catch (fetchError) {
+        // Don't throw - we still want to return the created trip even if refresh fails
+      }
+
+      // Return the original insert response, not the view data
+      return createdTripData;
     } catch (error) {
       console.error('Error creating trip:', error);
       set({
