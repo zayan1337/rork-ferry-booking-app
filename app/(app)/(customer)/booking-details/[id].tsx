@@ -204,44 +204,54 @@ export default function BookingDetailsScreen() {
         </>
       )}
 
+      {/* <View style={styles.detailRow}>
+        <View style={styles.detailIcon}>
+          <MapPin size={20} color={Colors.primary} />
+        </View>
+        <View style={styles.detailContent}>
+          <Text style={styles.detailLabel}>Pickup</Text>
+          <Text style={styles.detailValue}>
+            {booking.route.fromIsland.name}
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.detailRow}>
         <View style={styles.detailIcon}>
           <MapPin size={20} color={Colors.primary} />
         </View>
         <View style={styles.detailContent}>
-          <Text style={styles.detailLabel}>Route</Text>
-          {booking.route.routeStops && booking.route.routeStops.length > 0 ? (
-            <View>
-              <Text style={styles.detailValue}>
-                {booking.route.routeStops
-                  .map(stop => stop.island.name)
-                  .join(' → ')}
-              </Text>
-              <Text style={styles.routeNote}>
-                {booking.route.routeStops.length} stops
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.detailValue}>
-              {booking.route.fromIsland.name} → {booking.route.toIsland.name}
-            </Text>
-          )}
+          <Text style={styles.detailLabel}>Dropoff</Text>
+          <Text style={styles.detailValue}>{booking.route.toIsland.name}</Text>
         </View>
-      </View>
+      </View> */}
 
       {booking.tripType === 'round_trip' && booking.returnRoute && (
-        <View style={styles.detailRow}>
-          <View style={styles.detailIcon}>
-            <MapPin size={20} color={Colors.primary} />
+        <>
+          <View style={styles.detailRow}>
+            <View style={styles.detailIcon}>
+              <MapPin size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Return Pickup</Text>
+              <Text style={styles.detailValue}>
+                {booking.returnRoute.fromIsland.name}
+              </Text>
+            </View>
           </View>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Return Route</Text>
-            <Text style={styles.detailValue}>
-              {booking.returnRoute.fromIsland.name} →{' '}
-              {booking.returnRoute.toIsland.name}
-            </Text>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIcon}>
+              <MapPin size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Return Dropoff</Text>
+              <Text style={styles.detailValue}>
+                {booking.returnRoute.toIsland.name}
+              </Text>
+            </View>
           </View>
-        </View>
+        </>
       )}
 
       <View style={styles.detailRow}>
@@ -844,11 +854,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-  },
-  routeNote: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 4,
   },
   passengersCard: {
     marginBottom: 16,

@@ -30,7 +30,7 @@ interface AdminBookingItemProps {
   compact?: boolean;
 }
 
-export default function AdminBookingItem({
+function AdminBookingItem({
   booking,
   onPress,
   compact = false,
@@ -209,6 +209,20 @@ export default function AdminBookingItem({
     </Pressable>
   );
 }
+
+// Memoize to avoid unnecessary re-renders in large lists
+export default React.memo(AdminBookingItem, (prev, next) => {
+  // Re-render only if booking id or key fields change, or compact flag changes
+  return (
+    prev.compact === next.compact &&
+    prev.booking.id === next.booking.id &&
+    prev.booking.status === next.booking.status &&
+    prev.booking.total_fare === next.booking.total_fare &&
+    prev.booking.created_at === next.booking.created_at &&
+    prev.booking.route_name === next.booking.route_name &&
+    prev.onPress === next.onPress
+  );
+});
 
 const styles = StyleSheet.create({
   container: {

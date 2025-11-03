@@ -424,40 +424,47 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         })
       );
 
-      // Fetch booking counts and checked-in passenger counts for each trip
-      for (const trip of trips) {
-        // Count total active bookings (booked_seats)
-        const { data: allPassengers, error: allError } = await supabase
-          .from('captain_passengers_view')
-          .select('id', { count: 'exact', head: false })
-          .eq('trip_id', trip.id);
+      // Fetch booking counts and checked-in passenger counts for all trips in parallel
+      await Promise.all(
+        trips.map(async trip => {
+          // Run both passenger queries in parallel for this trip
+          const [
+            { data: allPassengers, error: allError },
+            { data: checkedInData, error: checkedInError },
+          ] = await Promise.all([
+            // Count total active bookings
+            supabase
+              .from('captain_passengers_view')
+              .select('id', { count: 'exact', head: false })
+              .eq('trip_id', trip.id),
+            // Count checked-in passengers
+            supabase
+              .from('captain_passengers_view')
+              .select('id', { count: 'exact', head: false })
+              .eq('trip_id', trip.id)
+              .eq('check_in_status', true),
+          ]);
 
-        if (allError) {
-          console.error('Error fetching all passengers count:', allError);
-          trip.booked_seats = 0;
-        } else {
-          trip.booked_seats = allPassengers?.length || 0;
-        }
+          if (allError) {
+            console.error('Error fetching all passengers count:', allError);
+            trip.booked_seats = 0;
+          } else {
+            trip.booked_seats = allPassengers?.length || 0;
+          }
 
-        // Count checked-in passengers
-        const { data: checkedInData, error: checkedInError } = await supabase
-          .from('captain_passengers_view')
-          .select('id', { count: 'exact', head: false })
-          .eq('trip_id', trip.id)
-          .eq('check_in_status', true);
+          if (checkedInError) {
+            console.error('Error fetching checked-in count:', checkedInError);
+            trip.checked_in_passengers = 0;
+          } else {
+            trip.checked_in_passengers = checkedInData?.length || 0;
+          }
 
-        if (checkedInError) {
-          console.error('Error fetching checked-in count:', checkedInError);
-          trip.checked_in_passengers = 0;
-        } else {
-          trip.checked_in_passengers = checkedInData?.length || 0;
-        }
-
-        // Recalculate occupancy rate with actual booked_seats
-        trip.occupancy_rate = trip.capacity
-          ? (trip.booked_seats / trip.capacity) * 100
-          : 0;
-      }
+          // Recalculate occupancy rate with actual booked_seats
+          trip.occupancy_rate = trip.capacity
+            ? (trip.booked_seats / trip.capacity) * 100
+            : 0;
+        })
+      );
 
       set(state => ({
         ...state,

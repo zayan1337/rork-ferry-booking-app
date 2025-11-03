@@ -41,10 +41,8 @@ import {
   Phone,
   Mail,
 } from 'lucide-react-native';
-import {
-  formatDateTime,
-  formatCurrency,
-} from '@/utils/admin/bookingManagementUtils';
+import { formatDateTime } from '@/utils/admin/bookingManagementUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { supabase } from '@/utils/supabase';
 import { getRouteStops } from '@/utils/segmentUtils';
 import { getBookingSegment } from '@/utils/segmentBookingUtils';
@@ -497,17 +495,17 @@ export default function BookingDetailsPage() {
               <View style={styles.detailItem}>
                 <Calendar size={16} color={colors.textSecondary} />
                 <Text style={styles.detailText}>
-                  {
-                    formatDateTime(
-                      booking.trip_travel_date || booking.created_at
-                    ).split(' ')[0]
-                  }
+                  {formatBookingDate(
+                    booking.trip_travel_date || booking.created_at
+                  )}
                 </Text>
               </View>
               <View style={styles.detailItem}>
                 <Clock size={16} color={colors.textSecondary} />
                 <Text style={styles.detailText}>
-                  {booking.trip_departure_time || 'N/A'}
+                  {booking.trip_departure_time
+                    ? formatTimeAMPM(booking.trip_departure_time)
+                    : 'N/A'}
                 </Text>
               </View>
             </View>
@@ -556,44 +554,10 @@ export default function BookingDetailsPage() {
               <View style={styles.detailItem}>
                 <CreditCard size={16} color={colors.textSecondary} />
                 <Text style={styles.detailText}>
-                  {formatCurrency(bookingInfo.totalFare)}
+                  Payment: {paymentStatus.toUpperCase()}
                 </Text>
               </View>
             </View>
-          </View>
-
-          {/* Metrics */}
-          <View style={styles.metricsContainer}>
-            <View style={styles.metric}>
-              <Text style={styles.metricValue}>
-                {formatCurrency(
-                  booking.total_fare || booking.trip_base_fare || 0
-                )}
-              </Text>
-              <Text style={styles.metricLabel}>Total Fare</Text>
-            </View>
-            <View style={styles.metric}>
-              <Text style={styles.metricValue}>
-                {formatCurrency(bookingInfo.paymentAmount)}
-              </Text>
-              <Text style={styles.metricLabel}>Paid Amount</Text>
-            </View>
-            {bookingInfo.discount > 0 && (
-              <View style={styles.metric}>
-                <Text style={[styles.metricValue, { color: colors.success }]}>
-                  -{formatCurrency(bookingInfo.discount)}
-                </Text>
-                <Text style={styles.metricLabel}>Discount</Text>
-              </View>
-            )}
-            {bookingInfo.additionalCharges > 0 && (
-              <View style={styles.metric}>
-                <Text style={[styles.metricValue, { color: colors.warning }]}>
-                  +{formatCurrency(bookingInfo.additionalCharges)}
-                </Text>
-                <Text style={styles.metricLabel}>Additional Charges</Text>
-              </View>
-            )}
           </View>
         </View>
 
@@ -917,27 +881,6 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: '500',
-  },
-  metricsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: `${colors.border}30`,
-  },
-  metric: {
-    alignItems: 'center',
-  },
-  metricValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  metricLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
     fontWeight: '500',
   },
   customerCard: {

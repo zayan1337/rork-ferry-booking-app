@@ -30,8 +30,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import StatCard from '@/components/StatCard';
 import { formatCurrency } from '@/utils/currencyUtils';
-import { formatSimpleDate } from '@/utils/dateUtils';
-import { formatTripTime } from '@/utils/tripUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth > 768;
@@ -111,7 +110,7 @@ export default function CaptainDashboardScreen() {
           <Text style={styles.welcomeGreeting}>Good {getTimeOfDay()}</Text>
           <Text style={styles.captainName}>Captain {getCaptainName()}</Text>
           <Text style={styles.welcomeDate}>
-            {formatSimpleDate(new Date().toISOString())}
+            {formatBookingDate(new Date().toISOString())}
           </Text>
         </View>
         <View style={styles.statusBadge}>
@@ -186,7 +185,7 @@ export default function CaptainDashboardScreen() {
               <View style={styles.timeInfo}>
                 <Clock size={16} color={Colors.textSecondary} />
                 <Text style={styles.departureTime}>
-                  {formatTripTime(nextTrip.departure_time)}
+                  {formatTimeAMPM(nextTrip.departure_time)}
                 </Text>
               </View>
             </View>
@@ -354,7 +353,7 @@ export default function CaptainDashboardScreen() {
             </View>
             <Text style={styles.actionText}>Next Trip</Text>
             <Text style={styles.actionSubtext}>
-              {formatTripTime(nextTrip.departure_time)}
+              {formatTimeAMPM(nextTrip.departure_time)}
             </Text>
           </Pressable>
         )}

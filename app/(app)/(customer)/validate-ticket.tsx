@@ -19,7 +19,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import type { ValidationResult } from '@/types/pages/booking';
-import { formatSimpleDate } from '@/utils/dateUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -251,16 +251,21 @@ export default function ValidateTicketScreen() {
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Route:</Text>
+          <Text style={styles.summaryLabel}>Pickup:</Text>
           <Text style={styles.summaryValue}>
-            {booking.route.fromIsland.name} → {booking.route.toIsland.name}
+            {booking.route.fromIsland.name}
           </Text>
+        </View>
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Dropoff:</Text>
+          <Text style={styles.summaryValue}>{booking.route.toIsland.name}</Text>
         </View>
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Date:</Text>
           <Text style={styles.summaryValue}>
-            {formatSimpleDate(booking.departureDate)}
+            {formatBookingDate(booking.departureDate)}
           </Text>
         </View>
 
@@ -268,7 +273,11 @@ export default function ValidateTicketScreen() {
         {isOwnBooking && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Time:</Text>
-            <Text style={styles.summaryValue}>{booking.departureTime}</Text>
+            <Text style={styles.summaryValue}>
+              {booking.departureTime
+                ? formatTimeAMPM(booking.departureTime)
+                : '-'}
+            </Text>
           </View>
         )}
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -192,6 +192,48 @@ export default function BookingsScreen() {
     }
   };
 
+  // Memoized key extractor and renderItem for FlatList performance
+  const keyExtractor = useCallback((item: AdminBooking) => item.id, []);
+
+  const renderBookingItem = useCallback(
+    ({ item: booking }: { item: AdminBooking }) => (
+      <View style={styles.bookingItemWrapper}>
+        {canUpdateBookings() && (
+          <Pressable
+            style={styles.selectionCheckbox}
+            onPress={() => toggleBookingSelection(booking.id)}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                filters.selectedBookings.includes(booking.id) &&
+                  styles.checkboxSelected,
+              ]}
+            >
+              {filters.selectedBookings.includes(booking.id) && (
+                <Check size={14} color='white' />
+              )}
+            </View>
+          </Pressable>
+        )}
+        <View style={styles.bookingItemContent}>
+          <AdminBookingItem
+            booking={booking}
+            onPress={handleBookingPress}
+            compact={!isTablet}
+          />
+        </View>
+      </View>
+    ),
+    [
+      canUpdateBookings,
+      filters.selectedBookings,
+      handleBookingPress,
+      isTablet,
+      toggleBookingSelection,
+    ]
+  );
+
   if (!canViewBookings()) {
     return (
       <View style={styles.noPermissionContainer}>
@@ -225,52 +267,8 @@ export default function BookingsScreen() {
     />
   );
 
-  const renderBookingsList = () => (
+  const renderListHeader = () => (
     <>
-      {/* Enhanced Search and Filter */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchWrapper}>
-          <SearchBar
-            value={localSearchQuery}
-            onChangeText={setLocalSearchQuery}
-            placeholder='Search by customer, route, booking ID, or email...'
-          />
-        </View>
-        <Button
-          title=''
-          variant='outline'
-          size={isTablet ? 'large' : 'medium'}
-          icon={<Filter size={isTablet ? 20 : 18} color={colors.primary} />}
-          onPress={() => setShowFilterModal(true)}
-        />
-        <Button
-          title=''
-          variant='outline'
-          size={isTablet ? 'large' : 'medium'}
-          icon={
-            <ArrowUpDown size={isTablet ? 20 : 18} color={colors.primary} />
-          }
-          onPress={() => {
-            const sortFields: (
-              | 'created_at'
-              | 'total_fare'
-              | 'user_name'
-              | 'route_name'
-              | 'trip_travel_date'
-            )[] = [
-              'created_at',
-              'total_fare',
-              'user_name',
-              'route_name',
-              'trip_travel_date',
-            ];
-            const currentIndex = sortFields.indexOf(filters.sortBy);
-            const nextIndex = (currentIndex + 1) % sortFields.length;
-            setSortBy(sortFields[nextIndex]);
-          }}
-        />
-      </View>
-
       {/* Filter Tabs */}
       <FilterTabs
         activeFilter={filters.filterStatus}
@@ -389,10 +387,60 @@ export default function BookingsScreen() {
       ) : (
         <View style={styles.container}>
           {renderHeader()}
-          <View style={[getResponsivePadding()]}>
+          {/* Fixed Search Bar and Tab Navigation */}
+          <View style={[styles.stickyHeader, getResponsivePadding()]}>
             <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-            {renderBookingsList()}
+            {/* Enhanced Search and Filter */}
+            <View style={styles.searchContainer}>
+              <View style={styles.searchWrapper}>
+                <SearchBar
+                  value={localSearchQuery}
+                  onChangeText={setLocalSearchQuery}
+                  placeholder='Search by customer, route, booking ID, or email...'
+                />
+              </View>
+              <Button
+                title=''
+                variant='outline'
+                size={isTablet ? 'large' : 'medium'}
+                icon={
+                  <Filter size={isTablet ? 20 : 18} color={colors.primary} />
+                }
+                onPress={() => setShowFilterModal(true)}
+              />
+              <Button
+                title=''
+                variant='outline'
+                size={isTablet ? 'large' : 'medium'}
+                icon={
+                  <ArrowUpDown
+                    size={isTablet ? 20 : 18}
+                    color={colors.primary}
+                  />
+                }
+                onPress={() => {
+                  const sortFields: (
+                    | 'created_at'
+                    | 'total_fare'
+                    | 'user_name'
+                    | 'route_name'
+                    | 'trip_travel_date'
+                  )[] = [
+                    'created_at',
+                    'total_fare',
+                    'user_name',
+                    'route_name',
+                    'trip_travel_date',
+                  ];
+                  const currentIndex = sortFields.indexOf(filters.sortBy);
+                  const nextIndex = (currentIndex + 1) % sortFields.length;
+                  setSortBy(sortFields[nextIndex]);
+                }}
+              />
+            </View>
           </View>
+
+          {/* Scrollable List */}
           <FlatList
             style={styles.flatListContainer}
             contentContainerStyle={[
@@ -400,36 +448,10 @@ export default function BookingsScreen() {
               getResponsivePadding(),
             ]}
             data={displayBookings}
+            keyExtractor={keyExtractor}
             keyboardShouldPersistTaps='handled'
-            renderItem={({ item: booking }) => (
-              <View style={styles.bookingItemWrapper}>
-                {canUpdateBookings() && (
-                  <Pressable
-                    style={styles.selectionCheckbox}
-                    onPress={() => toggleBookingSelection(booking.id)}
-                  >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        filters.selectedBookings.includes(booking.id) &&
-                          styles.checkboxSelected,
-                      ]}
-                    >
-                      {filters.selectedBookings.includes(booking.id) && (
-                        <Check size={14} color='white' />
-                      )}
-                    </View>
-                  </Pressable>
-                )}
-                <View style={styles.bookingItemContent}>
-                  <AdminBookingItem
-                    booking={booking}
-                    onPress={handleBookingPress}
-                    compact={!isTablet}
-                  />
-                </View>
-              </View>
-            )}
+            ListHeaderComponent={renderListHeader}
+            renderItem={renderBookingItem}
             ListEmptyComponent={() => {
               if ((loading || !hasFetched) && displayBookings.length === 0) {
                 return (
@@ -454,6 +476,21 @@ export default function BookingsScreen() {
               );
             }}
             ListFooterComponent={() => {
+              // Show hint to scroll when more data is available
+              if (!loading && hasMore) {
+                const remaining = Math.max(
+                  (totalItems || 0) - displayBookings.length,
+                  0
+                );
+                return (
+                  <View style={styles.footerIndicator}>
+                    <Text style={styles.footerIndicatorText}>
+                      {remaining > 0 ? `${remaining} more` : 'More items'} •
+                      Scroll to load
+                    </Text>
+                  </View>
+                );
+              }
               if (!loading && !hasMore && displayBookings.length > 0) {
                 return (
                   <View style={styles.footer}>
@@ -475,7 +512,6 @@ export default function BookingsScreen() {
               }
               return null;
             }}
-            keyExtractor={(item, index) => `${item.id}-${index}`}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -487,6 +523,11 @@ export default function BookingsScreen() {
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.1}
             showsVerticalScrollIndicator={false}
+            removeClippedSubviews={true}
+            initialNumToRender={15}
+            maxToRenderPerBatch={15}
+            windowSize={5}
+            updateCellsBatchingPeriod={50}
             ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
           />
         </View>
@@ -556,6 +597,21 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
   },
+  footerIndicator: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.primary}08`,
+    marginTop: 8,
+    marginHorizontal: 16,
+    borderRadius: 6,
+  },
+  footerIndicatorText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -575,16 +631,29 @@ const styles = StyleSheet.create({
     borderColor: `${colors.border}60`,
   },
 
+  stickyHeader: {
+    backgroundColor: colors.backgroundSecondary,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: 12,
+    zIndex: 10,
+    elevation: 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 0,
   },
   searchWrapper: {
     flex: 1,
   },
   section: {
+    marginTop: 16,
     marginBottom: 24,
   },
   bookingsHeader: {

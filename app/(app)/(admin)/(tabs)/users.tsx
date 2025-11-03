@@ -448,6 +448,43 @@ export default function UsersScreen() {
     );
   }
 
+  // Header content that should scroll with the list (below the sticky search bar)
+  const renderUsersListHeader = () => (
+    <>
+      <FilterTabs
+        filterRole={filters.role || 'all'}
+        onRoleChange={role => setFilters({ ...filters, role })}
+        getCount={getCount}
+      />
+
+      <BulkActionsBar
+        selectedCount={selectedUsers.length}
+        onActivate={() => handleBulkStatusUpdate('active')}
+        onSuspend={() => handleBulkStatusUpdate('suspended')}
+        onClear={() => setSelectedUsers([])}
+        canUpdateUsers={canUpdateUsers()}
+      />
+
+      <UserListHeader
+        searchQuery={localSearchQuery}
+        filteredCount={displayUsers.length}
+        isTablet={isTablet}
+        hasActiveFilters={hasActiveFilters()}
+        currentFilterText={getCurrentFilterText()}
+        onClearFilters={clearAllFilters}
+      />
+
+      <SelectAllSection
+        canUpdateUsers={canUpdateUsers()}
+        filteredCount={displayUsers.length}
+        selectedCount={selectedUsers.length}
+        isAllSelected={isAllSelected}
+        isPartiallySelected={isPartiallySelected}
+        onSelectAll={handleSelectAll}
+      />
+    </>
+  );
+
   return (
     <>
       {activeTab === 'overview' ? (
@@ -600,9 +637,9 @@ export default function UsersScreen() {
               ),
             }}
           />
-          <View style={[getResponsivePadding()]}>
+          {/* Sticky header with tabs and search */}
+          <View style={[styles.stickyHeader, getResponsivePadding()]}>
             <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-
             <SearchAndFilterBar
               searchQuery={localSearchQuery}
               onSearchChange={setLocalSearchQuery}
@@ -629,29 +666,6 @@ export default function UsersScreen() {
               }}
               isTablet={isTablet}
             />
-
-            <FilterTabs
-              filterRole={filters.role || 'all'}
-              onRoleChange={role => setFilters({ ...filters, role })}
-              getCount={getCount}
-            />
-
-            <BulkActionsBar
-              selectedCount={selectedUsers.length}
-              onActivate={() => handleBulkStatusUpdate('active')}
-              onSuspend={() => handleBulkStatusUpdate('suspended')}
-              onClear={() => setSelectedUsers([])}
-              canUpdateUsers={canUpdateUsers()}
-            />
-
-            <UserListHeader
-              searchQuery={localSearchQuery}
-              filteredCount={displayUsers.length}
-              isTablet={isTablet}
-              hasActiveFilters={hasActiveFilters()}
-              currentFilterText={getCurrentFilterText()}
-              onClearFilters={clearAllFilters}
-            />
           </View>
           <FlatList
             style={styles.flatListContainer}
@@ -662,7 +676,13 @@ export default function UsersScreen() {
             data={displayUsers}
             keyExtractor={keyExtractor}
             keyboardShouldPersistTaps='handled'
+            ListHeaderComponent={renderUsersListHeader}
             renderItem={renderUserItem}
+            getItemLayout={(_, index) => ({
+              length: 84,
+              offset: 84 * index,
+              index,
+            })}
             ListEmptyComponent={() => (
               <EmptyState
                 icon={<Users size={48} color={colors.textSecondary} />}
@@ -735,6 +755,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
+  },
+  stickyHeader: {
+    backgroundColor: colors.backgroundSecondary,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: 12,
+    zIndex: 10,
+    elevation: 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   flatListContainer: {
     flex: 1,

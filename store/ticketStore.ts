@@ -2,14 +2,10 @@ import { create } from 'zustand';
 import { supabase } from '../utils/supabase';
 import type { TicketStoreState } from '@/types/booking';
 import type { Booking, BookingStatus } from '@/types';
+import type { ValidationResult } from '@/types/pages/booking';
 
 interface TicketStoreActions {
-  validateTicket: (bookingNumber: string) => Promise<{
-    isValid: boolean;
-    booking: Booking | null;
-    message: string;
-    isOwnBooking?: boolean;
-  }>;
+  validateTicket: (bookingNumber: string) => Promise<ValidationResult>;
   setError: (error: string | null) => void;
   setLoading: (isLoading: boolean) => void;
 }
@@ -67,7 +63,7 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
         try {
           const { data: directData, error: directError } = await supabase
             .from('ticket_validation_view')
-            .select('*')
+            .select('*, trip_id')
             .eq('booking_number', cleanBookingNumber)
             .single();
 
@@ -105,6 +101,7 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
             user_id: basicBooking.user_id,
             agent_id: basicBooking.agent_id,
             agent_client_id: basicBooking.agent_client_id,
+            trip_id: basicBooking.trip_id,
             // Default values when trip data is not available
             travel_date: new Date().toISOString().split('T')[0],
             departure_time: '00:00',
@@ -325,6 +322,88 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
         clientName = bookingType === 'agent' ? 'Agent Client' : 'Customer';
       }
 
+      // STEP 5.5: Get booking segment information (pickup/dropoff points)
+      let boardingIslandName = ticketData.from_island_name || 'Unknown';
+      let destinationIslandName = ticketData.to_island_name || 'Unknown';
+      let boardingIslandZone = ticketData.from_island_zone || 'A';
+      let destinationIslandZone = ticketData.to_island_zone || 'A';
+
+      try {
+        const { data: segmentData, error: segmentError } = await supabase
+          .from('booking_segments')
+          .select(
+            `
+            boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
+              islands(name, zone)
+            ),
+            destination_stop:route_stops!booking_segments_destination_stop_id_fkey(
+              islands(name, zone)
+            )
+          `
+          )
+          .eq('booking_id', ticketData.booking_id)
+          .single();
+
+        if (!segmentError && segmentData) {
+          // Get boarding stop island name
+          const boardingStop: any = (segmentData as any).boarding_stop;
+          if (boardingStop?.islands) {
+            const island = Array.isArray(boardingStop.islands)
+              ? boardingStop.islands[0]
+              : boardingStop.islands;
+            boardingIslandName = island?.name || boardingIslandName;
+            boardingIslandZone = island?.zone || boardingIslandZone;
+          }
+
+          // Get destination stop island name
+          const destinationStop: any = (segmentData as any).destination_stop;
+          if (destinationStop?.islands) {
+            const island = Array.isArray(destinationStop.islands)
+              ? destinationStop.islands[0]
+              : destinationStop.islands;
+            destinationIslandName = island?.name || destinationIslandName;
+            destinationIslandZone = island?.zone || destinationIslandZone;
+          }
+        }
+      } catch (segmentFetchError) {
+        // Continue with route from/to islands if segment fetch fails
+        console.error('Error fetching booking segment:', segmentFetchError);
+      }
+
+      // STEP 5.6: Fetch vessel name if missing and we have trip_id
+      if (
+        (!ticketData.vessel_name ||
+          ticketData.vessel_name === 'Unknown Vessel') &&
+        ticketData.trip_id
+      ) {
+        try {
+          const { data: tripData, error: tripError } = await supabase
+            .from('trips')
+            .select(
+              `
+              vessel_id,
+              vessels!inner(
+                name
+              )
+            `
+            )
+            .eq('id', ticketData.trip_id)
+            .single();
+
+          if (!tripError && tripData) {
+            const vessel = Array.isArray(tripData.vessels)
+              ? tripData.vessels[0]
+              : tripData.vessels;
+            if (vessel?.name) {
+              ticketData.vessel_name = vessel.name;
+            }
+          }
+        } catch (vesselFetchError) {
+          // Continue with existing vessel name if fetch fails
+          console.error('Error fetching vessel name:', vesselFetchError);
+        }
+      }
+
       // STEP 6: Create the booking object
       const booking: Booking = {
         id: ticketData.booking_id,
@@ -337,13 +416,13 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
           id: '',
           fromIsland: {
             id: '',
-            name: ticketData.from_island_name || 'Unknown',
-            zone: ticketData.from_island_zone || 'A',
+            name: boardingIslandName,
+            zone: boardingIslandZone,
           },
           toIsland: {
             id: '',
-            name: ticketData.to_island_name || 'Unknown',
-            zone: ticketData.to_island_zone || 'A',
+            name: destinationIslandName,
+            zone: destinationIslandZone,
           },
           baseFare: ticketData.base_fare || 0,
           duration: '2h',
@@ -365,6 +444,7 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
         clientPhone,
         agentId: ticketData.agent_id || null,
         isAgentBooking: bookingType === 'agent',
+        tripId: ticketData.trip_id || null,
       };
 
       // STEP 7: Validate the booking for fraud detection

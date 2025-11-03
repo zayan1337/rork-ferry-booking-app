@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Clock, Users, Navigation, Check } from 'lucide-react-native';
+import { Clock, Users, Check } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import { formatTimeAMPM } from '@/utils/dateUtils';
@@ -35,7 +35,7 @@ export default function SegmentTripCard({
 
   const availableSeats =
     trip.available_seats_for_segment || trip.available_seats || 0;
-  const totalStops = trip.total_stops || 0;
+  const totalSeats = trip.seating_capacity || 0;
 
   return (
     <Pressable onPress={onPress}>
@@ -75,12 +75,9 @@ export default function SegmentTripCard({
             <View style={styles.quickStats}>
               <View style={styles.quickStat}>
                 <Users size={12} color={Colors.primary} />
-                <Text style={styles.quickStatText}>{availableSeats}</Text>
-              </View>
-              <Text style={styles.separator}>•</Text>
-              <View style={styles.quickStat}>
-                <Navigation size={12} color={Colors.primary} />
-                <Text style={styles.quickStatText}>{totalStops} stops</Text>
+                <Text style={styles.quickStatText}>
+                  {availableSeats} / {totalSeats} seats
+                </Text>
               </View>
             </View>
           </View>
@@ -177,10 +174,6 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   quickStatText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  separator: {
     fontSize: 12,
     color: Colors.textSecondary,
   },

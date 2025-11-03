@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking } from '@/types/admin/management';
-import { Users, Phone, MapPin, User, AlertCircle } from 'lucide-react-native';
+import { Users, Phone, MapPin, AlertCircle } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
 
 interface Passenger {
@@ -170,15 +170,6 @@ export default function BookingPassengerDetails({
           </View>
         ))}
       </ScrollView>
-
-      <View style={styles.summary}>
-        <View style={styles.summaryHeader}>
-          <User size={16} color={colors.textSecondary} />
-          <Text style={styles.summaryText}>
-            Total Passengers: {passengers.length}
-          </Text>
-        </View>
-      </View>
     </View>
   );
 }
@@ -305,22 +296,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     flex: 1,
-  },
-  summary: {
-    borderTopWidth: 1,
-    borderTopColor: `${colors.border}40`,
-    paddingTop: 12,
-    marginTop: 8,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  summaryText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
   },
 });

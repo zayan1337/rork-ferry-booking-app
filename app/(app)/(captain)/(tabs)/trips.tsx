@@ -28,8 +28,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import CalendarDatePicker from '@/components/CalendarDatePicker';
-import { formatSimpleDate } from '@/utils/dateUtils';
-import { formatTripTime } from '@/utils/tripUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { formatCurrency } from '@/utils/currencyUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -299,7 +298,7 @@ export default function CaptainTripsScreen() {
             <View style={styles.detailItem}>
               <Clock size={14} color={Colors.textSecondary} />
               <Text style={styles.detailText}>
-                {formatTripTime(trip.departure_time)}
+                {formatTimeAMPM(trip.departure_time)}
               </Text>
             </View>
             <View style={styles.detailItem}>
@@ -354,7 +353,7 @@ export default function CaptainTripsScreen() {
       <Text style={styles.emptyMessage}>
         {dateFilter === new Date().toISOString().split('T')[0]
           ? "You don't have any trips scheduled for today."
-          : `No trips found for ${formatSimpleDate(dateFilter)}.`}
+          : `No trips found for ${formatBookingDate(dateFilter)}.`}
       </Text>
       <Button
         title='Refresh'
@@ -384,7 +383,7 @@ export default function CaptainTripsScreen() {
         {/* Trip Summary */}
         <Card variant='outlined' style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>
-            {formatSimpleDate(dateFilter)} - {filteredTrips.length} Trip(s)
+            {formatBookingDate(dateFilter)} - {filteredTrips.length} Trip(s)
           </Text>
           <View style={styles.summaryStats}>
             <View style={styles.summaryItem}>

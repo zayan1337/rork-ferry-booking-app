@@ -73,8 +73,10 @@ export default function SeatBlockingManager({
     };
   }, [tripId, vesselId]);
 
-  const loadSeatData = async () => {
-    setLoading(true);
+  const loadSeatData = async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
     try {
       // Fetch all vessel seats
       const { data: vesselSeats, error: seatsError } = await supabase
@@ -88,7 +90,9 @@ export default function SeatBlockingManager({
 
       if (!vesselSeats || vesselSeats.length === 0) {
         setSeats([]);
-        setLoading(false);
+        if (showLoading) {
+          setLoading(false);
+        }
         return;
       }
 
@@ -147,7 +151,9 @@ export default function SeatBlockingManager({
       console.error('Error loading seat data:', error);
       Alert.alert('Error', 'Failed to load seat data. Please try again.');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -483,8 +489,8 @@ export default function SeatBlockingManager({
 
           if (error) throw error;
 
-          // Reload data to get the new reservation
-          await loadSeatData();
+          // Silently reload data to get the new reservation (without showing loading)
+          await loadSeatData(false);
         }
       } else {
         // Block the seat (admin block)
@@ -542,8 +548,8 @@ export default function SeatBlockingManager({
 
           if (error) throw error;
 
-          // Reload data to get the new reservation
-          await loadSeatData();
+          // Silently reload data to get the new reservation (without showing loading)
+          await loadSeatData(false);
         }
       }
 

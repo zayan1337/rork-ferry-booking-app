@@ -38,6 +38,7 @@ import {
 // Import new step components
 import IslandDateStep from '@/components/booking/steps/IslandDateStep';
 import TripSelectionStep from '@/components/booking/steps/TripSelectionStep';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 export default function BookScreen() {
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -552,21 +553,39 @@ export default function BookScreen() {
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Departure Date:</Text>
                   <Text style={styles.summaryValue}>
-                    {currentBooking.departureDate &&
-                      new Date(
-                        currentBooking.departureDate
-                      ).toLocaleDateString()}
+                    {currentBooking.departureDate
+                      ? formatBookingDate(currentBooking.departureDate)
+                      : '-'}
                   </Text>
                 </View>
+
+                {currentBooking.trip?.departure_time && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Departure Time:</Text>
+                    <Text style={styles.summaryValue}>
+                      {formatTimeAMPM(currentBooking.trip.departure_time)}
+                    </Text>
+                  </View>
+                )}
 
                 {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
                   currentBooking.returnDate && (
                     <View style={styles.summaryRow}>
                       <Text style={styles.summaryLabel}>Return Date:</Text>
                       <Text style={styles.summaryValue}>
-                        {new Date(
-                          currentBooking.returnDate
-                        ).toLocaleDateString()}
+                        {formatBookingDate(currentBooking.returnDate)}
+                      </Text>
+                    </View>
+                  )}
+
+                {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+                  currentBooking.returnTrip?.departure_time && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Return Time:</Text>
+                      <Text style={styles.summaryValue}>
+                        {formatTimeAMPM(
+                          currentBooking.returnTrip.departure_time
+                        )}
                       </Text>
                     </View>
                   )}

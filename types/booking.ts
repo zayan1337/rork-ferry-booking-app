@@ -34,6 +34,7 @@ export interface TripWithSegment extends Trip {
   destination_island_name: string;
   segment_fare: number;
   available_seats_for_segment: number;
+  seating_capacity?: number;
   total_stops: number;
   route_name?: string;
 }

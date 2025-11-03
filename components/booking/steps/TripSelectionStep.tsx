@@ -47,7 +47,11 @@ export default function TripSelectionStep() {
           currentBooking.destinationIslandId,
           currentBooking.departureDate
         );
-        setAvailableTrips(trips);
+        // Filter out trips that have already departed
+        const futureTrips = trips.filter(trip =>
+          isTripBookable(trip.travel_date, trip.departure_time)
+        );
+        setAvailableTrips(futureTrips);
       }
 
       // Load return trips if round trip
@@ -62,7 +66,11 @@ export default function TripSelectionStep() {
           currentBooking.returnDestinationIslandId,
           currentBooking.returnDate
         );
-        setReturnAvailableTrips(returnTrips);
+        // Filter out return trips that have already departed
+        const futureReturnTrips = returnTrips.filter(trip =>
+          isTripBookable(trip.travel_date, trip.departure_time)
+        );
+        setReturnAvailableTrips(futureReturnTrips);
       }
     } catch (error) {
       console.error('Error loading trips:', error);

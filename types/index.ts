@@ -130,6 +130,7 @@ export type Booking = {
   clientPhone?: string;
   agentId?: string | null;
   isAgentBooking?: boolean;
+  tripId?: string | null;
 };
 
 // Base exports without conflicts

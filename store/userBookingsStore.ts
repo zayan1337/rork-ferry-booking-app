@@ -100,23 +100,15 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
           ),
           booking_segments(
             id,
-            boarding_stop_id(
+            boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
               id,
               stop_sequence,
-              island_id(
-                id,
-                name,
-                zone
-              )
+              islands(name, zone)
             ),
-            destination_stop_id(
+            destination_stop:route_stops!booking_segments_destination_stop_id_fkey(
               id,
               stop_sequence,
-              island_id(
-                id,
-                name,
-                zone
-              )
+              islands(name, zone)
             ),
             fare_amount
           ),
@@ -175,16 +167,30 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             // Multi-stop booking - booking_segments is a single object
             const segment = booking.booking_segments;
 
+            // Get boarding stop island
+            const boardingStop = segment.boarding_stop;
+            const boardingIsland = boardingStop?.islands;
+            const boardingIslandData = Array.isArray(boardingIsland)
+              ? boardingIsland[0]
+              : boardingIsland;
+
+            // Get destination stop island
+            const destinationStop = segment.destination_stop;
+            const destinationIsland = destinationStop?.islands;
+            const destinationIslandData = Array.isArray(destinationIsland)
+              ? destinationIsland[0]
+              : destinationIsland;
+
             fromIsland = {
-              id: segment.boarding_stop_id?.island_id?.id || '',
-              name: segment.boarding_stop_id?.island_id?.name || 'Unknown',
-              zone: segment.boarding_stop_id?.island_id?.zone || '',
+              id: boardingIslandData?.id || '',
+              name: boardingIslandData?.name || 'Unknown',
+              zone: boardingIslandData?.zone || '',
             };
 
             toIsland = {
-              id: segment.destination_stop_id?.island_id?.id || '',
-              name: segment.destination_stop_id?.island_id?.name || 'Unknown',
-              zone: segment.destination_stop_id?.island_id?.zone || '',
+              id: destinationIslandData?.id || '',
+              name: destinationIslandData?.name || 'Unknown',
+              zone: destinationIslandData?.zone || '',
             };
           } else {
             // Regular booking - use route data

@@ -11,6 +11,8 @@ import {
   Animated,
   Easing,
   Linking,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import {
   Stack,
@@ -33,18 +35,23 @@ import {
   ScanLine,
   Grid3X3,
   AlertCircle,
+  ClipboardList,
+  X,
 } from 'lucide-react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 import { useCaptainStore } from '@/store/captainStore';
 import { useAuthStore } from '@/store/authStore';
+import { useTicketStore } from '@/store/ticketStore';
 import { CaptainTrip, CaptainRouteStop } from '@/types/captain';
 import { Seat } from '@/types';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
-import { formatSimpleDate } from '@/utils/dateUtils';
-import { formatTripTime } from '@/utils/tripUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { supabase } from '@/utils/supabase';
+
+const { width, height } = Dimensions.get('window');
 
 export default function CaptainTripDetailsScreen() {
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
@@ -76,6 +83,9 @@ export default function CaptainTripDetailsScreen() {
   const [passengerStops, setPassengerStops] = useState<
     Map<string, { board_from: string; drop_off_to: string }>
   >(new Map());
+  const [stopPassengerCounts, setStopPassengerCounts] = useState<
+    Map<string, { pickup: number; dropoff: number }>
+  >(new Map());
 
   // Multi-stop state
   const [routeStops, setRouteStops] = useState<CaptainRouteStop[]>([]);
@@ -94,6 +104,13 @@ export default function CaptainTripDetailsScreen() {
   const [activeTab, setActiveTab] = useState<'all' | 'checked_in' | 'pending'>(
     'all'
   );
+
+  // QR Scanner state
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [scanned, setScanned] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanningBooking, setScanningBooking] = useState(false);
+  const { validateTicket } = useTicketStore();
 
   // Animated value for refresh icon rotation
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -272,16 +289,17 @@ export default function CaptainTripDetailsScreen() {
       if (error) throw error;
 
       const stopsMap = new Map();
+      const countsMap = new Map<string, { pickup: number; dropoff: number }>();
+
+      // Create a map of booking_id to segment data
+      const bookingSegmentMap = new Map();
       (data || []).forEach((booking: any) => {
-        // Handle both array and object response from Supabase
         const segments = booking.booking_segments;
         let seg = null;
 
         if (Array.isArray(segments)) {
-          // If it's an array, get the first element
           seg = segments[0];
         } else if (segments && typeof segments === 'object') {
-          // If it's an object (single record), use it directly
           seg = segments;
         }
 
@@ -289,12 +307,51 @@ export default function CaptainTripDetailsScreen() {
           const stops = {
             board_from: seg?.boarding_stop?.islands?.name || '',
             drop_off_to: seg?.destination_stop?.islands?.name || '',
+            boarding_stop_id: seg.boarding_stop_id,
+            destination_stop_id: seg.destination_stop_id,
           };
           stopsMap.set(booking.id, stops);
+          bookingSegmentMap.set(booking.id, seg);
         }
       });
 
+      // Count actual passengers (not bookings)
+      passengers
+        .filter(
+          p =>
+            p.booking_status &&
+            ['confirmed', 'checked_in', 'completed'].includes(p.booking_status)
+        )
+        .forEach(passenger => {
+          const segment = bookingSegmentMap.get(passenger.booking_id);
+          if (segment) {
+            const boardingStopId = segment.boarding_stop_id;
+            const destinationStopId = segment.destination_stop_id;
+
+            // Count pickup for this passenger
+            if (boardingStopId) {
+              const current = countsMap.get(boardingStopId) || {
+                pickup: 0,
+                dropoff: 0,
+              };
+              current.pickup += 1;
+              countsMap.set(boardingStopId, current);
+            }
+
+            // Count dropoff for this passenger
+            if (destinationStopId) {
+              const current = countsMap.get(destinationStopId) || {
+                pickup: 0,
+                dropoff: 0,
+              };
+              current.dropoff += 1;
+              countsMap.set(destinationStopId, current);
+            }
+          }
+        });
+
       setPassengerStops(stopsMap);
+      setStopPassengerCounts(countsMap);
     } catch (error) {
       console.error('Error fetching passenger stops:', error);
     }
@@ -333,7 +390,7 @@ export default function CaptainTripDetailsScreen() {
 
     Alert.alert(
       'Activate Trip',
-      `Do you want to activate this trip?\n\nRoute: ${trip.route_name}\nDate: ${formatSimpleDate(trip.travel_date)}\nTime: ${formatTripTime(trip.departure_time)}\n\nOnce activated, passengers will be able to check in.`,
+      `Do you want to activate this trip?\n\nRoute: ${trip.route_name}\nDate: ${formatBookingDate(trip.travel_date)}\nTime: ${formatTimeAMPM(trip.departure_time)}\n\nOnce activated, passengers will be able to check in.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -386,6 +443,62 @@ export default function CaptainTripDetailsScreen() {
       loadMultiStopData();
     }
   }, [tripId]);
+
+  // Silent reload without loading indicators
+  const reloadDataSilently = useCallback(async () => {
+    if (!tripId) return;
+
+    try {
+      // Fetch fresh data without setting loading states
+      const stops = await fetchTripStops(tripId);
+      setRouteStops(stops);
+
+      // Find the correct current stop
+      let selectedStop = null;
+
+      const activeBoardingStop = stops.find(
+        stop => stop.status === 'boarding' || stop.status === 'arrived'
+      );
+      if (activeBoardingStop) {
+        selectedStop = activeBoardingStop;
+      } else {
+        const pickupStops = stops.filter(
+          s => s.stop_type === 'pickup' || s.stop_type === 'both'
+        );
+        const allPickupsCompleted = pickupStops.every(s => s.is_completed);
+
+        if (allPickupsCompleted) {
+          selectedStop = stops.find(
+            s =>
+              (s.stop_type === 'dropoff' || s.stop_type === 'both') &&
+              !s.is_completed
+          );
+        } else {
+          selectedStop = stops.find(s => !s.is_completed);
+        }
+      }
+
+      if (!selectedStop) {
+        selectedStop = stops[0];
+      }
+
+      if (selectedStop) {
+        setSelectedStopId(selectedStop.id);
+        setCurrentStop(selectedStop);
+      }
+
+      // Reload passengers and trip data silently
+      await Promise.all([fetchTripPassengers(tripId), fetchTripById(tripId)]);
+
+      // Update trip from store
+      const updatedTrip = trips.find(t => t.id === tripId);
+      if (updatedTrip) {
+        setTrip(updatedTrip);
+      }
+    } catch (error) {
+      console.error('[reloadDataSilently] Error:', error);
+    }
+  }, [tripId, fetchTripStops, fetchTripPassengers, fetchTripById, trips]);
 
   // Load multi-stop data with enhanced workflow
   const loadMultiStopData = useCallback(async () => {
@@ -472,7 +585,7 @@ export default function CaptainTripDetailsScreen() {
         currentStop.stop_type === 'dropoff' || currentStop.stop_type === 'both';
 
       if (isCurrentDropoff && status === 'arrived') {
-        // At a dropoff stop that we've arrived at
+        // At a dropoff stop that we've arrived at - need to complete it first
         if (isLastStop) {
           return {
             text: `Complete Trip at ${currentStop.island.name}`,
@@ -481,7 +594,16 @@ export default function CaptainTripDetailsScreen() {
           };
         }
 
-        // Find next incomplete stop
+        // Complete current dropoff before moving to next
+        return {
+          text: `Complete Dropoff at ${currentStop.island.name}`,
+          action: 'complete_dropoff',
+          variant: 'primary' as const,
+        };
+      }
+
+      // If current dropoff is completed, move to next stop
+      if (isCurrentDropoff && status === 'completed') {
         const nextStop = routeStops.find(
           s => s.stop_sequence > currentStop.stop_sequence && !s.is_completed
         );
@@ -644,6 +766,9 @@ export default function CaptainTripDetailsScreen() {
         case 'arrive':
           await handleArrive();
           break;
+        case 'complete_dropoff':
+          await handleCompleteDropoff();
+          break;
         case 'send_manifest':
           await handleSendManifest();
           break;
@@ -767,10 +892,8 @@ export default function CaptainTripDetailsScreen() {
                 is_current_stop: true,
               }));
 
-              // Reload data in background (non-blocking)
-              Promise.all([loadMultiStopData(), loadTripData()]).catch(err => {
-                console.error('Error reloading data:', err);
-              });
+              // Reload data silently to sync with database
+              setTimeout(() => reloadDataSilently(), 500);
             } catch (err: any) {
               console.error('Unexpected error:', err);
               Alert.alert(
@@ -865,10 +988,8 @@ export default function CaptainTripDetailsScreen() {
                 });
               }
 
-              // Reload data in background (non-blocking)
-              Promise.all([loadMultiStopData(), loadTripData()]).catch(err => {
-                console.error('Error reloading data:', err);
-              });
+              // Reload data silently to sync with database
+              setTimeout(() => reloadDataSilently(), 500);
             } else {
               console.error('Error departing:', error);
               Alert.alert(
@@ -883,6 +1004,62 @@ export default function CaptainTripDetailsScreen() {
         },
       },
     ]);
+  };
+
+  const handleCompleteDropoff = async () => {
+    if (!currentStop || !tripId) return;
+
+    Alert.alert(
+      'Complete Dropoff',
+      `Mark dropoff at ${currentStop.island.name} as completed?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Complete',
+          onPress: async () => {
+            try {
+              // Update stop status to 'completed'
+              const { data, error } = await supabase.rpc('update_stop_status', {
+                p_trip_id: tripId,
+                p_stop_id: currentStop.stop_id,
+                p_status: 'completed',
+                p_captain_id: user?.id,
+              });
+
+              if (!error && data) {
+                // Optimistic UI Update
+                setRouteStops(prevStops =>
+                  prevStops.map(stop =>
+                    stop.stop_id === currentStop.stop_id
+                      ? { ...stop, status: 'completed', is_completed: true }
+                      : stop
+                  )
+                );
+
+                setCurrentStop((prev: any) => ({
+                  ...prev,
+                  status: 'completed',
+                  is_completed: true,
+                }));
+
+                // Reload data silently to sync with database
+                setTimeout(() => reloadDataSilently(), 500);
+              } else {
+                console.error('Error completing dropoff:', error);
+                Alert.alert(
+                  'Error',
+                  'Failed to complete dropoff: ' +
+                    (error?.message || 'Unknown error')
+                );
+              }
+            } catch (err) {
+              console.error('Unexpected error:', err);
+              Alert.alert('Error', 'An unexpected error occurred');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleArrive = async () => {
@@ -971,21 +1148,17 @@ export default function CaptainTripDetailsScreen() {
                 }
               }
 
-              // Reload data in background (non-blocking)
-              Promise.all([loadMultiStopData(), loadTripData()])
-                .then(() => {
-                  // Check completion after reload to ensure accuracy
-                  if (data.is_completed) {
-                    Alert.alert(
-                      'Trip Completed',
-                      data.message || 'Trip completed successfully!',
-                      [{ text: 'OK', onPress: () => router.back() }]
-                    );
-                  }
-                })
-                .catch(err => {
-                  console.error('Error reloading data:', err);
-                });
+              // Check completion without reloading
+              if (data.is_completed) {
+                Alert.alert(
+                  'Trip Completed',
+                  data.message || 'Trip completed successfully!',
+                  [{ text: 'OK', onPress: () => router.back() }]
+                );
+              } else {
+                // Reload data silently to sync with database
+                setTimeout(() => reloadDataSilently(), 500);
+              }
             } else {
               console.error('Error arriving:', error || data);
               Alert.alert(
@@ -1017,10 +1190,7 @@ export default function CaptainTripDetailsScreen() {
           onPress: async () => {
             const success = await sendManifest(tripId, currentStop.id);
 
-            if (success) {
-              await loadMultiStopData();
-              await loadTripData();
-            } else {
+            if (!success) {
               Alert.alert('Error', 'Failed to send manifest');
             }
           },
@@ -1114,13 +1284,9 @@ export default function CaptainTripDetailsScreen() {
     async (stopId: string) => {
       if (!user?.id) return;
 
-      const success = await completeStopBoarding(stopId, user.id);
-      if (success) {
-        await loadMultiStopData();
-        await loadTripData();
-      }
+      await completeStopBoarding(stopId, user.id);
     },
-    [user?.id, completeStopBoarding, loadMultiStopData, loadTripData]
+    [user?.id, completeStopBoarding]
   );
 
   // Bulk check-in handlers
@@ -1243,9 +1409,6 @@ export default function CaptainTripDetailsScreen() {
               setSelectedPassengers(new Set());
               setBulkCheckInMode(false);
 
-              // Reload data
-              await loadTripData();
-
               // Show result
               if (errorCount === 0) {
                 Alert.alert(
@@ -1266,6 +1429,224 @@ export default function CaptainTripDetailsScreen() {
         },
       ]
     );
+  };
+
+  // QR Scanner handlers
+  const handleOpenQRScanner = async () => {
+    if (!permission) {
+      const { granted } = await requestPermission();
+      if (!granted) {
+        Alert.alert(
+          'Camera Permission Required',
+          'Please grant camera permission to scan QR codes.'
+        );
+        return;
+      }
+    }
+
+    if (permission && !permission.granted) {
+      const { granted } = await requestPermission();
+      if (!granted) {
+        Alert.alert(
+          'Camera Permission Required',
+          'Please grant camera permission to scan QR codes.'
+        );
+        return;
+      }
+    }
+
+    setShowQRScanner(true);
+    setScanned(false);
+  };
+
+  const handleCloseQRScanner = () => {
+    setShowQRScanner(false);
+    setScanned(false);
+  };
+
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+    if (scanned || scanningBooking) return;
+
+    setScanned(true);
+    setScanningBooking(true);
+
+    try {
+      let bookingNum = '';
+
+      // Parse QR code data to extract booking number (same logic as checkin.tsx)
+      try {
+        // First try to parse as JSON (legacy format)
+        const qrData = JSON.parse(data);
+        bookingNum = qrData.bookingNumber || qrData.booking_number || '';
+      } catch (parseError) {
+        // Check if data is a QR server URL (new format)
+        if (data.includes('qrserver.com') && data.includes('data=')) {
+          // Extract the data parameter from the URL
+          const urlMatch = data.match(/data=([^&]+)/);
+          if (urlMatch && urlMatch[1]) {
+            // URL decode the data parameter
+            const decodedData = decodeURIComponent(urlMatch[1]);
+
+            // Now extract booking number from decoded data
+            if (
+              decodedData.includes('Booking:') ||
+              decodedData.includes('Booking ')
+            ) {
+              const bookingMatch = decodedData.match(
+                /Booking[:\s]+([A-Z0-9]+)/i
+              );
+              if (bookingMatch && bookingMatch[1]) {
+                bookingNum = bookingMatch[1];
+              }
+            }
+          }
+        } else if (data.includes('Booking:') || data.includes('Booking ')) {
+          // Direct format: "Booking: {booking_number}" or "Booking {booking_number}"
+          const bookingMatch = data.match(/Booking[:\s]+([A-Z0-9]+)/i);
+          if (bookingMatch && bookingMatch[1]) {
+            bookingNum = bookingMatch[1];
+          }
+        } else {
+          // Fallback: assume the entire data is the booking number
+          bookingNum = data.trim();
+        }
+      }
+
+      if (!bookingNum) {
+        Alert.alert(
+          'Invalid QR Code',
+          `The scanned QR code does not contain valid booking information.`,
+          [
+            { text: 'Scan Another', onPress: () => setScanned(false) },
+            { text: 'Close', onPress: handleCloseQRScanner },
+          ]
+        );
+        setScanningBooking(false);
+        return;
+      }
+
+      // Format and validate the booking number
+      const formattedBookingNum = bookingNum.toString().toUpperCase();
+      const result = await validateTicket(formattedBookingNum);
+
+      if (!result.isValid || !result.booking) {
+        Alert.alert('Invalid Ticket', result.message, [
+          { text: 'Scan Another', onPress: () => setScanned(false) },
+          { text: 'Close', onPress: handleCloseQRScanner },
+        ]);
+        setScanningBooking(false);
+        return;
+      }
+
+      const booking = result.booking as any;
+
+      // Check if booking is for this trip
+      if (booking.tripId !== tripId) {
+        Alert.alert('Wrong Trip', 'This ticket is not for this trip.', [
+          { text: 'Scan Another', onPress: () => setScanned(false) },
+          { text: 'Close', onPress: handleCloseQRScanner },
+        ]);
+        setScanningBooking(false);
+        return;
+      }
+
+      // Check if already checked in
+      if (booking.checkInStatus) {
+        Alert.alert(
+          'Already Checked In',
+          `${booking.clientName || 'Passenger'} has already been checked in.`,
+          [
+            { text: 'Scan Another', onPress: () => setScanned(false) },
+            { text: 'Close', onPress: handleCloseQRScanner },
+          ]
+        );
+        setScanningBooking(false);
+        return;
+      }
+
+      // Check if booking is confirmed
+      if (booking.status !== 'confirmed') {
+        Alert.alert(
+          'Cannot Check In',
+          `Booking status is ${booking.status}. Only confirmed bookings can be checked in.`,
+          [
+            { text: 'Scan Another', onPress: () => setScanned(false) },
+            { text: 'Close', onPress: handleCloseQRScanner },
+          ]
+        );
+        setScanningBooking(false);
+        return;
+      }
+
+      // Confirm check-in
+      Alert.alert(
+        'Check In Passenger',
+        `Check in ${booking.clientName || 'passenger'}?\n\nBooking: ${booking.bookingNumber}\nPassengers: ${booking.passengers?.length || 0}\nSeats: ${booking.seats?.map((s: any) => s.number).join(', ') || 'N/A'}`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => {
+              setScanned(false);
+              setScanningBooking(false);
+            },
+          },
+          {
+            text: 'Check In',
+            onPress: async () => {
+              try {
+                const { error } = await supabase
+                  .from('bookings')
+                  .update({
+                    status: 'checked_in',
+                    check_in_status: true,
+                    checked_in_at: new Date().toISOString(),
+                    checked_in_by: user?.id,
+                  })
+                  .eq('id', booking.id);
+
+                if (error) {
+                  console.error('Error checking in:', error);
+                  Alert.alert('Error', 'Failed to check in passenger.', [
+                    { text: 'Scan Another', onPress: () => setScanned(false) },
+                    { text: 'Close', onPress: handleCloseQRScanner },
+                  ]);
+                  setScanningBooking(false);
+                  return;
+                }
+
+                // Reload passengers
+                await fetchTripPassengers(tripId!);
+
+                Alert.alert(
+                  'Success',
+                  `${booking.clientName || 'Passenger'} checked in successfully!`,
+                  [
+                    { text: 'Scan Another', onPress: () => setScanned(false) },
+                    { text: 'Close', onPress: handleCloseQRScanner },
+                  ]
+                );
+                setScanningBooking(false);
+              } catch (err) {
+                console.error('Error checking in:', err);
+                Alert.alert('Error', 'Failed to check in passenger.', [
+                  { text: 'Scan Another', onPress: () => setScanned(false) },
+                  { text: 'Close', onPress: handleCloseQRScanner },
+                ]);
+                setScanningBooking(false);
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error validating ticket:', error);
+      Alert.alert('Error', 'Failed to validate ticket.', [
+        { text: 'Scan Another', onPress: () => setScanned(false) },
+        { text: 'Close', onPress: handleCloseQRScanner },
+      ]);
+      setScanningBooking(false);
+    }
   };
 
   // Remove this function from here - it will be moved below
@@ -1647,13 +2028,13 @@ export default function CaptainTripDetailsScreen() {
             <View style={styles.detailItem}>
               <Calendar size={16} color={Colors.textSecondary} />
               <Text style={styles.detailText}>
-                {formatSimpleDate(trip.travel_date)}
+                {formatBookingDate(trip.travel_date)}
               </Text>
             </View>
             <View style={styles.detailItem}>
               <Clock size={16} color={Colors.textSecondary} />
               <Text style={styles.detailText}>
-                {formatTripTime(trip.departure_time)}
+                {formatTimeAMPM(trip.departure_time)}
               </Text>
             </View>
           </View>
@@ -1697,6 +2078,12 @@ export default function CaptainTripDetailsScreen() {
                 const stopType = stop.stop_type || 'both';
                 const isPickup = stopType === 'pickup' || stopType === 'both';
                 const isDropoff = stopType === 'dropoff' || stopType === 'both';
+
+                // Get passenger counts for this stop
+                const counts = stopPassengerCounts.get(stop.stop_id) || {
+                  pickup: 0,
+                  dropoff: 0,
+                };
 
                 return (
                   <View key={stop.id} style={styles.stopItem}>
@@ -1784,6 +2171,36 @@ export default function CaptainTripDetailsScreen() {
                           </Text>
                         </View>
                       </View>
+
+                      {/* Passenger Counts */}
+                      {(counts.pickup > 0 || counts.dropoff > 0) && (
+                        <View style={styles.passengerCountsRow}>
+                          {counts.pickup > 0 && (
+                            <View style={styles.passengerCountBadge}>
+                              <Users size={12} color={Colors.success} />
+                              <Text style={styles.passengerCountText}>
+                                {counts.pickup} passenger
+                                {counts.pickup !== 1 ? 's' : ''} boarding
+                              </Text>
+                            </View>
+                          )}
+                          {counts.dropoff > 0 && (
+                            <View
+                              style={[
+                                styles.passengerCountBadge,
+                                styles.dropoffBadge,
+                              ]}
+                            >
+                              <Users size={12} color={Colors.error} />
+                              <Text style={styles.passengerCountText}>
+                                {counts.dropoff} passenger
+                                {counts.dropoff !== 1 ? 's' : ''} dropping off
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+
                       {stop.is_current_stop && (
                         <Text style={styles.currentStopText}>
                           📍 Current Stop
@@ -1986,13 +2403,11 @@ export default function CaptainTripDetailsScreen() {
             <Button
               title='Scan QR Code'
               variant='outline'
-              onPress={() => {
-                router.push('/(captain)/(tabs)/checkin' as any);
-              }}
+              onPress={handleOpenQRScanner}
               icon={<ScanLine size={18} color={Colors.primary} />}
               style={styles.actionButton}
             />
-            {/* <Button
+            <Button
               title={
                 trip.is_checkin_closed ? 'Check-in Closed' : 'Close Check-in'
               }
@@ -2007,7 +2422,7 @@ export default function CaptainTripDetailsScreen() {
                 )
               }
               style={styles.actionButton}
-            /> */}
+            />
           </View>
         </Card>
       )}
@@ -2028,7 +2443,9 @@ export default function CaptainTripDetailsScreen() {
               </View>
             )}
             <View style={styles.passengerCount}>
-              <Text style={styles.passengerCountText}>{totalPassengers}</Text>
+              <Text style={styles.passengerHeaderCountText}>
+                {totalPassengers}
+              </Text>
             </View>
             <Pressable style={styles.refreshButton} onPress={handleRefresh}>
               <Animated.View style={{ transform: [{ rotate: spin }] }}>
@@ -2299,6 +2716,84 @@ export default function CaptainTripDetailsScreen() {
           </View>
         )}
       </Card>
+
+      {/* QR Scanner Modal */}
+      <Modal
+        visible={showQRScanner}
+        animationType='slide'
+        onRequestClose={handleCloseQRScanner}
+      >
+        <View style={styles.qrScannerContainer}>
+          {/* Header */}
+          <View style={styles.qrScannerHeader}>
+            <Text style={styles.qrScannerTitle}>Scan QR Code</Text>
+            <Pressable
+              onPress={handleCloseQRScanner}
+              style={styles.qrCloseButton}
+            >
+              <X size={24} color={Colors.text} />
+            </Pressable>
+          </View>
+
+          {/* Camera View */}
+          <View style={styles.cameraContainer}>
+            {permission?.granted ? (
+              <CameraView
+                style={styles.camera}
+                facing='back'
+                onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+                barcodeScannerSettings={{
+                  barcodeTypes: ['qr'],
+                }}
+              >
+                <View style={styles.scannerOverlay}>
+                  <View style={styles.scannerFrame} />
+                  <Text style={styles.scannerInstructions}>
+                    {scanningBooking
+                      ? 'Processing...'
+                      : scanned
+                        ? 'QR Code Scanned'
+                        : 'Position QR code within the frame'}
+                  </Text>
+                  {scanningBooking && (
+                    <ActivityIndicator
+                      size='large'
+                      color='white'
+                      style={styles.scannerLoader}
+                    />
+                  )}
+                </View>
+              </CameraView>
+            ) : (
+              <View style={styles.permissionContainer}>
+                <Text style={styles.permissionText}>
+                  Camera permission is required to scan QR codes
+                </Text>
+                <Button
+                  title='Grant Permission'
+                  onPress={requestPermission}
+                  style={styles.permissionButton}
+                />
+              </View>
+            )}
+          </View>
+
+          {/* Trip Info */}
+          <View style={styles.qrTripInfo}>
+            <View style={styles.qrTripInfoRow}>
+              <Ship size={16} color={Colors.primary} />
+              <Text style={styles.qrTripInfoText}>{trip.route_name}</Text>
+            </View>
+            <View style={styles.qrTripInfoRow}>
+              <Calendar size={16} color={Colors.textSecondary} />
+              <Text style={styles.qrTripInfoText}>
+                {formatBookingDate(trip.travel_date)} •{' '}
+                {formatTimeAMPM(trip.departure_time)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -2950,7 +3445,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  passengerCountText: {
+  passengerHeaderCountText: {
     color: 'white',
     fontSize: 12,
     fontWeight: '700',
@@ -3062,6 +3557,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.success,
     fontWeight: '600',
+  },
+  passengerCountsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  passengerCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: `${Colors.success}10`,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: `${Colors.success}30`,
+  },
+  dropoffBadge: {
+    backgroundColor: `${Colors.error}10`,
+    borderColor: `${Colors.error}30`,
+  },
+  passengerCountText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.text,
   },
   multiStopActions: {
     marginTop: 16,
@@ -3191,5 +3712,93 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: Colors.textSecondary,
+  },
+  // QR Scanner Modal Styles
+  qrScannerContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  qrScannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: Colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  qrScannerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  qrCloseButton: {
+    padding: 8,
+  },
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: Colors.text,
+  },
+  camera: {
+    flex: 1,
+  },
+  scannerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scannerFrame: {
+    width: width * 0.7,
+    height: width * 0.7,
+    borderWidth: 3,
+    borderColor: 'white',
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+  },
+  scannerInstructions: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    textAlign: 'center',
+    marginTop: 24,
+    paddingHorizontal: 32,
+  },
+  scannerLoader: {
+    marginTop: 20,
+  },
+  permissionContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    backgroundColor: Colors.background,
+  },
+  permissionText: {
+    fontSize: 16,
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  permissionButton: {
+    minWidth: 200,
+  },
+  qrTripInfo: {
+    padding: 16,
+    backgroundColor: Colors.card,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: 8,
+  },
+  qrTripInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  qrTripInfoText: {
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: '500',
   },
 });

@@ -203,6 +203,7 @@ export async function getTripsForSegment(
     destination_island_name: string;
     segment_fare: number;
     available_seats_for_segment: number;
+    seating_capacity: number;
     is_active: boolean;
     fare_multiplier: number;
     total_stops: number;
@@ -218,39 +219,39 @@ export async function getTripsForSegment(
     return [];
   }
 
-  // Get island names
-  const { data: boardingIsland, error: boardingIslandError } = await supabase
-    .from('islands')
-    .select('id, name')
-    .eq('id', boardingIslandId)
-    .single();
-
-  const { data: destinationIsland, error: destinationIslandError } =
-    await supabase
-      .from('islands')
-      .select('id, name')
-      .eq('id', destinationIslandId)
-      .single();
+  // Get island names in parallel
+  const [{ data: boardingIsland }, { data: destinationIsland }] =
+    await Promise.all([
+      supabase
+        .from('islands')
+        .select('id, name')
+        .eq('id', boardingIslandId)
+        .single(),
+      supabase
+        .from('islands')
+        .select('id, name')
+        .eq('id', destinationIslandId)
+        .single(),
+    ]);
 
   const boardingIslandName = boardingIsland?.name || 'Unknown';
   const destinationIslandName = destinationIsland?.name || 'Unknown';
 
-  const trips: any[] = [];
-
-  // For each route segment, get trips for the travel date
-  for (const segment of routeSegments) {
-    // Get total stops for this route
-    const { data: routeStops, error: stopsError } = await supabase
-      .from('route_stops')
-      .select('id')
-      .eq('route_id', segment.route_id);
-
-    const totalStops = !stopsError && routeStops ? routeStops.length : 0;
-
-    const { data: tripData, error: tripError } = await supabase
-      .from('trips')
-      .select(
-        `
+  // Process all route segments in parallel
+  const segmentPromises = routeSegments.map(async segment => {
+    // Get route stops and trips in parallel
+    const [
+      { data: routeStops, error: stopsError },
+      { data: tripData, error: tripError },
+    ] = await Promise.all([
+      supabase
+        .from('route_stops')
+        .select('id')
+        .eq('route_id', segment.route_id),
+      supabase
+        .from('trips')
+        .select(
+          `
         id,
         route_id,
         travel_date,
@@ -265,45 +266,46 @@ export async function getTripsForSegment(
           seating_capacity
         )
       `
-      )
-      .eq('route_id', segment.route_id)
-      .eq('travel_date', travelDate)
-      .eq('is_active', true)
-      .order('departure_time');
+        )
+        .eq('route_id', segment.route_id)
+        .eq('travel_date', travelDate)
+        .eq('is_active', true)
+        .order('departure_time'),
+    ]);
+
+    const totalStops = !stopsError && routeStops ? routeStops.length : 0;
 
     if (!tripError && tripData && tripData.length > 0) {
-      for (const trip of tripData as any[]) {
-        // Get segment fare for this trip
-        const { data: fareData, error: fareError } = await supabase.rpc(
-          'get_effective_segment_fare',
-          {
+      // Process all trips in parallel for this segment
+      const tripPromises = (tripData as any[]).map(async trip => {
+        // Run all queries for this trip in parallel
+        const [
+          { data: fareData, error: fareError },
+          { count: bookedSeatCount, error: bookedError },
+          { count: adminBlockedCount, error: adminBlockedError },
+        ] = await Promise.all([
+          // Get segment fare
+          supabase.rpc('get_effective_segment_fare', {
             p_trip_id: trip.id,
             p_from_stop_id: segment.boarding_stop_id,
             p_to_stop_id: segment.destination_stop_id,
-          }
-        );
-
-        const segmentFare = fareError ? 0 : fareData || 0;
-
-        // Get available seats - calculate from vessel capacity minus booked and admin-blocked seats
-        // This is more reliable than checking is_available flag which can be stale
-        const vesselCapacity = trip.vessels.seating_capacity;
-
-        // Count booked seats (where booking_id is NOT NULL)
-        const { count: bookedSeatCount, error: bookedError } = await supabase
-          .from('seat_reservations')
-          .select('id', { count: 'exact', head: true })
-          .eq('trip_id', trip.id)
-          .not('booking_id', 'is', null); // Count only booked seats
-
-        // Count admin-blocked seats (where is_admin_blocked = true)
-        const { count: adminBlockedCount, error: adminBlockedError } =
-          await supabase
+          }),
+          // Count booked seats
+          supabase
             .from('seat_reservations')
             .select('id', { count: 'exact', head: true })
             .eq('trip_id', trip.id)
-            .eq('is_admin_blocked', true);
+            .not('booking_id', 'is', null),
+          // Count admin-blocked seats
+          supabase
+            .from('seat_reservations')
+            .select('id', { count: 'exact', head: true })
+            .eq('trip_id', trip.id)
+            .eq('is_admin_blocked', true),
+        ]);
 
+        const segmentFare = fareError ? 0 : fareData || 0;
+        const vesselCapacity = trip.vessels.seating_capacity;
         const bookedSeats = bookedError ? 0 : bookedSeatCount || 0;
         const adminBlockedSeats = adminBlockedError
           ? 0
@@ -315,7 +317,7 @@ export async function getTripsForSegment(
           vesselCapacity - bookedSeats - adminBlockedSeats
         );
 
-        trips.push({
+        return {
           trip_id: trip.id,
           route_id: segment.route_id,
           route_name: segment.route_name,
@@ -331,13 +333,22 @@ export async function getTripsForSegment(
           destination_island_name: destinationIslandName,
           segment_fare: segmentFare,
           available_seats_for_segment: availableSeats,
+          seating_capacity: vesselCapacity,
           is_active: trip.is_active,
           fare_multiplier: trip.fare_multiplier || 1.0,
           total_stops: totalStops,
-        });
-      }
+        };
+      });
+
+      // Wait for all trips to be processed
+      return await Promise.all(tripPromises);
     }
-  }
+    return [];
+  });
+
+  // Wait for all segments to be processed and flatten results
+  const allTrips = await Promise.all(segmentPromises);
+  const trips = allTrips.flat();
 
   // Sort by departure time
   trips.sort((a, b) => a.departure_time.localeCompare(b.departure_time));

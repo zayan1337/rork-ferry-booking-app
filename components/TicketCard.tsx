@@ -49,6 +49,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
         <View style={styles.routeRow}>
           <View style={styles.routePoint}>
             <View style={[styles.routeDot, styles.startDot]} />
+            {/* <Text style={styles.routeLabel}>Pickup</Text> */}
             <Text style={styles.routeLocation}>
               {booking.route.fromIsland.name}
             </Text>
@@ -56,6 +57,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
           <View style={styles.routeLine} />
           <View style={styles.routePoint}>
             <View style={[styles.routeDot, styles.endDot]} />
+            {/* <Text style={styles.routeLabel}>Dropoff</Text> */}
             <Text style={styles.routeLocation}>
               {booking.route.toIsland.name}
             </Text>

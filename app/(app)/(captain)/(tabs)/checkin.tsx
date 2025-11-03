@@ -10,8 +10,16 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { CheckCircle, XCircle, X, UserCheck, Eye } from 'lucide-react-native';
+import {
+  CheckCircle,
+  XCircle,
+  X,
+  UserCheck,
+  Eye,
+  Ship,
+} from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { router } from 'expo-router';
 import { useTicketStore } from '@/store/ticketStore';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/utils/supabase';
@@ -19,7 +27,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import type { ValidationResult } from '@/types/pages/booking';
-import { formatSimpleDate } from '@/utils/dateUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -116,7 +124,7 @@ export default function CaptainCheckinScreen() {
       timeDifferenceMinutes >= -30 && timeDifferenceMinutes <= 30;
 
     if (!isWithinCheckInWindow) {
-      const departureTimeStr = `${formatSimpleDate(booking.departureDate)} at ${booking.departureTime}`;
+      const departureTimeStr = `${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(booking.departureTime)}`;
       if (timeDifferenceMinutes > 30) {
         Alert.alert(
           'Too Early for Check-in',
@@ -280,10 +288,10 @@ export default function CaptainCheckinScreen() {
 
         if (timeDifferenceMinutes > 30) {
           ticketStatus = 'Future';
-          statusMessage = `Ticket is valid but check-in window hasn't opened yet.\n\nDeparture: ${formatSimpleDate(booking.departureDate)} at ${booking.departureTime}\nCheck-in opens: 30 minutes before departure`;
+          statusMessage = `Ticket is valid but check-in window hasn't opened yet.\n\nDeparture: ${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(booking.departureTime)}\nCheck-in opens: 30 minutes before departure`;
         } else if (timeDifferenceMinutes < -30) {
           ticketStatus = 'Expired';
-          statusMessage = `Ticket has expired. Check-in window closed 30 minutes after departure.\n\nDeparture was: ${formatSimpleDate(booking.departureDate)} at ${booking.departureTime}`;
+          statusMessage = `Ticket has expired. Check-in window closed 30 minutes after departure.\n\nDeparture was: ${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(booking.departureTime)}`;
         } else if (currentBooking.check_in_status) {
           ticketStatus = 'Used';
           statusMessage =
@@ -296,7 +304,7 @@ export default function CaptainCheckinScreen() {
         } else if (isWithinCheckInWindow) {
           ticketStatus = 'Valid';
           statusMessage = 'Ticket is valid and within check-in window.';
-          additionalInfo = `\nDeparture: ${formatSimpleDate(booking.departureDate)} at ${booking.departureTime}\nCheck-in window: 30 min before to 30 min after departure`;
+          additionalInfo = `\nDeparture: ${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(booking.departureTime)}\nCheck-in window: 30 min before to 30 min after departure`;
         }
       }
 
@@ -442,6 +450,23 @@ export default function CaptainCheckinScreen() {
     setValidationResult(null);
   };
 
+  const handleViewTripDetails = () => {
+    if (!validationResult?.booking) return;
+
+    const bookingData = validationResult.booking as any;
+    const tripId = bookingData.tripId || bookingData.trip_id;
+
+    if (!tripId) {
+      Alert.alert(
+        'Trip Not Found',
+        'Unable to find trip details for this booking.'
+      );
+      return;
+    }
+
+    router.push(`/(captain)/trip-details/${tripId}` as any);
+  };
+
   // Create separate styles for valid and invalid result cards
   const getResultCardStyle = () => {
     if (!validationResult) return styles.resultCard;
@@ -483,6 +508,13 @@ export default function CaptainCheckinScreen() {
           </View>
         )}
 
+        {bookingData.clientPhone && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Contact:</Text>
+            <Text style={styles.summaryValue}>{bookingData.clientPhone}</Text>
+          </View>
+        )}
+
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Status:</Text>
           <Text
@@ -494,6 +526,30 @@ export default function CaptainCheckinScreen() {
             ]}
           >
             {bookingData.status.toUpperCase()}
+          </Text>
+        </View>
+
+        {bookingData.paymentStatus && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Payment:</Text>
+            <Text
+              style={[
+                styles.summaryValue,
+                bookingData.paymentStatus === 'completed' ||
+                bookingData.paymentStatus === 'paid'
+                  ? styles.confirmedStatus
+                  : styles.cancelledStatus,
+              ]}
+            >
+              {bookingData.paymentStatus.toUpperCase()}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Trip Type:</Text>
+          <Text style={styles.summaryValue}>
+            {bookingData.tripType === 'round_trip' ? 'Round Trip' : 'One Way'}
           </Text>
         </View>
 
@@ -511,16 +567,24 @@ export default function CaptainCheckinScreen() {
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Date:</Text>
+          <Text style={styles.summaryLabel}>Departure:</Text>
           <Text style={styles.summaryValue}>
-            {formatSimpleDate(bookingData.departureDate)}
+            {formatBookingDate(bookingData.departureDate)} at{' '}
+            {formatTimeAMPM(bookingData.departureTime)}
           </Text>
         </View>
 
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Time:</Text>
-          <Text style={styles.summaryValue}>{bookingData.departureTime}</Text>
-        </View>
+        {bookingData.tripType === 'round_trip' && bookingData.returnDate && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Return:</Text>
+            <Text style={styles.summaryValue}>
+              {formatBookingDate(bookingData.returnDate)}
+              {bookingData.returnTime
+                ? ` at ${formatTimeAMPM(bookingData.returnTime)}`
+                : ''}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Vessel:</Text>
@@ -553,6 +617,24 @@ export default function CaptainCheckinScreen() {
             MVR {(bookingData.totalFare || 0).toFixed(2)}
           </Text>
         </View>
+
+        {bookingData.createdAt && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Booked On:</Text>
+            <Text style={styles.summaryValue}>
+              {formatBookingDate(bookingData.createdAt)}
+            </Text>
+          </View>
+        )}
+
+        {bookingData.specialAssistance && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Special Needs:</Text>
+            <Text style={[styles.summaryValue, { color: Colors.warning }]}>
+              {bookingData.specialAssistance}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Check-in:</Text>
@@ -734,6 +816,18 @@ export default function CaptainCheckinScreen() {
                         </View>
                       )}
                     </View>
+
+                    {/* Trip Details Button */}
+                    {((validationResult.booking as any).tripId ||
+                      (validationResult.booking as any).trip_id) && (
+                      <Button
+                        title='View Trip Details'
+                        onPress={handleViewTripDetails}
+                        variant='outline'
+                        style={styles.tripDetailsButton}
+                        icon={<Ship size={18} color={Colors.primary} />}
+                      />
+                    )}
 
                     {/* Passenger count info */}
                     <Text style={styles.passengerInfo}>
@@ -985,6 +1079,10 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+  tripDetailsButton: {
+    marginTop: 12,
+    width: '100%',
   },
   passengerInfo: {
     fontSize: 14,
