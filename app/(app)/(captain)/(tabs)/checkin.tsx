@@ -7,7 +7,6 @@ import {
   TextInput,
   ScrollView,
   Platform,
-  Alert,
   Dimensions,
 } from 'react-native';
 import {
@@ -28,6 +27,7 @@ import Card from '@/components/Card';
 import Button from '@/components/Button';
 import type { ValidationResult } from '@/types/pages/booking';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width } = Dimensions.get('window');
 
@@ -44,18 +44,20 @@ export default function CaptainCheckinScreen() {
 
   const { validateTicket, isLoading, error } = useTicketStore();
   const { isAuthenticated } = useAuthStore();
+  const { showError, showWarning, showSuccess, showConfirmation, showInfo } =
+    useAlertContext();
 
   useEffect(() => {
     const getCameraPermissions = async () => {
       if (!permission?.granted && showCamera) {
         const { status } = await requestPermission();
-        if (status !== 'granted') {
-          Alert.alert(
-            'Permission Required',
-            'Camera permission is required to scan QR codes'
-          );
-          setShowCamera(false);
-        }
+      if (status !== 'granted') {
+        showWarning(
+          'Permission Required',
+          'Camera permission is required to scan QR codes'
+        );
+        setShowCamera(false);
+      }
       }
     };
 
@@ -64,7 +66,7 @@ export default function CaptainCheckinScreen() {
 
   const handleValidate = async () => {
     if (!bookingNumber.trim()) {
-      Alert.alert('Error', 'Please enter a booking number');
+      showError('Error', 'Please enter a booking number');
       return;
     }
 
@@ -76,10 +78,10 @@ export default function CaptainCheckinScreen() {
       setValidationResult(result);
 
       if (error) {
-        Alert.alert('Error', error);
+        showError('Error', error);
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to validate ticket. Please try again.');
+      showError('Error', 'Failed to validate ticket. Please try again.');
     } finally {
       setIsValidating(false);
     }
@@ -87,7 +89,7 @@ export default function CaptainCheckinScreen() {
 
   const handleCheckIn = async () => {
     if (!validationResult?.booking) {
-      Alert.alert('Error', 'No valid booking to check in');
+      showError('Error', 'No valid booking to check in');
       return;
     }
 
@@ -95,7 +97,7 @@ export default function CaptainCheckinScreen() {
 
     // Check if already checked in
     if (booking.checkInStatus) {
-      Alert.alert(
+      showWarning(
         'Already Checked In',
         'This booking has already been checked in.'
       );
@@ -104,7 +106,7 @@ export default function CaptainCheckinScreen() {
 
     // Check if booking is confirmed
     if (booking.status !== 'confirmed') {
-      Alert.alert(
+      showWarning(
         'Cannot Check In',
         `Booking status is ${booking.status.toUpperCase()}. Only confirmed bookings can be checked in.`
       );
@@ -126,12 +128,12 @@ export default function CaptainCheckinScreen() {
     if (!isWithinCheckInWindow) {
       const departureTimeStr = `${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(booking.departureTime)}`;
       if (timeDifferenceMinutes > 30) {
-        Alert.alert(
+        showWarning(
           'Too Early for Check-in',
           `Check-in opens 30 minutes before departure.\n\nDeparture: ${departureTimeStr}\nCurrent time: ${now.toLocaleString()}\n\nPlease wait ${Math.ceil(timeDifferenceMinutes - 30)} more minutes.`
         );
       } else {
-        Alert.alert(
+        showWarning(
           'Check-in Window Closed',
           `Check-in closes 30 minutes after departure.\n\nDeparture was: ${departureTimeStr}\nCurrent time: ${now.toLocaleString()}\n\nCheck-in window has expired.`
         );
@@ -139,103 +141,97 @@ export default function CaptainCheckinScreen() {
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Confirm Check-in',
       `Check in ${(booking as any).passengers?.length || (booking as any).passengerCount || 0} passenger(s) for booking ${booking.bookingNumber}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Check In',
-          onPress: async () => {
-            setIsCheckingIn(true);
-            try {
-              // Get current user (captain)
-              const {
-                data: { user },
-                error: userError,
-              } = await supabase.auth.getUser();
+      async () => {
+        setIsCheckingIn(true);
+        try {
+          // Get current user (captain)
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser();
 
-              if (userError || !user) {
-                throw new Error('Captain authentication required');
-              }
+          if (userError || !user) {
+            throw new Error('Captain authentication required');
+          }
 
-              // Validate booking data
-              if (!booking || !booking.id) {
-                throw new Error('Invalid booking data');
-              }
+          // Validate booking data
+          if (!booking || !booking.id) {
+            throw new Error('Invalid booking data');
+          }
 
-              // Update the booking check-in status in the database
-              const checkInTime = new Date().toISOString();
-              const { error: updateError } = await supabase
-                .from('bookings')
-                .update({
-                  status: 'checked_in',
-                  check_in_status: true,
-                  checked_in_at: checkInTime,
-                  checked_in_by: user.id,
-                })
-                .eq('id', booking.id);
+          // Update the booking check-in status in the database
+          const checkInTime = new Date().toISOString();
+          const { error: updateError } = await supabase
+            .from('bookings')
+            .update({
+              status: 'checked_in',
+              check_in_status: true,
+              checked_in_at: checkInTime,
+              checked_in_by: user.id,
+            })
+            .eq('id', booking.id);
 
-              if (updateError) {
-                throw new Error(
-                  `Database update failed: ${updateError.message}`
-                );
-              }
+          if (updateError) {
+            throw new Error(
+              `Database update failed: ${updateError.message}`
+            );
+          }
 
-              // Optional: Create a check-in log entry for audit trail
-              try {
-                await supabase.from('check_in_logs').insert({
-                  booking_id: booking.id,
-                  captain_id: user.id,
-                  check_in_time: checkInTime,
-                  passenger_count:
-                    (booking as any).passengers?.length ||
-                    (booking as any).passengerCount ||
-                    0,
-                  notes: `Captain check-in via mobile app`,
-                });
-              } catch (logError) {
-                // Log creation is optional, don't fail the check-in if this fails
-                // Silently continue if audit log creation fails
-              }
+          // Optional: Create a check-in log entry for audit trail
+          try {
+            await supabase.from('check_in_logs').insert({
+              booking_id: booking.id,
+              captain_id: user.id,
+              check_in_time: checkInTime,
+              passenger_count:
+                (booking as any).passengers?.length ||
+                (booking as any).passengerCount ||
+                0,
+              notes: `Captain check-in via mobile app`,
+            });
+          } catch (logError) {
+            // Log creation is optional, don't fail the check-in if this fails
+            // Silently continue if audit log creation fails
+          }
 
-              // Update the validation result to show checked in status
-              setValidationResult(prev => {
-                if (!prev || !prev.booking) return prev;
-                return {
-                  ...prev,
-                  booking: {
-                    ...prev.booking,
-                    checkInStatus: true,
-                  },
-                };
-              });
+          // Update the validation result to show checked in status
+          setValidationResult(prev => {
+            if (!prev || !prev.booking) return prev;
+            return {
+              ...prev,
+              booking: {
+                ...prev.booking,
+                checkInStatus: true,
+              },
+            };
+          });
 
-              Alert.alert(
-                'Check-in Successful',
-                `${(booking as any).passengers?.length || (booking as any).passengerCount || 0} passenger(s) have been checked in for booking ${booking.bookingNumber}.\n\nCheck-in completed at ${new Date().toLocaleTimeString()}.`
-              );
-            } catch (error) {
-              const errorMessage =
-                error instanceof Error
-                  ? error.message
-                  : 'Unknown error occurred';
-              Alert.alert(
-                'Check-in Failed',
-                `Failed to check in passengers: ${errorMessage}\n\nPlease try again or contact support.`
-              );
-            } finally {
-              setIsCheckingIn(false);
-            }
-          },
-        },
-      ]
+          showSuccess(
+            'Check-in Successful',
+            `${(booking as any).passengers?.length || (booking as any).passengerCount || 0} passenger(s) have been checked in for booking ${booking.bookingNumber}.\n\nCheck-in completed at ${new Date().toLocaleTimeString()}.`
+          );
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : 'Unknown error occurred';
+          showError(
+            'Check-in Failed',
+            `Failed to check in passengers: ${errorMessage}\n\nPlease try again or contact support.`
+          );
+        } finally {
+          setIsCheckingIn(false);
+        }
+      }
     );
   };
 
   const handleCheckTicket = async () => {
     if (!validationResult?.booking) {
-      Alert.alert('Error', 'No valid booking to check');
+      showError('Error', 'No valid booking to check');
       return;
     }
 
@@ -320,15 +316,33 @@ export default function CaptainCheckinScreen() {
         };
       });
 
-      Alert.alert(
-        `Ticket Status: ${ticketStatus}`,
-        `${statusMessage}${additionalInfo}\n\nBooking: ${booking.bookingNumber}\nPassengers: ${(booking as any).passengers?.length || (booking as any).passengerCount || 0}\nRoute: ${(booking as any).route?.fromIsland?.name || (booking as any).fromIsland || 'Unknown'} → ${(booking as any).route?.toIsland?.name || (booking as any).toIsland || 'Unknown'}\nFare: MVR ${currentBooking.total_fare.toFixed(2)}`,
-        [{ text: 'OK', style: 'default' }]
-      );
+      const alertType =
+        ticketStatus === 'Valid'
+          ? 'success'
+          : ticketStatus === 'Invalid' || ticketStatus === 'Expired'
+            ? 'error'
+            : 'info';
+      
+      if (alertType === 'success') {
+        showSuccess(
+          `Ticket Status: ${ticketStatus}`,
+          `${statusMessage}${additionalInfo}\n\nBooking: ${booking.bookingNumber}\nPassengers: ${(booking as any).passengers?.length || (booking as any).passengerCount || 0}\nRoute: ${(booking as any).route?.fromIsland?.name || (booking as any).fromIsland || 'Unknown'} → ${(booking as any).route?.toIsland?.name || (booking as any).toIsland || 'Unknown'}\nFare: MVR ${currentBooking.total_fare.toFixed(2)}`
+        );
+      } else if (alertType === 'error') {
+        showError(
+          `Ticket Status: ${ticketStatus}`,
+          `${statusMessage}${additionalInfo}\n\nBooking: ${booking.bookingNumber}\nPassengers: ${(booking as any).passengers?.length || (booking as any).passengerCount || 0}\nRoute: ${(booking as any).route?.fromIsland?.name || (booking as any).fromIsland || 'Unknown'} → ${(booking as any).route?.toIsland?.name || (booking as any).toIsland || 'Unknown'}\nFare: MVR ${currentBooking.total_fare.toFixed(2)}`
+        );
+      } else {
+        showInfo(
+          `Ticket Status: ${ticketStatus}`,
+          `${statusMessage}${additionalInfo}\n\nBooking: ${booking.bookingNumber}\nPassengers: ${(booking as any).passengers?.length || (booking as any).passengerCount || 0}\nRoute: ${(booking as any).route?.fromIsland?.name || (booking as any).fromIsland || 'Unknown'} → ${(booking as any).route?.toIsland?.name || (booking as any).toIsland || 'Unknown'}\nFare: MVR ${currentBooking.total_fare.toFixed(2)}`
+        );
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
-      Alert.alert(
+      showError(
         'Ticket Check Failed',
         `Failed to check ticket status: ${errorMessage}\n\nPlease try again or contact support.`
       );
@@ -339,13 +353,11 @@ export default function CaptainCheckinScreen() {
 
   const handleScanQR = () => {
     if (!permission?.granted) {
-      Alert.alert(
+      showConfirmation(
         'Camera Permission Required',
         'Please grant camera permission to scan QR codes',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Grant Permission', onPress: requestPermission },
-        ]
+        () => requestPermission(),
+        () => {}
       );
       return;
     }
@@ -415,17 +427,17 @@ export default function CaptainCheckinScreen() {
             setValidationResult(result);
 
             if (error) {
-              Alert.alert('Error', error);
+              showError('Error', error);
             }
           })
           .catch(err => {
-            Alert.alert(
+            showError(
               'Error',
               'Failed to validate scanned ticket. Please try again.'
             );
           });
       } else {
-        Alert.alert(
+        showError(
           'Invalid QR Code',
           `The scanned QR code does not contain valid booking information. Data: "${data}"`
         );
@@ -433,7 +445,7 @@ export default function CaptainCheckinScreen() {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Unknown error occurred';
-      Alert.alert(
+      showError(
         'Error',
         `Failed to process scanned QR code: ${errorMessage}`
       );
@@ -457,7 +469,7 @@ export default function CaptainCheckinScreen() {
     const tripId = bookingData.tripId || bookingData.trip_id;
 
     if (!tripId) {
-      Alert.alert(
+      showError(
         'Trip Not Found',
         'Unable to find trip details for this booking.'
       );

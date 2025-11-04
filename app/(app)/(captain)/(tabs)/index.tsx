@@ -7,7 +7,6 @@ import {
   RefreshControl,
   Pressable,
   Dimensions,
-  Alert,
 } from 'react-native';
 import {
   Ship,
@@ -31,6 +30,7 @@ import Card from '@/components/Card';
 import StatCard from '@/components/StatCard';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth > 768;
@@ -47,6 +47,7 @@ export default function CaptainDashboardScreen() {
     refreshDashboard,
     clearError,
   } = useCaptainStore();
+  const { showError } = useAlertContext();
 
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
@@ -59,9 +60,10 @@ export default function CaptainDashboardScreen() {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Error', error, [{ text: 'OK', onPress: clearError }]);
+      showError('Error', error);
+      clearError();
     }
-  }, [error, clearError]);
+  }, [error, clearError, showError]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

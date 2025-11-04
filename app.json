@@ -29,7 +29,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.fies.crystaltransfervaavu",
-      "versionCode": 5,
+      "versionCode": 6,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",

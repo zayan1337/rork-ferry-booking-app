@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
@@ -38,10 +37,19 @@ import type {
 } from '@/types/pages/booking';
 import { getTripsForSegment } from '@/utils/segmentBookingUtils';
 import { formatTimeAMPM } from '@/utils/dateUtils';
+import { useAlertContext } from '@/components/AlertProvider';
+import SegmentTripCard from '@/components/booking/SegmentTripCard';
+import {
+  isTripBookable,
+  getTripUnavailableMessage,
+} from '@/utils/bookingUtils';
+import { ActivityIndicator } from 'react-native';
 
 export default function ModifyBookingScreen() {
   const { id } = useLocalSearchParams();
   const scrollViewRef = useRef<ScrollView>(null);
+  const { showError, showSuccess, showWarning, showConfirmation } =
+    useAlertContext();
 
   // Store hooks
   const {
@@ -199,10 +207,9 @@ export default function ModifyBookingScreen() {
         });
 
         if (unavailableSeats.length > 0) {
-          Alert.alert(
+          showWarning(
             'Seat Availability Changed',
-            `The following seats are no longer available: ${unavailableSeats.join(', ')}. Please select different seats.`,
-            [{ text: 'OK' }]
+            `The following seats are no longer available: ${unavailableSeats.join(', ')}. Please select different seats.`
           );
           // Remove unavailable seats from selection
           setSelectedSeats(prevSeats =>
@@ -256,7 +263,19 @@ export default function ModifyBookingScreen() {
   // Initialize form data when booking is loaded
   useEffect(() => {
     if (booking) {
-      setSelectedDate(booking.departureDate);
+      // Format date to YYYY-MM-DD if needed
+      let formattedDate = booking.departureDate;
+      if (formattedDate) {
+        try {
+          const dateObj = new Date(formattedDate);
+          if (!isNaN(dateObj.getTime())) {
+            formattedDate = dateObj.toISOString().split('T')[0];
+          }
+        } catch (e) {
+          // Silently handle date formatting errors
+        }
+      }
+      setSelectedDate(formattedDate);
       setSelectedSeats(booking.seats || []);
       // Set default payment method based on original booking
       if (booking.payment?.method) {
@@ -281,41 +300,123 @@ export default function ModifyBookingScreen() {
 
   // Fetch trips when date changes
   useEffect(() => {
-    if (
-      selectedDate &&
-      booking?.route?.fromIsland?.id &&
-      booking?.route?.toIsland?.id
-    ) {
-      setLocalTripsLoading(true);
-      getTripsForSegment(
-        booking.route.fromIsland.id,
-        booking.route.toIsland.id,
-        selectedDate
-      )
-        .then((fetchedTrips: any[]) => {
-          setLocalTrips(fetchedTrips);
-          // Populate seat counts from the fetched trips
-          const seatCounts: Record<string, number> = {};
-          fetchedTrips.forEach(trip => {
-            seatCounts[trip.trip_id] = trip.available_seats_for_segment || 0;
-          });
-          setTripSeatCounts(seatCounts);
-          setSelectedTrip(null);
-          setSelectedSeats([]);
-        })
-        .catch((error: any) => {
-          console.error('Error fetching trips:', error);
-          setLocalTrips([]);
-        })
-        .finally(() => {
-          setLocalTripsLoading(false);
-        });
+    if (!selectedDate) {
+      return;
     }
-  }, [
-    selectedDate,
-    booking?.route?.fromIsland?.id,
-    booking?.route?.toIsland?.id,
-  ]);
+
+    if (!booking) {
+      return;
+    }
+
+    if (!booking.route) {
+      return;
+    }
+
+    // Helper function to get island ID from route stops or fetch by name
+    const getIslandIds = async () => {
+      let fromIslandId = booking.route.fromIsland?.id;
+      let toIslandId = booking.route.toIsland?.id;
+
+      // If IDs are missing, try to get them from route stops
+      if ((!fromIslandId || fromIslandId === '') && booking.route.routeStops) {
+        const fromIslandName = booking.route.fromIsland?.name;
+        const fromStop = booking.route.routeStops.find(
+          (stop: any) => stop.island?.name === fromIslandName
+        );
+        if (fromStop?.island?.id) {
+          fromIslandId = fromStop.island.id;
+        }
+      }
+
+      if ((!toIslandId || toIslandId === '') && booking.route.routeStops) {
+        const toIslandName = booking.route.toIsland?.name;
+        const toStop = booking.route.routeStops.find(
+          (stop: any) => stop.island?.name === toIslandName
+        );
+        if (toStop?.island?.id) {
+          toIslandId = toStop.island.id;
+        }
+      }
+
+      // If still missing, fetch by name from database
+      if (
+        (!fromIslandId || fromIslandId === '') &&
+        booking.route.fromIsland?.name
+      ) {
+        const { data: island } = await supabase
+          .from('islands')
+          .select('id')
+          .eq('name', booking.route.fromIsland.name)
+          .single();
+        if (island?.id) {
+          fromIslandId = island.id;
+        }
+      }
+
+      if ((!toIslandId || toIslandId === '') && booking.route.toIsland?.name) {
+        const { data: island } = await supabase
+          .from('islands')
+          .select('id')
+          .eq('name', booking.route.toIsland.name)
+          .single();
+        if (island?.id) {
+          toIslandId = island.id;
+        }
+      }
+
+      return { fromIslandId, toIslandId };
+    };
+
+    // Fetch island IDs and then trips
+    getIslandIds()
+      .then(({ fromIslandId, toIslandId }) => {
+        if (!fromIslandId || !toIslandId) {
+          showError(
+            'Error',
+            'Could not determine route information. Please contact support.'
+          );
+          return;
+        }
+
+        setLocalTripsLoading(true);
+        return getTripsForSegment(fromIslandId, toIslandId, selectedDate);
+      })
+      .then((fetchedTrips: any[] | null | undefined) => {
+        if (!fetchedTrips || fetchedTrips.length === 0) {
+          // Error already handled above or no trips found
+          setLocalTripsLoading(false);
+          setLocalTrips([]);
+          return;
+        }
+        // Filter out trips that have already departed
+        const futureTrips = fetchedTrips.filter(trip =>
+          isTripBookable(trip.travel_date, trip.departure_time)
+        );
+
+        // If all trips were filtered out, show all trips anyway for debugging
+        // (or if user wants to see past trips for reference)
+        const tripsToShow = futureTrips.length > 0 ? futureTrips : fetchedTrips;
+        setLocalTrips(tripsToShow);
+
+        // Populate seat counts from the fetched trips
+        const seatCounts: Record<string, number> = {};
+        tripsToShow.forEach(trip => {
+          seatCounts[trip.trip_id] = trip.available_seats_for_segment || 0;
+        });
+        setTripSeatCounts(seatCounts);
+        setSelectedTrip(null);
+        setSelectedSeats([]);
+        setLocalTripsLoading(false);
+      })
+      .catch((error: any) => {
+        setLocalTrips([]);
+        setLocalTripsLoading(false);
+        showError(
+          'Error',
+          `Failed to load trips: ${error?.message || 'Please try again.'}`
+        );
+      });
+  }, [selectedDate, booking, showError]);
 
   // Fetch seats when trip is selected
   useEffect(() => {
@@ -400,7 +501,7 @@ export default function ModifyBookingScreen() {
 
     // Check if seat is temporarily reserved by another user
     if (seat.isTempReserved && !seat.isCurrentUserReservation) {
-      Alert.alert(
+      showWarning(
         'Seat Unavailable',
         'This seat is temporarily reserved by another user. Please select a different seat.'
       );
@@ -436,7 +537,7 @@ export default function ModifyBookingScreen() {
       } else {
         // Check max seats limit
         if (selectedSeats.length >= (booking?.passengers?.length || 0)) {
-          Alert.alert(
+          showWarning(
             'Maximum Seats Selected',
             `You can only select ${booking?.passengers?.length || 0} seat(s) for this booking.`
           );
@@ -468,7 +569,7 @@ export default function ModifyBookingScreen() {
         error.message || 'Failed to select seat. Please try again.';
       setSeatErrors(prev => ({ ...prev, [seat.id]: errorMessage }));
 
-      Alert.alert('Seat Selection Error', errorMessage);
+      showError('Seat Selection Error', errorMessage);
 
       // Refresh seat availability to show current status
       if (selectedTrip?.trip_id) {
@@ -552,7 +653,7 @@ export default function ModifyBookingScreen() {
 
   const handleModify = async () => {
     if (!isModifiable) {
-      Alert.alert(
+      showWarning(
         'Cannot Modify',
         message || 'This booking cannot be modified'
       );
@@ -588,10 +689,7 @@ export default function ModifyBookingScreen() {
         try {
           await cleanupUserTempReservations(selectedTrip.trip_id);
         } catch (cleanupError) {
-          console.warn(
-            '[MODIFY] Failed to cleanup temp reservations (non-critical):',
-            cleanupError
-          );
+          // Silently handle cleanup errors (non-critical)
         }
       }
 
@@ -615,27 +713,20 @@ export default function ModifyBookingScreen() {
           setShowMibPayment(true);
         } else {
           // For other payment methods, show the existing alert
-          Alert.alert(
+          showConfirmation(
             'Booking Modified',
             `Your booking has been modified successfully. An additional payment of MVR ${fareDifference.toFixed(2)} is required.`,
-            [
-              {
-                text: 'Pay Later',
-                onPress: () =>
-                  router.replace('/(app)/(customer)/(tabs)/bookings'),
-              },
-              {
-                text: 'Pay Now',
-                onPress: async () => {
-                  await processPayment(
-                    selectedPaymentMethod,
-                    fareDifference,
-                    modificationResult.newBookingId
-                  );
-                  router.replace('/(app)/(customer)/(tabs)/bookings');
-                },
-              },
-            ]
+            async () => {
+              await processPayment(
+                selectedPaymentMethod,
+                fareDifference,
+                modificationResult.newBookingId
+              );
+              router.replace('/(app)/(customer)/(tabs)/bookings');
+            },
+            () => {
+              router.replace('/(app)/(customer)/(tabs)/bookings');
+            }
           );
         }
       } else if (fareDifference < 0) {
@@ -662,28 +753,21 @@ export default function ModifyBookingScreen() {
           refundMessage = `Your booking has been modified successfully. A refund of MVR ${Math.abs(fareDifference).toFixed(2)} will be processed within 72 hours.`;
         }
 
-        Alert.alert('Booking Modified', refundMessage, [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings'),
-          },
-        ]);
+        showSuccess('Booking Modified', refundMessage, () => {
+          router.replace('/(app)/(customer)/(tabs)/bookings');
+        });
       } else {
         // No fare difference
-        Alert.alert(
+        showSuccess(
           'Booking Modified',
           'Your booking has been modified successfully. No additional payment or refund is required.',
-          [
-            {
-              text: 'OK',
-              onPress: () =>
-                router.replace('/(app)/(customer)/(tabs)/bookings'),
-            },
-          ]
+          () => {
+            router.replace('/(app)/(customer)/(tabs)/bookings');
+          }
         );
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to modify booking. Please try again.');
+      showError('Error', 'Failed to modify booking. Please try again.');
     }
   };
 
@@ -793,44 +877,56 @@ export default function ModifyBookingScreen() {
           />
 
           {/* Trip Selection */}
-          {localTrips.length > 0 && (
+          {selectedDate && (
             <View style={styles.tripSelection}>
               <Text style={styles.sectionTitle}>Select New Trip</Text>
-              {localTrips.map(trip => (
-                <Pressable
-                  key={trip.trip_id}
-                  style={[
-                    styles.tripOption,
-                    selectedTrip?.trip_id === trip.trip_id &&
-                      styles.tripOptionSelected,
-                  ]}
-                  onPress={() => {
-                    setSelectedTrip(trip);
-                    setSelectedSeats([]);
-                    if (errors.trip) setErrors({ ...errors, trip: '' });
-                  }}
-                >
-                  <Text style={styles.tripTime}>
-                    {formatTimeAMPM(trip.departure_time)}
+
+              {localTripsLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size='large' color={Colors.primary} />
+                  <Text style={styles.loadingText}>
+                    Finding available trips...
                   </Text>
-                  <Text style={styles.tripVessel}>{trip.vessel_name}</Text>
-                  <Text style={styles.tripSeats}>
-                    {tripSeatCounts[trip.trip_id] !== undefined
-                      ? tripSeatCounts[trip.trip_id]
-                      : '...'}{' '}
-                    seats available
+                </View>
+              ) : localTrips.length > 0 ? (
+                <View style={styles.tripsList}>
+                  {localTrips.map(trip => (
+                    <SegmentTripCard
+                      key={trip.trip_id}
+                      trip={trip}
+                      selected={selectedTrip?.trip_id === trip.trip_id}
+                      onPress={() => {
+                        // Validate trip hasn't departed
+                        if (
+                          !isTripBookable(trip.travel_date, trip.departure_time)
+                        ) {
+                          showWarning(
+                            'Trip Unavailable',
+                            getTripUnavailableMessage(
+                              trip.travel_date,
+                              trip.departure_time
+                            )
+                          );
+                          return;
+                        }
+                        setSelectedTrip(trip);
+                        setSelectedSeats([]);
+                        if (errors.trip) setErrors({ ...errors, trip: '' });
+                      }}
+                    />
+                  ))}
+                </View>
+              ) : selectedDate ? (
+                <View style={styles.noTripsContainer}>
+                  <Text style={styles.noTripsTitle}>No Trips Available</Text>
+                  <Text style={styles.noTripsText}>
+                    No trips available for this route on{' '}
+                    {new Date(selectedDate).toLocaleDateString()}.{'\n\n'}
+                    Please try selecting a different date.
                   </Text>
-                  <Text style={styles.tripFare}>
-                    MVR {trip.segment_fare.toFixed(2)} per seat
-                    {trip.fare_multiplier && trip.fare_multiplier !== 1.0 && (
-                      <Text style={styles.tripFareMultiplier}>
-                        {' '}
-                        (×{trip.fare_multiplier})
-                      </Text>
-                    )}
-                  </Text>
-                </Pressable>
-              ))}
+                </View>
+              ) : null}
+
               {errors.trip ? (
                 <Text style={styles.errorText}>{errors.trip}</Text>
               ) : null}
@@ -845,7 +941,10 @@ export default function ModifyBookingScreen() {
           {!selectedTrip ? (
             <Text style={styles.noSeatsText}>Please select a trip first</Text>
           ) : isLoading ? (
-            <Text style={styles.loadingText}>Loading available seats...</Text>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size='small' color={Colors.primary} />
+              <Text style={styles.loadingText}>Loading available seats...</Text>
+            </View>
           ) : availableSeats.length > 0 ? (
             <SeatSelector
               seats={availableSeats}
@@ -1245,44 +1344,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  tripOption: {
-    padding: 12,
+  tripsList: {
+    gap: 12,
+  },
+  loadingContainer: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  noTripsContainer: {
+    padding: 24,
+    backgroundColor: Colors.highlight,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  tripOptionSelected: {
-    backgroundColor: Colors.highlight,
-    borderColor: Colors.primary,
-  },
-  tripTime: {
+  noTripsTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  tripVessel: {
+  noTripsText: {
     fontSize: 14,
     color: Colors.textSecondary,
-    marginBottom: 2,
-  },
-  tripSeats: {
-    fontSize: 14,
-    color: Colors.primary,
-    marginBottom: 2,
-  },
-  tripFare: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  tripFareMultiplier: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontWeight: '400',
+    lineHeight: 20,
   },
   seatSectionTitle: {
     fontSize: 16,
@@ -1427,13 +1520,6 @@ const styles = StyleSheet.create({
   },
   notFoundButton: {
     minWidth: 120,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    padding: 20,
-    fontStyle: 'italic',
   },
   noSeatsText: {
     fontSize: 14,

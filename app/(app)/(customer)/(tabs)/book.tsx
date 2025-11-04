@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   BackHandler,
   KeyboardAvoidingView,
   Platform,
@@ -34,6 +33,7 @@ import {
   PAYMENT_OPTIONS,
   REFRESH_INTERVALS,
 } from '@/constants/customer';
+import { useAlertContext } from '@/components/AlertProvider';
 
 // Import new step components
 import IslandDateStep from '@/components/booking/steps/IslandDateStep';
@@ -41,6 +41,7 @@ import TripSelectionStep from '@/components/booking/steps/TripSelectionStep';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 export default function BookScreen() {
+  const { showSuccess, showError } = useAlertContext();
   const [paymentMethod, setPaymentMethod] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [pricingNoticeAccepted, setPricingNoticeAccepted] = useState(false);
@@ -309,15 +310,14 @@ export default function BookScreen() {
             successMessage += `\nReturn Booking Number: ${bookingResult.return_booking_number || 'N/A'}`;
           }
 
-          Alert.alert('Booking Confirmed', successMessage, [
-            {
-              text: 'View Tickets',
-              onPress: () => router.push('/(app)/(customer)/(tabs)/bookings'),
-            },
-          ]);
+          showSuccess(
+            'Booking Confirmed',
+            successMessage,
+            () => router.push('/(app)/(customer)/(tabs)/bookings')
+          );
         }
       } catch (error: any) {
-        Alert.alert('Booking Failed', error?.message || 'Please try again');
+        showError('Booking Failed', error?.message || 'Please try again');
 
         // Refresh seat availability
         if (currentBooking.trip?.id) {
@@ -351,7 +351,7 @@ export default function BookScreen() {
       if (errors.seats) setErrors({ ...errors, seats: '' });
     } catch (error: any) {
       setSeatErrors(prev => ({ ...prev, [seat.id]: error.message }));
-      Alert.alert('Seat Selection Error', error.message);
+      showError('Seat Selection Error', error.message);
     } finally {
       setLoadingSeats(prev => {
         const newSet = new Set(prev);

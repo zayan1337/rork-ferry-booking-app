@@ -3,7 +3,6 @@ import { Tabs, router } from 'expo-router';
 import {
   View,
   Pressable,
-  Alert,
   Modal,
   ScrollView,
   Text,
@@ -26,10 +25,12 @@ import { useAuthStore } from '@/store/authStore';
 import { useCaptainStore } from '@/store/captainStore';
 import Card from '@/components/Card';
 import { formatTimeAMPM, formatSimpleDate } from '@/utils/dateUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function CaptainTabLayout() {
   const { signOut } = useAuthStore();
   const captainStore = useCaptainStore();
+  const { showConfirmation } = useAlertContext();
 
   // Notification state
   const [showNotifications, setShowNotifications] = useState(false);
@@ -156,20 +157,19 @@ export default function CaptainTabLayout() {
   // };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut();
-          } catch (error) {
-            console.error('Logout error:', error);
-          }
-        },
+    showConfirmation(
+      'Logout',
+      'Are you sure you want to logout?',
+      async () => {
+        try {
+          await signOut();
+        } catch (error) {
+          console.error('Logout error:', error);
+        }
       },
-    ]);
+      undefined,
+      true // Mark as destructive action
+    );
   };
 
   const renderHeaderRight = () => (

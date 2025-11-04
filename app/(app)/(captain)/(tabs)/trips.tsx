@@ -7,7 +7,6 @@ import {
   RefreshControl,
   Pressable,
   TextInput,
-  Alert,
   Dimensions,
 } from 'react-native';
 import {
@@ -30,6 +29,7 @@ import Button from '@/components/Button';
 import CalendarDatePicker from '@/components/CalendarDatePicker';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth > 768;
@@ -48,6 +48,7 @@ export default function CaptainTripsScreen() {
     setStatusFilter,
     clearError,
   } = useCaptainStore();
+  const { showError } = useAlertContext();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -61,9 +62,10 @@ export default function CaptainTripsScreen() {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Error', error, [{ text: 'OK', onPress: clearError }]);
+      showError('Error', error);
+      clearError();
     }
-  }, [error, clearError]);
+  }, [error, clearError, showError]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

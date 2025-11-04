@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Pressable,
   ScrollView,
@@ -50,6 +49,7 @@ import Card from '@/components/Card';
 import Button from '@/components/Button';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { supabase } from '@/utils/supabase';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width, height } = Dimensions.get('window');
 
@@ -75,6 +75,8 @@ export default function CaptainTripDetailsScreen() {
     activateTrip,
   } = useCaptainStore();
 
+  const { showError, showSuccess, showWarning, showConfirmation, showInfo } =
+    useAlertContext();
   const [trip, setTrip] = useState<CaptainTrip | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [allSeats, setAllSeats] = useState<any[]>([]);
@@ -388,39 +390,37 @@ export default function CaptainTripDetailsScreen() {
   const handleActivateTrip = useCallback(async () => {
     if (!trip || !tripId) return;
 
-    Alert.alert(
+    showConfirmation(
       'Activate Trip',
       `Do you want to activate this trip?\n\nRoute: ${trip.route_name}\nDate: ${formatBookingDate(trip.travel_date)}\nTime: ${formatTimeAMPM(trip.departure_time)}\n\nOnce activated, passengers will be able to check in.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Activate',
-          style: 'default',
-          onPress: async () => {
-            setIsActivating(true);
-            try {
-              const result = await activateTrip(tripId);
-              if (result.success) {
-                Alert.alert('Success', result.message);
-                // Refresh trip data
-                await loadTripData();
-              } else {
-                Alert.alert('Error', result.message);
-              }
-            } catch (error) {
-              console.error('Error activating trip:', error);
-              Alert.alert(
-                'Error',
-                'Failed to activate trip. Please try again.'
-              );
-            } finally {
-              setIsActivating(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        setIsActivating(true);
+        try {
+          const result = await activateTrip(tripId);
+          if (result.success) {
+            showSuccess('Success', result.message);
+            // Refresh trip data
+            await loadTripData();
+          } else {
+            showError('Error', result.message);
+          }
+        } catch (error) {
+          console.error('Error activating trip:', error);
+          showError('Error', 'Failed to activate trip. Please try again.');
+        } finally {
+          setIsActivating(false);
+        }
+      }
     );
-  }, [trip, tripId, activateTrip, loadTripData]);
+  }, [
+    trip,
+    tripId,
+    activateTrip,
+    loadTripData,
+    showConfirmation,
+    showSuccess,
+    showError,
+  ]);
 
   // Fetch seats when trip or passengers change
   useEffect(() => {
@@ -778,7 +778,7 @@ export default function CaptainTripDetailsScreen() {
       }
     } catch (error) {
       console.error('Error handling button press:', error);
-      Alert.alert('Error', 'An error occurred. Please try again.');
+      showError('Error', 'An error occurred. Please try again.');
     }
   }, [getButtonState, tripId, user?.id, currentStop]);
 
@@ -786,279 +786,266 @@ export default function CaptainTripDetailsScreen() {
   const handleStartBoarding = async () => {
     if (!currentStop || !tripId) return;
 
-    Alert.alert(
+    showConfirmation(
       'Start Boarding',
       `Allow passengers to board at ${currentStop.island.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start Boarding',
-          onPress: async () => {
-            try {
-              // First, check if trip progress is initialized
-              const { data: progressCheck, error: checkError } = await supabase
-                .from('trip_stop_progress')
-                .select('id, status, stop_id')
-                .eq('trip_id', tripId);
+      async () => {
+        try {
+          // First, check if trip progress is initialized
+          const { data: progressCheck, error: checkError } = await supabase
+            .from('trip_stop_progress')
+            .select('id, status, stop_id')
+            .eq('trip_id', tripId);
 
-              // If no progress exists, initialize it first
-              if (!progressCheck || progressCheck.length === 0) {
-                const { data: initData, error: initError } = await supabase.rpc(
-                  'initialize_trip_stop_progress',
-                  {
-                    p_trip_id: tripId,
-                    p_captain_id: user?.id,
-                  }
-                );
-
-                if (initError) {
-                  console.error('Error initializing trip progress:', initError);
-                  Alert.alert(
-                    'Error',
-                    `Failed to initialize trip progress: ${initError.message}`
-                  );
-                  return;
-                }
+          // If no progress exists, initialize it first
+          if (!progressCheck || progressCheck.length === 0) {
+            const { data: initData, error: initError } = await supabase.rpc(
+              'initialize_trip_stop_progress',
+              {
+                p_trip_id: tripId,
+                p_captain_id: user?.id,
               }
+            );
 
-              // Now update stop status to 'boarding'
-              // FIXED: Use stop_id (route_stops.id) not currentStop.id (trip_stop_progress.id)
-              const { data: updateData, error: updateError } =
-                await supabase.rpc('update_stop_status', {
-                  p_trip_id: tripId,
-                  p_stop_id: currentStop.stop_id, // FIXED: Use stop_id
-                  p_status: 'boarding',
-                  p_captain_id: user?.id,
-                });
-
-              if (updateError) {
-                console.error('Error starting boarding:', updateError);
-                Alert.alert(
-                  'Error',
-                  `Failed to start boarding: ${updateError.message}`
-                );
-                return;
-              }
-
-              if (!updateData) {
-                Alert.alert(
-                  'Error',
-                  'Failed to update stop status. Please try again.'
-                );
-                return;
-              }
-
-              // Update trip status to 'boarding'
-              const { error: tripUpdateError } = await supabase
-                .from('trips')
-                .update({
-                  status: 'boarding',
-                  current_stop_sequence: currentStop.stop_sequence,
-                  current_stop_id: currentStop.stop_id,
-                  trip_progress_status: 'boarding_in_progress',
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', tripId);
-
-              if (tripUpdateError) {
-                console.error('Error updating trip status:', tripUpdateError);
-                Alert.alert('Error', 'Failed to update trip status');
-                return;
-              }
-
-              // Optimistic UI Update: Update local state immediately
-              if (trip) {
-                setTrip({
-                  ...trip,
-                  status: 'boarding',
-                  current_stop_sequence: currentStop.stop_sequence,
-                  current_stop_id: currentStop.stop_id,
-                } as CaptainTrip);
-              }
-
-              // Update route stops state immediately
-              setRouteStops(prevStops =>
-                prevStops.map(stop =>
-                  stop.stop_id === currentStop.stop_id
-                    ? { ...stop, status: 'boarding', is_current_stop: true }
-                    : { ...stop, is_current_stop: false }
-                )
-              );
-
-              // Update current stop state
-              setCurrentStop((prev: any) => ({
-                ...prev,
-                status: 'boarding',
-                is_current_stop: true,
-              }));
-
-              // Reload data silently to sync with database
-              setTimeout(() => reloadDataSilently(), 500);
-            } catch (err: any) {
-              console.error('Unexpected error:', err);
-              Alert.alert(
+            if (initError) {
+              console.error('Error initializing trip progress:', initError);
+              showError(
                 'Error',
-                `An unexpected error occurred: ${err.message || 'Unknown error'}`
+                `Failed to initialize trip progress: ${initError.message}`
               );
+              return;
             }
-          },
-        },
-      ]
+          }
+
+          // Now update stop status to 'boarding'
+          // FIXED: Use stop_id (route_stops.id) not currentStop.id (trip_stop_progress.id)
+          const { data: updateData, error: updateError } = await supabase.rpc(
+            'update_stop_status',
+            {
+              p_trip_id: tripId,
+              p_stop_id: currentStop.stop_id, // FIXED: Use stop_id
+              p_status: 'boarding',
+              p_captain_id: user?.id,
+            }
+          );
+
+          if (updateError) {
+            console.error('Error starting boarding:', updateError);
+            showError(
+              'Error',
+              `Failed to start boarding: ${updateError.message}`
+            );
+            return;
+          }
+
+          if (!updateData) {
+            showError(
+              'Error',
+              'Failed to update stop status. Please try again.'
+            );
+            return;
+          }
+
+          // Update trip status to 'boarding'
+          const { error: tripUpdateError } = await supabase
+            .from('trips')
+            .update({
+              status: 'boarding',
+              current_stop_sequence: currentStop.stop_sequence,
+              current_stop_id: currentStop.stop_id,
+              trip_progress_status: 'boarding_in_progress',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', tripId);
+
+          if (tripUpdateError) {
+            console.error('Error updating trip status:', tripUpdateError);
+            showError('Error', 'Failed to update trip status');
+            return;
+          }
+
+          // Optimistic UI Update: Update local state immediately
+          if (trip) {
+            setTrip({
+              ...trip,
+              status: 'boarding',
+              current_stop_sequence: currentStop.stop_sequence,
+              current_stop_id: currentStop.stop_id,
+            } as CaptainTrip);
+          }
+
+          // Update route stops state immediately
+          setRouteStops(prevStops =>
+            prevStops.map(stop =>
+              stop.stop_id === currentStop.stop_id
+                ? { ...stop, status: 'boarding', is_current_stop: true }
+                : { ...stop, is_current_stop: false }
+            )
+          );
+
+          // Update current stop state
+          setCurrentStop((prev: any) => ({
+            ...prev,
+            status: 'boarding',
+            is_current_stop: true,
+          }));
+
+          // Reload data silently to sync with database
+          setTimeout(() => reloadDataSilently(), 500);
+        } catch (err: any) {
+          console.error('Unexpected error:', err);
+          showError(
+            'Error',
+            `An unexpected error occurred: ${err.message || 'Unknown error'}`
+          );
+        }
+      }
     );
   };
 
   const handleDepart = async () => {
     if (!currentStop || !tripId) return;
 
-    Alert.alert('Depart', `Ready to depart from ${currentStop.island.name}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Depart',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            // Update stop status to 'departed'
-            const { data, error } = await supabase.rpc('update_stop_status', {
-              p_trip_id: tripId,
-              p_stop_id: currentStop.stop_id, // FIXED: Use stop_id
-              p_status: 'departed',
-              p_captain_id: user?.id,
-            });
+    showConfirmation(
+      'Depart',
+      `Ready to depart from ${currentStop.island.name}?`,
+      async () => {
+        try {
+          // Update stop status to 'departed'
+          const { data, error } = await supabase.rpc('update_stop_status', {
+            p_trip_id: tripId,
+            p_stop_id: currentStop.stop_id, // FIXED: Use stop_id
+            p_status: 'departed',
+            p_captain_id: user?.id,
+          });
 
-            if (!error && data) {
-              // Determine if there are more pickup stops
-              const remainingPickups = routeStops.filter(
-                s =>
-                  s.stop_sequence > currentStop.stop_sequence &&
-                  (s.stop_type === 'pickup' || s.stop_type === 'both') &&
-                  !s.is_completed
-              );
+          if (!error && data) {
+            // Determine if there are more pickup stops
+            const remainingPickups = routeStops.filter(
+              s =>
+                s.stop_sequence > currentStop.stop_sequence &&
+                (s.stop_type === 'pickup' || s.stop_type === 'both') &&
+                !s.is_completed
+            );
 
-              const newTripStatus =
-                remainingPickups.length > 0 ? 'boarding' : 'departed';
-              const newProgressStatus =
-                remainingPickups.length > 0
-                  ? 'boarding_in_progress'
-                  : 'in_transit';
+            const newTripStatus =
+              remainingPickups.length > 0 ? 'boarding' : 'departed';
+            const newProgressStatus =
+              remainingPickups.length > 0
+                ? 'boarding_in_progress'
+                : 'in_transit';
 
-              // Update trip status
-              const { error: tripUpdateError } = await supabase
-                .from('trips')
-                .update({
-                  status: newTripStatus,
-                  trip_progress_status: newProgressStatus,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', tripId);
+            // Update trip status
+            const { error: tripUpdateError } = await supabase
+              .from('trips')
+              .update({
+                status: newTripStatus,
+                trip_progress_status: newProgressStatus,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', tripId);
 
-              if (tripUpdateError) {
-                console.error('Error updating trip status:', tripUpdateError);
-                Alert.alert('Error', 'Failed to update trip status');
-                return;
-              }
-
-              // Optimistic UI Update: Update local state immediately
-              if (trip) {
-                setTrip({
-                  ...trip,
-                  status: newTripStatus,
-                } as CaptainTrip);
-              }
-
-              // Update route stops state immediately
-              setRouteStops(prevStops =>
-                prevStops.map(stop =>
-                  stop.stop_id === currentStop.stop_id
-                    ? { ...stop, status: 'departed', is_completed: true }
-                    : stop
-                )
-              );
-
-              // Update current stop state
-              setCurrentStop((prev: any) => ({
-                ...prev,
-                status: 'departed',
-                is_completed: true,
-              }));
-
-              // Send manifest in background if this was the last pickup stop
-              if (remainingPickups.length === 0) {
-                sendManifest(tripId, currentStop.id).catch(manifestError => {
-                  console.error('Error sending manifest:', manifestError);
-                });
-              }
-
-              // Reload data silently to sync with database
-              setTimeout(() => reloadDataSilently(), 500);
-            } else {
-              console.error('Error departing:', error);
-              Alert.alert(
-                'Error',
-                'Failed to depart: ' + (error?.message || 'Unknown error')
-              );
+            if (tripUpdateError) {
+              console.error('Error updating trip status:', tripUpdateError);
+              showError('Error', 'Failed to update trip status');
+              return;
             }
-          } catch (err) {
-            console.error('Unexpected error:', err);
-            Alert.alert('Error', 'An unexpected error occurred');
+
+            // Optimistic UI Update: Update local state immediately
+            if (trip) {
+              setTrip({
+                ...trip,
+                status: newTripStatus,
+              } as CaptainTrip);
+            }
+
+            // Update route stops state immediately
+            setRouteStops(prevStops =>
+              prevStops.map(stop =>
+                stop.stop_id === currentStop.stop_id
+                  ? { ...stop, status: 'departed', is_completed: true }
+                  : stop
+              )
+            );
+
+            // Update current stop state
+            setCurrentStop((prev: any) => ({
+              ...prev,
+              status: 'departed',
+              is_completed: true,
+            }));
+
+            // Send manifest in background if this was the last pickup stop
+            if (remainingPickups.length === 0) {
+              sendManifest(tripId, currentStop.id).catch(manifestError => {
+                console.error('Error sending manifest:', manifestError);
+              });
+            }
+
+            // Reload data silently to sync with database
+            setTimeout(() => reloadDataSilently(), 500);
+          } else {
+            console.error('Error departing:', error);
+            showError(
+              'Error',
+              'Failed to depart: ' + (error?.message || 'Unknown error')
+            );
           }
-        },
-      },
-    ]);
+        } catch (err) {
+          console.error('Unexpected error:', err);
+          showError('Error', 'An unexpected error occurred');
+        }
+      }
+    );
   };
 
   const handleCompleteDropoff = async () => {
     if (!currentStop || !tripId) return;
 
-    Alert.alert(
+    showConfirmation(
       'Complete Dropoff',
       `Mark dropoff at ${currentStop.island.name} as completed?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          onPress: async () => {
-            try {
-              // Update stop status to 'completed'
-              const { data, error } = await supabase.rpc('update_stop_status', {
-                p_trip_id: tripId,
-                p_stop_id: currentStop.stop_id,
-                p_status: 'completed',
-                p_captain_id: user?.id,
-              });
+      async () => {
+        try {
+          // Update stop status to 'completed'
+          const { data, error } = await supabase.rpc('update_stop_status', {
+            p_trip_id: tripId,
+            p_stop_id: currentStop.stop_id,
+            p_status: 'completed',
+            p_captain_id: user?.id,
+          });
 
-              if (!error && data) {
-                // Optimistic UI Update
-                setRouteStops(prevStops =>
-                  prevStops.map(stop =>
-                    stop.stop_id === currentStop.stop_id
-                      ? { ...stop, status: 'completed', is_completed: true }
-                      : stop
-                  )
-                );
+          if (!error && data) {
+            // Optimistic UI Update
+            setRouteStops(prevStops =>
+              prevStops.map(stop =>
+                stop.stop_id === currentStop.stop_id
+                  ? { ...stop, status: 'completed', is_completed: true }
+                  : stop
+              )
+            );
 
-                setCurrentStop((prev: any) => ({
-                  ...prev,
-                  status: 'completed',
-                  is_completed: true,
-                }));
+            setCurrentStop((prev: any) => ({
+              ...prev,
+              status: 'completed',
+              is_completed: true,
+            }));
 
-                // Reload data silently to sync with database
-                setTimeout(() => reloadDataSilently(), 500);
-              } else {
-                console.error('Error completing dropoff:', error);
-                Alert.alert(
-                  'Error',
-                  'Failed to complete dropoff: ' +
-                    (error?.message || 'Unknown error')
-                );
-              }
-            } catch (err) {
-              console.error('Unexpected error:', err);
-              Alert.alert('Error', 'An unexpected error occurred');
-            }
-          },
-        },
-      ]
+            // Reload data silently to sync with database
+            setTimeout(() => reloadDataSilently(), 500);
+          } else {
+            console.error('Error completing dropoff:', error);
+            showError(
+              'Error',
+              'Failed to complete dropoff: ' +
+                (error?.message || 'Unknown error')
+            );
+          }
+        } catch (err) {
+          console.error('Unexpected error:', err);
+          showError('Error', 'An unexpected error occurred');
+        }
+      }
     );
   };
 
@@ -1093,109 +1080,99 @@ export default function CaptainTripDetailsScreen() {
 
     if (!targetStop) return;
 
-    Alert.alert('Arrive at Next Stop', `Arrive at ${targetStop.island.name}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Arrive',
-        onPress: async () => {
-          try {
-            // Use the move_to_next_stop RPC function
-            const { data, error } = await supabase.rpc('move_to_next_stop', {
-              p_trip_id: tripId,
-              p_captain_id: user?.id,
-            });
+    showConfirmation(
+      'Arrive at Next Stop',
+      `Arrive at ${targetStop.island.name}?`,
+      async () => {
+        try {
+          // Use the move_to_next_stop RPC function
+          const { data, error } = await supabase.rpc('move_to_next_stop', {
+            p_trip_id: tripId,
+            p_captain_id: user?.id,
+          });
 
-            if (!error && data && data.success) {
-              // Optimistic UI Update: advance stops
-              if (targetStop) {
-                const prevCurrent = routeStops.find(s => s.is_current_stop);
+          if (!error && data && data.success) {
+            // Optimistic UI Update: advance stops
+            if (targetStop) {
+              const prevCurrent = routeStops.find(s => s.is_current_stop);
 
-                setRouteStops(prevStops =>
-                  prevStops.map(stop => {
-                    if (prevCurrent && stop.stop_id === prevCurrent.stop_id) {
-                      // Previous current becomes completed
-                      return {
-                        ...stop,
-                        status: 'completed',
-                        is_completed: true,
-                        is_current_stop: false,
-                      } as any;
-                    }
-                    if (stop.stop_id === targetStop.stop_id) {
-                      // Target becomes arrived/current
-                      return {
-                        ...stop,
-                        status: 'arrived',
-                        is_current_stop: true,
-                      } as any;
-                    }
-                    return { ...stop, is_current_stop: false } as any;
-                  })
-                );
-
-                setCurrentStop({
-                  ...targetStop,
-                  status: 'arrived',
-                  is_current_stop: true,
-                });
-
-                // Update trip progress sequence optimistically
-                if (trip) {
-                  setTrip({
-                    ...trip,
-                    current_stop_sequence: targetStop.stop_sequence,
-                  } as CaptainTrip);
-                }
-              }
-
-              // Check completion without reloading
-              if (data.is_completed) {
-                Alert.alert(
-                  'Trip Completed',
-                  data.message || 'Trip completed successfully!',
-                  [{ text: 'OK', onPress: () => router.back() }]
-                );
-              } else {
-                // Reload data silently to sync with database
-                setTimeout(() => reloadDataSilently(), 500);
-              }
-            } else {
-              console.error('Error arriving:', error || data);
-              Alert.alert(
-                'Error',
-                data?.message ||
-                  error?.message ||
-                  'Failed to arrive at next stop'
+              setRouteStops(prevStops =>
+                prevStops.map(stop => {
+                  if (prevCurrent && stop.stop_id === prevCurrent.stop_id) {
+                    // Previous current becomes completed
+                    return {
+                      ...stop,
+                      status: 'completed',
+                      is_completed: true,
+                      is_current_stop: false,
+                    } as any;
+                  }
+                  if (stop.stop_id === targetStop.stop_id) {
+                    // Target becomes arrived/current
+                    return {
+                      ...stop,
+                      status: 'arrived',
+                      is_current_stop: true,
+                    } as any;
+                  }
+                  return { ...stop, is_current_stop: false } as any;
+                })
               );
+
+              setCurrentStop({
+                ...targetStop,
+                status: 'arrived',
+                is_current_stop: true,
+              });
+
+              // Update trip progress sequence optimistically
+              if (trip) {
+                setTrip({
+                  ...trip,
+                  current_stop_sequence: targetStop.stop_sequence,
+                } as CaptainTrip);
+              }
             }
-          } catch (err) {
-            console.error('Error in handleArrive:', err);
-            Alert.alert('Error', 'Failed to arrive at next stop');
+
+            // Check completion without reloading
+            if (data.is_completed) {
+              showSuccess(
+                'Trip Completed',
+                data.message || 'Trip completed successfully!',
+                () => router.back()
+              );
+            } else {
+              // Reload data silently to sync with database
+              setTimeout(() => reloadDataSilently(), 500);
+            }
+          } else {
+            console.error('Error arriving:', error || data);
+            showError(
+              'Error',
+              data?.message || error?.message || 'Failed to arrive at next stop'
+            );
           }
-        },
-      },
-    ]);
+        } catch (err) {
+          console.error('Error in handleArrive:', err);
+          showError('Error', 'Failed to arrive at next stop');
+        }
+      }
+    );
   };
 
   const handleSendManifest = async () => {
     if (!currentStop || !tripId) return;
 
-    Alert.alert(
+    showConfirmation(
       'Send Manifest',
       'Send passenger manifest to operations team?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send Manifest',
-          onPress: async () => {
-            const success = await sendManifest(tripId, currentStop.id);
+      async () => {
+        const success = await sendManifest(tripId, currentStop.id);
 
-            if (!success) {
-              Alert.alert('Error', 'Failed to send manifest');
-            }
-          },
-        },
-      ]
+        if (!success) {
+          showError('Error', 'Failed to send manifest');
+        }
+      }
     );
   };
 
@@ -1206,76 +1183,68 @@ export default function CaptainTripDetailsScreen() {
     const lastStop = routeStops.find(s => s.stop_sequence === trip.total_stops);
 
     if (!lastStop) {
-      Alert.alert('Error', 'Could not find final stop');
+      showError('Error', 'Could not find final stop');
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Complete Trip',
       `Mark this trip as completed? This will close the trip.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete Trip',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Mark the last stop as arrived (if not already)
-              if (!lastStop.is_completed) {
-                const { data: arriveData, error: arriveError } =
-                  await supabase.rpc('update_stop_status', {
-                    p_trip_id: tripId,
-                    p_stop_id: lastStop.stop_id,
-                    p_status: 'arrived',
-                    p_captain_id: user?.id,
-                  });
-
-                if (arriveError || !arriveData) {
-                  console.error(
-                    'Error marking last stop as arrived:',
-                    arriveError
-                  );
-                  Alert.alert('Error', 'Failed to update last stop');
-                  return;
-                }
+      async () => {
+        try {
+          // Mark the last stop as arrived (if not already)
+          if (!lastStop.is_completed) {
+            const { data: arriveData, error: arriveError } = await supabase.rpc(
+              'update_stop_status',
+              {
+                p_trip_id: tripId,
+                p_stop_id: lastStop.stop_id,
+                p_status: 'arrived',
+                p_captain_id: user?.id,
               }
+            );
 
-              // Mark final stop as completed
-              const { data: stopData, error: stopError } = await supabase.rpc(
-                'update_stop_status',
-                {
-                  p_trip_id: tripId,
-                  p_stop_id: lastStop.stop_id,
-                  p_status: 'completed',
-                  p_captain_id: user?.id,
-                }
-              );
-
-              if (stopError || !stopData) {
-                console.error('Error updating stop status:', stopError);
-                Alert.alert('Error', 'Failed to complete stop');
-                return;
-              }
-
-              // Update trip status to 'completed'
-              const success = await updateTripStatus(tripId, 'completed');
-
-              if (success) {
-                Alert.alert(
-                  'Trip Completed',
-                  'Trip has been marked as completed successfully.',
-                  [{ text: 'OK', onPress: () => router.back() }]
-                );
-              } else {
-                Alert.alert('Error', 'Failed to complete trip');
-              }
-            } catch (error) {
-              console.error('Error completing trip:', error);
-              Alert.alert('Error', 'Failed to complete trip');
+            if (arriveError || !arriveData) {
+              console.error('Error marking last stop as arrived:', arriveError);
+              showError('Error', 'Failed to update last stop');
+              return;
             }
-          },
-        },
-      ]
+          }
+
+          // Mark final stop as completed
+          const { data: stopData, error: stopError } = await supabase.rpc(
+            'update_stop_status',
+            {
+              p_trip_id: tripId,
+              p_stop_id: lastStop.stop_id,
+              p_status: 'completed',
+              p_captain_id: user?.id,
+            }
+          );
+
+          if (stopError || !stopData) {
+            console.error('Error updating stop status:', stopError);
+            showError('Error', 'Failed to complete stop');
+            return;
+          }
+
+          // Update trip status to 'completed'
+          const success = await updateTripStatus(tripId, 'completed');
+
+          if (success) {
+            showSuccess(
+              'Trip Completed',
+              'Trip has been marked as completed successfully.',
+              () => router.back()
+            );
+          } else {
+            showError('Error', 'Failed to complete trip');
+          }
+        } catch (error) {
+          console.error('Error completing trip:', error);
+          showError('Error', 'Failed to complete trip');
+        }
+      }
     );
   };
 
@@ -1338,7 +1307,7 @@ export default function CaptainTripDetailsScreen() {
 
   const handleBulkCheckIn = async () => {
     if (selectedPassengers.size === 0) {
-      Alert.alert('No Selection', 'Please select passengers to check in.');
+      showWarning('No Selection', 'Please select passengers to check in.');
       return;
     }
 
@@ -1355,79 +1324,73 @@ export default function CaptainTripDetailsScreen() {
     );
     const selectedBookingCount = selectedBookingIds.length;
 
-    Alert.alert(
+    showConfirmation(
       'Bulk Check-in',
       `Check in ${selectedBookingCount} booking${selectedBookingCount > 1 ? 's' : ''}?\n\nPassengers: ${selectedList.map(p => p.passenger_name).join(', ')}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Check In',
-          onPress: async () => {
+      async () => {
+        try {
+          let successCount = 0;
+          let errorCount = 0;
+          const processedBookingIds = new Set<string>();
+
+          for (const passenger of selectedList) {
+            // Skip if we've already processed this booking
+            // (in case multiple passengers share the same booking)
+            if (processedBookingIds.has(passenger.booking_id)) {
+              continue;
+            }
+
             try {
-              let successCount = 0;
-              let errorCount = 0;
-              const processedBookingIds = new Set<string>();
+              const { error } = await supabase
+                .from('bookings')
+                .update({
+                  status: 'checked_in',
+                  check_in_status: true,
+                  checked_in_at: new Date().toISOString(),
+                  checked_in_by: user?.id,
+                })
+                .eq('id', passenger.booking_id);
 
-              for (const passenger of selectedList) {
-                // Skip if we've already processed this booking
-                // (in case multiple passengers share the same booking)
-                if (processedBookingIds.has(passenger.booking_id)) {
-                  continue;
-                }
-
-                try {
-                  const { error } = await supabase
-                    .from('bookings')
-                    .update({
-                      status: 'checked_in',
-                      check_in_status: true,
-                      checked_in_at: new Date().toISOString(),
-                      checked_in_by: user?.id,
-                    })
-                    .eq('id', passenger.booking_id);
-
-                  if (!error) {
-                    successCount++;
-                    processedBookingIds.add(passenger.booking_id);
-                  } else {
-                    errorCount++;
-                    console.error(
-                      `Error checking in ${passenger.passenger_name}:`,
-                      error
-                    );
-                  }
-                } catch (err) {
-                  errorCount++;
-                  console.error(
-                    `Exception checking in ${passenger.passenger_name}:`,
-                    err
-                  );
-                }
-              }
-
-              // Clear selection
-              setSelectedPassengers(new Set());
-              setBulkCheckInMode(false);
-
-              // Show result
-              if (errorCount === 0) {
-                Alert.alert(
-                  'Success',
-                  `Successfully checked in ${successCount} booking${successCount > 1 ? 's' : ''}.`
-                );
+              if (!error) {
+                successCount++;
+                processedBookingIds.add(passenger.booking_id);
               } else {
-                Alert.alert(
-                  'Partial Success',
-                  `Checked in ${successCount} booking${successCount > 1 ? 's' : ''}. ${errorCount} failed.`
+                errorCount++;
+                console.error(
+                  `Error checking in ${passenger.passenger_name}:`,
+                  error
                 );
               }
             } catch (err) {
-              console.error('Bulk check-in error:', err);
-              Alert.alert('Error', 'Failed to check in passengers.');
+              errorCount++;
+              console.error(
+                `Exception checking in ${passenger.passenger_name}:`,
+                err
+              );
             }
-          },
-        },
-      ]
+          }
+
+          // Clear selection
+          setSelectedPassengers(new Set());
+          setBulkCheckInMode(false);
+
+          // Show result
+          if (errorCount === 0) {
+            showSuccess(
+              'Success',
+              `Successfully checked in ${successCount} booking${successCount > 1 ? 's' : ''}.`
+            );
+          } else {
+            showWarning(
+              'Partial Success',
+              `Checked in ${successCount} booking${successCount > 1 ? 's' : ''}. ${errorCount} failed.`
+            );
+          }
+        } catch (err) {
+          console.error('Bulk check-in error:', err);
+          showError('Error', 'Failed to check in passengers.');
+        }
+      }
     );
   };
 
@@ -1436,7 +1399,7 @@ export default function CaptainTripDetailsScreen() {
     if (!permission) {
       const { granted } = await requestPermission();
       if (!granted) {
-        Alert.alert(
+        showWarning(
           'Camera Permission Required',
           'Please grant camera permission to scan QR codes.'
         );
@@ -1447,7 +1410,7 @@ export default function CaptainTripDetailsScreen() {
     if (permission && !permission.granted) {
       const { granted } = await requestPermission();
       if (!granted) {
-        Alert.alert(
+        showWarning(
           'Camera Permission Required',
           'Please grant camera permission to scan QR codes.'
         );
@@ -1513,13 +1476,13 @@ export default function CaptainTripDetailsScreen() {
       }
 
       if (!bookingNum) {
-        Alert.alert(
+        showWarning(
           'Invalid QR Code',
           `The scanned QR code does not contain valid booking information.`,
-          [
-            { text: 'Scan Another', onPress: () => setScanned(false) },
-            { text: 'Close', onPress: handleCloseQRScanner },
-          ]
+          () => {
+            setScanned(false);
+            setScanningBooking(false);
+          }
         );
         setScanningBooking(false);
         return;
@@ -1530,10 +1493,8 @@ export default function CaptainTripDetailsScreen() {
       const result = await validateTicket(formattedBookingNum);
 
       if (!result.isValid || !result.booking) {
-        Alert.alert('Invalid Ticket', result.message, [
-          { text: 'Scan Another', onPress: () => setScanned(false) },
-          { text: 'Close', onPress: handleCloseQRScanner },
-        ]);
+        showError('Invalid Ticket', result.message);
+        setScanned(false);
         setScanningBooking(false);
         return;
       }
@@ -1542,109 +1503,83 @@ export default function CaptainTripDetailsScreen() {
 
       // Check if booking is for this trip
       if (booking.tripId !== tripId) {
-        Alert.alert('Wrong Trip', 'This ticket is not for this trip.', [
-          { text: 'Scan Another', onPress: () => setScanned(false) },
-          { text: 'Close', onPress: handleCloseQRScanner },
-        ]);
+        showWarning('Wrong Trip', 'This ticket is not for this trip.');
+        setScanned(false);
         setScanningBooking(false);
         return;
       }
 
       // Check if already checked in
       if (booking.checkInStatus) {
-        Alert.alert(
+        showWarning(
           'Already Checked In',
-          `${booking.clientName || 'Passenger'} has already been checked in.`,
-          [
-            { text: 'Scan Another', onPress: () => setScanned(false) },
-            { text: 'Close', onPress: handleCloseQRScanner },
-          ]
+          `${booking.clientName || 'Passenger'} has already been checked in.`
         );
+        setScanned(false);
         setScanningBooking(false);
         return;
       }
 
       // Check if booking is confirmed
       if (booking.status !== 'confirmed') {
-        Alert.alert(
+        showWarning(
           'Cannot Check In',
-          `Booking status is ${booking.status}. Only confirmed bookings can be checked in.`,
-          [
-            { text: 'Scan Another', onPress: () => setScanned(false) },
-            { text: 'Close', onPress: handleCloseQRScanner },
-          ]
+          `Booking status is ${booking.status}. Only confirmed bookings can be checked in.`
         );
+        setScanned(false);
         setScanningBooking(false);
         return;
       }
 
       // Confirm check-in
-      Alert.alert(
+      showConfirmation(
         'Check In Passenger',
         `Check in ${booking.clientName || 'passenger'}?\n\nBooking: ${booking.bookingNumber}\nPassengers: ${booking.passengers?.length || 0}\nSeats: ${booking.seats?.map((s: any) => s.number).join(', ') || 'N/A'}`,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => {
+        async () => {
+          try {
+            const { error } = await supabase
+              .from('bookings')
+              .update({
+                status: 'checked_in',
+                check_in_status: true,
+                checked_in_at: new Date().toISOString(),
+                checked_in_by: user?.id,
+              })
+              .eq('id', booking.id);
+
+            if (error) {
+              console.error('Error checking in:', error);
+              showError('Error', 'Failed to check in passenger.');
               setScanned(false);
               setScanningBooking(false);
-            },
-          },
-          {
-            text: 'Check In',
-            onPress: async () => {
-              try {
-                const { error } = await supabase
-                  .from('bookings')
-                  .update({
-                    status: 'checked_in',
-                    check_in_status: true,
-                    checked_in_at: new Date().toISOString(),
-                    checked_in_by: user?.id,
-                  })
-                  .eq('id', booking.id);
+              return;
+            }
 
-                if (error) {
-                  console.error('Error checking in:', error);
-                  Alert.alert('Error', 'Failed to check in passenger.', [
-                    { text: 'Scan Another', onPress: () => setScanned(false) },
-                    { text: 'Close', onPress: handleCloseQRScanner },
-                  ]);
-                  setScanningBooking(false);
-                  return;
-                }
+            // Reload passengers
+            await fetchTripPassengers(tripId!);
 
-                // Reload passengers
-                await fetchTripPassengers(tripId!);
-
-                Alert.alert(
-                  'Success',
-                  `${booking.clientName || 'Passenger'} checked in successfully!`,
-                  [
-                    { text: 'Scan Another', onPress: () => setScanned(false) },
-                    { text: 'Close', onPress: handleCloseQRScanner },
-                  ]
-                );
-                setScanningBooking(false);
-              } catch (err) {
-                console.error('Error checking in:', err);
-                Alert.alert('Error', 'Failed to check in passenger.', [
-                  { text: 'Scan Another', onPress: () => setScanned(false) },
-                  { text: 'Close', onPress: handleCloseQRScanner },
-                ]);
-                setScanningBooking(false);
-              }
-            },
-          },
-        ]
+            showSuccess(
+              'Success',
+              `${booking.clientName || 'Passenger'} checked in successfully!`
+            );
+            setScanned(false);
+            setScanningBooking(false);
+          } catch (err) {
+            console.error('Error checking in:', err);
+            showError('Error', 'Failed to check in passenger.');
+            setScanned(false);
+            setScanningBooking(false);
+          }
+        },
+        () => {
+          setScanned(false);
+          setScanningBooking(false);
+        }
       );
     } catch (error) {
       console.error('Error validating ticket:', error);
-      Alert.alert('Error', 'Failed to validate ticket.', [
-        { text: 'Scan Another', onPress: () => setScanned(false) },
-        { text: 'Close', onPress: handleCloseQRScanner },
-      ]);
+      showError('Error', 'Failed to validate ticket.');
+      setScanned(false);
       setScanningBooking(false);
     }
   };
@@ -1732,52 +1667,41 @@ export default function CaptainTripDetailsScreen() {
 
     // Check if check-in is already closed
     if (trip.is_checkin_closed) {
-      Alert.alert(
+      showWarning(
         'Check-in Already Closed',
         'Check-in has already been closed for this trip.'
       );
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Close Check-in',
       `Are you sure you want to close check-in for this trip?\n\n• A passenger manifest will be generated\n• No more passengers can check-in\n• Operation team will be notified via email\n\nPassengers: ${totalPassengers}\nChecked-in: ${checkedInCount}\nNo-show: ${remainingToCheckIn}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Close Check-in',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const success = await closeCheckin({
-                trip_id: tripId,
-                captain_notes: `Trip completed with ${checkedInCount}/${totalPassengers} passengers checked-in.`,
-                weather_conditions: '',
-                delay_reason: '',
-                actual_departure_time: new Date().toISOString(),
-              });
-              if (success) {
-                Alert.alert(
-                  'Check-in Closed Successfully',
-                  `✅ Check-in has been closed\n✅ Passenger manifest generated\n✅ Operation team notified\n\nTotal passengers: ${totalPassengers}\nChecked-in: ${checkedInCount}\nNo-show: ${remainingToCheckIn}`,
-                  [{ text: 'OK', onPress: () => router.back() }]
-                );
-              } else {
-                Alert.alert(
-                  'Error',
-                  'Failed to close check-in. Please try again.'
-                );
-              }
-            } catch (error) {
-              console.error('Error closing check-in:', error);
-              Alert.alert(
-                'Error',
-                'Failed to close check-in. Please try again.'
-              );
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          const success = await closeCheckin({
+            trip_id: tripId,
+            captain_notes: `Trip completed with ${checkedInCount}/${totalPassengers} passengers checked-in.`,
+            weather_conditions: '',
+            delay_reason: '',
+            actual_departure_time: new Date().toISOString(),
+          });
+          if (success) {
+            showSuccess(
+              'Check-in Closed Successfully',
+              `✅ Check-in has been closed\n✅ Passenger manifest generated\n✅ Operation team notified\n\nTotal passengers: ${totalPassengers}\nChecked-in: ${checkedInCount}\nNo-show: ${remainingToCheckIn}`,
+              () => router.back()
+            );
+          } else {
+            showError('Error', 'Failed to close check-in. Please try again.');
+          }
+        } catch (error) {
+          console.error('Error closing check-in:', error);
+          showError('Error', 'Failed to close check-in. Please try again.');
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

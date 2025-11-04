@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -21,11 +20,13 @@ import Button from '@/components/Button';
 import { formatSimpleDate } from '@/utils/dateUtils';
 import { calculateRefundAmount } from '@/utils/paymentUtils';
 import type { BankDetails } from '@/types/pages/booking';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function CancelBookingScreen() {
   const { id } = useLocalSearchParams();
   const { bookings, cancelBooking, fetchUserBookings, isLoading } =
     useUserBookingsStore();
+  const { showError, showSuccess, showWarning } = useAlertContext();
 
   const scrollViewRef = useRef<ScrollView>(null);
   const { keyboardHeight, handleInputFocus, setInputRef } = useKeyboardHandler({
@@ -88,7 +89,7 @@ export default function CancelBookingScreen() {
 
   const handleCancel = async () => {
     if (!isCancellable) {
-      Alert.alert(
+      showWarning(
         'Cannot Cancel',
         message || 'This booking cannot be cancelled'
       );
@@ -108,14 +109,11 @@ export default function CancelBookingScreen() {
         ? 'Your booking has been cancelled successfully. A refund of 50% has been initiated and will be processed to your original payment method within 3-5 business days.'
         : 'Your booking has been cancelled successfully. A refund of 50% will be processed to your bank account within 5-7 business days.';
 
-      Alert.alert('Booking Cancelled', refundMessage, [
-        {
-          text: 'OK',
-          onPress: () => router.replace('/(app)/(customer)/(tabs)/bookings'),
-        },
-      ]);
+      showSuccess('Booking Cancelled', refundMessage, () => {
+        router.replace('/(app)/(customer)/(tabs)/bookings');
+      });
     } catch (error) {
-      Alert.alert(
+      showError(
         'Cancellation Failed',
         'There was an error cancelling your booking. Please try again.'
       );
