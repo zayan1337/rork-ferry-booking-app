@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import {
   Stack,
@@ -26,6 +27,7 @@ import { useTripStore } from '@/store/admin/tripStore';
 import RoleGuard from '@/components/RoleGuard';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatTripStatus, getTripOccupancy } from '@/utils/tripUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import type {
   RouteSegmentFare,
   TripFareOverride,
@@ -345,11 +347,11 @@ export default function TripDetailsPage() {
 
     Alert.alert(
       'Cancel Trip',
-      `Are you sure you want to cancel ${routeName} on ${new Date(
+      `Are you sure you want to cancel ${routeName} on ${formatBookingDate(
         trip.travel_date
-      ).toLocaleDateString()} at ${
+      )} at ${formatTimeAMPM(
         trip.departure_time
-      }?\n\nThis will change the trip status to cancelled and notify ${
+      )}?\n\nThis will change the trip status to cancelled and notify ${
         trip.booked_seats
       } booked passengers.`,
       [
@@ -396,11 +398,11 @@ export default function TripDetailsPage() {
 
     Alert.alert(
       'Delete Trip',
-      `Are you sure you want to permanently delete ${routeName} on ${new Date(
+      `Are you sure you want to permanently delete ${routeName} on ${formatBookingDate(
         trip.travel_date
-      ).toLocaleDateString()} at ${
+      )} at ${formatTimeAMPM(
         trip.departure_time
-      }?\n\n⚠️ WARNING: This action cannot be undone and will permanently remove the trip and all associated data including ${
+      )}?\n\n⚠️ WARNING: This action cannot be undone and will permanently remove the trip and all associated data including ${
         trip.booked_seats
       } bookings.`,
       [
@@ -656,12 +658,14 @@ export default function TripDetailsPage() {
                   <View style={styles.detailItem}>
                     <Calendar size={16} color={colors.textSecondary} />
                     <Text style={styles.detailText}>
-                      {new Date(trip.travel_date).toLocaleDateString()}
+                      {formatBookingDate(trip.travel_date)}
                     </Text>
                   </View>
                   <View style={styles.detailItem}>
                     <Clock size={16} color={colors.textSecondary} />
-                    <Text style={styles.detailText}>{trip.departure_time}</Text>
+                    <Text style={styles.detailText}>
+                      {formatTimeAMPM(trip.departure_time)}
+                    </Text>
                   </View>
                 </View>
 
@@ -805,7 +809,7 @@ export default function TripDetailsPage() {
                                       <Clock size={12} color={colors.primary} />
                                       <Text style={styles.arrivalTime}>
                                         {isFirst ? 'Departs' : 'Arrives'}{' '}
-                                        {arrivalTime}
+                                        {formatTimeAMPM(arrivalTime)}
                                       </Text>
                                     </View>
                                   )}
@@ -1001,11 +1005,63 @@ export default function TripDetailsPage() {
 
               <Pressable
                 style={styles.managementAction}
-                onPress={() => {
-                  Alert.alert(
-                    'Feature Coming Soon',
-                    'Real-time tracking will be available in the next update.'
-                  );
+                onPress={async () => {
+                  // Try to get registration number from vessels array first
+                  let registrationNumber = (
+                    vessels?.find(v => v.id === trip.vessel_id) as any
+                  )?.registration_number;
+
+                  // If not found, fetch directly from vessels table
+                  if (!registrationNumber && trip.vessel_id) {
+                    try {
+                      const { data: vesselData, error } = await supabase
+                        .from('vessels')
+                        .select('registration_number')
+                        .eq('id', trip.vessel_id)
+                        .single();
+
+                      if (!error && vesselData) {
+                        registrationNumber = vesselData.registration_number;
+                      }
+                    } catch (error) {
+                      console.error(
+                        'Error fetching vessel registration:',
+                        error
+                      );
+                    }
+                  }
+
+                  if (!registrationNumber) {
+                    Alert.alert(
+                      'Tracking Unavailable',
+                      'This vessel does not have a registration number for tracking.',
+                      [{ text: 'OK' }]
+                    );
+                    return;
+                  }
+
+                  const trackingUrl = `https://m.followme.mv/public/${registrationNumber}`;
+
+                  Linking.canOpenURL(trackingUrl)
+                    .then(supported => {
+                      if (supported) {
+                        return Linking.openURL(trackingUrl);
+                      } else {
+                        Alert.alert(
+                          'Cannot Open Tracking',
+                          'Unable to open the vessel tracking system.',
+                          [{ text: 'OK' }]
+                        );
+                      }
+                    })
+                    .catch(error => {
+                      console.error('Error opening tracking URL:', error);
+                      Alert.alert(
+                        'Error',
+                        'An error occurred while trying to open the tracking system.',
+                        [{ text: 'OK' }]
+                      );
+                    });
                 }}
               >
                 <View style={styles.managementActionLeft}>

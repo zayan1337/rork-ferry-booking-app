@@ -761,54 +761,56 @@ export default function UserPermissionsScreen() {
 
         {/* Action Bar */}
         <View style={styles.actionBar}>
-          <View style={styles.actionBarLeft}>
-            <Pressable
-              style={styles.outlineButton}
-              onPress={() => setShowRoleTemplates(true)}
-            >
-              <Copy size={16} color={colors.primary} />
-              <Text style={styles.outlineButtonText}>Templates</Text>
-            </Pressable>
+          {/* <View style={styles.actionBarLeft}>
+            
+          </View> */}
+          <Pressable
+            style={styles.outlineButton}
+            onPress={() => setShowRoleTemplates(true)}
+          >
+            <Copy size={16} color={colors.primary} />
+            <Text style={styles.outlineButtonText}>Templates</Text>
+          </Pressable>
 
-            <Pressable
-              style={styles.outlineButton}
-              onPress={() => setShowBulkActions(true)}
-            >
-              <Plus size={16} color={colors.primary} />
-              <Text style={styles.outlineButtonText}>Bulk Actions</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.actionBarRight}>
-            <Pressable
+          <Pressable
+            style={styles.outlineButton}
+            onPress={() => setShowBulkActions(true)}
+          >
+            <Plus size={16} color={colors.primary} />
+            <Text style={styles.outlineButtonText}>Bulk Actions</Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.outlineButton,
+              filterLevel && styles.outlineButtonActive,
+            ]}
+            onPress={() => {
+              const levels = ['read', 'write', 'delete', 'admin'];
+              const currentIndex = levels.indexOf(filterLevel || '');
+              const nextLevel =
+                currentIndex === levels.length - 1
+                  ? null
+                  : levels[currentIndex + 1];
+              setFilterLevel(nextLevel);
+            }}
+          >
+            <Filter
+              size={16}
+              color={filterLevel ? colors.primary : colors.textSecondary}
+            />
+            <Text
               style={[
-                styles.outlineButton,
-                filterLevel && styles.outlineButtonActive,
+                styles.outlineButtonText,
+                filterLevel && styles.outlineButtonTextActive,
               ]}
-              onPress={() => {
-                const levels = ['read', 'write', 'delete', 'admin'];
-                const currentIndex = levels.indexOf(filterLevel || '');
-                const nextLevel =
-                  currentIndex === levels.length - 1
-                    ? null
-                    : levels[currentIndex + 1];
-                setFilterLevel(nextLevel);
-              }}
             >
-              <Filter
-                size={16}
-                color={filterLevel ? colors.primary : colors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.outlineButtonText,
-                  filterLevel && styles.outlineButtonTextActive,
-                ]}
-              >
-                {filterLevel ? filterLevel.toUpperCase() : 'All Levels'}
-              </Text>
-            </Pressable>
-          </View>
+              {filterLevel ? filterLevel.toUpperCase() : 'All Levels'}
+            </Text>
+          </Pressable>
+
+          {/* <View style={styles.actionBarRight}>
+           
+          </View> */}
         </View>
 
         {/* Search Bar */}
@@ -1355,9 +1357,8 @@ const styles = StyleSheet.create({
 
   // Action bar
   actionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    // flexDirection: 'row',
+    gap: 8,
     paddingHorizontal: 20,
     paddingVertical: 16,
     backgroundColor: colors.card,
@@ -1372,16 +1373,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: `${colors.border}20`,
   },
-  actionBarLeft: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionBarRight: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  // actionBarLeft: {
+  //   flexDirection: 'row',
+  //   gap: 8,
+  // },
+  // actionBarRight: {
+  //   flexDirection: 'row',
+  //   gap: 8,
+  // },
   outlineButton: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 16,

@@ -46,10 +46,12 @@ const UserItem = memo(({ user, onPress }: UserItemProps) => {
           <StatusBadge status={user.status} size='small' />
         </View>
 
-        <View style={styles.emailContainer}>
-          <Mail size={14} color={colors.textSecondary} />
-          <Text style={styles.email}>{user.email}</Text>
-        </View>
+        {user.email && (
+          <View style={styles.emailContainer}>
+            <Mail size={14} color={colors.textSecondary} />
+            <Text style={styles.email}>{user.email}</Text>
+          </View>
+        )}
 
         <View style={styles.footer}>
           <View
