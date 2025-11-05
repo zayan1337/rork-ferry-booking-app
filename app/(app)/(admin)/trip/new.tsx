@@ -50,7 +50,6 @@ export default function NewTripPage() {
 
         if (!error && route) {
           data.route_id = params.route_id;
-          console.log('Pre-selected route:', route.name);
         } else {
           console.warn('Route not found or inactive:', params.route_id);
         }
@@ -71,7 +70,6 @@ export default function NewTripPage() {
 
         if (!error && vessel) {
           data.vessel_id = params.vessel_id;
-          console.log('Pre-selected vessel:', vessel.name);
         } else {
           console.warn('Vessel not found or inactive:', params.vessel_id);
         }

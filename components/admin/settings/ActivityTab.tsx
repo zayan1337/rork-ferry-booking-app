@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { Activity, Clock, Users, Filter, Download } from 'lucide-react-native';
+import { Activity, Clock, Users, Filter } from 'lucide-react-native';
+import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { ActivityLog as AdminActivityLog } from '@/types/admin';
 import { SettingsStats } from '@/types/settings';
@@ -90,7 +91,7 @@ export default function ActivityTab({
         subtitle={`${stats.recentActivity} activities in ${selectedTimeframe} • Complete audit trail`}
         action={
           <View style={styles.headerActions}>
-            {canExportReports && (
+            {/* {canExportReports && (
               <Button
                 title='Export'
                 variant='outline'
@@ -98,7 +99,7 @@ export default function ActivityTab({
                 icon={<Download size={16} color={colors.primary} />}
                 onPress={onExportActivity}
               />
-            )}
+            )} */}
             <Button
               title='Filter'
               variant='ghost'
@@ -119,7 +120,13 @@ export default function ActivityTab({
       ) : (
         <View style={styles.activityList}>
           {filteredData.map(log => (
-            <View key={log.id} style={styles.activityItem}>
+            <Pressable
+              key={log.id}
+              style={styles.activityItem}
+              onPress={() => {
+                router.push(`/settings/activity/${log.id}` as any);
+              }}
+            >
               <View style={styles.activityIcon}>
                 <Activity size={16} color={colors.primary} />
               </View>
@@ -136,7 +143,7 @@ export default function ActivityTab({
                   {new Date(log.created_at).toLocaleTimeString()}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           ))}
         </View>
       )}

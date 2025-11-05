@@ -786,8 +786,6 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
           modificationError
         );
         // Don't throw error - booking was created successfully
-      } else {
-        console.log('Modification record created successfully');
       }
 
       // Handle additional modification logic (passengers, seats, etc.)
@@ -935,11 +933,6 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                 console.error(
                   'Return QR code verification failed:',
                   verifyReturnError
-                );
-              } else {
-                console.log(
-                  'Return QR code successfully saved for modified booking:',
-                  returnBooking.id
                 );
               }
             }
@@ -1175,11 +1168,6 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
               refundStatus = 'failed';
               // Don't throw - continue with cancellation even if refund fails
             } else if (refundData) {
-              console.log(
-                '[AGENT CANCEL] Refund API response:',
-                JSON.stringify(refundData, null, 2)
-              );
-
               if (!refundData?.success) {
                 console.warn(
                   '[AGENT CANCEL] Refund processing failed:',
@@ -1187,7 +1175,6 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                 );
                 refundStatus = 'failed';
               } else {
-                console.log('[AGENT CANCEL] Refund processed successfully');
                 refundStatus = 'completed';
               }
             }

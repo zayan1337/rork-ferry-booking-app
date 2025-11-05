@@ -199,7 +199,6 @@ export const fetchTrips = async (): Promise<OperationsTrip[]> => {
     const { data, error } = await supabase
       .from('operations_trips_view')
       .select('*')
-      .eq('is_active', true)
       .gte('travel_date', new Date().toISOString().split('T')[0])
       .order('travel_date', { ascending: true })
       .order('departure_time', { ascending: true });
@@ -403,6 +402,9 @@ export const fetchVessels = async (): Promise<OperationsVessel[]> => {
     return (data || []).map((vessel: any) => ({
       id: vessel.id,
       name: vessel.name,
+      make: vessel.make,
+      model: vessel.model,
+      registration_number: vessel.registration_number,
       seating_capacity: vessel.seating_capacity,
       is_active: vessel.is_active,
       created_at: vessel.created_at,
@@ -438,6 +440,9 @@ export const fetchVessel = async (
     return {
       id: data.id,
       name: data.name,
+      make: data.make,
+      model: data.model,
+      registration_number: data.registration_number,
       seating_capacity: data.seating_capacity,
       is_active: data.is_active,
       created_at: data.created_at,

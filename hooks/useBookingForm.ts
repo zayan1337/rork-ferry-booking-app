@@ -24,12 +24,21 @@ export const useBookingForm = ({
       const errors: any = {};
 
       switch (step) {
-        case BOOKING_STEPS.TRIP_TYPE_DATE:
+        case BOOKING_STEPS.ISLAND_DATE_SELECTION:
           if (!currentBooking.tripType) {
             errors.tripType = 'Please select a trip type';
           }
           if (!currentBooking.departureDate) {
             errors.departureDate = 'Please select a departure date';
+          }
+          if (!currentBooking.route) {
+            errors.route = 'Please select a route';
+          }
+          if (
+            currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+            !currentBooking.returnRoute
+          ) {
+            errors.returnRoute = 'Please select a return route';
           }
           if (
             currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
@@ -39,17 +48,11 @@ export const useBookingForm = ({
           }
           break;
 
-        case BOOKING_STEPS.ROUTE_SELECTION:
-          if (!currentBooking.route) {
-            errors.route = 'Please select a route';
-          }
+        case BOOKING_STEPS.TRIP_SELECTION:
           if (!currentBooking.trip) {
             errors.trip = 'Please select a departure time';
           }
           if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP) {
-            if (!currentBooking.returnRoute) {
-              errors.returnRoute = 'Please select a return route';
-            }
             if (!currentBooking.returnTrip) {
               errors.returnTrip = 'Please select a return time';
             }

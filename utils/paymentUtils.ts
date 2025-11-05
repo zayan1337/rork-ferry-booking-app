@@ -927,10 +927,6 @@ export const completeModificationAfterPayment = async (
         originalSeatReleaseError
       );
       // Don't throw - modification is complete, seat release failure is non-critical
-    } else {
-      console.log(
-        '[MODIFY_PAYMENT] Successfully released seats from original booking'
-      );
     }
 
     // 4. Update modification record payment details to reflect success

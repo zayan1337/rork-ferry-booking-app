@@ -2,27 +2,24 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking } from '@/types/admin/management';
-import {
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
-  Ship,
-  Route,
-  DollarSign,
-} from 'lucide-react-native';
-import {
-  formatDate,
-  formatTime,
-  formatCurrency,
-} from '@/utils/admin/bookingManagementUtils';
+import { Calendar, MapPin, Ship, Route } from 'lucide-react-native';
 
 interface BookingTripDetailsProps {
   booking: AdminBooking;
+  boardingStopName?: string | null;
+  destinationStopName?: string | null;
+  boardingStop?: any | null;
+  destinationStop?: any | null;
+  bookingSegment?: any | null;
 }
 
 export default function BookingTripDetails({
   booking,
+  boardingStopName,
+  destinationStopName,
+  boardingStop,
+  destinationStop,
+  bookingSegment,
 }: BookingTripDetailsProps) {
   return (
     <View style={styles.container}>
@@ -32,61 +29,63 @@ export default function BookingTripDetails({
       </View>
 
       <View style={styles.section}>
-        <View style={styles.row}>
-          <View style={styles.iconContainer}>
-            <MapPin size={20} color={colors.primary} />
-          </View>
-          <View style={styles.content}>
-            <Text style={styles.label}>Route</Text>
-            <Text style={styles.value}>
-              {booking.from_island_name} → {booking.to_island_name}
-            </Text>
-            {booking.route_name && (
-              <Text style={styles.subValue}>{booking.route_name}</Text>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.iconContainer}>
-            <Calendar size={20} color={colors.primary} />
-          </View>
-          <View style={styles.content}>
-            <Text style={styles.label}>Travel Date</Text>
-            <Text style={styles.value}>
-              {formatDate(booking.trip_travel_date || booking.created_at)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.iconContainer}>
-            <Clock size={20} color={colors.primary} />
-          </View>
-          <View style={styles.content}>
-            <Text style={styles.label}>Departure Time</Text>
-            <Text style={styles.value}>
-              {formatTime(booking.trip_departure_time || '00:00')}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.iconContainer}>
-            <Users size={20} color={colors.primary} />
-          </View>
-          <View style={styles.content}>
-            <Text style={styles.label}>Passengers</Text>
-            <Text style={styles.value}>
-              {booking.passenger_count || 1} passenger(s)
-            </Text>
-            {booking.agent_id && (
-              <Text style={styles.subValue}>
-                Booked by: {booking.agent_name || 'Agent'}
+        {/* Boarding/Departure Stop Details */}
+        {(bookingSegment ||
+          boardingStop ||
+          boardingStopName ||
+          booking.from_island_name) && (
+          <View style={styles.row}>
+            <View style={styles.iconContainer}>
+              <MapPin size={20} color={colors.success} />
+            </View>
+            <View style={styles.content}>
+              <Text style={styles.label}>Boarding Point</Text>
+              <Text style={styles.value}>
+                {boardingStop?.island?.name ||
+                  boardingStopName ||
+                  booking.from_island_name ||
+                  'Unknown'}
               </Text>
-            )}
+              {(bookingSegment?.boarding_stop?.island?.zone ||
+                boardingStop?.island?.zone) && (
+                <Text style={styles.subValue}>
+                  Zone:{' '}
+                  {bookingSegment?.boarding_stop?.island?.zone ||
+                    boardingStop?.island?.zone}
+                </Text>
+              )}
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* Dropoff/Destination Stop Details - Using booking_segments table */}
+        {(bookingSegment ||
+          destinationStop ||
+          destinationStopName ||
+          booking.to_island_name) && (
+          <View style={styles.row}>
+            <View style={styles.iconContainer}>
+              <MapPin size={20} color={colors.warning} />
+            </View>
+            <View style={styles.content}>
+              <Text style={styles.label}>Dropoff Point</Text>
+              <Text style={styles.value}>
+                {destinationStop?.island?.name ||
+                  destinationStopName ||
+                  booking.to_island_name ||
+                  'Unknown'}
+              </Text>
+              {(bookingSegment?.destination_stop?.island?.zone ||
+                destinationStop?.island?.zone) && (
+                <Text style={styles.subValue}>
+                  Zone:{' '}
+                  {bookingSegment?.destination_stop?.island?.zone ||
+                    destinationStop?.island?.zone}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
 
         {booking.vessel_name && (
           <View style={styles.row}>
@@ -104,41 +103,20 @@ export default function BookingTripDetails({
             </View>
           </View>
         )}
-      </View>
-
-      <View style={styles.tripInfo}>
-        <View style={styles.infoHeader}>
-          <DollarSign size={16} color={colors.textSecondary} />
-          <Text style={styles.infoTitle}>Fare Information</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Trip Type:</Text>
-          <Text style={styles.infoValue}>
-            {booking.is_round_trip ? 'Round Trip' : 'One Way'}
-          </Text>
-        </View>
 
         {booking.is_round_trip && booking.return_booking_id && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Return Booking:</Text>
-            <Text style={styles.infoValue}>#{booking.return_booking_id}</Text>
+          <View style={styles.row}>
+            <View style={styles.iconContainer}>
+              <Calendar size={20} color={colors.warning} />
+            </View>
+            <View style={styles.content}>
+              <Text style={styles.label}>Round Trip</Text>
+              <Text style={styles.value}>
+                Return Booking: #{booking.return_booking_id}
+              </Text>
+            </View>
           </View>
         )}
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Base Fare:</Text>
-          <Text style={styles.infoValue}>
-            {formatCurrency(booking.trip_base_fare || 0)}
-          </Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Total Fare:</Text>
-          <Text style={[styles.infoValue, styles.totalFare]}>
-            {formatCurrency(booking.total_fare || 0)}
-          </Text>
-        </View>
       </View>
     </View>
   );
@@ -202,44 +180,5 @@ const styles = StyleSheet.create({
   subValue: {
     fontSize: 14,
     color: colors.textSecondary,
-  },
-  tripInfo: {
-    borderTopWidth: 1,
-    borderTopColor: `${colors.border}40`,
-    paddingTop: 16,
-  },
-  infoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  infoValue: {
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  totalFare: {
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: '700',
   },
 });

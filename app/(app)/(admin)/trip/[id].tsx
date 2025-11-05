@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import {
   Stack,
@@ -26,17 +27,18 @@ import { useTripStore } from '@/store/admin/tripStore';
 import RoleGuard from '@/components/RoleGuard';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatTripStatus, getTripOccupancy } from '@/utils/tripUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import type {
   RouteSegmentFare,
   TripFareOverride,
 } from '@/types/multiStopRoute';
 import { getMultiStopRoute } from '@/utils/multiStopRouteUtils';
 import RouteSegmentFaresDisplay from '@/components/admin/routes/RouteSegmentFaresDisplay';
+import SeatBlockingManager from '@/components/admin/operations/SeatBlockingManager';
 import { supabase } from '@/utils/supabase';
 import {
   BarChart3,
   Edit,
-  Trash,
   Users,
   MapPin,
   Clock,
@@ -53,6 +55,7 @@ import {
   CheckCircle,
   Bookmark,
   ChevronRight,
+  X,
 } from 'lucide-react-native';
 
 // Function to convert OperationsTrip to Trip type expected by components
@@ -105,6 +108,8 @@ export default function TripDetailsPage() {
   const [loadingSegmentData, setLoadingSegmentData] = useState(false);
   const [routeStops, setRouteStops] = useState<any[]>([]);
   const [isMultiStopRoute, setIsMultiStopRoute] = useState(false);
+  const [specialAssistanceCount, setSpecialAssistanceCount] = useState(0);
+  const [showSeatBlocking, setShowSeatBlocking] = useState(false);
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -140,6 +145,22 @@ export default function TripDetailsPage() {
         if (tripData.route_id) {
           await loadMultiStopRouteData(tripData.route_id);
         }
+
+        // Load special assistance count
+        try {
+          const { count } = await supabase
+            .from('passengers')
+            .select('id, bookings!inner(trip_id)', {
+              count: 'exact',
+              head: true,
+            })
+            .not('special_assistance_request', 'is', null)
+            .neq('special_assistance_request', '')
+            .eq('bookings.trip_id', tripData.id);
+          setSpecialAssistanceCount(count || 0);
+        } catch (e) {
+          setSpecialAssistanceCount(0);
+        }
       } else {
         // Fallback to operations store
         const operationsTripData = await fetchTrip(id);
@@ -150,6 +171,22 @@ export default function TripDetailsPage() {
           // Load multi-stop route data if applicable
           if (mappedTrip.route_id) {
             await loadMultiStopRouteData(mappedTrip.route_id);
+          }
+
+          // Load special assistance count
+          try {
+            const { count } = await supabase
+              .from('passengers')
+              .select('id, bookings!inner(trip_id)', {
+                count: 'exact',
+                head: true,
+              })
+              .not('special_assistance_request', 'is', null)
+              .neq('special_assistance_request', '')
+              .eq('bookings.trip_id', mappedTrip.id);
+            setSpecialAssistanceCount(count || 0);
+          } catch (e) {
+            setSpecialAssistanceCount(0);
           }
         }
       }
@@ -167,28 +204,19 @@ export default function TripDetailsPage() {
   const loadMultiStopRouteData = async (routeId: string) => {
     setLoadingSegmentData(true);
     try {
-      console.log('Loading multi-stop route data for route:', routeId);
       const multiRoute = await getMultiStopRoute(routeId);
-      console.log('Multi-route data:', multiRoute);
 
       if (multiRoute) {
         // Always load stops (both simple and multi-stop routes have stops now)
         setRouteStops(multiRoute.stops || []);
         setIsMultiStopRoute(multiRoute.stops?.length > 2 || false);
 
-        console.log('Route stops:', multiRoute.stops);
-        console.log('Is multi-stop:', multiRoute.stops?.length > 2);
-
         if (multiRoute.segment_fares) {
-          console.log('Setting segment fares:', multiRoute.segment_fares);
           setRouteSegmentFares(multiRoute.segment_fares);
-        } else {
-          console.log('No segment fares found for route');
         }
 
         // Load trip fare overrides if they exist
         if (id) {
-          console.log('Loading trip fare overrides for trip:', id);
           const { data: overrides, error } = await supabase
             .from('trip_fare_overrides')
             .select('*')
@@ -197,12 +225,9 @@ export default function TripDetailsPage() {
           if (error) {
             console.error('Error loading trip fare overrides:', error);
           } else {
-            console.log('Trip fare overrides:', overrides);
             setTripFareOverrides(overrides || []);
           }
         }
-      } else {
-        console.log('No multi-route data found for route:', routeId);
       }
     } catch (error) {
       console.error('Error loading multi-stop route data:', error);
@@ -213,6 +238,63 @@ export default function TripDetailsPage() {
 
   const handleRefresh = () => {
     loadTrip(true);
+  };
+
+  // Silent update function for seat changes - updates data without showing loading indicators
+  const handleSeatChange = async () => {
+    if (!id) return;
+
+    try {
+      // Silently fetch updated trip data without setting loading states
+      const tripData = await tripStore.fetchById(id);
+
+      if (tripData) {
+        // Update trip state directly without loading indicators
+        setTrip(tripData as Trip);
+
+        // Update special assistance count silently
+        try {
+          const { count } = await supabase
+            .from('passengers')
+            .select('id, bookings!inner(trip_id)', {
+              count: 'exact',
+              head: true,
+            })
+            .not('special_assistance_request', 'is', null)
+            .neq('special_assistance_request', '')
+            .eq('bookings.trip_id', tripData.id);
+          setSpecialAssistanceCount(count || 0);
+        } catch (e) {
+          // Silently fail
+        }
+      } else {
+        // Fallback to operations store
+        const operationsTripData = await fetchTrip(id);
+        if (operationsTripData) {
+          const mappedTrip = mapOperationsTripToTrip(operationsTripData);
+          setTrip(mappedTrip);
+
+          // Update special assistance count silently
+          try {
+            const { count } = await supabase
+              .from('passengers')
+              .select('id, bookings!inner(trip_id)', {
+                count: 'exact',
+                head: true,
+              })
+              .not('special_assistance_request', 'is', null)
+              .neq('special_assistance_request', '')
+              .eq('bookings.trip_id', mappedTrip.id);
+            setSpecialAssistanceCount(count || 0);
+          } catch (e) {
+            // Silently fail
+          }
+        }
+      }
+    } catch (error) {
+      // Silently fail - don't show error alerts for background updates
+      console.error('Silent update failed:', error);
+    }
   };
 
   const handleEdit = () => {
@@ -231,7 +313,7 @@ export default function TripDetailsPage() {
         departure_time: tripData.departure_time,
         available_seats: trip?.available_seats || 0, // Keep current available seats
         captain_id: tripData.captain_id?.trim() || undefined, // Include captain assignment (undefined if empty)
-        is_active: true,
+        is_active: tripData.is_active,
       });
 
       if (success) {
@@ -265,11 +347,11 @@ export default function TripDetailsPage() {
 
     Alert.alert(
       'Cancel Trip',
-      `Are you sure you want to cancel ${routeName} on ${new Date(
+      `Are you sure you want to cancel ${routeName} on ${formatBookingDate(
         trip.travel_date
-      ).toLocaleDateString()} at ${
+      )} at ${formatTimeAMPM(
         trip.departure_time
-      }?\n\nThis will change the trip status to cancelled and notify ${
+      )}?\n\nThis will change the trip status to cancelled and notify ${
         trip.booked_seats
       } booked passengers.`,
       [
@@ -316,11 +398,11 @@ export default function TripDetailsPage() {
 
     Alert.alert(
       'Delete Trip',
-      `Are you sure you want to permanently delete ${routeName} on ${new Date(
+      `Are you sure you want to permanently delete ${routeName} on ${formatBookingDate(
         trip.travel_date
-      ).toLocaleDateString()} at ${
+      )} at ${formatTimeAMPM(
         trip.departure_time
-      }?\n\n⚠️ WARNING: This action cannot be undone and will permanently remove the trip and all associated data including ${
+      )}?\n\n⚠️ WARNING: This action cannot be undone and will permanently remove the trip and all associated data including ${
         trip.booked_seats
       } bookings.`,
       [
@@ -367,8 +449,8 @@ export default function TripDetailsPage() {
     if (!trip) return;
 
     Alert.alert('Share Trip', 'Choose how to share this trip information:', [
-      { text: 'Copy Link', onPress: () => console.log('Copy link') },
-      { text: 'Export PDF', onPress: () => console.log('Export PDF') },
+      { text: 'Copy Link', onPress: () => {} },
+      { text: 'Export PDF', onPress: () => {} },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -528,22 +610,47 @@ export default function TripDetailsPage() {
                     </Text>
                   </View>
                 </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: `${tripInfo.status.color}20` },
-                  ]}
-                >
-                  <Text
+                <View style={styles.statusBadgesContainer}>
+                  <View
                     style={[
-                      styles.statusText,
-                      { color: tripInfo.status.color },
+                      styles.statusBadge,
+                      { backgroundColor: `${tripInfo.status.color}20` },
                     ]}
                   >
-                    {tripInfo.status.label}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: tripInfo.status.color },
+                      ]}
+                    >
+                      {tripInfo.status.label}
+                    </Text>
+                  </View>
+                  {trip.is_active === true && (
+                    <View style={styles.activeStatusBadge}>
+                      <CheckCircle size={12} color={colors.success} />
+                      <Text style={styles.activeStatusText}>ACTIVE</Text>
+                    </View>
+                  )}
+                  {trip.is_active === false && (
+                    <View style={styles.inactiveStatusBadge}>
+                      <AlertCircle size={12} color={colors.textSecondary} />
+                      <Text style={styles.inactiveStatusText}>INACTIVE</Text>
+                    </View>
+                  )}
                 </View>
               </View>
+
+              {/* Inactive Trip Warning */}
+              {trip.is_active === false && (
+                <View style={styles.inactiveWarning}>
+                  <AlertTriangle size={16} color={colors.warning} />
+                  <Text style={styles.inactiveWarningText}>
+                    This trip is currently inactive and not available for
+                    booking
+                  </Text>
+                </View>
+              )}
 
               {/* Details Grid */}
               <View style={styles.detailsGrid}>
@@ -551,12 +658,14 @@ export default function TripDetailsPage() {
                   <View style={styles.detailItem}>
                     <Calendar size={16} color={colors.textSecondary} />
                     <Text style={styles.detailText}>
-                      {new Date(trip.travel_date).toLocaleDateString()}
+                      {formatBookingDate(trip.travel_date)}
                     </Text>
                   </View>
                   <View style={styles.detailItem}>
                     <Clock size={16} color={colors.textSecondary} />
-                    <Text style={styles.detailText}>{trip.departure_time}</Text>
+                    <Text style={styles.detailText}>
+                      {formatTimeAMPM(trip.departure_time)}
+                    </Text>
                   </View>
                 </View>
 
@@ -668,17 +777,6 @@ export default function TripDetailsPage() {
                             {!isLast && (
                               <View style={styles.timelineConnector}>
                                 <View style={styles.timelineLine} />
-                                {travelTime && (
-                                  <View style={styles.travelTimeContainer}>
-                                    <Clock
-                                      size={10}
-                                      color={colors.textSecondary}
-                                    />
-                                    <Text style={styles.travelTimeText}>
-                                      {travelTime} min
-                                    </Text>
-                                  </View>
-                                )}
                               </View>
                             )}
 
@@ -711,7 +809,7 @@ export default function TripDetailsPage() {
                                       <Clock size={12} color={colors.primary} />
                                       <Text style={styles.arrivalTime}>
                                         {isFirst ? 'Departs' : 'Arrives'}{' '}
-                                        {arrivalTime}
+                                        {formatTimeAMPM(arrivalTime)}
                                       </Text>
                                     </View>
                                   )}
@@ -841,7 +939,16 @@ export default function TripDetailsPage() {
                     </Text>
                   </View>
                 </View>
-                <ChevronRight size={20} color={colors.textSecondary} />
+                <View style={styles.managementRightArea}>
+                  {specialAssistanceCount > 0 && (
+                    <View style={styles.assistanceBadge}>
+                      <Text style={styles.assistanceBadgeText}>
+                        {specialAssistanceCount}
+                      </Text>
+                    </View>
+                  )}
+                  <ChevronRight size={20} color={colors.textSecondary} />
+                </View>
               </Pressable>
 
               <Pressable
@@ -864,13 +971,97 @@ export default function TripDetailsPage() {
                 <ChevronRight size={20} color={colors.textSecondary} />
               </Pressable>
 
+              {canManageTrips() && trip.vessel_id && (
+                <Pressable
+                  style={styles.managementAction}
+                  onPress={() => setShowSeatBlocking(!showSeatBlocking)}
+                >
+                  <View style={styles.managementActionLeft}>
+                    <View style={styles.managementIconContainer}>
+                      <Users size={20} color={colors.warning} />
+                    </View>
+                    <View>
+                      <Text style={styles.managementActionTitle}>
+                        Seat Blocking
+                      </Text>
+                      <Text style={styles.managementActionSubtitle}>
+                        {showSeatBlocking
+                          ? 'Hide seat blocking panel'
+                          : 'Block or release seats on this trip'}
+                      </Text>
+                    </View>
+                  </View>
+                  <ChevronRight
+                    size={20}
+                    color={colors.textSecondary}
+                    style={{
+                      transform: [
+                        { rotate: showSeatBlocking ? '90deg' : '0deg' },
+                      ],
+                    }}
+                  />
+                </Pressable>
+              )}
+
               <Pressable
                 style={styles.managementAction}
-                onPress={() => {
-                  Alert.alert(
-                    'Feature Coming Soon',
-                    'Real-time tracking will be available in the next update.'
-                  );
+                onPress={async () => {
+                  // Try to get registration number from vessels array first
+                  let registrationNumber = (
+                    vessels?.find(v => v.id === trip.vessel_id) as any
+                  )?.registration_number;
+
+                  // If not found, fetch directly from vessels table
+                  if (!registrationNumber && trip.vessel_id) {
+                    try {
+                      const { data: vesselData, error } = await supabase
+                        .from('vessels')
+                        .select('registration_number')
+                        .eq('id', trip.vessel_id)
+                        .single();
+
+                      if (!error && vesselData) {
+                        registrationNumber = vesselData.registration_number;
+                      }
+                    } catch (error) {
+                      console.error(
+                        'Error fetching vessel registration:',
+                        error
+                      );
+                    }
+                  }
+
+                  if (!registrationNumber) {
+                    Alert.alert(
+                      'Tracking Unavailable',
+                      'This vessel does not have a registration number for tracking.',
+                      [{ text: 'OK' }]
+                    );
+                    return;
+                  }
+
+                  const trackingUrl = `https://m.followme.mv/public/${registrationNumber}`;
+
+                  Linking.canOpenURL(trackingUrl)
+                    .then(supported => {
+                      if (supported) {
+                        return Linking.openURL(trackingUrl);
+                      } else {
+                        Alert.alert(
+                          'Cannot Open Tracking',
+                          'Unable to open the vessel tracking system.',
+                          [{ text: 'OK' }]
+                        );
+                      }
+                    })
+                    .catch(error => {
+                      console.error('Error opening tracking URL:', error);
+                      Alert.alert(
+                        'Error',
+                        'An error occurred while trying to open the tracking system.',
+                        [{ text: 'OK' }]
+                      );
+                    });
                 }}
               >
                 <View style={styles.managementActionLeft}>
@@ -921,38 +1112,38 @@ export default function TripDetailsPage() {
                 </Pressable>
               )}
 
-              {canManageTrips() && (
-                <Pressable
-                  style={[styles.managementAction, styles.deleteAction]}
-                  onPress={handleDelete}
-                >
-                  <View style={styles.managementActionLeft}>
-                    <View
-                      style={[
-                        styles.managementIconContainer,
-                        styles.deleteIconContainer,
-                      ]}
-                    >
-                      <Trash size={20} color={colors.danger} />
-                    </View>
-                    <View>
-                      <Text
-                        style={[
-                          styles.managementActionTitle,
-                          styles.deleteActionTitle,
-                        ]}
-                      >
-                        Delete Trip
-                      </Text>
-                      <Text style={styles.managementActionSubtitle}>
-                        Permanently remove trip from system
-                      </Text>
-                    </View>
-                  </View>
-                  <ChevronRight size={20} color={colors.danger} />
-                </Pressable>
-              )}
+              {/* Delete action removed per requirements */}
             </View>
+
+            {/* Seat Blocking Manager */}
+            {showSeatBlocking && canManageTrips() && trip?.vessel_id && (
+              <View style={styles.seatBlockingCard}>
+                <View style={styles.seatBlockingHeader}>
+                  <Text style={styles.sectionTitle}>
+                    Seat Blocking Management
+                  </Text>
+                  <Pressable
+                    onPress={() => setShowSeatBlocking(false)}
+                    style={styles.closeButton}
+                  >
+                    <X size={20} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+                {trip.vessel_id ? (
+                  <SeatBlockingManager
+                    tripId={trip.id}
+                    vesselId={trip.vessel_id}
+                    onSeatsChanged={handleSeatChange}
+                  />
+                ) : (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>
+                      No vessel assigned to this trip
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Segment Fares Display - Read Only */}
             {routeSegmentFares.length > 0 && (
@@ -1196,6 +1387,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
+  statusBadgesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
   statusBadge: {
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -1204,6 +1401,61 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  activeStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: `${colors.success}20`,
+    borderWidth: 1,
+    borderColor: colors.success,
+  },
+  activeStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.success,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inactiveStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: `${colors.textSecondary}20`,
+    borderWidth: 1,
+    borderColor: colors.textSecondary,
+  },
+  inactiveStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inactiveWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: `${colors.warning}15`,
+    borderWidth: 1,
+    borderColor: `${colors.warning}40`,
+    marginBottom: 16,
+  },
+  inactiveWarningText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.warning,
+    lineHeight: 18,
   },
   detailsGrid: {
     gap: 12,
@@ -1389,16 +1641,23 @@ const styles = StyleSheet.create({
   dangerAction: {
     backgroundColor: `${colors.danger}10`,
   },
-  deleteAction: {
-    backgroundColor: `${colors.danger}15`,
-    borderWidth: 1,
-    borderColor: `${colors.danger}30`,
+  managementRightArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  deleteIconContainer: {
-    backgroundColor: `${colors.danger}25`,
+  assistanceBadge: {
+    backgroundColor: colors.danger,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
   },
-  deleteActionTitle: {
-    color: colors.danger,
+  assistanceBadgeText: {
+    color: 'white',
+    fontSize: 11,
     fontWeight: '700',
   },
   actionMenuOverlay: {
@@ -1559,26 +1818,6 @@ const styles = StyleSheet.create({
     width: 2,
     backgroundColor: colors.border,
   },
-  travelTimeContainer: {
-    position: 'absolute',
-    top: '50%',
-    left: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.card,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    transform: [{ translateY: -12 }],
-  },
-  travelTimeText: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
   stopMarker: {
     position: 'absolute',
     left: 0,
@@ -1694,5 +1933,25 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: 4,
+  },
+  seatBlockingCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 16,
+  },
+  seatBlockingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  closeButton: {
+    padding: 4,
   },
 });

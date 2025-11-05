@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { router } from 'expo-router';
 import type { QuickBookingState } from '@/types/customer';
 import { useBookingStore, useRouteStore } from '@/store';
+import { BOOKING_STEPS } from '@/constants/customer';
 
 export const useQuickBooking = () => {
   const [quickBookingState, setQuickBookingState] = useState<QuickBookingState>(
@@ -13,7 +14,7 @@ export const useQuickBooking = () => {
     }
   );
 
-  const { setQuickBookingData } = useBookingStore();
+  const { setQuickBookingData, setCurrentStep } = useBookingStore();
   const { availableRoutes } = useRouteStore();
 
   const updateField = useCallback(
@@ -104,6 +105,9 @@ export const useQuickBooking = () => {
     try {
       // Use the new function to set quick booking data
       setQuickBookingData(matchingRoute, selectedDate);
+
+      // Set current step to TRIP_SELECTION (skip the island/date step)
+      setCurrentStep(BOOKING_STEPS.TRIP_SELECTION);
 
       // Small delay to ensure state is updated before navigation
       await new Promise(resolve => setTimeout(resolve, 100));

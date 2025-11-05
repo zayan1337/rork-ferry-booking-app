@@ -280,28 +280,6 @@ export default function RoutesScreen() {
                   <SortDesc size={12} color={colors.primary} />
                 ))}
             </Pressable>
-            <Pressable
-              style={[
-                styles.sortButton,
-                sortBy === 'total_revenue_30d' && styles.sortButtonActive,
-              ]}
-              onPress={() => toggleSort('total_revenue_30d')}
-            >
-              <Text
-                style={[
-                  styles.sortButtonText,
-                  sortBy === 'total_revenue_30d' && styles.sortButtonTextActive,
-                ]}
-              >
-                Revenue
-              </Text>
-              {sortBy === 'total_revenue_30d' &&
-                (sortOrder === 'asc' ? (
-                  <SortAsc size={12} color={colors.primary} />
-                ) : (
-                  <SortDesc size={12} color={colors.primary} />
-                ))}
-            </Pressable>
           </View>
         </View>
 

@@ -1,4 +1,4 @@
--- ============================================================================
+`-- ============================================================================
 -- MULTI-STOP ROUTES SYSTEM - COMPLETE DATABASE MIGRATION
 -- ============================================================================
 -- This migration transforms the route system to support multi-stop routes
@@ -34,8 +34,8 @@ ALTER TABLE routes
   DROP CONSTRAINT IF EXISTS unique_route_islands;
 
 -- Add helpful comments
-COMMENT ON COLUMN routes.from_island_id IS 'Legacy field - NULL for multi-stop routes, set for backward compatibility';
-COMMENT ON COLUMN routes.to_island_id IS 'Legacy field - NULL for multi-stop routes, set for backward compatibility';
+COMMENT ON COLUMN routes.from_island_id IS 'Starting point island ID - set from first stop in route';
+COMMENT ON COLUMN routes.to_island_id IS 'Final destination island ID - set from last stop in route';
 COMMENT ON COLUMN routes.base_fare IS 'Default base fare per segment - used for auto-generating segment fares';
 
 -- ============================================================================
@@ -206,20 +206,28 @@ DECLARE
   v_sequence INTEGER := 1;
   v_from_idx INTEGER;
   v_to_idx INTEGER;
+  v_first_island_id UUID;
+  v_last_island_id UUID;
+  v_stops_count INTEGER;
 BEGIN
   -- Validation
   IF jsonb_array_length(p_stops) < 2 THEN
     RAISE EXCEPTION 'Route must have at least 2 stops';
   END IF;
 
-  -- Create the route
+  -- Extract first and last stop island IDs
+  v_stops_count := jsonb_array_length(p_stops);
+  v_first_island_id := (p_stops->0->>'island_id')::UUID;
+  v_last_island_id := (p_stops->(v_stops_count - 1)->>'island_id')::UUID;
+
+  -- Create the route with from_island_id and to_island_id set from first and last stops
   INSERT INTO routes (
     name, base_fare, distance, duration, description, status, is_active,
-    from_island_id, to_island_id  -- Set to NULL for multi-stop
+    from_island_id, to_island_id
   )
   VALUES (
     p_name, p_base_fare, p_distance, p_duration, p_description, p_status, p_is_active,
-    NULL, NULL
+    v_first_island_id, v_last_island_id
   )
   RETURNING id INTO v_route_id;
 
@@ -335,7 +343,124 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 7.3: Check seat availability for a specific segment
+-- 7.3: Update multi-stop route (atomic operation)
+CREATE OR REPLACE FUNCTION update_multi_stop_route(
+  p_route_id UUID,
+  p_name VARCHAR,
+  p_base_fare NUMERIC,
+  p_distance VARCHAR,
+  p_duration VARCHAR,
+  p_description TEXT,
+  p_status VARCHAR,
+  p_is_active BOOLEAN,
+  p_stops JSONB,  -- Array: [{island_id, stop_type, estimated_travel_time, notes}]
+  p_segment_fares JSONB  -- Array: [{from_index, to_index, fare_amount}]
+) RETURNS VOID AS $$
+DECLARE
+  v_stop JSONB;
+  v_stop_id UUID;
+  v_stop_ids UUID[] := ARRAY[]::UUID[];
+  v_fare JSONB;
+  v_sequence INTEGER := 1;
+  v_from_idx INTEGER;
+  v_to_idx INTEGER;
+  v_first_island_id UUID;
+  v_last_island_id UUID;
+  v_stops_count INTEGER;
+BEGIN
+  -- Validation
+  IF p_stops IS NOT NULL AND jsonb_array_length(p_stops) < 2 THEN
+    RAISE EXCEPTION 'Route must have at least 2 stops';
+  END IF;
+
+  -- Update basic route information
+  UPDATE routes
+  SET
+    name = COALESCE(p_name, name),
+    base_fare = COALESCE(p_base_fare, base_fare),
+    distance = COALESCE(p_distance, distance),
+    duration = COALESCE(p_duration, duration),
+    description = COALESCE(p_description, description),
+    status = COALESCE(p_status, status),
+    is_active = COALESCE(p_is_active, is_active)
+  WHERE id = p_route_id;
+
+  -- Update stops and segment fares if provided
+  IF p_stops IS NOT NULL THEN
+    -- Extract first and last stop island IDs
+    v_stops_count := jsonb_array_length(p_stops);
+    v_first_island_id := (p_stops->0->>'island_id')::UUID;
+    v_last_island_id := (p_stops->(v_stops_count - 1)->>'island_id')::UUID;
+
+    -- Update from_island_id and to_island_id from first and last stops
+    UPDATE routes
+    SET
+      from_island_id = v_first_island_id,
+      to_island_id = v_last_island_id
+    WHERE id = p_route_id;
+
+    -- Delete existing stops (cascade will handle segment fares)
+    DELETE FROM route_stops WHERE route_id = p_route_id;
+
+    -- Delete existing segment fares
+    DELETE FROM route_segment_fares WHERE route_id = p_route_id;
+
+    -- Create route stops in sequence
+    FOR v_stop IN SELECT * FROM jsonb_array_elements(p_stops)
+    LOOP
+      INSERT INTO route_stops (
+        route_id,
+        island_id,
+        stop_sequence,
+        stop_type,
+        estimated_travel_time,
+        notes
+      )
+      VALUES (
+        p_route_id,
+        (v_stop->>'island_id')::UUID,
+        v_sequence,
+        COALESCE(v_stop->>'stop_type', 'both'),
+        (v_stop->>'estimated_travel_time')::INTEGER,
+        v_stop->>'notes'
+      )
+      RETURNING id INTO v_stop_id;
+      
+      v_stop_ids := array_append(v_stop_ids, v_stop_id);
+      v_sequence := v_sequence + 1;
+    END LOOP;
+
+    -- Create segment fares if provided
+    IF p_segment_fares IS NOT NULL THEN
+      FOR v_fare IN SELECT * FROM jsonb_array_elements(p_segment_fares)
+      LOOP
+        v_from_idx := (v_fare->>'from_index')::INTEGER;
+        v_to_idx := (v_fare->>'to_index')::INTEGER;
+        
+        -- Validate indices
+        IF v_from_idx >= array_length(v_stop_ids, 1) OR v_to_idx >= array_length(v_stop_ids, 1) THEN
+          RAISE EXCEPTION 'Invalid stop indices in segment fare';
+        END IF;
+        
+        INSERT INTO route_segment_fares (
+          route_id,
+          from_stop_id,
+          to_stop_id,
+          fare_amount
+        )
+        VALUES (
+          p_route_id,
+          v_stop_ids[v_from_idx + 1],  -- PostgreSQL arrays are 1-based
+          v_stop_ids[v_to_idx + 1],
+          (v_fare->>'fare_amount')::NUMERIC
+        );
+      END LOOP;
+    END IF;
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 7.4: Check seat availability for a specific segment
 CREATE OR REPLACE FUNCTION is_seat_available_for_segment(
   p_trip_id UUID,
   p_seat_id UUID,
@@ -363,7 +488,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 7.4: Get available seats for a specific segment
+-- 7.5: Get available seats for a specific segment
 CREATE OR REPLACE FUNCTION get_available_seats_for_segment(
   p_trip_id UUID,
   p_from_stop_sequence INTEGER,
@@ -402,7 +527,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 7.5: Get effective fare for a segment (with override support)
+-- 7.6: Get effective fare for a segment (with override support)
 CREATE OR REPLACE FUNCTION get_effective_segment_fare(
   p_trip_id UUID,
   p_from_stop_id UUID,
@@ -449,7 +574,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 7.6: Reserve seat for a segment
+-- 7.7: Reserve seat for a segment
 CREATE OR REPLACE FUNCTION reserve_seat_for_segment(
   p_trip_id UUID,
   p_seat_id UUID,
@@ -525,7 +650,7 @@ SELECT
   
   -- Counts
   COALESCE(stop_counts.total_stops, 0) as total_stops,
-  COALESCE(stop_counts.segment_count, 0) as total_segments,
+  COALESCE(segment_counts.actual_segments, 0) as total_segments,
   
   -- Stats (from existing routes_stats_view logic)
   COALESCE(stats.total_trips_30d, 0::BIGINT) as total_trips_30d,
@@ -551,14 +676,21 @@ LEFT JOIN (
   ORDER BY rs.route_id, rs.stop_sequence DESC
 ) last_stop ON r.id = last_stop.route_id
 LEFT JOIN (
-  -- Count stops and segments
+  -- Count stops
   SELECT 
     route_id,
-    COUNT(*) as total_stops,
-    (COUNT(*) * (COUNT(*) - 1)) / 2 as segment_count
+    COUNT(*) as total_stops
   FROM route_stops
   GROUP BY route_id
 ) stop_counts ON r.id = stop_counts.route_id
+LEFT JOIN (
+  -- Count actual configured segments
+  SELECT 
+    route_id,
+    COUNT(*) as actual_segments
+  FROM route_segment_fares
+  GROUP BY route_id
+) segment_counts ON r.id = segment_counts.route_id
 LEFT JOIN (
   -- Calculate stats (reuse logic from original routes_stats_view)
   SELECT
@@ -901,3 +1033,4 @@ END $$;
 -- );
 
 
+`

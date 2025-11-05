@@ -15,6 +15,13 @@ export default function CaptainLayout() {
       }}
     >
       <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+      <Stack.Screen
+        name='trip-details/[tripId]'
+        options={{
+          title: 'Trip Details',
+          presentation: 'card',
+        }}
+      />
     </Stack>
   );
 }

@@ -56,28 +56,32 @@ export default function UserActionsSection({
   );
 
   const renderAgentActions = () => (
-    <View style={styles.actionButtons}>
-      <Button
-        title='View Clients'
-        variant='outline'
-        onPress={onViewClients || (() => {})}
-        icon={<Users size={16} color={colors.primary} />}
-        style={styles.actionButton}
-      />
-      <Button
-        title='View Transactions'
-        variant='outline'
-        onPress={onViewTransactions || (() => {})}
-        icon={<CreditCard size={16} color={colors.primary} />}
-        style={styles.actionButton}
-      />
-      <Button
-        title='View Bookings'
-        variant='outline'
-        onPress={onViewBookings || (() => {})}
-        icon={<Calendar size={16} color={colors.primary} />}
-        style={styles.actionButton}
-      />
+    <View style={styles.agentActionsContainer}>
+      <View style={styles.agentActionRow}>
+        <Button
+          title='View Clients'
+          variant='outline'
+          onPress={onViewClients || (() => {})}
+          icon={<Users size={16} color={colors.primary} />}
+          style={styles.agentActionButton}
+        />
+        <Button
+          title='View Transactions'
+          variant='outline'
+          onPress={onViewTransactions || (() => {})}
+          icon={<CreditCard size={16} color={colors.primary} />}
+          style={styles.agentActionButton}
+        />
+      </View>
+      <View style={styles.agentActionRow}>
+        <Button
+          title='View Bookings'
+          variant='outline'
+          onPress={onViewBookings || (() => {})}
+          icon={<Calendar size={16} color={colors.primary} />}
+          style={[styles.agentActionButton, styles.agentActionButtonFull]}
+        />
+      </View>
     </View>
   );
 
@@ -100,17 +104,10 @@ export default function UserActionsSection({
     </View>
   );
 
-  const renderPassengerActions = () => (
-    <View style={styles.actionButtons}>
-      <Button
-        title='View Trip Details'
-        variant='outline'
-        onPress={onViewTrips || (() => {})}
-        icon={<Calendar size={16} color={colors.primary} />}
-        style={styles.actionButton}
-      />
-    </View>
-  );
+  const renderPassengerActions = () => {
+    // Passengers have trip details shown in their dedicated section, no action buttons needed
+    return null;
+  };
 
   const renderCaptainActions = () => (
     <View style={styles.actionButtons}>
@@ -155,10 +152,17 @@ export default function UserActionsSection({
     }
   };
 
+  const actions = renderActions();
+
+  // Don't render the section if there are no actions (e.g., for passengers)
+  if (!actions) {
+    return null;
+  }
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Actions</Text>
-      <View style={styles.actionsGrid}>{renderActions()}</View>
+      <View style={styles.actionsGrid}>{actions}</View>
     </View>
   );
 }
@@ -167,7 +171,7 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: colors.card,
     borderRadius: 16,
-    padding: 24,
+    padding: 16,
     marginBottom: 20,
     shadowColor: colors.shadowMedium,
     shadowOffset: { width: 0, height: 2 },
@@ -193,5 +197,20 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     minWidth: 120,
+  },
+  agentActionsContainer: {
+    gap: 12,
+  },
+  agentActionRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  agentActionButton: {
+    flex: 1,
+    minWidth: 140,
+  },
+  agentActionButtonFull: {
+    flex: 1,
+    minWidth: 'auto',
   },
 });

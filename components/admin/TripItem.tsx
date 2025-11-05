@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import {
@@ -50,143 +50,177 @@ interface TripItemProps {
   showStats?: boolean;
 }
 
-export default function TripItem({
-  trip,
-  onPress,
-  showStats = true,
-}: TripItemProps) {
-  const getStatusVariant = (status: TripStatus) => {
-    switch (status) {
-      case 'scheduled':
-        return 'default';
-      case 'boarding':
-        return 'warning';
-      case 'departed':
-        return 'success';
-      case 'arrived':
-        return 'success';
-      case 'cancelled':
-        return 'danger';
-      case 'delayed':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
+// Memoized helper functions outside component to prevent recreation
+const getStatusColor = (status: TripStatus) => {
+  switch (status) {
+    case 'scheduled':
+      return colors.primary;
+    case 'boarding':
+      return colors.warning;
+    case 'departed':
+      return colors.success;
+    case 'arrived':
+      return colors.success;
+    case 'cancelled':
+      return colors.danger;
+    case 'delayed':
+      return colors.warning;
+    default:
+      return colors.textSecondary;
+  }
+};
 
-  const getStatusColor = (status: TripStatus) => {
-    switch (status) {
-      case 'scheduled':
-        return colors.primary;
-      case 'boarding':
-        return colors.warning;
-      case 'departed':
-        return colors.success;
-      case 'arrived':
-        return colors.success;
-      case 'cancelled':
-        return colors.danger;
-      case 'delayed':
-        return colors.warning;
-      default:
-        return colors.textSecondary;
-    }
-  };
+const getOccupancyColor = (occupancy: number) => {
+  if (occupancy >= 90) return colors.danger;
+  if (occupancy >= 70) return colors.success;
+  if (occupancy >= 50) return colors.warning;
+  return colors.textSecondary;
+};
 
-  const getOccupancyColor = (occupancy: number) => {
-    if (occupancy >= 90) return colors.danger;
-    if (occupancy >= 70) return colors.success;
-    if (occupancy >= 50) return colors.warning;
-    return colors.textSecondary;
-  };
+const getOccupancyLevel = (occupancy: number) => {
+  if (occupancy >= 90) return 'Full';
+  if (occupancy >= 70) return 'High';
+  if (occupancy >= 50) return 'Medium';
+  return 'Low';
+};
 
-  const getOccupancyLevel = (occupancy: number) => {
-    if (occupancy >= 90) return 'Full';
-    if (occupancy >= 70) return 'High';
-    if (occupancy >= 50) return 'Medium';
-    return 'Low';
-  };
+const formatTime = (time: string) => {
+  try {
+    return new Date(`1970-01-01T${time}`).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return time;
+  }
+};
 
-  const formatTime = (time: string) => {
-    try {
-      return new Date(`1970-01-01T${time}`).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      });
-    } catch {
-      return time;
-    }
-  };
+const formatDate = (date: string) => {
+  try {
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      weekday: 'short',
+    });
+  } catch {
+    return date;
+  }
+};
 
-  const formatDate = (date: string) => {
-    try {
-      return new Date(date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        weekday: 'short',
-      });
-    } catch {
-      return date;
-    }
-  };
+const formatCurrency = (amount: number) => {
+  return `MVR ${amount.toLocaleString()}`;
+};
 
-  const formatCurrency = (amount: number) => {
-    return `MVR ${amount.toLocaleString()}`;
-  };
+const TripItem = memo(({ trip, onPress, showStats = true }: TripItemProps) => {
+  // Memoize expensive calculations
+  const computedValues = useMemo(() => {
+    const routeDisplay =
+      trip.route_name ||
+      `${trip.from_island_name || 'Unknown'} → ${
+        trip.to_island_name || 'Unknown'
+      }`;
 
-  const routeDisplay =
-    trip.route_name ||
-    `${trip.from_island_name || 'Unknown'} → ${
-      trip.to_island_name || 'Unknown'
-    }`;
+    const occupancyRate =
+      trip.occupancy_rate ||
+      (trip.capacity ? (trip.booked_seats / trip.capacity) * 100 : 0);
 
-  const occupancyRate =
-    trip.occupancy_rate ||
-    (trip.capacity ? (trip.booked_seats / trip.capacity) * 100 : 0);
+    const totalFare = (trip.base_fare || 0) * trip.fare_multiplier;
+    const estimatedRevenue =
+      totalFare * (trip.confirmed_bookings || trip.booked_seats);
 
-  const totalFare = (trip.base_fare || 0) * trip.fare_multiplier;
-  const estimatedRevenue =
-    totalFare * (trip.confirmed_bookings || trip.booked_seats);
+    const statusColor = getStatusColor(trip.status);
+    const occupancyColor = getOccupancyColor(occupancyRate);
+    const occupancyLevel = getOccupancyLevel(occupancyRate);
+    const formattedTime = formatTime(trip.departure_time);
+    const formattedDate = formatDate(trip.travel_date);
+    const formattedArrivalTime = trip.arrival_time
+      ? formatTime(trip.arrival_time)
+      : null;
+    const formattedTotalFare = totalFare > 0 ? formatCurrency(totalFare) : '';
+    const formattedRevenue =
+      estimatedRevenue > 0 ? formatCurrency(estimatedRevenue) : '';
+
+    return {
+      routeDisplay,
+      occupancyRate,
+      totalFare,
+      estimatedRevenue,
+      statusColor,
+      occupancyColor,
+      occupancyLevel,
+      formattedTime,
+      formattedDate,
+      formattedArrivalTime,
+      formattedTotalFare,
+      formattedRevenue,
+    };
+  }, [
+    trip.route_name,
+    trip.from_island_name,
+    trip.to_island_name,
+    trip.occupancy_rate,
+    trip.capacity,
+    trip.booked_seats,
+    trip.base_fare,
+    trip.fare_multiplier,
+    trip.confirmed_bookings,
+    trip.status,
+    trip.departure_time,
+    trip.travel_date,
+    trip.arrival_time,
+  ]);
+
+  const handlePress = useMemo(() => () => onPress(trip.id), [onPress, trip.id]);
 
   return (
-    <Pressable style={styles.container} onPress={() => onPress(trip.id)}>
+    <Pressable style={styles.container} onPress={handlePress}>
       {/* Header Section */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.routeInfo}>
             <Navigation size={16} color={colors.primary} />
             <Text style={styles.routeName} numberOfLines={1}>
-              {routeDisplay}
+              {computedValues.routeDisplay}
             </Text>
           </View>
           <View style={styles.dateTimeInfo}>
             <Calendar size={14} color={colors.textSecondary} />
-            <Text style={styles.dateText}>{formatDate(trip.travel_date)}</Text>
+            <Text style={styles.dateText}>{computedValues.formattedDate}</Text>
             <Clock size={14} color={colors.textSecondary} />
-            <Text style={styles.timeText}>
-              {formatTime(trip.departure_time)}
-            </Text>
-            {trip.arrival_time && (
+            <Text style={styles.timeText}>{computedValues.formattedTime}</Text>
+            {computedValues.formattedArrivalTime && (
               <>
                 <Text style={styles.arrow}>→</Text>
                 <Text style={styles.timeText}>
-                  {formatTime(trip.arrival_time)}
+                  {computedValues.formattedArrivalTime}
                 </Text>
               </>
             )}
           </View>
         </View>
         <View style={styles.headerRight}>
-          <View style={styles.statusBadge}>
-            <Text
-              style={[
-                styles.statusText,
-                { color: getStatusColor(trip.status) },
-              ]}
-            >
-              {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
-            </Text>
+          <View style={styles.badgesContainer}>
+            <View style={styles.statusBadge}>
+              <Text
+                style={[
+                  styles.statusText,
+                  { color: getStatusColor(trip.status) },
+                ]}
+              >
+                {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+              </Text>
+            </View>
+            {trip.is_active === true && (
+              <View style={styles.activeBadge}>
+                <Text style={styles.activeBadgeText}>ACTIVE</Text>
+              </View>
+            )}
+            {trip.is_active === false && (
+              <View style={styles.inactiveBadge}>
+                <Text style={styles.inactiveBadgeText}>INACTIVE</Text>
+              </View>
+            )}
           </View>
           <ChevronRight size={20} color={colors.textTertiary} />
         </View>
@@ -231,7 +265,7 @@ export default function TripItem({
           {/* Occupancy Stats */}
           <View style={styles.statRow}>
             <View style={styles.statItem}>
-              <Users size={14} color={getOccupancyColor(occupancyRate)} />
+              <Users size={14} color={computedValues.occupancyColor} />
               <Text style={styles.statLabel}>Seats</Text>
               <Text style={styles.statValue}>
                 {trip.booked_seats}/{trip.available_seats}
@@ -239,34 +273,34 @@ export default function TripItem({
             </View>
 
             <View style={styles.statItem}>
-              <Activity size={14} color={getOccupancyColor(occupancyRate)} />
+              <Activity size={14} color={computedValues.occupancyColor} />
               <Text style={styles.statLabel}>Occupancy</Text>
               <Text
                 style={[
                   styles.statValue,
-                  { color: getOccupancyColor(occupancyRate) },
+                  { color: computedValues.occupancyColor },
                 ]}
               >
-                {Math.round(occupancyRate)}%
+                {Math.round(computedValues.occupancyRate)}%
               </Text>
             </View>
 
-            {totalFare > 0 && (
+            {computedValues.formattedTotalFare && (
               <View style={styles.statItem}>
                 <DollarSign size={14} color={colors.success} />
                 <Text style={styles.statLabel}>Fare</Text>
                 <Text style={styles.statValue}>
-                  {formatCurrency(totalFare)}
+                  {computedValues.formattedTotalFare}
                 </Text>
               </View>
             )}
 
-            {estimatedRevenue > 0 && (
+            {computedValues.formattedRevenue && (
               <View style={styles.statItem}>
                 <TrendingUp size={14} color={colors.success} />
                 <Text style={styles.statLabel}>Revenue</Text>
                 <Text style={[styles.statValue, { color: colors.success }]}>
-                  {formatCurrency(estimatedRevenue)}
+                  {computedValues.formattedRevenue}
                 </Text>
               </View>
             )}
@@ -279,8 +313,8 @@ export default function TripItem({
                 style={[
                   styles.occupancyBarFill,
                   {
-                    width: `${Math.min(occupancyRate, 100)}%`,
-                    backgroundColor: getOccupancyColor(occupancyRate),
+                    width: `${Math.min(computedValues.occupancyRate, 100)}%`,
+                    backgroundColor: computedValues.occupancyColor,
                   },
                 ]}
               />
@@ -288,10 +322,10 @@ export default function TripItem({
             <Text
               style={[
                 styles.occupancyLevel,
-                { color: getOccupancyColor(occupancyRate) },
+                { color: computedValues.occupancyColor },
               ]}
             >
-              {getOccupancyLevel(occupancyRate)}
+              {computedValues.occupancyLevel}
             </Text>
           </View>
         </View>
@@ -301,12 +335,16 @@ export default function TripItem({
       <View
         style={[
           styles.statusIndicator,
-          { backgroundColor: getStatusColor(trip.status) },
+          { backgroundColor: computedValues.statusColor },
         ]}
       />
     </Pressable>
   );
-}
+});
+
+TripItem.displayName = 'TripItem';
+
+export default TripItem;
 
 const styles = StyleSheet.create({
   container: {
@@ -337,6 +375,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  badgesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
   },
   routeInfo: {
     flexDirection: 'row',
@@ -477,5 +521,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'capitalize',
+  },
+  activeBadge: {
+    backgroundColor: `${colors.success}20`,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.success,
+  },
+  activeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.success,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inactiveBadge: {
+    backgroundColor: `${colors.textSecondary}20`,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.textSecondary,
+  },
+  inactiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

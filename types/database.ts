@@ -24,6 +24,7 @@ export interface DatabaseVessel {
   name: string;
   make?: string;
   model?: string;
+  registration_number?: string;
   seating_capacity: number;
   is_active: boolean;
   created_at: string;

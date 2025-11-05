@@ -124,13 +124,29 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
           status: 'pending',
         });
 
+        // Resolve fallback contact from booking user's profile
+        let departureFallbackPhone = '' as string;
+        try {
+          const { data: depProfile } = await supabase
+            .from('user_profiles')
+            .select('mobile_number')
+            .eq('id', departureBooking.user_id)
+            .single();
+          departureFallbackPhone = (depProfile?.mobile_number || '').trim();
+        } catch {}
+
         // Create passengers for departure
         const departurePassengerInserts = currentBooking.passengers.map(
           (passenger: any, index: number) => ({
             booking_id: departureBooking.id,
             seat_id: currentBooking.selectedSeats[index].id,
             passenger_name: passenger.fullName,
-            passenger_contact_number: passenger.idNumber || '',
+            passenger_contact_number:
+              (passenger.phoneNumber && passenger.phoneNumber.trim()) ||
+              departureFallbackPhone ||
+              '',
+            passenger_id_proof:
+              (passenger.idNumber && passenger.idNumber.trim()) || null,
             special_assistance_request: passenger.specialAssistance || '',
           })
         );
@@ -229,13 +245,29 @@ export const useBookingOperationsStore = create<BookingOperationsStore>(
             status: 'pending',
           });
 
+          // Resolve fallback contact from booking user's profile (return)
+          let returnFallbackPhone = '' as string;
+          try {
+            const { data: retProfile } = await supabase
+              .from('user_profiles')
+              .select('mobile_number')
+              .eq('id', returnBooking.user_id)
+              .single();
+            returnFallbackPhone = (retProfile?.mobile_number || '').trim();
+          } catch {}
+
           // Create passengers for return
           const returnPassengerInserts = currentBooking.passengers.map(
             (passenger: any, index: number) => ({
               booking_id: returnBooking.id,
               seat_id: currentBooking.returnSelectedSeats[index].id,
               passenger_name: passenger.fullName,
-              passenger_contact_number: passenger.idNumber || '',
+              passenger_contact_number:
+                (passenger.phoneNumber && passenger.phoneNumber.trim()) ||
+                returnFallbackPhone ||
+                '',
+              passenger_id_proof:
+                (passenger.idNumber && passenger.idNumber.trim()) || null,
               special_assistance_request: passenger.specialAssistance || '',
             })
           );

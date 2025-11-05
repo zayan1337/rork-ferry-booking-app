@@ -1,4 +1,5 @@
 import type { Island, Route, Seat, Passenger, Booking } from './index';
+import type { RouteStop } from './multiStopRoute';
 
 export interface Vessel {
   id: string;
@@ -21,6 +22,21 @@ export interface Trip {
   route?: {
     base_fare: number; // Nested route data for proper fare calculation
   };
+}
+
+// Trip with segment information for multi-stop bookings
+export interface TripWithSegment extends Trip {
+  boarding_stop_id: string;
+  destination_stop_id: string;
+  boarding_stop_sequence: number;
+  destination_stop_sequence: number;
+  boarding_island_name: string;
+  destination_island_name: string;
+  segment_fare: number;
+  available_seats_for_segment: number;
+  seating_capacity?: number;
+  total_stops: number;
+  route_name?: string;
 }
 
 export interface SeatReservation {
@@ -50,6 +66,22 @@ export interface BookingData {
 
 export interface CurrentBooking extends BookingData {
   returnRoute: Route | null;
+  // Multi-stop route segment information (island selection)
+  boardingIslandId: string | null;
+  boardingIslandName: string | null;
+  destinationIslandId: string | null;
+  destinationIslandName: string | null;
+  returnBoardingIslandId: string | null;
+  returnBoardingIslandName: string | null;
+  returnDestinationIslandId: string | null;
+  returnDestinationIslandName: string | null;
+  // Stop information (determined after selecting trip)
+  boardingStop: RouteStop | null;
+  destinationStop: RouteStop | null;
+  returnBoardingStop: RouteStop | null;
+  returnDestinationStop: RouteStop | null;
+  segmentFare: number | null;
+  returnSegmentFare: number | null;
 }
 
 // Store interfaces

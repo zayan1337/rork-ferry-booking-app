@@ -5,6 +5,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { TicketCardProps } from '@/types/components';
 import Colors from '@/constants/colors';
 import Card from './Card';
+import { formatTimeAMPM } from '@/utils/dateUtils';
 
 const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
   const formatDate = (dateString: string) => {
@@ -48,6 +49,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
         <View style={styles.routeRow}>
           <View style={styles.routePoint}>
             <View style={[styles.routeDot, styles.startDot]} />
+            {/* <Text style={styles.routeLabel}>Pickup</Text> */}
             <Text style={styles.routeLocation}>
               {booking.route.fromIsland.name}
             </Text>
@@ -55,6 +57,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
           <View style={styles.routeLine} />
           <View style={styles.routePoint}>
             <View style={[styles.routeDot, styles.endDot]} />
+            {/* <Text style={styles.routeLabel}>Dropoff</Text> */}
             <Text style={styles.routeLocation}>
               {booking.route.toIsland.name}
             </Text>
@@ -83,7 +86,9 @@ const TicketCard: React.FC<TicketCardProps> = ({ booking }) => {
               style={styles.infoIcon}
             />
             <Text style={styles.infoLabel}>Time</Text>
-            <Text style={styles.infoValue}>{booking.departureTime}</Text>
+            <Text style={styles.infoValue}>
+              {formatTimeAMPM(booking.departureTime)}
+            </Text>
           </View>
         </View>
 

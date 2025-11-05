@@ -30,6 +30,11 @@ export interface Route {
   toIsland: Island;
   baseFare: number;
   duration?: string; // Optional since it's not in DB
+  routeStops?: {
+    id: string;
+    stopSequence: number;
+    island: Island;
+  }[];
 }
 
 export interface Seat {
@@ -61,6 +66,7 @@ export interface Passenger {
   id?: string;
   fullName: string;
   idNumber?: string;
+  phoneNumber?: string;
   specialAssistance?: string;
 }
 
@@ -124,6 +130,7 @@ export type Booking = {
   clientPhone?: string;
   agentId?: string | null;
   isAgentBooking?: boolean;
+  tripId?: string | null;
 };
 
 // Base exports without conflicts

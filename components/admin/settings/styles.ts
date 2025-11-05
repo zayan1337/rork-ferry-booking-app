@@ -982,6 +982,13 @@ export const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     gap: 12,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: `${colors.border}20`,
   },
   activityIcon: {
     width: 32,

@@ -60,23 +60,23 @@ create table public.activity_logs (
   constraint activity_logs_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_activity_logs_user_id on public.activity_logs using btree (user_id) TABLESPACE pg_default;
+create index IF not exists idx_activity_logs_action_date on public.activity_logs using btree (action, created_at) TABLESPACE pg_default;
 
 create index IF not exists idx_activity_logs_created_at on public.activity_logs using btree (created_at) TABLESPACE pg_default;
 
 create index IF not exists idx_activity_logs_created_at_desc on public.activity_logs using btree (created_at desc) TABLESPACE pg_default;
 
-create index IF not exists idx_activity_logs_user_action_date on public.activity_logs using btree (user_id, action, created_at) TABLESPACE pg_default;
-
 create index IF not exists idx_activity_logs_entity on public.activity_logs using btree (entity_type, entity_id) TABLESPACE pg_default
 where
   (entity_type is not null);
 
-create index IF not exists idx_activity_logs_action_date on public.activity_logs using btree (action, created_at) TABLESPACE pg_default;
-
 create index IF not exists idx_activity_logs_session on public.activity_logs using btree (session_id) TABLESPACE pg_default
 where
   (session_id is not null);
+
+create index IF not exists idx_activity_logs_user_action_date on public.activity_logs using btree (user_id, action, created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_activity_logs_user_id on public.activity_logs using btree (user_id) TABLESPACE pg_default;
 
 create view public.activity_logs_with_users as
 select
@@ -315,15 +315,15 @@ create table public.admin_notifications (
   constraint admin_notifications_recipient_id_fkey foreign KEY (recipient_id) references user_profiles (id)
 ) TABLESPACE pg_default;
 
+create index IF not exists idx_admin_notifications_priority on public.admin_notifications using btree (priority, created_at) TABLESPACE pg_default
+where
+  (is_read = false);
+
 create index IF not exists idx_admin_notifications_recipient_unread on public.admin_notifications using btree (recipient_id, is_read, created_at) TABLESPACE pg_default;
 
 create index IF not exists idx_admin_notifications_role_unread on public.admin_notifications using btree (recipient_role, is_read, created_at) TABLESPACE pg_default
 where
   (recipient_role is not null);
-
-create index IF not exists idx_admin_notifications_priority on public.admin_notifications using btree (priority, created_at) TABLESPACE pg_default
-where
-  (is_read = false);
 
 create view public.admin_operations_overview as
 select
@@ -670,10 +670,6 @@ create table public.agent_clients (
   constraint different_agent_client check ((agent_id <> client_id))
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_agent_clients_agent_id on public.agent_clients using btree (agent_id) TABLESPACE pg_default;
-
-create index IF not exists idx_agent_clients_agent_email on public.agent_clients using btree (agent_id, email) TABLESPACE pg_default;
-
 create unique INDEX IF not exists idx_agent_client_with_account on public.agent_clients using btree (agent_id, client_id) TABLESPACE pg_default
 where
   (client_id is not null);
@@ -681,6 +677,10 @@ where
 create unique INDEX IF not exists idx_agent_client_without_account on public.agent_clients using btree (agent_id, email) TABLESPACE pg_default
 where
   (client_id is null);
+
+create index IF not exists idx_agent_clients_agent_email on public.agent_clients using btree (agent_id, email) TABLESPACE pg_default;
+
+create index IF not exists idx_agent_clients_agent_id on public.agent_clients using btree (agent_id) TABLESPACE pg_default;
 
 create view public.agent_clients_with_details as
 select
@@ -885,6 +885,37 @@ from
       p2.id
   ) passenger_stats on p.id = passenger_stats.passenger_id;
 
+create table public.booking_segments (
+  id uuid not null default gen_random_uuid (),
+  booking_id uuid not null,
+  boarding_stop_id uuid not null,
+  destination_stop_id uuid not null,
+  boarding_stop_sequence integer not null,
+  destination_stop_sequence integer not null,
+  fare_amount numeric(10, 2) not null,
+  created_at timestamp with time zone null default now(),
+  constraint booking_segments_pkey primary key (id),
+  constraint unique_booking_segment unique (booking_id),
+  constraint booking_segments_destination_stop_id_fkey foreign KEY (destination_stop_id) references route_stops (id),
+  constraint booking_segments_booking_id_fkey foreign KEY (booking_id) references bookings (id) on delete CASCADE,
+  constraint booking_segments_boarding_stop_id_fkey foreign KEY (boarding_stop_id) references route_stops (id),
+  constraint booking_segments_fare_amount_check check ((fare_amount >= (0)::numeric)),
+  constraint check_different_segment_stops check ((boarding_stop_id <> destination_stop_id)),
+  constraint check_valid_segment_sequence check (
+    (
+      destination_stop_sequence > boarding_stop_sequence
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_booking_segments_boarding on public.booking_segments using btree (boarding_stop_id) TABLESPACE pg_default;
+
+create index IF not exists idx_booking_segments_booking on public.booking_segments using btree (booking_id) TABLESPACE pg_default;
+
+create index IF not exists idx_booking_segments_destination on public.booking_segments using btree (destination_stop_id) TABLESPACE pg_default;
+
+create index IF not exists idx_booking_segments_sequences on public.booking_segments using btree (boarding_stop_sequence, destination_stop_sequence) TABLESPACE pg_default;
+
 create table public.bookings (
   id uuid not null default gen_random_uuid (),
   booking_number character varying(7) not null,
@@ -924,17 +955,58 @@ create table public.bookings (
   )
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_bookings_user_id on public.bookings using btree (user_id) TABLESPACE pg_default;
+create index IF not exists idx_bookings_agent_client_id on public.bookings using btree (agent_client_id) TABLESPACE pg_default
+where
+  (agent_client_id is not null);
 
-create index IF not exists idx_bookings_status on public.bookings using btree (status) TABLESPACE pg_default;
-
-create index IF not exists idx_bookings_status_trip on public.bookings using btree (status, trip_id) TABLESPACE pg_default;
-
-create index IF not exists idx_bookings_trip_status on public.bookings using btree (trip_id, status) TABLESPACE pg_default;
+create index IF not exists idx_bookings_agent_created_at on public.bookings using btree (agent_id, created_at) TABLESPACE pg_default
+where
+  (agent_id is not null);
 
 create index IF not exists idx_bookings_agent_id on public.bookings using btree (agent_id) TABLESPACE pg_default
 where
   (agent_id is not null);
+
+create index IF not exists idx_bookings_agent_user on public.bookings using btree (agent_id, user_id) TABLESPACE pg_default;
+
+create index IF not exists idx_bookings_check_in_status on public.bookings using btree (check_in_status, checked_in_at) TABLESPACE pg_default;
+
+create index IF not exists idx_bookings_checked_in_by on public.bookings using btree (checked_in_by) TABLESPACE pg_default
+where
+  (checked_in_by is not null);
+
+create index IF not exists idx_bookings_created_at on public.bookings using btree (created_at) TABLESPACE pg_default
+where
+  (created_at is not null);
+
+create index IF not exists idx_bookings_created_at_status on public.bookings using btree (created_at, status) TABLESPACE pg_default;
+
+create index IF not exists idx_bookings_return_booking_id on public.bookings using btree (return_booking_id) TABLESPACE pg_default
+where
+  (return_booking_id is not null);
+
+create index IF not exists idx_bookings_round_trip_group on public.bookings using btree (round_trip_group_id) TABLESPACE pg_default
+where
+  (round_trip_group_id is not null);
+
+create index IF not exists idx_bookings_status on public.bookings using btree (status) TABLESPACE pg_default;
+
+create index IF not exists idx_bookings_status_fare on public.bookings using btree (status, total_fare) TABLESPACE pg_default
+where
+  (
+    status = any (
+      array[
+        'confirmed'::booking_status,
+        'checked_in'::booking_status
+      ]
+    )
+  );
+
+create index IF not exists idx_bookings_status_trip on public.bookings using btree (status, trip_id) TABLESPACE pg_default;
+
+create index IF not exists idx_bookings_status_trip_travel on public.bookings using btree (status, trip_id) TABLESPACE pg_default;
+
+create index IF not exists idx_bookings_trip_date_status on public.bookings using btree (trip_id, created_at, status) TABLESPACE pg_default;
 
 create index IF not exists idx_bookings_trip_id_status on public.bookings using btree (trip_id, status) TABLESPACE pg_default
 where
@@ -948,52 +1020,11 @@ where
     )
   );
 
-create index IF not exists idx_bookings_agent_client_id on public.bookings using btree (agent_client_id) TABLESPACE pg_default
-where
-  (agent_client_id is not null);
+create index IF not exists idx_bookings_trip_status on public.bookings using btree (trip_id, status) TABLESPACE pg_default;
 
-create index IF not exists idx_bookings_created_at_status on public.bookings using btree (created_at, status) TABLESPACE pg_default;
-
-create index IF not exists idx_bookings_agent_created_at on public.bookings using btree (agent_id, created_at) TABLESPACE pg_default
-where
-  (agent_id is not null);
-
-create index IF not exists idx_bookings_status_trip_travel on public.bookings using btree (status, trip_id) TABLESPACE pg_default;
+create index IF not exists idx_bookings_user_id on public.bookings using btree (user_id) TABLESPACE pg_default;
 
 create index IF not exists idx_bookings_user_status_date on public.bookings using btree (user_id, status, created_at) TABLESPACE pg_default;
-
-create index IF not exists idx_bookings_agent_user on public.bookings using btree (agent_id, user_id) TABLESPACE pg_default;
-
-create index IF not exists idx_bookings_check_in_status on public.bookings using btree (check_in_status, checked_in_at) TABLESPACE pg_default;
-
-create index IF not exists idx_bookings_checked_in_by on public.bookings using btree (checked_in_by) TABLESPACE pg_default
-where
-  (checked_in_by is not null);
-
-create index IF not exists idx_bookings_return_booking_id on public.bookings using btree (return_booking_id) TABLESPACE pg_default
-where
-  (return_booking_id is not null);
-
-create index IF not exists idx_bookings_round_trip_group on public.bookings using btree (round_trip_group_id) TABLESPACE pg_default
-where
-  (round_trip_group_id is not null);
-
-create index IF not exists idx_bookings_trip_date_status on public.bookings using btree (trip_id, created_at, status) TABLESPACE pg_default;
-
-create index IF not exists idx_bookings_created_at on public.bookings using btree (created_at) TABLESPACE pg_default
-where
-  (created_at is not null);
-
-create index IF not exists idx_bookings_status_fare on public.bookings using btree (status, total_fare) TABLESPACE pg_default
-where
-  (
-    status = any (
-      array[
-        'confirmed'::booking_status,
-        'checked_in'::booking_status
-      ]
-    )
-  );
 
 create trigger audit_bookings_trigger
 after INSERT
@@ -1001,6 +1032,9 @@ or DELETE
 or
 update on bookings for EACH row
 execute FUNCTION enhanced_audit_trigger ();
+
+create trigger check_trip_before_booking BEFORE INSERT on bookings for EACH row
+execute FUNCTION validate_trip_before_booking ();
 
 create trigger trg_prevent_checkin_after_closure BEFORE
 update on bookings for EACH row
@@ -1019,12 +1053,48 @@ after
 update OF status on bookings for EACH row
 execute FUNCTION update_available_seats ();
 
-create trigger trg_update_trip_available_seats_bookings
-after INSERT
-or DELETE
-or
-update OF status on bookings for EACH row
-execute FUNCTION update_trip_available_seats ();
+create view public.bookings_with_segments_view as
+select
+  b.id,
+  b.booking_number,
+  b.user_id,
+  b.trip_id,
+  b.is_round_trip,
+  b.return_booking_id,
+  b.status,
+  b.total_fare,
+  b.qr_code_url,
+  b.check_in_status,
+  b.created_at,
+  b.updated_at,
+  b.agent_id,
+  b.payment_method_type,
+  b.agent_client_id,
+  b.round_trip_group_id,
+  b.checked_in_at,
+  b.checked_in_by,
+  bs.boarding_stop_id,
+  bs.destination_stop_id,
+  bs.boarding_stop_sequence,
+  bs.destination_stop_sequence,
+  bs.fare_amount as segment_fare,
+  i_boarding.name as boarding_island_name,
+  i_boarding.zone as boarding_zone,
+  i_dest.name as destination_island_name,
+  i_dest.zone as destination_zone,
+  bs.destination_stop_sequence - bs.boarding_stop_sequence as segments_traveled,
+  t.travel_date,
+  t.departure_time,
+  r.name as route_name
+from
+  bookings b
+  left join booking_segments bs on b.id = bs.booking_id
+  left join route_stops rs_boarding on bs.boarding_stop_id = rs_boarding.id
+  left join route_stops rs_dest on bs.destination_stop_id = rs_dest.id
+  left join islands i_boarding on rs_boarding.island_id = i_boarding.id
+  left join islands i_dest on rs_dest.island_id = i_dest.id
+  left join trips t on b.trip_id = t.id
+  left join routes r on t.route_id = r.id;
 
 create table public.cancellations (
   id uuid not null default gen_random_uuid (),
@@ -1055,7 +1125,6 @@ select
   p.special_assistance_request,
   p.status as passenger_status,
   p.created_at,
-  b.id as booking_id_ref,
   b.booking_number,
   b.trip_id,
   b.status as booking_status,
@@ -1097,7 +1166,8 @@ where
     b.status = any (
       array[
         'confirmed'::booking_status,
-        'checked_in'::booking_status
+        'checked_in'::booking_status,
+        'completed'::booking_status
       ]
     )
   )
@@ -1130,6 +1200,41 @@ where
   role = 'captain'::user_role
   and is_active = true;
 
+create view public.captain_trip_progress_view as
+select
+  t.id as trip_id,
+  t.travel_date,
+  t.departure_time,
+  t.status as trip_status,
+  t.trip_progress_status,
+  t.current_stop_sequence,
+  t.current_stop_id,
+  r.name as route_name,
+  v.name as vessel_name,
+  v.seating_capacity,
+  (
+    select
+      count(*) as count
+    from
+      route_stops
+    where
+      route_stops.route_id = t.route_id
+  ) as total_stops,
+  csp.status as current_stop_status,
+  csp.stop_type as current_stop_type,
+  ci.name as current_stop_name,
+  ci.zone as current_stop_zone
+from
+  trips t
+  join routes r on t.route_id = r.id
+  join vessels v on t.vessel_id = v.id
+  left join trip_stop_progress csp on t.id = csp.trip_id
+  and t.current_stop_id = csp.stop_id
+  left join route_stops rs on t.current_stop_id = rs.id
+  left join islands ci on rs.island_id = ci.id
+where
+  t.is_active = true;
+
 create view public.captain_trips_view as
 select
   t.id,
@@ -1157,13 +1262,16 @@ select
   r.base_fare,
   cp.full_name as captain_name,
   COALESCE(booking_stats.confirmed_bookings, 0::bigint) as confirmed_bookings,
-  COALESCE(booking_stats.booked_seats, 0::bigint) as booked_seats,
-  COALESCE(booking_stats.checked_in_passengers, 0::bigint) as checked_in_passengers,
+  COALESCE(booking_stats.booked_seats, 0::bigint::numeric) as booked_seats,
+  COALESCE(
+    booking_stats.checked_in_passengers,
+    0::bigint::numeric
+  ) as checked_in_passengers,
   COALESCE(booking_stats.total_revenue, 0::numeric) as total_revenue,
   COALESCE(booking_stats.total_revenue, 0::numeric) as revenue,
   case
     when v.seating_capacity > 0 then round(
-      COALESCE(booking_stats.confirmed_bookings, 0::bigint)::numeric / v.seating_capacity::numeric * 100::numeric,
+      COALESCE(booking_stats.booked_seats, 0::bigint::numeric) / v.seating_capacity::numeric * 100::numeric,
       2
     )
     else 0::numeric
@@ -1199,35 +1307,53 @@ from
           when b.status = any (
             array[
               'confirmed'::booking_status,
-              'checked_in'::booking_status
+              'checked_in'::booking_status,
+              'completed'::booking_status
             ]
           ) then 1
           else null::integer
         end
       ) as confirmed_bookings,
-      count(
-        case
-          when b.status = any (
-            array[
-              'confirmed'::booking_status,
-              'checked_in'::booking_status
-            ]
-          ) then passenger_counts.passenger_count
-          else null::bigint
-        end
+      COALESCE(
+        sum(
+          case
+            when b.status = any (
+              array[
+                'confirmed'::booking_status,
+                'checked_in'::booking_status,
+                'completed'::booking_status
+              ]
+            ) then COALESCE(passenger_counts.passenger_count, 0::bigint)
+            else 0::bigint
+          end
+        ),
+        0::numeric
       ) as booked_seats,
-      count(
-        case
-          when b.status = 'checked_in'::booking_status then passenger_counts.passenger_count
-          else null::bigint
-        end
+      COALESCE(
+        sum(
+          case
+            when b.check_in_status = true
+            and (
+              b.status = any (
+                array[
+                  'confirmed'::booking_status,
+                  'checked_in'::booking_status,
+                  'completed'::booking_status
+                ]
+              )
+            ) then COALESCE(passenger_counts.passenger_count, 0::bigint)
+            else 0::bigint
+          end
+        ),
+        0::numeric
       ) as checked_in_passengers,
       sum(
         case
           when b.status = any (
             array[
               'confirmed'::booking_status,
-              'checked_in'::booking_status
+              'checked_in'::booking_status,
+              'completed'::booking_status
             ]
           ) then b.total_fare
           else 0::numeric
@@ -1237,12 +1363,12 @@ from
       bookings b
       left join (
         select
-          passengers.booking_id,
+          p.booking_id,
           count(*) as passenger_count
         from
-          passengers
+          passengers p
         group by
-          passengers.booking_id
+          p.booking_id
       ) passenger_counts on b.id = passenger_counts.booking_id
     group by
       b.trip_id
@@ -1450,6 +1576,25 @@ select
 from
   translations;
 
+create table public.email_logs (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  user_id uuid null,
+  email_type character varying(50) not null,
+  recipient character varying(255) not null,
+  status character varying(50) not null default 'sent'::character varying,
+  sent_at timestamp with time zone not null default now(),
+  error_message text null,
+  created_at timestamp with time zone not null default now(),
+  constraint email_logs_pkey primary key (id),
+  constraint email_logs_user_id_fkey foreign KEY (user_id) references auth.users (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_email_logs_email_type on public.email_logs using btree (email_type) TABLESPACE pg_default;
+
+create index IF not exists idx_email_logs_sent_at on public.email_logs using btree (sent_at) TABLESPACE pg_default;
+
+create index IF not exists idx_email_logs_user_id on public.email_logs using btree (user_id) TABLESPACE pg_default;
+
 create view public.enhanced_operations_stats_view as
 select
   (
@@ -1617,9 +1762,9 @@ create table public.faq_categories (
 
 create index IF not exists idx_faq_categories_active on public.faq_categories using btree (is_active) TABLESPACE pg_default;
 
-create index IF not exists idx_faq_categories_order on public.faq_categories using btree (order_index) TABLESPACE pg_default;
-
 create index IF not exists idx_faq_categories_name on public.faq_categories using btree (name) TABLESPACE pg_default;
+
+create index IF not exists idx_faq_categories_order on public.faq_categories using btree (order_index) TABLESPACE pg_default;
 
 create trigger faq_categories_updated_at_trigger BEFORE
 update on faq_categories for EACH row
@@ -1680,13 +1825,13 @@ create table public.faqs (
   constraint faqs_order_index_positive check ((order_index >= 0))
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_faqs_category_id on public.faqs using btree (category_id) TABLESPACE pg_default;
-
 create index IF not exists idx_faqs_active on public.faqs using btree (is_active) TABLESPACE pg_default;
 
-create index IF not exists idx_faqs_order on public.faqs using btree (category_id, order_index) TABLESPACE pg_default;
-
 create index IF not exists idx_faqs_category_active on public.faqs using btree (category_id, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_faqs_category_id on public.faqs using btree (category_id) TABLESPACE pg_default;
+
+create index IF not exists idx_faqs_order on public.faqs using btree (category_id, order_index) TABLESPACE pg_default;
 
 create trigger faqs_updated_at_trigger BEFORE
 update on faqs for EACH row
@@ -1739,13 +1884,13 @@ create table public.islands (
   constraint islands_zone_id_fkey foreign KEY (zone_id) references zones (id)
 ) TABLESPACE pg_default;
 
+create index IF not exists idx_islands_zone_active_name on public.islands using btree (zone_id, is_active, name) TABLESPACE pg_default;
+
 create index IF not exists idx_islands_zone_id on public.islands using btree (zone_id) TABLESPACE pg_default;
 
 create index IF not exists idx_islands_zone_id_active on public.islands using btree (zone_id, is_active) TABLESPACE pg_default
 where
   (zone_id is not null);
-
-create index IF not exists idx_islands_zone_active_name on public.islands using btree (zone_id, is_active, name) TABLESPACE pg_default;
 
 create trigger zones_stats_change_trigger
 after INSERT
@@ -1784,14 +1929,12 @@ create table public.manifest_email_logs (
   constraint manifest_email_logs_status_check check (
     (
       (email_status)::text = any (
-        (
-          array[
-            'pending'::character varying,
-            'sent'::character varying,
-            'failed'::character varying,
-            'bounced'::character varying
-          ]
-        )::text[]
+        array[
+          ('pending'::character varying)::text,
+          ('sent'::character varying)::text,
+          ('failed'::character varying)::text,
+          ('bounced'::character varying)::text
+        ]
       )
     )
   )
@@ -1959,9 +2102,16 @@ select
   v.is_active as vessel_is_active,
   cp.full_name as captain_name,
   cp.email as captain_email,
-  COALESCE(booking_stats.confirmed_bookings, 0::bigint) as bookings,
-  COALESCE(booking_stats.total_passengers, 0::numeric) as booked_seats,
+  COALESCE(booking_stats.bookings, 0::bigint) as bookings,
+  COALESCE(
+    booking_stats.total_passengers,
+    0::bigint::numeric
+  ) as booked_seats,
   COALESCE(booking_stats.confirmed_bookings, 0::bigint) as confirmed_bookings,
+  COALESCE(
+    booking_stats.checked_in_passengers,
+    0::bigint::numeric
+  ) as checked_in_passengers,
   COALESCE(booking_stats.total_revenue, 0::numeric) as trip_revenue,
   COALESCE(booking_stats.total_revenue, 0::numeric) as total_revenue,
   case
@@ -1975,7 +2125,10 @@ select
   end as computed_status,
   case
     when v.seating_capacity > 0 then round(
-      COALESCE(booking_stats.confirmed_bookings, 0::bigint)::numeric / v.seating_capacity::numeric * 100::numeric,
+      COALESCE(
+        booking_stats.total_passengers,
+        0::bigint::numeric
+      ) / v.seating_capacity::numeric * 100::numeric,
       2
     )
     else 0::numeric
@@ -1990,16 +2143,25 @@ from
   left join (
     select
       b.trip_id,
-      count(
-        case
-          when b.status = any (
+      count(*) filter (
+        where
+          b.status = any (
             array[
               'confirmed'::booking_status,
-              'checked_in'::booking_status
+              'checked_in'::booking_status,
+              'completed'::booking_status
             ]
-          ) then 1
-          else null::integer
-        end
+          )
+      ) as bookings,
+      count(distinct b.id) filter (
+        where
+          b.status = any (
+            array[
+              'confirmed'::booking_status,
+              'checked_in'::booking_status,
+              'completed'::booking_status
+            ]
+          )
       ) as confirmed_bookings,
       COALESCE(
         sum(
@@ -2007,20 +2169,40 @@ from
             when b.status = any (
               array[
                 'confirmed'::booking_status,
-                'checked_in'::booking_status
+                'checked_in'::booking_status,
+                'completed'::booking_status
               ]
-            ) then passenger_counts.passenger_count
+            ) then COALESCE(passenger_counts.passenger_count, 0::bigint)
             else 0::bigint
           end
         ),
         0::numeric
       ) as total_passengers,
+      COALESCE(
+        sum(
+          case
+            when b.check_in_status = true
+            and (
+              b.status = any (
+                array[
+                  'confirmed'::booking_status,
+                  'checked_in'::booking_status,
+                  'completed'::booking_status
+                ]
+              )
+            ) then COALESCE(passenger_counts.passenger_count, 0::bigint)
+            else 0::bigint
+          end
+        ),
+        0::numeric
+      ) as checked_in_passengers,
       sum(
         case
           when b.status = any (
             array[
               'confirmed'::booking_status,
-              'checked_in'::booking_status
+              'checked_in'::booking_status,
+              'completed'::booking_status
             ]
           ) then b.total_fare
           else 0::numeric
@@ -2030,20 +2212,18 @@ from
       bookings b
       left join (
         select
-          passengers.booking_id,
+          p.booking_id,
           count(*) as passenger_count
         from
-          passengers
+          passengers p
         group by
-          passengers.booking_id
+          p.booking_id
       ) passenger_counts on b.id = passenger_counts.booking_id
     group by
       b.trip_id
   ) booking_stats on t.id = booking_stats.trip_id
-where
-  t.is_active = true
 order by
-  t.travel_date desc,
+  t.travel_date,
   t.departure_time;
 
 create view public.operations_vessels_view as
@@ -2301,25 +2481,23 @@ create table public.passenger_manifests (
   constraint passenger_manifests_status_check check (
     (
       (status)::text = any (
-        (
-          array[
-            'generated'::character varying,
-            'sent'::character varying,
-            'archived'::character varying
-          ]
-        )::text[]
+        array[
+          ('generated'::character varying)::text,
+          ('sent'::character varying)::text,
+          ('archived'::character varying)::text
+        ]
       )
     )
   )
 ) TABLESPACE pg_default;
-
-create index IF not exists idx_passenger_manifests_trip_id on public.passenger_manifests using btree (trip_id) TABLESPACE pg_default;
 
 create index IF not exists idx_passenger_manifests_captain_id on public.passenger_manifests using btree (captain_id) TABLESPACE pg_default;
 
 create index IF not exists idx_passenger_manifests_created_at on public.passenger_manifests using btree (created_at) TABLESPACE pg_default;
 
 create index IF not exists idx_passenger_manifests_status on public.passenger_manifests using btree (status) TABLESPACE pg_default;
+
+create index IF not exists idx_passenger_manifests_trip_id on public.passenger_manifests using btree (trip_id) TABLESPACE pg_default;
 
 create table public.passengers (
   id uuid not null default gen_random_uuid (),
@@ -2333,6 +2511,7 @@ create table public.passengers (
   status_reason text null,
   status_updated_at timestamp with time zone null default now(),
   status_updated_by uuid null,
+  passenger_id_proof character varying null,
   constraint passengers_pkey primary key (id),
   constraint unique_booking_seat unique (booking_id, seat_id),
   constraint passengers_booking_id_fkey foreign KEY (booking_id) references bookings (id),
@@ -2341,14 +2520,12 @@ create table public.passengers (
   constraint passengers_status_check check (
     (
       (status)::text = any (
-        (
-          array[
-            'active'::character varying,
-            'inactive'::character varying,
-            'suspended'::character varying,
-            'blocked'::character varying
-          ]
-        )::text[]
+        array[
+          ('active'::character varying)::text,
+          ('inactive'::character varying)::text,
+          ('suspended'::character varying)::text,
+          ('blocked'::character varying)::text
+        ]
       )
     )
   )
@@ -2357,11 +2534,6 @@ create table public.passengers (
 create index IF not exists idx_passengers_booking_id on public.passengers using btree (booking_id) TABLESPACE pg_default;
 
 create index IF not exists idx_passengers_seat_id on public.passengers using btree (seat_id) TABLESPACE pg_default;
-
-create trigger trg_update_trip_available_seats_passengers
-after INSERT
-or DELETE on passengers for EACH row
-execute FUNCTION update_trip_available_seats ();
 
 create trigger update_passengers_status_timestamp BEFORE
 update on passengers for EACH row
@@ -2388,9 +2560,9 @@ create table public.payments (
 
 create index IF not exists idx_payments_booking_id on public.payments using btree (booking_id) TABLESPACE pg_default;
 
-create index IF not exists idx_payments_status_created_at on public.payments using btree (status, created_at) TABLESPACE pg_default;
-
 create index IF not exists idx_payments_booking_status_date on public.payments using btree (booking_id, status, created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_payments_status_created_at on public.payments using btree (status, created_at) TABLESPACE pg_default;
 
 create table public.permission_audit_logs (
   id uuid not null default gen_random_uuid (),
@@ -2409,11 +2581,11 @@ create table public.permission_audit_logs (
   constraint permission_audit_logs_user_id_fkey foreign KEY (user_id) references user_profiles (id)
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_permission_audit_user on public.permission_audit_logs using btree (user_id, created_at) TABLESPACE pg_default;
-
 create index IF not exists idx_permission_audit_entity on public.permission_audit_logs using btree (entity_type, entity_id) TABLESPACE pg_default;
 
 create index IF not exists idx_permission_audit_performed_by on public.permission_audit_logs using btree (performed_by, created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_permission_audit_user on public.permission_audit_logs using btree (user_id, created_at) TABLESPACE pg_default;
 
 create table public.permission_categories (
   id uuid not null default gen_random_uuid (),
@@ -2484,26 +2656,24 @@ create table public.permissions (
   constraint permissions_level_check check (
     (
       (level)::text = any (
-        (
-          array[
-            'read'::character varying,
-            'write'::character varying,
-            'delete'::character varying,
-            'admin'::character varying
-          ]
-        )::text[]
+        array[
+          ('read'::character varying)::text,
+          ('write'::character varying)::text,
+          ('delete'::character varying)::text,
+          ('admin'::character varying)::text
+        ]
       )
     )
   )
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_permissions_category on public.permissions using btree (category_id, is_active) TABLESPACE pg_default;
+create index IF not exists idx_permissions_active on public.permissions using btree (is_active) TABLESPACE pg_default;
 
-create index IF not exists idx_permissions_resource_action on public.permissions using btree (resource, action) TABLESPACE pg_default;
+create index IF not exists idx_permissions_category on public.permissions using btree (category_id, is_active) TABLESPACE pg_default;
 
 create index IF not exists idx_permissions_level on public.permissions using btree (level) TABLESPACE pg_default;
 
-create index IF not exists idx_permissions_active on public.permissions using btree (is_active) TABLESPACE pg_default;
+create index IF not exists idx_permissions_resource_action on public.permissions using btree (resource, action) TABLESPACE pg_default;
 
 create trigger update_permissions_updated_at BEFORE
 update on permissions for EACH row
@@ -2764,9 +2934,9 @@ create table public.role_template_permissions (
   constraint role_template_permissions_role_template_id_fkey foreign KEY (role_template_id) references role_templates (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_role_template_permissions_template on public.role_template_permissions using btree (role_template_id) TABLESPACE pg_default;
-
 create index IF not exists idx_role_template_permissions_permission on public.role_template_permissions using btree (permission_id) TABLESPACE pg_default;
+
+create index IF not exists idx_role_template_permissions_template on public.role_template_permissions using btree (role_template_id) TABLESPACE pg_default;
 
 create table public.role_templates (
   id uuid not null default gen_random_uuid (),
@@ -2897,132 +3067,9 @@ create table public.route_activity_logs (
   constraint route_activity_logs_user_id_fkey foreign KEY (user_id) references user_profiles (id)
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_route_activity_logs_route_id on public.route_activity_logs using btree (route_id) TABLESPACE pg_default;
-
 create index IF not exists idx_route_activity_logs_created_at on public.route_activity_logs using btree (created_at) TABLESPACE pg_default;
 
-create view public.route_detailed_stats_view as
-select
-  r.id,
-  r.from_island_id,
-  r.to_island_id,
-  r.base_fare,
-  r.is_active,
-  r.created_at,
-  r.updated_at,
-  r.name,
-  r.distance,
-  r.duration,
-  r.description,
-  r.status,
-  r.from_island_name,
-  r.to_island_name,
-  r.route_name,
-  r.total_trips_30d,
-  r.total_bookings_30d,
-  r.average_occupancy_30d,
-  r.total_revenue_30d,
-  r.cancellation_rate_30d,
-  r.popularity_score,
-  json_build_object(
-    'total_30d',
-    COALESCE(trip_details.total_trips_30d, 0::bigint),
-    'today',
-    COALESCE(trip_details.trips_today, 0::bigint),
-    'next_7d',
-    COALESCE(trip_details.trips_next_7d, 0::bigint),
-    'completed_30d',
-    COALESCE(trip_details.completed_trips_30d, 0::bigint),
-    'cancelled_30d',
-    COALESCE(trip_details.cancelled_trips_30d, 0::bigint)
-  ) as trips_summary,
-  json_build_object(
-    'on_time_rate',
-    95.0,
-    'avg_delay_minutes',
-    5.0,
-    'customer_rating',
-    4.5,
-    'reliability_score',
-    85.0
-  ) as performance_summary,
-  json_build_object(
-    'total_revenue_30d',
-    COALESCE(financial.total_revenue_30d, 0::numeric),
-    'avg_revenue_per_trip',
-    COALESCE(financial.avg_revenue_per_trip, 0::numeric),
-    'avg_occupancy',
-    COALESCE(financial.avg_occupancy, 0::numeric),
-    'profit_margin',
-    75.0
-  ) as financial_summary
-from
-  routes_stats_view r
-  left join (
-    select
-      t.route_id,
-      count(
-        case
-          when t.travel_date >= (CURRENT_DATE - '30 days'::interval) then t.id
-          else null::uuid
-        end
-      ) as total_trips_30d,
-      count(
-        case
-          when t.travel_date = CURRENT_DATE then t.id
-          else null::uuid
-        end
-      ) as trips_today,
-      count(
-        case
-          when t.travel_date >= CURRENT_DATE
-          and t.travel_date <= (CURRENT_DATE + '7 days'::interval) then t.id
-          else null::uuid
-        end
-      ) as trips_next_7d,
-      count(
-        case
-          when t.travel_date >= (CURRENT_DATE - '30 days'::interval)
-          and t.status::text = 'completed'::text then t.id
-          else null::uuid
-        end
-      ) as completed_trips_30d,
-      count(
-        case
-          when t.travel_date >= (CURRENT_DATE - '30 days'::interval)
-          and t.status::text = 'cancelled'::text then t.id
-          else null::uuid
-        end
-      ) as cancelled_trips_30d
-    from
-      trips t
-    group by
-      t.route_id
-  ) trip_details on r.id = trip_details.route_id
-  left join (
-    select
-      t.route_id,
-      sum(
-        case
-          when b.status = 'confirmed'::booking_status then b.total_fare
-          else 0::numeric
-        end
-      ) as total_revenue_30d,
-      avg(
-        case
-          when b.status = 'confirmed'::booking_status then b.total_fare
-          else null::numeric
-        end
-      ) as avg_revenue_per_trip,
-      50.0 as avg_occupancy
-    from
-      trips t
-      left join bookings b on t.id = b.trip_id
-    where
-      t.travel_date >= (CURRENT_DATE - '30 days'::interval)
-    group by
-      t.route_id
-  ) financial on r.id = financial.route_id;
+create index IF not exists idx_route_activity_logs_route_id on public.route_activity_logs using btree (route_id) TABLESPACE pg_default;
 
 create view public.route_performance_view as
 select
@@ -3110,6 +3157,102 @@ create table public.route_price_history (
   constraint route_price_history_route_id_fkey foreign KEY (route_id) references routes (id)
 ) TABLESPACE pg_default;
 
+create table public.route_segment_fares (
+  id uuid not null default gen_random_uuid (),
+  route_id uuid not null,
+  from_stop_id uuid not null,
+  to_stop_id uuid not null,
+  fare_amount numeric(10, 2) not null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint route_segment_fares_pkey primary key (id),
+  constraint unique_route_segment unique (route_id, from_stop_id, to_stop_id),
+  constraint route_segment_fares_from_stop_id_fkey foreign KEY (from_stop_id) references route_stops (id) on delete CASCADE,
+  constraint route_segment_fares_route_id_fkey foreign KEY (route_id) references routes (id) on delete CASCADE,
+  constraint route_segment_fares_to_stop_id_fkey foreign KEY (to_stop_id) references route_stops (id) on delete CASCADE,
+  constraint route_segment_fares_fare_amount_check check ((fare_amount >= (0)::numeric)),
+  constraint check_different_stops check ((from_stop_id <> to_stop_id))
+) TABLESPACE pg_default;
+
+create index IF not exists idx_route_segment_fares_from on public.route_segment_fares using btree (from_stop_id) TABLESPACE pg_default;
+
+create index IF not exists idx_route_segment_fares_route on public.route_segment_fares using btree (route_id) TABLESPACE pg_default;
+
+create index IF not exists idx_route_segment_fares_segment on public.route_segment_fares using btree (from_stop_id, to_stop_id) TABLESPACE pg_default;
+
+create index IF not exists idx_route_segment_fares_to on public.route_segment_fares using btree (to_stop_id) TABLESPACE pg_default;
+
+create trigger route_segment_fares_updated_at BEFORE
+update on route_segment_fares for EACH row
+execute FUNCTION update_route_stops_timestamp ();
+
+create view public.route_segment_fares_view as
+select
+  rsf.id,
+  rsf.route_id,
+  rsf.from_stop_id,
+  rsf.to_stop_id,
+  rsf.fare_amount,
+  rsf.created_at,
+  rsf.updated_at,
+  rs_from.stop_sequence as from_stop_sequence,
+  rs_from.island_id as from_island_id,
+  i_from.name as from_island_name,
+  i_from.zone as from_zone,
+  rs_to.stop_sequence as to_stop_sequence,
+  rs_to.island_id as to_island_id,
+  i_to.name as to_island_name,
+  i_to.zone as to_zone,
+  rs_to.stop_sequence - rs_from.stop_sequence as segments_count,
+  r.name as route_name
+from
+  route_segment_fares rsf
+  join route_stops rs_from on rsf.from_stop_id = rs_from.id
+  join route_stops rs_to on rsf.to_stop_id = rs_to.id
+  join islands i_from on rs_from.island_id = i_from.id
+  join islands i_to on rs_to.island_id = i_to.id
+  join routes r on rsf.route_id = r.id;
+
+create table public.route_stops (
+  id uuid not null default gen_random_uuid (),
+  route_id uuid not null,
+  island_id uuid not null,
+  stop_sequence integer not null,
+  stop_type character varying(20) not null default 'both'::character varying,
+  estimated_travel_time integer null,
+  notes text null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint route_stops_pkey primary key (id),
+  constraint unique_route_stop_sequence unique (route_id, stop_sequence),
+  constraint route_stops_island_id_fkey foreign KEY (island_id) references islands (id),
+  constraint route_stops_route_id_fkey foreign KEY (route_id) references routes (id) on delete CASCADE,
+  constraint check_stop_sequence_positive check ((stop_sequence > 0)),
+  constraint route_stops_stop_type_check check (
+    (
+      (stop_type)::text = any (
+        array[
+          ('pickup'::character varying)::text,
+          ('dropoff'::character varying)::text,
+          ('both'::character varying)::text
+        ]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_route_stops_island on public.route_stops using btree (island_id) TABLESPACE pg_default;
+
+create index IF not exists idx_route_stops_route_id on public.route_stops using btree (route_id) TABLESPACE pg_default;
+
+create index IF not exists idx_route_stops_sequence on public.route_stops using btree (route_id, stop_sequence) TABLESPACE pg_default;
+
+create index IF not exists idx_route_stops_stop_type on public.route_stops using btree (stop_type) TABLESPACE pg_default;
+
+create trigger route_stops_updated_at BEFORE
+update on route_stops for EACH row
+execute FUNCTION update_route_stops_timestamp ();
+
 create view public.route_utilization_view as
 select
   r.id,
@@ -3179,8 +3322,8 @@ from
 
 create table public.routes (
   id uuid not null default gen_random_uuid (),
-  from_island_id uuid not null,
-  to_island_id uuid not null,
+  from_island_id uuid null,
+  to_island_id uuid null,
   base_fare numeric(10, 2) not null,
   is_active boolean not null default true,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
@@ -3191,34 +3334,32 @@ create table public.routes (
   description text null,
   updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
   constraint routes_pkey primary key (id),
-  constraint unique_route_islands unique (from_island_id, to_island_id),
   constraint routes_from_island_id_fkey foreign KEY (from_island_id) references islands (id),
   constraint routes_to_island_id_fkey foreign KEY (to_island_id) references islands (id),
-  constraint chk_route_fare_positive check ((base_fare >= (0)::numeric)),
-  constraint different_islands check ((from_island_id <> to_island_id))
+  constraint chk_route_fare_positive check ((base_fare >= (0)::numeric))
 ) TABLESPACE pg_default;
-
-create index IF not exists idx_routes_status on public.routes using btree (status) TABLESPACE pg_default;
-
-create index IF not exists idx_routes_active on public.routes using btree (is_active) TABLESPACE pg_default;
-
-create index IF not exists idx_routes_name on public.routes using btree (name) TABLESPACE pg_default;
 
 create index IF not exists idx_routes_from_to on public.routes using btree (from_island_id, to_island_id) TABLESPACE pg_default;
 
-create index IF not exists idx_routes_islands_active on public.routes using btree (from_island_id, to_island_id, is_active) TABLESPACE pg_default;
-
-create index IF not exists idx_routes_updated_at on public.routes using btree (updated_at) TABLESPACE pg_default;
-
-create index IF not exists idx_routes_name_active on public.routes using btree (name, is_active) TABLESPACE pg_default;
-
-create index IF not exists idx_routes_status_active on public.routes using btree (status, is_active) TABLESPACE pg_default;
+create index IF not exists idx_routes_active on public.routes using btree (is_active) TABLESPACE pg_default;
 
 create index IF not exists idx_routes_active_only on public.routes using btree (id, name, base_fare) TABLESPACE pg_default
 where
   (is_active = true);
 
 create index IF not exists idx_routes_created_at on public.routes using btree (created_at desc) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_islands_active on public.routes using btree (from_island_id, to_island_id, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_name on public.routes using btree (name) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_name_active on public.routes using btree (name, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_status on public.routes using btree (status) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_status_active on public.routes using btree (status, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_routes_updated_at on public.routes using btree (updated_at) TABLESPACE pg_default;
 
 create trigger audit_routes_trigger
 after INSERT
@@ -3270,37 +3411,94 @@ from
   left join islands oi on r.from_island_id = oi.id
   left join islands di on r.to_island_id = di.id;
 
-
 create view public.routes_stats_view as
 select
+  id,
+  name,
+  base_fare,
+  distance,
+  duration,
+  description,
+  status,
+  is_active,
+  created_at,
+  updated_at,
+  from_island_name,
+  to_island_name,
+  total_stops,
+  total_segments,
+  total_trips_30d,
+  total_bookings_30d,
+  average_occupancy_30d,
+  total_revenue_30d,
+  cancellation_rate_30d,
+  popularity_score
+from
+  routes_with_stops_view;
+
+create view public.routes_with_stops_view as
+select
   r.id,
-  r.from_island_id,
-  r.to_island_id,
-  r.base_fare,
-  r.is_active,
-  r.created_at,
-  r.updated_at,
   r.name,
+  r.base_fare,
   r.distance,
   r.duration,
   r.description,
   r.status,
-  oi.name as from_island_name,
-  di.name as to_island_name,
-  COALESCE(
-    r.name,
-    concat(oi.name, ' to ', di.name)::character varying
-  ) as route_name,
-  COALESCE(route_stats.total_trips_30d, 0::bigint) as total_trips_30d,
-  COALESCE(route_stats.total_bookings_30d, 0::bigint) as total_bookings_30d,
-  COALESCE(route_stats.average_occupancy_30d, 0::numeric) as average_occupancy_30d,
-  COALESCE(route_stats.total_revenue_30d, 0::numeric) as total_revenue_30d,
-  COALESCE(route_stats.cancellation_rate_30d, 0::numeric) as cancellation_rate_30d,
-  COALESCE(route_stats.popularity_score, 0::numeric) as popularity_score
+  r.is_active,
+  r.created_at,
+  r.updated_at,
+  first_stop.island_name as from_island_name,
+  last_stop.island_name as to_island_name,
+  COALESCE(stop_counts.total_stops, 0::bigint) as total_stops,
+  COALESCE(segment_counts.actual_segments, 0::bigint) as total_segments,
+  COALESCE(stats.total_trips_30d, 0::bigint) as total_trips_30d,
+  COALESCE(stats.total_bookings_30d, 0::bigint) as total_bookings_30d,
+  COALESCE(stats.average_occupancy_30d, 0::numeric) as average_occupancy_30d,
+  COALESCE(stats.total_revenue_30d, 0::numeric) as total_revenue_30d,
+  COALESCE(stats.cancellation_rate_30d, 0::numeric) as cancellation_rate_30d,
+  COALESCE(stats.popularity_score, 0::numeric) as popularity_score
 from
   routes r
-  left join islands oi on r.from_island_id = oi.id
-  left join islands di on r.to_island_id = di.id
+  left join (
+    select
+      rs.route_id,
+      i.name as island_name
+    from
+      route_stops rs
+      join islands i on rs.island_id = i.id
+    where
+      rs.stop_sequence = 1
+  ) first_stop on r.id = first_stop.route_id
+  left join (
+    select distinct
+      on (rs.route_id) rs.route_id,
+      i.name as island_name
+    from
+      route_stops rs
+      join islands i on rs.island_id = i.id
+    order by
+      rs.route_id,
+      rs.stop_sequence desc
+  ) last_stop on r.id = last_stop.route_id
+  left join (
+    select
+      route_stops.route_id,
+      count(*) as total_stops
+    from
+      route_stops
+    group by
+      route_stops.route_id
+  ) stop_counts on r.id = stop_counts.route_id
+  left join (
+    select
+      route_id,
+      count(*) as actual_segments
+    from
+      route_segment_fares
+    group by
+      route_id
+  ) segment_counts on r.id = segment_counts.route_id
   left join (
     select
       t.route_id,
@@ -3351,7 +3549,66 @@ from
       t.travel_date >= (CURRENT_DATE - '30 days'::interval)
     group by
       t.route_id
-  ) route_stats on r.id = route_stats.route_id;
+  ) stats on r.id = stats.route_id;
+
+create view public.seat_availability_by_segment as
+select
+  t.id as trip_id,
+  t.travel_date,
+  t.departure_time,
+  r.id as route_id,
+  r.name as route_name,
+  s.id as seat_id,
+  s.seat_number,
+  s.row_number,
+  s.is_window,
+  s.is_aisle,
+  s.seat_type,
+  s.seat_class,
+  s.price_multiplier,
+  s.position_x,
+  s.position_y,
+  rs_from.id as from_stop_id,
+  rs_from.stop_sequence as from_sequence,
+  i_from.name as from_island,
+  rs_to.id as to_stop_id,
+  rs_to.stop_sequence as to_sequence,
+  i_to.name as to_island,
+  is_seat_available_for_segment (
+    t.id,
+    s.id,
+    rs_from.stop_sequence,
+    rs_to.stop_sequence
+  ) as is_available
+from
+  trips t
+  join vessels v on t.vessel_id = v.id
+  join seats s on v.id = s.vessel_id
+  join routes r on t.route_id = r.id
+  join route_stops rs_from on r.id = rs_from.route_id
+  join route_stops rs_to on r.id = rs_to.route_id
+  join islands i_from on rs_from.island_id = i_from.id
+  join islands i_to on rs_to.island_id = i_to.id
+where
+  rs_to.stop_sequence > rs_from.stop_sequence
+  and (
+    rs_from.stop_type::text = any (
+      array[
+        'pickup'::character varying::text,
+        'both'::character varying::text
+      ]
+    )
+  )
+  and (
+    rs_to.stop_type::text = any (
+      array[
+        'dropoff'::character varying::text,
+        'both'::character varying::text
+      ]
+    )
+  )
+  and s.is_disabled = false
+  and t.is_active = true;
 
 create table public.seat_reservations (
   id uuid not null default gen_random_uuid (),
@@ -3375,12 +3632,6 @@ create table public.seat_reservations (
   constraint seat_reservations_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_seat_reservations_trip_id on public.seat_reservations using btree (trip_id) TABLESPACE pg_default;
-
-create index IF not exists idx_seat_reservations_trip_seat on public.seat_reservations using btree (trip_id, seat_id) TABLESPACE pg_default;
-
-create index IF not exists idx_seat_reservations_trip_booking on public.seat_reservations using btree (trip_id, booking_id) TABLESPACE pg_default;
-
 create index IF not exists idx_realtime_seat_availability on public.seat_reservations using btree (
   trip_id,
   seat_id,
@@ -3388,11 +3639,9 @@ create index IF not exists idx_realtime_seat_availability on public.seat_reserva
   temp_reservation_expiry
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_seat_reservations_seat_id on public.seat_reservations using btree (seat_id) TABLESPACE pg_default;
+create index IF not exists idx_seat_reservations_last_activity on public.seat_reservations using btree (last_activity) TABLESPACE pg_default;
 
-create index IF not exists idx_seat_reservations_user_session on public.seat_reservations using btree (user_id, session_id) TABLESPACE pg_default
-where
-  (user_id is not null);
+create index IF not exists idx_seat_reservations_seat_id on public.seat_reservations using btree (seat_id) TABLESPACE pg_default;
 
 create index IF not exists idx_seat_reservations_temp_expiry on public.seat_reservations using btree (temp_reservation_expiry) TABLESPACE pg_default
 where
@@ -3402,14 +3651,66 @@ create index IF not exists idx_seat_reservations_temp_reserved on public.seat_re
 where
   (temp_reserved_at is not null);
 
-create index IF not exists idx_seat_reservations_last_activity on public.seat_reservations using btree (last_activity) TABLESPACE pg_default;
+create index IF not exists idx_seat_reservations_trip_booking on public.seat_reservations using btree (trip_id, booking_id) TABLESPACE pg_default;
 
-create trigger trg_update_trip_available_seats
-after INSERT
-or DELETE
-or
-update on seat_reservations for EACH row
-execute FUNCTION update_trip_available_seats ();
+create index IF not exists idx_seat_reservations_trip_id on public.seat_reservations using btree (trip_id) TABLESPACE pg_default;
+
+create index IF not exists idx_seat_reservations_trip_seat on public.seat_reservations using btree (trip_id, seat_id) TABLESPACE pg_default;
+
+create index IF not exists idx_seat_reservations_user_session on public.seat_reservations using btree (user_id, session_id) TABLESPACE pg_default
+where
+  (user_id is not null);
+
+create table public.seat_segment_reservations (
+  id uuid not null default gen_random_uuid (),
+  trip_id uuid not null,
+  seat_id uuid not null,
+  booking_id uuid not null,
+  passenger_id uuid null,
+  boarding_stop_id uuid not null,
+  destination_stop_id uuid not null,
+  boarding_stop_sequence integer not null,
+  destination_stop_sequence integer not null,
+  reserved_at timestamp with time zone null default now(),
+  user_id uuid null,
+  session_id text null,
+  created_at timestamp with time zone null default now(),
+  constraint seat_segment_reservations_pkey primary key (id),
+  constraint seat_segment_reservations_boarding_stop_id_fkey foreign KEY (boarding_stop_id) references route_stops (id),
+  constraint seat_segment_reservations_booking_id_fkey foreign KEY (booking_id) references bookings (id) on delete CASCADE,
+  constraint seat_segment_reservations_destination_stop_id_fkey foreign KEY (destination_stop_id) references route_stops (id),
+  constraint seat_segment_reservations_passenger_id_fkey foreign KEY (passenger_id) references passengers (id) on delete set null,
+  constraint seat_segment_reservations_user_id_fkey foreign KEY (user_id) references auth.users (id),
+  constraint seat_segment_reservations_seat_id_fkey foreign KEY (seat_id) references seats (id) on delete CASCADE,
+  constraint seat_segment_reservations_trip_id_fkey foreign KEY (trip_id) references trips (id) on delete CASCADE,
+  constraint check_valid_reservation_segment check (
+    (
+      destination_stop_sequence > boarding_stop_sequence
+    )
+  ),
+  constraint check_different_reservation_stops check ((boarding_stop_id <> destination_stop_id))
+) TABLESPACE pg_default;
+
+create index IF not exists idx_seat_segment_res_booking on public.seat_segment_reservations using btree (booking_id) TABLESPACE pg_default;
+
+create index IF not exists idx_seat_segment_res_passenger on public.seat_segment_reservations using btree (passenger_id) TABLESPACE pg_default
+where
+  (passenger_id is not null);
+
+create index IF not exists idx_seat_segment_res_seat on public.seat_segment_reservations using btree (seat_id) TABLESPACE pg_default;
+
+create index IF not exists idx_seat_segment_res_segment on public.seat_segment_reservations using btree (
+  trip_id,
+  seat_id,
+  boarding_stop_sequence,
+  destination_stop_sequence
+) TABLESPACE pg_default;
+
+create index IF not exists idx_seat_segment_res_trip on public.seat_segment_reservations using btree (trip_id) TABLESPACE pg_default;
+
+create index IF not exists idx_seat_segment_res_user on public.seat_segment_reservations using btree (user_id, session_id) TABLESPACE pg_default
+where
+  (user_id is not null);
 
 create table public.seats (
   id uuid not null default gen_random_uuid (),
@@ -3435,27 +3736,23 @@ create table public.seats (
   constraint seats_seat_type_check check (
     (
       (seat_type)::text = any (
-        (
-          array[
-            'standard'::character varying,
-            'premium'::character varying,
-            'crew'::character varying,
-            'disabled'::character varying
-          ]
-        )::text[]
+        array[
+          ('standard'::character varying)::text,
+          ('premium'::character varying)::text,
+          ('crew'::character varying)::text,
+          ('disabled'::character varying)::text
+        ]
       )
     )
   ),
   constraint seats_seat_class_check check (
     (
       (seat_class)::text = any (
-        (
-          array[
-            'economy'::character varying,
-            'business'::character varying,
-            'first'::character varying
-          ]
-        )::text[]
+        array[
+          ('economy'::character varying)::text,
+          ('business'::character varying)::text,
+          ('first'::character varying)::text
+        ]
       )
     )
   ),
@@ -3469,35 +3766,75 @@ create table public.seats (
   )
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_seats_vessel_id on public.seats using btree (vessel_id) TABLESPACE pg_default;
+create index IF not exists idx_seats_class on public.seats using btree (seat_class) TABLESPACE pg_default;
+
+create index IF not exists idx_seats_disabled on public.seats using btree (is_disabled) TABLESPACE pg_default;
 
 create index IF not exists idx_seats_position on public.seats using btree (position_x, position_y) TABLESPACE pg_default;
+
+create index IF not exists idx_seats_premium on public.seats using btree (is_premium) TABLESPACE pg_default;
 
 create index IF not exists idx_seats_row_col on public.seats using btree (row_number, position_x) TABLESPACE pg_default;
 
 create index IF not exists idx_seats_type on public.seats using btree (seat_type) TABLESPACE pg_default;
 
-create index IF not exists idx_seats_class on public.seats using btree (seat_class) TABLESPACE pg_default;
-
-create index IF not exists idx_seats_disabled on public.seats using btree (is_disabled) TABLESPACE pg_default;
-
-create index IF not exists idx_seats_premium on public.seats using btree (is_premium) TABLESPACE pg_default;
-
 create index IF not exists idx_seats_type_class on public.seats using btree (seat_type, seat_class) TABLESPACE pg_default;
-
-create index IF not exists idx_seats_vessel_position on public.seats using btree (vessel_id, position_x, position_y) TABLESPACE pg_default;
-
-create index IF not exists idx_seats_vessel_type on public.seats using btree (vessel_id, seat_type) TABLESPACE pg_default;
 
 create index IF not exists idx_seats_vessel_class on public.seats using btree (vessel_id, seat_class) TABLESPACE pg_default;
 
+create index IF not exists idx_seats_vessel_disabled on public.seats using btree (vessel_id, is_disabled) TABLESPACE pg_default;
+
+create index IF not exists idx_seats_vessel_id on public.seats using btree (vessel_id) TABLESPACE pg_default;
+
+create index IF not exists idx_seats_vessel_position on public.seats using btree (vessel_id, position_x, position_y) TABLESPACE pg_default;
+
 create index IF not exists idx_seats_vessel_premium on public.seats using btree (vessel_id, is_premium) TABLESPACE pg_default;
 
-create index IF not exists idx_seats_vessel_disabled on public.seats using btree (vessel_id, is_disabled) TABLESPACE pg_default;
+create index IF not exists idx_seats_vessel_type on public.seats using btree (vessel_id, seat_type) TABLESPACE pg_default;
 
 create trigger seats_updated_at_trigger BEFORE
 update on seats for EACH row
 execute FUNCTION update_updated_at_column ();
+
+create view public.stop_progress_details_view as
+select
+  tsp.id,
+  tsp.trip_id,
+  tsp.stop_id,
+  tsp.stop_sequence,
+  tsp.stop_type,
+  tsp.status,
+  tsp.arrived_at,
+  tsp.departed_at,
+  tsp.boarding_started_at,
+  tsp.boarding_completed_at,
+  tsp.manifest_sent_at,
+  tsp.captain_id,
+  up.full_name as captain_name,
+  i.name as island_name,
+  i.zone as island_zone,
+  t.travel_date,
+  t.departure_time,
+  r.name as route_name,
+  case
+    when t.current_stop_id = tsp.stop_id then true
+    else false
+  end as is_current_stop,
+  case
+    when tsp.status::text = 'completed'::text
+    or tsp.status::text = 'departed'::text then true
+    else false
+  end as is_completed
+from
+  trip_stop_progress tsp
+  join route_stops rs on tsp.stop_id = rs.id
+  join islands i on rs.island_id = i.id
+  join trips t on tsp.trip_id = t.id
+  join routes r on t.route_id = r.id
+  left join user_profiles up on tsp.captain_id = up.id
+order by
+  tsp.trip_id,
+  tsp.stop_sequence;
 
 create table public.system_health_metrics (
   id uuid not null default gen_random_uuid (),
@@ -3842,6 +4179,99 @@ order by
   r.id,
   t.travel_date;
 
+create table public.trip_fare_overrides (
+  id uuid not null default gen_random_uuid (),
+  trip_id uuid not null,
+  from_stop_id uuid not null,
+  to_stop_id uuid not null,
+  override_fare_amount numeric(10, 2) not null,
+  reason text null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint trip_fare_overrides_pkey primary key (id),
+  constraint unique_trip_fare_override unique (trip_id, from_stop_id, to_stop_id),
+  constraint trip_fare_overrides_from_stop_id_fkey foreign KEY (from_stop_id) references route_stops (id),
+  constraint trip_fare_overrides_to_stop_id_fkey foreign KEY (to_stop_id) references route_stops (id),
+  constraint trip_fare_overrides_trip_id_fkey foreign KEY (trip_id) references trips (id) on delete CASCADE,
+  constraint trip_fare_overrides_override_fare_amount_check check ((override_fare_amount >= (0)::numeric)),
+  constraint check_different_override_stops check ((from_stop_id <> to_stop_id))
+) TABLESPACE pg_default;
+
+create index IF not exists idx_trip_fare_overrides_from on public.trip_fare_overrides using btree (from_stop_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trip_fare_overrides_to on public.trip_fare_overrides using btree (to_stop_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trip_fare_overrides_trip on public.trip_fare_overrides using btree (trip_id) TABLESPACE pg_default;
+
+create trigger trip_fare_overrides_updated_at BEFORE
+update on trip_fare_overrides for EACH row
+execute FUNCTION update_route_stops_timestamp ();
+
+create table public.trip_stop_progress (
+  id uuid not null default gen_random_uuid (),
+  trip_id uuid not null,
+  stop_id uuid not null,
+  stop_sequence integer not null,
+  stop_type character varying(20) not null default 'both'::character varying,
+  status character varying(20) null default 'pending'::character varying,
+  arrived_at timestamp with time zone null,
+  departed_at timestamp with time zone null,
+  boarding_started_at timestamp with time zone null,
+  boarding_completed_at timestamp with time zone null,
+  manifest_sent_at timestamp with time zone null,
+  captain_id uuid null,
+  notes text null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint trip_stop_progress_pkey primary key (id),
+  constraint unique_trip_stop_progress unique (trip_id, stop_id),
+  constraint trip_stop_progress_stop_id_fkey foreign KEY (stop_id) references route_stops (id),
+  constraint trip_stop_progress_captain_id_fkey foreign KEY (captain_id) references user_profiles (id),
+  constraint trip_stop_progress_trip_id_fkey foreign KEY (trip_id) references trips (id) on delete CASCADE,
+  constraint trip_stop_progress_stop_type_check check (
+    (
+      (stop_type)::text = any (
+        (
+          array[
+            'pickup'::character varying,
+            'dropoff'::character varying,
+            'both'::character varying
+          ]
+        )::text[]
+      )
+    )
+  ),
+  constraint trip_stop_progress_status_check check (
+    (
+      (status)::text = any (
+        (
+          array[
+            'pending'::character varying,
+            'arrived'::character varying,
+            'boarding'::character varying,
+            'departed'::character varying,
+            'completed'::character varying
+          ]
+        )::text[]
+      )
+    )
+  ),
+  constraint check_stop_sequence_positive check ((stop_sequence > 0))
+) TABLESPACE pg_default;
+
+create index IF not exists idx_trip_stop_progress_trip on public.trip_stop_progress using btree (trip_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trip_stop_progress_stop on public.trip_stop_progress using btree (stop_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trip_stop_progress_status on public.trip_stop_progress using btree (status) TABLESPACE pg_default;
+
+create index IF not exists idx_trip_stop_progress_captain on public.trip_stop_progress using btree (captain_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trip_stop_progress_trip_status on public.trip_stop_progress using btree (trip_id, status) TABLESPACE pg_default;
+
+create trigger trip_stop_progress_updated_at BEFORE
+update on trip_stop_progress for EACH row
+execute FUNCTION update_trip_stop_progress_updated_at ();
 
 create table public.trips (
   id uuid not null default gen_random_uuid (),
@@ -3863,52 +4293,32 @@ create table public.trips (
   checkin_closed_by uuid null,
   manifest_generated_at timestamp with time zone null,
   manifest_sent_at timestamp with time zone null,
+  current_stop_sequence integer null default 1,
+  current_stop_id uuid null,
+  trip_progress_status character varying(20) null default 'not_started'::character varying,
   constraint trips_pkey primary key (id),
   constraint unique_trip_vessel unique (route_id, travel_date, departure_time, vessel_id),
+  constraint trips_route_id_fkey foreign KEY (route_id) references routes (id),
+  constraint trips_current_stop_id_fkey foreign KEY (current_stop_id) references route_stops (id),
   constraint trips_captain_id_fkey foreign KEY (captain_id) references user_profiles (id),
   constraint trips_checkin_closed_by_fkey foreign KEY (checkin_closed_by) references user_profiles (id),
-  constraint trips_route_id_fkey foreign KEY (route_id) references routes (id),
   constraint trips_vessel_id_fkey foreign KEY (vessel_id) references vessels (id),
-  constraint chk_trip_available_seats_valid check ((available_seats >= 0))
+  constraint chk_trip_available_seats_valid check ((available_seats >= 0)),
+  constraint trips_trip_progress_status_check check (
+    (
+      (trip_progress_status)::text = any (
+        (
+          array[
+            'not_started'::character varying,
+            'boarding_in_progress'::character varying,
+            'in_transit'::character varying,
+            'completed'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
 ) TABLESPACE pg_default;
-
-create index IF not exists idx_trips_checkin_closed on public.trips using btree (is_checkin_closed, checkin_closed_at) TABLESPACE pg_default;
-
-create index IF not exists idx_trips_checkin_closed_by on public.trips using btree (checkin_closed_by) TABLESPACE pg_default
-where
-  (checkin_closed_by is not null);
-
-create index IF not exists idx_trips_route_id on public.trips using btree (route_id) TABLESPACE pg_default;
-
-create index IF not exists idx_trips_travel_date on public.trips using btree (travel_date) TABLESPACE pg_default;
-
-create index IF not exists idx_trips_status on public.trips using btree (status) TABLESPACE pg_default;
-
-create index IF not exists idx_trips_travel_date_status on public.trips using btree (travel_date, status) TABLESPACE pg_default;
-
-create index IF not exists idx_trips_route_vessel on public.trips using btree (route_id, vessel_id) TABLESPACE pg_default;
-
-create index IF not exists idx_trips_travel_date_route on public.trips using btree (travel_date, route_id) TABLESPACE pg_default;
-
-create index IF not exists idx_trips_vessel_date_status on public.trips using btree (vessel_id, travel_date, is_active) TABLESPACE pg_default;
-
-create index IF not exists idx_trips_route_date on public.trips using btree (route_id, travel_date) TABLESPACE pg_default;
-
-create index IF not exists idx_trips_captain_id on public.trips using btree (captain_id) TABLESPACE pg_default
-where
-  (captain_id is not null);
-
-create index IF not exists idx_trips_captain_date on public.trips using btree (captain_id, travel_date) TABLESPACE pg_default
-where
-  (captain_id is not null);
-
-create index IF not exists idx_trips_captain_status on public.trips using btree (captain_id, status) TABLESPACE pg_default
-where
-  (captain_id is not null);
-
-create index IF not exists idx_trips_captain_date_status on public.trips using btree (captain_id, travel_date, status) TABLESPACE pg_default
-where
-  (captain_id is not null);
 
 create index IF not exists idx_trips_captain_active on public.trips using btree (captain_id, is_active, travel_date) TABLESPACE pg_default
 where
@@ -3917,23 +4327,67 @@ where
     and (is_active = true)
   );
 
-create index IF not exists idx_trips_route_date_time_vessel on public.trips using btree (route_id, travel_date, departure_time, vessel_id) TABLESPACE pg_default;
+create index IF not exists idx_trips_captain_date on public.trips using btree (captain_id, travel_date) TABLESPACE pg_default
+where
+  (captain_id is not null);
 
-create index IF not exists idx_trips_today_active on public.trips using btree (travel_date, is_active, status) TABLESPACE pg_default;
+create index IF not exists idx_trips_captain_date_status on public.trips using btree (captain_id, travel_date, status) TABLESPACE pg_default
+where
+  (captain_id is not null);
 
-create index IF not exists idx_trips_vessel_date_active on public.trips using btree (vessel_id, travel_date, is_active) TABLESPACE pg_default;
+create index IF not exists idx_trips_captain_id on public.trips using btree (captain_id) TABLESPACE pg_default
+where
+  (captain_id is not null);
+
+create index IF not exists idx_trips_captain_status on public.trips using btree (captain_id, status) TABLESPACE pg_default
+where
+  (captain_id is not null);
+
+create index IF not exists idx_trips_checkin_closed on public.trips using btree (is_checkin_closed, checkin_closed_at) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_checkin_closed_by on public.trips using btree (checkin_closed_by) TABLESPACE pg_default
+where
+  (checkin_closed_by is not null);
+
+create index IF not exists idx_trips_date_departure on public.trips using btree (travel_date, departure_time, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_route_date on public.trips using btree (route_id, travel_date) TABLESPACE pg_default;
 
 create index IF not exists idx_trips_route_date_active on public.trips using btree (route_id, travel_date, is_active) TABLESPACE pg_default;
 
-create index IF not exists idx_trips_date_departure on public.trips using btree (travel_date, departure_time, is_active) TABLESPACE pg_default;
+create index IF not exists idx_trips_route_date_time_vessel on public.trips using btree (route_id, travel_date, departure_time, vessel_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_route_id on public.trips using btree (route_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_route_vessel on public.trips using btree (route_id, vessel_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_status on public.trips using btree (status) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_today_active on public.trips using btree (travel_date, is_active, status) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_travel_date on public.trips using btree (travel_date) TABLESPACE pg_default;
 
 create index IF not exists idx_trips_travel_date_active on public.trips using btree (travel_date, is_active) TABLESPACE pg_default
 where
   (is_active = true);
 
+create index IF not exists idx_trips_travel_date_route on public.trips using btree (travel_date, route_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_travel_date_status on public.trips using btree (travel_date, status) TABLESPACE pg_default;
+
 create index IF not exists idx_trips_vessel_date on public.trips using btree (vessel_id, travel_date) TABLESPACE pg_default
 where
   (is_active = true);
+
+create index IF not exists idx_trips_vessel_date_active on public.trips using btree (vessel_id, travel_date, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_vessel_date_status on public.trips using btree (vessel_id, travel_date, is_active) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_current_stop on public.trips using btree (current_stop_id) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_progress_status on public.trips using btree (trip_progress_status) TABLESPACE pg_default;
+
+create index IF not exists idx_trips_current_sequence on public.trips using btree (current_stop_sequence) TABLESPACE pg_default;
 
 create trigger audit_trips_trigger
 after INSERT
@@ -3976,15 +4430,15 @@ create table public.user_permissions (
   constraint user_permissions_user_id_fkey foreign KEY (user_id) references user_profiles (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_user_permissions_user on public.user_permissions using btree (user_id, is_active) TABLESPACE pg_default;
-
-create index IF not exists idx_user_permissions_permission on public.user_permissions using btree (permission_id) TABLESPACE pg_default;
+create index IF not exists idx_user_permissions_active on public.user_permissions using btree (is_active, expires_at) TABLESPACE pg_default;
 
 create index IF not exists idx_user_permissions_expires on public.user_permissions using btree (expires_at) TABLESPACE pg_default
 where
   (expires_at is not null);
 
-create index IF not exists idx_user_permissions_active on public.user_permissions using btree (is_active, expires_at) TABLESPACE pg_default;
+create index IF not exists idx_user_permissions_permission on public.user_permissions using btree (permission_id) TABLESPACE pg_default;
+
+create index IF not exists idx_user_permissions_user on public.user_permissions using btree (user_id, is_active) TABLESPACE pg_default;
 
 create trigger permission_changes_audit_trigger
 after INSERT
@@ -4082,14 +4536,12 @@ create table public.user_profiles (
   constraint user_profiles_status_check check (
     (
       (status)::text = any (
-        (
-          array[
-            'active'::character varying,
-            'inactive'::character varying,
-            'suspended'::character varying,
-            'blocked'::character varying
-          ]
-        )::text[]
+        array[
+          ('active'::character varying)::text,
+          ('inactive'::character varying)::text,
+          ('suspended'::character varying)::text,
+          ('blocked'::character varying)::text
+        ]
       )
     )
   ),
@@ -4101,25 +4553,19 @@ create table public.user_profiles (
   )
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_user_profiles_role on public.user_profiles using btree (role) TABLESPACE pg_default;
-
-create index IF not exists idx_user_profiles_full_name on public.user_profiles using btree (full_name) TABLESPACE pg_default;
-
-create index IF not exists idx_user_profiles_role_agent on public.user_profiles using btree (id) TABLESPACE pg_default
-where
-  (role = 'agent'::user_role);
-
-create index IF not exists idx_user_profiles_last_login on public.user_profiles using btree (last_login) TABLESPACE pg_default
-where
-  (last_login is not null);
-
-create index IF not exists idx_user_profiles_role_created_at on public.user_profiles using btree (role, created_at) TABLESPACE pg_default;
-
 create index IF not exists idx_user_profiles_active_role_updated on public.user_profiles using btree (is_active, role, updated_at) TABLESPACE pg_default;
 
 create index IF not exists idx_user_profiles_email on public.user_profiles using btree (email) TABLESPACE pg_default
 where
   (email is not null);
+
+create index IF not exists idx_user_profiles_full_name on public.user_profiles using btree (full_name) TABLESPACE pg_default;
+
+create index IF not exists idx_user_profiles_last_login on public.user_profiles using btree (last_login) TABLESPACE pg_default
+where
+  (last_login is not null);
+
+create index IF not exists idx_user_profiles_role on public.user_profiles using btree (role) TABLESPACE pg_default;
 
 create index IF not exists idx_user_profiles_role_active on public.user_profiles using btree (role, is_active) TABLESPACE pg_default
 where
@@ -4127,13 +4573,19 @@ where
     role = any (array['agent'::user_role, 'customer'::user_role])
   );
 
-create index IF not exists idx_user_profiles_super_admin on public.user_profiles using btree (is_super_admin, is_active) TABLESPACE pg_default;
+create index IF not exists idx_user_profiles_role_active_created on public.user_profiles using btree (role, is_active, created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_user_profiles_role_agent on public.user_profiles using btree (id) TABLESPACE pg_default
+where
+  (role = 'agent'::user_role);
 
 create index IF not exists idx_user_profiles_role_captain on public.user_profiles using btree (role, is_active) TABLESPACE pg_default
 where
   (role = 'captain'::user_role);
 
-create index IF not exists idx_user_profiles_role_active_created on public.user_profiles using btree (role, is_active, created_at) TABLESPACE pg_default;
+create index IF not exists idx_user_profiles_role_created_at on public.user_profiles using btree (role, created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_user_profiles_super_admin on public.user_profiles using btree (is_super_admin, is_active) TABLESPACE pg_default;
 
 create trigger audit_user_profiles_trigger
 after INSERT
@@ -4149,7 +4601,6 @@ execute FUNCTION update_user_profile_timestamp ();
 create trigger update_user_profiles_status_timestamp BEFORE
 update on user_profiles for EACH row
 execute FUNCTION update_status_timestamp ();
-
 create view public.vessel_details_view as
 select
   v.id,
@@ -4341,66 +4792,62 @@ create table public.vessels (
   constraint chk_vessel_status check (
     (
       (status)::text = any (
-        (
-          array[
-            'active'::character varying,
-            'maintenance'::character varying,
-            'inactive'::character varying
-          ]
-        )::text[]
+        array[
+          ('active'::character varying)::text,
+          ('maintenance'::character varying)::text,
+          ('inactive'::character varying)::text
+        ]
       )
     )
   ),
   constraint chk_vessel_type check (
     (
       (vessel_type)::text = any (
-        (
-          array[
-            'passenger'::character varying,
-            'cargo'::character varying,
-            'mixed'::character varying,
-            'luxury'::character varying,
-            'speedboat'::character varying
-          ]
-        )::text[]
+        array[
+          ('passenger'::character varying)::text,
+          ('cargo'::character varying)::text,
+          ('mixed'::character varying)::text,
+          ('luxury'::character varying)::text,
+          ('speedboat'::character varying)::text
+        ]
       )
     )
   )
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_vessels_status on public.vessels using btree (status) TABLESPACE pg_default;
-
 create index IF not exists idx_vessels_active on public.vessels using btree (is_active) TABLESPACE pg_default;
 
-create index IF not exists idx_vessels_make on public.vessels using btree (make) TABLESPACE pg_default;
-
-create index IF not exists idx_vessels_model on public.vessels using btree (model) TABLESPACE pg_default;
-
-create index IF not exists idx_vessels_make_model on public.vessels using btree (make, model) TABLESPACE pg_default;
-
-create index IF not exists idx_vessels_type on public.vessels using btree (vessel_type) TABLESPACE pg_default;
-
-create index IF not exists idx_vessels_registration on public.vessels using btree (registration_number) TABLESPACE pg_default;
+create index IF not exists idx_vessels_active_only on public.vessels using btree (id, name, seating_capacity) TABLESPACE pg_default
+where
+  (is_active = true);
 
 create index IF not exists idx_vessels_captain on public.vessels using btree (captain_name) TABLESPACE pg_default;
 
-create index IF not exists idx_vessels_maintenance on public.vessels using btree (last_maintenance_date, next_maintenance_date) TABLESPACE pg_default;
+create index IF not exists idx_vessels_expiry_dates on public.vessels using btree (insurance_expiry_date, license_expiry_date) TABLESPACE pg_default;
 
 create index IF not exists idx_vessels_insurance on public.vessels using btree (insurance_expiry_date) TABLESPACE pg_default;
 
 create index IF not exists idx_vessels_license on public.vessels using btree (license_expiry_date) TABLESPACE pg_default;
 
+create index IF not exists idx_vessels_maintenance on public.vessels using btree (last_maintenance_date, next_maintenance_date) TABLESPACE pg_default;
+
 create index IF not exists idx_vessels_maintenance_dates on public.vessels using btree (last_maintenance_date, next_maintenance_date) TABLESPACE pg_default;
 
-create index IF not exists idx_vessels_expiry_dates on public.vessels using btree (insurance_expiry_date, license_expiry_date) TABLESPACE pg_default;
+create index IF not exists idx_vessels_make on public.vessels using btree (make) TABLESPACE pg_default;
+
+create index IF not exists idx_vessels_make_model on public.vessels using btree (make, model) TABLESPACE pg_default;
+
+create index IF not exists idx_vessels_model on public.vessels using btree (model) TABLESPACE pg_default;
+
+create index IF not exists idx_vessels_registration on public.vessels using btree (registration_number) TABLESPACE pg_default;
+
+create index IF not exists idx_vessels_status on public.vessels using btree (status) TABLESPACE pg_default;
 
 create index IF not exists idx_vessels_status_active on public.vessels using btree (status, is_active) TABLESPACE pg_default;
 
-create index IF not exists idx_vessels_type_status on public.vessels using btree (vessel_type, status) TABLESPACE pg_default;
+create index IF not exists idx_vessels_type on public.vessels using btree (vessel_type) TABLESPACE pg_default;
 
-create index IF not exists idx_vessels_active_only on public.vessels using btree (id, name, seating_capacity) TABLESPACE pg_default
-where
-  (is_active = true);
+create index IF not exists idx_vessels_type_status on public.vessels using btree (vessel_type, status) TABLESPACE pg_default;
 
 create trigger audit_vessels_trigger
 after INSERT
@@ -4434,11 +4881,26 @@ create table public.wallet_transactions (
   wallet_id uuid not null,
   amount numeric(10, 2) not null,
   transaction_type character varying(20) not null,
-  reference_id uuid null,
+  reference_id character varying(255) null,
   created_at timestamp with time zone not null default CURRENT_TIMESTAMP,
+  user_id uuid null,
+  user_name text null,
+  status character varying(20) null default 'completed'::character varying,
+  description text null,
   constraint wallet_transactions_pkey primary key (id),
+  constraint wallet_transactions_user_id_fkey foreign KEY (user_id) references auth.users (id) on delete set null,
   constraint wallet_transactions_wallet_id_fkey foreign KEY (wallet_id) references wallets (id)
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_wallet_transactions_created_at on public.wallet_transactions using btree (created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_wallet_transactions_status on public.wallet_transactions using btree (status) TABLESPACE pg_default;
+
+create index IF not exists idx_wallet_transactions_type on public.wallet_transactions using btree (transaction_type) TABLESPACE pg_default;
+
+create index IF not exists idx_wallet_transactions_user_id on public.wallet_transactions using btree (user_id) TABLESPACE pg_default;
+
+create index IF not exists idx_wallet_transactions_wallet_id on public.wallet_transactions using btree (wallet_id) TABLESPACE pg_default;
 
 create table public.wallets (
   id uuid not null default gen_random_uuid (),
@@ -4451,6 +4913,12 @@ create table public.wallets (
   constraint wallets_user_id_key unique (user_id),
   constraint wallets_user_id_fkey foreign KEY (user_id) references auth.users (id)
 ) TABLESPACE pg_default;
+
+create index IF not exists idx_wallets_balance on public.wallets using btree (balance) TABLESPACE pg_default;
+
+create index IF not exists idx_wallets_created_at on public.wallets using btree (created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_wallets_user_id on public.wallets using btree (user_id) TABLESPACE pg_default;
 
 create table public.zone_activity_logs (
   id uuid not null default gen_random_uuid (),
@@ -4465,9 +4933,9 @@ create table public.zone_activity_logs (
   constraint zone_activity_logs_zone_id_fkey foreign KEY (zone_id) references zones (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_zone_activity_logs_zone_id on public.zone_activity_logs using btree (zone_id) TABLESPACE pg_default;
-
 create index IF not exists idx_zone_activity_logs_created_at on public.zone_activity_logs using btree (created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_zone_activity_logs_zone_id on public.zone_activity_logs using btree (zone_id) TABLESPACE pg_default;
 
 create view public.zone_detailed_stats_view as
 with
@@ -4648,11 +5116,11 @@ create table public.zones (
 
 create index IF not exists idx_zones_active on public.zones using btree (is_active) TABLESPACE pg_default;
 
-create index IF not exists idx_zones_order on public.zones using btree (order_index) TABLESPACE pg_default;
+create index IF not exists idx_zones_code on public.zones using btree (code) TABLESPACE pg_default;
 
 create index IF not exists idx_zones_name on public.zones using btree (name) TABLESPACE pg_default;
 
-create index IF not exists idx_zones_code on public.zones using btree (code) TABLESPACE pg_default;
+create index IF not exists idx_zones_order on public.zones using btree (order_index) TABLESPACE pg_default;
 
 create trigger audit_zones_trigger
 after INSERT
@@ -4668,10 +5136,6 @@ execute FUNCTION compact_zone_order ();
 create trigger trigger_reorder_zones_insert BEFORE INSERT on zones for EACH row
 execute FUNCTION reorder_zones_on_insert ();
 
-create trigger trigger_reorder_zones_update BEFORE
-update OF order_index on zones for EACH row when (old.order_index is distinct from new.order_index)
-execute FUNCTION reorder_zones_on_insert ();
-
 create trigger zones_activity_trigger
 after INSERT
 or DELETE
@@ -4682,6 +5146,10 @@ execute FUNCTION log_zone_activity ();
 create trigger zones_updated_at_trigger BEFORE
 update on zones for EACH row
 execute FUNCTION update_zones_updated_at ();
+
+create trigger trigger_reorder_zones_update BEFORE
+update OF order_index on zones for EACH row when (old.order_index is distinct from new.order_index)
+execute FUNCTION reorder_zones_on_insert ();
 
 create view public.zones_stats_view as
 with
@@ -4739,3 +5207,4 @@ from
 order by
   z.order_index,
   z.name;
+

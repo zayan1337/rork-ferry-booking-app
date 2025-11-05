@@ -14,7 +14,7 @@ import {
   Dimensions,
   Text,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminStore } from '@/store/admin/adminStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -25,6 +25,7 @@ import {
   Globe,
   HelpCircle,
   FileEdit,
+  Bell,
 } from 'lucide-react-native';
 import {
   useSettingsData,
@@ -54,9 +55,11 @@ import { SettingsTab } from '@/types/settings';
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function SettingsScreen() {
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const tabScrollRef = useRef<ScrollView>(null);
   const [currentScrollX, setCurrentScrollX] = useState(0);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   const {
     alerts,
@@ -64,6 +67,7 @@ export default function SettingsScreen() {
     systemSettings,
     refreshData,
     markAllAlertsAsRead,
+    fetchSpecialAssistanceCount,
   } = useAdminStore();
 
   const {
@@ -112,6 +116,42 @@ export default function SettingsScreen() {
 
   // System modal state
   const { showSystemModal, setShowSystemModal } = useSettingsModals();
+
+  // Load notification count
+  useEffect(() => {
+    const loadNotificationCount = async () => {
+      const count = await fetchSpecialAssistanceCount();
+      setNotificationCount(count);
+    };
+
+    loadNotificationCount();
+
+    // Refresh every 5 minutes
+    const interval = setInterval(loadNotificationCount, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle deep link param to open a specific tab (e.g., ?tab=alerts)
+  useEffect(() => {
+    if (typeof tab === 'string') {
+      const t = tab.toLowerCase();
+      const validTabs: SettingsTab[] = [
+        'permissions',
+        'alerts',
+        'activity',
+        'system',
+        'reports',
+        'islands',
+        'zones',
+        'faq',
+        'content',
+      ];
+      if ((validTabs as string[]).includes(t)) {
+        setActiveTab(t as SettingsTab);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   // Calculate statistics - memoized to prevent unnecessary recalculations
   const stats = useMemo(
@@ -193,12 +233,13 @@ export default function SettingsScreen() {
         icon: FileEdit,
         category: 'Content',
       },
-      // {
-      //   key: 'alerts',
-      //   label: 'Alerts',
-      //   icon: Bell,
-      //   category: 'Monitoring',
-      // },
+      {
+        key: 'alerts',
+        label: 'Alerts',
+        icon: Bell,
+        category: 'Monitoring',
+        badge: notificationCount > 0 ? notificationCount : undefined,
+      },
       {
         key: 'activity',
         label: 'Activity',
@@ -218,7 +259,7 @@ export default function SettingsScreen() {
       //   category: 'Administration',
       // },
     ],
-    []
+    [notificationCount]
   );
 
   const renderTabContent = () => {
@@ -233,6 +274,8 @@ export default function SettingsScreen() {
             stats={stats}
             onAlertAction={handleAlertAction}
             onMarkAllAlertsAsRead={markAllAlertsAsRead}
+            isActive={activeTab === 'alerts'}
+            searchQuery={searchQuery}
           />
         );
 
@@ -303,7 +346,7 @@ export default function SettingsScreen() {
   };
 
   // Tabs that use FlatList internally and should not be wrapped in ScrollView
-  const flatListTabs = ['islands', 'zones', 'faq', 'content'];
+  const flatListTabs = ['islands', 'zones', 'faq', 'content', 'alerts'];
   const useScrollView = !flatListTabs.includes(activeTab);
 
   // Optimized scroll to active tab - only when tab changes and user isn't manually scrolling
@@ -368,6 +411,7 @@ export default function SettingsScreen() {
           {tabsData.map(tab => {
             const IconComponent = tab.icon;
             const isActive = activeTab === tab.key;
+            const hasBadge = typeof tab.badge === 'number' && tab.badge > 0;
 
             return (
               <Pressable
@@ -380,6 +424,13 @@ export default function SettingsScreen() {
                     size={18}
                     color={isActive ? colors.primary : colors.textSecondary}
                   />
+                  {hasBadge && tab.badge && (
+                    <View style={styles.tabBadge}>
+                      <Text style={styles.tabBadgeText}>
+                        {tab.badge > 9 ? '9+' : tab.badge.toString()}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <Text
                   style={[styles.tabText, isActive && styles.tabTextActive]}
@@ -541,6 +592,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   tabIconContainer: {
+    position: 'relative',
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -548,6 +600,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: colors.danger,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.card,
+  },
+  tabBadgeText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: 'bold',
   },
   tabText: {
     fontSize: 10,

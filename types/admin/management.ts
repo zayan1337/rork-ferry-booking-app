@@ -1165,6 +1165,7 @@ export interface TripFormData {
   travel_date: string;
   departure_time: string;
   available_seats?: number; // Optional, will be derived from vessel capacity if not provided
+  booked_seats?: number; // Optional, defaults to 0 for new trips
   status?:
     | 'scheduled'
     | 'boarding'
@@ -1671,6 +1672,8 @@ export interface AdminBooking {
   total_fare: number;
   qr_code_url?: string;
   check_in_status: boolean;
+  checked_in_at?: string;
+  checked_in_by?: string;
   agent_id?: string;
   agent_client_id?: string;
   payment_method_type?: string;

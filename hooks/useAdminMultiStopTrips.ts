@@ -58,6 +58,12 @@ export const useAdminMultiStopTrips = () => {
           vessel_id: '',
           available_seats: 0,
           is_active: true,
+          // Add missing properties
+          estimated_duration: trip.estimated_duration || '0h',
+          booked_seats: trip.booked_seats || 0,
+          fare_multiplier: trip.fare_multiplier || 1.0,
+          created_at: trip.created_at || new Date().toISOString(),
+          updated_at: trip.updated_at || new Date().toISOString(),
         })) as MultiStopTrip[];
 
         setMultiStopTrips(trips);

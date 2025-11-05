@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import {
   releaseSeatReservations,
   cancelBookingOnPaymentCancellation,
 } from '@/utils/paymentUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 interface MibPaymentWebViewProps {
   visible: boolean;
@@ -50,6 +50,7 @@ export default function MibPaymentWebView({
   onFailure,
   onCancel,
 }: MibPaymentWebViewProps) {
+  const { showConfirmation } = useAlertContext();
   const [isLoading, setIsLoading] = useState(false);
   const [showPaymentPage, setShowPaymentPage] = useState(!!sessionData);
   const [currentSessionData, setCurrentSessionData] = useState(sessionData);
@@ -63,10 +64,6 @@ export default function MibPaymentWebView({
       setCurrentSessionData(sessionData);
       setShowPaymentPage(true);
       setIsLoading(false);
-    } else {
-      console.log(
-        '[MIB WebView] ⚠️ Not showing payment page - missing session data'
-      );
     }
   }, [sessionData, visible]);
 
@@ -737,43 +734,37 @@ export default function MibPaymentWebView({
   };
 
   const handleClose = () => {
-    Alert.alert(
+    showConfirmation(
       'Cancel Payment',
       'Are you sure you want to cancel this payment? Your seats will be released.',
-      [
-        {
-          text: 'Continue Payment',
-          style: 'cancel',
-        },
-        {
-          text: 'Cancel Payment',
-          style: 'destructive',
-          onPress: async () => {
-            // Cancel booking and create cancellation record when user cancels payment
-            try {
-              await cancelBookingOnPaymentCancellation(
-                bookingId,
-                'Payment cancelled by user'
-              );
-            } catch (error) {
-              console.warn(
-                'Failed to cancel booking on payment cancellation:',
-                error
-              );
-              // Fallback to just releasing seats
-              try {
-                await releaseSeatReservations(bookingId);
-              } catch (seatError) {
-                console.warn(
-                  'Failed to release seats on payment cancellation:',
-                  seatError
-                );
-              }
-            }
-            onCancel();
-          },
-        },
-      ]
+      async () => {
+        // Cancel booking and create cancellation record when user cancels payment
+        try {
+          await cancelBookingOnPaymentCancellation(
+            bookingId,
+            'Payment cancelled by user'
+          );
+        } catch (error) {
+          console.warn(
+            'Failed to cancel booking on payment cancellation:',
+            error
+          );
+          // Fallback to just releasing seats
+          try {
+            await releaseSeatReservations(bookingId);
+          } catch (seatError) {
+            console.warn(
+              'Failed to release seats on payment cancellation:',
+              seatError
+            );
+          }
+        }
+        onCancel();
+      },
+      () => {
+        // User chose to continue payment - do nothing
+      },
+      true // Mark as destructive action
     );
   };
 

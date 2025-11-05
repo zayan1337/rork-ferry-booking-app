@@ -29,6 +29,7 @@ import {
   Edit,
 } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
@@ -117,52 +118,85 @@ export default function UserDetailsPage() {
         return;
       }
 
-      // Now fetch the complete trip details using the operations_trips_view
-      const { data, error } = await supabase
-        .from('operations_trips_view')
-        .select('*')
-        .eq(
-          'id',
-          (
-            await supabase
-              .from('bookings')
-              .select('trip_id')
-              .eq('id', passengerData.booking_id)
-              .single()
-          ).data?.trip_id
-        )
+      // Fetch booking details
+      const { data: bookingData, error: bookingError } = await supabase
+        .from('bookings')
+        .select('trip_id, total_fare, status, created_at')
+        .eq('id', passengerData.booking_id)
         .single();
 
-      if (error) throw error;
+      if (bookingError) throw bookingError;
+
+      if (!bookingData?.trip_id) {
+        return;
+      }
+
+      // Fetch trip details using operations_trips_view
+      const { data: tripData, error: tripError } = await supabase
+        .from('operations_trips_view')
+        .select('*')
+        .eq('id', bookingData.trip_id)
+        .single();
+
+      if (tripError) throw tripError;
+
+      // Fetch booking segments to get boarding and dropoff islands
+      const { data: segmentData, error: segmentError } = await supabase
+        .from('booking_segments')
+        .select(
+          `
+          boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
+            islands(name, zone)
+          ),
+          destination_stop:route_stops!booking_segments_destination_stop_id_fkey(
+            islands(name, zone)
+          )
+        `
+        )
+        .eq('booking_id', passengerData.booking_id)
+        .single();
+
+      // Set island names from segments if available, otherwise from trip data
+      let fromIsland = tripData?.from_island_name || 'Unknown';
+      let toIsland = tripData?.to_island_name || 'Unknown';
+
+      if (!segmentError && segmentData) {
+        const boardingStop: any = (segmentData as any).boarding_stop;
+        const destinationStop: any = (segmentData as any).destination_stop;
+
+        if (boardingStop?.islands) {
+          const island = Array.isArray(boardingStop.islands)
+            ? boardingStop.islands[0]
+            : boardingStop.islands;
+          fromIsland = island?.name || fromIsland;
+        }
+
+        if (destinationStop?.islands) {
+          const island = Array.isArray(destinationStop.islands)
+            ? destinationStop.islands[0]
+            : destinationStop.islands;
+          toIsland = island?.name || toIsland;
+        }
+      }
+
+      setIslandNames({
+        from: fromIsland,
+        to: toIsland,
+      });
 
       // Transform the data to match the expected structure
       const transformedData = {
-        id: passengerId,
         booking_id: passengerData.booking_id,
-        bookings: [
-          {
-            id: passengerData.booking_id,
-            total_fare: (
-              await supabase
-                .from('bookings')
-                .select('total_fare, status, created_at')
-                .eq('id', passengerData.booking_id)
-                .single()
-            ).data,
-            trips: data,
-          },
-        ],
+        booking: {
+          id: passengerData.booking_id,
+          total_fare: bookingData.total_fare || 0,
+          status: bookingData.status || 'unknown',
+          created_at: bookingData.created_at,
+        },
+        trip: tripData,
       };
 
       setPassengerTripData(transformedData);
-
-      // Set island names directly from the view data
-      if (data) {
-        setIslandNames({
-          from: data.from_island_name || 'Unknown',
-          to: data.to_island_name || 'Unknown',
-        });
-      }
     } catch (error) {
       console.error('Error loading passenger trip data:', error);
     }
@@ -538,63 +572,62 @@ export default function UserDetailsPage() {
             <View style={styles.tripDetailsCard}>
               <Text style={styles.sectionTitle}>Trip Details</Text>
 
-              {passengerTripData.bookings &&
-                Array.isArray(passengerTripData.bookings) &&
-                passengerTripData.bookings[0] && (
-                  <View style={styles.tripInfo}>
-                    {/* Trip Route */}
-                    <View style={styles.tripRoute}>
-                      <MapPin size={16} color={colors.primary} />
-                      <Text style={styles.tripRouteText}>
-                        {islandNames?.from || 'Unknown'} →{' '}
-                        {islandNames?.to || 'Unknown'}
+              {passengerTripData.trip && (
+                <View style={styles.tripInfo}>
+                  {/* Trip Route */}
+                  <View style={styles.tripRoute}>
+                    <MapPin size={16} color={colors.primary} />
+                    <Text style={styles.tripRouteText}>
+                      {islandNames?.from || 'Unknown'} →{' '}
+                      {islandNames?.to || 'Unknown'}
+                    </Text>
+                  </View>
+
+                  {/* Trip Details Grid */}
+                  <View style={styles.tripDetailsGrid}>
+                    <View style={styles.tripDetailItem}>
+                      <Calendar size={16} color={colors.textSecondary} />
+                      <Text style={styles.tripDetailLabel}>Travel Date</Text>
+                      <Text style={styles.tripDetailValue}>
+                        {passengerTripData.trip.travel_date
+                          ? formatBookingDate(
+                              passengerTripData.trip.travel_date
+                            )
+                          : 'N/A'}
                       </Text>
                     </View>
 
-                    {/* Trip Details Grid */}
-                    <View style={styles.tripDetailsGrid}>
-                      <View style={styles.tripDetailItem}>
-                        <Calendar size={16} color={colors.textSecondary} />
-                        <Text style={styles.tripDetailLabel}>Travel Date</Text>
-                        <Text style={styles.tripDetailValue}>
-                          {passengerTripData.bookings[0].trips?.travel_date
-                            ? new Date(
-                                passengerTripData.bookings[0].trips.travel_date
-                              ).toLocaleDateString()
-                            : 'N/A'}
-                        </Text>
-                      </View>
-
-                      <View style={styles.tripDetailItem}>
-                        <Clock size={16} color={colors.textSecondary} />
-                        <Text style={styles.tripDetailLabel}>Departure</Text>
-                        <Text style={styles.tripDetailValue}>
-                          {passengerTripData.bookings[0].trips
-                            ?.departure_time || 'N/A'}
-                        </Text>
-                      </View>
-
-                      <View style={styles.tripDetailItem}>
-                        <Ship size={16} color={colors.textSecondary} />
-                        <Text style={styles.tripDetailLabel}>Vessel</Text>
-                        <Text style={styles.tripDetailValue}>
-                          {passengerTripData.bookings[0].trips?.vessel_name ||
-                            'N/A'}
-                        </Text>
-                      </View>
-
-                      <View style={styles.tripDetailItem}>
-                        <DollarSign size={16} color={colors.textSecondary} />
-                        <Text style={styles.tripDetailLabel}>Fare</Text>
-                        <Text style={styles.tripDetailValue}>
-                          MVR{' '}
-                          {passengerTripData.bookings[0].total_fare
-                            ?.total_fare || 'N/A'}
-                        </Text>
-                      </View>
+                    <View style={styles.tripDetailItem}>
+                      <Clock size={16} color={colors.textSecondary} />
+                      <Text style={styles.tripDetailLabel}>Departure</Text>
+                      <Text style={styles.tripDetailValue}>
+                        {passengerTripData.trip.departure_time
+                          ? formatTimeAMPM(
+                              passengerTripData.trip.departure_time
+                            )
+                          : 'N/A'}
+                      </Text>
                     </View>
 
-                    {/* Booking Status */}
+                    <View style={styles.tripDetailItem}>
+                      <Ship size={16} color={colors.textSecondary} />
+                      <Text style={styles.tripDetailLabel}>Vessel</Text>
+                      <Text style={styles.tripDetailValue}>
+                        {passengerTripData.trip.vessel_name || 'N/A'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.tripDetailItem}>
+                      <DollarSign size={16} color={colors.textSecondary} />
+                      <Text style={styles.tripDetailLabel}>Fare</Text>
+                      <Text style={styles.tripDetailValue}>
+                        MVR {passengerTripData.booking?.total_fare || 'N/A'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Booking Status */}
+                  {passengerTripData.booking && (
                     <View style={styles.bookingStatus}>
                       <Text style={styles.bookingStatusLabel}>
                         Booking Status:
@@ -604,8 +637,7 @@ export default function UserDetailsPage() {
                           styles.statusBadge,
                           {
                             backgroundColor:
-                              passengerTripData.bookings[0].total_fare
-                                ?.status === 'confirmed'
+                              passengerTripData.booking.status === 'confirmed'
                                 ? `${colors.success}20`
                                 : `${colors.warning}20`,
                           },
@@ -616,40 +648,40 @@ export default function UserDetailsPage() {
                             styles.statusText,
                             {
                               color:
-                                passengerTripData.bookings[0].total_fare
-                                  ?.status === 'confirmed'
+                                passengerTripData.booking.status === 'confirmed'
                                   ? colors.success
                                   : colors.warning,
                             },
                           ]}
                         >
-                          {passengerTripData.bookings[0].total_fare?.status
-                            ?.charAt(0)
-                            .toUpperCase() +
-                            passengerTripData.bookings[0].total_fare?.status?.slice(
-                              1
-                            ) || 'Unknown'}
+                          {passengerTripData.booking.status
+                            ? passengerTripData.booking.status
+                                .charAt(0)
+                                .toUpperCase() +
+                              passengerTripData.booking.status.slice(1)
+                            : 'Unknown'}
                         </Text>
                       </View>
                     </View>
+                  )}
 
-                    {/* View Full Trip Details Button */}
-                    <Pressable
-                      style={styles.viewTripButton}
-                      onPress={() => {
-                        if (passengerTripData.bookings[0].trips?.id) {
-                          router.push(
-                            `../trip/${passengerTripData.bookings[0].trips.id}` as any
-                          );
-                        }
-                      }}
-                    >
-                      <Text style={styles.viewTripButtonText}>
-                        View Full Trip Details
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
+                  {/* View Full Trip Details Button */}
+                  <Pressable
+                    style={styles.viewTripButton}
+                    onPress={() => {
+                      if (passengerTripData.trip?.id) {
+                        router.push(
+                          `../trip/${passengerTripData.trip.id}` as any
+                        );
+                      }
+                    }}
+                  >
+                    <Text style={styles.viewTripButtonText}>
+                      View Full Trip Details
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           )}
 

@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import * as Linking from 'expo-linking';
 import SafeView from '../components/SafeView';
 import { AuthLoadingScreen } from '@/components';
+import { AlertProvider } from '@/components/AlertProvider';
 // import CustomSplashScreen from '../components/SplashScreen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -127,19 +128,21 @@ function RootLayoutNav() {
     isAuthenticated && user?.profile && user.profile.is_active;
 
   return (
-    <SafeView edges={[]}>
-      <StatusBar style='dark' />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          gestureEnabled: false,
-          animationTypeForReplace: 'push',
-        }}
-        initialRouteName={hasValidProfile ? '(app)' : '(auth)'}
-      >
-        <Stack.Screen name='(auth)' />
-        <Stack.Screen name='(app)' />
-      </Stack>
-    </SafeView>
+    <AlertProvider>
+      <SafeView edges={[]}>
+        <StatusBar style='dark' />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            gestureEnabled: false,
+            animationTypeForReplace: 'push',
+          }}
+          initialRouteName={hasValidProfile ? '(app)' : '(auth)'}
+        >
+          <Stack.Screen name='(auth)' />
+          <Stack.Screen name='(app)' />
+        </Stack>
+      </SafeView>
+    </AlertProvider>
   );
 }

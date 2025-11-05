@@ -41,10 +41,12 @@ import {
   Phone,
   Mail,
 } from 'lucide-react-native';
-import {
-  formatDateTime,
-  formatCurrency,
-} from '@/utils/admin/bookingManagementUtils';
+import { formatDateTime } from '@/utils/admin/bookingManagementUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
+import { supabase } from '@/utils/supabase';
+import { getRouteStops } from '@/utils/segmentUtils';
+import { getBookingSegment } from '@/utils/segmentBookingUtils';
+import type { RouteStop } from '@/types/multiStopRoute';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -63,6 +65,14 @@ export default function BookingDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
+  const [boardingStopName, setBoardingStopName] = useState<string | null>(null);
+  const [destinationStopName, setDestinationStopName] = useState<string | null>(
+    null
+  );
+  const [boardingStop, setBoardingStop] = useState<any | null>(null);
+  const [destinationStop, setDestinationStop] = useState<any | null>(null);
+  const [bookingSegment, setBookingSegment] = useState<any | null>(null);
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -93,6 +103,22 @@ export default function BookingDetailsPage() {
 
       if (fetchedBooking) {
         setBooking(fetchedBooking);
+
+        // For multi-stop routes, fetch route stops and booking segments
+        if (
+          !fetchedBooking.from_island_name ||
+          !fetchedBooking.to_island_name
+        ) {
+          await loadMultiStopRouteData(fetchedBooking);
+        } else {
+          // Reset multi-stop data for regular routes
+          setRouteStops([]);
+          setBoardingStopName(null);
+          setDestinationStopName(null);
+          setBoardingStop(null);
+          setDestinationStop(null);
+          setBookingSegment(null);
+        }
       } else {
         setError(`Booking with ID "${id}" not found`);
       }
@@ -102,6 +128,45 @@ export default function BookingDetailsPage() {
     } finally {
       setLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  const loadMultiStopRouteData = async (booking: AdminBooking) => {
+    try {
+      // Fetch booking segments directly from booking_segments table
+      const segmentData = await getBookingSegment(booking.id);
+
+      if (segmentData) {
+        // Store the full booking segment data
+        setBookingSegment(segmentData);
+
+        // Extract boarding and destination stop information from booking_segments
+        const boardingStopData = segmentData.boarding_stop;
+        const destinationStopData = segmentData.destination_stop;
+
+        setBoardingStop(boardingStopData);
+        setDestinationStop(destinationStopData);
+        setBoardingStopName(boardingStopData?.island?.name || null);
+        setDestinationStopName(destinationStopData?.island?.name || null);
+
+        // Fetch trip to get route_id
+        const { data: trip, error: tripError } = await supabase
+          .from('trips')
+          .select('route_id')
+          .eq('id', booking.trip_id)
+          .single();
+
+        if (!tripError && trip) {
+          // Fetch all route stops
+          const stops = await getRouteStops(trip.route_id);
+          setRouteStops(stops);
+        }
+      }
+    } catch (err: any) {
+      // If booking segment doesn't exist, it's okay - not all bookings have segments
+      if (err?.code !== 'PGRST116') {
+        console.error('Error loading multi-stop route data:', err);
+      }
     }
   };
 
@@ -402,8 +467,23 @@ export default function BookingDetailsPage() {
               <View style={styles.routeInfo}>
                 <MapPin size={16} color={colors.primary} />
                 <Text style={styles.routeName}>
-                  {booking.from_island_name || 'Unknown'} →{' '}
-                  {booking.to_island_name || 'Unknown'}
+                  {(() => {
+                    // Prioritize booking's from_island_name and to_island_name
+                    if (booking.from_island_name && booking.to_island_name) {
+                      return `${booking.from_island_name} → ${booking.to_island_name}`;
+                    }
+                    // Fallback to boarding/destination stops for multi-stop routes
+                    if (boardingStopName && destinationStopName) {
+                      return `${boardingStopName} → ${destinationStopName}`;
+                    }
+                    // If we have route stops, show first and last
+                    if (routeStops.length > 0) {
+                      const firstStop = routeStops[0];
+                      const lastStop = routeStops[routeStops.length - 1];
+                      return `${firstStop.island_name || 'Unknown'} → ${lastStop.island_name || 'Unknown'}`;
+                    }
+                    return 'Route information unavailable';
+                  })()}
                 </Text>
               </View>
             </View>
@@ -415,17 +495,17 @@ export default function BookingDetailsPage() {
               <View style={styles.detailItem}>
                 <Calendar size={16} color={colors.textSecondary} />
                 <Text style={styles.detailText}>
-                  {
-                    formatDateTime(
-                      booking.trip_travel_date || booking.created_at
-                    ).split(' ')[0]
-                  }
+                  {formatBookingDate(
+                    booking.trip_travel_date || booking.created_at
+                  )}
                 </Text>
               </View>
               <View style={styles.detailItem}>
                 <Clock size={16} color={colors.textSecondary} />
                 <Text style={styles.detailText}>
-                  {booking.trip_departure_time || 'N/A'}
+                  {booking.trip_departure_time
+                    ? formatTimeAMPM(booking.trip_departure_time)
+                    : 'N/A'}
                 </Text>
               </View>
             </View>
@@ -474,44 +554,10 @@ export default function BookingDetailsPage() {
               <View style={styles.detailItem}>
                 <CreditCard size={16} color={colors.textSecondary} />
                 <Text style={styles.detailText}>
-                  {formatCurrency(bookingInfo.totalFare)}
+                  Payment: {paymentStatus.toUpperCase()}
                 </Text>
               </View>
             </View>
-          </View>
-
-          {/* Metrics */}
-          <View style={styles.metricsContainer}>
-            <View style={styles.metric}>
-              <Text style={styles.metricValue}>
-                {formatCurrency(
-                  booking.total_fare || booking.trip_base_fare || 0
-                )}
-              </Text>
-              <Text style={styles.metricLabel}>Total Fare</Text>
-            </View>
-            <View style={styles.metric}>
-              <Text style={styles.metricValue}>
-                {formatCurrency(bookingInfo.paymentAmount)}
-              </Text>
-              <Text style={styles.metricLabel}>Paid Amount</Text>
-            </View>
-            {bookingInfo.discount > 0 && (
-              <View style={styles.metric}>
-                <Text style={[styles.metricValue, { color: colors.success }]}>
-                  -{formatCurrency(bookingInfo.discount)}
-                </Text>
-                <Text style={styles.metricLabel}>Discount</Text>
-              </View>
-            )}
-            {bookingInfo.additionalCharges > 0 && (
-              <View style={styles.metric}>
-                <Text style={[styles.metricValue, { color: colors.warning }]}>
-                  +{formatCurrency(bookingInfo.additionalCharges)}
-                </Text>
-                <Text style={styles.metricLabel}>Additional Charges</Text>
-              </View>
-            )}
           </View>
         </View>
 
@@ -600,7 +646,14 @@ export default function BookingDetailsPage() {
         />
 
         {/* Trip Details Section */}
-        <BookingTripDetails booking={booking} />
+        <BookingTripDetails
+          booking={booking}
+          boardingStopName={boardingStopName}
+          destinationStopName={destinationStopName}
+          boardingStop={boardingStop}
+          destinationStop={destinationStop}
+          bookingSegment={bookingSegment}
+        />
 
         {/* Payment Details Section */}
         <BookingPaymentDetails booking={booking} />
@@ -828,27 +881,6 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: '500',
-  },
-  metricsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: `${colors.border}30`,
-  },
-  metric: {
-    alignItems: 'center',
-  },
-  metricValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  metricLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
     fontWeight: '500',
   },
   customerCard: {

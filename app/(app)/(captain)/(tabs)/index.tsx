@@ -7,7 +7,6 @@ import {
   RefreshControl,
   Pressable,
   Dimensions,
-  Alert,
 } from 'react-native';
 import {
   Ship,
@@ -30,8 +29,8 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import StatCard from '@/components/StatCard';
 import { formatCurrency } from '@/utils/currencyUtils';
-import { formatSimpleDate } from '@/utils/dateUtils';
-import { formatTripTime } from '@/utils/tripUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth > 768;
@@ -48,6 +47,7 @@ export default function CaptainDashboardScreen() {
     refreshDashboard,
     clearError,
   } = useCaptainStore();
+  const { showError } = useAlertContext();
 
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
@@ -60,9 +60,10 @@ export default function CaptainDashboardScreen() {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Error', error, [{ text: 'OK', onPress: clearError }]);
+      showError('Error', error);
+      clearError();
     }
-  }, [error, clearError]);
+  }, [error, clearError, showError]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -111,7 +112,7 @@ export default function CaptainDashboardScreen() {
           <Text style={styles.welcomeGreeting}>Good {getTimeOfDay()}</Text>
           <Text style={styles.captainName}>Captain {getCaptainName()}</Text>
           <Text style={styles.welcomeDate}>
-            {formatSimpleDate(new Date().toISOString())}
+            {formatBookingDate(new Date().toISOString())}
           </Text>
         </View>
         <View style={styles.statusBadge}>
@@ -180,17 +181,37 @@ export default function CaptainDashboardScreen() {
           <View style={styles.nextTripHeader}>
             <View style={styles.routeInfo}>
               <MapPin size={16} color={Colors.primary} />
-              <Text style={styles.routeName}>
-                {nextTrip.from_island_name} → {nextTrip.to_island_name}
-              </Text>
+              <Text style={styles.routeName}>{nextTrip.route_name}</Text>
             </View>
-            <View style={styles.timeInfo}>
-              <Clock size={16} color={Colors.textSecondary} />
-              <Text style={styles.departureTime}>
-                {formatTripTime(nextTrip.departure_time)}
-              </Text>
+            <View style={styles.headerBadges}>
+              <View style={styles.timeInfo}>
+                <Clock size={16} color={Colors.textSecondary} />
+                <Text style={styles.departureTime}>
+                  {formatTimeAMPM(nextTrip.departure_time)}
+                </Text>
+              </View>
             </View>
           </View>
+
+          {/* Progress indicator */}
+          {nextTrip.total_stops && nextTrip.total_stops > 1 && (
+            <View style={styles.multiStopProgress}>
+              <Text style={styles.progressText}>
+                Stop {nextTrip.current_stop_sequence || 1} of{' '}
+                {nextTrip.total_stops}
+              </Text>
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${((nextTrip.current_stop_sequence || 1) / (nextTrip.total_stops || 1)) * 100}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
 
           <View style={styles.nextTripDetails}>
             <View style={styles.tripDetail}>
@@ -334,7 +355,7 @@ export default function CaptainDashboardScreen() {
             </View>
             <Text style={styles.actionText}>Next Trip</Text>
             <Text style={styles.actionSubtext}>
-              {formatTripTime(nextTrip.departure_time)}
+              {formatTimeAMPM(nextTrip.departure_time)}
             </Text>
           </Pressable>
         )}
@@ -641,5 +662,31 @@ const styles = StyleSheet.create({
   nextTripAction: {
     borderLeftWidth: 4,
     borderLeftColor: Colors.warning,
+  },
+  // Multi-stop styles
+  headerBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  multiStopProgress: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: Colors.border,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 2,
   },
 });

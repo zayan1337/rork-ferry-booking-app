@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking } from '@/types/admin/management';
-import { Share2, Download, QrCode, Copy, Eye } from 'lucide-react-native';
+import { QrCode } from 'lucide-react-native';
 
 interface BookingQRCodeProps {
   booking: AdminBooking;
@@ -34,7 +34,7 @@ export default function BookingQRCode({
           <QrCode size={20} color={colors.primary} />
           <Text style={styles.title}>QR Code</Text>
         </View>
-        <View style={styles.actions}>
+        {/* <View style={styles.actions}>
           <Pressable
             style={styles.actionButton}
             onPress={handleViewQR}
@@ -71,7 +71,7 @@ export default function BookingQRCode({
               <Download size={16} color={colors.primary} />
             </Pressable>
           )}
-        </View>
+        </View> */}
       </View>
 
       <View style={styles.qrContainer}>
@@ -85,30 +85,6 @@ export default function BookingQRCode({
         </View>
         <Text style={styles.qrText}>Scan to verify booking</Text>
         <Text style={styles.bookingNumber}>#{booking.booking_number}</Text>
-
-        {/* QR Code Details */}
-        <View style={styles.qrDetails}>
-          <View style={styles.qrDetailRow}>
-            <Text style={styles.qrDetailLabel}>Route:</Text>
-            <Text style={styles.qrDetailValue}>
-              {booking.from_island_name} → {booking.to_island_name}
-            </Text>
-          </View>
-          <View style={styles.qrDetailRow}>
-            <Text style={styles.qrDetailLabel}>Date:</Text>
-            <Text style={styles.qrDetailValue}>
-              {booking.trip_travel_date
-                ? new Date(booking.trip_travel_date).toLocaleDateString()
-                : 'N/A'}
-            </Text>
-          </View>
-          <View style={styles.qrDetailRow}>
-            <Text style={styles.qrDetailLabel}>Time:</Text>
-            <Text style={styles.qrDetailValue}>
-              {booking.trip_departure_time || 'N/A'}
-            </Text>
-          </View>
-        </View>
       </View>
     </View>
   );
@@ -142,15 +118,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: colors.backgroundSecondary,
-  },
+  // actions: {
+  //   flexDirection: 'row',
+  //   gap: 8,
+  // },
+  // actionButton: {
+  //   padding: 8,
+  //   borderRadius: 8,
+  //   backgroundColor: colors.backgroundSecondary,
+  // },
   qrContainer: {
     alignItems: 'center',
   },
@@ -179,29 +155,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 16,
   },
-  qrDetails: {
-    width: '100%',
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 8,
-    padding: 12,
-    gap: 6,
-  },
-  qrDetailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  qrDetailLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  qrDetailValue: {
-    fontSize: 12,
-    color: colors.text,
-    fontWeight: '600',
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 8,
-  },
+  // qrDetails: {
+  //   width: '100%',
+  //   backgroundColor: colors.backgroundSecondary,
+  //   borderRadius: 8,
+  //   padding: 12,
+  //   gap: 6,
+  // },
+  // qrDetailRow: {
+  //   flexDirection: 'row',
+  //   justifyContent: 'space-between',
+  //   alignItems: 'center',
+  // },
+  // qrDetailLabel: {
+  //   fontSize: 12,
+  //   color: colors.textSecondary,
+  //   fontWeight: '500',
+  // },
+  // qrDetailValue: {
+  //   fontSize: 12,
+  //   color: colors.text,
+  //   fontWeight: '600',
+  //   textAlign: 'right',
+  //   flex: 1,
+  //   marginLeft: 8,
+  // },
 });

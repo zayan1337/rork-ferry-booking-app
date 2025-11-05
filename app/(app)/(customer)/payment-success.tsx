@@ -130,7 +130,7 @@ export default function PaymentSuccessScreen() {
             // Reset booking state only on successful payment
             if (shouldResetBooking === 'true') {
               resetCurrentBooking();
-              setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+              setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
             }
           } else if (result === 'CANCELLED') {
             setStatus('cancelled');
@@ -271,7 +271,7 @@ export default function PaymentSuccessScreen() {
             // Reset booking state only on successful payment
             if (shouldResetBooking === 'true') {
               resetCurrentBooking();
-              setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+              setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
             }
           } else if (result === 'CANCELLED') {
             // Cancel booking and release seats when payment is cancelled
@@ -418,7 +418,7 @@ export default function PaymentSuccessScreen() {
           // Reset booking state only on successful payment
           if (shouldResetBooking === 'true') {
             resetCurrentBooking();
-            setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+            setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
           }
         } else if (resultData.paymentStatus === 'failed') {
           setStatus('failed');
@@ -547,7 +547,7 @@ export default function PaymentSuccessScreen() {
       }
     } else {
       resetCurrentBooking();
-      setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+      setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
     }
   };
 
@@ -589,7 +589,7 @@ export default function PaymentSuccessScreen() {
         // Reset booking state only on successful payment
         if (shouldResetBooking === 'true') {
           resetCurrentBooking();
-          setCurrentStep(BOOKING_STEPS.TRIP_TYPE_DATE);
+          setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
         }
       } else if (resultData.paymentStatus === 'failed') {
         setStatus('failed');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -69,6 +69,7 @@ export default function TripsScreen() {
   const [fromDatePickerKey, setFromDatePickerKey] = useState(0);
   const [toDatePickerKey, setToDatePickerKey] = useState(0);
   const [dateRange, setDateRange] = useState(getDefaultDateRange());
+  const [searchInput, setSearchInput] = useState('');
   const [selectedVesselId, setSelectedVesselId] = useState<string>('');
   const [selectedRouteId, setSelectedRouteId] = useState<string>('');
 
@@ -132,13 +133,21 @@ export default function TripsScreen() {
     }
   };
 
-  const handleFromDateChange = (date: string) => {
+  const handleFromDateChange = useCallback((date: string) => {
     setDateRange(prev => ({ ...prev, from: date }));
-  };
+  }, []);
 
-  const handleToDateChange = (date: string) => {
+  const handleToDateChange = useCallback((date: string) => {
     setDateRange(prev => ({ ...prev, to: date }));
-  };
+  }, []);
+
+  const handleSearchChange = useCallback(
+    (text: string) => {
+      setSearchInput(text);
+      setSearchQuery(text);
+    },
+    [setSearchQuery]
+  );
 
   const resetDateRange = () => {
     setDateRange(getDefaultDateRange());
@@ -151,7 +160,8 @@ export default function TripsScreen() {
     let filtered = allTrips || [];
 
     // Apply date range filter first
-    if (dateRange.from && dateRange.to) {
+    const { from, to } = dateRange;
+    if (from && to) {
       filtered = filtered.filter(trip => {
         const tripDate = trip.travel_date;
         if (!tripDate) return false;
@@ -169,7 +179,7 @@ export default function TripsScreen() {
           travelDate = String(tripDate).split('T')[0];
         }
 
-        return travelDate >= dateRange.from && travelDate <= dateRange.to;
+        return travelDate >= from && travelDate <= to;
       });
     }
 
@@ -184,8 +194,8 @@ export default function TripsScreen() {
     }
 
     // Apply search filter
-    if (searchQuery) {
-      filtered = searchTrips(filtered, searchQuery);
+    if (searchInput) {
+      filtered = searchTrips(filtered, searchInput);
     }
 
     // Apply status filter
@@ -197,7 +207,7 @@ export default function TripsScreen() {
     return filtered;
   }, [
     allTrips,
-    searchQuery,
+    searchInput,
     filterActive,
     sortBy,
     sortOrder,
@@ -215,6 +225,12 @@ export default function TripsScreen() {
   const dateRangeStats = useMemo(() => {
     return calculateTripStats(filteredAndSortedTrips);
   }, [filteredAndSortedTrips]);
+
+  useEffect(() => {
+    if (searchQuery && !searchInput) {
+      setSearchInput(searchQuery);
+    }
+  }, [searchQuery, searchInput]);
 
   useEffect(() => {
     if (!allTrips || allTrips.length === 0) {
@@ -290,8 +306,8 @@ export default function TripsScreen() {
       <View style={styles.searchSection}>
         <SearchBar
           placeholder='Search trips by route, vessel, date...'
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          value={searchInput}
+          onChangeText={handleSearchChange}
           style={styles.searchBar}
         />
       </View>
@@ -313,7 +329,7 @@ export default function TripsScreen() {
             <Text style={styles.dateInputLabel}>From</Text>
             <DatePicker
               key={`from-${fromDatePickerKey}`}
-              value={dateRange.from}
+              value={dateRange.from ?? ''}
               onChange={date => {
                 handleFromDateChange(date);
                 setFromDatePickerKey(0); // Hide after selection
@@ -328,7 +344,7 @@ export default function TripsScreen() {
             <Text style={styles.dateInputLabel}>To</Text>
             <DatePicker
               key={`to-${toDatePickerKey}`}
-              value={dateRange.to}
+              value={dateRange.to ?? ''}
               onChange={date => {
                 handleToDateChange(date);
                 setToDatePickerKey(0); // Hide after selection
@@ -446,28 +462,6 @@ export default function TripsScreen() {
                 Time
               </Text>
               {sortBy === 'departure_time' &&
-                (sortOrder === 'asc' ? (
-                  <SortAsc size={12} color={colors.primary} />
-                ) : (
-                  <SortDesc size={12} color={colors.primary} />
-                ))}
-            </Pressable>
-            <Pressable
-              style={[
-                styles.sortButton,
-                sortBy === 'status' && styles.sortButtonActive,
-              ]}
-              onPress={() => toggleSort('status')}
-            >
-              <Text
-                style={[
-                  styles.sortButtonText,
-                  sortBy === 'status' && styles.sortButtonTextActive,
-                ]}
-              >
-                Status
-              </Text>
-              {sortBy === 'status' &&
                 (sortOrder === 'asc' ? (
                   <SortAsc size={12} color={colors.primary} />
                 ) : (
@@ -638,11 +632,11 @@ export default function TripsScreen() {
       </View>
       <Text style={styles.emptyStateTitle}>No trips found</Text>
       <Text style={styles.emptyStateText}>
-        {searchQuery || filterActive !== null
+        {searchInput || filterActive !== null
           ? 'Try adjusting your search or filter criteria'
           : 'No trips have been scheduled yet'}
       </Text>
-      {canManageTrips() && !searchQuery && filterActive === null && (
+      {canManageTrips() && !searchInput && filterActive === null && (
         <Button
           title='Schedule First Trip'
           onPress={handleAddTrip}

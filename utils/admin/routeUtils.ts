@@ -450,18 +450,22 @@ export const createEmptyRouteForm = (): RouteFormData => ({
   description: '',
   status: 'active',
   is_active: true,
+  route_stops: [],
+  segment_fares: [],
 });
 
 export const routeToFormData = (route: Route): RouteFormData => ({
   name: route.name,
-  from_island_id: route.from_island_id,
-  to_island_id: route.to_island_id,
+  from_island_id: route.from_island_id || '',
+  to_island_id: route.to_island_id || '',
   base_fare: route.base_fare,
   distance: route.distance || '',
   duration: route.duration || '',
   description: route.description || '',
-  status: route.status,
+  status: route.status || 'active',
   is_active: route.is_active,
+  route_stops: (route as any).route_stops || [],
+  segment_fares: (route as any).segment_fares || [],
 });
 
 // ============================================================================

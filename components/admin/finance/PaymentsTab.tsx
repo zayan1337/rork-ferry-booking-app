@@ -125,9 +125,11 @@ function PaymentsTab({ isActive, searchQuery = '' }: PaymentsTabProps) {
           <SectionHeader
             title='Payment Management'
             subtitle={
-              loading.payments
-                ? 'Loading payments...'
-                : `${payments?.length || 0} total payments`
+              payments
+                ? `${payments.length || 0} total payments`
+                : loading.payments
+                  ? 'Loading payments...'
+                  : 'No payments'
             }
           />
         </View>

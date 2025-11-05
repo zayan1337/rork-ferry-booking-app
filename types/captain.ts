@@ -19,6 +19,7 @@ export interface CaptainTrip {
   booked_seats: number;
   checked_in_passengers: number;
   captain_id?: string;
+  is_active: boolean;
   is_checkin_closed: boolean;
   checkin_closed_at?: string;
   checkin_closed_by?: string;
@@ -34,10 +35,39 @@ export interface CaptainTrip {
   base_fare?: number;
   captain_name?: string;
 
+  // Multi-stop route support
+  is_multi_stop?: boolean;
+  route_stops?: CaptainRouteStop[];
+  current_stop_sequence?: number;
+  current_stop_id?: string;
+  total_stops?: number;
+
   // Computed fields
   occupancy_rate?: number;
   revenue?: number;
   can_close_checkin?: boolean;
+  special_assistance_count?: number;
+}
+
+export interface CaptainRouteStop {
+  id: string; // trip_stop_progress.id (for progress tracking)
+  stop_id: string; // route_stops.id (for RPC function calls) - REQUIRED!
+  stop_sequence: number;
+  stop_type?: 'pickup' | 'dropoff' | 'both';
+  island: {
+    id: string;
+    name: string;
+    zone: string;
+  };
+  estimated_arrival?: string;
+  actual_arrival?: string;
+  is_current_stop: boolean;
+  is_completed: boolean;
+  boarding_passengers?: CaptainPassenger[];
+  dropoff_passengers?: CaptainPassenger[];
+  boarding_started_at?: string;
+  departed_at?: string;
+  status?: string;
 }
 
 export interface CaptainPassenger {
@@ -46,6 +76,7 @@ export interface CaptainPassenger {
   booking_number: string;
   passenger_name: string;
   passenger_contact_number: string;
+  passenger_id_proof?: string;
   seat_number: string;
   seat_id: string;
   check_in_status: boolean;
@@ -59,6 +90,9 @@ export interface CaptainPassenger {
   client_email?: string;
   client_phone?: string;
   booking_status: 'confirmed' | 'checked_in' | 'cancelled' | 'pending';
+
+  // Multi-stop action
+  action?: 'boarding' | 'dropoff';
 }
 
 export interface CaptainDashboardStats {
@@ -146,11 +180,51 @@ export interface CaptainStoreActions {
   fetchTodayTrips: () => Promise<void>;
   fetchTripsByDate: (date: string) => Promise<void>;
   fetchTripPassengers: (tripId: string) => Promise<CaptainPassenger[]>;
+  fetchTripById: (tripId: string) => Promise<CaptainTrip | null>;
   closeCheckin: (data: CloseCheckinData) => Promise<boolean>;
   updateTripStatus: (
     tripId: string,
     status: CaptainTrip['status']
   ) => Promise<boolean>;
+  activateTrip: (
+    tripId: string
+  ) => Promise<{ success: boolean; message: string }>;
+
+  // Multi-stop trip management
+  fetchTripStops: (tripId: string) => Promise<CaptainRouteStop[]>;
+  fetchPassengersForStop: (
+    tripId: string,
+    stopId: string
+  ) => Promise<CaptainPassenger[]>;
+  moveToNextStop: (tripId: string) => Promise<boolean>;
+  completeStopBoarding: (stopId: string, captainId: string) => Promise<boolean>;
+  processMultiStopCheckIn: (
+    bookingId: string,
+    stopId: string,
+    action: 'boarding' | 'dropoff',
+    captainId: string
+  ) => Promise<{ success: boolean; message: string }>;
+
+  // Enhanced multi-stop actions
+  getTripWithStops: (tripId: string) => Promise<any>;
+  getCurrentStopPassengers: (
+    tripId: string,
+    stopId: string,
+    stopType: string
+  ) => Promise<any[]>;
+  updateStopStatus: (
+    tripId: string,
+    stopId: string,
+    status: string
+  ) => Promise<boolean>;
+  moveToNextStopEnhanced: (tripId: string) => Promise<any>;
+  initializeTripProgress: (tripId: string) => Promise<boolean>;
+  sendManifest: (tripId: string, stopId: string) => Promise<boolean>;
+  processStopCheckIn: (
+    passengerId: string,
+    action: 'boarding' | 'dropoff'
+  ) => Promise<boolean>;
+  fetchSpecialAssistanceNotifications: () => Promise<any[]>;
 
   // Dashboard
   fetchDashboardStats: () => Promise<void>;

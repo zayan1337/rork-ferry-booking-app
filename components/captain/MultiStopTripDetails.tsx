@@ -27,6 +27,27 @@ import type {
 } from '@/types/multiStopTrip';
 import { getStopPassengerInfo } from '@/utils/multiStopTripUtils';
 import { useMultiStopStore } from '@/store/multiStopStore';
+import { CaptainRouteStop } from '@/types/captain';
+
+// Convert TripStop[] to CaptainRouteStop[]
+function convertTripStopsToCaptainRouteStops(
+  tripStops: TripStop[]
+): CaptainRouteStop[] {
+  return tripStops.map(stop => ({
+    id: stop.id,
+    stop_id: stop.id, // Required field
+    stop_sequence: stop.stop_sequence,
+    island: {
+      id: stop.island_id,
+      name: stop.island_name,
+      zone: stop.zone || '',
+    },
+    is_current_stop: stop.status === 'active',
+    is_completed: stop.status === 'completed',
+    boarding_passengers: [],
+    dropoff_passengers: [],
+  }));
+}
 
 interface MultiStopTripDetailsProps {
   trip: MultiStopTrip;
@@ -151,7 +172,12 @@ export default function MultiStopTripDetails({
   return (
     <ScrollView style={styles.container}>
       {/* Trip Progress */}
-      <MultiStopProgress trip={trip} currentStop={currentStop} />
+      <MultiStopProgress
+        stops={convertTripStopsToCaptainRouteStops(trip.stops || [])}
+        currentStopSequence={trip.current_stop_sequence}
+        totalStops={trip.total_stops}
+        showPassengerCounts={true}
+      />
 
       {/* Current Stop Info */}
       <Card style={styles.currentStopCard}>

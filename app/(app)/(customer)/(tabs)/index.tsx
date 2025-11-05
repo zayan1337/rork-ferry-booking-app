@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -30,17 +30,22 @@ import Button from '@/components/Button';
 import CalendarDatePicker from '@/components/CalendarDatePicker';
 import { useQuickBooking } from '@/hooks/useQuickBooking';
 import { useModalState } from '@/hooks/useModalState';
+import { formatDisplayDate } from '@/utils/customerUtils';
 import {
-  formatDisplayDate,
-  getUniqueIslandNames,
-  filterRoutesByDepartureIsland,
-} from '@/utils/customerUtils';
+  fetchActiveIslands,
+  getOppositeZoneIslands,
+} from '@/utils/islandBookingUtils';
+import { DatabaseIsland } from '@/types/database';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
 
   // Add scroll reference
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Islands state
+  const [allIslands, setAllIslands] = useState<DatabaseIsland[]>([]);
+  const [loadingIslands, setLoadingIslands] = useState(false);
 
   // Route management
   const {
@@ -70,7 +75,20 @@ export default function HomeScreen() {
     // Fetch data in background without blocking UI
     fetchUserBookings();
     fetchAvailableRoutes();
+    loadIslands();
   }, []);
+
+  const loadIslands = async () => {
+    setLoadingIslands(true);
+    try {
+      const islands = await fetchActiveIslands();
+      setAllIslands(islands);
+    } catch (error) {
+      console.error('Error loading islands:', error);
+    } finally {
+      setLoadingIslands(false);
+    }
+  };
 
   // Reset quick booking fields whenever the screen comes into focus (tab change, reload, navigation)
   useFocusEffect(
@@ -83,6 +101,7 @@ export default function HomeScreen() {
 
   const handleRefresh = () => {
     fetchUserBookings();
+    loadIslands();
   };
 
   const handleStartBooking = async () => {
@@ -102,26 +121,29 @@ export default function HomeScreen() {
     router.push('/vessel-tracking');
   };
 
-  // Get unique island names for selection, filtered based on current selection and available routes
+  // Get unique island names for selection, filtered based on current selection and available zones
   const fromIslands = useMemo(
-    () => getUniqueIslandNames(availableRoutes, 'from'),
-    [availableRoutes]
+    () => allIslands.map(island => island.name),
+    [allIslands]
   );
 
-  // Only show destination islands that have actual routes from the selected departure island
-  const toIslands = useMemo(
-    () =>
-      quickBookingState.selectedFromIsland
-        ? getUniqueIslandNames(
-            filterRoutesByDepartureIsland(
-              availableRoutes,
-              quickBookingState.selectedFromIsland
-            ),
-            'to'
-          )
-        : [],
-    [availableRoutes, quickBookingState.selectedFromIsland]
-  );
+  // Only show destination islands from opposite zone
+  const toIslands = useMemo(() => {
+    if (!quickBookingState.selectedFromIsland) return [];
+
+    const selectedIsland = allIslands.find(
+      island => island.name === quickBookingState.selectedFromIsland
+    );
+
+    if (!selectedIsland) return [];
+
+    const oppositeZoneIslands = getOppositeZoneIslands(
+      allIslands,
+      selectedIsland.id
+    );
+
+    return oppositeZoneIslands.map(island => island.name);
+  }, [allIslands, quickBookingState.selectedFromIsland]);
 
   // Get upcoming bookings (confirmed status and future date)
   const upcomingBookings = bookings
@@ -144,7 +166,7 @@ export default function HomeScreen() {
       contentContainerStyle={styles.contentContainer}
       refreshControl={
         <RefreshControl
-          refreshing={routeLoading || bookingsLoading}
+          refreshing={routeLoading || bookingsLoading || loadingIslands}
           onRefresh={handleRefresh}
         />
       }

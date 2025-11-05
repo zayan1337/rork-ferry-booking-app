@@ -2,7 +2,7 @@
   "expo": {
     "name": "Crystal Transfer Vaavu",
     "slug": "crystal-transfer-vaavu",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "crystaltransfervaavu",
@@ -29,8 +29,12 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.fies.crystaltransfervaavu",
-      "versionCode": 4,
-      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE", "CAMERA"]
+      "versionCode": 6,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png",
@@ -42,7 +46,9 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "extra": {
       "router": {
         "origin": "https://rork.com/"
@@ -52,6 +58,10 @@
       }
     },
     "owner": "fi-essystems",
-    "plugins": ["expo-router", "expo-font", "expo-web-browser"]
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser"
+    ]
   }
 }

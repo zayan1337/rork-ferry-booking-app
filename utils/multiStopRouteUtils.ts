@@ -88,7 +88,8 @@ export async function updateRouteStop(
   // Map estimated_travel_time_from_previous to estimated_travel_time for database
   const dbUpdates: any = { ...updates };
   if ('estimated_travel_time_from_previous' in dbUpdates) {
-    dbUpdates.estimated_travel_time = dbUpdates.estimated_travel_time_from_previous;
+    dbUpdates.estimated_travel_time =
+      dbUpdates.estimated_travel_time_from_previous;
     delete dbUpdates.estimated_travel_time_from_previous;
   }
   // Remove readonly/computed fields
@@ -315,10 +316,11 @@ export async function createMultiStopRoute(
     description: formData.description,
   };
 
-  // Only set from/to for simple routes (2 stops) to avoid unique constraint conflicts
-  if (!isMultiStop && formData.stops.length === 2) {
+  // Set from_island_id and to_island_id from first and last stops
+  if (formData.stops.length >= 2) {
     routeData.from_island_id = formData.stops[0]?.island_id;
-    routeData.to_island_id = formData.stops[1]?.island_id;
+    routeData.to_island_id =
+      formData.stops[formData.stops.length - 1]?.island_id;
   }
 
   const { data: route, error: routeError } = await supabase
@@ -370,7 +372,19 @@ export async function updateMultiStopRoute(
   }
 
   // Update stops if provided
-  if (formData.stops) {
+  if (formData.stops && formData.stops.length > 0) {
+    // Update from_island_id and to_island_id from first and last stops
+    const firstStop = formData.stops[0];
+    const lastStop = formData.stops[formData.stops.length - 1];
+
+    await supabase
+      .from('routes')
+      .update({
+        from_island_id: firstStop?.island_id,
+        to_island_id: lastStop?.island_id,
+      })
+      .eq('id', routeId);
+
     // Delete existing stops
     await supabase.from('route_stops').delete().eq('route_id', routeId);
 

@@ -38,6 +38,7 @@ import TicketDesign from '@/components/TicketDesign';
 import { shareBookingTicket } from '@/utils/shareUtils';
 import { formatBookingDate } from '@/utils/dateUtils';
 import { formatPaymentMethod } from '@/utils/paymentUtils';
+import { formatTimeAMPM } from '@/utils/dateUtils';
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -167,7 +168,11 @@ export default function BookingDetailsScreen() {
         </View>
         <View style={styles.detailContent}>
           <Text style={styles.detailLabel}>Departure Time</Text>
-          <Text style={styles.detailValue}>{booking.departureTime}</Text>
+          <Text style={styles.detailValue}>
+            {booking.departureTime
+              ? formatTimeAMPM(booking.departureTime)
+              : '-'}
+          </Text>
         </View>
       </View>
 
@@ -191,37 +196,62 @@ export default function BookingDetailsScreen() {
             </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Return Time</Text>
-              <Text style={styles.detailValue}>{booking.returnTime}</Text>
+              <Text style={styles.detailValue}>
+                {booking.returnTime ? formatTimeAMPM(booking.returnTime) : '-'}
+              </Text>
             </View>
           </View>
         </>
       )}
+
+      {/* <View style={styles.detailRow}>
+        <View style={styles.detailIcon}>
+          <MapPin size={20} color={Colors.primary} />
+        </View>
+        <View style={styles.detailContent}>
+          <Text style={styles.detailLabel}>Pickup</Text>
+          <Text style={styles.detailValue}>
+            {booking.route.fromIsland.name}
+          </Text>
+        </View>
+      </View>
 
       <View style={styles.detailRow}>
         <View style={styles.detailIcon}>
           <MapPin size={20} color={Colors.primary} />
         </View>
         <View style={styles.detailContent}>
-          <Text style={styles.detailLabel}>Route</Text>
-          <Text style={styles.detailValue}>
-            {booking.route.fromIsland.name} → {booking.route.toIsland.name}
-          </Text>
+          <Text style={styles.detailLabel}>Dropoff</Text>
+          <Text style={styles.detailValue}>{booking.route.toIsland.name}</Text>
         </View>
-      </View>
+      </View> */}
 
       {booking.tripType === 'round_trip' && booking.returnRoute && (
-        <View style={styles.detailRow}>
-          <View style={styles.detailIcon}>
-            <MapPin size={20} color={Colors.primary} />
+        <>
+          <View style={styles.detailRow}>
+            <View style={styles.detailIcon}>
+              <MapPin size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Return Pickup</Text>
+              <Text style={styles.detailValue}>
+                {booking.returnRoute.fromIsland.name}
+              </Text>
+            </View>
           </View>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Return Route</Text>
-            <Text style={styles.detailValue}>
-              {booking.returnRoute.fromIsland.name} →{' '}
-              {booking.returnRoute.toIsland.name}
-            </Text>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIcon}>
+              <MapPin size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Return Dropoff</Text>
+              <Text style={styles.detailValue}>
+                {booking.returnRoute.toIsland.name}
+              </Text>
+            </View>
           </View>
-        </View>
+        </>
       )}
 
       <View style={styles.detailRow}>
@@ -251,6 +281,12 @@ export default function BookingDetailsScreen() {
 
           {passenger.idNumber && (
             <Text style={styles.passengerDetail}>ID: {passenger.idNumber}</Text>
+          )}
+
+          {passenger.phoneNumber && (
+            <Text style={styles.passengerDetail}>
+              Phone: {passenger.phoneNumber}
+            </Text>
           )}
 
           {passenger.specialAssistance && (

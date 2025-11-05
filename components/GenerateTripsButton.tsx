@@ -67,6 +67,8 @@ export default function GenerateTripsButton({
                     vessel_id: vessel.id,
                     available_seats: vessel.seating_capacity,
                     is_active: true,
+                    booked_seats: 0, // Initialize booked_seats for new trips
+                    status: 'scheduled', // Set default status
                   });
                 }
               }

@@ -83,10 +83,6 @@ export const fetchWallets = async (
         profilesError
       );
       // Continue without user profiles
-    } else {
-      console.log(
-        `✅ [fetchWallets] Fetched ${userProfiles?.length || 0} user profiles`
-      );
     }
 
     // Combine data
@@ -435,8 +431,6 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
 
     if (walletError) {
       console.error('Error fetching wallet stats:', walletError);
-    } else {
-      console.log('Wallet stats fetched:', walletStats?.length || 0, 'wallets');
     }
 
     // Fetch payment statistics
@@ -446,12 +440,6 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
 
     if (paymentError) {
       console.error('Error fetching payment stats:', paymentError);
-    } else {
-      console.log(
-        'Payment stats fetched:',
-        paymentStats?.length || 0,
-        'payments'
-      );
     }
 
     // Fetch transaction statistics
@@ -461,12 +449,6 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
 
     if (transactionError) {
       console.error('Error fetching transaction stats:', transactionError);
-    } else {
-      console.log(
-        'Transaction stats fetched:',
-        transactionStats?.length || 0,
-        'transactions'
-      );
     }
 
     // Calculate statistics

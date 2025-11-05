@@ -340,7 +340,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
             await supabase
               .from('seat_reservations')
               .select(
-                'is_available, booking_id, is_reserved, reservation_expiry'
+                'is_available, booking_id, is_reserved, reservation_expiry, is_admin_blocked, temp_reservation_expiry'
               )
               .eq('trip_id', trip.id);
 
@@ -422,19 +422,32 @@ export const useTripStore = create<TripStore>((set, get) => ({
           }
 
           // Calculate available seats from existing reservations
+          // Exclude admin-blocked seats from available count
           const currentTime = new Date();
           const availableSeats =
             seatReservations?.filter((reservation: any) => {
               // Seat is available if:
-              // 1. is_available is true AND
-              // 2. No booking_id (not booked) AND
-              // 3. Either not reserved OR reservation has expired
+              // 1. NOT admin blocked
+              // 2. is_available is true AND
+              // 3. No booking_id (not booked) AND
+              // 4. Either not reserved OR reservation has expired
+              // 5. No active temp reservation
+              const isAdminBlocked = reservation.is_admin_blocked === true;
+              const isBooked = reservation.booking_id != null;
+              const hasActiveTempReservation =
+                reservation.temp_reservation_expiry
+                  ? new Date(reservation.temp_reservation_expiry) > currentTime
+                  : false;
+              const isReservedExpired = reservation.reservation_expiry
+                ? currentTime > new Date(reservation.reservation_expiry)
+                : true;
+
               return (
-                reservation.is_available &&
-                !reservation.booking_id &&
-                (!reservation.is_reserved ||
-                  (reservation.reservation_expiry &&
-                    currentTime > new Date(reservation.reservation_expiry)))
+                !isAdminBlocked &&
+                reservation.is_available !== false &&
+                !isBooked &&
+                !hasActiveTempReservation &&
+                (!reservation.is_reserved || isReservedExpired)
               );
             }).length || 0;
 

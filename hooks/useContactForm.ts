@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
+import { supabase } from '@/utils/supabase';
 import type { ContactFormState } from '@/types/customer';
 import { isContactFormValid } from '@/utils/customerUtils';
 
@@ -44,12 +45,25 @@ export const useContactForm = () => {
     setFormState(prev => ({ ...prev, isSubmitting: true }));
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Call Supabase function to send contact email
+      const { data, error } = await supabase.functions.invoke(
+        'send-contact-email',
+        {
+          body: {
+            name: contactName,
+            email: contactEmail,
+            message: contactMessage,
+          },
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
 
       Alert.alert(
         'Success',
-        'Your message has been sent. We will get back to you soon.'
+        'Your message has been sent successfully! We will get back to you soon.'
       );
 
       // Reset form
@@ -60,7 +74,11 @@ export const useContactForm = () => {
         isSubmitting: false,
       });
     } catch (error) {
-      Alert.alert('Error', 'Failed to send message. Please try again.');
+      console.error('Contact form submission error:', error);
+      Alert.alert(
+        'Error',
+        'Failed to send message. Please check your internet connection and try again.'
+      );
       setFormState(prev => ({ ...prev, isSubmitting: false }));
     }
   }, [formState]);

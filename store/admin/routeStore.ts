@@ -126,6 +126,59 @@ const initialState: RouteStoreState = {
 // UTILITY FUNCTIONS
 // ============================================================================
 
+/**
+ * Updates route's from_island_id and to_island_id from first and last stops
+ */
+const updateRouteIslandIds = async (routeId: string): Promise<void> => {
+  try {
+    // Fetch first stop (MIN stop_sequence)
+    const { data: firstStops, error: firstError } = await supabase
+      .from('route_stops')
+      .select('island_id')
+      .eq('route_id', routeId)
+      .order('stop_sequence', { ascending: true })
+      .limit(1)
+      .single();
+
+    // Fetch last stop (MAX stop_sequence)
+    const { data: lastStops, error: lastError } = await supabase
+      .from('route_stops')
+      .select('island_id')
+      .eq('route_id', routeId)
+      .order('stop_sequence', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (firstError || lastError) {
+      // If no stops exist or error, don't update
+      console.warn('Could not fetch route stops for island ID update:', {
+        firstError,
+        lastError,
+      });
+      return;
+    }
+
+    const from_island_id = firstStops?.island_id || null;
+    const to_island_id = lastStops?.island_id || null;
+
+    // Update route with island IDs
+    const { error: updateError } = await supabase
+      .from('routes')
+      .update({
+        from_island_id,
+        to_island_id,
+      })
+      .eq('id', routeId);
+
+    if (updateError) {
+      console.error('Error updating route island IDs:', updateError);
+    }
+  } catch (error) {
+    console.error('Error in updateRouteIslandIds:', error);
+    // Don't throw - this is a background update that shouldn't fail the main operation
+  }
+};
+
 const processRouteData = (route: any): Route => ({
   id: route.id,
   name: route.name,
@@ -461,6 +514,9 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
 
       if (createError) throw createError;
 
+      // Update from_island_id and to_island_id from route stops
+      await updateRouteIslandIds(routeId);
+
       // Fetch the created route with full details
       const { data: newRoute, error: fetchError } = await supabase
         .from('routes_with_stops_view')
@@ -543,6 +599,9 @@ export const useRouteStore = create<RouteStore>((set, get) => ({
         );
 
         if (updateError) throw updateError;
+
+        // Update from_island_id and to_island_id from route stops when stops are updated
+        await updateRouteIslandIds(id);
       } else {
         // Simple update of basic route fields only
         const updateData: any = {};

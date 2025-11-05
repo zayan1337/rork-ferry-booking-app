@@ -4,7 +4,6 @@ import {
   Text,
   View,
   Pressable,
-  Alert,
   ScrollView,
   RefreshControl,
   Dimensions,
@@ -41,6 +40,7 @@ import Input from '@/components/Input';
 import { DateSelector } from '@/components/DateSelector';
 import StatCard from '@/components/StatCard';
 import { formatProfileDate } from '@/utils/customerUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 type EditableField = 'full_name' | 'mobile_number' | 'date_of_birth';
 
@@ -58,6 +58,7 @@ export default function CaptainProfileScreen() {
     fetchTodayTrips,
     fetchDashboardStats,
   } = useCaptainStore();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
@@ -83,14 +84,13 @@ export default function CaptainProfileScreen() {
   );
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: () => signOut(),
-      },
-    ]);
+    showConfirmation(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      () => signOut(),
+      undefined,
+      true // Mark as destructive action
+    );
   };
 
   const handleNavigation = (screen: string) => {
@@ -148,7 +148,7 @@ export default function CaptainProfileScreen() {
 
   const handleSaveEdit = async () => {
     if (!editingField || !editValue.trim()) {
-      Alert.alert('Error', 'Please enter a valid value');
+      showError('Error', 'Please enter a valid value');
       return;
     }
 
@@ -171,30 +171,30 @@ export default function CaptainProfileScreen() {
 
       await updateProfileLocally(updateData);
 
-      Alert.alert('Success', 'Profile updated successfully');
+      showSuccess('Success', 'Profile updated successfully');
       closeEditModal();
     } catch (error) {
       console.error('Update error:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update profile';
-      Alert.alert('Error', errorMessage);
+      showError('Error', errorMessage);
       setIsSaving(false);
     }
   };
 
   const handlePasswordChange = async () => {
     if (!newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all password fields');
+      showError('Error', 'Please fill in all password fields');
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+      showError('Error', 'Password must be at least 6 characters long');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'New passwords do not match');
+      showError('Error', 'New passwords do not match');
       return;
     }
 
@@ -207,13 +207,13 @@ export default function CaptainProfileScreen() {
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Password updated successfully');
+      showSuccess('Success', 'Password updated successfully');
       closePasswordModal();
     } catch (error) {
       console.error('Password update error:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update password';
-      Alert.alert('Error', errorMessage);
+      showError('Error', errorMessage);
       setIsSaving(false);
     }
   };

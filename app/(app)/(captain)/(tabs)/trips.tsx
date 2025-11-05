@@ -7,7 +7,6 @@ import {
   RefreshControl,
   Pressable,
   TextInput,
-  Alert,
   Dimensions,
 } from 'react-native';
 import {
@@ -18,9 +17,7 @@ import {
   Search,
   Filter,
   CheckCircle,
-  Navigation,
-  UserCheck,
-  Eye,
+  AlertCircle,
 } from 'lucide-react-native';
 import { useFocusEffect, router } from 'expo-router';
 
@@ -30,9 +27,9 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import CalendarDatePicker from '@/components/CalendarDatePicker';
-import { formatSimpleDate } from '@/utils/dateUtils';
-import { formatTripTime } from '@/utils/tripUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth > 768;
@@ -49,9 +46,9 @@ export default function CaptainTripsScreen() {
     setSearchQuery,
     setDateFilter,
     setStatusFilter,
-    updateTripStatus,
     clearError,
   } = useCaptainStore();
+  const { showError } = useAlertContext();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -65,9 +62,10 @@ export default function CaptainTripsScreen() {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Error', error, [{ text: 'OK', onPress: clearError }]);
+      showError('Error', error);
+      clearError();
     }
-  }, [error, clearError]);
+  }, [error, clearError, showError]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -82,58 +80,6 @@ export default function CaptainTripsScreen() {
 
   const handleTripPress = (trip: CaptainTrip) => {
     router.push(`../trip-details/${trip.id}` as any);
-  };
-
-  const handleStartBoarding = async (tripId: string) => {
-    const success = await updateTripStatus(tripId, 'boarding');
-    if (success) {
-      Alert.alert('Success', 'Boarding has started for this trip.');
-    }
-  };
-
-  const handleMarkDeparted = async (tripId: string) => {
-    Alert.alert(
-      'Confirm Departure',
-      'Mark this trip as departed? This will close check-in for new passengers.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Depart',
-          onPress: async () => {
-            const success = await updateTripStatus(tripId, 'departed');
-            if (success) {
-              Alert.alert('Success', 'Trip marked as departed.');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleMarkArrived = async (tripId: string) => {
-    const success = await updateTripStatus(tripId, 'arrived');
-    if (success) {
-      Alert.alert('Success', 'Trip marked as arrived.');
-    }
-  };
-
-  const handleCompleteTrip = async (tripId: string) => {
-    Alert.alert(
-      'Complete Trip',
-      'Mark this trip as completed? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          onPress: async () => {
-            const success = await updateTripStatus(tripId, 'completed');
-            if (success) {
-              Alert.alert('Success', 'Trip completed successfully.');
-            }
-          },
-        },
-      ]
-    );
   };
 
   // Filter trips based on search and status
@@ -278,26 +224,75 @@ export default function CaptainTripsScreen() {
         <View style={styles.tripHeader}>
           <View style={styles.routeInfo}>
             <MapPin size={16} color={Colors.primary} />
-            <Text style={styles.routeName}>
-              {trip.from_island_name} → {trip.to_island_name}
-            </Text>
+            <Text style={styles.routeName}>{trip.route_name}</Text>
           </View>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: `${getStatusColor(trip.status)}20` },
-            ]}
-          >
-            <Text
+          <View style={styles.headerBadges}>
+            <View
               style={[
-                styles.statusText,
-                { color: getStatusColor(trip.status) },
+                styles.statusBadge,
+                { backgroundColor: `${getStatusColor(trip.status)}20` },
               ]}
             >
-              {getStatusLabel(trip.status)}
-            </Text>
+              <Text
+                style={[
+                  styles.statusText,
+                  { color: getStatusColor(trip.status) },
+                ]}
+              >
+                {getStatusLabel(trip.status)}
+              </Text>
+            </View>
+
+            {/* Inactive Badge */}
+            {!trip.is_active && (
+              <View style={styles.inactiveBadge}>
+                <Text style={styles.inactiveBadgeText}>INACTIVE</Text>
+              </View>
+            )}
+
+            {/* Special Assistance Badge */}
+            {typeof trip.special_assistance_count === 'number' &&
+              trip.special_assistance_count > 0 && (
+                <View style={styles.specialAssistanceBadge}>
+                  <Text style={styles.badgeText}>
+                    {String(trip.special_assistance_count)}
+                  </Text>
+                </View>
+              )}
           </View>
         </View>
+
+        {/* Inactive Trip Warning */}
+        {!trip.is_active && (
+          <View style={styles.inactiveWarning}>
+            <AlertCircle size={14} color={Colors.warning} />
+            <Text style={styles.inactiveWarningText}>
+              This trip is currently inactive. Tap to view and activate it.
+            </Text>
+          </View>
+        )}
+
+        {/* Progress indicator - only show if we have valid stop data */}
+        {trip.total_stops &&
+          trip.total_stops > 1 &&
+          trip.current_stop_sequence &&
+          trip.current_stop_sequence > 0 && (
+            <View style={styles.multiStopProgress}>
+              <Text style={styles.multiStopProgressText}>
+                Stop {trip.current_stop_sequence} of {trip.total_stops}
+              </Text>
+              <View style={styles.multiStopProgressBar}>
+                <View
+                  style={[
+                    styles.multiStopProgressFill,
+                    {
+                      width: `${(trip.current_stop_sequence / trip.total_stops) * 100}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
 
         {/* Trip Details */}
         <View style={styles.tripDetails}>
@@ -305,7 +300,7 @@ export default function CaptainTripsScreen() {
             <View style={styles.detailItem}>
               <Clock size={14} color={Colors.textSecondary} />
               <Text style={styles.detailText}>
-                {formatTripTime(trip.departure_time)}
+                {formatTimeAMPM(trip.departure_time)}
               </Text>
             </View>
             <View style={styles.detailItem}>
@@ -350,53 +345,6 @@ export default function CaptainTripsScreen() {
           </Text>
         </View>
       </Pressable>
-
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        <Button
-          title='View Details'
-          onPress={() => handleTripPress(trip)}
-          variant='outline'
-          style={styles.actionButton}
-          icon={<Eye size={16} color={Colors.primary} />}
-        />
-
-        {trip.status === 'scheduled' && (
-          <Button
-            title='Start Boarding'
-            onPress={() => handleStartBoarding(trip.id)}
-            style={styles.actionButton}
-            icon={<UserCheck size={16} color='white' />}
-          />
-        )}
-
-        {trip.status === 'boarding' && (
-          <Button
-            title='Depart'
-            onPress={() => handleMarkDeparted(trip.id)}
-            style={styles.actionButton}
-            icon={<Navigation size={16} color='white' />}
-          />
-        )}
-
-        {trip.status === 'departed' && (
-          <Button
-            title='Mark Arrived'
-            onPress={() => handleMarkArrived(trip.id)}
-            style={styles.actionButton}
-            icon={<CheckCircle size={16} color='white' />}
-          />
-        )}
-
-        {trip.status === 'arrived' && (
-          <Button
-            title='Complete Trip'
-            onPress={() => handleCompleteTrip(trip.id)}
-            style={styles.actionButton}
-            icon={<CheckCircle size={16} color='white' />}
-          />
-        )}
-      </View>
     </Card>
   );
 
@@ -407,7 +355,7 @@ export default function CaptainTripsScreen() {
       <Text style={styles.emptyMessage}>
         {dateFilter === new Date().toISOString().split('T')[0]
           ? "You don't have any trips scheduled for today."
-          : `No trips found for ${formatSimpleDate(dateFilter)}.`}
+          : `No trips found for ${formatBookingDate(dateFilter)}.`}
       </Text>
       <Button
         title='Refresh'
@@ -437,7 +385,7 @@ export default function CaptainTripsScreen() {
         {/* Trip Summary */}
         <Card variant='outlined' style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>
-            {formatSimpleDate(dateFilter)} - {filteredTrips.length} Trip(s)
+            {formatBookingDate(dateFilter)} - {filteredTrips.length} Trip(s)
           </Text>
           <View style={styles.summaryStats}>
             <View style={styles.summaryItem}>
@@ -474,7 +422,7 @@ export default function CaptainTripsScreen() {
         </Card>
 
         {/* Trips List */}
-        {loading.trips ? (
+        {loading.trips && trips.length === 0 ? (
           <Card variant='outlined' style={styles.loadingCard}>
             <Text style={styles.loadingText}>Loading trips...</Text>
           </Card>
@@ -665,13 +613,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'right',
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    flex: 1,
-  },
   emptyCard: {
     padding: 32,
     alignItems: 'center',
@@ -699,5 +640,76 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: Colors.textSecondary,
+  },
+  // Multi-stop styles
+  headerBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  multiStopProgress: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  multiStopProgressText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  multiStopProgressBar: {
+    height: 4,
+    backgroundColor: Colors.border,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  multiStopProgressFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 2,
+  },
+  specialAssistanceBadge: {
+    backgroundColor: Colors.error,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  inactiveBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: `${Colors.textSecondary}20`,
+    borderWidth: 1,
+    borderColor: Colors.textSecondary,
+  },
+  inactiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    letterSpacing: 0.5,
+  },
+  inactiveWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: `${Colors.warning}10`,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  inactiveWarningText: {
+    fontSize: 12,
+    color: Colors.warning,
+    fontWeight: '500',
+    flex: 1,
   },
 });

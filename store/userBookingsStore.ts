@@ -78,7 +78,16 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
                 name,
                 zone
               ),
-              base_fare
+              base_fare,
+              route_stops!route_stops_route_id_fkey(
+                id,
+                stop_sequence,
+                island:island_id(
+                  id,
+                  name,
+                  zone
+                )
+              )
             ),
             travel_date,
             departure_time,
@@ -88,6 +97,20 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
               model,
               registration_number
             )
+          ),
+          booking_segments(
+            id,
+            boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
+              id,
+              stop_sequence,
+              islands(name, zone)
+            ),
+            destination_stop:route_stops!booking_segments_destination_stop_id_fkey(
+              id,
+              stop_sequence,
+              islands(name, zone)
+            ),
+            fare_amount
           ),
           is_round_trip,
           return_booking_id,
@@ -99,6 +122,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             id,
             passenger_name,
             passenger_contact_number,
+            passenger_id_proof,
             special_assistance_request,
             seat:seat_id(
               id,
@@ -124,27 +148,85 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
       const formattedBookings: Booking[] = (bookingsData || []).map(
         (booking: any) => {
           // Validate required booking data
-          if (!booking?.trip?.route) {
+          if (!booking?.trip?.route && !booking?.booking_segments) {
             throw new Error(
-              'Invalid booking data: missing trip or route information'
+              'Invalid booking data: missing trip/route or booking segments'
             );
+          }
+
+          // Determine if this is a multi-stop booking (has booking_segments)
+          // Note: booking_segments is returned as an OBJECT (single segment per booking)
+          const hasSegments =
+            booking.booking_segments &&
+            typeof booking.booking_segments === 'object';
+
+          // Get island data from booking_segments if available, otherwise from route
+          let fromIsland, toIsland;
+
+          if (hasSegments) {
+            // Multi-stop booking - booking_segments is a single object
+            const segment = booking.booking_segments;
+
+            // Get boarding stop island
+            const boardingStop = segment.boarding_stop;
+            const boardingIsland = boardingStop?.islands;
+            const boardingIslandData = Array.isArray(boardingIsland)
+              ? boardingIsland[0]
+              : boardingIsland;
+
+            // Get destination stop island
+            const destinationStop = segment.destination_stop;
+            const destinationIsland = destinationStop?.islands;
+            const destinationIslandData = Array.isArray(destinationIsland)
+              ? destinationIsland[0]
+              : destinationIsland;
+
+            fromIsland = {
+              id: boardingIslandData?.id || '',
+              name: boardingIslandData?.name || 'Unknown',
+              zone: boardingIslandData?.zone || '',
+            };
+
+            toIsland = {
+              id: destinationIslandData?.id || '',
+              name: destinationIslandData?.name || 'Unknown',
+              zone: destinationIslandData?.zone || '',
+            };
+          } else {
+            // Regular booking - use route data
+            fromIsland = {
+              id: booking.trip?.route?.from_island?.id || '',
+              name: booking.trip?.route?.from_island?.name || 'Unknown',
+              zone: booking.trip?.route?.from_island?.zone || '',
+            };
+
+            toIsland = {
+              id: booking.trip?.route?.to_island?.id || '',
+              name: booking.trip?.route?.to_island?.name || 'Unknown',
+              zone: booking.trip?.route?.to_island?.zone || '',
+            };
           }
 
           // Format route data with null checks
           const route: Route = {
-            id: booking.trip.route.id,
-            fromIsland: {
-              id: booking.trip.route.from_island?.id || '',
-              name: booking.trip.route.from_island?.name || 'Unknown',
-              zone: booking.trip.route.from_island?.zone || '',
-            },
-            toIsland: {
-              id: booking.trip.route.to_island?.id || '',
-              name: booking.trip.route.to_island?.name || 'Unknown',
-              zone: booking.trip.route.to_island?.zone || '',
-            },
-            baseFare: booking.trip.route.base_fare || 0,
+            id: booking.trip?.route?.id || '',
+            fromIsland,
+            toIsland,
+            baseFare: booking.trip?.route?.base_fare || 0,
             duration: '2h', // Default duration since it's not in the database
+            routeStops: booking.trip?.route?.route_stops
+              ? booking.trip.route.route_stops
+                  .sort((a: any, b: any) => a.stop_sequence - b.stop_sequence)
+                  .map((stop: any) => ({
+                    id: stop.id,
+                    stopSequence: stop.stop_sequence,
+                    island: {
+                      id: stop.island?.id || '',
+                      name: stop.island?.name || 'Unknown',
+                      zone: stop.island?.zone || 'A',
+                    },
+                  }))
+              : undefined,
           };
 
           // Format passengers data with their seats (with null checks)
@@ -152,7 +234,8 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             (p: any) => ({
               id: p?.id || '',
               fullName: p?.passenger_name || '',
-              idNumber: p?.passenger_contact_number || '',
+              idNumber: p?.passenger_id_proof || '',
+              phoneNumber: p?.passenger_contact_number || '',
               specialAssistance: p?.special_assistance_request || '',
             })
           );
@@ -318,17 +401,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             // Admin can manually process refund later
           }
 
-          if (refundData) {
-            console.log(
-              '[CANCEL] Refund API response:',
-              JSON.stringify(refundData, null, 2)
-            );
-          } else if (!refundError) {
-            console.warn(
-              '[CANCEL] No refund data and no error - unexpected state'
-            );
-          }
-
           if (!refundData?.success) {
             console.warn(
               '[CANCEL] Refund processing failed:',
@@ -341,8 +413,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
                 status: 'refund_failed',
               })
               .eq('booking_id', bookingId);
-          } else {
-            console.log('[CANCEL] Refund processed successfully');
           }
         } catch (refundException) {
           console.error(
@@ -360,10 +430,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             updated_at: new Date().toISOString(),
           })
           .eq('booking_id', bookingId);
-      } else {
-        console.log(
-          `[CANCEL] Payment status is not completed: ${booking.payment?.status}, skipping refund processing`
-        );
       }
 
       await fetchUserBookings();
@@ -448,12 +514,28 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
         if (seatUpdateError) throw seatUpdateError;
       }
 
+      // Resolve fallback contact from booking user's profile
+      let fallbackPhone = '' as string;
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('mobile_number')
+          .eq('id', newBookingData.user_id)
+          .single();
+        fallbackPhone = (profile?.mobile_number || '').trim();
+      } catch {}
+
       // 6. Create passengers for new booking
       const passengers = originalBooking.passengers.map(
         (passenger: any, index: number) => ({
           booking_id: newBookingData.id,
           passenger_name: passenger.fullName,
-          passenger_contact_number: passenger.idNumber,
+          passenger_contact_number:
+            (passenger.phoneNumber && passenger.phoneNumber.trim()) ||
+            fallbackPhone ||
+            '',
+          passenger_id_proof:
+            (passenger.idNumber && passenger.idNumber.trim()) || null,
           special_assistance_request: passenger.specialAssistance,
           seat_id: modifications.selectedSeats[index]?.id,
         })
@@ -782,10 +864,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => ({
             originalSeatReleaseError
           );
           // Don't throw - modification is complete, seat release can be handled manually
-        } else {
-          console.log(
-            '[MODIFY] Successfully released seats from original booking'
-          );
         }
       }
 

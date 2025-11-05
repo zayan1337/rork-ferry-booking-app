@@ -100,6 +100,13 @@ interface ValidationErrors {
   general?: string;
 }
 
+// Helper function to format time from database (HH:MM:SS or HH:MM) to HH:MM
+const formatTimeForForm = (time: string | undefined): string => {
+  if (!time) return '';
+  // Remove seconds if present (HH:MM:SS -> HH:MM)
+  return time.substring(0, 5);
+};
+
 export default function TripForm({
   tripId,
   onSave,
@@ -124,8 +131,8 @@ export default function TripForm({
     route_id: currentTrip?.route_id || initialData?.route_id || '',
     vessel_id: currentTrip?.vessel_id || initialData?.vessel_id || '',
     travel_date: currentTrip?.travel_date || '',
-    departure_time: currentTrip?.departure_time || '',
-    arrival_time: currentTrip?.arrival_time || '',
+    departure_time: formatTimeForForm(currentTrip?.departure_time) || '',
+    arrival_time: formatTimeForForm(currentTrip?.arrival_time) || '',
     status: currentTrip?.status || 'scheduled',
     delay_reason: currentTrip?.delay_reason || '',
     fare_multiplier: currentTrip?.fare_multiplier || 1.0,
@@ -265,21 +272,16 @@ export default function TripForm({
   const loadSegmentData = async (routeId: string) => {
     setLoadingSegmentData(true);
     try {
-      console.log('Loading segment data for route:', routeId);
       const multiRoute = await getMultiStopRoute(routeId);
-      console.log('Multi-route data:', multiRoute);
 
       if (multiRoute && multiRoute.segment_fares) {
-        console.log('Setting segment fares:', multiRoute.segment_fares);
         setRouteSegmentFares(multiRoute.segment_fares);
       } else {
-        console.log('No segment fares found for route');
         setRouteSegmentFares([]);
       }
 
       // Load existing trip fare overrides if editing
       if (tripId) {
-        console.log('Loading trip fare overrides for trip:', tripId);
         const { data: overrides, error } = await supabase
           .from('trip_fare_overrides')
           .select('*')
@@ -288,7 +290,6 @@ export default function TripForm({
         if (error) {
           console.error('Error loading trip fare overrides:', error);
         } else {
-          console.log('Trip fare overrides:', overrides);
           setTripFareOverrides(overrides || []);
         }
       }
@@ -605,14 +606,16 @@ export default function TripForm({
     if (!formData.departure_time) {
       errors.departure_time = 'Departure time is required';
     } else {
-      // Validate time format - ensure it's in HH:MM format
-      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      // Validate time format - accept both HH:MM and HH:MM:SS formats
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
       if (!timeRegex.test(formData.departure_time)) {
         errors.departure_time =
           'Invalid time format. Use HH:MM format (e.g., 14:30)';
       } else {
         // Additional validation: ensure time is valid
-        const [hours, minutes] = formData.departure_time.split(':').map(Number);
+        const timeParts = formData.departure_time.split(':');
+        const hours = parseInt(timeParts[0]);
+        const minutes = parseInt(timeParts[1]);
         if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
           errors.departure_time =
             'Invalid time. Hours must be 00-23, minutes must be 00-59';
@@ -621,14 +624,16 @@ export default function TripForm({
     }
 
     if (formData.arrival_time) {
-      // Validate arrival time format
-      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      // Validate arrival time format - accept both HH:MM and HH:MM:SS formats
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
       if (!timeRegex.test(formData.arrival_time)) {
         errors.arrival_time =
           'Invalid time format. Use HH:MM format (e.g., 16:30)';
       } else {
         // Additional validation: ensure time is valid
-        const [hours, minutes] = formData.arrival_time.split(':').map(Number);
+        const timeParts = formData.arrival_time.split(':');
+        const hours = parseInt(timeParts[0]);
+        const minutes = parseInt(timeParts[1]);
         if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
           errors.arrival_time =
             'Invalid time. Hours must be 00-23, minutes must be 00-59';
@@ -643,8 +648,18 @@ export default function TripForm({
       !errors.departure_time
     ) {
       // Validate arrival time is after departure time
-      const departureTime = new Date(`2000-01-01T${formData.departure_time}`);
-      const arrivalTime = new Date(`2000-01-01T${formData.arrival_time}`);
+      // Ensure both times are in HH:MM:SS format for comparison
+      const departureFormatted =
+        formData.departure_time.length === 5
+          ? `${formData.departure_time}:00`
+          : formData.departure_time;
+      const arrivalFormatted =
+        formData.arrival_time.length === 5
+          ? `${formData.arrival_time}:00`
+          : formData.arrival_time;
+
+      const departureTime = new Date(`2000-01-01T${departureFormatted}`);
+      const arrivalTime = new Date(`2000-01-01T${arrivalFormatted}`);
 
       if (arrivalTime <= departureTime) {
         errors.arrival_time = 'Arrival time must be after departure time';
@@ -710,6 +725,10 @@ export default function TripForm({
   const performTripUpdate = async () => {
     setLoading(true);
     try {
+      // Get vessel capacity for available_seats
+      const selectedVessel = vessels?.find(v => v.id === formData.vessel_id);
+      const vesselCapacity = selectedVessel?.seating_capacity || 50; // Default fallback
+
       const tripFormData: TripFormData = {
         route_id: formData.route_id,
         vessel_id: formData.vessel_id,
@@ -720,6 +739,8 @@ export default function TripForm({
         fare_multiplier: formData.fare_multiplier,
         captain_id: formData.captain_id?.trim() || undefined,
         is_active: formData.is_active,
+        available_seats: vesselCapacity, // ✅ ADD missing available_seats field
+        booked_seats: 0, // ✅ ADD missing booked_seats field
         // Note: delay_reason, weather_conditions, notes, and crew_ids are not in the trips table
         // These fields need to be handled separately or added to the database schema
       };
@@ -763,8 +784,9 @@ export default function TripForm({
           }
         }
       } else {
+        // Create the trip
         await create(tripFormData);
-        Alert.alert('Success', 'Trip created successfully');
+        Alert.alert('Success', 'Trip created successfully!');
       }
 
       if (onSave) {
@@ -869,8 +891,8 @@ export default function TripForm({
         route_id: currentTrip.route_id || '',
         vessel_id: currentTrip.vessel_id || '',
         travel_date: currentTrip.travel_date || '',
-        departure_time: currentTrip.departure_time || '',
-        arrival_time: currentTrip.arrival_time || '',
+        departure_time: formatTimeForForm(currentTrip.departure_time) || '',
+        arrival_time: formatTimeForForm(currentTrip.arrival_time) || '',
         status: currentTrip.status || 'scheduled',
         delay_reason: currentTrip.delay_reason || '',
         fare_multiplier: currentTrip.fare_multiplier || 1.0,
