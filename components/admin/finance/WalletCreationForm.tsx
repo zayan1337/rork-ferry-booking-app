@@ -7,11 +7,11 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
-  Alert,
   FlatList,
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { supabase } from '@/utils/supabase';
 import { useFinanceStore } from '@/store/admin/financeStore';
 import {
@@ -46,6 +46,7 @@ interface FormErrors {
 
 export default function WalletCreationForm() {
   const { createWallet, fetchWallets } = useFinanceStore();
+  const { showError, showSuccess, showInfo } = useAlertContext();
 
   const [formData, setFormData] = useState<FormData>({
     user_id: '',
@@ -104,7 +105,7 @@ export default function WalletCreationForm() {
       }
     } catch (error) {
       console.error('Error searching users:', error);
-      Alert.alert('Error', 'Failed to search users. Please try again.');
+      showError('Error', 'Failed to search users. Please try again.');
       setUserOptions([]);
     } finally {
       setIsSearching(false);
@@ -125,10 +126,9 @@ export default function WalletCreationForm() {
 
   const handleSelectUser = (user: UserOption) => {
     if (user.existing_wallet) {
-      Alert.alert(
+      showInfo(
         'Wallet Exists',
-        `${user.full_name} already has a wallet. Each user can only have one wallet.`,
-        [{ text: 'OK' }]
+        `${user.full_name} already has a wallet. Each user can only have one wallet.`
       );
       return;
     }
@@ -187,19 +187,14 @@ export default function WalletCreationForm() {
       // Refresh the wallets list to ensure the new wallet appears
       await fetchWallets(true);
 
-      Alert.alert(
+      showSuccess(
         'Success!',
         `Wallet created successfully for ${selectedUser?.full_name}!`,
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
+        () => router.back()
       );
     } catch (error) {
       console.error('❌ [WalletCreationForm] Error creating wallet:', error);
-      Alert.alert(
+      showError(
         'Error',
         error instanceof Error
           ? error.message

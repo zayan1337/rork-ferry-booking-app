@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking, BookingStatus } from '@/types/admin/management';
 import StatusBadge from '@/components/admin/StatusBadge';
+import { useAlertContext } from '@/components/AlertProvider';
 import {
   CheckCircle,
   RefreshCw,
@@ -36,13 +37,15 @@ export default function BookingActionsSection({
   canUpdateBookings = false,
   loading = false,
 }: BookingActionsSectionProps) {
+  const { showError, showInfo } = useAlertContext();
+
   const handleStatusUpdate = async (newStatus: BookingStatus) => {
     if (!onStatusUpdate) return;
 
     try {
       await onStatusUpdate(newStatus);
     } catch (error) {
-      Alert.alert('Error', 'Failed to update booking status');
+      showError('Error', 'Failed to update booking status');
     }
   };
 
@@ -52,7 +55,7 @@ export default function BookingActionsSection({
     try {
       await onPaymentStatusUpdate(newStatus);
     } catch (error) {
-      Alert.alert('Error', 'Failed to update payment status');
+      showError('Error', 'Failed to update payment status');
     }
   };
 
@@ -225,7 +228,7 @@ export default function BookingActionsSection({
           <Pressable
             style={[styles.actionButton, styles.outlineAction]}
             onPress={() =>
-              Alert.alert(
+              showInfo(
                 'Feature Coming Soon',
                 'Contact customer functionality will be available soon.'
               )
@@ -287,7 +290,7 @@ export default function BookingActionsSection({
           <Pressable
             style={[styles.actionButton, styles.outlineAction]}
             onPress={() =>
-              Alert.alert(
+              showInfo(
                 'Feature Coming Soon',
                 'Print ticket functionality will be available soon.'
               )
@@ -301,7 +304,7 @@ export default function BookingActionsSection({
           <Pressable
             style={[styles.actionButton, styles.outlineAction]}
             onPress={() =>
-              Alert.alert(
+              showInfo(
                 'Feature Coming Soon',
                 'Generate receipt functionality will be available soon.'
               )

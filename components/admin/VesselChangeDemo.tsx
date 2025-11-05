@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import Button from '@/components/admin/Button';
 import { Ship, Users, RefreshCw } from 'lucide-react-native';
 
@@ -9,6 +10,7 @@ import { Ship, Users, RefreshCw } from 'lucide-react-native';
  * This component demonstrates the flow without modifying the database
  */
 export default function VesselChangeDemo() {
+  const { showConfirmation, showSuccess } = useAlertContext();
   const [demoState, setDemoState] = useState({
     currentVessel: 'Ferry Alpha',
     newVessel: null as string | null,
@@ -67,31 +69,26 @@ export default function VesselChangeDemo() {
   };
 
   const applyRearrangement = () => {
-    Alert.alert(
+    showConfirmation(
       'Confirm Seat Rearrangement',
       `This will automatically reassign ${mockPassengers.length} passengers to new vessel seats. This action cannot be undone. Do you want to continue?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Apply Rearrangement',
-          style: 'destructive',
-          onPress: () => {
-            setDemoState(prev => ({
-              ...prev,
-              status: 'completed',
-              currentVessel: prev.newVessel || prev.currentVessel,
-              newVessel: null,
-              existingBookings: 0,
-              passengers: [],
-              rearrangementPreview: [],
-            }));
-            Alert.alert(
-              'Seat Rearrangement Complete',
-              `Successfully rearranged ${mockPassengers.length} passengers to new vessel seats.`
-            );
-          },
-        },
-      ]
+      () => {
+        setDemoState(prev => ({
+          ...prev,
+          status: 'completed',
+          currentVessel: prev.newVessel || prev.currentVessel,
+          newVessel: null,
+          existingBookings: 0,
+          passengers: [],
+          rearrangementPreview: [],
+        }));
+        showSuccess(
+          'Seat Rearrangement Complete',
+          `Successfully rearranged ${mockPassengers.length} passengers to new vessel seats.`
+        );
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

@@ -10,7 +10,14 @@ import {
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { ArrowLeft, Activity, User, MapPin, Clock, Monitor, FileText } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Activity,
+  User,
+  Clock,
+  Monitor,
+  FileText,
+} from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
 import EmptyState from '@/components/admin/EmptyState';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
@@ -18,7 +25,9 @@ import { ActivityLogWithUser } from '@/types/admin/database';
 
 export default function ActivityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [activityLog, setActivityLog] = useState<ActivityLogWithUser | null>(null);
+  const [activityLog, setActivityLog] = useState<ActivityLogWithUser | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -144,10 +153,7 @@ export default function ActivityDetailScreen() {
           title: 'Activity Details',
           headerShown: true,
           headerLeft: () => (
-            <Pressable
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={24} color={colors.primary} />
             </Pressable>
           ),
@@ -175,10 +181,7 @@ export default function ActivityDetailScreen() {
                 { backgroundColor: `${getActionColor(activityLog.action)}20` },
               ]}
             >
-              <Activity
-                size={24}
-                color={getActionColor(activityLog.action)}
-              />
+              <Activity size={24} color={getActionColor(activityLog.action)} />
             </View>
             <View style={styles.actionHeaderText}>
               <Text style={styles.actionTitle}>
@@ -245,7 +248,9 @@ export default function ActivityDetailScreen() {
           {activityLog.entity_id && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Entity ID</Text>
-              <Text style={styles.detailValueMono}>{activityLog.entity_id}</Text>
+              <Text style={styles.detailValueMono}>
+                {activityLog.entity_id}
+              </Text>
             </View>
           )}
         </View>
@@ -297,21 +302,27 @@ export default function ActivityDetailScreen() {
             <View style={styles.detailRow}>
               <Monitor size={14} color={colors.textSecondary} />
               <Text style={styles.detailLabel}>IP Address</Text>
-              <Text style={styles.detailValueMono}>{activityLog.ip_address}</Text>
+              <Text style={styles.detailValueMono}>
+                {activityLog.ip_address}
+              </Text>
             </View>
           )}
 
           {activityLog.user_agent && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>User Agent</Text>
-              <Text style={styles.detailValueSmall}>{activityLog.user_agent}</Text>
+              <Text style={styles.detailValueSmall}>
+                {activityLog.user_agent}
+              </Text>
             </View>
           )}
 
           {activityLog.session_id && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Session ID</Text>
-              <Text style={styles.detailValueMono}>{activityLog.session_id}</Text>
+              <Text style={styles.detailValueMono}>
+                {activityLog.session_id}
+              </Text>
             </View>
           )}
         </View>
@@ -569,4 +580,3 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
-

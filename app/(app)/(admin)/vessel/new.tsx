@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Text,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { ArrowLeft, AlertCircle } from 'lucide-react-native';
@@ -18,35 +11,27 @@ import { AdminManagement } from '@/types';
 // Components
 import VesselForm from '@/components/admin/operations/VesselForm';
 import Button from '@/components/admin/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 
 type VesselFormData = AdminManagement.VesselFormData;
 
 export default function NewVesselScreen() {
   const { canManageVessels } = useAdminPermissions();
   const { create, loading } = useVesselManagement();
+  const { showSuccess, showError } = useAlertContext();
 
   const handleSuccess = async (vesselData: VesselFormData): Promise<void> => {
     try {
       // Create the vessel
       await create(vesselData);
 
-      Alert.alert(
+      showSuccess(
         'Success',
         'Vessel created successfully! Seat layout has been configured.',
-        [
-          {
-            text: 'Create Another',
-            onPress: () => router.replace('/vessel/new'),
-          },
-          {
-            text: 'Back to List',
-            onPress: () => router.back(),
-          },
-        ]
+        () => router.back()
       );
     } catch (error) {
-      console.error('Error creating vessel:', error);
-      Alert.alert('Error', 'Failed to create vessel. Please try again.');
+      showError('Error', 'Failed to create vessel. Please try again.');
     }
   };
 

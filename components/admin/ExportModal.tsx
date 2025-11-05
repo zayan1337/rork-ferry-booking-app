@@ -6,10 +6,10 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
-  Alert,
   Platform,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { X, Download, FileText, Check } from 'lucide-react-native';
 import { DateSelector } from '@/components/DateSelector';
 
@@ -52,6 +52,7 @@ export default function ExportModal({
   showDateFilter = true,
   fileTypes = ['excel', 'pdf', 'csv'],
 }: ExportModalProps) {
+  const { showError, showInfo } = useAlertContext();
   // Get today's date as max date
   const getMaxDate = () => {
     return new Date().toISOString().split('T')[0];
@@ -95,10 +96,7 @@ export default function ExportModal({
       const fromDate = new Date(dateFrom);
       const toDate = new Date(dateTo);
       if (fromDate > toDate) {
-        Alert.alert(
-          'Invalid Date Range',
-          'Start date must be before end date.'
-        );
+        showInfo('Invalid Date Range', 'Start date must be before end date.');
         return;
       }
     }
@@ -114,7 +112,7 @@ export default function ExportModal({
       handleClose();
     } catch (error) {
       console.error('Export error:', error);
-      Alert.alert('Export Failed', 'Failed to export data. Please try again.');
+      showError('Export Failed', 'Failed to export data. Please try again.');
     } finally {
       setExporting(false);
     }

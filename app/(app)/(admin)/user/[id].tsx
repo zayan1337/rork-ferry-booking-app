@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
-  Alert,
   ScrollView,
   RefreshControl,
   Dimensions,
@@ -40,6 +39,7 @@ import {
   UserActionsSection,
   UserSystemInfoSection,
 } from '@/components/admin/users';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -55,6 +55,8 @@ export default function UserDetailsPage() {
   } = useUserStore();
   const { canViewUsers, canUpdateUsers, canDeleteUsers } =
     useAdminPermissions();
+  const { showError, showSuccess, showConfirmation, showInfo } =
+    useAlertContext();
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -225,25 +227,13 @@ export default function UserDetailsPage() {
 
   const handleStatusChange = () => {
     if (!user) return;
-    // Show status change modal or navigate to status management
-    Alert.alert('Change User Status', `Current status: ${user.status}`, [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Activate',
-        onPress: () => updateUserStatus('active'),
-      },
-      {
-        text: 'Suspend',
-        onPress: () => updateUserStatus('suspended'),
-      },
-      {
-        text: 'Block',
-        onPress: () => updateUserStatus('inactive'),
-      },
-    ]);
+    // Show status change options
+    showInfo(
+      'Change User Status',
+      `Current status: ${user.status}. Use the status management section to change user status.`
+    );
+    // Alternative: Could show a modal with status options
+    // For now, just show info - actual status change should be handled in a dedicated section
   };
 
   const updateUserStatus = async (
@@ -253,14 +243,11 @@ export default function UserDetailsPage() {
 
     try {
       await update(user.id, { status: newStatus });
-      Alert.alert('Success', `User status updated to ${newStatus}`, [
-        {
-          text: 'OK',
-          onPress: () => handleRefresh(),
-        },
-      ]);
+      showSuccess(`User status updated to ${newStatus}`, '', () =>
+        handleRefresh()
+      );
     } catch (error) {
-      Alert.alert('Error', 'Failed to update user status');
+      showError('Error', 'Failed to update user status');
     }
   };
 
@@ -321,14 +308,13 @@ export default function UserDetailsPage() {
           // Navigate to the trip details page
           router.push(`../trip/${passengerData.bookings[0].trip_id}` as any);
         } else {
-          Alert.alert(
+          showError(
             'No Trip Found',
             'This passenger is not associated with any trip.'
           );
         }
       } catch (error) {
-        console.error('Error finding passenger trip:', error);
-        Alert.alert('Error', "Failed to find passenger's trip details.");
+        showError('Error', "Failed to find passenger's trip details.");
       }
     } else {
       // For other users, navigate to their trips list

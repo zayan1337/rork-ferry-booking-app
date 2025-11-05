@@ -10,9 +10,9 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Search, UserCheck, UserX, MapPin } from 'lucide-react-native';
 
 import { useCaptainStore } from '@/store/captainStore';
@@ -33,6 +33,7 @@ export default function MultiStopCheckIn({
   currentStop,
   onCheckInComplete,
 }: MultiStopCheckInProps) {
+  const { showError, showSuccess } = useAlertContext();
   const { user } = useAuthStore();
   const { processMultiStopCheckIn, fetchPassengersForStop } = useCaptainStore();
 
@@ -56,7 +57,7 @@ export default function MultiStopCheckIn({
       setPassengers(stopPassengers);
     } catch (error) {
       console.error('Error loading passengers:', error);
-      Alert.alert('Error', 'Failed to load passengers for this stop');
+      showError('Error', 'Failed to load passengers for this stop');
     } finally {
       setLoading(false);
     }
@@ -78,15 +79,15 @@ export default function MultiStopCheckIn({
       );
 
       if (result.success) {
-        Alert.alert('Success', result.message);
+        showSuccess('Success', result.message);
         await loadPassengers();
         onCheckInComplete();
       } else {
-        Alert.alert('Error', result.message);
+        showError('Error', result.message);
       }
     } catch (error) {
       console.error('Error processing check-in:', error);
-      Alert.alert('Error', 'Failed to process check-in');
+      showError('Error', 'Failed to process check-in');
     } finally {
       setProcessing(null);
     }

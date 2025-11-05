@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AdminBookingFormData, AdminPassenger } from '@/types/admin/management';
 import Button from '@/components/admin/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 import TextInput from '@/components/admin/TextInput';
 import Dropdown from '@/components/admin/Dropdown';
 import Switch from '@/components/admin/Switch';
@@ -53,6 +54,8 @@ export default function BookingForm({
   loading = false,
   title = 'Booking Form',
 }: BookingFormProps) {
+  const { showError } = useAlertContext();
+
   // Step management
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -425,7 +428,7 @@ export default function BookingForm({
         };
         await onSave(finalData);
       } catch (error) {
-        Alert.alert('Error', 'Failed to create booking. Please try again.');
+        showError('Error', 'Failed to create booking. Please try again.');
       }
     }
   };

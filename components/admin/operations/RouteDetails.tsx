@@ -5,10 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Route } from '@/types/operations';
 import { formatRouteDistance, formatRouteDuration } from '@/utils/routeUtils';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -48,20 +48,16 @@ export default function RouteDetails({
   onViewTrips,
   showActions = true,
 }: RouteDetailsProps) {
+  const { showConfirmation } = useAlertContext();
   const isTablet = screenWidth >= 768;
 
   const handleArchive = () => {
-    Alert.alert(
+    showConfirmation(
       'Archive Route',
       `Are you sure you want to archive "${route.name}"? This will stop all future trips on this route.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          style: 'destructive',
-          onPress: onArchive,
-        },
-      ]
+      onArchive || (() => {}),
+      undefined,
+      true // Mark as destructive action
     );
   };
 

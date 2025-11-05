@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   Pressable,
-  Alert,
   StyleSheet,
   RefreshControl,
   Dimensions,
@@ -13,6 +12,7 @@ import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useContentManagement } from '@/hooks/useContentManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Promotion } from '@/types/content';
 import {
   Percent,
@@ -52,6 +52,7 @@ type StatusFilter =
 
 export default function PromotionsScreen() {
   const { canManageContent, canViewContent } = useAdminPermissions();
+  const { showError } = useAlertContext();
   const {
     promotions,
     loading,
@@ -171,7 +172,7 @@ export default function PromotionsScreen() {
 
   const handleAddPromotion = () => {
     if (!canManageContent()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to create promotions."
       );

@@ -6,9 +6,9 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { supabase } from '@/utils/supabase';
 import { Seat } from '@/types';
 import { Lock, AlertTriangle, Wifi, WifiOff } from 'lucide-react-native';
@@ -37,6 +37,7 @@ export default function SeatBlockingManager({
   vesselId,
   onSeatsChanged,
 }: SeatBlockingManagerProps) {
+  const { showError, showInfo } = useAlertContext();
   const [seats, setSeats] = useState<Seat[]>([]);
   const [seatReservations, setSeatReservations] = useState<
     Map<string, SeatReservation>
@@ -149,7 +150,7 @@ export default function SeatBlockingManager({
       calculateStats(mappedSeats, reservationMap);
     } catch (error) {
       console.error('Error loading seat data:', error);
-      Alert.alert('Error', 'Failed to load seat data. Please try again.');
+      showError('Error', 'Failed to load seat data. Please try again.');
     } finally {
       if (showLoading) {
         setLoading(false);
@@ -426,19 +427,17 @@ export default function SeatBlockingManager({
       : false;
 
     if (isBooked) {
-      Alert.alert(
+      showInfo(
         'Cannot Block Seat',
-        'This seat is already booked and cannot be blocked.',
-        [{ text: 'OK' }]
+        'This seat is already booked and cannot be blocked.'
       );
       return;
     }
 
     if (hasActiveTempReservation && !isCurrentlyBlocked) {
-      Alert.alert(
+      showInfo(
         'Cannot Block Seat',
-        'This seat has an active temporary reservation. Please wait for it to expire or release it first.',
-        [{ text: 'OK' }]
+        'This seat has an active temporary reservation. Please wait for it to expire or release it first.'
       );
       return;
     }
@@ -556,7 +555,7 @@ export default function SeatBlockingManager({
       onSeatsChanged?.();
     } catch (error) {
       console.error('Error toggling seat block:', error);
-      Alert.alert(
+      showError(
         'Error',
         `Failed to ${isCurrentlyBlocked ? 'release' : 'block'} seat. Please try again.`
       );

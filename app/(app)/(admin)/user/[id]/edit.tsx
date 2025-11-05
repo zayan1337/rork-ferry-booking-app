@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { UserForm } from '@/components/admin/users';
@@ -9,11 +9,13 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import RoleGuard from '@/components/RoleGuard';
 import EmptyState from '@/components/admin/EmptyState';
 import { AlertTriangle } from 'lucide-react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function EditUserPage() {
   const { id } = useLocalSearchParams();
   const { fetchById, update } = useUserStore();
   const { canUpdateUsers } = useAdminPermissions();
+  const { showSuccess, showError } = useAlertContext();
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,14 +57,9 @@ export default function EditUserPage() {
 
     try {
       await update(user.id, userData);
-      Alert.alert('Success', 'User updated successfully!', [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]);
+      showSuccess('Success', 'User updated successfully!', () => router.back());
     } catch (error) {
-      Alert.alert(
+      showError(
         'Error',
         error instanceof Error ? error.message : 'Failed to update user'
       );

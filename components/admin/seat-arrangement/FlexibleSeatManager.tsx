@@ -6,9 +6,9 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  Alert,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { AdminManagement } from '@/types';
 import Button from '@/components/admin/Button';
 import SeatEditModal from './SeatEditModal';
@@ -55,6 +55,7 @@ export default function FlexibleSeatManager({
   onCancel,
   loading = false,
 }: FlexibleSeatManagerProps) {
+  const { showError, showConfirmation } = useAlertContext();
   const [rows, setRows] = useState<FlexibleRow[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastVesselId, setLastVesselId] = useState<string>('');
@@ -341,32 +342,27 @@ export default function FlexibleSeatManager({
   const removeRow = useCallback(
     (rowId: string) => {
       setUserHasModified(true);
-      Alert.alert(
+      showConfirmation(
         'Remove Row',
         'Are you sure you want to remove this row and all its seats?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Remove',
-            style: 'destructive',
-            onPress: () => {
-              setRows(prev => {
-                const updatedRows = prev.filter(r => r.id !== rowId);
+        () => {
+          setRows(prev => {
+            const updatedRows = prev.filter(r => r.id !== rowId);
 
-                // Trigger onChange callback with updated seats
-                if (onChange) {
-                  const allSeats = updatedRows.flatMap(row => row.seats);
-                  onChange(allSeats);
-                }
+            // Trigger onChange callback with updated seats
+            if (onChange) {
+              const allSeats = updatedRows.flatMap(row => row.seats);
+              onChange(allSeats);
+            }
 
-                return updatedRows;
-              });
-            },
-          },
-        ]
+            return updatedRows;
+          });
+        },
+        undefined,
+        true // Mark as destructive action
       );
     },
-    [onChange]
+    [onChange, showConfirmation]
   );
 
   const updateRowSeatCount = useCallback(
@@ -532,28 +528,23 @@ export default function FlexibleSeatManager({
       const allSeats = getAllSeats();
       await onSave(allSeats);
     } catch (error) {
-      Alert.alert('Error', 'Failed to save seat layout');
+      showError('Error', 'Failed to save seat layout');
     }
-  }, [getAllSeats, onSave]);
+  }, [getAllSeats, onSave, showError]);
 
   const handleReset = useCallback(() => {
-    Alert.alert(
+    showConfirmation(
       'Reset Layout',
       'Are you sure you want to reset to the ferry template?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => {
-            setRows([]);
-            setIsInitialized(false);
-            generateFerryTemplate();
-          },
-        },
-      ]
+      () => {
+        setRows([]);
+        setIsInitialized(false);
+        generateFerryTemplate();
+      },
+      undefined,
+      true // Mark as destructive action
     );
-  }, [generateFerryTemplate]);
+  }, [generateFerryTemplate, showConfirmation]);
 
   // Seat editing functions
   const handleSeatClick = useCallback((seat: Seat) => {
@@ -587,34 +578,33 @@ export default function FlexibleSeatManager({
 
   const handleSeatDelete = useCallback(
     (seatId: string) => {
-      Alert.alert('Delete Seat', 'Are you sure you want to delete this seat?', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            setRows(prevRows => {
-              const newRows = prevRows.map(row => ({
-                ...row,
-                seats: row.seats.filter(seat => seat.id !== seatId),
-                seatCount: row.seats.filter(seat => seat.id !== seatId).length,
-              }));
+      showConfirmation(
+        'Delete Seat',
+        'Are you sure you want to delete this seat?',
+        () => {
+          setRows(prevRows => {
+            const newRows = prevRows.map(row => ({
+              ...row,
+              seats: row.seats.filter(seat => seat.id !== seatId),
+              seatCount: row.seats.filter(seat => seat.id !== seatId).length,
+            }));
 
-              // Trigger onChange with updated seats
-              const allSeats = newRows.flatMap(row => row.seats);
-              onChange?.(allSeats);
-              setUserHasModified(true);
+            // Trigger onChange with updated seats
+            const allSeats = newRows.flatMap(row => row.seats);
+            onChange?.(allSeats);
+            setUserHasModified(true);
 
-              return newRows;
-            });
+            return newRows;
+          });
 
-            setShowSeatEditModal(false);
-            setEditingSeat(null);
-          },
+          setShowSeatEditModal(false);
+          setEditingSeat(null);
         },
-      ]);
+        undefined,
+        true // Mark as destructive action
+      );
     },
-    [onChange]
+    [onChange, showConfirmation]
   );
 
   const handleSeatEditCancel = useCallback(() => {

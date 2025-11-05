@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import {
   Stack,
   router,
@@ -12,11 +12,13 @@ import { AdminManagement } from '@/types';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { ArrowLeft } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
+import { useAlertContext } from '@/components/AlertProvider';
 
 type TripFormData = AdminManagement.TripFormData;
 
 export default function NewTripPage() {
   const { canManageTrips } = useAdminPermissions();
+  const { showSuccess, showError } = useAlertContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validatedInitialData, setValidatedInitialData] = useState<{
     route_id?: string;
@@ -98,12 +100,9 @@ export default function NewTripPage() {
       // - Loading all active vessels from database
       // - Validation and trip creation
       // - Multi-stop route segment information
-      Alert.alert('Success', 'Trip created successfully!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      showSuccess('Success', 'Trip created successfully!', () => router.back());
     } catch (error) {
-      console.error('Error creating trip:', error);
-      Alert.alert('Error', 'Failed to create trip. Please try again.');
+      showError('Error', 'Failed to create trip. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

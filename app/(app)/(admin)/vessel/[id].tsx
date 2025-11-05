@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Alert,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
@@ -18,6 +11,7 @@ import { ArrowLeft, Edit, Trash2, AlertTriangle } from 'lucide-react-native';
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import VesselDetails from '@/components/admin/operations/VesselDetails';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -27,6 +21,8 @@ type Vessel = AdminManagement.Vessel;
 export default function VesselDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canViewVessels, canManageVessels } = useAdminPermissions();
+  const { showError, showSuccess, showConfirmation, showInfo } =
+    useAlertContext();
 
   const {
     fetchById,
@@ -89,46 +85,39 @@ export default function VesselDetailScreen() {
     if (canManageVessels()) {
       router.push(`../vessel/${id}/edit` as any);
     } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to edit vessels."
-      );
+      showError('Access Denied', "You don't have permission to edit vessels.");
     }
   };
 
   const handleDelete = () => {
     if (!canManageVessels()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to delete vessels."
       );
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Delete Vessel',
       `Are you sure you want to delete "${vessel?.name}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsDeleting(true);
-              if (id) {
-                await remove(id);
-                Alert.alert('Success', 'Vessel deleted successfully!');
-                router.back();
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete vessel');
-            } finally {
-              setIsDeleting(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          setIsDeleting(true);
+          if (id) {
+            await remove(id);
+            showSuccess('Success', 'Vessel deleted successfully!', () =>
+              router.back()
+            );
+          }
+        } catch (error) {
+          showError('Error', 'Failed to delete vessel');
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 
@@ -138,7 +127,7 @@ export default function VesselDetailScreen() {
 
   const handleViewMaintenance = () => {
     // Navigate to maintenance log or create maintenance modal
-    Alert.alert('Maintenance', 'Maintenance log feature coming soon!');
+    showInfo('Maintenance', 'Maintenance log feature coming soon!');
   };
 
   const handleViewSeatLayout = () => {
@@ -147,34 +136,30 @@ export default function VesselDetailScreen() {
 
   const handleArchive = () => {
     if (!canManageVessels()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to archive vessels."
       );
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Archive Vessel',
       `Are you sure you want to archive "${vessel?.name}"? This will remove it from active service.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (id && vessel) {
-                await remove(id);
-                Alert.alert('Success', 'Vessel archived successfully!');
-                router.back();
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to archive vessel');
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          if (id && vessel) {
+            await remove(id);
+            showSuccess('Success', 'Vessel archived successfully!', () =>
+              router.back()
+            );
+          }
+        } catch (error) {
+          showError('Error', 'Failed to archive vessel');
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

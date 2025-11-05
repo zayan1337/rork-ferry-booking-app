@@ -8,7 +8,6 @@ import {
   View,
   Pressable,
   Dimensions,
-  Alert,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -21,6 +20,7 @@ import EmptyState from '@/components/admin/EmptyState';
 import { UserProfile } from '@/types/userManagement';
 import ExportModal, { type ExportFilter } from '@/components/admin/ExportModal';
 import { exportUsers } from '@/utils/userExportUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 // Users Components
 import {
@@ -94,6 +94,7 @@ export default function UsersScreen() {
     canManageRoles,
     canExportReports,
   } = useAdminPermissions();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -183,23 +184,20 @@ export default function UsersScreen() {
     if (canCreateUsers()) {
       router.push('../user/new' as any);
     } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to create users."
-      );
+      showError('Access Denied', "You don't have permission to create users.");
     }
-  }, [canCreateUsers]);
+  }, [canCreateUsers, showError]);
 
   const handleExport = useCallback(() => {
     if (canExportReports()) {
       setShowExportModal(true);
     } else {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to export reports."
       );
     }
-  }, [canExportReports]);
+  }, [canExportReports, showError]);
 
   const handleExportConfirm = useCallback(
     async (filters: ExportFilter) => {
@@ -208,45 +206,32 @@ export default function UsersScreen() {
         const usersToExport = users;
         await exportUsers(usersToExport, filters);
       } catch (error) {
-        console.error('Export error:', error);
-        Alert.alert(
-          'Export Failed',
-          'Failed to export users. Please try again.'
-        );
+        showError('Export Failed', 'Failed to export users. Please try again.');
       }
     },
-    [users]
+    [users, showError]
   );
 
   const handleBulkStatusUpdate = async (status: string) => {
     if (!canUpdateUsers()) {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to update users."
-      );
+      showError('Access Denied', "You don't have permission to update users.");
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Bulk Update',
       `Update ${selectedUsers.length} user(s) status to ${status}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Update',
-          onPress: async () => {
-            try {
-              for (const userId of selectedUsers) {
-                await updateStatus(userId, status);
-              }
-              setSelectedUsers([]);
-              Alert.alert('Success', 'Users updated successfully.');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to update users.');
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          for (const userId of selectedUsers) {
+            await updateStatus(userId, status);
+          }
+          setSelectedUsers([]);
+          showSuccess('Success', 'Users updated successfully.');
+        } catch (error) {
+          showError('Error', 'Failed to update users.');
+        }
+      }
     );
   };
 

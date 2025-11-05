@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert, Text, Pressable } from 'react-native';
+import { View, StyleSheet, Text, Pressable } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { AdminBookingFormData } from '@/types/admin/management';
@@ -7,21 +7,23 @@ import { useAdminBookingStore } from '@/store/admin/bookingStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { BookingForm } from '@/components/admin/bookings';
 import { ArrowLeft } from 'lucide-react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function NewBookingPage() {
   const { createBooking } = useAdminBookingStore();
   const { canCreateBookings } = useAdminPermissions();
+  const { showSuccess, showError } = useAlertContext();
   const [saving, setSaving] = useState(false);
 
   const handleSave = async (formData: AdminBookingFormData) => {
     setSaving(true);
     try {
       await createBooking(formData);
-      Alert.alert('Success', 'Booking created successfully!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      showSuccess('Success', 'Booking created successfully!', () =>
+        router.back()
+      );
     } catch (error) {
-      Alert.alert('Error', 'Failed to create booking. Please try again.');
+      showError('Error', 'Failed to create booking. Please try again.');
     } finally {
       setSaving(false);
     }

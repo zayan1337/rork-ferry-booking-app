@@ -7,9 +7,9 @@ import {
   Pressable,
   Keyboard,
   Clipboard,
-  Alert,
 } from 'react-native';
 import Colors from '@/constants/colors';
+import { useAlertContext } from '@/components/AlertProvider';
 
 interface OTPInputProps {
   length?: number;
@@ -30,6 +30,7 @@ export default function OTPInput({
   autoFocus = true,
   onComplete,
 }: OTPInputProps) {
+  const { showError: showAlertError, showInfo } = useAlertContext();
   const [focusedIndex, setFocusedIndex] = useState(autoFocus ? 0 : -1);
   const [isFocused, setIsFocused] = useState(false);
   const hiddenInputRef = useRef<TextInput>(null);
@@ -136,13 +137,13 @@ export default function OTPInput({
         hiddenInputRef.current?.focus();
         setIsFocused(true);
       } else {
-        Alert.alert(
+        showInfo(
           'Invalid Code',
           'Clipboard does not contain a valid numeric code.'
         );
       }
     } catch (error) {
-      Alert.alert('Paste Error', 'Unable to paste from clipboard.');
+      showAlertError('Paste Error', 'Unable to paste from clipboard.');
     }
   };
 

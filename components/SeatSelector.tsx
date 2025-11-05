@@ -7,8 +7,8 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Seat } from '@/types';
 import { SeatSelectorProps } from '@/types/components';
 import Colors from '@/constants/colors';
@@ -26,6 +26,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
   tripId, // For real-time updates
   onSeatsUpdated, // Callback when seats are updated
 }) => {
+  const { showInfo } = useAlertContext();
   const [internalLoadingSeats, setInternalLoadingSeats] = React.useState<
     Set<string>
   >(new Set());
@@ -120,10 +121,9 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 
           // If seat becomes unavailable and was selected, alert user
           if (!isAvailable && selectedSeats.some(s => s.id === seat.id)) {
-            Alert.alert(
+            showInfo(
               'Seat No Longer Available',
-              `Seat ${seat.number} is no longer available and has been deselected.`,
-              [{ text: 'OK' }]
+              `Seat ${seat.number} is no longer available and has been deselected.`
             );
           }
 
@@ -280,10 +280,9 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 
     // If not selected and max seats are already selected, show alert and don't allow selection
     if (!isSelected && isMaxSeatsSelected) {
-      Alert.alert(
+      showInfo(
         'Maximum Seats Selected',
-        `You can select a maximum of ${maxSeats} seats. Please deselect a seat to select another one.`,
-        [{ text: 'OK' }]
+        `You can select a maximum of ${maxSeats} seats. Please deselect a seat to select another one.`
       );
       return;
     }

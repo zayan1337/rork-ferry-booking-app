@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useBookingStore } from '@/store';
 import Colors from '@/constants/colors';
+import { useAlertContext } from '@/components/AlertProvider';
 import SegmentTripCard from '@/components/booking/SegmentTripCard';
 import { getTripsForSegment } from '@/utils/segmentBookingUtils';
 import { TRIP_TYPES } from '@/constants/customer';
@@ -11,6 +12,7 @@ import {
 } from '@/utils/bookingUtils';
 
 export default function TripSelectionStep() {
+  const { showError, showWarning } = useAlertContext();
   const {
     currentBooking,
     setTrip,
@@ -74,7 +76,7 @@ export default function TripSelectionStep() {
       }
     } catch (error) {
       console.error('Error loading trips:', error);
-      Alert.alert('Error', 'Failed to load trips');
+      showError('Error', 'Failed to load trips');
     } finally {
       setLoading(false);
     }
@@ -83,7 +85,7 @@ export default function TripSelectionStep() {
   const handleTripSelect = (tripData: any) => {
     // Validate trip hasn't departed
     if (!isTripBookable(tripData.travel_date, tripData.departure_time)) {
-      Alert.alert(
+      showWarning(
         'Trip Unavailable',
         getTripUnavailableMessage(tripData.travel_date, tripData.departure_time)
       );
@@ -155,7 +157,7 @@ export default function TripSelectionStep() {
   const handleReturnTripSelect = (tripData: any) => {
     // Validate trip hasn't departed
     if (!isTripBookable(tripData.travel_date, tripData.departure_time)) {
-      Alert.alert(
+      showWarning(
         'Trip Unavailable',
         getTripUnavailableMessage(tripData.travel_date, tripData.departure_time)
       );

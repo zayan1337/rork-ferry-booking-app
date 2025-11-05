@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, Pressable, Alert, Text } from 'react-native';
+import { View, Pressable, Text } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { usePermissionStore } from '@/store/admin/permissionStore';
@@ -11,6 +11,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import AuthLoadingScreen from '@/components/AuthLoadingScreen';
 import SafeView from '@/components/SafeView';
 import { router } from 'expo-router';
+import { useAlertContext } from '@/components/AlertProvider';
 import {
   Home,
   CreditCard,
@@ -25,6 +26,7 @@ import {
 export default function AdminTabLayout() {
   const { user, signOut } = useAuthStore();
   const { fetchSpecialAssistanceCount } = useAdminStore();
+  const { showConfirmation } = useAlertContext();
   const [notificationCount, setNotificationCount] = React.useState(0);
 
   const {
@@ -75,20 +77,19 @@ export default function AdminTabLayout() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut();
-          } catch (error) {
-            console.error('Logout error:', error);
-          }
-        },
+    showConfirmation(
+      'Logout',
+      'Are you sure you want to logout?',
+      async () => {
+        try {
+          await signOut();
+        } catch (error) {
+          // Silently handle logout errors
+        }
       },
-    ]);
+      undefined,
+      true // Mark as destructive action
+    );
   };
 
   const renderHeaderRight = () => (

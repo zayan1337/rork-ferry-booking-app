@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { colors } from '@/constants/adminColors';
 import { useIslandManagement } from '@/hooks/useIslandManagement';
 import { useZoneStore } from '@/store/admin/zoneStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from '@/types';
 // UPDATED: Use new utility functions from admin folder
@@ -49,6 +49,7 @@ type Island = AdminManagement.Island;
 
 export default function IslandsScreen() {
   const { canViewIslands, canManageIslands } = useAdminPermissions();
+  const { showError } = useAlertContext();
 
   // UPDATED: Use new island management hook instead of separate stores
   const {
@@ -94,7 +95,7 @@ export default function IslandsScreen() {
     if (canManageIslands()) {
       router.push('./island/new' as any);
     } else {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to create islands."
       );

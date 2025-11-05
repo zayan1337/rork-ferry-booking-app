@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, Text, StyleSheet } from 'react-native';
+import { Pressable, Text, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
 import Colors from '@/constants/colors';
+import { useAlertContext } from '@/components/AlertProvider';
 
 interface GenerateTripsButtonProps {
   routeId: string;
@@ -15,100 +16,96 @@ export default function GenerateTripsButton({
   date,
   onTripsGenerated,
 }: GenerateTripsButtonProps) {
+  const { showConfirmation, showError, showInfo, showSuccess } =
+    useAlertContext();
   const [isGenerating, setIsGenerating] = useState(false);
 
   const generateTripsForDate = async () => {
     if (isGenerating) return;
 
-    Alert.alert(
+    showConfirmation(
       'Generate Trips',
       `Generate trips for this route on ${new Date(date).toLocaleDateString()}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Generate',
-          onPress: async () => {
-            setIsGenerating(true);
-            try {
-              // Get all active vessels
-              const { data: vessels, error: vesselError } = await supabase
-                .from('vessels')
-                .select('id, seating_capacity')
-                .eq('is_active', true);
+      async () => {
+        setIsGenerating(true);
+        try {
+          // Get all active vessels
+          const { data: vessels, error: vesselError } = await supabase
+            .from('vessels')
+            .select('id, seating_capacity')
+            .eq('is_active', true);
 
-              if (vesselError) throw vesselError;
+          if (vesselError) throw vesselError;
 
-              if (!vessels || vessels.length === 0) {
-                Alert.alert(
-                  'No Vessels',
-                  'No active vessels found to create trips.'
-                );
-                return;
-              }
+          if (!vessels || vessels.length === 0) {
+            showInfo('No Vessels', 'No active vessels found to create trips.');
+            setIsGenerating(false);
+            return;
+          }
 
-              // Define common departure times
-              const departureTimes = [
-                '06:00:00',
-                '08:30:00',
-                '11:00:00',
-                '14:00:00',
-                '16:30:00',
-                '19:00:00',
-              ];
+          // Define common departure times
+          const departureTimes = [
+            '06:00:00',
+            '08:30:00',
+            '11:00:00',
+            '14:00:00',
+            '16:30:00',
+            '19:00:00',
+          ];
 
-              // Generate trips for each vessel and time slot
-              const tripsToInsert = [];
-              for (const vessel of vessels) {
-                for (const time of departureTimes) {
-                  tripsToInsert.push({
-                    route_id: routeId,
-                    travel_date: date,
-                    departure_time: time,
-                    vessel_id: vessel.id,
-                    available_seats: vessel.seating_capacity,
-                    is_active: true,
-                    booked_seats: 0, // Initialize booked_seats for new trips
-                    status: 'scheduled', // Set default status
-                  });
-                }
-              }
-
-              // Insert trips
-              const { error: insertError } = await supabase
-                .from('trips')
-                .insert(tripsToInsert);
-
-              if (insertError) {
-                // If error is due to unique constraint, some trips already exist
-                if (insertError.code === '23505') {
-                  Alert.alert(
-                    'Partial Success',
-                    'Some trips already existed, but new ones were added where possible.'
-                  );
-                } else {
-                  throw insertError;
-                }
-              } else {
-                Alert.alert(
-                  'Success',
-                  `Generated ${tripsToInsert.length} trips for this route.`
-                );
-              }
-
-              // Notify parent component to refresh
-              onTripsGenerated?.();
-            } catch (error) {
-              console.error('Error generating trips:', error);
-              Alert.alert(
-                'Error',
-                'Failed to generate trips. Please try again or contact support.'
-              );
-            } finally {
-              setIsGenerating(false);
+          // Generate trips for each vessel and time slot
+          const tripsToInsert = [];
+          for (const vessel of vessels) {
+            for (const time of departureTimes) {
+              tripsToInsert.push({
+                route_id: routeId,
+                travel_date: date,
+                departure_time: time,
+                vessel_id: vessel.id,
+                available_seats: vessel.seating_capacity,
+                is_active: true,
+                booked_seats: 0, // Initialize booked_seats for new trips
+                status: 'scheduled', // Set default status
+              });
             }
-          },
-        },
-      ]
+          }
+
+          // Insert trips
+          const { error: insertError } = await supabase
+            .from('trips')
+            .insert(tripsToInsert);
+
+          if (insertError) {
+            // If error is due to unique constraint, some trips already exist
+            if (insertError.code === '23505') {
+              showInfo(
+                'Partial Success',
+                'Some trips already existed, but new ones were added where possible.'
+              );
+            } else {
+              throw insertError;
+            }
+          } else {
+            showSuccess(
+              'Success',
+              `Generated ${tripsToInsert.length} trips for this route.`
+            );
+          }
+
+          // Notify parent component to refresh
+          onTripsGenerated?.();
+        } catch (error) {
+          console.error('Error generating trips:', error);
+          showError(
+            'Error',
+            'Failed to generate trips. Please try again or contact support.'
+          );
+        } finally {
+          setIsGenerating(false);
+        }
+      },
+      undefined,
+      false
     );
   };
 

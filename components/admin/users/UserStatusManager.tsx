@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
 import { Shield, X, CheckCircle, AlertCircle, Ban } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { UserProfile } from '@/types/userManagement';
 import Button from '@/components/admin/Button';
 
@@ -20,6 +21,7 @@ export default function UserStatusManager({
   onClose,
   onStatusUpdate,
 }: UserStatusManagerProps) {
+  const { showError } = useAlertContext();
   const [updating, setUpdating] = useState(false);
 
   const getStatusIcon = (status: string) => {
@@ -61,7 +63,7 @@ export default function UserStatusManager({
       await onStatusUpdate(newStatus);
       onClose();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update user status');
+      showError('Error', 'Failed to update user status');
     } finally {
       setUpdating(false);
     }

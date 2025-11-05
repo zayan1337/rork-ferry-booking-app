@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Alert,
-  Text,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -16,23 +9,22 @@ import PromotionForm, {
   PromotionFormData,
 } from '@/components/admin/operations/PromotionForm';
 import Button from '@/components/admin/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function NewPromotionScreen() {
   const { canManageContent } = useAdminPermissions();
   const { createPromotion } = useContentManagement();
+  const { showSuccess, showError } = useAlertContext();
   const [isCreating, setIsCreating] = useState(false);
 
   const handleSuccess = (formData: PromotionFormData) => {
-    Alert.alert('Success', 'Promotion created successfully!', [
-      {
-        text: 'OK',
-        onPress: () => router.replace('./promotions' as any),
-      },
-    ]);
+    showSuccess('Success', 'Promotion created successfully!', () =>
+      router.replace('./promotions' as any)
+    );
   };
 
   const handleError = (error: string) => {
-    Alert.alert('Error', error);
+    showError('Error', error);
   };
 
   const handleSubmit = async (formData: PromotionFormData) => {

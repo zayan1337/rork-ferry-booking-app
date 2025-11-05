@@ -1,13 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  Pressable,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useIslandStore } from '@/store/admin/islandStore';
 import { AdminManagement } from '@/types';
@@ -76,6 +70,7 @@ export default function RouteForm({
   onSave,
   onCancel,
 }: RouteFormProps) {
+  const { showError, showSuccess, showInfo } = useAlertContext();
   const {
     routes,
     getById,
@@ -189,7 +184,7 @@ export default function RouteForm({
       });
     } catch (error) {
       console.error('Error loading route data:', error);
-      Alert.alert(
+      showError(
         'Error Loading Route',
         'Failed to load route stops and fares. Please try again.'
       );
@@ -317,7 +312,7 @@ export default function RouteForm({
 
   const removeStop = (stopId: string) => {
     if (formData.route_stops.length <= 2) {
-      Alert.alert('Minimum Stops', 'A route must have at least 2 stops');
+      showInfo('Minimum Stops', 'A route must have at least 2 stops');
       return;
     }
 
@@ -374,14 +369,14 @@ export default function RouteForm({
 
   const autoGenerateFares = () => {
     if (formData.route_stops.length < 2) {
-      Alert.alert('Not Enough Stops', 'Add at least 2 stops to generate fares');
+      showInfo('Not Enough Stops', 'Add at least 2 stops to generate fares');
       return;
     }
 
     // Check if all stops have islands selected
     const missingIslands = formData.route_stops.filter(s => !s.island_id);
     if (missingIslands.length > 0) {
-      Alert.alert(
+      showInfo(
         'Missing Islands',
         'Please select an island for all stops before generating fares'
       );
@@ -411,7 +406,7 @@ export default function RouteForm({
       segment_fares: newFares,
     }));
 
-    Alert.alert(
+    showSuccess(
       'Fares Generated',
       `Generated ${newFares.size} segment fares based on MVR ${formData.base_fare} per segment`
     );
@@ -537,29 +532,19 @@ export default function RouteForm({
       if (currentRoute) {
         // Update existing route
         await update(currentRoute.id, routeData);
-        Alert.alert('Success', 'Route updated successfully', [
-          {
-            text: 'OK',
-            onPress: () => {
-              if (onSave) {
-                onSave(routeData);
-              }
-            },
-          },
-        ]);
+        showSuccess('Success', 'Route updated successfully', () => {
+          if (onSave) {
+            onSave(routeData);
+          }
+        });
       } else {
         // Create new route
         await create(routeData);
-        Alert.alert('Success', 'Route created successfully', [
-          {
-            text: 'OK',
-            onPress: () => {
-              if (onSave) {
-                onSave(routeData);
-              }
-            },
-          },
-        ]);
+        showSuccess('Success', 'Route created successfully', () => {
+          if (onSave) {
+            onSave(routeData);
+          }
+        });
 
         // Reset form
         initializeNewRoute();
@@ -584,7 +569,7 @@ export default function RouteForm({
       }
 
       setValidationErrors({ general: errorMessage });
-      Alert.alert('Error', errorMessage);
+      showError('Error', errorMessage);
     } finally {
       setLoading(false);
     }

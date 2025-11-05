@@ -310,10 +310,8 @@ export default function BookScreen() {
             successMessage += `\nReturn Booking Number: ${bookingResult.return_booking_number || 'N/A'}`;
           }
 
-          showSuccess(
-            'Booking Confirmed',
-            successMessage,
-            () => router.push('/(app)/(customer)/(tabs)/bookings')
+          showSuccess('Booking Confirmed', successMessage, () =>
+            router.push('/(app)/(customer)/(tabs)/bookings')
           );
         }
       } catch (error: any) {

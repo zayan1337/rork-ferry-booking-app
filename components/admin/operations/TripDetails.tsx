@@ -5,10 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Trip } from '@/types/operations';
 import { formatCurrency } from '@/utils/currencyUtils';
 import Button from '@/components/admin/Button';
@@ -98,20 +98,16 @@ export default function TripDetails({
   onViewBookings,
   showActions = true,
 }: TripDetailsProps) {
+  const { showConfirmation } = useAlertContext();
   const isTablet = screenWidth >= 768;
 
   const handleCancel = () => {
-    Alert.alert(
+    showConfirmation(
       'Cancel Trip',
       `Are you sure you want to cancel "${trip.routeName}"? This action cannot be undone.`,
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: onCancel,
-        },
-      ]
+      onCancel || (() => {}),
+      undefined,
+      true // Mark as destructive action
     );
   };
 

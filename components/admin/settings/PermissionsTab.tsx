@@ -3,11 +3,11 @@ import {
   View,
   Text,
   Pressable,
-  Alert,
   ScrollView,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useAlertContext } from '@/components/AlertProvider';
 import {
   Users,
   Shield,
@@ -83,6 +83,7 @@ const getUserInitials = (name: string): string => {
 };
 
 export default function PermissionsTab() {
+  const { showConfirmation } = useAlertContext();
   const { canManagePermissions } = useAdminPermissions();
   const [permissionView, setPermissionView] = useState<PermissionView>('users');
 
@@ -118,19 +119,14 @@ export default function PermissionsTab() {
   );
 
   const handleDeleteRole = (roleId: string) => {
-    Alert.alert(
+    showConfirmation(
       'Delete Role Template',
       'Are you sure you want to delete this role template? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            // TODO: Implement role deletion
-          },
-        },
-      ]
+      () => {
+        // TODO: Implement role deletion
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

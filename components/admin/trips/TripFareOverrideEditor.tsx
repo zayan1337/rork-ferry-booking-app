@@ -5,8 +5,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { ArrowRight, AlertCircle } from 'lucide-react-native';
 import type {
   RouteSegmentFare,
@@ -36,6 +37,7 @@ export default function TripFareOverrideEditor({
   onSave,
   onCancel,
 }: TripFareOverrideEditorProps) {
+  const { showError, showInfo } = useAlertContext();
   const [overrides, setOverrides] = useState<Map<string, OverrideData>>(
     new Map()
   );
@@ -123,7 +125,7 @@ export default function TripFareOverrideEditor({
     });
 
     if (overridesWithoutReasons.length > 0) {
-      Alert.alert(
+      showInfo(
         'Validation Error',
         'Please provide a reason for all fare overrides'
       );
@@ -150,7 +152,7 @@ export default function TripFareOverrideEditor({
 
       await onSave(overrideArray);
     } catch (error) {
-      Alert.alert('Error', 'Failed to save fare overrides');
+      showError('Error', 'Failed to save fare overrides');
     } finally {
       setSaving(false);
     }

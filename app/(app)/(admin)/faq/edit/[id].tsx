@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Alert,
-  Text,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { ArrowLeft, AlertCircle, RotateCcw } from 'lucide-react-native';
@@ -18,11 +11,13 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import FAQForm from '@/components/admin/operations/FAQForm';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import Button from '@/components/admin/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function EditFAQScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { loadFAQ } = useFAQManagement();
   const { canManageSettings } = useAdminPermissions();
+  const { showError } = useAlertContext();
 
   const [faq, setFaq] = useState<FAQ | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,8 +53,7 @@ export default function EditFAQScreen() {
   };
 
   const handleError = (error: string) => {
-    console.error('Error updating FAQ:', error);
-    Alert.alert('Error', error);
+    showError('Error', error);
   };
 
   const handleRetry = () => {

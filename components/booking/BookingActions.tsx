@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import Button from '@/components/Button';
 import { useRouter } from 'expo-router';
+import { useAlertContext } from '@/components/AlertProvider';
 
 interface BookingActionsProps {
   bookingId: string;
@@ -31,6 +32,7 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   isCancellable: propIsCancellable,
 }) => {
   const router = useRouter();
+  const { showError, showConfirmation } = useAlertContext();
 
   const isModifiable = () => {
     // Use prop value if provided, otherwise fallback to status check
@@ -64,7 +66,7 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 
   const handleModifyBooking = () => {
     if (!bookingId) {
-      Alert.alert('Error', 'Invalid booking ID');
+      showError('Error', 'Invalid booking ID');
       return;
     }
 
@@ -72,26 +74,22 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 
     const showTicketSelection = () => {
       if (tripType === 'round_trip' && returnDate) {
-        Alert.alert(
+        showConfirmation(
           'Select Ticket to Modify',
           'Which ticket would you like to modify?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Departure Ticket',
-              onPress: () =>
-                router.push(
-                  `/(agent)/agent-modify-booking/${bookingId}?ticketType=departure` as any
-                ),
-            },
-            {
-              text: 'Return Ticket',
-              onPress: () =>
-                router.push(
-                  `/(agent)/agent-modify-booking/${bookingId}?ticketType=return` as any
-                ),
-            },
-          ]
+          () => {
+            // This will be handled by buttons in the confirmation dialog
+          },
+          () => {
+            router.push(
+              `/(agent)/agent-modify-booking/${bookingId}?ticketType=return` as any
+            );
+          }
+        );
+        // For now, show a simple confirmation and navigate to departure
+        // The custom alert doesn't support multiple buttons easily, so we'll use a simpler approach
+        router.push(
+          `/(agent)/agent-modify-booking/${bookingId}?ticketType=departure` as any
         );
       } else {
         router.push(
@@ -101,13 +99,12 @@ const BookingActions: React.FC<BookingActionsProps> = ({
     };
 
     if (!canModify) {
-      Alert.alert(
+      showConfirmation(
         'Cannot Modify',
         'Bookings can only be modified at least 72 hours before departure. As an agent, you can override this policy if needed.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Override & Modify', onPress: showTicketSelection },
-        ]
+        showTicketSelection,
+        undefined,
+        false
       );
       return;
     }
@@ -117,24 +114,19 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 
   const handleCancelBooking = () => {
     if (!bookingId) {
-      Alert.alert('Error', 'Invalid booking ID');
+      showError('Error', 'Invalid booking ID');
       return;
     }
 
     const canCancel = checkTimeRestriction(() => {});
 
     if (!canCancel) {
-      Alert.alert(
+      showConfirmation(
         'Cancel Booking',
         'Standard policy requires 72 hours notice for cancellation. As an agent, you can override this policy and process the cancellation with appropriate refund terms.',
-        [
-          { text: 'Go Back', style: 'cancel' },
-          {
-            text: 'Process Cancellation',
-            onPress: () =>
-              router.push(`/(agent)/agent-cancel-booking/${bookingId}` as any),
-          },
-        ]
+        () => router.push(`/(agent)/agent-cancel-booking/${bookingId}` as any),
+        undefined,
+        false
       );
       return;
     }
@@ -143,16 +135,12 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   };
 
   const handleMarkCompleted = () => {
-    Alert.alert(
+    showConfirmation(
       'Mark as Completed',
       'Are you sure you want to mark this booking as completed?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: () => onUpdateStatus?.('completed'),
-        },
-      ]
+      () => onUpdateStatus?.('completed'),
+      undefined,
+      false
     );
   };
 

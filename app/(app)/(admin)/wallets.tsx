@@ -8,12 +8,12 @@ import {
   RefreshControl,
   Modal,
   TextInput,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useFinanceData } from '@/hooks/useFinanceData';
+import { useAlertContext } from '@/components/AlertProvider';
 import type { Wallet } from '@/types/admin/finance';
 import {
   Wallet as WalletIcon,
@@ -50,6 +50,7 @@ const WalletRechargeModal = React.memo(
     wallet: Wallet | null;
     formatCurrency: (amount: number) => string;
   }) => {
+    const { showError, showSuccess, showInfo } = useAlertContext();
     const [amount, setAmount] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [showMibPayment, setShowMibPayment] = useState(false);
@@ -65,7 +66,7 @@ const WalletRechargeModal = React.memo(
     const handleProceedToPayment = async () => {
       const parsedAmount = parseFloat(amount);
       if (!parsedAmount || parsedAmount < 100) {
-        Alert.alert(
+        showError(
           'Invalid Amount',
           'Please enter an amount of at least MVR 100'
         );
@@ -73,7 +74,7 @@ const WalletRechargeModal = React.memo(
       }
 
       if (!wallet) {
-        Alert.alert('Error', 'Wallet not found');
+        showError('Error', 'Wallet not found');
         return;
       }
 
@@ -180,7 +181,7 @@ const WalletRechargeModal = React.memo(
           ? errorMessage
           : `${errorMessage}\n\nPlease ensure the MIB payment gateway is configured correctly.`;
 
-        Alert.alert('Payment Failed', detailedMessage, [{ text: 'OK' }]);
+        showError('Payment Failed', detailedMessage);
       }
     };
 
@@ -205,28 +206,23 @@ const WalletRechargeModal = React.memo(
         setShowMibPayment(false);
         setAmount('');
 
-        Alert.alert(
+        showSuccess(
           'Payment Successful! 🎉',
           `Recharge Amount: ${formatCurrency(parsedAmount)}\n\n` +
             `Previous Balance: ${formatCurrency(oldBalance)} ${wallet.currency}\n` +
             `New Balance: ${formatCurrency(newBalance)} ${wallet.currency}\n\n` +
             `✅ Wallet Balance Increased: +${formatCurrency(parsedAmount)}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                onSuccess();
-                onClose();
-              },
-            },
-          ]
+          () => {
+            onSuccess();
+            onClose();
+          }
         );
       } catch (error: any) {
         console.error(
           '[WALLET RECHARGE] ❌ Payment success handling error:',
           error
         );
-        Alert.alert(
+        showError(
           'Error',
           'Payment successful but failed to update wallet. Please contact support.'
         );
@@ -242,7 +238,7 @@ const WalletRechargeModal = React.memo(
       }
       setShowMibPayment(false);
       setAmount('');
-      Alert.alert('Payment Failed', error);
+      showError('Payment Failed', error);
     };
 
     const handlePaymentCancel = async () => {
@@ -254,7 +250,7 @@ const WalletRechargeModal = React.memo(
       }
       setShowMibPayment(false);
       setAmount('');
-      Alert.alert('Payment Cancelled', 'Wallet recharge has been cancelled');
+      showInfo('Payment Cancelled', 'Wallet recharge has been cancelled');
     };
 
     const handleClose = () => {

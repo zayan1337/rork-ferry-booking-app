@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -32,6 +31,7 @@ import {
 // Components
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -51,6 +51,7 @@ export default function IslandDetailScreen() {
 
   // Keep operations store for route statistics (until routes are migrated)
   const { routes, fetchRoutes, removeIsland } = useOperationsStore();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -67,8 +68,7 @@ export default function IslandDetailScreen() {
       // Also fetch routes to calculate statistics
       await fetchRoutes();
     } catch (error) {
-      console.error('Error loading island:', error);
-      Alert.alert('Error', 'Failed to load island details');
+      showError('Error', 'Failed to load island details');
     } finally {
       setLoading(false);
     }
@@ -82,10 +82,7 @@ export default function IslandDetailScreen() {
 
   const handleEdit = () => {
     if (!canUpdateIslands()) {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to edit islands."
-      );
+      showError('Access Denied', "You don't have permission to edit islands.");
       return;
     }
     router.push(`../island/edit/${id}` as any);
@@ -93,46 +90,38 @@ export default function IslandDetailScreen() {
 
   const handleDelete = () => {
     if (!canDeleteIslands()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to delete islands."
       );
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Delete Island',
       `Are you sure you want to delete "${island?.name}"? This action cannot be undone and will affect all routes using this island.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              const success = await removeIsland(id);
-              if (success) {
-                Alert.alert('Success', 'Island deleted successfully');
-                router.back();
-              } else {
-                Alert.alert('Error', 'Failed to delete island');
-              }
-            } catch (error) {
-              console.error('Error deleting island:', error);
-              Alert.alert(
-                'Error',
-                'Failed to delete island. There may be active routes using this island.'
-              );
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        setDeleting(true);
+        try {
+          const success = await removeIsland(id);
+          if (success) {
+            showSuccess('Success', 'Island deleted successfully', () =>
+              router.back()
+            );
+          } else {
+            showError('Error', 'Failed to delete island');
+          }
+        } catch (error) {
+          showError(
+            'Error',
+            'Failed to delete island. There may be active routes using this island.'
+          );
+        } finally {
+          setDeleting(false);
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

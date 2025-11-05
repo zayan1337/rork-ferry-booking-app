@@ -11,9 +11,9 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Info } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
@@ -41,6 +41,7 @@ export default function MultiStopSelectionStep({
   onBack,
   error: externalError,
 }: MultiStopSelectionStepProps) {
+  const { showError } = useAlertContext();
   const [availableTrips, setAvailableTrips] = useState<MultiStopTrip[]>([]);
   const [selectedTrip, setSelectedTrip] = useState<MultiStopTrip | null>(null);
   const [loading, setLoading] = useState(false);
@@ -104,7 +105,7 @@ export default function MultiStopSelectionStep({
 
   const handleConfirmSegment = () => {
     if (!selectedSegment) {
-      Alert.alert('Error', 'Please select a segment');
+      showError('Error', 'Please select a segment');
       return;
     }
 

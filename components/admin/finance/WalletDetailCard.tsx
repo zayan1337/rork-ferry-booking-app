@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import type { Wallet, WalletTransaction } from '@/types/admin/finance';
 import { updateAgentCreditLimit } from '@/utils/admin/financeService';
 import { supabase } from '@/utils/supabase';
@@ -45,6 +46,8 @@ function WalletDetailCard({
   formatDate,
   onRefresh,
 }: WalletDetailCardProps) {
+  const { showError, showSuccess, showConfirmation, showInfo } =
+    useAlertContext();
   const [isEditingCreditLimit, setIsEditingCreditLimit] = useState(false);
   const [newCreditLimit, setNewCreditLimit] = useState(
     wallet.credit_ceiling?.toString() || '0'
@@ -88,27 +91,26 @@ function WalletDetailCard({
     const limitValue = parseFloat(newCreditLimit);
 
     if (isNaN(limitValue) || limitValue < 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid credit limit amount.');
+      showError('Invalid Input', 'Please enter a valid credit limit amount.');
       return;
     }
 
     setIsUpdating(true);
     try {
       await updateAgentCreditLimit(wallet.user_id, limitValue);
-      Alert.alert('Success', 'Agent credit limit updated successfully!', [
-        {
-          text: 'OK',
-          onPress: async () => {
-            setIsEditingCreditLimit(false);
-            if (onRefresh) {
-              await onRefresh();
-            }
-          },
-        },
-      ]);
+      showSuccess(
+        'Success',
+        'Agent credit limit updated successfully!',
+        async () => {
+          setIsEditingCreditLimit(false);
+          if (onRefresh) {
+            await onRefresh();
+          }
+        }
+      );
     } catch (error) {
       console.error('Error updating credit limit:', error);
-      Alert.alert('Error', 'Failed to update credit limit. Please try again.');
+      showError('Error', 'Failed to update credit limit. Please try again.');
     } finally {
       setIsUpdating(false);
     }
@@ -120,30 +122,21 @@ function WalletDetailCard({
   };
 
   const handlePayViaGateway = () => {
-    Alert.alert(
+    showConfirmation(
       'Pay via Gateway',
       `Pay ${formatCurrency(wallet.balance_to_pay || 0)} through MIB payment gateway?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Proceed',
-          onPress: () => {
-            // Navigate to payment gateway page with amount
-            router.push({
-              pathname: '/(app)/(admin)/wallet-payment' as any,
-              params: {
-                walletId: wallet.id,
-                userId: wallet.user_id,
-                amount: wallet.balance_to_pay || 0,
-                paymentType: 'credit_repayment',
-              },
-            });
+      () => {
+        // Navigate to payment gateway page with amount
+        router.push({
+          pathname: '/(app)/(admin)/wallet-payment' as any,
+          params: {
+            walletId: wallet.id,
+            userId: wallet.user_id,
+            amount: wallet.balance_to_pay || 0,
+            paymentType: 'credit_repayment',
           },
-        },
-      ]
+        });
+      }
     );
   };
 
@@ -162,7 +155,7 @@ function WalletDetailCard({
             const amount = parseFloat(amountStr || '0');
 
             if (isNaN(amount) || amount <= 0) {
-              Alert.alert(
+              showError(
                 'Invalid Amount',
                 'Please enter a valid payment amount.'
               );
@@ -170,7 +163,7 @@ function WalletDetailCard({
             }
 
             if (amount > (wallet.balance_to_pay || 0)) {
-              Alert.alert(
+              showError(
                 'Amount Too High',
                 `Payment amount cannot exceed the balance to pay (${formatCurrency(wallet.balance_to_pay || 0)}).`
               );
@@ -191,26 +184,18 @@ function WalletDetailCard({
 
               if (error) throw error;
 
-              Alert.alert(
+              showSuccess(
                 'Payment Recorded',
                 `Successfully recorded payment of ${formatCurrency(amount)}`,
-                [
-                  {
-                    text: 'OK',
-                    onPress: async () => {
-                      if (onRefresh) {
-                        await onRefresh();
-                      }
-                    },
-                  },
-                ]
+                async () => {
+                  if (onRefresh) {
+                    await onRefresh();
+                  }
+                }
               );
             } catch (error) {
               console.error('Error recording manual payment:', error);
-              Alert.alert(
-                'Error',
-                'Failed to record payment. Please try again.'
-              );
+              showError('Error', 'Failed to record payment. Please try again.');
             }
           },
         },

@@ -11,9 +11,9 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Navigation, AlertCircle, CheckCircle } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
@@ -60,6 +60,8 @@ export default function MultiStopTripDetails({
   captainId,
   onRefresh,
 }: MultiStopTripDetailsProps) {
+  const { showError, showSuccess, showConfirmation, showInfo } =
+    useAlertContext();
   const [currentStop, setCurrentStop] = useState<TripStop | null>(null);
   const [boardingInfo, setBoardingInfo] = useState<StopPassengerInfo | null>(
     null
@@ -103,7 +105,7 @@ export default function MultiStopTripDetails({
       setDropoffInfo(info.dropoff);
     } catch (error) {
       console.error('Error loading stop passengers:', error);
-      Alert.alert('Error', 'Failed to load passenger information');
+      showError('Error', 'Failed to load passenger information');
     } finally {
       setLoading(false);
     }
@@ -117,45 +119,40 @@ export default function MultiStopTripDetails({
     const boardingCheckedIn = boardingInfo?.checked_in_count || 0;
     const dropoffProcessed = dropoffInfo?.checked_in_count || 0;
 
-    Alert.alert(
+    showConfirmation(
       'Complete Boarding',
       `Complete boarding at ${currentStop.island_name}?\n\n` +
         `Boarding: ${boardingCheckedIn}/${boardingCount}\n` +
         `Dropping Off: ${dropoffProcessed}/${dropoffCount}\n\n` +
         `This will move to the next stop.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete & Depart',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await completeBoarding(currentStop.id, captainId);
+      async () => {
+        const success = await completeBoarding(currentStop.id, captainId);
 
-            if (success) {
-              // Move to next stop
-              const nextSuccess = await moveToNextStop(trip.id);
+        if (success) {
+          // Move to next stop
+          const nextSuccess = await moveToNextStop(trip.id);
 
-              if (nextSuccess) {
-                Alert.alert(
-                  'Success',
-                  `Departed from ${currentStop.island_name}`,
-                  [{ text: 'OK', onPress: onRefresh }]
-                );
+          if (nextSuccess) {
+            showSuccess(
+              'Success',
+              `Departed from ${currentStop.island_name}`,
+              () => {
+                onRefresh();
               }
-            } else {
-              Alert.alert('Error', 'Failed to complete boarding');
-            }
-          },
-        },
-      ]
+            );
+          }
+        } else {
+          showError('Error', 'Failed to complete boarding');
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 
   const handleCheckInPassenger = (passengerId: string, bookingId: string) => {
     // TODO: Implement direct passenger check-in
-    Alert.alert('Check In', 'Use the QR scanner to check in passengers', [
-      { text: 'OK' },
-    ]);
+    showInfo('Check In', 'Use the QR scanner to check in passengers');
   };
 
   if (!currentStop) {

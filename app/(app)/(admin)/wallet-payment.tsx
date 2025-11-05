@@ -5,11 +5,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Pressable,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import {
   ArrowLeft,
   CreditCard,
@@ -26,6 +26,7 @@ export default function WalletPaymentPage() {
   const userId = params.userId as string;
   const amount = parseFloat(params.amount as string);
   const paymentType = params.paymentType as string;
+  const { showError, showSuccess, showInfo } = useAlertContext();
 
   const [isLoading, setIsLoading] = useState(false);
   const [walletInfo, setWalletInfo] = useState<any>(null);
@@ -69,7 +70,7 @@ export default function WalletPaymentPage() {
       });
     } catch (error) {
       console.error('Error fetching wallet info:', error);
-      Alert.alert('Error', 'Failed to load wallet information');
+      showError('Error', 'Failed to load wallet information');
     } finally {
       setIsLoading(false);
     }
@@ -110,10 +111,9 @@ export default function WalletPaymentPage() {
       setShowPaymentModal(true);
     } catch (error: any) {
       console.error('❌ Failed to initiate payment:', error);
-      Alert.alert(
+      showError(
         'Payment Error',
-        error.message || 'Failed to initiate payment. Please try again.',
-        [{ text: 'OK' }]
+        error.message || 'Failed to initiate payment. Please try again.'
       );
     } finally {
       setIsLoading(false);
@@ -135,33 +135,23 @@ export default function WalletPaymentPage() {
 
       if (error) throw error;
 
-      Alert.alert(
+      showSuccess(
         'Payment Successful',
         `Payment of MVR ${amount.toFixed(2)} has been processed successfully!`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setShowPaymentModal(false);
-              router.back();
-            },
-          },
-        ]
+        () => {
+          setShowPaymentModal(false);
+          router.back();
+        }
       );
     } catch (error) {
       console.error('Error recording payment:', error);
-      Alert.alert(
+      showError(
         'Payment Recorded',
         'Payment was successful but there was an issue updating the wallet. Please contact support.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setShowPaymentModal(false);
-              router.back();
-            },
-          },
-        ]
+        () => {
+          setShowPaymentModal(false);
+          router.back();
+        }
       );
     }
   };
@@ -169,22 +159,16 @@ export default function WalletPaymentPage() {
   const handlePaymentFailure = (error: string) => {
     console.error('❌ Payment failed:', error);
     setShowPaymentModal(false);
-    Alert.alert(
+    showError(
       'Payment Failed',
       error || 'Payment was not completed successfully.',
-      [
-        { text: 'Try Again', onPress: handleInitiatePayment },
-        { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
-      ]
+      () => handleInitiatePayment()
     );
   };
 
   const handlePaymentCancel = () => {
     setShowPaymentModal(false);
-    Alert.alert('Payment Cancelled', 'The payment was cancelled.', [
-      { text: 'Try Again', onPress: handleInitiatePayment },
-      { text: 'Go Back', style: 'cancel', onPress: () => router.back() },
-    ]);
+    showInfo('Payment Cancelled', 'The payment was cancelled.');
   };
 
   const formatCurrency = (value: number) => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { AdminManagement } from '@/types';
 import Button from '@/components/admin/Button';
 import Dropdown from '@/components/admin/Dropdown';
@@ -58,6 +59,7 @@ export default function VesselForm({
   onCancel,
   loading = false,
 }: VesselFormProps) {
+  const { showError } = useAlertContext();
   const {
     generateFerryLayout,
     getLayoutStatistics,
@@ -914,7 +916,7 @@ export default function VesselForm({
                     }
                   } catch (error) {
                     console.error('Error saving seat layout:', error);
-                    Alert.alert('Error', 'Failed to save seat layout');
+                    showError('Error', 'Failed to save seat layout');
                   }
                 }}
                 onCancel={() => {

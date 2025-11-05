@@ -14,9 +14,9 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { ArrowRight, AlertCircle } from 'lucide-react-native';
 import type {
   RouteSegmentFare,
@@ -48,6 +48,7 @@ export default function TripFareEditor({
   visible,
   title = 'Edit Segment Fares',
 }: TripFareEditorProps) {
+  const { showError, showInfo } = useAlertContext();
   const [overrides, setOverrides] = useState<Map<string, OverrideData>>(
     new Map()
   );
@@ -93,7 +94,7 @@ export default function TripFareEditor({
 
     // Additional validation for reasonable fare amounts
     if (newFare > 10000) {
-      Alert.alert(
+      showInfo(
         'Invalid Fare',
         'Fare amount seems too high. Please enter a reasonable amount.'
       );
@@ -150,15 +151,12 @@ export default function TripFareEditor({
     });
 
     if (invalidFares.length > 0) {
-      Alert.alert(
-        'Validation Error',
-        'All fare amounts must be greater than 0'
-      );
+      showInfo('Validation Error', 'All fare amounts must be greater than 0');
       return;
     }
 
     if (overridesWithoutReasons.length > 0) {
-      Alert.alert(
+      showInfo(
         'Validation Error',
         'Please provide a reason for all fare overrides'
       );
@@ -186,7 +184,7 @@ export default function TripFareEditor({
       await onSave(overrideArray);
     } catch (error) {
       console.error('Error saving fare overrides:', error);
-      Alert.alert('Error', 'Failed to save fare overrides. Please try again.');
+      showError('Error', 'Failed to save fare overrides. Please try again.');
     } finally {
       setSaving(false);
     }

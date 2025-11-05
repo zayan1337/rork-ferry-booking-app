@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Plus, Eye, AlertTriangle, Ship } from 'lucide-react-native';
 
 // Components
@@ -22,6 +23,7 @@ export default function VesselsTab({
   searchQuery = '',
 }: VesselsTabProps) {
   const { canViewVessels, canManageVessels } = useAdminPermissions();
+  const { showError } = useAlertContext();
   const {
     vessels: filteredVessels,
     searchQuery: vesselSearchQuery,
@@ -108,7 +110,7 @@ export default function VesselsTab({
     if (canManageVessels()) {
       router.push('../vessel/new' as any);
     } else {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to create vessels."
       );
