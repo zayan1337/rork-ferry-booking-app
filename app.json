@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fies.crystaltransfervaavu",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -30,7 +30,11 @@
       },
       "package": "com.fies.crystaltransfervaavu",
       "versionCode": 6,
-      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE", "CAMERA"]
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png",
@@ -54,6 +58,10 @@
       }
     },
     "owner": "fi-essystems",
-    "plugins": ["expo-router", "expo-font", "expo-web-browser"]
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser"
+    ]
   }
 }

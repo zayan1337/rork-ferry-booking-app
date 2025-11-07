@@ -377,7 +377,7 @@ export default function BookingDetailsScreen() {
           <View style={styles.contactItem}>
             <Globe size={14} color={Colors.primary} />
             <Text style={styles.contactText}>
-              Website: www.crystaltransfer.mv
+              Website: www.crystalhotels.mv
             </Text>
           </View>
           <View style={styles.contactItem}>

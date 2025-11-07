@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useBookingStore } from '@/store';
 import Colors from '@/constants/colors';
@@ -31,12 +31,12 @@ export default function TripSelectionStep() {
   const [returnAvailableTrips, setReturnAvailableTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadTrips();
-  }, []);
-
-  const loadTrips = async () => {
+  const loadTrips = useCallback(async () => {
     setLoading(true);
+    // Clear previous trips immediately when route changes
+    setAvailableTrips([]);
+    setReturnAvailableTrips([]);
+    
     try {
       // Load departure trips
       if (
@@ -54,6 +54,9 @@ export default function TripSelectionStep() {
           isTripBookable(trip.travel_date, trip.departure_time)
         );
         setAvailableTrips(futureTrips);
+      } else {
+        // Clear trips if required data is missing
+        setAvailableTrips([]);
       }
 
       // Load return trips if round trip
@@ -73,14 +76,34 @@ export default function TripSelectionStep() {
           isTripBookable(trip.travel_date, trip.departure_time)
         );
         setReturnAvailableTrips(futureReturnTrips);
+      } else {
+        // Clear return trips if not round trip or data is missing
+        setReturnAvailableTrips([]);
       }
     } catch (error) {
       console.error('Error loading trips:', error);
       showError('Error', 'Failed to load trips');
+      // Clear trips on error
+      setAvailableTrips([]);
+      setReturnAvailableTrips([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    currentBooking.boardingIslandId,
+    currentBooking.destinationIslandId,
+    currentBooking.departureDate,
+    currentBooking.returnBoardingIslandId,
+    currentBooking.returnDestinationIslandId,
+    currentBooking.returnDate,
+    currentBooking.tripType,
+    showError,
+  ]);
+
+  // Re-fetch trips when booking data changes (route, date, etc.)
+  useEffect(() => {
+    loadTrips();
+  }, [loadTrips]);
 
   const handleTripSelect = (tripData: any) => {
     // Validate trip hasn't departed

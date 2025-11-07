@@ -48,7 +48,7 @@ export const REFRESH_INTERVALS = {
 // Contact information
 export const CONTACT_INFO = {
   PHONE: '+9607123456',
-  EMAIL: 'support@crystaltransfervaavu.mv',
+  EMAIL: 'crystalhotelsmv@gmail.com',
   SUPPORT_HOURS: '8:00 AM - 8:00 PM, 7 days a week',
 } as const;
 

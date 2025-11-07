@@ -150,9 +150,10 @@ export default function LoginScreen() {
       >
         <View style={styles.logoContainer}>
           <Image
-            source={require('@/assets/images/logo.jpg')}
+            source={{
+              uri: 'https://images.unsplash.com/photo-1534008897995-27a23e859048?q=80&w=1000&auto=format&fit=crop',
+            }}
             style={styles.logo}
-            resizeMode='cover'
           />
           <Text style={styles.appName}>Crystal Transfer Vaavu</Text>
           <Text style={styles.tagline}>Your gateway to island adventures</Text>

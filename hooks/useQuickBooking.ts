@@ -1,8 +1,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import { router } from 'expo-router';
 import type { QuickBookingState } from '@/types/customer';
-import { useBookingStore, useRouteStore } from '@/store';
+import { useBookingStore } from '@/store';
 import { BOOKING_STEPS } from '@/constants/customer';
+import {
+  getTripsForSegment,
+  findRoutesServingSegment,
+} from '@/utils/segmentBookingUtils';
+import { supabase } from '@/utils/supabase';
 
 export const useQuickBooking = () => {
   const [quickBookingState, setQuickBookingState] = useState<QuickBookingState>(
@@ -15,7 +20,6 @@ export const useQuickBooking = () => {
   );
 
   const { setQuickBookingData, setCurrentStep } = useBookingStore();
-  const { availableRoutes } = useRouteStore();
 
   const updateField = useCallback(
     (field: keyof Omit<QuickBookingState, 'errorMessage'>, value: string) => {
@@ -87,22 +91,100 @@ export const useQuickBooking = () => {
       return false;
     }
 
-    // Check if the selected route combination exists in the database
-    const matchingRoute = availableRoutes.find(
-      route =>
-        route.fromIsland.name === selectedFromIsland &&
-        route.toIsland.name === selectedToIsland
-    );
-
-    if (!matchingRoute) {
-      setQuickBookingState(prev => ({
-        ...prev,
-        errorMessage: `No ferry route available from ${selectedFromIsland} to ${selectedToIsland}. Please select a different destination.`,
-      }));
-      return false;
-    }
-
     try {
+      // Get island IDs from island names with zone information
+      const { data: fromIsland, error: fromError } = await supabase
+        .from('islands')
+        .select('id, name, zone, zones(code)')
+        .eq('name', selectedFromIsland)
+        .eq('is_active', true)
+        .single();
+
+      const { data: toIsland, error: toError } = await supabase
+        .from('islands')
+        .select('id, name, zone, zones(code)')
+        .eq('name', selectedToIsland)
+        .eq('is_active', true)
+        .single();
+
+      if (fromError || !fromIsland) {
+        setQuickBookingState(prev => ({
+          ...prev,
+          errorMessage: `Could not find departure island: ${selectedFromIsland}`,
+        }));
+        return false;
+      }
+
+      if (toError || !toIsland) {
+        setQuickBookingState(prev => ({
+          ...prev,
+          errorMessage: `Could not find destination island: ${selectedToIsland}`,
+        }));
+        return false;
+      }
+
+      // Check if trips exist for this segment on the selected date
+      // This is the same approach used in the booking page
+      const trips = await getTripsForSegment(
+        fromIsland.id,
+        toIsland.id,
+        selectedDate
+      );
+
+      // Filter out trips that have already departed
+      const currentTime = new Date();
+      const futureTrips = trips.filter(trip => {
+        const tripDateTime = new Date(
+          `${trip.travel_date}T${trip.departure_time}`
+        );
+        return tripDateTime > currentTime;
+      });
+
+      if (futureTrips.length === 0) {
+        setQuickBookingState(prev => ({
+          ...prev,
+          errorMessage: `No ferry trips available from ${selectedFromIsland} to ${selectedToIsland} on ${new Date(selectedDate).toLocaleDateString()}. Please select a different date or destination.`,
+        }));
+        return false;
+      }
+
+      // Get route information for the segment
+      const routeSegments = await findRoutesServingSegment(
+        fromIsland.id,
+        toIsland.id
+      );
+
+      if (routeSegments.length === 0) {
+        setQuickBookingState(prev => ({
+          ...prev,
+          errorMessage: `No ferry route available from ${selectedFromIsland} to ${selectedToIsland}. Please select a different destination.`,
+        }));
+        return false;
+      }
+
+      // Use the first route segment to create a Route object
+      const firstRouteSegment = routeSegments[0];
+      // Get zone code, using zone_info if available, otherwise fallback to zone field
+      const fromZone =
+        (fromIsland.zones as any)?.code || fromIsland.zone || 'A';
+      const toZone = (toIsland.zones as any)?.code || toIsland.zone || 'A';
+
+      const matchingRoute = {
+        id: firstRouteSegment.route_id,
+        fromIsland: {
+          id: fromIsland.id,
+          name: fromIsland.name,
+          zone: fromZone as 'A' | 'B',
+        },
+        toIsland: {
+          id: toIsland.id,
+          name: toIsland.name,
+          zone: toZone as 'A' | 'B',
+        },
+        baseFare: firstRouteSegment.base_fare,
+        duration: '2h', // Default duration
+      };
+
       // Use the new function to set quick booking data
       setQuickBookingData(matchingRoute, selectedDate);
 
@@ -123,7 +205,7 @@ export const useQuickBooking = () => {
       }));
       return false;
     }
-  }, [quickBookingState, availableRoutes]);
+  }, [quickBookingState, setQuickBookingData, setCurrentStep]);
 
   return useMemo(
     () => ({
