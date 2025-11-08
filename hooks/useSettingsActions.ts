@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
 import { useAdminStore } from '@/store/admin/adminStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { AdminUser, RoleTemplate, NewRole } from '@/types/settings';
@@ -7,6 +6,7 @@ import {
   Alert as AdminAlert,
   ActivityLog as AdminActivityLog,
 } from '@/types/admin';
+import { useAlertContext } from '@/components/AlertProvider';
 
 interface UseSettingsActionsProps {
   selectedUser?: AdminUser | null;
@@ -45,6 +45,8 @@ export function useSettingsActions({
     canViewAlerts,
   } = useAdminPermissions();
 
+  const { showError, showSuccess, showConfirmation, showInfo } =
+    useAlertContext();
   const [tempSettings, setTempSettings] = useState<any>({});
 
   const handleRefresh = async () => {
@@ -58,34 +60,26 @@ export function useSettingsActions({
 
   const handleAlertAction = (alert: AdminAlert, action: 'read' | 'delete') => {
     if (!canViewAlerts()) {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to manage alerts."
-      );
+      showError('Access Denied', "You don't have permission to manage alerts.");
       return;
     }
 
     if (action === 'read') {
       markAlertAsRead(alert.id);
     } else if (action === 'delete') {
-      Alert.alert(
+      showConfirmation(
         'Delete Alert',
         'Are you sure you want to delete this alert?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: () => deleteAlert(alert.id),
-          },
-        ]
+        () => deleteAlert(alert.id),
+        undefined,
+        true
       );
     }
   };
 
   const handleExportActivity = async (filteredData: AdminActivityLog[]) => {
     if (!canExportReports()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to export reports."
       );
@@ -94,46 +88,42 @@ export function useSettingsActions({
 
     try {
       await exportActivityLogs(filteredData);
-      Alert.alert('Success', 'Activity logs exported successfully.');
+      showSuccess('Success', 'Activity logs exported successfully.');
     } catch (error) {
-      Alert.alert('Error', 'Failed to export activity logs.');
+      showError('Error', 'Failed to export activity logs.');
       throw error;
     }
   };
 
   const handleSystemBackup = async () => {
     if (!canManageSystemSettings()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to manage system settings."
       );
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'System Backup',
       'This will create a complete system backup. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Backup',
-          onPress: async () => {
-            try {
-              await backupDatabase();
-              Alert.alert('Success', 'System backup completed successfully.');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to create system backup.');
-              throw error;
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          await backupDatabase();
+          showSuccess('Success', 'System backup completed successfully.');
+        } catch (error) {
+          showError('Error', 'Failed to create system backup.');
+          throw error;
+        }
+      },
+      undefined,
+      false
     );
   };
 
   const handleSaveSettings = async () => {
     if (!canManageSystemSettings()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to update system settings."
       );
@@ -142,9 +132,9 @@ export function useSettingsActions({
 
     try {
       await updateSystemSettings(tempSettings);
-      Alert.alert('Success', 'System settings updated successfully.');
+      showSuccess('Success', 'System settings updated successfully.');
     } catch (error) {
-      Alert.alert('Error', 'Failed to update system settings.');
+      showError('Error', 'Failed to update system settings.');
       throw error;
     }
   };
@@ -165,9 +155,9 @@ export function useSettingsActions({
       // Update the admin users array (in real app, this would be done via store/API)
 
       setSelectedUser(null);
-      Alert.alert('Success', 'User permissions updated successfully.');
+      showSuccess('Success', 'User permissions updated successfully.');
     } catch (error) {
-      Alert.alert('Error', 'Failed to update user permissions.');
+      showError('Error', 'Failed to update user permissions.');
       throw error;
     }
   };
@@ -186,28 +176,23 @@ export function useSettingsActions({
       // Here you would typically create the role in your backend/store
 
       setNewRole({ name: '', description: '', permissions: [] });
-      Alert.alert('Success', 'Role created successfully.');
+      showSuccess('Success', 'Role created successfully.');
     } catch (error) {
-      Alert.alert('Error', 'Failed to create role.');
+      showError('Error', 'Failed to create role.');
       throw error;
     }
   };
 
   const handleDeleteRole = (roleId: string) => {
-    Alert.alert(
+    showConfirmation(
       'Delete Role',
       'Are you sure you want to delete this role? Users with this role will lose their permissions.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            // Handle role deletion
-            Alert.alert('Success', 'Role deleted successfully.');
-          },
-        },
-      ]
+      () => {
+        // Handle role deletion
+        showSuccess('Success', 'Role deleted successfully.');
+      },
+      undefined,
+      true
     );
   };
 
@@ -221,58 +206,52 @@ export function useSettingsActions({
   };
 
   const handleClearCache = () => {
-    Alert.alert('Clear Cache', 'This will clear all system cache. Continue?', [
-      { text: 'Cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => {
-          // Handle cache clearing
-          Alert.alert('Success', 'Cache cleared successfully.');
-        },
+    showConfirmation(
+      'Clear Cache',
+      'This will clear all system cache. Continue?',
+      () => {
+        // Handle cache clearing
+        showSuccess('Success', 'Cache cleared successfully.');
       },
-    ]);
+      undefined,
+      true
+    );
   };
 
   const handleRestartSystem = () => {
-    Alert.alert(
+    showConfirmation(
       'Restart System',
       'This will restart all system services. Continue?',
-      [
-        { text: 'Cancel' },
-        {
-          text: 'Restart',
-          style: 'destructive',
-          onPress: () => {
-            // Handle system restart
-            Alert.alert('Success', 'System restart initiated.');
-          },
-        },
-      ]
+      () => {
+        // Handle system restart
+        showSuccess('Success', 'System restart initiated.');
+      },
+      undefined,
+      true
     );
   };
 
   const handleHealthCheck = () => {
-    Alert.alert('Health Check', 'Running system diagnostics...');
+    showInfo('Health Check', 'Running system diagnostics...');
     // Simulate health check
     setTimeout(() => {
-      Alert.alert('Health Check Complete', 'All systems are operational.');
+      showSuccess('Health Check Complete', 'All systems are operational.');
     }, 2000);
   };
 
   const handleGenerateReport = (reportType: string) => {
-    Alert.alert('Report', `Generating ${reportType} report...`);
+    showInfo('Report', `Generating ${reportType} report...`);
     // Handle report generation
     setTimeout(() => {
-      Alert.alert('Report Ready', `${reportType} report has been generated.`);
+      showSuccess('Report Ready', `${reportType} report has been generated.`);
     }, 1500);
   };
 
   const handleExportLogs = () => {
-    Alert.alert('Export', 'Preparing log files...');
+    showInfo('Export', 'Preparing log files...');
     // Handle log export
     setTimeout(() => {
-      Alert.alert('Export Complete', 'Log files have been exported.');
+      showSuccess('Export Complete', 'Log files have been exported.');
     }, 1500);
   };
 

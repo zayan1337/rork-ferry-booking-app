@@ -4,7 +4,6 @@ import {
   Text,
   View,
   ScrollView,
-  Alert,
   Pressable,
   Modal,
 } from 'react-native';
@@ -40,8 +39,10 @@ import TicketDesign from '@/components/TicketDesign';
 import Button from '@/components/Button';
 import { shareBookingTicket } from '@/utils/shareUtils';
 import Colors from '@/constants/colors';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function BookingDetailsScreen() {
+  const { showError, showSuccess } = useAlertContext();
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { bookings, clients, updateBookingStatus } = useAgentStore();
@@ -108,12 +109,13 @@ export default function BookingDetailsScreen() {
       // Use the robust shareUtils function with image generation TicketDesign ref
       await shareBookingTicket(
         ticketBookingData as any,
-        imageGenerationTicketRef
+        imageGenerationTicketRef,
+        showError
       );
 
       setShowTicketPopup(false);
     } catch (error) {
-      Alert.alert('Sharing Error', 'Failed to share ticket. Please try again.');
+      showError('Sharing Error', 'Failed to share ticket. Please try again.');
     } finally {
       setIsSharing(false);
     }
@@ -127,10 +129,10 @@ export default function BookingDetailsScreen() {
     try {
       setLoading(true);
       await updateBookingStatus(booking.id, status as any);
-      Alert.alert('Success', `Booking marked as ${status}`);
+      showSuccess('Success', `Booking marked as ${status}`);
     } catch (error) {
       console.error('Error updating booking status:', error);
-      Alert.alert('Error', 'Failed to update booking status');
+      showError('Error', 'Failed to update booking status');
     } finally {
       setLoading(false);
     }

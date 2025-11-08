@@ -57,7 +57,7 @@ export default function BookingsScreen() {
     canUpdateBookings,
     canExportReports,
   } = useAdminPermissions();
-  const { showError } = useAlertContext();
+  const { showError, showSuccess } = useAlertContext();
 
   const {
     // Data
@@ -170,7 +170,7 @@ export default function BookingsScreen() {
 
   const handleExportConfirm = async (filters: ExportFilter) => {
     try {
-      await exportBookings(bookings, filters);
+      await exportBookings(bookings, filters, showError, showSuccess);
     } catch (error) {
       showError(
         'Export Failed',

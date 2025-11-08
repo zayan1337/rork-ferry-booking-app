@@ -18,6 +18,7 @@ export const useQuickBooking = () => {
       errorMessage: '',
     }
   );
+  const [isLoading, setIsLoading] = useState(false);
 
   const { setQuickBookingData, setCurrentStep } = useBookingStore();
 
@@ -91,6 +92,7 @@ export const useQuickBooking = () => {
       return false;
     }
 
+    setIsLoading(true);
     try {
       // Get island IDs from island names with zone information
       const { data: fromIsland, error: fromError } = await supabase
@@ -204,6 +206,8 @@ export const useQuickBooking = () => {
           'An error occurred while setting up your booking. Please try again.',
       }));
       return false;
+    } finally {
+      setIsLoading(false);
     }
   }, [quickBookingState, setQuickBookingData, setCurrentStep]);
 
@@ -215,6 +219,7 @@ export const useQuickBooking = () => {
       clearError,
       resetForm,
       validateAndStartBooking,
+      isLoading,
     }),
     [
       quickBookingState,
@@ -223,6 +228,7 @@ export const useQuickBooking = () => {
       clearError,
       resetForm,
       validateAndStartBooking,
+      isLoading,
     ]
   );
 };

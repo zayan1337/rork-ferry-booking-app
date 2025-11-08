@@ -1,10 +1,11 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Alert } from 'react-native';
 import { supabase } from '@/utils/supabase';
 import type { ContactFormState } from '@/types/customer';
 import { isContactFormValid } from '@/utils/customerUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export const useContactForm = () => {
+  const { showError, showSuccess } = useAlertContext();
   const [formState, setFormState] = useState<ContactFormState>({
     contactName: '',
     contactEmail: '',
@@ -35,7 +36,7 @@ export const useContactForm = () => {
     const { contactName, contactEmail, contactMessage } = formState;
 
     if (!isContactFormValid(contactName, contactEmail, contactMessage)) {
-      Alert.alert(
+      showError(
         'Validation Error',
         'Please fill in all fields with valid information'
       );
@@ -61,7 +62,7 @@ export const useContactForm = () => {
         throw error;
       }
 
-      Alert.alert(
+      showSuccess(
         'Success',
         'Your message has been sent successfully! We will get back to you soon.'
       );
@@ -75,13 +76,13 @@ export const useContactForm = () => {
       });
     } catch (error) {
       console.error('Contact form submission error:', error);
-      Alert.alert(
+      showError(
         'Error',
         'Failed to send message. Please check your internet connection and try again.'
       );
       setFormState(prev => ({ ...prev, isSubmitting: false }));
     }
-  }, [formState]);
+  }, [formState, showError, showSuccess]);
 
   const isValid = useMemo(
     () =>

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
@@ -21,6 +20,7 @@ import { CurrentTicketDetailsCard } from '@/components/booking';
 import Button from '@/components/Button';
 import { formatCurrency } from '@/utils/agentFormatters';
 import Colors from '@/constants/colors';
+import { useAlertContext } from '@/components/AlertProvider';
 
 type RefundMethod = 'agent_credit' | 'original_payment' | 'bank_transfer';
 
@@ -31,6 +31,7 @@ interface BankDetails {
 }
 
 export default function AgentCancelBookingScreen() {
+  const { showConfirmation, showSuccess, showError } = useAlertContext();
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { bookings, agentCancelBooking, getTranslation } = useAgentStore();
@@ -228,80 +229,73 @@ export default function AgentCancelBookingScreen() {
       refundPercentage
     )}% refund will be processed.`;
 
-    Alert.alert('Confirm Cancellation', confirmMessage, [
-      {
-        text: 'No',
-        style: 'cancel',
-      },
-      {
-        text: 'Yes, Cancel',
-        onPress: async () => {
-          setIsCancelling(true);
-          try {
-            const cancellationData = {
-              reason,
-              refundPercentage,
-              refundMethod,
-              bankDetails:
-                refundMethod === 'bank_transfer' ? bankDetails : undefined,
-              agentNotes,
-              overrideFee: true,
-            };
+    showConfirmation(
+      'Confirm Cancellation',
+      confirmMessage,
+      async () => {
+        setIsCancelling(true);
+        try {
+          const cancellationData = {
+            reason,
+            refundPercentage,
+            refundMethod,
+            bankDetails:
+              refundMethod === 'bank_transfer' ? bankDetails : undefined,
+            agentNotes,
+            overrideFee: true,
+          };
 
-            const cancellationNumber = await agentCancelBooking(
-              safeBooking.id,
-              cancellationData
+          const cancellationNumber = await agentCancelBooking(
+            safeBooking.id,
+            cancellationData
+          );
+
+          const calculatedRefundAmount =
+            (safeBooking.totalAmount * refundPercentage) / 100;
+          const refundMethodDisplay = refundMethod.replace('_', ' ');
+
+          // Check if booking was paid via MIB to provide appropriate message
+          let successMessage = `Booking has been cancelled successfully. Cancellation number: ${String(
+            cancellationNumber
+          )}.`;
+
+          if (calculatedRefundAmount > 0) {
+            // Get booking payment info from store to check if MIB
+            const cancelledBooking = bookingsArray.find(
+              (b: any) => String(b.id) === String(safeBooking.id)
             );
 
-            const calculatedRefundAmount =
-              (safeBooking.totalAmount * refundPercentage) / 100;
-            const refundMethodDisplay = refundMethod.replace('_', ' ');
-
-            // Check if booking was paid via MIB to provide appropriate message
-            let successMessage = `Booking has been cancelled successfully. Cancellation number: ${String(
-              cancellationNumber
-            )}.`;
-
-            if (calculatedRefundAmount > 0) {
-              // Get booking payment info from store to check if MIB
-              const cancelledBooking = bookingsArray.find(
-                (b: any) => String(b.id) === String(safeBooking.id)
-              );
-
-              if (
-                cancelledBooking?.payment?.method === 'mib' &&
-                refundMethod === 'original_payment'
-              ) {
-                successMessage += ` A refund of ${formatCurrency(
-                  calculatedRefundAmount
-                )} has been initiated via MIB and will be processed within 3-5 business days.`;
-              } else {
-                successMessage += ` ${formatCurrency(
-                  calculatedRefundAmount
-                )} will be refunded via ${refundMethodDisplay}.`;
-              }
+            if (
+              cancelledBooking?.payment?.method === 'mib' &&
+              refundMethod === 'original_payment'
+            ) {
+              successMessage += ` A refund of ${formatCurrency(
+                calculatedRefundAmount
+              )} has been initiated via MIB and will be processed within 3-5 business days.`;
+            } else {
+              successMessage += ` ${formatCurrency(
+                calculatedRefundAmount
+              )} will be refunded via ${refundMethodDisplay}.`;
             }
-
-            Alert.alert('Booking Cancelled', successMessage, [
-              {
-                text: 'OK',
-                onPress: () => router.back(),
-              },
-            ]);
-          } catch (error) {
-            console.error('Cancellation error:', error);
-            const errorMessage = `There was an error cancelling the booking: ${
-              error instanceof Error ? error.message : 'Unknown error'
-            }`;
-
-            Alert.alert('Cancellation Failed', errorMessage);
-          } finally {
-            setIsCancelling(false);
           }
-        },
-        style: 'destructive',
+
+          showSuccess('Booking Cancelled', successMessage, () => {
+            router.back();
+          });
+        } catch (error) {
+          console.error('Cancellation error:', error);
+          const errorMessage = `There was an error cancelling the booking: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`;
+
+          showError('Cancellation Failed', errorMessage);
+        } finally {
+          setIsCancelling(false);
+        }
       },
-    ]);
+      undefined,
+      true
+    );
   };
 
   // Calculate refund amount

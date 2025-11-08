@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAgentStore } from '@/store/agent/agentStore';
 import { useClientForm } from '@/hooks/useClientForm';
@@ -10,9 +10,11 @@ import Card from '@/components/Card';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 import { User, Mail, Phone, CreditCard } from 'lucide-react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function AddClientScreen() {
   const router = useRouter();
+  const { showSuccess } = useAlertContext();
   const {
     agent,
     createAgentClient,
@@ -50,15 +52,12 @@ export default function AddClientScreen() {
     try {
       await addExistingUserAsClient(existingUser.id);
 
-      Alert.alert(
+      showSuccess(
         'Client Added Successfully',
         `${existingUser.full_name || existingUser.email} has been added to your client list.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
+        () => {
+          router.back();
+        }
       );
     } catch (error: any) {
       console.error('Error adding existing user as client:', error);
@@ -86,24 +85,15 @@ export default function AddClientScreen() {
         idNumber: formData.idNumber,
       });
 
-      Alert.alert(
+      showSuccess(
         'Client Created Successfully',
         `${formData.name} has been added to your client list.`,
-        [
-          {
-            text: 'Create Booking',
-            onPress: () => {
-              router.replace({
-                pathname: '../agent-booking/new',
-                params: { clientId: newClientId },
-              });
-            },
-          },
-          {
-            text: 'Back to Clients',
-            onPress: () => router.back(),
-          },
-        ]
+        () => {
+          router.replace({
+            pathname: '../agent-booking/new',
+            params: { clientId: newClientId },
+          });
+        }
       );
     } catch (error: any) {
       console.error('Error creating client:', error);

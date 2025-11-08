@@ -7,7 +7,6 @@ import {
   TextInput,
   ScrollView,
   Platform,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -20,10 +19,12 @@ import Card from '@/components/Card';
 import Button from '@/components/Button';
 import type { ValidationResult } from '@/types/pages/booking';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width } = Dimensions.get('window');
 
 export default function ValidateTicketScreen() {
+  const { showError, showInfo } = useAlertContext();
   const [bookingNumber, setBookingNumber] = useState('');
   const [validationResult, setValidationResult] =
     useState<ValidationResult | null>(null);
@@ -40,7 +41,7 @@ export default function ValidateTicketScreen() {
       if (!permission?.granted && showCamera) {
         const { status } = await requestPermission();
         if (status !== 'granted') {
-          Alert.alert(
+          showError(
             'Permission Required',
             'Camera permission is required to scan QR codes'
           );
@@ -54,7 +55,7 @@ export default function ValidateTicketScreen() {
 
   const handleValidate = async () => {
     if (!bookingNumber.trim()) {
-      Alert.alert('Error', 'Please enter a booking number');
+      showError('Error', 'Please enter a booking number');
       return;
     }
 
@@ -65,10 +66,10 @@ export default function ValidateTicketScreen() {
       setValidationResult(result);
 
       if (error) {
-        Alert.alert('Error', error);
+        showError('Error', error);
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to validate ticket. Please try again.');
+      showError('Error', 'Failed to validate ticket. Please try again.');
     } finally {
       setIsValidating(false);
     }
@@ -76,13 +77,12 @@ export default function ValidateTicketScreen() {
 
   const handleScanQR = () => {
     if (!permission?.granted) {
-      Alert.alert(
+      showInfo(
         'Camera Permission Required',
         'Please grant camera permission to scan QR codes',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Grant Permission', onPress: requestPermission },
-        ]
+        () => {
+          requestPermission();
+        }
       );
       return;
     }
@@ -150,17 +150,17 @@ export default function ValidateTicketScreen() {
             setValidationResult(result);
 
             if (error) {
-              Alert.alert('Error', error);
+              showError('Error', error);
             }
           })
           .catch(err => {
-            Alert.alert(
+            showError(
               'Error',
               'Failed to validate scanned ticket. Please try again.'
             );
           });
       } else {
-        Alert.alert(
+        showError(
           'Invalid QR Code',
           `The scanned QR code does not contain valid booking information. Data: "${data}"`
         );
@@ -168,10 +168,7 @@ export default function ValidateTicketScreen() {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Unknown error occurred';
-      Alert.alert(
-        'Error',
-        `Failed to process scanned QR code: ${errorMessage}`
-      );
+      showError('Error', `Failed to process scanned QR code: ${errorMessage}`);
     }
   };
 
@@ -185,7 +182,7 @@ export default function ValidateTicketScreen() {
       router.push(`./booking-details/${validationResult.booking.id}`);
     } else {
       // This shouldn't happen as the button should be hidden, but just in case
-      Alert.alert(
+      showError(
         'Access Denied',
         'You can only view details of your own bookings.'
       );

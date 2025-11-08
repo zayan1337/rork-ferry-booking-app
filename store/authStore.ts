@@ -224,8 +224,28 @@ export const useAuthStore = create<AuthState>()(
           });
         } catch (error) {
           console.error('Login error:', error);
-          const errorMessage =
-            error instanceof Error ? error.message : 'Login failed';
+          let errorMessage = 'Login failed. Please check your credentials.';
+
+          if (error instanceof Error) {
+            const message = error.message.toLowerCase();
+            // Provide user-friendly error messages
+            if (
+              message.includes('invalid login credentials') ||
+              message.includes('invalid email or password') ||
+              message.includes('email not confirmed')
+            ) {
+              errorMessage = 'Invalid email or password. Please try again.';
+            } else if (message.includes('user not found')) {
+              errorMessage = 'No account found with this email address.';
+            } else if (message.includes('too many requests')) {
+              errorMessage = 'Too many login attempts. Please try again later.';
+            } else if (message.includes('account is inactive')) {
+              errorMessage = error.message; // Keep the original message for inactive accounts
+            } else {
+              errorMessage = error.message;
+            }
+          }
+
           set({
             isAuthenticating: false,
             error: errorMessage,

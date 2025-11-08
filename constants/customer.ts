@@ -47,9 +47,11 @@ export const REFRESH_INTERVALS = {
 
 // Contact information
 export const CONTACT_INFO = {
-  PHONE: '+9607123456',
+  PHONE: '3323113',
+  PHONE_ALT: '7892929',
   EMAIL: 'crystalhotelsmv@gmail.com',
-  SUPPORT_HOURS: '8:00 AM - 8:00 PM, 7 days a week',
+  WEBSITE: 'www.crystalhotels.mv',
+  SUPPORT_HOURS: '9:00 AM - 5:00 PM, Monday to Friday',
 } as const;
 
 // Social media links

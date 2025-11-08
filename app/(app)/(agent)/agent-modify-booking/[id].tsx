@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   Pressable,
   KeyboardAvoidingView,
   Platform,
@@ -29,6 +28,7 @@ import { calculateDiscountedFare } from '@/utils/bookingUtils';
 import { formatCurrency } from '@/utils/agentFormatters';
 import Colors from '@/constants/colors';
 import { Seat } from '@/types';
+import { useAlertContext } from '@/components/AlertProvider';
 
 type PaymentMethod = 'agent_credit' | 'bank_transfer' | 'mib';
 
@@ -39,6 +39,7 @@ interface BankDetails {
 }
 
 export default function AgentModifyBookingScreen() {
+  const { showSuccess, showError, showInfo } = useAlertContext();
   const { id, ticketType } = useLocalSearchParams();
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -359,12 +360,12 @@ export default function AgentModifyBookingScreen() {
         successMessage += `\n\nNote: Your ${agentDiscountRate}% agent discount was applied to the new fare calculation.`;
       }
 
-      Alert.alert(`${ticketLabel} Modified`, successMessage, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      showSuccess(`${ticketLabel} Modified`, successMessage, () => {
+        router.back();
+      });
     } catch (error) {
       console.error('Modification error:', error);
-      Alert.alert(
+      showError(
         'Error',
         `Failed to modify ${ticketLabel.toLowerCase()} ticket: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -383,29 +384,30 @@ export default function AgentModifyBookingScreen() {
       successMessage += ` (Your ${agentDiscountRate}% agent discount was applied to the new fare)`;
     }
 
-    Alert.alert('Payment Successful', successMessage, [
-      {
-        text: 'OK',
-        onPress: () => router.back(),
-      },
-    ]);
+    showSuccess('Payment Successful', successMessage, () => {
+      router.back();
+    });
   };
 
   const handleMibPaymentFailure = (error: string) => {
     setShowMibPayment(false);
-    Alert.alert(
+    showError(
       'Payment Failed',
       `The booking was modified but payment failed: ${error}. Please contact support to complete the payment of ${formatCurrency(fareDifference)}.`,
-      [{ text: 'OK', onPress: () => router.back() }]
+      () => {
+        router.back();
+      }
     );
   };
 
   const handleMibPaymentCancel = () => {
     setShowMibPayment(false);
-    Alert.alert(
+    showInfo(
       'Payment Cancelled',
       `The modification was saved but payment of ${formatCurrency(fareDifference)} was not completed. You can retry the payment later.`,
-      [{ text: 'OK', onPress: () => router.back() }]
+      () => {
+        router.back();
+      }
     );
   };
 

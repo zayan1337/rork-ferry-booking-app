@@ -118,8 +118,9 @@ function RootLayoutNav() {
     };
   }, []);
 
-  // Show loading screen while checking authentication or rehydrating
-  if (!isRehydrated || !authChecked || isAuthenticating) {
+  // Show loading screen only during initial app startup (rehydration and initial auth check)
+  // Don't show loading during user login - that should only show in the button
+  if (!isRehydrated || !authChecked) {
     return <AuthLoadingScreen message='Initializing app...' />;
   }
 

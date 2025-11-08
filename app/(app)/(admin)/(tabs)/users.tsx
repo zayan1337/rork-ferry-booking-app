@@ -204,12 +204,12 @@ export default function UsersScreen() {
       try {
         // Use all users or filtered users based on current view
         const usersToExport = users;
-        await exportUsers(usersToExport, filters);
+        await exportUsers(usersToExport, filters, showError, showSuccess);
       } catch (error) {
         showError('Export Failed', 'Failed to export users. Please try again.');
       }
     },
-    [users, showError]
+    [users, showError, showSuccess]
   );
 
   const handleBulkStatusUpdate = async (status: string) => {

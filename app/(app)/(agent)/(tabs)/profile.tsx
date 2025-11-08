@@ -4,7 +4,6 @@ import {
   Text,
   View,
   Pressable,
-  Alert,
   ScrollView,
   RefreshControl,
   Dimensions,
@@ -36,6 +35,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
+import { useAlertContext } from '@/components/AlertProvider';
 import { DateSelector } from '@/components/DateSelector';
 import StatCard from '@/components/StatCard';
 import { CreditSummaryCard } from '@/components/agent';
@@ -54,6 +54,7 @@ const isTablet = screenWidth > 768;
 
 export default function AgentProfileScreen() {
   const router = useRouter();
+  const { showConfirmation, showError, showSuccess } = useAlertContext();
   const { signOut, user } = useAuthStore();
   const {
     agent,
@@ -95,17 +96,13 @@ export default function AgentProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Logout',
-        onPress: handleSignOut,
-        style: 'destructive',
-      },
-    ]);
+    showConfirmation(
+      'Logout',
+      'Are you sure you want to log out?',
+      handleSignOut,
+      undefined,
+      false
+    );
   };
 
   const openEditModal = (field: EditableField) => {
@@ -159,7 +156,7 @@ export default function AgentProfileScreen() {
 
   const handleSaveEdit = async () => {
     if (!editingField || !editValue.trim()) {
-      Alert.alert('Error', 'Please enter a valid value');
+      showError('Error', 'Please enter a valid value');
       return;
     }
 
@@ -182,30 +179,31 @@ export default function AgentProfileScreen() {
 
       await updateProfileLocally(updateData);
 
-      Alert.alert('Success', 'Profile updated successfully');
-      closeEditModal();
+      showSuccess('Success', 'Profile updated successfully', () => {
+        closeEditModal();
+      });
     } catch (error) {
       console.error('Update error:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update profile';
-      Alert.alert('Error', errorMessage);
+      showError('Error', errorMessage);
       setIsSaving(false);
     }
   };
 
   const handlePasswordChange = async () => {
     if (!newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all password fields');
+      showError('Error', 'Please fill in all password fields');
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+      showError('Error', 'Password must be at least 6 characters long');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'New passwords do not match');
+      showError('Error', 'New passwords do not match');
       return;
     }
 
@@ -218,13 +216,14 @@ export default function AgentProfileScreen() {
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Password updated successfully');
-      closePasswordModal();
+      showSuccess('Success', 'Password updated successfully', () => {
+        closePasswordModal();
+      });
     } catch (error) {
       console.error('Password update error:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update password';
-      Alert.alert('Error', errorMessage);
+      showError('Error', errorMessage);
       setIsSaving(false);
     }
   };

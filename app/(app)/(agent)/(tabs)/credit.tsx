@@ -13,7 +13,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import {
@@ -34,6 +33,7 @@ import CreditTransactionCard from '@/components/CreditTransactionCard';
 import { CreditSummaryCard } from '@/components/agent';
 import { SkeletonCreditTransactionsList } from '@/components/skeleton';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
+import { useAlertContext } from '@/components/AlertProvider';
 
 import { useAgentData } from '@/hooks/useAgentData';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
@@ -188,6 +188,7 @@ const CreditPaymentModal = React.memo(
     ) => void;
     agentId: string;
   }) => {
+    const { showError, showInfo } = useAlertContext();
     const [amount, setAmount] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -202,7 +203,7 @@ const CreditPaymentModal = React.memo(
 
       // Validation
       if (!parsedAmount || parsedAmount < 100) {
-        Alert.alert(
+        showError(
           'Invalid Amount',
           'Please enter an amount of at least MVR 100'
         );
@@ -210,7 +211,7 @@ const CreditPaymentModal = React.memo(
       }
 
       if (!amount || amount.trim() === '') {
-        Alert.alert('Invalid Amount', 'Please enter an amount');
+        showError('Invalid Amount', 'Please enter an amount');
         return;
       }
 
@@ -333,33 +334,9 @@ const CreditPaymentModal = React.memo(
         setIsProcessing(false);
 
         // Show detailed error to user
-        Alert.alert(
+        showError(
           'Payment Failed',
-          `Error: ${error.message}\n\nPlease check the console logs for details.`,
-          [
-            { text: 'OK' },
-            {
-              text: 'Test MIB',
-              onPress: async () => {
-                try {
-                  const { data, error } = await supabase.functions.invoke(
-                    'mib-payment',
-                    {
-                      body: { action: 'health-check' },
-                    }
-                  );
-                  Alert.alert(
-                    'MIB Test Result',
-                    error
-                      ? `Error: ${error.message}`
-                      : `Success: ${data?.status || 'OK'}`
-                  );
-                } catch (testError: any) {
-                  Alert.alert('MIB Test Failed', testError.message);
-                }
-              },
-            },
-          ]
+          `Error: ${error.message}\n\nPlease check the console logs for details.`
         );
       }
     };
@@ -469,6 +446,7 @@ const CreditPaymentModal = React.memo(
 CreditPaymentModal.displayName = 'CreditPaymentModal';
 
 export default function AgentCreditScreen() {
+  const { showSuccess, showError, showInfo } = useAlertContext();
   const {
     agent,
     creditTransactions,
@@ -596,13 +574,13 @@ export default function AgentCreditScreen() {
         body: { action: 'health-check' },
       });
       if (error) {
-        Alert.alert('MIB Test Failed', `Error: ${error.message}`);
+        showError('MIB Test Failed', `Error: ${error.message}`);
       } else {
-        Alert.alert('MIB Test Success', `Status: ${data?.status || 'OK'}`);
+        showSuccess('MIB Test Success', `Status: ${data?.status || 'OK'}`);
       }
     } catch (err: any) {
       console.error('[TEST] MIB test error:', err);
-      Alert.alert('MIB Test Error', err.message);
+      showError('MIB Test Error', err.message);
     }
   };
 
@@ -1129,28 +1107,23 @@ export default function AgentCreditScreen() {
                   setCreditTopupId(null);
                   setMibSessionData(null);
 
-                  Alert.alert(
+                  showSuccess(
                     'Payment Successful! 🎉',
                     `Top-up Amount: ${formatCurrency(topupAmount)}\n\n` +
                       `Previous Balance: ${formatCurrency(currentBalance)}\n` +
                       `New Balance: ${formatCurrency(newBalance)}\n\n` +
                       `Available Credit: ↑ ${formatCurrency(topupAmount)}\n` +
                       `Used Credit: ↓ ${formatCurrency(usedCreditReduction)}`,
-                    [
-                      {
-                        text: 'OK',
-                        onPress: () => {
-                          handlePaymentSuccess();
-                        },
-                      },
-                    ]
+                    () => {
+                      handlePaymentSuccess();
+                    }
                   );
                 } catch (error: any) {
                   console.error(
                     '[SCREEN] ❌ Payment success handling error:',
                     error
                   );
-                  Alert.alert(
+                  showError(
                     'Error',
                     'Payment successful but failed to update balance. Please contact support.'
                   );
@@ -1168,7 +1141,7 @@ export default function AgentCreditScreen() {
                 setShowMibPayment(false);
                 setCreditTopupId(null);
                 setMibSessionData(null);
-                Alert.alert('Payment Failed', error);
+                showError('Payment Failed', error);
               }}
               onCancel={async () => {
                 if (creditTopupId) {
@@ -1182,7 +1155,7 @@ export default function AgentCreditScreen() {
                 setShowMibPayment(false);
                 setCreditTopupId(null);
                 setMibSessionData(null);
-                Alert.alert(
+                showInfo(
                   'Payment Cancelled',
                   'Your credit top-up has been cancelled'
                 );

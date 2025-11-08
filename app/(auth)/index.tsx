@@ -10,7 +10,7 @@ import {
   ScrollView,
   BackHandler,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Input from '@/components/Input';
@@ -28,8 +28,14 @@ export default function LoginScreen() {
     password: '',
   });
 
-  const { login, isAuthenticated, isLoading, error, clearError } =
-    useAuthStore();
+  const {
+    login,
+    isAuthenticated,
+    isLoading,
+    error,
+    clearError,
+    isAuthenticating,
+  } = useAuthStore();
   const [isNavigating, setIsNavigating] = useState(false);
 
   // Reset navigation state when component mounts
@@ -37,12 +43,8 @@ export default function LoginScreen() {
     setIsNavigating(false);
   }, []);
 
-  // Clear errors when screen gains focus
-  useFocusEffect(
-    React.useCallback(() => {
-      clearError();
-    }, [clearError])
-  );
+  // Don't auto-clear errors on focus - let them persist until user interaction
+  // This ensures login errors remain visible after failed attempts
 
   useEffect(() => {
     // If user is authenticated and has profile, redirect to appropriate portal
@@ -110,8 +112,8 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    // Prevent multiple attempts while loading or navigating
-    if (isLoading || isNavigating) {
+    // Prevent multiple attempts while authenticating or navigating
+    if (isAuthenticating || isNavigating) {
       return;
     }
 
@@ -126,6 +128,9 @@ export default function LoginScreen() {
     // Attempt login
     try {
       await login(formData.username, formData.password);
+      // If login succeeds, isAuthenticated will be true and navigation will happen
+      // Set navigating state to show loading during redirect
+      setIsNavigating(true);
     } catch (err) {
       // Reset navigation state if login fails
       setIsNavigating(false);
@@ -133,7 +138,7 @@ export default function LoginScreen() {
   };
 
   const handleNavigation = (path: 'register' | 'forgotPassword') => {
-    if (!isNavigating && !isLoading) {
+    if (!isAuthenticating && !isNavigating) {
       router.push(path as any);
     }
   };
@@ -176,7 +181,7 @@ export default function LoginScreen() {
             error={errors.username}
             autoCapitalize='none'
             keyboardType='email-address'
-            disabled={isLoading || isNavigating}
+            disabled={isAuthenticating || isNavigating}
             required
           />
 
@@ -187,13 +192,13 @@ export default function LoginScreen() {
             onChangeText={text => updateFormData('password', text)}
             secureTextEntry
             error={errors.password}
-            disabled={isLoading || isNavigating}
+            disabled={isAuthenticating || isNavigating}
             required
           />
 
           <Pressable
             style={styles.forgotPasswordContainer}
-            disabled={isLoading || isNavigating}
+            disabled={isAuthenticating || isNavigating}
             onPress={() => handleNavigation('forgotPassword')}
           >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
@@ -202,8 +207,8 @@ export default function LoginScreen() {
           <Button
             title='Login'
             onPress={handleLogin}
-            loading={isLoading || isNavigating}
-            disabled={isLoading || isNavigating}
+            loading={isAuthenticating || isNavigating}
+            disabled={isAuthenticating || isNavigating}
             fullWidth
             style={styles.loginButton}
           />
@@ -211,7 +216,7 @@ export default function LoginScreen() {
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Don't have an account? </Text>
             <Pressable
-              disabled={isLoading || isNavigating}
+              disabled={isAuthenticating || isNavigating}
               onPress={() => handleNavigation('register')}
             >
               <Text style={styles.registerLink}>Sign Up</Text>

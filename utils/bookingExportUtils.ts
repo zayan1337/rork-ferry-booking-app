@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+// Alert functions will be passed as parameters
 import type { AdminBooking } from '@/types/admin/management';
 import type { FileType, ExportFilter } from '@/components/admin/ExportModal';
 import {
@@ -31,7 +31,9 @@ const filterByStatus = (
  */
 export const exportBookings = async (
   bookings: AdminBooking[],
-  filters: ExportFilter
+  filters: ExportFilter,
+  onError?: (title: string, message: string) => void,
+  onSuccess?: (title: string, message: string) => void
 ): Promise<void> => {
   try {
     // Filter bookings by date range (using created_at field)
@@ -46,10 +48,9 @@ export const exportBookings = async (
     filteredBookings = filterByStatus(filteredBookings, filters.selectedRoles);
 
     if (filteredBookings.length === 0) {
-      Alert.alert(
-        'No Data',
-        'No bookings found matching the selected filters.'
-      );
+      if (onError) {
+        onError('No Data', 'No bookings found matching the selected filters.');
+      }
       return;
     }
 
@@ -142,10 +143,12 @@ export const exportBookings = async (
     const mimeType = getMimeType(filters.fileType);
     await saveAndShareFile(content, fileName, mimeType);
 
-    Alert.alert(
-      'Export Successful',
-      `Exported ${filteredBookings.length} booking(s) successfully.`
-    );
+    if (onSuccess) {
+      onSuccess(
+        'Export Successful',
+        `Exported ${filteredBookings.length} booking(s) successfully.`
+      );
+    }
   } catch (error) {
     console.error('Export error:', error);
     throw error;
@@ -157,7 +160,8 @@ export const exportBookings = async (
  */
 export const exportBookingStats = async (
   stats: any,
-  fileType: FileType = 'excel'
+  fileType: FileType = 'excel',
+  onSuccess?: (title: string, message: string) => void
 ): Promise<void> => {
   try {
     const headers = ['Metric', 'Value'];
@@ -203,10 +207,12 @@ export const exportBookingStats = async (
     const mimeType = getMimeType(fileType);
     await saveAndShareFile(content, fileName, mimeType);
 
-    Alert.alert(
-      'Export Successful',
-      'Booking statistics exported successfully.'
-    );
+    if (onSuccess) {
+      onSuccess(
+        'Export Successful',
+        'Booking statistics exported successfully.'
+      );
+    }
   } catch (error) {
     console.error('Export stats error:', error);
     throw error;
