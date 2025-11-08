@@ -776,8 +776,45 @@ export default function TripForm({
         }
       } else {
         // Create the trip
-        await create(tripFormData);
-        showSuccess('Success', 'Trip created successfully!');
+        // Note: create function actually returns the created trip data despite type definition
+        const createdTrip = (await create(tripFormData)) as any;
+
+        // Pass the created trip ID to onSave callback
+        // Let the parent component (new.tsx) handle success message and navigation
+        if (onSave) {
+          // createdTrip should have an id field from the database insert
+          const tripId = createdTrip?.id || null;
+
+          if (tripId) {
+            // Reset form to empty state after successful creation
+            setFormData({
+              route_id: initialData?.route_id || '',
+              vessel_id: initialData?.vessel_id || '',
+              travel_date: '',
+              departure_time: '',
+              arrival_time: '',
+              status: 'scheduled',
+              delay_reason: '',
+              fare_multiplier: 1.0,
+              weather_conditions: '',
+              captain_id: '',
+              crew_ids: [],
+              notes: '',
+              is_active: true,
+            });
+            setValidationErrors({});
+            setHasChanges(false);
+
+            // Type assertion for the callback with id
+            onSave({ ...tripFormData, id: tripId } as any);
+          } else {
+            onSave(tripFormData);
+          }
+        } else {
+          // If no onSave callback, show success here
+          showSuccess('Success', 'Trip created successfully!');
+        }
+        return; // Exit early for new trips
       }
 
       if (onSave) {

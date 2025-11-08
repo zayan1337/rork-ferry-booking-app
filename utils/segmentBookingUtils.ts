@@ -6,6 +6,7 @@
 
 import { supabase } from './supabase';
 import type { RouteStop, RouteSegmentFare } from '@/types/multiStopRoute';
+import { ALLOWED_TRIP_STATUSES } from '@/constants/customer';
 
 // ============================================================================
 // ISLAND/STOP DISCOVERY
@@ -260,6 +261,7 @@ export async function getTripsForSegment(
         is_active,
         fare_multiplier,
         available_seats,
+        status,
         vessels!inner (
           id,
           name,
@@ -270,6 +272,7 @@ export async function getTripsForSegment(
         .eq('route_id', segment.route_id)
         .eq('travel_date', travelDate)
         .eq('is_active', true)
+        .in('status', [...ALLOWED_TRIP_STATUSES])
         .order('departure_time'),
     ]);
 
@@ -337,6 +340,7 @@ export async function getTripsForSegment(
           is_active: trip.is_active,
           fare_multiplier: trip.fare_multiplier || 1.0,
           total_stops: totalStops,
+          status: trip.status || ALLOWED_TRIP_STATUSES[0],
         };
       });
 

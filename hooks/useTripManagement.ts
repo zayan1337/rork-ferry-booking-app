@@ -21,6 +21,8 @@ type ValidationResult = AdminManagement.ValidationResult;
 type UseTripManagementReturn = AdminManagement.UseTripManagementReturn & {
   generateTripsFromSchedule: (request: any) => Promise<any>;
   previewTripGeneration: (request: any) => any;
+  // Override create to return the created trip
+  create: (data: AdminManagement.TripFormData) => Promise<AdminManagement.Trip>;
 };
 
 // ============================================================================
@@ -141,7 +143,7 @@ export const useTripManagement = (
 
   const createTrip = useCallback(
     async (data: TripFormData) => {
-      await create(data);
+      return await create(data);
     },
     [create]
   );

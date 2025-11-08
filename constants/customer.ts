@@ -107,8 +107,20 @@ export const FAQS: CustomerFAQ[] = [
 
 // Booking validation rules
 export const VALIDATION_RULES = {
-  CANCELLATION_HOURS: 72,
+  CANCELLATION_HOURS: 48,
   MODIFICATION_HOURS: 72,
   MAX_LUGGAGE_KG: 20,
   CANCELLATION_FEE_PERCENT: 50,
 } as const;
+
+// Booking restrictions
+export const BOOKING_BUFFER_MINUTES = 10;
+export const BUFFER_MINUTES_PAYMENT_WINDOW = 4;
+export const ALLOWED_TRIP_STATUSES = ['scheduled', 'delayed'] as const;
+export const BLOCKED_TRIP_STATUSES = [
+  'boarding',
+  'departed',
+  'completed',
+  'cancelled',
+  'arrived',
+] as const;

@@ -17,6 +17,8 @@ import {
   cancelBookingOnPaymentCancellation,
 } from '@/utils/paymentUtils';
 import { useAlertContext } from '@/components/AlertProvider';
+import { getMinutesUntilDeparture } from '@/utils/bookingUtils';
+import { BUFFER_MINUTES_PAYMENT_WINDOW } from '@/constants/customer';
 
 interface MibPaymentWebViewProps {
   visible: boolean;
@@ -29,6 +31,10 @@ interface MibPaymentWebViewProps {
     passengerCount: number;
   };
   bookingId: string;
+  tripInfo?: {
+    travelDate: string;
+    departureTime: string;
+  };
   sessionData?: {
     sessionId: string;
     sessionUrl: string;
@@ -44,6 +50,7 @@ export default function MibPaymentWebView({
   visible,
   bookingDetails,
   bookingId,
+  tripInfo,
   sessionData,
   onClose,
   onSuccess,
@@ -55,8 +62,14 @@ export default function MibPaymentWebView({
   const [showPaymentPage, setShowPaymentPage] = useState(!!sessionData);
   const [currentSessionData, setCurrentSessionData] = useState(sessionData);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(
+    BUFFER_MINUTES_PAYMENT_WINDOW * 60
+  ); // Payment window in seconds
   const webViewRef = useRef<WebView>(null);
   const paymentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
 
   // Auto-show payment page when sessionData is provided
   useEffect(() => {
@@ -67,39 +80,113 @@ export default function MibPaymentWebView({
     }
   }, [sessionData, visible]);
 
-  // Clear timeout when component unmounts or modal closes
+  // Clear timeout and interval when component unmounts or modal closes
   useEffect(() => {
     return () => {
       if (paymentTimeoutRef.current) {
         clearTimeout(paymentTimeoutRef.current);
+        paymentTimeoutRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
       }
     };
   }, []);
 
-  // Set up payment timeout when payment page is shown
+  // Set up payment timeout and countdown timer when payment page is shown
   useEffect(() => {
     if (showPaymentPage && currentSessionData) {
-      // Set a 5-minute timeout for payment completion
-      paymentTimeoutRef.current = setTimeout(
-        () => {
-          onFailure('Payment timeout - please try again');
-        },
-        5 * 60 * 1000
-      ); // 5 minutes
+      // Calculate time until departure if trip info is available
+      let maxTimerSeconds = BUFFER_MINUTES_PAYMENT_WINDOW * 60; // Default payment window
+
+      if (tripInfo?.travelDate && tripInfo?.departureTime) {
+        const minutesUntilDeparture = getMinutesUntilDeparture(
+          tripInfo.travelDate,
+          tripInfo.departureTime
+        );
+
+        // If trip has already departed or is departing very soon, use departure time
+        if (minutesUntilDeparture > 0) {
+          // Use the minimum of payment window or time until departure
+          // But ensure at least 30 seconds for user to see the warning
+          maxTimerSeconds = Math.max(
+            30,
+            Math.min(
+              BUFFER_MINUTES_PAYMENT_WINDOW * 60,
+              minutesUntilDeparture * 60
+            )
+          );
+        } else {
+          // Trip has already departed, cancel immediately
+          maxTimerSeconds = 0;
+        }
+      }
+
+      // If timer is 0 or negative, cancel immediately
+      if (maxTimerSeconds <= 0) {
+        onCancel();
+        return;
+      }
+
+      // Reset timer to calculated value
+      setTimeRemaining(maxTimerSeconds);
+
+      // Set timeout for payment completion
+      paymentTimeoutRef.current = setTimeout(() => {
+        // Clear countdown interval
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+        // Cancel booking and close modal
+        onCancel();
+      }, maxTimerSeconds * 1000);
+
+      // Start countdown timer
+      countdownIntervalRef.current = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 1) {
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
+              countdownIntervalRef.current = null;
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
 
       return () => {
         if (paymentTimeoutRef.current) {
           clearTimeout(paymentTimeoutRef.current);
+          paymentTimeoutRef.current = null;
+        }
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
         }
       };
+    } else {
+      // Reset timer when payment page is not shown
+      setTimeRemaining(BUFFER_MINUTES_PAYMENT_WINDOW * 60);
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
     }
 
     return () => {
       if (paymentTimeoutRef.current) {
         clearTimeout(paymentTimeoutRef.current);
+        paymentTimeoutRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
       }
     };
-  }, [showPaymentPage, currentSessionData]);
+  }, [showPaymentPage, currentSessionData, tripInfo, onCancel]);
 
   // Handle payment completion detection
   useEffect(() => {
@@ -132,9 +219,14 @@ export default function MibPaymentWebView({
                 currentSessionData?.sessionId ||
                 url.searchParams.get('sessionVersion');
 
-              // Clear any existing timeout
+              // Clear any existing timeout and interval
               if (paymentTimeoutRef.current) {
                 clearTimeout(paymentTimeoutRef.current);
+                paymentTimeoutRef.current = null;
+              }
+              if (countdownIntervalRef.current) {
+                clearInterval(countdownIntervalRef.current);
+                countdownIntervalRef.current = null;
               }
 
               const paymentResultData = {
@@ -486,9 +578,14 @@ export default function MibPaymentWebView({
 
         // Check for result parameters
         if (result) {
-          // Clear any existing timeout
+          // Clear any existing timeout and interval
           if (paymentTimeoutRef.current) {
             clearTimeout(paymentTimeoutRef.current);
+            paymentTimeoutRef.current = null;
+          }
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
           }
 
           const paymentResultData = {
@@ -514,9 +611,14 @@ export default function MibPaymentWebView({
 
         // Check for resultIndicator (alternative parameter name)
         if (resultIndicator) {
-          // Clear any existing timeout
+          // Clear any existing timeout and interval
           if (paymentTimeoutRef.current) {
             clearTimeout(paymentTimeoutRef.current);
+            paymentTimeoutRef.current = null;
+          }
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
           }
 
           const paymentResultData = {
@@ -545,9 +647,14 @@ export default function MibPaymentWebView({
 
     // Check for specific MIB completion pages
     if (navState.url.includes('gateway.mastercard.com/checkout/complete')) {
-      // Clear any existing timeout
+      // Clear any existing timeout and interval
       if (paymentTimeoutRef.current) {
         clearTimeout(paymentTimeoutRef.current);
+        paymentTimeoutRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
       }
 
       // Assume success since we're on completion page
@@ -590,17 +697,27 @@ export default function MibPaymentWebView({
           break;
 
         case 'PAYMENT_ERROR':
-          // Clear any existing timeout
+          // Clear any existing timeout and interval
           if (paymentTimeoutRef.current) {
             clearTimeout(paymentTimeoutRef.current);
+            paymentTimeoutRef.current = null;
+          }
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
           }
           onFailure(data.error || 'Payment failed');
           break;
 
         case 'PAYMENT_RESULT':
-          // Clear any existing timeout
+          // Clear any existing timeout and interval
           if (paymentTimeoutRef.current) {
             clearTimeout(paymentTimeoutRef.current);
+            paymentTimeoutRef.current = null;
+          }
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
           }
 
           const paymentResultData = {
@@ -682,9 +799,14 @@ export default function MibPaymentWebView({
             url.searchParams.get('sessionVersion') ||
             currentSessionData?.sessionId;
 
-          // Clear any existing timeout
+          // Clear any existing timeout and interval
           if (paymentTimeoutRef.current) {
             clearTimeout(paymentTimeoutRef.current);
+            paymentTimeoutRef.current = null;
+          }
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
           }
 
           if (result === 'SUCCESS') {
@@ -721,6 +843,12 @@ export default function MibPaymentWebView({
 
     // Only call onFailure if it's not a payment success URL error
     onFailure('Failed to load payment page');
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleLoadEnd = () => {
@@ -797,9 +925,24 @@ export default function MibPaymentWebView({
               <ArrowLeft size={20} color={Colors.primary} />
             </Pressable>
           )}
-          <Text style={styles.headerTitle}>
-            {showPaymentPage ? 'MIB Payment' : 'Payment Summary'}
-          </Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>
+              {showPaymentPage ? 'MIB Payment' : 'Payment Summary'}
+            </Text>
+            {showPaymentPage && timeRemaining > 0 && (
+              <View style={styles.timerContainer}>
+                <Text style={styles.timerLabel}>Time remaining:</Text>
+                <Text
+                  style={[
+                    styles.timerText,
+                    timeRemaining <= 60 && styles.timerTextWarning,
+                  ]}
+                >
+                  {formatTime(timeRemaining)}
+                </Text>
+              </View>
+            )}
+          </View>
           <Pressable onPress={handleClose} style={styles.closeButton}>
             <X size={20} color={Colors.textSecondary} />
           </Pressable>
@@ -885,12 +1028,33 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     minHeight: 56,
   },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: Colors.text,
-    flex: 1,
     textAlign: 'center',
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  timerLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  timerText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  timerTextWarning: {
+    color: Colors.error,
   },
   backButton: {
     width: 40,

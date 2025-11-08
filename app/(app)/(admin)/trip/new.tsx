@@ -20,6 +20,7 @@ export default function NewTripPage() {
   const { canManageTrips } = useAdminPermissions();
   const { showSuccess, showError } = useAlertContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formKey, setFormKey] = useState(0); // Key to force form remount
   const [validatedInitialData, setValidatedInitialData] = useState<{
     route_id?: string;
     vessel_id?: string;
@@ -90,7 +91,7 @@ export default function NewTripPage() {
     }, [])
   );
 
-  const handleSave = async (tripData: TripFormData) => {
+  const handleSave = async (tripData: TripFormData & { id?: string }) => {
     if (isSubmitting) return;
 
     setIsSubmitting(true);
@@ -100,7 +101,23 @@ export default function NewTripPage() {
       // - Loading all active vessels from database
       // - Validation and trip creation
       // - Multi-stop route segment information
-      showSuccess('Success', 'Trip created successfully!', () => router.back());
+
+      // If trip ID is provided, navigate to trip details page
+      if (tripData.id) {
+        // Show success message and navigate immediately
+        showSuccess('Success', 'Trip created successfully!');
+        // Reset form key to force remount when user comes back
+        setFormKey(prev => prev + 1);
+        // Navigate to trip details page - use relative path from current location
+        setTimeout(() => {
+          router.push(`./${tripData.id}` as any);
+        }, 500);
+      } else {
+        // Fallback: go back if ID is not available
+        showSuccess('Success', 'Trip created successfully!', () =>
+          router.back()
+        );
+      }
     } catch (error) {
       showError('Error', 'Failed to create trip. Please try again.');
     } finally {
@@ -143,6 +160,7 @@ export default function NewTripPage() {
       />
 
       <TripForm
+        key={formKey}
         onSave={handleSave}
         onCancel={handleCancel}
         initialData={validatedInitialData}

@@ -32,7 +32,9 @@ import {
   TRIP_TYPES,
   PAYMENT_OPTIONS,
   REFRESH_INTERVALS,
+  BOOKING_BUFFER_MINUTES,
 } from '@/constants/customer';
+import { validateTripForBooking } from '@/utils/bookingUtils';
 import { useAlertContext } from '@/components/AlertProvider';
 
 // Import new step components
@@ -96,6 +98,20 @@ export default function BookScreen() {
       setTripType('one_way');
     }
   }, []);
+
+  // Clear trip selection errors when trip is successfully selected
+  useEffect(() => {
+    if (currentBooking.trip && errors.trip) {
+      setErrors({ ...errors, trip: '' });
+    }
+  }, [currentBooking.trip]);
+
+  // Clear return trip selection errors when return trip is successfully selected
+  useEffect(() => {
+    if (currentBooking.returnTrip && errors.returnTrip) {
+      setErrors({ ...errors, returnTrip: '' });
+    }
+  }, [currentBooking.returnTrip]);
 
   // Intercept system back button for step navigation
   useFocusEffect(
@@ -184,6 +200,22 @@ export default function BookScreen() {
         if (!currentBooking.trip) {
           newErrors.trip = 'Please select a trip';
           isValid = false;
+        } else {
+          // Validate trip status and time
+          const tripValidation = validateTripForBooking(
+            {
+              travel_date: currentBooking.trip.travel_date,
+              departure_time: currentBooking.trip.departure_time,
+              status:
+                currentBooking.trip.status ||
+                currentBooking.trip.computed_status,
+            },
+            BOOKING_BUFFER_MINUTES
+          );
+          if (!tripValidation.isValid) {
+            newErrors.trip = tripValidation.error || 'Trip is not available';
+            isValid = false;
+          }
         }
         if (
           currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
@@ -191,6 +223,26 @@ export default function BookScreen() {
         ) {
           newErrors.returnTrip = 'Please select a return trip';
           isValid = false;
+        } else if (
+          currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+          currentBooking.returnTrip
+        ) {
+          // Validate return trip status and time
+          const returnValidation = validateTripForBooking(
+            {
+              travel_date: currentBooking.returnTrip.travel_date,
+              departure_time: currentBooking.returnTrip.departure_time,
+              status:
+                currentBooking.returnTrip.status ||
+                currentBooking.returnTrip.computed_status,
+            },
+            BOOKING_BUFFER_MINUTES
+          );
+          if (!returnValidation.isValid) {
+            newErrors.returnTrip =
+              returnValidation.error || 'Return trip is not available';
+            isValid = false;
+          }
         }
         break;
 
@@ -258,6 +310,16 @@ export default function BookScreen() {
           refreshAvailableSeatsSilently(currentBooking.returnTrip.id, true);
         }
       }
+    } else {
+      // Show validation errors to user
+      if (currentStep === BOOKING_STEPS.TRIP_SELECTION) {
+        if (errors.trip) {
+          showError('Validation Error', errors.trip);
+        }
+        if (errors.returnTrip) {
+          showError('Validation Error', errors.returnTrip);
+        }
+      }
     }
   };
 
@@ -273,6 +335,55 @@ export default function BookScreen() {
   const handleConfirmBooking = async () => {
     if (validateStep(BOOKING_STEPS.PAYMENT)) {
       try {
+        // Final validation before booking - check trip status and time
+        if (currentBooking.trip) {
+          const departureValidation = validateTripForBooking(
+            {
+              travel_date: currentBooking.trip.travel_date,
+              departure_time: currentBooking.trip.departure_time,
+              status:
+                currentBooking.trip.status ||
+                currentBooking.trip.computed_status,
+            },
+            BOOKING_BUFFER_MINUTES
+          );
+
+          if (!departureValidation.isValid) {
+            showError(
+              'Booking Unavailable',
+              departureValidation.error ||
+                'Departure trip is no longer available for booking. Please select a different trip.'
+            );
+            return;
+          }
+        }
+
+        // Validate return trip if round trip
+        if (
+          currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+          currentBooking.returnTrip
+        ) {
+          const returnValidation = validateTripForBooking(
+            {
+              travel_date: currentBooking.returnTrip.travel_date,
+              departure_time: currentBooking.returnTrip.departure_time,
+              status:
+                currentBooking.returnTrip.status ||
+                currentBooking.returnTrip.computed_status,
+            },
+            BOOKING_BUFFER_MINUTES
+          );
+
+          if (!returnValidation.isValid) {
+            showError(
+              'Booking Unavailable',
+              returnValidation.error ||
+                'Return trip is no longer available for booking. Please select a different trip.'
+            );
+            return;
+          }
+        }
+
         const bookingResult = await createCustomerBooking(paymentMethod);
 
         if (paymentMethod === 'mib') {
@@ -722,7 +833,11 @@ export default function BookScreen() {
                 title='Next'
                 onPress={handleNext}
                 style={styles.navigationButton}
-                disabled={!currentBooking.trip}
+                disabled={
+                  !currentBooking.trip ||
+                  (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+                    !currentBooking.returnTrip)
+                }
               />
             )}
 
@@ -753,6 +868,14 @@ export default function BookScreen() {
             visible={showMibPayment}
             bookingDetails={mibBookingDetails}
             bookingId={currentBookingId}
+            tripInfo={
+              currentBooking.trip
+                ? {
+                    travelDate: currentBooking.trip.travel_date,
+                    departureTime: currentBooking.trip.departure_time,
+                  }
+                : undefined
+            }
             sessionData={mibSessionData}
             onClose={() => {
               setShowMibPayment(false);

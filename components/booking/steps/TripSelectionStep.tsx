@@ -8,8 +8,10 @@ import { getTripsForSegment } from '@/utils/segmentBookingUtils';
 import { TRIP_TYPES } from '@/constants/customer';
 import {
   isTripBookable,
-  getTripUnavailableMessage,
+  isTripStatusBookable,
+  validateTripForBooking,
 } from '@/utils/bookingUtils';
+import { BOOKING_BUFFER_MINUTES } from '@/constants/customer';
 
 export default function TripSelectionStep() {
   const { showError, showWarning } = useAlertContext();
@@ -36,7 +38,7 @@ export default function TripSelectionStep() {
     // Clear previous trips immediately when route changes
     setAvailableTrips([]);
     setReturnAvailableTrips([]);
-    
+
     try {
       // Load departure trips
       if (
@@ -49,11 +51,20 @@ export default function TripSelectionStep() {
           currentBooking.destinationIslandId,
           currentBooking.departureDate
         );
-        // Filter out trips that have already departed
-        const futureTrips = trips.filter(trip =>
-          isTripBookable(trip.travel_date, trip.departure_time)
-        );
-        setAvailableTrips(futureTrips);
+        // Filter trips: must be scheduled status and bookable (5 min buffer)
+        const bookableTrips = trips.filter((trip: any) => {
+          // Check status first
+          if (!isTripStatusBookable(trip.status)) {
+            return false;
+          }
+          // Check if trip is bookable based on time (5 minute buffer)
+          return isTripBookable(
+            trip.travel_date,
+            trip.departure_time,
+            BOOKING_BUFFER_MINUTES
+          );
+        });
+        setAvailableTrips(bookableTrips);
       } else {
         // Clear trips if required data is missing
         setAvailableTrips([]);
@@ -71,11 +82,20 @@ export default function TripSelectionStep() {
           currentBooking.returnDestinationIslandId,
           currentBooking.returnDate
         );
-        // Filter out return trips that have already departed
-        const futureReturnTrips = returnTrips.filter(trip =>
-          isTripBookable(trip.travel_date, trip.departure_time)
-        );
-        setReturnAvailableTrips(futureReturnTrips);
+        // Filter return trips: must be scheduled status and bookable (5 min buffer)
+        const bookableReturnTrips = returnTrips.filter((trip: any) => {
+          // Check status first
+          if (!isTripStatusBookable(trip.status)) {
+            return false;
+          }
+          // Check if trip is bookable based on time (5 minute buffer)
+          return isTripBookable(
+            trip.travel_date,
+            trip.departure_time,
+            BOOKING_BUFFER_MINUTES
+          );
+        });
+        setReturnAvailableTrips(bookableReturnTrips);
       } else {
         // Clear return trips if not round trip or data is missing
         setReturnAvailableTrips([]);
@@ -106,11 +126,20 @@ export default function TripSelectionStep() {
   }, [loadTrips]);
 
   const handleTripSelect = (tripData: any) => {
-    // Validate trip hasn't departed
-    if (!isTripBookable(tripData.travel_date, tripData.departure_time)) {
+    // Comprehensive validation
+    const validation = validateTripForBooking(
+      {
+        travel_date: tripData.travel_date,
+        departure_time: tripData.departure_time,
+        status: tripData.status,
+      },
+      BOOKING_BUFFER_MINUTES
+    );
+
+    if (!validation.isValid) {
       showWarning(
         'Trip Unavailable',
-        getTripUnavailableMessage(tripData.travel_date, tripData.departure_time)
+        validation.error || 'This trip cannot be booked.'
       );
       return;
     }
@@ -173,16 +202,26 @@ export default function TripSelectionStep() {
       is_active: tripData.is_active,
       base_fare: tripData.segment_fare,
       fare_multiplier: 1.0,
+      status: tripData.status || 'scheduled', // Include status for validation
     };
     setTrip(trip);
   };
 
   const handleReturnTripSelect = (tripData: any) => {
-    // Validate trip hasn't departed
-    if (!isTripBookable(tripData.travel_date, tripData.departure_time)) {
+    // Comprehensive validation
+    const validation = validateTripForBooking(
+      {
+        travel_date: tripData.travel_date,
+        departure_time: tripData.departure_time,
+        status: tripData.status,
+      },
+      BOOKING_BUFFER_MINUTES
+    );
+
+    if (!validation.isValid) {
       showWarning(
         'Trip Unavailable',
-        getTripUnavailableMessage(tripData.travel_date, tripData.departure_time)
+        validation.error || 'This trip cannot be booked.'
       );
       return;
     }
@@ -245,6 +284,7 @@ export default function TripSelectionStep() {
       is_active: tripData.is_active,
       base_fare: tripData.segment_fare,
       fare_multiplier: 1.0,
+      status: tripData.status || 'scheduled', // Include status for validation
     };
     setReturnTrip(trip);
   };

@@ -17,6 +17,8 @@ import {
   createBookingSegment,
   calculateSegmentFareWithSeats,
 } from '@/utils/segmentBookingUtils';
+import { validateTripForBooking } from '@/utils/bookingUtils';
+import { BOOKING_BUFFER_MINUTES } from '@/constants/customer';
 
 const initialCurrentBooking: CurrentBooking = {
   tripType: 'one_way',
@@ -871,11 +873,49 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
 
       case 2: // Trip Selection
         if (!currentBooking.trip) return 'Please select a departure trip';
+
+        // Validate departure trip status and time
+        if (currentBooking.trip) {
+          const tripValidation = validateTripForBooking(
+            {
+              travel_date: currentBooking.trip.travel_date,
+              departure_time: currentBooking.trip.departure_time,
+              status:
+                currentBooking.trip.status ||
+                currentBooking.trip.computed_status,
+            },
+            BOOKING_BUFFER_MINUTES
+          );
+          if (!tripValidation.isValid) {
+            return tripValidation.error || 'Departure trip is not available';
+          }
+        }
+
         if (
           currentBooking.tripType === 'round_trip' &&
           !currentBooking.returnTrip
         ) {
           return 'Please select a return trip';
+        }
+
+        // Validate return trip status and time
+        if (
+          currentBooking.tripType === 'round_trip' &&
+          currentBooking.returnTrip
+        ) {
+          const returnValidation = validateTripForBooking(
+            {
+              travel_date: currentBooking.returnTrip.travel_date,
+              departure_time: currentBooking.returnTrip.departure_time,
+              status:
+                currentBooking.returnTrip.status ||
+                currentBooking.returnTrip.computed_status,
+            },
+            BOOKING_BUFFER_MINUTES
+          );
+          if (!returnValidation.isValid) {
+            return returnValidation.error || 'Return trip is not available';
+          }
         }
         break;
 
@@ -936,6 +976,42 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         (!returnRoute || !returnTrip || !returnSelectedSeats.length)
       ) {
         throw new Error('Incomplete return trip information');
+      }
+
+      // Validate departure trip before booking
+      const departureValidation = validateTripForBooking(
+        {
+          travel_date: trip.travel_date,
+          departure_time: trip.departure_time,
+          status: trip.status || trip.computed_status,
+        },
+        BOOKING_BUFFER_MINUTES
+      );
+
+      if (!departureValidation.isValid) {
+        throw new Error(
+          departureValidation.error ||
+            'Departure trip is no longer available for booking.'
+        );
+      }
+
+      // Validate return trip if round trip
+      if (tripType === 'round_trip' && returnTrip) {
+        const returnValidation = validateTripForBooking(
+          {
+            travel_date: returnTrip.travel_date,
+            departure_time: returnTrip.departure_time,
+            status: returnTrip.status || returnTrip.computed_status,
+          },
+          BOOKING_BUFFER_MINUTES
+        );
+
+        if (!returnValidation.isValid) {
+          throw new Error(
+            returnValidation.error ||
+              'Return trip is no longer available for booking.'
+          );
+        }
       }
 
       // Get current authenticated user
