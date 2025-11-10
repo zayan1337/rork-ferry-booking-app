@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { usePathname, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { UserRole } from '@/types/auth';
 import AuthLoadingScreen from './AuthLoadingScreen';
@@ -8,46 +9,76 @@ interface RoleGuardProps {
   allowedRoles: UserRole[];
 }
 
+const ROLE_HOME_ROUTES: Record<UserRole, string> = {
+  customer: '/(app)/(customer)',
+  agent: '/(app)/(agent)',
+  admin: '/(app)/(admin)',
+  captain: '/(app)/(captain)',
+};
+
 export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
-  const { isAuthenticated, isLoading, user, isRehydrated } = useAuthStore();
+  const {
+    isAuthenticated,
+    isAuthenticating,
+    user,
+    isRehydrated,
+    preventRedirect,
+  } = useAuthStore();
+  const router = useRouter();
+  const pathname = usePathname();
+  const userRole = user?.profile?.role;
 
-  // Check if user role is allowed - if not, show unauthorized message
-  const isUnauthorized =
-    !user?.profile?.role || !allowedRoles.includes(user?.profile?.role || '');
-
-  // Add a small delay to prevent immediate redirect and allow state to stabilize
-  React.useEffect(() => {
-    if (isUnauthorized) {
-      const timer = setTimeout(() => {
-        // Force a re-check of authentication state
-        useAuthStore.getState().checkAuth();
-      }, 1000);
-
-      return () => clearTimeout(timer);
+  useEffect(() => {
+    if (
+      !isRehydrated ||
+      !isAuthenticated ||
+      preventRedirect ||
+      !userRole ||
+      allowedRoles.includes(userRole)
+    ) {
+      return;
     }
-  }, [isUnauthorized]);
 
-  // Show loading while checking authentication or user profile
-  if (!isRehydrated || isLoading || !isAuthenticated || !user?.profile) {
-    return (
-      <AuthLoadingScreen
-        message={
-          !isRehydrated
-            ? 'Loading app data...'
-            : isLoading
-              ? 'Verifying access...'
-              : !isAuthenticated
-                ? 'Redirecting to login...'
-                : 'Loading your profile...'
+    const fallbackRoute = ROLE_HOME_ROUTES[userRole] ?? '/(app)/(customer)';
+
+    if (!pathname.startsWith(fallbackRoute)) {
+      setTimeout(() => {
+        try {
+          router.replace(fallbackRoute as any);
+        } catch (error) {
+          console.error('RoleGuard redirect error:', error);
         }
-      />
-    );
+      }, 50);
+    }
+  }, [
+    allowedRoles,
+    isAuthenticated,
+    isRehydrated,
+    pathname,
+    preventRedirect,
+    router,
+    userRole,
+  ]);
+
+  if (!isRehydrated) {
+    return <AuthLoadingScreen message='Loading app data...' />;
   }
 
-  if (isUnauthorized) {
+  if (!isAuthenticated) {
+    return <AuthLoadingScreen message='Redirecting to login...' />;
+  }
+
+  if (isAuthenticating && !user?.profile) {
+    return <AuthLoadingScreen message='Verifying access...' />;
+  }
+
+  if (!user?.profile?.role) {
+    return <AuthLoadingScreen message='Loading your profile...' />;
+  }
+
+  if (!allowedRoles.includes(user.profile.role)) {
     return <AuthLoadingScreen message='Verifying permissions...' />;
   }
 
-  // User is authenticated and has proper role
   return <>{children}</>;
 }

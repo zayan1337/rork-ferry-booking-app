@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFonts } from 'expo-font';
-import { Stack, router } from 'expo-router';
+import { Stack, router, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../store/authStore';
@@ -42,10 +42,10 @@ function RootLayoutNav() {
   const {
     checkAuth,
     isAuthenticated,
-    isAuthenticating,
     user,
     error,
     isRehydrated,
+    preventRedirect,
   } = useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
@@ -118,15 +118,48 @@ function RootLayoutNav() {
     };
   }, []);
 
+  // Determine if user has valid profile after authentication
+  const hasValidProfile =
+    isAuthenticated && user?.profile && user.profile.is_active;
+
+  const pathname = usePathname();
+  // Track previous target route to avoid duplicate navigation calls
+  const previousTarget = useRef<string | null>(null);
+
+  // Handle navigation when authentication state changes
+  useEffect(() => {
+    if (!authChecked || !isRehydrated || preventRedirect) {
+      return;
+    }
+
+    const shouldGoToApp = hasValidProfile ?? false;
+    const targetRoute = shouldGoToApp ? '/(app)' : '/(auth)';
+    const isAlreadyOnTarget = shouldGoToApp
+      ? pathname.startsWith('/(app)')
+      : pathname.startsWith('/(auth)');
+
+    if (isAlreadyOnTarget || previousTarget.current === targetRoute) {
+      return;
+    }
+
+    previousTarget.current = targetRoute;
+
+    const timer = setTimeout(() => {
+      try {
+        router.replace(targetRoute as any);
+      } catch (error) {
+        console.error('Navigation error:', error);
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [hasValidProfile, authChecked, isRehydrated, pathname, preventRedirect]);
+
   // Show loading screen only during initial app startup (rehydration and initial auth check)
   // Don't show loading during user login - that should only show in the button
   if (!isRehydrated || !authChecked) {
     return <AuthLoadingScreen message='Initializing app...' />;
   }
-
-  // Determine if user has valid profile after authentication
-  const hasValidProfile =
-    isAuthenticated && user?.profile && user.profile.is_active;
 
   return (
     <AlertProvider>

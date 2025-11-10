@@ -1,7 +1,7 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import Colors from '@/constants/colors';
-import RoleGuard from '@/components/RoleGuard';
+import { RoleGuard } from '@/components';
 
 export default function CustomerLayout() {
   return (

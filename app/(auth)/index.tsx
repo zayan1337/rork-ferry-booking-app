@@ -47,13 +47,14 @@ export default function LoginScreen() {
   // This ensures login errors remain visible after failed attempts
 
   useEffect(() => {
-    // If user is authenticated and has profile, redirect to appropriate portal
+    // If user is authenticated, set navigating state to show loading
+    // The root layout will handle navigation automatically
     if (isAuthenticated && !isNavigating) {
       setIsNavigating(true);
-      // Let the app layout handle the role-based navigation
-      router.replace('/(app)' as any);
+      // Don't manually navigate - let the root layout handle it
+      // This prevents navigation conflicts and app crashes
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isNavigating]);
 
   // Prevent going back if authenticated
   useEffect(() => {
