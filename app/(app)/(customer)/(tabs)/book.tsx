@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -162,6 +162,20 @@ export default function BookScreen() {
     };
   }, []);
 
+  const resetLocalFormState = useCallback(() => {
+    setPaymentMethod('');
+    setTermsAccepted(false);
+    setPricingNoticeAccepted(false);
+    setErrors(createEmptyFormErrors());
+    setLocalSelectedSeats([]);
+    setLocalReturnSelectedSeats([]);
+    setSeatErrors({});
+    setShowMibPayment(false);
+    setCurrentBookingId('');
+    setMibSessionData(null);
+    setMibBookingDetails(null);
+  }, []);
+
   // Sync local seats with store
   useEffect(() => {
     setLocalSelectedSeats(currentBooking.selectedSeats);
@@ -170,6 +184,48 @@ export default function BookScreen() {
   useEffect(() => {
     setLocalReturnSelectedSeats(currentBooking.returnSelectedSeats);
   }, [currentBooking.returnSelectedSeats]);
+
+  useEffect(() => {
+    const isInitialState =
+      currentStep === BOOKING_STEPS.ISLAND_DATE_SELECTION &&
+      !currentBooking.trip &&
+      !currentBooking.returnTrip &&
+      !currentBooking.departureDate &&
+      !currentBooking.returnDate &&
+      currentBooking.selectedSeats.length === 0 &&
+      currentBooking.returnSelectedSeats.length === 0 &&
+      currentBooking.passengers.length === 0;
+
+    const hasLocalState =
+      paymentMethod !== '' ||
+      termsAccepted ||
+      pricingNoticeAccepted ||
+      localSelectedSeats.length > 0 ||
+      localReturnSelectedSeats.length > 0 ||
+      showMibPayment ||
+      Object.keys(seatErrors).length > 0;
+
+    if (isInitialState && hasLocalState) {
+      resetLocalFormState();
+    }
+  }, [
+    currentStep,
+    currentBooking.trip,
+    currentBooking.returnTrip,
+    currentBooking.departureDate,
+    currentBooking.returnDate,
+    currentBooking.selectedSeats.length,
+    currentBooking.returnSelectedSeats.length,
+    currentBooking.passengers.length,
+    localSelectedSeats.length,
+    localReturnSelectedSeats.length,
+    paymentMethod,
+    termsAccepted,
+    pricingNoticeAccepted,
+    showMibPayment,
+    seatErrors,
+    resetLocalFormState,
+  ]);
 
   // Periodic seat refresh
   useEffect(() => {
@@ -403,12 +459,7 @@ export default function BookScreen() {
         } else {
           resetCurrentBooking();
           setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
-          setPaymentMethod('');
-          setTermsAccepted(false);
-          setPricingNoticeAccepted(false);
-          setLocalSelectedSeats([]);
-          setLocalReturnSelectedSeats([]);
-          setErrors(createEmptyFormErrors());
+          resetLocalFormState();
 
           let successMessage = `Your ${
             currentBooking.tripType === TRIP_TYPES.ROUND_TRIP
@@ -422,7 +473,7 @@ export default function BookScreen() {
           }
 
           showSuccess('Booking Confirmed', successMessage, () =>
-            router.push('/(app)/(customer)/(tabs)/bookings')
+            router.replace('/(app)/(customer)/(tabs)/bookings')
           );
         }
       } catch (error: any) {
@@ -884,15 +935,16 @@ export default function BookScreen() {
               setMibBookingDetails(null);
             }}
             onSuccess={result => {
+              const bookingIdForResult = currentBookingId;
               setShowMibPayment(false);
               setCurrentBookingId('');
               setMibSessionData(null);
               setMibBookingDetails(null);
 
-              router.push({
+              router.replace({
                 pathname: '/(app)/(customer)/payment-success',
                 params: {
-                  bookingId: currentBookingId,
+                  bookingId: bookingIdForResult,
                   result: 'SUCCESS',
                   sessionId: result.sessionId,
                   resetBooking: 'true',
@@ -900,32 +952,34 @@ export default function BookScreen() {
               });
             }}
             onFailure={error => {
+              const bookingIdForResult = currentBookingId;
               setShowMibPayment(false);
               setCurrentBookingId('');
               setMibSessionData(null);
               setMibBookingDetails(null);
 
-              router.push({
+              router.replace({
                 pathname: '/(app)/(customer)/payment-success',
                 params: {
-                  bookingId: currentBookingId,
+                  bookingId: bookingIdForResult,
                   result: 'FAILURE',
-                  resetBooking: 'false',
+                  resetBooking: 'true',
                 },
               });
             }}
             onCancel={() => {
+              const bookingIdForResult = currentBookingId;
               setShowMibPayment(false);
               setCurrentBookingId('');
               setMibSessionData(null);
               setMibBookingDetails(null);
 
-              router.push({
+              router.replace({
                 pathname: '/(app)/(customer)/payment-success',
                 params: {
-                  bookingId: currentBookingId,
+                  bookingId: bookingIdForResult,
                   result: 'CANCELLED',
-                  resetBooking: 'false',
+                  resetBooking: 'true',
                 },
               });
             }}

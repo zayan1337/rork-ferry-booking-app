@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -69,6 +69,53 @@ export default function MibPaymentWebView({
   const paymentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null
+  );
+
+  const handleDeepLinkUrl = useCallback(
+    (url: string, source: string) => {
+      try {
+        const processedUrl = url.includes('?') ? url : `${url}?`;
+        const parsedUrl = new URL(processedUrl);
+        const resultParam = parsedUrl.searchParams.get('result');
+        const bookingIdParam =
+          parsedUrl.searchParams.get('bookingId') || bookingId;
+        const sessionIdParam =
+          parsedUrl.searchParams.get('session.id') ||
+          parsedUrl.searchParams.get('sessionVersion') ||
+          currentSessionData?.sessionId;
+
+        if (!resultParam) {
+          return false;
+        }
+
+        if (paymentTimeoutRef.current) {
+          clearTimeout(paymentTimeoutRef.current);
+          paymentTimeoutRef.current = null;
+        }
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+
+        if (resultParam === 'SUCCESS') {
+          onSuccess({
+            result: 'SUCCESS',
+            sessionId: sessionIdParam,
+            bookingId: bookingIdParam,
+            source,
+            timestamp: new Date().toISOString(),
+          });
+        } else if (resultParam === 'CANCELLED') {
+          onCancel();
+        } else if (resultParam === 'FAILURE') {
+          onFailure('Payment failed');
+        }
+        return true;
+      } catch (error) {
+        return false;
+      }
+    },
+    [bookingId, currentSessionData?.sessionId, onCancel, onFailure, onSuccess]
   );
 
   // Auto-show payment page when sessionData is provided
@@ -211,52 +258,19 @@ export default function MibPaymentWebView({
               const fullUrl =
                 `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?` + urlMatch[1];
 
-              const url = new URL(fullUrl);
-              const result = url.searchParams.get('result');
-              const bookingIdFromUrl = url.searchParams.get('bookingId');
-              const sessionId =
-                url.searchParams.get('session.id') ||
-                currentSessionData?.sessionId ||
-                url.searchParams.get('sessionVersion');
-
-              // Clear any existing timeout and interval
-              if (paymentTimeoutRef.current) {
-                clearTimeout(paymentTimeoutRef.current);
-                paymentTimeoutRef.current = null;
-              }
-              if (countdownIntervalRef.current) {
-                clearInterval(countdownIntervalRef.current);
-                countdownIntervalRef.current = null;
-              }
-
-              const paymentResultData = {
-                result: result || 'UNKNOWN',
-                sessionId: sessionId,
-                bookingId: bookingIdFromUrl || bookingId, // Use URL bookingId or fallback to prop
-                source: 'console_warn_deep_link',
-                timestamp: new Date().toISOString(),
-                originalMessage: message,
-              };
-
-              if (result === 'SUCCESS') {
-                onSuccess(paymentResultData);
-              } else if (result === 'CANCELLED') {
-                onCancel();
-              } else if (result === 'FAILURE') {
-                onFailure('Payment failed');
+              if (
+                handleDeepLinkUrl(fullUrl, 'console_warn_deep_link') === false
+              ) {
+                // no-op, allow default handling
               }
             }
           } catch (error) {
             // If we can't parse but we know it's a success, assume success
             if (message.includes('result=SUCCESS')) {
-              onSuccess({
-                result: 'SUCCESS',
-                sessionId: currentSessionData?.sessionId,
-                bookingId: bookingId, // Use prop bookingId as fallback
-                source: 'console_warn_fallback',
-                timestamp: new Date().toISOString(),
-                originalMessage: message,
-              });
+              handleDeepLinkUrl(
+                `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?result=SUCCESS&bookingId=${bookingId}`,
+                'console_warn_fallback'
+              );
             }
           }
         }
@@ -792,50 +806,20 @@ export default function MibPaymentWebView({
         if (urlMatch) {
           const fullUrl =
             `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?` + urlMatch[1];
-          const url = new URL(fullUrl);
-          const result = url.searchParams.get('result');
-          const bookingId = url.searchParams.get('bookingId');
-          const sessionId =
-            url.searchParams.get('sessionVersion') ||
-            currentSessionData?.sessionId;
-
-          // Clear any existing timeout and interval
-          if (paymentTimeoutRef.current) {
-            clearTimeout(paymentTimeoutRef.current);
-            paymentTimeoutRef.current = null;
-          }
-          if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current);
-            countdownIntervalRef.current = null;
-          }
-
-          if (result === 'SUCCESS') {
-            onSuccess({
-              result: 'SUCCESS',
-              sessionId: sessionId,
-              bookingId: bookingId,
-              source: 'error_handler_success',
-              timestamp: new Date().toISOString(),
-            });
-            return; // Don't call onFailure
-          } else if (result === 'CANCELLED') {
-            onCancel();
-            return; // Don't call onFailure
-          } else if (result === 'FAILURE') {
-            onFailure('Payment failed');
-            return;
+          if (
+            handleDeepLinkUrl(fullUrl, 'error_handler_success') === true ||
+            handleDeepLinkUrl(fullUrl, 'error_handler_success_retry') === true
+          ) {
+            return; // handled, skip onFailure
           }
         }
       } catch (error) {
         // If we can't parse but we know it's a success, assume success
         if (nativeEvent.description.includes('result=SUCCESS')) {
-          onSuccess({
-            result: 'SUCCESS',
-            sessionId: currentSessionData?.sessionId,
-            bookingId: bookingId,
-            source: 'error_handler_fallback',
-            timestamp: new Date().toISOString(),
-          });
+          handleDeepLinkUrl(
+            `${process.env.EXPO_PUBLIC_MIB_RETURN_URL}?result=SUCCESS&bookingId=${bookingId}`,
+            'error_handler_fallback'
+          );
           return; // Don't call onFailure
         }
       }
@@ -991,18 +975,36 @@ export default function MibPaymentWebView({
           startInLoadingState={true}
           allowsBackForwardNavigationGestures={true}
           onShouldStartLoadWithRequest={request => {
-            // Allow navigation to MIB payment URLs
+            const customScheme =
+              process.env.EXPO_PUBLIC_MIB_RETURN_URL ||
+              'crystaltransfervaavu://payment-success';
+
+            if (request.url.startsWith(customScheme)) {
+              const handled = handleDeepLinkUrl(
+                request.url,
+                'should_start_load'
+              );
+              return handled ? false : true;
+            }
+
+            if (request.url.includes('gateway.mastercard.com')) {
+              return true;
+            }
+
             if (
-              request.url.includes('gateway.mastercard.com') ||
-              request.url.includes('crystaltransfervaavu://') ||
-              request.url.includes('payment-success') ||
-              request.url.startsWith('data:') ||
-              request.url.startsWith('about:') ||
               request.url.startsWith('http://') ||
               request.url.startsWith('https://')
             ) {
               return true;
             }
+
+            if (
+              request.url.startsWith('about:') ||
+              request.url.startsWith('data:')
+            ) {
+              return true;
+            }
+
             return true;
           }}
           userAgent='Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1'

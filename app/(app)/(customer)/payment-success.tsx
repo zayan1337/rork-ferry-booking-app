@@ -1,6 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  BackHandler,
+} from 'react-native';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Check, X, AlertCircle, Clock } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
 import Colors from '@/constants/colors';
@@ -20,6 +32,7 @@ import { useBookingStore } from '@/store';
 import { useAgentBookingFormStore } from '@/store/agent/agentBookingFormStore';
 import { useAgentStore } from '@/store/agent/agentStore';
 import { BOOKING_STEPS } from '@/constants/customer';
+import { useFocusEffect } from '@react-navigation/native';
 
 type PaymentStatus =
   | 'success'
@@ -65,6 +78,13 @@ export default function PaymentSuccessScreen() {
   const isAgent = params.isAgent as string;
 
   useEffect(() => {
+    const resultParam = (params.result as string) || '';
+    const shouldReset = shouldResetBooking === 'true';
+
+    if (resultParam === 'SUCCESS' && shouldReset) {
+      resetBookingState();
+    }
+
     handlePaymentResult();
   }, []);
 
@@ -498,48 +518,12 @@ export default function PaymentSuccessScreen() {
     }
   };
 
-  const handleRetryPayment = () => {
-    // Navigate back to booking page to retry payment
-    // Set the booking step to payment step if booking state wasn't reset
-    if (shouldResetBooking !== 'true') {
-      if (isAgent === 'true') {
-        setAgentCurrentStep(6); // Payment step for agent booking
-      } else {
-        setCurrentStep(BOOKING_STEPS.PAYMENT);
-      }
-    }
-    router.back();
-  };
+  const isNavigatingRef = useRef(false);
 
-  const handleViewBookings = () => {
-    if (isAgent === 'true') {
-      router.push('/(app)/(agent)/(tabs)/bookings');
-    } else {
-      router.push('/(app)/(customer)/(tabs)/bookings');
-    }
-  };
-
-  const handleGoHome = () => {
-    if (isAgent === 'true') {
-      router.push('/(app)/(agent)/(tabs)');
-    } else {
-      router.push('/(app)/(customer)/(tabs)');
-    }
-  };
-
-  const handleNewBooking = () => {
-    if (isAgent === 'true') {
-      router.push('/(app)/(agent)/agent-booking/new');
-    } else {
-      router.push('/(app)/(customer)/(tabs)/book');
-    }
-  };
-
-  const resetBookingState = async () => {
+  const resetBookingState = useCallback(async () => {
     if (isAgent === 'true') {
       resetAgentBooking();
       setAgentCurrentStep(1);
-      // Refresh agent bookings data
       try {
         await refreshAgentBookingsData();
       } catch (refreshError) {
@@ -549,6 +533,111 @@ export default function PaymentSuccessScreen() {
       resetCurrentBooking();
       setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
     }
+  }, [
+    isAgent,
+    resetAgentBooking,
+    setAgentCurrentStep,
+    refreshAgentBookingsData,
+    resetCurrentBooking,
+    setCurrentStep,
+  ]);
+
+  const navigateAfterReset = useCallback(
+    async (path: string) => {
+      if (isNavigatingRef.current) {
+        return;
+      }
+      isNavigatingRef.current = true;
+      await resetBookingState();
+      router.replace(path as any);
+    },
+    [resetBookingState]
+  );
+
+  const fallbackRoute = useMemo(
+    () =>
+      isAgent === 'true'
+        ? '/(app)/(agent)/(tabs)/bookings'
+        : '/(app)/(customer)/(tabs)/bookings',
+    [isAgent]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (shouldResetBooking === 'true') {
+        const onBackPress = () => {
+          if (isNavigatingRef.current) {
+            return true;
+          }
+          navigateAfterReset(fallbackRoute);
+          return true;
+        };
+        const subscription = BackHandler.addEventListener(
+          'hardwareBackPress',
+          onBackPress
+        );
+        return () => subscription.remove();
+      }
+      return undefined;
+    }, [shouldResetBooking, fallbackRoute, navigateAfterReset])
+  );
+
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    if (shouldResetBooking === 'true') {
+      const preventDefault = (e: any) => {
+        if (isNavigatingRef.current) {
+          return;
+        }
+        e.preventDefault();
+        navigateAfterReset(fallbackRoute);
+      };
+      const unsubscribe = navigation.addListener(
+        'beforeRemove',
+        preventDefault
+      );
+      return unsubscribe;
+    }
+  }, [navigation, shouldResetBooking, fallbackRoute, navigateAfterReset]);
+
+  const handleRetryPayment = () => {
+    if (shouldResetBooking !== 'true') {
+      if (isAgent === 'true') {
+        setAgentCurrentStep(6);
+      } else {
+        setCurrentStep(BOOKING_STEPS.PAYMENT);
+      }
+      router.back();
+    } else {
+      const fallbackPath =
+        isAgent === 'true'
+          ? '/(app)/(agent)/(tabs)/bookings'
+          : '/(app)/(customer)/(tabs)/bookings';
+      navigateAfterReset(fallbackPath);
+    }
+  };
+
+  const handleViewBookings = () => {
+    navigateAfterReset(
+      isAgent === 'true'
+        ? '/(app)/(agent)/(tabs)/bookings'
+        : '/(app)/(customer)/(tabs)/bookings'
+    );
+  };
+
+  const handleGoHome = () => {
+    navigateAfterReset(
+      isAgent === 'true' ? '/(app)/(agent)/(tabs)' : '/(app)/(customer)/(tabs)'
+    );
+  };
+
+  const handleNewBooking = () => {
+    navigateAfterReset(
+      isAgent === 'true'
+        ? '/(app)/(agent)/agent-booking/new'
+        : '/(app)/(customer)/(tabs)/book'
+    );
   };
 
   const handleCheckStatus = async () => {

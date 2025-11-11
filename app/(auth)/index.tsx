@@ -162,7 +162,9 @@ export default function LoginScreen() {
             style={styles.logo}
           />
           <Text style={styles.appName}>Crystal Transfer Vaavu</Text>
-          <Text style={styles.tagline}>Your gateway to island adventures</Text>
+          <Text style={styles.tagline}>
+            Seamless comfort and convenience in travelling
+          </Text>
         </View>
 
         <Card variant='elevated' style={styles.card}>

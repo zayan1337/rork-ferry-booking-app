@@ -1157,74 +1157,9 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         );
       }
 
-      // Handle payment based on method
-      if (paymentMethod === 'mib') {
-        // For MIB, create pending payment record and process payment
-        const { error: paymentError } = await supabase.from('payments').insert({
-          booking_id: booking.id,
-          payment_method: paymentMethod as PaymentMethod,
-          amount: totalFare,
-          currency: 'MVR',
-          status: 'pending', // Start with pending for MIB
-        });
-
-        if (paymentError) {
-          console.error('Failed to create payment record:', paymentError);
-        }
-
-        // Update booking status to pending_payment for MIB
-        const { error: statusUpdateError } = await supabase
-          .from('bookings')
-          .update({
-            status: 'pending_payment',
-            payment_method_type: 'mib',
-          })
-          .eq('id', booking.id);
-
-        if (statusUpdateError) {
-          console.error(
-            'Failed to update booking status to pending_payment:',
-            statusUpdateError
-          );
-        }
-
-        // Small delay to ensure database transaction is committed
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Return booking ID and booking number for MIB payment processing
-        set({ isLoading: false });
-        return {
-          bookingId: booking.id,
-          returnBookingId: null,
-          booking_number: booking.booking_number,
-        };
-      } else {
-        // For other payment methods, mark as completed immediately
-        const { error: paymentError } = await supabase.from('payments').insert({
-          booking_id: booking.id,
-          payment_method: paymentMethod as PaymentMethod,
-          amount: totalFare,
-          currency: 'MVR',
-          status: 'completed', // Mark as completed for immediate confirmation
-        });
-
-        if (paymentError) {
-          console.error('Failed to create payment record:', paymentError);
-        }
-
-        // Update booking status to confirmed after successful payment
-        const { error: statusUpdateError } = await supabase
-          .from('bookings')
-          .update({ status: 'confirmed' })
-          .eq('id', booking.id);
-
-        if (statusUpdateError) {
-          // Status update failed - may be trigger function warning (non-critical)
-        }
-      }
-
       let returnBookingId = null;
       let returnBookingNumber = null;
+      let returnLegTotalFare = 0;
 
       // Handle return trip if round trip
       if (
@@ -1236,12 +1171,12 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         // Calculate return trip fare (use segment fare if available)
         const useReturnSegments =
           currentBooking.returnBoardingStop &&
-          currentBooking.returnDestinationStop;
-        let returnTotalFare = 0;
+          currentBooking.returnDestinationStop &&
+          currentBooking.returnSegmentFare !== null;
 
         if (useReturnSegments && currentBooking.returnSegmentFare !== null) {
           // Use segment-based fare for return trip
-          returnTotalFare = calculateSegmentFareWithSeats(
+          returnLegTotalFare = calculateSegmentFareWithSeats(
             currentBooking.returnSegmentFare,
             returnSelectedSeats,
             1.0
@@ -1250,7 +1185,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           // Fall back to legacy route-based fare for return trip
           const returnTripFare =
             (returnTrip.base_fare || 0) * (returnTrip.fare_multiplier || 1.0);
-          returnTotalFare = returnSelectedSeats.reduce((sum, seat) => {
+          returnLegTotalFare = returnSelectedSeats.reduce((sum, seat) => {
             const seatMultiplier = seat.priceMultiplier || 1.0;
             return sum + returnTripFare * seatMultiplier;
           }, 0);
@@ -1259,7 +1194,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         const returnBookingData = {
           user_id: user.id, // Required for RLS policy
           trip_id: returnTrip.id,
-          total_fare: returnTotalFare,
+          total_fare: returnLegTotalFare,
           payment_method_type: paymentMethod,
           status: 'pending_payment' as const, // Start with pending_payment like booking operations
           is_round_trip: true,
@@ -1278,6 +1213,26 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         } else {
           returnBookingId = returnBooking.id;
           returnBookingNumber = returnBooking.booking_number;
+
+          // Link departure and return bookings for round-trip management
+          try {
+            await supabase
+              .from('bookings')
+              .update({
+                return_booking_id: returnBooking.id,
+                round_trip_group_id: booking.id,
+              })
+              .eq('id', booking.id);
+
+            await supabase
+              .from('bookings')
+              .update({
+                round_trip_group_id: booking.id,
+              })
+              .eq('id', returnBooking.id);
+          } catch (linkError) {
+            console.error('Failed to link round-trip bookings:', linkError);
+          }
 
           // Generate return QR code URL
           const returnQrCodeUrl = generateBookingQrCodeUrl(returnBooking);
@@ -1315,7 +1270,12 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             booking_id: returnBooking.id,
             seat_id: returnSelectedSeats[index]?.id,
             passenger_name: passenger.fullName,
-            passenger_contact_number: passenger.idNumber || '',
+            passenger_contact_number:
+              (passenger.phoneNumber && passenger.phoneNumber.trim()) ||
+              fallbackPhone ||
+              '',
+            passenger_id_proof:
+              (passenger.idNumber && passenger.idNumber.trim()) || null,
             special_assistance_request: passenger.specialAssistance || null,
           }));
 
@@ -1346,29 +1306,120 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             );
           }
 
-          // Create payment record for return trip
+          // Return payment and status updates are handled after main payment logic
+        }
+      }
+
+      // Handle payment records and status updates for main (and return) bookings
+      if (paymentMethod === 'mib') {
+        const { error: paymentError } = await supabase.from('payments').insert({
+          booking_id: booking.id,
+          payment_method: paymentMethod as PaymentMethod,
+          amount: totalFare,
+          currency: 'MVR',
+          status: 'pending',
+        });
+
+        if (paymentError) {
+          console.error('Failed to create payment record:', paymentError);
+        }
+
+        if (returnBookingId) {
           const { error: returnPaymentError } = await supabase
             .from('payments')
             .insert({
-              booking_id: returnBooking.id,
+              booking_id: returnBookingId,
               payment_method: paymentMethod as PaymentMethod,
-              amount: returnTotalFare,
+              amount: returnLegTotalFare,
               currency: 'MVR',
-              status: paymentMethod === 'mib' ? 'pending' : 'completed', // Pending for MIB, completed for others
+              status: 'pending',
             });
 
           if (returnPaymentError) {
-            // Return payment record creation failed - non-critical
+            console.error(
+              'Failed to create return payment record:',
+              returnPaymentError
+            );
+          }
+        }
+
+        const { error: statusUpdateError } = await supabase
+          .from('bookings')
+          .update({
+            status: 'pending_payment',
+            payment_method_type: 'mib',
+          })
+          .eq('id', booking.id);
+
+        if (statusUpdateError) {
+          console.error(
+            'Failed to update booking status to pending_payment:',
+            statusUpdateError
+          );
+        }
+
+        if (returnBookingId) {
+          const { error: returnStatusUpdateError } = await supabase
+            .from('bookings')
+            .update({
+              status: 'pending_payment',
+              payment_method_type: 'mib',
+            })
+            .eq('id', returnBookingId);
+
+          if (returnStatusUpdateError) {
+            console.error(
+              'Failed to update return booking status to pending_payment:',
+              returnStatusUpdateError
+            );
+          }
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        const { error: paymentError } = await supabase.from('payments').insert({
+          booking_id: booking.id,
+          payment_method: paymentMethod as PaymentMethod,
+          amount: totalFare,
+          currency: 'MVR',
+          status: 'completed',
+        });
+
+        if (paymentError) {
+          console.error('Failed to create payment record:', paymentError);
+        }
+
+        const { error: statusUpdateError } = await supabase
+          .from('bookings')
+          .update({ status: 'confirmed' })
+          .eq('id', booking.id);
+
+        if (statusUpdateError) {
+          // Non-critical warning
+        }
+
+        if (returnBookingId) {
+          const { error: returnPaymentError } = await supabase
+            .from('payments')
+            .insert({
+              booking_id: returnBookingId,
+              payment_method: paymentMethod as PaymentMethod,
+              amount: returnLegTotalFare,
+              currency: 'MVR',
+              status: 'completed',
+            });
+
+          if (returnPaymentError) {
+            // Non-critical warning
           }
 
-          // Update return booking status to confirmed after successful payment
           const { error: returnStatusUpdateError } = await supabase
             .from('bookings')
             .update({ status: 'confirmed' })
-            .eq('id', returnBooking.id);
+            .eq('id', returnBookingId);
 
           if (returnStatusUpdateError) {
-            // Return status update failed - may be trigger function warning (non-critical)
+            // Non-critical warning
           }
         }
       }

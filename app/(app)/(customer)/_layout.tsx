@@ -46,6 +46,14 @@ export default function CustomerLayout() {
             presentation: 'modal',
           }}
         />
+        <Stack.Screen
+          name='payment-success'
+          options={{
+            title: 'Payment Status',
+            presentation: 'modal',
+            headerBackVisible: false,
+          }}
+        />
       </Stack>
     </RoleGuard>
   );

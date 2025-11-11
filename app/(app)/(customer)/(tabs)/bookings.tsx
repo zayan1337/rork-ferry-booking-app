@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -26,35 +26,45 @@ export default function BookingsScreen() {
     fetchUserBookings();
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     fetchUserBookings();
-  };
+  }, [fetchUserBookings]);
 
-  const handleViewBooking = (booking: Booking) => {
+  const handleViewBooking = useCallback((booking: Booking) => {
     router.push(`/booking-details/${booking.id}`);
-  };
+  }, []);
 
-  // Filter bookings based on search query and status filter
-  const filteredBookings = bookings.filter((booking: any) => {
-    const matchesSearch =
-      searchQuery === '' ||
-      booking.bookingNumber.includes(searchQuery) ||
-      booking.route.fromIsland.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      booking.route.toIsland.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+  const filteredBookings = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-    const matchesStatus =
-      statusFilter === 'all' || booking.status === statusFilter;
+    return bookings.filter((booking: Booking) => {
+      const matchesSearch =
+        query === '' ||
+        booking.bookingNumber.toLowerCase().includes(query) ||
+        booking.route.fromIsland.name.toLowerCase().includes(query) ||
+        booking.route.toIsland.name.toLowerCase().includes(query);
 
-    return matchesSearch && matchesStatus;
-  });
+      const matchesStatus =
+        statusFilter === 'all' || booking.status === statusFilter;
 
-  // Sort bookings by date (newest first)
-  const sortedBookings = [...filteredBookings].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      return matchesSearch && matchesStatus;
+    });
+  }, [bookings, searchQuery, statusFilter]);
+
+  const sortedBookings = useMemo(
+    () =>
+      [...filteredBookings].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+    [filteredBookings]
+  );
+
+  const renderBookingItem = useCallback(
+    ({ item }: { item: Booking }) => (
+      <BookingCard booking={item} onPress={() => handleViewBooking(item)} />
+    ),
+    [handleViewBooking]
   );
 
   return (
@@ -152,9 +162,7 @@ export default function BookingsScreen() {
       <FlatList
         data={sortedBookings}
         keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <BookingCard booking={item} onPress={() => handleViewBooking(item)} />
-        )}
+        renderItem={renderBookingItem}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />
