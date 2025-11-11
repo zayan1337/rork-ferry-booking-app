@@ -55,6 +55,7 @@ export default function BookingDetailsPage() {
   const {
     fetchBooking,
     updateBooking,
+    updatePaymentStatus,
     loading: storeLoading,
     error: storeError,
   } = useAdminBookingStore();
@@ -203,7 +204,12 @@ export default function BookingDetailsPage() {
 
     setUpdating(true);
     try {
-      await updateBooking(booking.id, { payment_status: newStatus });
+      await updatePaymentStatus(
+        booking.id,
+        newStatus,
+        booking.total_fare,
+        booking.payment_method || booking.payment_method_type || 'gateway'
+      );
       // Refresh the booking data
       const updatedBooking = await fetchBooking(booking.id);
       if (updatedBooking) {
