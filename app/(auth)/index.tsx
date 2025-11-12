@@ -13,6 +13,7 @@ import {
 import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
+import LogoImage from '@/assets/images/logo.jpg';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
@@ -155,12 +156,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps='handled'
       >
         <View style={styles.logoContainer}>
-          <Image
-            source={{
-              uri: 'https://images.unsplash.com/photo-1534008897995-27a23e859048?q=80&w=1000&auto=format&fit=crop',
-            }}
-            style={styles.logo}
-          />
+          <Image source={LogoImage} style={styles.logo} />
           <Text style={styles.appName}>Crystal Transfer Vaavu</Text>
           <Text style={styles.tagline}>
             Seamless comfort and convenience in travelling
