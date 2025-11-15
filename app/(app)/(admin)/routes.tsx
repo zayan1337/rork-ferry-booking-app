@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { colors } from '@/constants/adminColors';
 // UPDATED: Use new route management hook instead of operations store
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from '@/types';
 // UPDATED: Use new utility functions from admin folder
@@ -48,6 +48,7 @@ type Route = AdminManagement.Route;
 
 export default function RoutesScreen() {
   const { canViewRoutes, canManageRoutes } = useAdminPermissions();
+  const { showError } = useAlertContext();
 
   // UPDATED: Use new route management hook instead of operations store
   const {
@@ -85,10 +86,7 @@ export default function RoutesScreen() {
       // Go directly to the unified route form
       router.push('./route/new' as any);
     } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to create routes."
-      );
+      showError('Access Denied', "You don't have permission to create routes.");
     }
   };
 

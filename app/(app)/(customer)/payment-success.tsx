@@ -1,6 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  BackHandler,
+} from 'react-native';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Check, X, AlertCircle, Clock } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
 import Colors from '@/constants/colors';
@@ -20,6 +32,25 @@ import { useBookingStore } from '@/store';
 import { useAgentBookingFormStore } from '@/store/agent/agentBookingFormStore';
 import { useAgentStore } from '@/store/agent/agentStore';
 import { BOOKING_STEPS } from '@/constants/customer';
+import { useFocusEffect } from '@react-navigation/native';
+
+const parseBooleanParam = (
+  value: string | string[] | boolean | undefined
+): boolean => {
+  if (Array.isArray(value)) {
+    return value.some(item =>
+      typeof item === 'string'
+        ? ['true', '1', 'yes'].includes(item.toLowerCase())
+        : Boolean(item)
+    );
+  }
+
+  if (typeof value === 'string') {
+    return ['true', '1', 'yes'].includes(value.toLowerCase());
+  }
+
+  return Boolean(value);
+};
 
 type PaymentStatus =
   | 'success'
@@ -60,11 +91,31 @@ export default function PaymentSuccessScreen() {
   const result = params.result as string;
   const sessionId =
     (params['session.id'] as string) || (params.sessionId as string);
-  const shouldResetBooking = params.resetBooking as string;
-  const isModification = params.isModification as string;
-  const isAgent = params.isAgent as string;
+  const shouldResetBooking = useMemo(
+    () => parseBooleanParam(params.resetBooking),
+    [params.resetBooking]
+  );
+  const isModification = useMemo(
+    () => parseBooleanParam(params.isModification),
+    [params.isModification]
+  );
+  const isAgent = useMemo(
+    () => parseBooleanParam(params.isAgent),
+    [params.isAgent]
+  );
+  const shouldEnforceSafeExit = useMemo(
+    () => shouldResetBooking || status === 'success',
+    [shouldResetBooking, status]
+  );
 
   useEffect(() => {
+    const resultParam = (params.result as string) || '';
+    const shouldReset = shouldResetBooking;
+
+    if (resultParam === 'SUCCESS' && shouldReset) {
+      resetBookingState();
+    }
+
     handlePaymentResult();
   }, []);
 
@@ -104,7 +155,7 @@ export default function PaymentSuccessScreen() {
             setStatus('success');
 
             // Handle modification completion
-            if (isModification === 'true') {
+            if (isModification) {
               try {
                 // For modifications, complete the modification process
                 const { data: modificationData } = await supabase
@@ -128,7 +179,7 @@ export default function PaymentSuccessScreen() {
             }
 
             // Reset booking state only on successful payment
-            if (shouldResetBooking === 'true') {
+            if (shouldResetBooking) {
               resetCurrentBooking();
               setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
             }
@@ -136,7 +187,7 @@ export default function PaymentSuccessScreen() {
             setStatus('cancelled');
             // Cancel booking and create cancellation record when payment is cancelled
             try {
-              if (isModification === 'true') {
+              if (isModification) {
                 // For modifications, we need to get the original booking ID
                 // We'll extract it from the modification record
                 const { data: modificationData } = await supabase
@@ -183,7 +234,7 @@ export default function PaymentSuccessScreen() {
             setStatus('failed');
             // Cancel booking and release seats when payment fails
             try {
-              if (isModification === 'true') {
+              if (isModification) {
                 // For modifications, we need to get the original booking ID
                 const { data: modificationData } = await supabase
                   .from('modifications')
@@ -245,7 +296,7 @@ export default function PaymentSuccessScreen() {
             setStatus('success');
 
             // Handle modification completion
-            if (isModification === 'true') {
+            if (isModification) {
               try {
                 // For modifications, complete the modification process
                 const { data: modificationData } = await supabase
@@ -269,7 +320,7 @@ export default function PaymentSuccessScreen() {
             }
 
             // Reset booking state only on successful payment
-            if (shouldResetBooking === 'true') {
+            if (shouldResetBooking) {
               resetCurrentBooking();
               setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
             }
@@ -392,7 +443,7 @@ export default function PaymentSuccessScreen() {
           setStatus('success');
 
           // Handle modification completion
-          if (isModification === 'true') {
+          if (isModification) {
             try {
               // For modifications, complete the modification process
               const { data: modificationData } = await supabase
@@ -416,7 +467,7 @@ export default function PaymentSuccessScreen() {
           }
 
           // Reset booking state only on successful payment
-          if (shouldResetBooking === 'true') {
+          if (shouldResetBooking) {
             resetCurrentBooking();
             setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
           }
@@ -476,70 +527,34 @@ export default function PaymentSuccessScreen() {
   const getStatusMessage = () => {
     switch (status) {
       case 'success':
-        return isAgent === 'true'
+        return isAgent
           ? 'The payment has been processed successfully. The booking is now confirmed and the client will receive a confirmation email shortly.'
           : 'Your payment has been processed successfully. Your booking is now confirmed and you will receive a confirmation email shortly.';
       case 'failed':
-        return isAgent === 'true'
+        return isAgent
           ? 'The payment could not be processed. Please try again or contact support if the problem persists.'
           : 'Your payment could not be processed. Please try again or contact support if the problem persists.';
       case 'cancelled':
-        return isAgent === 'true'
+        return isAgent
           ? 'The payment was cancelled. No charges have been made and the booking has been cancelled.'
           : 'Your payment was cancelled. No charges have been made to your account.';
       case 'pending':
-        return isAgent === 'true'
+        return isAgent
           ? 'The payment is being processed. Please wait while we confirm the payment.'
           : 'Your payment is being processed. Please wait while we confirm your payment.';
       default:
-        return isAgent === 'true'
+        return isAgent
           ? 'We are processing the payment. Please wait...'
           : 'We are processing your payment. Please wait...';
     }
   };
 
-  const handleRetryPayment = () => {
-    // Navigate back to booking page to retry payment
-    // Set the booking step to payment step if booking state wasn't reset
-    if (shouldResetBooking !== 'true') {
-      if (isAgent === 'true') {
-        setAgentCurrentStep(6); // Payment step for agent booking
-      } else {
-        setCurrentStep(BOOKING_STEPS.PAYMENT);
-      }
-    }
-    router.back();
-  };
+  const isNavigatingRef = useRef(false);
 
-  const handleViewBookings = () => {
-    if (isAgent === 'true') {
-      router.push('/(app)/(agent)/(tabs)/bookings');
-    } else {
-      router.push('/(app)/(customer)/(tabs)/bookings');
-    }
-  };
-
-  const handleGoHome = () => {
-    if (isAgent === 'true') {
-      router.push('/(app)/(agent)/(tabs)');
-    } else {
-      router.push('/(app)/(customer)/(tabs)');
-    }
-  };
-
-  const handleNewBooking = () => {
-    if (isAgent === 'true') {
-      router.push('/(app)/(agent)/agent-booking/new');
-    } else {
-      router.push('/(app)/(customer)/(tabs)/book');
-    }
-  };
-
-  const resetBookingState = async () => {
-    if (isAgent === 'true') {
+  const resetBookingState = useCallback(async () => {
+    if (isAgent) {
       resetAgentBooking();
       setAgentCurrentStep(1);
-      // Refresh agent bookings data
       try {
         await refreshAgentBookingsData();
       } catch (refreshError) {
@@ -549,6 +564,110 @@ export default function PaymentSuccessScreen() {
       resetCurrentBooking();
       setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
     }
+  }, [
+    isAgent,
+    resetAgentBooking,
+    setAgentCurrentStep,
+    refreshAgentBookingsData,
+    resetCurrentBooking,
+    setCurrentStep,
+  ]);
+
+  const navigateAfterReset = useCallback(
+    async (path: string) => {
+      if (isNavigatingRef.current) {
+        return;
+      }
+      isNavigatingRef.current = true;
+      await resetBookingState();
+      router.replace(path as any);
+    },
+    [resetBookingState]
+  );
+
+  const fallbackRoute = useMemo(
+    () =>
+      isAgent
+        ? '/(app)/(agent)/(tabs)/bookings'
+        : '/(app)/(customer)/(tabs)/bookings',
+    [isAgent]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (shouldEnforceSafeExit) {
+        const onBackPress = () => {
+          if (isNavigatingRef.current) {
+            return true;
+          }
+          navigateAfterReset(fallbackRoute);
+          return true;
+        };
+        const subscription = BackHandler.addEventListener(
+          'hardwareBackPress',
+          onBackPress
+        );
+        return () => subscription.remove();
+      }
+      return undefined;
+    }, [shouldEnforceSafeExit, fallbackRoute, navigateAfterReset])
+  );
+
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    if (shouldEnforceSafeExit) {
+      const preventDefault = (e: any) => {
+        if (isNavigatingRef.current) {
+          return;
+        }
+        e.preventDefault();
+        navigateAfterReset(fallbackRoute);
+      };
+      const unsubscribe = navigation.addListener(
+        'beforeRemove',
+        preventDefault
+      );
+      return unsubscribe;
+    }
+  }, [navigation, shouldEnforceSafeExit, fallbackRoute, navigateAfterReset]);
+
+  const handleRetryPayment = () => {
+    if (!shouldEnforceSafeExit) {
+      if (isAgent) {
+        setAgentCurrentStep(6);
+      } else {
+        setCurrentStep(BOOKING_STEPS.PAYMENT);
+      }
+      router.back();
+    } else {
+      const fallbackPath = isAgent
+        ? '/(app)/(agent)/(tabs)/bookings'
+        : '/(app)/(customer)/(tabs)/bookings';
+      navigateAfterReset(fallbackPath);
+    }
+  };
+
+  const handleViewBookings = () => {
+    navigateAfterReset(
+      isAgent
+        ? '/(app)/(agent)/(tabs)/bookings'
+        : '/(app)/(customer)/(tabs)/bookings'
+    );
+  };
+
+  const handleGoHome = () => {
+    navigateAfterReset(
+      isAgent ? '/(app)/(agent)/(tabs)' : '/(app)/(customer)/(tabs)'
+    );
+  };
+
+  const handleNewBooking = () => {
+    navigateAfterReset(
+      isAgent
+        ? '/(app)/(agent)/agent-booking/new'
+        : '/(app)/(customer)/(tabs)/book'
+    );
   };
 
   const handleCheckStatus = async () => {
@@ -563,7 +682,7 @@ export default function PaymentSuccessScreen() {
         setStatus('success');
 
         // Handle modification completion
-        if (isModification === 'true') {
+        if (isModification) {
           try {
             // For modifications, complete the modification process
             const { data: modificationData } = await supabase
@@ -587,7 +706,7 @@ export default function PaymentSuccessScreen() {
         }
 
         // Reset booking state only on successful payment
-        if (shouldResetBooking === 'true') {
+        if (shouldResetBooking) {
           resetCurrentBooking();
           setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
         }
@@ -659,13 +778,11 @@ export default function PaymentSuccessScreen() {
           {status === 'success' && (
             <>
               <Button
-                title={
-                  isAgent === 'true' ? 'View Bookings' : 'View My Bookings'
-                }
+                title={isAgent ? 'View Bookings' : 'View My Bookings'}
                 onPress={handleViewBookings}
                 style={styles.primaryButton}
               />
-              {isAgent === 'true' && (
+              {isAgent && (
                 <Button
                   title='New Booking'
                   onPress={handleNewBooking}
@@ -674,7 +791,7 @@ export default function PaymentSuccessScreen() {
                 />
               )}
               <Button
-                title={isAgent === 'true' ? 'Dashboard' : 'Go Home'}
+                title={isAgent ? 'Dashboard' : 'Go Home'}
                 onPress={handleGoHome}
                 variant='outline'
                 style={styles.secondaryButton}
@@ -689,7 +806,7 @@ export default function PaymentSuccessScreen() {
                 onPress={handleRetryPayment}
                 style={styles.primaryButton}
               />
-              {isAgent === 'true' && (
+              {isAgent && (
                 <Button
                   title='View Bookings'
                   onPress={handleViewBookings}
@@ -698,7 +815,7 @@ export default function PaymentSuccessScreen() {
                 />
               )}
               <Button
-                title={isAgent === 'true' ? 'Dashboard' : 'Go Home'}
+                title={isAgent ? 'Dashboard' : 'Go Home'}
                 onPress={handleGoHome}
                 variant='outline'
                 style={styles.secondaryButton}
@@ -713,7 +830,7 @@ export default function PaymentSuccessScreen() {
                 onPress={handleRetryPayment}
                 style={styles.primaryButton}
               />
-              {isAgent === 'true' && (
+              {isAgent && (
                 <Button
                   title='New Booking'
                   onPress={handleNewBooking}
@@ -722,7 +839,7 @@ export default function PaymentSuccessScreen() {
                 />
               )}
               <Button
-                title={isAgent === 'true' ? 'Dashboard' : 'Go Home'}
+                title={isAgent ? 'Dashboard' : 'Go Home'}
                 onPress={handleGoHome}
                 variant='outline'
                 style={styles.secondaryButton}
@@ -738,7 +855,7 @@ export default function PaymentSuccessScreen() {
                 style={styles.primaryButton}
               />
               <Button
-                title={isAgent === 'true' ? 'Dashboard' : 'Go Home'}
+                title={isAgent ? 'Dashboard' : 'Go Home'}
                 onPress={handleGoHome}
                 variant='outline'
                 style={styles.secondaryButton}

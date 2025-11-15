@@ -6,7 +6,6 @@ import {
   ScrollView,
   RefreshControl,
   Linking,
-  Alert,
 } from 'react-native';
 import {
   Ship,
@@ -20,8 +19,10 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import { useVesselTracking } from '@/hooks';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function VesselTrackingScreen() {
+  const { showError, showInfo } = useAlertContext();
   const { vessels, isLoading, error, refreshVessels } = useVesselTracking();
 
   const handleTrackVessel = async (
@@ -29,10 +30,9 @@ export default function VesselTrackingScreen() {
     vesselName: string
   ) => {
     if (!registrationNumber) {
-      Alert.alert(
+      showInfo(
         'Tracking Unavailable',
-        'This vessel does not have a registration number for tracking.',
-        [{ text: 'OK' }]
+        'This vessel does not have a registration number for tracking.'
       );
       return;
     }
@@ -44,18 +44,16 @@ export default function VesselTrackingScreen() {
       if (supported) {
         await Linking.openURL(trackingUrl);
       } else {
-        Alert.alert(
+        showError(
           'Cannot Open Tracking',
-          'Unable to open the vessel tracking system.',
-          [{ text: 'OK' }]
+          'Unable to open the vessel tracking system.'
         );
       }
     } catch (error) {
       console.error('Error opening tracking URL:', error);
-      Alert.alert(
+      showError(
         'Error',
-        'An error occurred while trying to open the tracking system.',
-        [{ text: 'OK' }]
+        'An error occurred while trying to open the tracking system.'
       );
     }
   };

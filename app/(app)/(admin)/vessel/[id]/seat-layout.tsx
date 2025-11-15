@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Text,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { ArrowLeft, AlertCircle } from 'lucide-react-native';
@@ -18,6 +11,7 @@ import { AdminManagement } from '@/types';
 import SeatArrangementManager from '@/components/admin/seat-arrangement/SeatArrangementManager';
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { useAlertContext } from '@/components/AlertProvider';
 
 type VesselWithDetails = AdminManagement.VesselWithDetails;
 type SeatLayout = AdminManagement.SeatLayout;
@@ -26,6 +20,7 @@ type Seat = AdminManagement.Seat;
 export default function VesselSeatLayoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canManageVessels } = useAdminPermissions();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   const { fetchVesselDetails, saveCustomSeatLayout, loading, error } =
     useVesselStore();
@@ -49,13 +44,14 @@ export default function VesselSeatLayoutScreen() {
       if (vessel) {
         setVesselData(vessel);
       } else {
-        Alert.alert('Error', 'Vessel not found');
-        router.back();
+        showError('Error', 'Vessel not found', () => router.back());
       }
     } catch (error) {
-      console.error('Error loading vessel:', error);
-      Alert.alert('Error', 'Failed to load vessel details. Please try again.');
-      router.back();
+      showError(
+        'Error',
+        'Failed to load vessel details. Please try again.',
+        () => router.back()
+      );
     } finally {
       setIsLoading(false);
     }
@@ -68,61 +64,27 @@ export default function VesselSeatLayoutScreen() {
       setSaveError(null);
       await saveCustomSeatLayout(id, layout.layout_data, seats);
 
-      Alert.alert('Success', 'Seat layout updated successfully!', [
-        {
-          text: 'View Vessel',
-          onPress: () => router.push(`/vessel/${id}`),
-        },
-        {
-          text: 'Continue Editing',
-          onPress: () => {
-            // Reload the data to show updated information
-            loadVesselData();
-          },
-        },
-        {
-          text: 'Back to List',
-          onPress: () => router.back(),
-        },
-      ]);
+      showSuccess('Success', 'Seat layout updated successfully!', () =>
+        router.back()
+      );
     } catch (error) {
-      console.error('Error updating seat layout:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update seat layout';
       setSaveError(errorMessage);
-
-      Alert.alert(
+      showError(
         'Update Failed',
-        `Failed to update seat layout: ${errorMessage}`,
-        [
-          {
-            text: 'Try Again',
-            onPress: () => setSaveError(null),
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-        ]
+        `Failed to update seat layout: ${errorMessage}`
       );
     }
   };
 
   const handleCancel = () => {
-    Alert.alert(
+    showConfirmation(
       'Discard Changes?',
       'Are you sure you want to discard your changes?',
-      [
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => router.back(),
-        },
-        {
-          text: 'Keep Editing',
-          style: 'cancel',
-        },
-      ]
+      () => router.back(),
+      undefined,
+      true // Mark as destructive action
     );
   };
 

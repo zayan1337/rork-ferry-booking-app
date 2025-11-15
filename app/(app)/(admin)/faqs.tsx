@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { useFAQManagement } from '@/hooks/useFAQManagement';
 import { useFAQManagementStore } from '@/store/admin/faqStore';
+import { useAlertContext } from '@/components/AlertProvider';
 import { FAQ, FAQCategory } from '@/types/admin/management';
 import {
   ArrowLeft,
@@ -40,6 +40,7 @@ const isTablet = screenWidth >= 768;
 
 export default function FAQsScreen() {
   const { canViewSettings, canManageSettings } = useAdminPermissions();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
   const {
     faqs,
     categories,
@@ -100,7 +101,7 @@ export default function FAQsScreen() {
     if (canManageSettings()) {
       router.push('./faq/new' as any);
     } else {
-      Alert.alert('Access Denied', "You don't have permission to create FAQs.");
+      showError('Access Denied', "You don't have permission to create FAQs.");
     }
   };
 
@@ -108,41 +109,33 @@ export default function FAQsScreen() {
     if (canManageSettings()) {
       router.push(`./faq/edit/${faqId}` as any);
     } else {
-      Alert.alert('Access Denied', "You don't have permission to edit FAQs.");
+      showError('Access Denied', "You don't have permission to edit FAQs.");
     }
   };
 
   const handleDeleteFAQ = (faqId: string) => {
     if (!canManageSettings()) {
-      Alert.alert('Access Denied', "You don't have permission to delete FAQs.");
+      showError('Access Denied', "You don't have permission to delete FAQs.");
       return;
     }
 
     const faq = getFAQById(faqId);
     if (!faq) return;
 
-    Alert.alert(
+    showConfirmation(
       'Delete FAQ',
       `Are you sure you want to delete "${faq.question}"? This action cannot be undone.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteFAQ(faqId);
-              Alert.alert('Success', 'FAQ deleted successfully');
-            } catch (error) {
-              console.error('Error deleting FAQ:', error);
-              Alert.alert('Error', 'Failed to delete FAQ');
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          await deleteFAQ(faqId);
+          showSuccess('Success', 'FAQ deleted successfully');
+        } catch (error) {
+          console.error('Error deleting FAQ:', error);
+          showError('Error', 'Failed to delete FAQ');
+        }
+      },
+      undefined,
+      true
     );
   };
 
@@ -165,7 +158,7 @@ export default function FAQsScreen() {
     if (canManageSettings()) {
       router.push(`./faq-categories/edit/${categoryId}` as any);
     } else {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to edit categories."
       );
@@ -174,7 +167,7 @@ export default function FAQsScreen() {
 
   const handleDeleteCategory = (categoryId: string) => {
     if (!canManageSettings()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to delete categories."
       );
@@ -184,32 +177,24 @@ export default function FAQsScreen() {
     const category = categories.find(c => c.id === categoryId);
     if (!category) return;
 
-    Alert.alert(
+    showConfirmation(
       'Delete Category',
       `Are you sure you want to delete "${category.name}"? This action cannot be undone.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await useFAQManagementStore.getState().deleteCategory(categoryId);
-              Alert.alert('Success', 'Category deleted successfully');
-            } catch (error) {
-              console.error('Error deleting category:', error);
-              const errorMessage =
-                error instanceof Error
-                  ? error.message
-                  : 'Failed to delete category';
-              Alert.alert('Error', errorMessage);
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          await useFAQManagementStore.getState().deleteCategory(categoryId);
+          showSuccess('Success', 'Category deleted successfully');
+        } catch (error) {
+          console.error('Error deleting category:', error);
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : 'Failed to delete category';
+          showError('Error', errorMessage);
+        }
+      },
+      undefined,
+      true
     );
   };
 

@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+// Alert functions will be passed as parameters
 import type { UserProfile } from '@/types/userManagement';
 import type { FileType, ExportFilter } from '@/components/admin/ExportModal';
 import {
@@ -19,7 +19,9 @@ import {
  */
 export const exportUsers = async (
   users: UserProfile[],
-  filters: ExportFilter
+  filters: ExportFilter,
+  onError?: (title: string, message: string) => void,
+  onSuccess?: (title: string, message: string) => void
 ): Promise<void> => {
   try {
     // Filter users by date range (using created_at field)
@@ -34,7 +36,9 @@ export const exportUsers = async (
     filteredUsers = filterByRoles(filteredUsers, filters.selectedRoles);
 
     if (filteredUsers.length === 0) {
-      Alert.alert('No Data', 'No users found matching the selected filters.');
+      if (onError) {
+        onError('No Data', 'No users found matching the selected filters.');
+      }
       return;
     }
 
@@ -110,10 +114,12 @@ export const exportUsers = async (
     const mimeType = getMimeType(filters.fileType);
     await saveAndShareFile(content, fileName, mimeType);
 
-    Alert.alert(
-      'Export Successful',
-      `Exported ${filteredUsers.length} user(s) successfully.`
-    );
+    if (onSuccess) {
+      onSuccess(
+        'Export Successful',
+        `Exported ${filteredUsers.length} user(s) successfully.`
+      );
+    }
   } catch (error) {
     console.error('Export error:', error);
     throw error;
@@ -125,7 +131,8 @@ export const exportUsers = async (
  */
 export const exportUserStats = async (
   stats: any,
-  fileType: FileType = 'excel'
+  fileType: FileType = 'excel',
+  onSuccess?: (title: string, message: string) => void
 ): Promise<void> => {
   try {
     const headers = ['Metric', 'Value'];
@@ -164,7 +171,9 @@ export const exportUserStats = async (
     const mimeType = getMimeType(fileType);
     await saveAndShareFile(content, fileName, mimeType);
 
-    Alert.alert('Export Successful', 'User statistics exported successfully.');
+    if (onSuccess) {
+      onSuccess('Export Successful', 'User statistics exported successfully.');
+    }
   } catch (error) {
     console.error('Export stats error:', error);
     throw error;

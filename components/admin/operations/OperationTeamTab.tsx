@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import {
   useOperationTeamManagement,
   OperationTeamMember,
@@ -26,6 +27,7 @@ export default function OperationTeamTab({
   searchQuery = '',
 }: OperationTeamTabProps) {
   const { canViewOperations, canManageOperations } = useAdminPermissions();
+  const { showError, showSuccess } = useAlertContext();
   const {
     members,
     filteredMembers,
@@ -76,9 +78,9 @@ export default function OperationTeamTab({
   const handleDeleteMember = async (id: string) => {
     const result = await deleteMember(id);
     if (result.success) {
-      Alert.alert('Success', 'Operation team member deleted successfully');
+      showSuccess('Success', 'Operation team member deleted successfully');
     } else {
-      Alert.alert(
+      showError(
         'Error',
         result.error || 'Failed to delete operation team member'
       );
@@ -88,7 +90,7 @@ export default function OperationTeamTab({
   const handleToggleActive = async (id: string, isActive: boolean) => {
     const result = await toggleActive(id, isActive);
     if (!result.success) {
-      Alert.alert('Error', result.error || 'Failed to update member status');
+      showError('Error', result.error || 'Failed to update member status');
     }
   };
 
@@ -98,10 +100,7 @@ export default function OperationTeamTab({
   ) => {
     const result = await toggleReceiveManifests(id, receiveManifests);
     if (!result.success) {
-      Alert.alert(
-        'Error',
-        result.error || 'Failed to update manifest settings'
-      );
+      showError('Error', result.error || 'Failed to update manifest settings');
     }
   };
 
@@ -110,10 +109,15 @@ export default function OperationTeamTab({
       // Update existing member
       const result = await updateMember(selectedMember.id, data);
       if (result.success) {
-        Alert.alert('Success', 'Operation team member updated successfully');
-        setShowModal(false);
+        showSuccess(
+          'Success',
+          'Operation team member updated successfully',
+          () => {
+            setShowModal(false);
+          }
+        );
       } else {
-        Alert.alert(
+        showError(
           'Error',
           result.error || 'Failed to update operation team member'
         );
@@ -124,10 +128,15 @@ export default function OperationTeamTab({
         data as Omit<OperationTeamMember, 'id' | 'created_at' | 'updated_at'>
       );
       if (result.success) {
-        Alert.alert('Success', 'Operation team member added successfully');
-        setShowModal(false);
+        showSuccess(
+          'Success',
+          'Operation team member added successfully',
+          () => {
+            setShowModal(false);
+          }
+        );
       } else {
-        Alert.alert(
+        showError(
           'Error',
           result.error || 'Failed to add operation team member'
         );

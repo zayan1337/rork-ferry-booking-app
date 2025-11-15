@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useBookingStore } from '@/store';
 import Colors from '@/constants/colors';
+import { useAlertContext } from '@/components/AlertProvider';
 import CalendarDatePicker from '@/components/CalendarDatePicker';
 import Dropdown from '@/components/Dropdown';
 import Button from '@/components/Button';
@@ -17,6 +18,7 @@ interface IslandDateStepProps {
 }
 
 export default function IslandDateStep({ onFindTrips }: IslandDateStepProps) {
+  const { showError } = useAlertContext();
   const {
     currentBooking,
     setTripType,
@@ -76,7 +78,7 @@ export default function IslandDateStep({ onFindTrips }: IslandDateStepProps) {
       setAllIslands(islands);
     } catch (error) {
       console.error('Error loading islands:', error);
-      Alert.alert('Error', 'Failed to load islands');
+      showError('Error', 'Failed to load islands');
     } finally {
       setLoadingIslands(false);
     }

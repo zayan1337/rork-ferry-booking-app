@@ -109,6 +109,80 @@ serve(async req => {
     );
   }
 });
+async function syncReturnBookingStatus(
+  supabase,
+  primaryBookingId,
+  bookingStatus,
+  paymentStatus
+) {
+  try {
+    const { data: bookingLink, error: linkError } = await supabase
+      .from('bookings')
+      .select('return_booking_id')
+      .eq('id', primaryBookingId)
+      .maybeSingle();
+
+    if (linkError) {
+      console.warn('[MIB] Failed to lookup return booking linkage:', linkError);
+      return;
+    }
+
+    const returnBookingId = bookingLink?.return_booking_id;
+    if (!returnBookingId) {
+      return;
+    }
+
+    if (bookingStatus) {
+      const { error: returnBookingUpdateError } = await supabase
+        .from('bookings')
+        .update({
+          status: bookingStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', returnBookingId);
+
+      if (returnBookingUpdateError) {
+        console.warn(
+          '[MIB] Failed to update return booking status:',
+          returnBookingUpdateError
+        );
+      }
+    }
+
+    if (paymentStatus) {
+      const paymentUpdatePayload: Record<string, any> = {
+        status: paymentStatus,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (
+        paymentStatus === 'completed' ||
+        paymentStatus === 'failed' ||
+        paymentStatus === 'cancelled'
+      ) {
+        paymentUpdatePayload.transaction_date = new Date().toISOString();
+      }
+
+      const { error: returnPaymentUpdateError } = await supabase
+        .from('payments')
+        .update(paymentUpdatePayload)
+        .eq('booking_id', returnBookingId)
+        .eq('payment_method', 'mib');
+
+      if (returnPaymentUpdateError) {
+        console.warn(
+          '[MIB] Failed to update return booking payment status:',
+          returnPaymentUpdateError
+        );
+      }
+    }
+  } catch (error) {
+    console.warn(
+      '[MIB] Unexpected error syncing return booking status:',
+      error
+    );
+  }
+}
 // Create a basic session (Step 1: Establish a Session)
 async function createMibSession(
   supabase,
@@ -410,6 +484,12 @@ async function updatePaymentStatus(supabase, bookingId) {
             ? 'cancelled'
             : 'pending_payment',
     };
+    await syncReturnBookingStatus(
+      supabase,
+      bookingId,
+      finalResponse.bookingStatus,
+      finalResponse.paymentStatus
+    );
     return new Response(JSON.stringify(finalResponse), {
       headers: {
         ...corsHeaders,
@@ -511,6 +591,12 @@ async function processPaymentResult(supabase, resultData) {
           sessionId: sessionId,
           note: 'Updated booking directly (no payment record found)',
         };
+        await syncReturnBookingStatus(
+          supabase,
+          bookingId,
+          bookingStatus,
+          paymentStatus
+        );
         return new Response(JSON.stringify(finalResponse), {
           headers: {
             ...corsHeaders,
@@ -592,6 +678,12 @@ async function processPaymentResult(supabase, resultData) {
       bookingId: payment.booking_id,
       sessionId: sessionId,
     };
+    await syncReturnBookingStatus(
+      supabase,
+      payment.booking_id,
+      bookingStatus,
+      paymentStatus
+    );
     return new Response(JSON.stringify(finalResponse), {
       headers: {
         ...corsHeaders,

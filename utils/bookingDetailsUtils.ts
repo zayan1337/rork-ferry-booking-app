@@ -1,4 +1,4 @@
-import { Share, Alert } from 'react-native';
+import { Share } from 'react-native';
 import Colors from '@/constants/colors';
 
 // Formatting utilities
@@ -31,7 +31,10 @@ export const getStatusColor = (status: string) => {
 };
 
 // Share functionality
-export const shareBookingTicket = async (booking: any) => {
+export const shareBookingTicket = async (
+  booking: any,
+  onError?: (title: string, message: string) => void
+) => {
   try {
     const shareMessage =
       `Crystal Transfer Vaavu Booking #${booking.bookingNumber}\n` +
@@ -48,7 +51,9 @@ export const shareBookingTicket = async (booking: any) => {
       title: `Ferry Ticket #${booking.bookingNumber}`,
     });
   } catch (error) {
-    Alert.alert('Error', 'Could not share the ticket');
+    if (onError) {
+      onError('Error', 'Could not share the ticket');
+    }
   }
 };
 

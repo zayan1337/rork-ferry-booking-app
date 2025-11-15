@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,12 @@ import type { Booking, BookingStatus } from '@/types';
 import Colors from '@/constants/colors';
 import BookingCard from '@/components/BookingCard';
 import Input from '@/components/Input';
+import { useAuthStore } from '@/store/authStore';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function BookingsScreen() {
+  const { isAuthenticated, isGuestMode } = useAuthStore();
+  const { showError } = useAlertContext();
   const { bookings, fetchUserBookings, isLoading } = useUserBookingsStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>(
@@ -23,39 +27,61 @@ export default function BookingsScreen() {
   );
 
   useEffect(() => {
+    if (isGuestMode || !isAuthenticated) {
+      showError(
+        'Login Required',
+        'Please sign in to view your booking history.'
+      );
+      router.replace('/(auth)' as any);
+      return;
+    }
     fetchUserBookings();
+  }, [fetchUserBookings, isGuestMode, isAuthenticated, showError, router]);
+
+  const handleRefresh = useCallback(() => {
+    fetchUserBookings();
+  }, [fetchUserBookings]);
+
+  const handleViewBooking = useCallback((booking: Booking) => {
+    router.push(`/booking-details/${booking.id}`);
   }, []);
 
-  const handleRefresh = () => {
-    fetchUserBookings();
-  };
+  const filteredBookings = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-  const handleViewBooking = (booking: Booking) => {
-    router.push(`/booking-details/${booking.id}`);
-  };
+    return bookings.filter((booking: Booking) => {
+      const matchesSearch =
+        query === '' ||
+        booking.bookingNumber.toLowerCase().includes(query) ||
+        booking.route.fromIsland.name.toLowerCase().includes(query) ||
+        booking.route.toIsland.name.toLowerCase().includes(query);
 
-  // Filter bookings based on search query and status filter
-  const filteredBookings = bookings.filter((booking: any) => {
-    const matchesSearch =
-      searchQuery === '' ||
-      booking.bookingNumber.includes(searchQuery) ||
-      booking.route.fromIsland.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      booking.route.toIsland.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        statusFilter === 'all' || booking.status === statusFilter;
 
-    const matchesStatus =
-      statusFilter === 'all' || booking.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [bookings, searchQuery, statusFilter]);
 
-    return matchesSearch && matchesStatus;
-  });
-
-  // Sort bookings by date (newest first)
-  const sortedBookings = [...filteredBookings].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  const sortedBookings = useMemo(
+    () =>
+      [...filteredBookings].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+    [filteredBookings]
   );
+
+  const renderBookingItem = useCallback(
+    ({ item }: { item: Booking }) => (
+      <BookingCard booking={item} onPress={() => handleViewBooking(item)} />
+    ),
+    [handleViewBooking]
+  );
+
+  if (isGuestMode || !isAuthenticated) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
@@ -152,9 +178,7 @@ export default function BookingsScreen() {
       <FlatList
         data={sortedBookings}
         keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <BookingCard booking={item} onPress={() => handleViewBooking(item)} />
-        )}
+        renderItem={renderBookingItem}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />

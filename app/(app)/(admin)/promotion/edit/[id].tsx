@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -22,11 +15,13 @@ import PromotionForm, {
 } from '@/components/admin/operations/PromotionForm';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import Button from '@/components/admin/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function EditPromotionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canManageContent } = useAdminPermissions();
   const { promotions, updatePromotion, refreshAll } = useContentManagement();
+  const { showSuccess, showError } = useAlertContext();
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,16 +68,13 @@ export default function EditPromotionScreen() {
 
       await updatePromotion(promotion.id, promotionData);
 
-      Alert.alert('Success', 'Promotion updated successfully!', [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]);
+      showSuccess('Success', 'Promotion updated successfully!', () =>
+        router.back()
+      );
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update promotion';
-      Alert.alert('Error', errorMessage);
+      showError('Error', errorMessage);
       throw error;
     } finally {
       setIsUpdating(false);

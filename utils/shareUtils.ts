@@ -1,4 +1,4 @@
-import { Share, Alert, Platform } from 'react-native';
+import { Share, Platform } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { File } from 'expo-file-system';
@@ -63,10 +63,12 @@ export const shareBookingTicketAsImage = async (
 /**
  * Share booking ticket information as text (fallback)
  * @param booking - Booking object to share
+ * @param onError - Optional error handler function
  * @returns Promise that resolves when sharing is complete
  */
 export const shareBookingTicketAsText = async (
-  booking: Booking
+  booking: Booking,
+  onError?: (title: string, message: string) => void
 ): Promise<void> => {
   try {
     const message = `Crystal Transfer Vaavu Booking #${booking.bookingNumber}
@@ -88,7 +90,9 @@ ${booking.qrCodeUrl ? `QR Code: ${booking.qrCodeUrl}` : ''}`;
 
     await Share.share(shareOptions);
   } catch (error) {
-    Alert.alert('Error', 'Could not share the ticket');
+    if (onError) {
+      onError('Error', 'Could not share the ticket');
+    }
   }
 };
 
@@ -96,15 +100,17 @@ ${booking.qrCodeUrl ? `QR Code: ${booking.qrCodeUrl}` : ''}`;
  * Main share function - attempts image share first, falls back to text
  * @param booking - Booking object to share
  * @param ticketRef - Optional reference to the TicketDesign component
+ * @param onError - Optional error handler function
  * @returns Promise that resolves when sharing is complete
  */
 export const shareBookingTicket = async (
   booking: Booking,
-  ticketRef?: React.RefObject<any>
+  ticketRef?: React.RefObject<any>,
+  onError?: (title: string, message: string) => void
 ): Promise<void> => {
   if (ticketRef?.current) {
     await shareBookingTicketAsImage(booking, ticketRef);
   } else {
-    await shareBookingTicketAsText(booking);
+    await shareBookingTicketAsText(booking, onError);
   }
 };

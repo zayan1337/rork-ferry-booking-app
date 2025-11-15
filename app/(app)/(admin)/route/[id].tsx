@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   Dimensions,
   RefreshControl,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { colors } from '@/constants/adminColors';
 // UPDATED: Use new route management hook instead of operations store
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from '@/types';
 import type { RouteStop, RouteSegmentFare } from '@/types/multiStopRoute';
@@ -50,6 +50,7 @@ export default function RouteDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canViewRoutes, canUpdateRoutes, canDeleteRoutes } =
     useAdminPermissions();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   // UPDATED: Use new route management hook
   const {
@@ -96,8 +97,7 @@ export default function RouteDetailsScreen() {
         }
       }
     } catch (error) {
-      console.error('Error loading route:', error);
-      Alert.alert('Error', 'Failed to load route details');
+      showError('Error', 'Failed to load route details');
     }
   };
 
@@ -122,7 +122,7 @@ export default function RouteDetailsScreen() {
     try {
       await updateRouteSegmentFare(fareId, newAmount);
       await loadMultiStopData(); // Reload data
-      Alert.alert('Success', 'Segment fare updated successfully');
+      showSuccess('Success', 'Segment fare updated successfully');
     } catch (error) {
       throw error;
     }
@@ -159,49 +159,41 @@ export default function RouteDetailsScreen() {
     if (canUpdateRoutes()) {
       router.push(`../route/${id}/edit` as any);
     } else {
-      Alert.alert('Access Denied', "You don't have permission to edit routes.");
+      showError('Access Denied', "You don't have permission to edit routes.");
     }
   };
 
   const handleDelete = () => {
     if (!canDeleteRoutes()) {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to delete routes."
-      );
+      showError('Access Denied', "You don't have permission to delete routes.");
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Delete Route',
       `Are you sure you want to delete the route "${routeData?.name}"? This action cannot be undone and will affect all associated trips and bookings.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              if (id) {
-                await remove(id);
-                Alert.alert('Success', 'Route deleted successfully.');
-                router.back();
-              }
-            } catch (error) {
-              console.error('Error deleting route:', error);
-              Alert.alert(
-                'Error',
-                error instanceof Error
-                  ? error.message
-                  : 'Failed to delete route. There may be active bookings on this route.'
-              );
-            } finally {
-              setIsDeleting(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        setIsDeleting(true);
+        try {
+          if (id) {
+            await remove(id);
+            showSuccess('Success', 'Route deleted successfully.', () =>
+              router.back()
+            );
+          }
+        } catch (error) {
+          showError(
+            'Error',
+            error instanceof Error
+              ? error.message
+              : 'Failed to delete route. There may be active bookings on this route.'
+          );
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

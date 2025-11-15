@@ -1,33 +1,25 @@
 import React from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Alert,
-  Text,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { ArrowLeft, FileText } from 'lucide-react-native';
 import TermsForm from '@/components/admin/operations/TermsForm';
 import Button from '@/components/admin/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function NewTermScreen() {
   const { canManageContent } = useAdminPermissions();
+  const { showSuccess, showError } = useAlertContext();
 
   const handleSuccess = () => {
-    Alert.alert('Success', 'Terms and conditions created successfully!', [
-      {
-        text: 'OK',
-        onPress: () => router.replace('./terms' as any),
-      },
-    ]);
+    showSuccess('Success', 'Terms and conditions created successfully!', () =>
+      router.replace('./terms' as any)
+    );
   };
 
   const handleError = (error: string) => {
-    Alert.alert('Error', error);
+    showError('Error', error);
   };
 
   if (!canManageContent()) {

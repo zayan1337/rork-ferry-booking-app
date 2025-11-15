@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import {
   Stack,
   router,
@@ -11,12 +11,14 @@ import { TripForm } from '@/components/admin/operations';
 import { AdminManagement } from '@/types';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { ArrowLeft } from 'lucide-react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 
 type TripFormData = AdminManagement.TripFormData;
 
 export default function EditTripPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canManageTrips } = useAdminPermissions();
+  const { showError, showSuccess } = useAlertContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Reset state when page is focused
@@ -29,9 +31,7 @@ export default function EditTripPage() {
   // Handle missing trip ID
   useEffect(() => {
     if (!id) {
-      Alert.alert('Error', 'Trip ID not found', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      showError('Error', 'Trip ID not found', () => router.back());
     }
   }, [id]);
 
@@ -41,12 +41,9 @@ export default function EditTripPage() {
     setIsSubmitting(true);
     try {
       // The TripForm component now handles validation and updating
-      Alert.alert('Success', 'Trip updated successfully!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      showSuccess('Success', 'Trip updated successfully!', () => router.back());
     } catch (error) {
-      console.error('Error updating trip:', error);
-      Alert.alert('Error', 'Failed to update trip. Please try again.');
+      showError('Error', 'Failed to update trip. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

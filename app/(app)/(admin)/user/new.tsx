@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Text,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { ArrowLeft, AlertCircle } from 'lucide-react-native';
@@ -18,29 +11,24 @@ import { UserFormData } from '@/types/userManagement';
 // Components
 import UserForm from '@/components/admin/users/UserForm';
 import Button from '@/components/admin/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function NewUserScreen() {
   const { canCreateUsers } = useAdminPermissions();
   const { create, loading } = useUserManagement();
+  const { showSuccess, showError } = useAlertContext();
 
   const handleSuccess = async (userData: UserFormData): Promise<void> => {
     try {
       // Create the user
       await create(userData);
 
-      Alert.alert('Success', 'User created successfully!', [
-        {
-          text: 'Create Another',
-          onPress: () => router.replace('/user/new'),
-        },
-        {
-          text: 'Back to List',
-          onPress: () => router.back(),
-        },
-      ]);
+      showSuccess('Success', 'User created successfully!', () => {
+        // Navigate back - user can create another from the list if needed
+        router.back();
+      });
     } catch (error) {
-      console.error('Error creating user:', error);
-      Alert.alert('Error', 'Failed to create user. Please try again.');
+      showError('Error', 'Failed to create user. Please try again.');
     }
   };
 

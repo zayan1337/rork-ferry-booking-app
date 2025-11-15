@@ -35,6 +35,12 @@ interface AdminBookingState {
   fetchBooking: (id: string) => Promise<AdminBooking | null>;
   createBooking: (data: AdminBookingFormData) => Promise<string>;
   updateBooking: (id: string, updates: Partial<AdminBooking>) => Promise<void>;
+  updatePaymentStatus: (
+    bookingId: string,
+    status: string,
+    amount?: number,
+    paymentMethod?: string
+  ) => Promise<void>;
   deleteBooking: (id: string) => Promise<void>;
   updateBookingStatus: (id: string, status: BookingStatus) => Promise<void>;
   bulkUpdateStatus: (ids: string[], status: BookingStatus) => Promise<void>;
@@ -520,6 +526,64 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
       set({
         error:
           error instanceof Error ? error.message : 'Failed to update booking',
+        updating: false,
+      });
+      throw error;
+    }
+  },
+
+  updatePaymentStatus: async (
+    bookingId: string,
+    status: string,
+    amount?: number,
+    paymentMethod?: string
+  ) => {
+    set({ updating: true, error: null });
+
+    try {
+      const updates: Record<string, any> = {
+        status,
+      };
+
+      if (amount !== undefined) {
+        updates.amount = amount;
+      }
+
+      const { data: payments, error } = await supabase
+        .from('payments')
+        .update(updates)
+        .eq('booking_id', bookingId)
+        .select('id');
+
+      if (error) throw error;
+
+      // If no payment rows were affected, create one
+      if (!payments || payments.length === 0) {
+        const methodToUse = paymentMethod || 'gateway';
+        const insertData: Record<string, any> = {
+          booking_id: bookingId,
+          status,
+          payment_method: methodToUse,
+          amount: amount ?? 0,
+        };
+
+        const { error: insertError } = await supabase
+          .from('payments')
+          .insert(insertData);
+
+        if (insertError) throw insertError;
+      }
+
+      // Refresh the booking to reflect payment changes
+      await get().fetchBooking(bookingId);
+      set({ updating: false });
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      set({
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to update payment status',
         updating: false,
       });
       throw error;

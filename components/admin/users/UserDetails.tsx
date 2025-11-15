@@ -5,10 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { UserProfile } from '@/types/userManagement';
 import {
   formatUserDisplayName,
@@ -62,20 +62,18 @@ export default function UserDetails({
   onViewBookings,
   showActions = true,
 }: UserDetailsProps) {
+  const { showConfirmation } = useAlertContext();
   const isTablet = screenWidth >= 768;
 
   const handleArchive = () => {
-    Alert.alert(
+    showConfirmation(
       'Archive User',
       `Are you sure you want to archive "${user.name}"? This will disable their account.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          style: 'destructive',
-          onPress: onArchive,
-        },
-      ]
+      () => {
+        onArchive?.();
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

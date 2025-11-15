@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   Keyboard,
   Pressable,
   ActivityIndicator,
@@ -42,6 +41,7 @@ import { getBookingSegment } from '@/utils/segmentBookingUtils';
 import { getRouteStops } from '@/utils/segmentUtils';
 import type { RouteStop } from '@/types/multiStopRoute';
 import Input from '@/components/Input';
+import { useAlertContext } from '@/components/AlertProvider';
 
 type RefundMethod = 'original_payment' | 'bank_transfer' | 'credit_note';
 
@@ -61,6 +61,7 @@ export default function AdminCancelBookingScreen() {
     error: storeError,
   } = useAdminBookingStore();
   const { canUpdateBookings } = useAdminPermissions();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   // Ensure id is a string
   const bookingId = Array.isArray(id) ? id[0] : id;
@@ -260,7 +261,7 @@ export default function AdminCancelBookingScreen() {
 
   const handleCancel = async () => {
     if (!booking || !canUpdateBookings()) {
-      Alert.alert('Error', 'You do not have permission to cancel bookings');
+      showError('Error', 'You do not have permission to cancel bookings');
       return;
     }
 
@@ -272,24 +273,19 @@ export default function AdminCancelBookingScreen() {
     if (
       !['reserved', 'pending_payment', 'confirmed'].includes(booking.status)
     ) {
-      Alert.alert(
+      showError(
         'Cannot Cancel',
         'This booking cannot be cancelled in its current status'
       );
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Confirm Cancellation',
       `Are you sure you want to cancel booking #${booking.booking_number}? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: performCancellation,
-        },
-      ]
+      performCancellation,
+      undefined,
+      true // Mark as destructive action
     );
   };
 
@@ -304,19 +300,13 @@ export default function AdminCancelBookingScreen() {
       // Here you would typically create a cancellation record in the database
       // For now, we'll just show success and navigate back
 
-      Alert.alert(
+      showSuccess(
         'Booking Cancelled',
         `Booking #${booking.booking_number} has been successfully cancelled.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
+        () => router.back()
       );
     } catch (error) {
-      console.error('Error cancelling booking:', error);
-      Alert.alert('Error', 'Failed to cancel booking. Please try again.');
+      showError('Error', 'Failed to cancel booking. Please try again.');
     } finally {
       setIsCancelling(false);
     }

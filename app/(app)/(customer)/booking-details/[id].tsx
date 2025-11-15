@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   Pressable,
   Modal,
 } from 'react-native';
@@ -39,10 +38,12 @@ import { shareBookingTicket } from '@/utils/shareUtils';
 import { formatBookingDate } from '@/utils/dateUtils';
 import { formatPaymentMethod } from '@/utils/paymentUtils';
 import { formatTimeAMPM } from '@/utils/dateUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
   const { bookings, fetchUserBookings } = useUserBookingsStore();
+  const { showError, showInfo } = useAlertContext();
   const ticketDesignRef = useRef<any>(null);
   const imageGenerationTicketRef = useRef<any>(null); // Separate ref for image generation
   const [showTicketPopup, setShowTicketPopup] = useState(false);
@@ -101,11 +102,11 @@ export default function BookingDetailsScreen() {
       await new Promise(resolve => setTimeout(resolve, 300));
 
       // Use the robust shareUtils function with image generation TicketDesign ref
-      await shareBookingTicket(booking, imageGenerationTicketRef);
+      await shareBookingTicket(booking, imageGenerationTicketRef, showError);
 
       setShowTicketPopup(false);
     } catch (error) {
-      Alert.alert('Sharing Error', 'Failed to share ticket. Please try again.');
+      showError('Sharing Error', 'Failed to share ticket. Please try again.');
     } finally {
       setIsSharing(false);
     }
@@ -117,7 +118,7 @@ export default function BookingDetailsScreen() {
 
   const handleModifyBooking = () => {
     if (!isModifiable) {
-      Alert.alert(
+      showInfo(
         'Cannot Modify',
         'Bookings can only be modified at least 72 hours before departure time.'
       );
@@ -129,7 +130,7 @@ export default function BookingDetailsScreen() {
 
   const handleCancelBooking = () => {
     if (!isCancellable) {
-      Alert.alert(
+      showInfo(
         'Cannot Cancel',
         'Bookings can only be cancelled at least 48 hours before departure time.'
       );
@@ -575,7 +576,7 @@ export default function BookingDetailsScreen() {
           <View style={styles.contactItem}>
             <Globe size={14} color={Colors.primary} />
             <Text style={styles.contactText}>
-              Website: www.crystaltransfer.mv
+              Website: www.crystalhotels.mv
             </Text>
           </View>
           <View style={styles.contactItem}>

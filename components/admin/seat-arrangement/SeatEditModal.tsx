@@ -6,11 +6,11 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  Alert,
   TextInput as RNTextInput,
   Dimensions,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { AdminManagement } from '@/types';
 import Switch from '@/components/admin/Switch';
 import {
@@ -64,6 +64,7 @@ export default function SeatEditModal({
   onDelete,
   onCancel,
 }: SeatEditModalProps) {
+  const { showError, showConfirmation } = useAlertContext();
   const [editedSeat, setEditedSeat] = useState<Seat | null>(null);
   const [isNewSeat, setIsNewSeat] = useState(false);
 
@@ -82,12 +83,12 @@ export default function SeatEditModal({
   const handleSave = () => {
     // Validate required fields
     if (!editedSeat.seat_number.trim()) {
-      Alert.alert('Error', 'Seat number is required');
+      showError('Error', 'Seat number is required');
       return;
     }
 
     if (editedSeat.row_number <= 0 || (editedSeat.position_x || 1) <= 0) {
-      Alert.alert('Error', 'Row and column numbers must be greater than 0');
+      showError('Error', 'Row and column numbers must be greater than 0');
       return;
     }
 
@@ -104,21 +105,17 @@ export default function SeatEditModal({
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    showConfirmation(
       'Delete Seat',
       `Are you sure you want to delete seat ${editedSeat.seat_number}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            if (onDelete && editedSeat.id) {
-              onDelete(editedSeat.id);
-            }
-          },
-        },
-      ]
+      () => {
+        if (onDelete && editedSeat.id) {
+          onDelete(editedSeat.id);
+        }
+        onCancel();
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 import { AdminManagement } from '@/types';
 import {
   Plus,
@@ -30,6 +31,7 @@ export default function RoutesTab({
   searchQuery = '',
 }: RoutesTabProps) {
   const { canViewRoutes, canManageRoutes } = useAdminPermissions();
+  const { showError } = useAlertContext();
   const {
     routes: allRoutes,
     stats: routeStats,
@@ -94,10 +96,7 @@ export default function RoutesTab({
       // Go directly to the unified route form
       router.push('../route/new' as any);
     } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to create routes."
-      );
+      showError('Access Denied', "You don't have permission to create routes.");
     }
   };
 

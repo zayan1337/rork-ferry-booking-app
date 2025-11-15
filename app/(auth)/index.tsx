@@ -10,9 +10,10 @@ import {
   ScrollView,
   BackHandler,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
+import LogoImage from '@/assets/images/logo.jpg';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
@@ -28,8 +29,15 @@ export default function LoginScreen() {
     password: '',
   });
 
-  const { login, isAuthenticated, isLoading, error, clearError } =
-    useAuthStore();
+  const {
+    login,
+    isAuthenticated,
+    isLoading,
+    error,
+    clearError,
+    isAuthenticating,
+    enableGuestMode,
+  } = useAuthStore();
   const [isNavigating, setIsNavigating] = useState(false);
 
   // Reset navigation state when component mounts
@@ -37,21 +45,18 @@ export default function LoginScreen() {
     setIsNavigating(false);
   }, []);
 
-  // Clear errors when screen gains focus
-  useFocusEffect(
-    React.useCallback(() => {
-      clearError();
-    }, [clearError])
-  );
+  // Don't auto-clear errors on focus - let them persist until user interaction
+  // This ensures login errors remain visible after failed attempts
 
   useEffect(() => {
-    // If user is authenticated and has profile, redirect to appropriate portal
+    // If user is authenticated, set navigating state to show loading
+    // The root layout will handle navigation automatically
     if (isAuthenticated && !isNavigating) {
       setIsNavigating(true);
-      // Let the app layout handle the role-based navigation
-      router.replace('/(app)' as any);
+      // Don't manually navigate - let the root layout handle it
+      // This prevents navigation conflicts and app crashes
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isNavigating]);
 
   // Prevent going back if authenticated
   useEffect(() => {
@@ -110,8 +115,8 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    // Prevent multiple attempts while loading or navigating
-    if (isLoading || isNavigating) {
+    // Prevent multiple attempts while authenticating or navigating
+    if (isAuthenticating || isNavigating) {
       return;
     }
 
@@ -126,6 +131,9 @@ export default function LoginScreen() {
     // Attempt login
     try {
       await login(formData.username, formData.password);
+      // If login succeeds, isAuthenticated will be true and navigation will happen
+      // Set navigating state to show loading during redirect
+      setIsNavigating(true);
     } catch (err) {
       // Reset navigation state if login fails
       setIsNavigating(false);
@@ -133,9 +141,18 @@ export default function LoginScreen() {
   };
 
   const handleNavigation = (path: 'register' | 'forgotPassword') => {
-    if (!isNavigating && !isLoading) {
+    if (!isAuthenticating && !isNavigating) {
       router.push(path as any);
     }
+  };
+
+  const handleContinueAsGuest = () => {
+    if (isAuthenticating || isNavigating) {
+      return;
+    }
+
+    enableGuestMode();
+    router.replace('/(app)/(customer)/(tabs)' as any);
   };
 
   return (
@@ -149,13 +166,11 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps='handled'
       >
         <View style={styles.logoContainer}>
-          <Image
-            source={require('@/assets/images/logo.jpg')}
-            style={styles.logo}
-            resizeMode='cover'
-          />
+          <Image source={LogoImage} style={styles.logo} />
           <Text style={styles.appName}>Crystal Transfer Vaavu</Text>
-          <Text style={styles.tagline}>Your gateway to island adventures</Text>
+          <Text style={styles.tagline}>
+            Seamless comfort and convenience in travelling
+          </Text>
         </View>
 
         <Card variant='elevated' style={styles.card}>
@@ -175,7 +190,7 @@ export default function LoginScreen() {
             error={errors.username}
             autoCapitalize='none'
             keyboardType='email-address'
-            disabled={isLoading || isNavigating}
+            disabled={isAuthenticating || isNavigating}
             required
           />
 
@@ -186,13 +201,13 @@ export default function LoginScreen() {
             onChangeText={text => updateFormData('password', text)}
             secureTextEntry
             error={errors.password}
-            disabled={isLoading || isNavigating}
+            disabled={isAuthenticating || isNavigating}
             required
           />
 
           <Pressable
             style={styles.forgotPasswordContainer}
-            disabled={isLoading || isNavigating}
+            disabled={isAuthenticating || isNavigating}
             onPress={() => handleNavigation('forgotPassword')}
           >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
@@ -201,16 +216,30 @@ export default function LoginScreen() {
           <Button
             title='Login'
             onPress={handleLogin}
-            loading={isLoading || isNavigating}
-            disabled={isLoading || isNavigating}
+            loading={isAuthenticating || isNavigating}
+            disabled={isAuthenticating || isNavigating}
             fullWidth
             style={styles.loginButton}
+          />
+
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Button
+            title='Continue as Guest'
+            onPress={handleContinueAsGuest}
+            disabled={isAuthenticating || isNavigating}
+            fullWidth
+            variant='outline'
           />
 
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Don't have an account? </Text>
             <Pressable
-              disabled={isLoading || isNavigating}
+              disabled={isAuthenticating || isNavigating}
               onPress={() => handleNavigation('register')}
             >
               <Text style={styles.registerLink}>Sign Up</Text>
@@ -276,6 +305,22 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 8,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: Colors.textSecondary,
+    fontSize: 14,
   },
   registerContainer: {
     flexDirection: 'row',

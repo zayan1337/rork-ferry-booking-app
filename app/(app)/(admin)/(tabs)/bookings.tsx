@@ -7,7 +7,6 @@ import {
   View,
   Dimensions,
   Pressable,
-  Alert,
   FlatList,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
@@ -47,6 +46,7 @@ import AdminBookingItem from '@/components/admin/AdminBookingItem';
 import { AdminBooking } from '@/types/admin/management';
 import ExportModal, { type ExportFilter } from '@/components/admin/ExportModal';
 import { exportBookings } from '@/utils/bookingExportUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -57,6 +57,7 @@ export default function BookingsScreen() {
     canUpdateBookings,
     canExportReports,
   } = useAdminPermissions();
+  const { showError, showSuccess } = useAlertContext();
 
   const {
     // Data
@@ -160,7 +161,7 @@ export default function BookingsScreen() {
     if (canExportReports()) {
       setShowExportModal(true);
     } else {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to export reports."
       );
@@ -169,10 +170,9 @@ export default function BookingsScreen() {
 
   const handleExportConfirm = async (filters: ExportFilter) => {
     try {
-      await exportBookings(bookings, filters);
+      await exportBookings(bookings, filters, showError, showSuccess);
     } catch (error) {
-      console.error('Export error:', error);
-      Alert.alert(
+      showError(
         'Export Failed',
         'Failed to export bookings. Please try again.'
       );

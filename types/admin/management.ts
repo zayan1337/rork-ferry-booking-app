@@ -1412,7 +1412,7 @@ export interface TripStoreActions
 // ============================================================================
 
 export interface UseTripManagementReturn
-  extends BaseManagementHook<Trip, TripFormData, TripStats> {
+  extends Omit<BaseManagementHook<Trip, TripFormData, TripStats>, 'create'> {
   // Trip-specific data
   trips: Trip[];
   currentTrip: Trip | null;
@@ -1429,6 +1429,9 @@ export interface UseTripManagementReturn
   vessels: Vessel[];
   loadRoutes: () => Promise<void>;
   loadVessels: () => Promise<void>;
+
+  // Override create to return the created trip
+  create: (data: TripFormData) => Promise<Trip>;
 
   // Trip-specific actions
   loadTripsByStatus: (status: string) => Promise<Trip[]>;

@@ -29,6 +29,7 @@ import Button from '@/components/Button';
 import { useContactForm } from '@/hooks/useContactForm';
 import { CONTACT_INFO, FAQS } from '@/constants/customer';
 import { useFaqStore } from '@/store/faqStore';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width } = Dimensions.get('window');
 
@@ -96,6 +97,7 @@ const CategoryChip = React.memo<CategoryChipProps>(
 CategoryChip.displayName = 'CategoryChip';
 
 export default function SupportScreen() {
+  const { showAlert, showInfo } = useAlertContext();
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -186,7 +188,25 @@ export default function SupportScreen() {
   }, []);
 
   const handleCall = () => {
-    Linking.openURL(`tel:${CONTACT_INFO.PHONE}`);
+    // Show options to call either number
+    showAlert({
+      title: 'Call Support',
+      message: 'Choose a number to call:',
+      type: 'info',
+      buttons: [
+        {
+          text: CONTACT_INFO.PHONE,
+          onPress: () => Linking.openURL(`tel:${CONTACT_INFO.PHONE}`),
+          style: 'default',
+        },
+        {
+          text: CONTACT_INFO.PHONE_ALT,
+          onPress: () => Linking.openURL(`tel:${CONTACT_INFO.PHONE_ALT}`),
+          style: 'default',
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    });
   };
 
   const handleEmail = () => {
@@ -195,7 +215,7 @@ export default function SupportScreen() {
 
   const handleChat = () => {
     // In a real app, this would open a chat interface
-    alert('Chat support would open here');
+    showInfo('Chat Support', 'Chat support would open here');
   };
 
   const handleSubmitMessage = async () => {
@@ -250,7 +270,9 @@ export default function SupportScreen() {
             color={Colors.primary}
             style={styles.contactDetailIcon}
           />
-          <Text style={styles.contactDetailText}>{CONTACT_INFO.PHONE}</Text>
+          <Text style={styles.contactDetailText}>
+            {CONTACT_INFO.PHONE} or {CONTACT_INFO.PHONE_ALT}
+          </Text>
         </View>
 
         <View style={styles.contactDetail}>

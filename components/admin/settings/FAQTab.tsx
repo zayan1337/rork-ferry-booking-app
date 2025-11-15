@@ -5,11 +5,11 @@ import {
   StyleSheet,
   Pressable,
   FlatList,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { useFAQManagement } from '@/hooks/useFAQManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { FAQ, FAQCategory } from '@/types/admin/management';
@@ -35,6 +35,7 @@ interface FAQTabProps {
 type TabType = 'categories' | 'faqs';
 
 const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = '' }) => {
+  const { showError } = useAlertContext();
   const { canViewFAQ, canCreateFAQ } = useAdminPermissions();
   const {
     faqs,
@@ -103,7 +104,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = '' }) => {
     if (canCreateFAQ()) {
       router.push('../faq/new' as any);
     } else {
-      Alert.alert('Access Denied', "You don't have permission to create FAQs.");
+      showError('Access Denied', "You don't have permission to create FAQs.");
     }
   };
 
@@ -111,7 +112,7 @@ const FAQTab: React.FC<FAQTabProps> = ({ isActive, searchQuery = '' }) => {
     if (canCreateFAQ()) {
       router.push('../faq-categories/new' as any);
     } else {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to create FAQ categories."
       );

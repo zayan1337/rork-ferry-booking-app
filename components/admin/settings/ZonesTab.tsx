@@ -5,11 +5,11 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { useZoneStore } from '@/store/admin/zoneStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { AdminManagement } from '@/types';
@@ -26,6 +26,7 @@ interface ZonesTabProps {
 }
 
 export default function ZonesTab({ searchQuery = '' }: ZonesTabProps) {
+  const { showError } = useAlertContext();
   const { canManageZones, canViewZones } = useAdminPermissions();
   const zoneStore = useZoneStore();
   const { data: zones, loading, fetchAll } = zoneStore;
@@ -84,10 +85,7 @@ export default function ZonesTab({ searchQuery = '' }: ZonesTabProps) {
     if (canManageZones()) {
       router.push('../zone/new' as any);
     } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to create zones."
-      );
+      showError('Access Denied', "You don't have permission to create zones.");
     }
   };
 

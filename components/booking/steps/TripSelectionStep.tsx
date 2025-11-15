@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useBookingStore } from '@/store';
 import Colors from '@/constants/colors';
+import { useAlertContext } from '@/components/AlertProvider';
 import SegmentTripCard from '@/components/booking/SegmentTripCard';
 import { getTripsForSegment } from '@/utils/segmentBookingUtils';
 import { TRIP_TYPES } from '@/constants/customer';
 import {
   isTripBookable,
-  getTripUnavailableMessage,
+  isTripStatusBookable,
+  validateTripForBooking,
 } from '@/utils/bookingUtils';
+import { BOOKING_BUFFER_MINUTES } from '@/constants/customer';
 
 export default function TripSelectionStep() {
+  const { showError, showWarning } = useAlertContext();
   const {
     currentBooking,
     setTrip,
@@ -29,12 +33,12 @@ export default function TripSelectionStep() {
   const [returnAvailableTrips, setReturnAvailableTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadTrips();
-  }, []);
-
-  const loadTrips = async () => {
+  const loadTrips = useCallback(async () => {
     setLoading(true);
+    // Clear previous trips immediately when route changes
+    setAvailableTrips([]);
+    setReturnAvailableTrips([]);
+
     try {
       // Load departure trips
       if (
@@ -47,11 +51,23 @@ export default function TripSelectionStep() {
           currentBooking.destinationIslandId,
           currentBooking.departureDate
         );
-        // Filter out trips that have already departed
-        const futureTrips = trips.filter(trip =>
-          isTripBookable(trip.travel_date, trip.departure_time)
-        );
-        setAvailableTrips(futureTrips);
+        // Filter trips: must be scheduled status and bookable (5 min buffer)
+        const bookableTrips = trips.filter((trip: any) => {
+          // Check status first
+          if (!isTripStatusBookable(trip.status)) {
+            return false;
+          }
+          // Check if trip is bookable based on time (5 minute buffer)
+          return isTripBookable(
+            trip.travel_date,
+            trip.departure_time,
+            BOOKING_BUFFER_MINUTES
+          );
+        });
+        setAvailableTrips(bookableTrips);
+      } else {
+        // Clear trips if required data is missing
+        setAvailableTrips([]);
       }
 
       // Load return trips if round trip
@@ -66,26 +82,64 @@ export default function TripSelectionStep() {
           currentBooking.returnDestinationIslandId,
           currentBooking.returnDate
         );
-        // Filter out return trips that have already departed
-        const futureReturnTrips = returnTrips.filter(trip =>
-          isTripBookable(trip.travel_date, trip.departure_time)
-        );
-        setReturnAvailableTrips(futureReturnTrips);
+        // Filter return trips: must be scheduled status and bookable (5 min buffer)
+        const bookableReturnTrips = returnTrips.filter((trip: any) => {
+          // Check status first
+          if (!isTripStatusBookable(trip.status)) {
+            return false;
+          }
+          // Check if trip is bookable based on time (5 minute buffer)
+          return isTripBookable(
+            trip.travel_date,
+            trip.departure_time,
+            BOOKING_BUFFER_MINUTES
+          );
+        });
+        setReturnAvailableTrips(bookableReturnTrips);
+      } else {
+        // Clear return trips if not round trip or data is missing
+        setReturnAvailableTrips([]);
       }
     } catch (error) {
       console.error('Error loading trips:', error);
-      Alert.alert('Error', 'Failed to load trips');
+      showError('Error', 'Failed to load trips');
+      // Clear trips on error
+      setAvailableTrips([]);
+      setReturnAvailableTrips([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    currentBooking.boardingIslandId,
+    currentBooking.destinationIslandId,
+    currentBooking.departureDate,
+    currentBooking.returnBoardingIslandId,
+    currentBooking.returnDestinationIslandId,
+    currentBooking.returnDate,
+    currentBooking.tripType,
+    showError,
+  ]);
+
+  // Re-fetch trips when booking data changes (route, date, etc.)
+  useEffect(() => {
+    loadTrips();
+  }, [loadTrips]);
 
   const handleTripSelect = (tripData: any) => {
-    // Validate trip hasn't departed
-    if (!isTripBookable(tripData.travel_date, tripData.departure_time)) {
-      Alert.alert(
+    // Comprehensive validation
+    const validation = validateTripForBooking(
+      {
+        travel_date: tripData.travel_date,
+        departure_time: tripData.departure_time,
+        status: tripData.status,
+      },
+      BOOKING_BUFFER_MINUTES
+    );
+
+    if (!validation.isValid) {
+      showWarning(
         'Trip Unavailable',
-        getTripUnavailableMessage(tripData.travel_date, tripData.departure_time)
+        validation.error || 'This trip cannot be booked.'
       );
       return;
     }
@@ -148,16 +202,26 @@ export default function TripSelectionStep() {
       is_active: tripData.is_active,
       base_fare: tripData.segment_fare,
       fare_multiplier: 1.0,
+      status: tripData.status || 'scheduled', // Include status for validation
     };
     setTrip(trip);
   };
 
   const handleReturnTripSelect = (tripData: any) => {
-    // Validate trip hasn't departed
-    if (!isTripBookable(tripData.travel_date, tripData.departure_time)) {
-      Alert.alert(
+    // Comprehensive validation
+    const validation = validateTripForBooking(
+      {
+        travel_date: tripData.travel_date,
+        departure_time: tripData.departure_time,
+        status: tripData.status,
+      },
+      BOOKING_BUFFER_MINUTES
+    );
+
+    if (!validation.isValid) {
+      showWarning(
         'Trip Unavailable',
-        getTripUnavailableMessage(tripData.travel_date, tripData.departure_time)
+        validation.error || 'This trip cannot be booked.'
       );
       return;
     }
@@ -220,6 +284,7 @@ export default function TripSelectionStep() {
       is_active: tripData.is_active,
       base_fare: tripData.segment_fare,
       fare_multiplier: 1.0,
+      status: tripData.status || 'scheduled', // Include status for validation
     };
     setReturnTrip(trip);
   };

@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Text,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { ArrowLeft, AlertCircle } from 'lucide-react-native';
@@ -19,6 +12,7 @@ import { AdminManagement } from '@/types';
 import VesselForm from '@/components/admin/operations/VesselForm';
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { useAlertContext } from '@/components/AlertProvider';
 
 type VesselFormData = AdminManagement.VesselFormData;
 type Vessel = AdminManagement.Vessel;
@@ -27,6 +21,7 @@ type VesselWithDetails = AdminManagement.VesselWithDetails;
 export default function EditVesselScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canManageVessels } = useAdminPermissions();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   // UPDATED: Use vessel store directly to access fetchVesselDetails
   const { fetchVesselDetails, update, loading, error } = useVesselStore();
@@ -53,13 +48,14 @@ export default function EditVesselScreen() {
       if (vessel) {
         setVesselData(vessel);
       } else {
-        Alert.alert('Error', 'Vessel not found');
-        router.back();
+        showError('Error', 'Vessel not found', () => router.back());
       }
     } catch (error) {
-      console.error('Error loading vessel:', error);
-      Alert.alert('Error', 'Failed to load vessel details. Please try again.');
-      router.back();
+      showError(
+        'Error',
+        'Failed to load vessel details. Please try again.',
+        () => router.back()
+      );
     } finally {
       setIsLoading(false);
     }
@@ -72,64 +68,28 @@ export default function EditVesselScreen() {
       setSaveError(null);
       await update(id, formData);
 
-      // Show success message with options
-      Alert.alert(
+      // Show success message
+      showSuccess(
         'Success',
         'Vessel updated successfully! Seat layout has been updated accordingly.',
-        [
-          {
-            text: 'View Vessel',
-            onPress: () => router.push(`/vessel/${id}`),
-          },
-          {
-            text: 'Edit More',
-            onPress: () => {
-              // Reload the data to show updated information
-              loadVesselData();
-            },
-          },
-          {
-            text: 'Back to List',
-            onPress: () => router.back(),
-          },
-        ]
+        () => router.back()
       );
     } catch (error) {
-      console.error('Error updating vessel:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update vessel';
       setSaveError(errorMessage);
-
-      // Show error alert
-      Alert.alert('Update Failed', `Failed to update vessel: ${errorMessage}`, [
-        {
-          text: 'Try Again',
-          onPress: () => setSaveError(null),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]);
+      showError('Update Failed', `Failed to update vessel: ${errorMessage}`);
     }
   };
 
   const handleCancel = () => {
     // Check if there are unsaved changes
-    Alert.alert(
+    showConfirmation(
       'Discard Changes?',
       'Are you sure you want to discard your changes?',
-      [
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => router.back(),
-        },
-        {
-          text: 'Keep Editing',
-          style: 'cancel',
-        },
-      ]
+      () => router.back(),
+      undefined,
+      true // Mark as destructive action
     );
   };
 

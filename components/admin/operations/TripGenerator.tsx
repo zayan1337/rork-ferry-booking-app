@@ -5,10 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   Modal,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { useTripManagement } from '@/hooks/useTripManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
@@ -65,6 +65,7 @@ export default function TripGenerator({
   initialRoute,
   initialVessel,
 }: TripGeneratorProps) {
+  const { showError, showSuccess, showInfo } = useAlertContext();
   const tripMgmt = useTripManagement();
   const { routes, loadAll: loadRoutes } = useRouteManagement();
   const { vessels, loadAll: loadVessels } = useVesselManagement();
@@ -276,16 +277,13 @@ export default function TripGenerator({
     // Validate time format (HH:MM)
     const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!timeRegex.test(newTimeSlot)) {
-      Alert.alert(
-        'Invalid Time',
-        'Please enter time in HH:MM format (24-hour)'
-      );
+      showInfo('Invalid Time', 'Please enter time in HH:MM format (24-hour)');
       return;
     }
 
     // Check if already exists
     if (allTimeSlots.some(slot => slot.value === newTimeSlot)) {
-      Alert.alert('Duplicate Time', 'This time slot already exists');
+      showInfo('Duplicate Time', 'This time slot already exists');
       return;
     }
 
@@ -387,7 +385,7 @@ export default function TripGenerator({
 
   const handlePreview = () => {
     if (!formData.route_id || !formData.vessel_id) {
-      Alert.alert('Error', 'Please select both route and vessel');
+      showError('Error', 'Please select both route and vessel');
       return;
     }
 
@@ -400,7 +398,7 @@ export default function TripGenerator({
 
   const handleGenerate = async () => {
     if (!formData.route_id || !formData.vessel_id) {
-      Alert.alert('Error', 'Please select both route and vessel');
+      showError('Error', 'Please select both route and vessel');
       return;
     }
 
@@ -413,16 +411,18 @@ export default function TripGenerator({
       if (result.success) {
         const message =
           result.message || `Generated ${result.generated} trips successfully!`;
-        Alert.alert('Success', message, [{ text: 'OK', onPress: onClose }]);
+        showSuccess('Success', message, () => {
+          onClose();
+        });
         onGenerate?.(result);
       } else {
-        Alert.alert('Error', result.error || 'Failed to generate trips');
+        showError('Error', result.error || 'Failed to generate trips');
       }
     } catch (error) {
       console.error('Trip generation error:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to generate trips';
-      Alert.alert('Error', errorMessage);
+      showError('Error', errorMessage);
     } finally {
       setIsGenerating(false);
     }

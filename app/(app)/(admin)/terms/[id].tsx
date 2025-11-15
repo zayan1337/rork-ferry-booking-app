@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   Dimensions,
   RefreshControl,
   Share,
@@ -37,12 +36,14 @@ import {
 // Components
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function TermDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canViewContent, canManageContent } = useAdminPermissions();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   const {
     currentTerms,
@@ -67,8 +68,7 @@ export default function TermDetailScreen() {
     try {
       await fetchTermsById(id);
     } catch (error) {
-      console.error('Error loading term:', error);
-      Alert.alert('Error', 'Failed to load terms and conditions details');
+      showError('Error', 'Failed to load terms and conditions details');
     }
   };
 
@@ -103,7 +103,7 @@ export default function TermDetailScreen() {
 
   const handleEdit = () => {
     if (!term || !canManageContent()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to edit terms and conditions."
       );
@@ -114,38 +114,33 @@ export default function TermDetailScreen() {
 
   const handleDelete = async () => {
     if (!term || !canManageContent()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to delete terms and conditions."
       );
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Delete Terms',
       `Are you sure you want to delete "${term.title}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              await deleteTerms(term.id);
-              Alert.alert(
-                'Success',
-                'Terms and conditions deleted successfully'
-              );
-              router.back();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete terms and conditions');
-            } finally {
-              setIsDeleting(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        setIsDeleting(true);
+        try {
+          await deleteTerms(term.id);
+          showSuccess(
+            'Success',
+            'Terms and conditions deleted successfully',
+            () => router.back()
+          );
+        } catch (error) {
+          showError('Error', 'Failed to delete terms and conditions');
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

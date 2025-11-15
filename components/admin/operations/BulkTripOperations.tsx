@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  Alert,
   Modal,
   ScrollView,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Trip } from '@/types/operations';
 import Button from '@/components/admin/Button';
 import Input from '@/components/Input';
@@ -53,6 +53,7 @@ export default function BulkTripOperations({
   onOperationComplete,
   visible,
 }: BulkTripOperationsProps) {
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
   const [selectedOperation, setSelectedOperation] = useState<string>('');
   const [operationData, setOperationData] = useState<OperationData>({});
   const [isProcessing, setIsProcessing] = useState(false);
@@ -111,7 +112,7 @@ export default function BulkTripOperations({
 
   const handleExecuteOperation = async () => {
     if (!selectedOperation) {
-      Alert.alert('Error', 'Please select an operation');
+      showError('Error', 'Please select an operation');
       return;
     }
 
@@ -124,13 +125,12 @@ export default function BulkTripOperations({
       if (!isValid) return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Confirm Bulk Operation',
       `Are you sure you want to ${operation.label.toLowerCase()} for ${selectedTrips.length} trips? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Confirm', onPress: executeOperation },
-      ]
+      executeOperation,
+      undefined,
+      true // Mark as destructive action
     );
   };
 
@@ -138,38 +138,35 @@ export default function BulkTripOperations({
     switch (operation) {
       case 'cancel':
         if (!data.reason || data.reason.trim().length === 0) {
-          Alert.alert('Error', 'Please provide a cancellation reason');
+          showError('Error', 'Please provide a cancellation reason');
           return false;
         }
         break;
       case 'delay':
         if (!data.delayMinutes || isNaN(parseInt(data.delayMinutes))) {
-          Alert.alert(
-            'Error',
-            'Please provide valid delay duration in minutes'
-          );
+          showError('Error', 'Please provide valid delay duration in minutes');
           return false;
         }
         if (!data.delayReason || data.delayReason.trim().length === 0) {
-          Alert.alert('Error', 'Please provide a delay reason');
+          showError('Error', 'Please provide a delay reason');
           return false;
         }
         break;
       case 'reschedule':
         if (!data.newTime || data.newTime.trim().length === 0) {
-          Alert.alert('Error', 'Please provide new departure time');
+          showError('Error', 'Please provide new departure time');
           return false;
         }
         break;
       case 'updateFare':
         if (!data.fareMultiplier || isNaN(parseFloat(data.fareMultiplier))) {
-          Alert.alert('Error', 'Please provide valid fare multiplier');
+          showError('Error', 'Please provide valid fare multiplier');
           return false;
         }
         break;
       case 'updateStatus':
         if (!data.status) {
-          Alert.alert('Error', 'Please select a status');
+          showError('Error', 'Please select a status');
           return false;
         }
         break;
@@ -184,24 +181,16 @@ export default function BulkTripOperations({
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      Alert.alert(
+      showSuccess(
         'Success',
         `Bulk operation completed successfully for ${selectedTrips.length} trips.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              onOperationComplete();
-              onClose();
-            },
-          },
-        ]
+        () => {
+          onOperationComplete();
+          onClose();
+        }
       );
     } catch (error) {
-      Alert.alert(
-        'Error',
-        'Failed to execute bulk operation. Please try again.'
-      );
+      showError('Error', 'Failed to execute bulk operation. Please try again.');
     } finally {
       setIsProcessing(false);
     }

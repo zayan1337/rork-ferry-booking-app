@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { useFAQManagement } from '@/hooks/useFAQManagement';
+import { useAlertContext } from '@/components/AlertProvider';
 import { FAQCategory } from '@/types/admin/management';
 import {
   ArrowLeft,
@@ -37,6 +37,7 @@ export default function FAQCategoryDetailScreen() {
   const { canManageSettings } = useAdminPermissions();
   const { loadCategory, deleteCategory, categories, faqs, refreshAll } =
     useFAQManagement();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   const [category, setCategory] = useState<FAQCategory | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,8 +64,7 @@ export default function FAQCategoryDetailScreen() {
         setCategory(freshCategory || null);
       }
     } catch (error) {
-      console.error('Error loading FAQ category:', error);
-      Alert.alert('Error', 'Failed to load FAQ category details');
+      showError('Error', 'Failed to load FAQ category details');
     } finally {
       setLoading(false);
     }
@@ -78,7 +78,7 @@ export default function FAQCategoryDetailScreen() {
 
   const handleEdit = () => {
     if (!canManageSettings()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to edit FAQ categories."
       );
@@ -89,7 +89,7 @@ export default function FAQCategoryDetailScreen() {
 
   const handleDelete = () => {
     if (!canManageSettings()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to delete FAQ categories."
       );
@@ -97,39 +97,31 @@ export default function FAQCategoryDetailScreen() {
     }
 
     if (categoryFAQs.length > 0) {
-      Alert.alert(
+      showError(
         'Cannot Delete Category',
         `This category contains ${categoryFAQs.length} FAQ(s). Please move or delete the FAQs first.`
       );
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Delete FAQ Category',
       `Are you sure you want to delete "${category?.name}"? This action cannot be undone.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await deleteCategory(id);
-              Alert.alert('Success', 'FAQ category deleted successfully');
-              router.back();
-            } catch (error) {
-              console.error('Error deleting FAQ category:', error);
-              Alert.alert('Error', 'Failed to delete FAQ category');
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        setDeleting(true);
+        try {
+          await deleteCategory(id);
+          showSuccess('Success', 'FAQ category deleted successfully', () =>
+            router.back()
+          );
+        } catch (error) {
+          showError('Error', 'Failed to delete FAQ category');
+        } finally {
+          setDeleting(false);
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

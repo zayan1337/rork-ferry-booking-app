@@ -2,7 +2,6 @@
 // Reference: https://docs.expo.dev/versions/v54.0.0/sdk/filesystem/
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { Alert } from 'react-native';
 import type { FileType } from '@/components/admin/ExportModal';
 
 /**
@@ -286,8 +285,8 @@ export const saveAndShareFile = async (
     const isAvailable = await Sharing.isAvailableAsync();
 
     if (!isAvailable) {
-      Alert.alert('Export Failed', 'Sharing is not available on this device.');
-      return;
+      // Error will be handled by calling component
+      throw new Error('Sharing is not available on this device.');
     }
 
     // Directly open share sheet - this allows users to save to device storage

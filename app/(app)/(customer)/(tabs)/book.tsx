@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,8 +32,11 @@ import {
   TRIP_TYPES,
   PAYMENT_OPTIONS,
   REFRESH_INTERVALS,
+  BOOKING_BUFFER_MINUTES,
 } from '@/constants/customer';
+import { validateTripForBooking } from '@/utils/bookingUtils';
 import { useAlertContext } from '@/components/AlertProvider';
+import { useAuthStore } from '@/store/authStore';
 
 // Import new step components
 import IslandDateStep from '@/components/booking/steps/IslandDateStep';
@@ -42,6 +45,14 @@ import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 export default function BookScreen() {
   const { showSuccess, showError } = useAlertContext();
+  const { isAuthenticated, isGuestMode } = useAuthStore();
+  const promptLoginForBooking = useCallback(() => {
+    showError(
+      'Login Required',
+      'Please sign in or create an account to continue this booking.'
+    );
+    router.push('/(auth)' as any);
+  }, [showError]);
   const [paymentMethod, setPaymentMethod] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [pricingNoticeAccepted, setPricingNoticeAccepted] = useState(false);
@@ -97,6 +108,20 @@ export default function BookScreen() {
     }
   }, []);
 
+  // Clear trip selection errors when trip is successfully selected
+  useEffect(() => {
+    if (currentBooking.trip && errors.trip) {
+      setErrors({ ...errors, trip: '' });
+    }
+  }, [currentBooking.trip]);
+
+  // Clear return trip selection errors when return trip is successfully selected
+  useEffect(() => {
+    if (currentBooking.returnTrip && errors.returnTrip) {
+      setErrors({ ...errors, returnTrip: '' });
+    }
+  }, [currentBooking.returnTrip]);
+
   // Intercept system back button for step navigation
   useFocusEffect(
     React.useCallback(() => {
@@ -146,6 +171,20 @@ export default function BookScreen() {
     };
   }, []);
 
+  const resetLocalFormState = useCallback(() => {
+    setPaymentMethod('');
+    setTermsAccepted(false);
+    setPricingNoticeAccepted(false);
+    setErrors(createEmptyFormErrors());
+    setLocalSelectedSeats([]);
+    setLocalReturnSelectedSeats([]);
+    setSeatErrors({});
+    setShowMibPayment(false);
+    setCurrentBookingId('');
+    setMibSessionData(null);
+    setMibBookingDetails(null);
+  }, []);
+
   // Sync local seats with store
   useEffect(() => {
     setLocalSelectedSeats(currentBooking.selectedSeats);
@@ -154,6 +193,48 @@ export default function BookScreen() {
   useEffect(() => {
     setLocalReturnSelectedSeats(currentBooking.returnSelectedSeats);
   }, [currentBooking.returnSelectedSeats]);
+
+  useEffect(() => {
+    const isInitialState =
+      currentStep === BOOKING_STEPS.ISLAND_DATE_SELECTION &&
+      !currentBooking.trip &&
+      !currentBooking.returnTrip &&
+      !currentBooking.departureDate &&
+      !currentBooking.returnDate &&
+      currentBooking.selectedSeats.length === 0 &&
+      currentBooking.returnSelectedSeats.length === 0 &&
+      currentBooking.passengers.length === 0;
+
+    const hasLocalState =
+      paymentMethod !== '' ||
+      termsAccepted ||
+      pricingNoticeAccepted ||
+      localSelectedSeats.length > 0 ||
+      localReturnSelectedSeats.length > 0 ||
+      showMibPayment ||
+      Object.keys(seatErrors).length > 0;
+
+    if (isInitialState && hasLocalState) {
+      resetLocalFormState();
+    }
+  }, [
+    currentStep,
+    currentBooking.trip,
+    currentBooking.returnTrip,
+    currentBooking.departureDate,
+    currentBooking.returnDate,
+    currentBooking.selectedSeats.length,
+    currentBooking.returnSelectedSeats.length,
+    currentBooking.passengers.length,
+    localSelectedSeats.length,
+    localReturnSelectedSeats.length,
+    paymentMethod,
+    termsAccepted,
+    pricingNoticeAccepted,
+    showMibPayment,
+    seatErrors,
+    resetLocalFormState,
+  ]);
 
   // Periodic seat refresh
   useEffect(() => {
@@ -184,6 +265,22 @@ export default function BookScreen() {
         if (!currentBooking.trip) {
           newErrors.trip = 'Please select a trip';
           isValid = false;
+        } else {
+          // Validate trip status and time
+          const tripValidation = validateTripForBooking(
+            {
+              travel_date: currentBooking.trip.travel_date,
+              departure_time: currentBooking.trip.departure_time,
+              status:
+                currentBooking.trip.status ||
+                currentBooking.trip.computed_status,
+            },
+            BOOKING_BUFFER_MINUTES
+          );
+          if (!tripValidation.isValid) {
+            newErrors.trip = tripValidation.error || 'Trip is not available';
+            isValid = false;
+          }
         }
         if (
           currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
@@ -191,6 +288,26 @@ export default function BookScreen() {
         ) {
           newErrors.returnTrip = 'Please select a return trip';
           isValid = false;
+        } else if (
+          currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+          currentBooking.returnTrip
+        ) {
+          // Validate return trip status and time
+          const returnValidation = validateTripForBooking(
+            {
+              travel_date: currentBooking.returnTrip.travel_date,
+              departure_time: currentBooking.returnTrip.departure_time,
+              status:
+                currentBooking.returnTrip.status ||
+                currentBooking.returnTrip.computed_status,
+            },
+            BOOKING_BUFFER_MINUTES
+          );
+          if (!returnValidation.isValid) {
+            newErrors.returnTrip =
+              returnValidation.error || 'Return trip is not available';
+            isValid = false;
+          }
         }
         break;
 
@@ -246,6 +363,11 @@ export default function BookScreen() {
   };
 
   const handleNext = () => {
+    if (isGuestMode && currentStep >= BOOKING_STEPS.TRIP_SELECTION) {
+      promptLoginForBooking();
+      return;
+    }
+
     if (validateStep(currentStep)) {
       setCurrentStep(currentStep + 1);
 
@@ -256,6 +378,16 @@ export default function BookScreen() {
         }
         if (currentBooking.returnTrip?.id) {
           refreshAvailableSeatsSilently(currentBooking.returnTrip.id, true);
+        }
+      }
+    } else {
+      // Show validation errors to user
+      if (currentStep === BOOKING_STEPS.TRIP_SELECTION) {
+        if (errors.trip) {
+          showError('Validation Error', errors.trip);
+        }
+        if (errors.returnTrip) {
+          showError('Validation Error', errors.returnTrip);
         }
       }
     }
@@ -271,8 +403,62 @@ export default function BookScreen() {
   };
 
   const handleConfirmBooking = async () => {
+    if (isGuestMode) {
+      promptLoginForBooking();
+      return;
+    }
+
     if (validateStep(BOOKING_STEPS.PAYMENT)) {
       try {
+        // Final validation before booking - check trip status and time
+        if (currentBooking.trip) {
+          const departureValidation = validateTripForBooking(
+            {
+              travel_date: currentBooking.trip.travel_date,
+              departure_time: currentBooking.trip.departure_time,
+              status:
+                currentBooking.trip.status ||
+                currentBooking.trip.computed_status,
+            },
+            BOOKING_BUFFER_MINUTES
+          );
+
+          if (!departureValidation.isValid) {
+            showError(
+              'Booking Unavailable',
+              departureValidation.error ||
+                'Departure trip is no longer available for booking. Please select a different trip.'
+            );
+            return;
+          }
+        }
+
+        // Validate return trip if round trip
+        if (
+          currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+          currentBooking.returnTrip
+        ) {
+          const returnValidation = validateTripForBooking(
+            {
+              travel_date: currentBooking.returnTrip.travel_date,
+              departure_time: currentBooking.returnTrip.departure_time,
+              status:
+                currentBooking.returnTrip.status ||
+                currentBooking.returnTrip.computed_status,
+            },
+            BOOKING_BUFFER_MINUTES
+          );
+
+          if (!returnValidation.isValid) {
+            showError(
+              'Booking Unavailable',
+              returnValidation.error ||
+                'Return trip is no longer available for booking. Please select a different trip.'
+            );
+            return;
+          }
+        }
+
         const bookingResult = await createCustomerBooking(paymentMethod);
 
         if (paymentMethod === 'mib') {
@@ -292,12 +478,7 @@ export default function BookScreen() {
         } else {
           resetCurrentBooking();
           setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
-          setPaymentMethod('');
-          setTermsAccepted(false);
-          setPricingNoticeAccepted(false);
-          setLocalSelectedSeats([]);
-          setLocalReturnSelectedSeats([]);
-          setErrors(createEmptyFormErrors());
+          resetLocalFormState();
 
           let successMessage = `Your ${
             currentBooking.tripType === TRIP_TYPES.ROUND_TRIP
@@ -310,10 +491,8 @@ export default function BookScreen() {
             successMessage += `\nReturn Booking Number: ${bookingResult.return_booking_number || 'N/A'}`;
           }
 
-          showSuccess(
-            'Booking Confirmed',
-            successMessage,
-            () => router.push('/(app)/(customer)/(tabs)/bookings')
+          showSuccess('Booking Confirmed', successMessage, () =>
+            router.replace('/(app)/(customer)/(tabs)/bookings')
           );
         }
       } catch (error: any) {
@@ -406,7 +585,26 @@ export default function BookScreen() {
 
           {/* Step 2: Trip Selection */}
           {currentStep === BOOKING_STEPS.TRIP_SELECTION && (
-            <TripSelectionStep />
+            <>
+              <TripSelectionStep />
+              {isGuestMode && (
+                <View style={styles.guestNotice}>
+                  <Text style={styles.guestNoticeTitle}>
+                    Sign in to continue booking
+                  </Text>
+                  <Text style={styles.guestNoticeText}>
+                    You can browse available routes as a guest, but you need an
+                    account to select seats, add passenger details, and confirm
+                    your booking.
+                  </Text>
+                  <Button
+                    title='Sign In or Create Account'
+                    onPress={promptLoginForBooking}
+                    fullWidth
+                  />
+                </View>
+              )}
+            </>
           )}
 
           {/* Step 3: Seat Selection */}
@@ -724,7 +922,11 @@ export default function BookScreen() {
                 title='Next'
                 onPress={handleNext}
                 style={styles.navigationButton}
-                disabled={!currentBooking.trip}
+                disabled={
+                  !currentBooking.trip ||
+                  (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+                    !currentBooking.returnTrip)
+                }
               />
             )}
 
@@ -755,6 +957,14 @@ export default function BookScreen() {
             visible={showMibPayment}
             bookingDetails={mibBookingDetails}
             bookingId={currentBookingId}
+            tripInfo={
+              currentBooking.trip
+                ? {
+                    travelDate: currentBooking.trip.travel_date,
+                    departureTime: currentBooking.trip.departure_time,
+                  }
+                : undefined
+            }
             sessionData={mibSessionData}
             onClose={() => {
               setShowMibPayment(false);
@@ -763,15 +973,16 @@ export default function BookScreen() {
               setMibBookingDetails(null);
             }}
             onSuccess={result => {
+              const bookingIdForResult = currentBookingId;
               setShowMibPayment(false);
               setCurrentBookingId('');
               setMibSessionData(null);
               setMibBookingDetails(null);
 
-              router.push({
+              router.replace({
                 pathname: '/(app)/(customer)/payment-success',
                 params: {
-                  bookingId: currentBookingId,
+                  bookingId: bookingIdForResult,
                   result: 'SUCCESS',
                   sessionId: result.sessionId,
                   resetBooking: 'true',
@@ -779,32 +990,34 @@ export default function BookScreen() {
               });
             }}
             onFailure={error => {
+              const bookingIdForResult = currentBookingId;
               setShowMibPayment(false);
               setCurrentBookingId('');
               setMibSessionData(null);
               setMibBookingDetails(null);
 
-              router.push({
+              router.replace({
                 pathname: '/(app)/(customer)/payment-success',
                 params: {
-                  bookingId: currentBookingId,
+                  bookingId: bookingIdForResult,
                   result: 'FAILURE',
-                  resetBooking: 'false',
+                  resetBooking: 'true',
                 },
               });
             }}
             onCancel={() => {
+              const bookingIdForResult = currentBookingId;
               setShowMibPayment(false);
               setCurrentBookingId('');
               setMibSessionData(null);
               setMibBookingDetails(null);
 
-              router.push({
+              router.replace({
                 pathname: '/(app)/(customer)/payment-success',
                 params: {
-                  bookingId: currentBookingId,
+                  bookingId: bookingIdForResult,
                   result: 'CANCELLED',
-                  resetBooking: 'false',
+                  resetBooking: 'true',
                 },
               });
             }}
@@ -867,6 +1080,25 @@ const styles = StyleSheet.create({
   },
   bookingCard: {
     marginBottom: 16,
+  },
+  guestNotice: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#fff5e6',
+    borderWidth: 1,
+    borderColor: '#ffe0b2',
+    gap: 12,
+  },
+  guestNoticeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  guestNoticeText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
   },
   stepTitle: {
     fontSize: 18,

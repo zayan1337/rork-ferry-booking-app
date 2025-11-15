@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Alert,
-  Text,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { ArrowLeft, AlertCircle, RotateCcw } from 'lucide-react-native';
@@ -23,12 +16,14 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import IslandForm from '@/components/admin/operations/IslandForm';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import Button from '@/components/admin/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 
 type Island = AdminManagement.Island;
 
 export default function EditIslandScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canUpdateIslands } = useAdminPermissions();
+  const { showSuccess } = useAlertContext();
 
   // UPDATED: Use new island management hooks
   const { getById: getIslandById } = useIslandManagement();
@@ -77,12 +72,7 @@ export default function EditIslandScreen() {
   };
 
   const handleSuccess = () => {
-    Alert.alert('Success', 'Island updated successfully', [
-      {
-        text: 'OK',
-        onPress: () => router.back(),
-      },
-    ]);
+    showSuccess('Success', 'Island updated successfully', () => router.back());
   };
 
   const handleError = (error: string) => {

@@ -19,6 +19,8 @@ export interface Trip {
   is_active: boolean;
   base_fare?: number; // Kept for backwards compatibility
   fare_multiplier?: number;
+  status?: string | null; // Trip status (scheduled, boarding, departed, etc.)
+  computed_status?: string | null; // Computed status from database view
   route?: {
     base_fare: number; // Nested route data for proper fare calculation
   };

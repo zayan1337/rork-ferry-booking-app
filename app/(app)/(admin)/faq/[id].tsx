@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { useFAQManagement } from '@/hooks/useFAQManagement';
+import { useAlertContext } from '@/components/AlertProvider';
 import { FAQ } from '@/types/admin/management';
 import {
   ArrowLeft,
@@ -38,6 +38,8 @@ export default function FAQDetailScreen() {
   const { canManageSettings } = useAdminPermissions();
   const { loadFAQ, deleteFAQ, duplicateFAQ, getCategoryById } =
     useFAQManagement();
+  const { showError, showSuccess, showInfo, showConfirmation } =
+    useAlertContext();
 
   const [faq, setFaq] = useState<FAQ | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,8 +56,7 @@ export default function FAQDetailScreen() {
       const faqData = await loadFAQ(id);
       setFaq(faqData);
     } catch (error) {
-      console.error('Error loading FAQ:', error);
-      Alert.alert('Error', 'Failed to load FAQ details');
+      showError('Error', 'Failed to load FAQ details');
     } finally {
       setLoading(false);
     }
@@ -69,7 +70,7 @@ export default function FAQDetailScreen() {
 
   const handleEdit = () => {
     if (!canManageSettings()) {
-      Alert.alert('Access Denied', "You don't have permission to edit FAQs.");
+      showError('Access Denied', "You don't have permission to edit FAQs.");
       return;
     }
     router.push(`../faq/edit/${id}` as any);
@@ -77,61 +78,46 @@ export default function FAQDetailScreen() {
 
   const handleDelete = () => {
     if (!canManageSettings()) {
-      Alert.alert('Access Denied', "You don't have permission to delete FAQs.");
+      showError('Access Denied', "You don't have permission to delete FAQs.");
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Delete FAQ',
       `Are you sure you want to delete "${faq?.question}"? This action cannot be undone.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await deleteFAQ(id);
-              Alert.alert('Success', 'FAQ deleted successfully');
-              router.back();
-            } catch (error) {
-              console.error('Error deleting FAQ:', error);
-              Alert.alert('Error', 'Failed to delete FAQ');
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        setDeleting(true);
+        try {
+          await deleteFAQ(id);
+          showSuccess('Success', 'FAQ deleted successfully', () =>
+            router.back()
+          );
+        } catch (error) {
+          showError('Error', 'Failed to delete FAQ');
+        } finally {
+          setDeleting(false);
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 
   const handleDuplicate = async () => {
     if (!canManageSettings()) {
-      Alert.alert('Access Denied', "You don't have permission to create FAQs.");
+      showError('Access Denied', "You don't have permission to create FAQs.");
       return;
     }
 
     try {
       const duplicatedFAQ = await duplicateFAQ(id);
-      Alert.alert(
+      showInfo(
         'FAQ Duplicated',
         'FAQ has been duplicated successfully. The copy is marked as inactive.',
-        [
-          {
-            text: 'View Copy',
-            onPress: () => router.push(`../faq/${duplicatedFAQ.id}` as any),
-          },
-          { text: 'Stay Here', style: 'cancel' },
-        ]
+        () => router.push(`../faq/${duplicatedFAQ.id}` as any)
       );
     } catch (error) {
-      console.error('Error duplicating FAQ:', error);
-      Alert.alert('Error', 'Failed to duplicate FAQ');
+      showError('Error', 'Failed to duplicate FAQ');
     }
   };
 

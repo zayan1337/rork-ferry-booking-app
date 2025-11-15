@@ -5,15 +5,9 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import {
   Plus,
   Trash2,
@@ -39,6 +33,7 @@ export default function RouteStopEditor({
   onChange,
   onValidate,
 }: RouteStopEditorProps) {
+  const { showInfo, showConfirmation } = useAlertContext();
   const [errors, setErrors] = useState<string[]>([]);
 
   // Validate stops whenever they change
@@ -115,24 +110,23 @@ export default function RouteStopEditor({
   // Delete stop
   const handleDeleteStop = (index: number) => {
     if (stops.length <= 2) {
-      Alert.alert('Cannot Delete', 'Route must have at least 2 stops');
+      showInfo('Cannot Delete', 'Route must have at least 2 stops');
       return;
     }
 
-    Alert.alert('Delete Stop', 'Are you sure you want to delete this stop?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          const updatedStops = stops
-            .filter((_, i) => i !== index)
-            .map((stop, i) => ({ ...stop, stop_sequence: i + 1 }));
-          onChange(updatedStops);
-          validate(updatedStops);
-        },
+    showConfirmation(
+      'Delete Stop',
+      'Are you sure you want to delete this stop?',
+      () => {
+        const updatedStops = stops
+          .filter((_, i) => i !== index)
+          .map((stop, i) => ({ ...stop, stop_sequence: i + 1 }));
+        onChange(updatedStops);
+        validate(updatedStops);
       },
-    ]);
+      undefined,
+      true // Mark as destructive action
+    );
   };
 
   // Move stop up

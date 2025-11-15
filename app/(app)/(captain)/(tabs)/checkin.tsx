@@ -51,13 +51,13 @@ export default function CaptainCheckinScreen() {
     const getCameraPermissions = async () => {
       if (!permission?.granted && showCamera) {
         const { status } = await requestPermission();
-      if (status !== 'granted') {
-        showWarning(
-          'Permission Required',
-          'Camera permission is required to scan QR codes'
-        );
-        setShowCamera(false);
-      }
+        if (status !== 'granted') {
+          showWarning(
+            'Permission Required',
+            'Camera permission is required to scan QR codes'
+          );
+          setShowCamera(false);
+        }
       }
     };
 
@@ -175,9 +175,7 @@ export default function CaptainCheckinScreen() {
             .eq('id', booking.id);
 
           if (updateError) {
-            throw new Error(
-              `Database update failed: ${updateError.message}`
-            );
+            throw new Error(`Database update failed: ${updateError.message}`);
           }
 
           // Optional: Create a check-in log entry for audit trail
@@ -215,9 +213,7 @@ export default function CaptainCheckinScreen() {
           );
         } catch (error) {
           const errorMessage =
-            error instanceof Error
-              ? error.message
-              : 'Unknown error occurred';
+            error instanceof Error ? error.message : 'Unknown error occurred';
           showError(
             'Check-in Failed',
             `Failed to check in passengers: ${errorMessage}\n\nPlease try again or contact support.`
@@ -322,7 +318,7 @@ export default function CaptainCheckinScreen() {
           : ticketStatus === 'Invalid' || ticketStatus === 'Expired'
             ? 'error'
             : 'info';
-      
+
       if (alertType === 'success') {
         showSuccess(
           `Ticket Status: ${ticketStatus}`,
@@ -445,10 +441,7 @@ export default function CaptainCheckinScreen() {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Unknown error occurred';
-      showError(
-        'Error',
-        `Failed to process scanned QR code: ${errorMessage}`
-      );
+      showError('Error', `Failed to process scanned QR code: ${errorMessage}`);
     }
   };
 

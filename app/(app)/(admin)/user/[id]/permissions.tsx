@@ -7,7 +7,6 @@ import {
   View,
   Pressable,
   Dimensions,
-  Alert,
   Modal,
   ActivityIndicator,
 } from 'react-native';
@@ -45,6 +44,7 @@ import StatusBadge from '@/components/admin/StatusBadge';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import EmptyState from '@/components/admin/EmptyState';
 import { AdminManagement } from '@/types';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -63,6 +63,8 @@ export default function UserPermissionsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canManagePermissions } = useAdminPermissions();
   const { user } = useAuthStore();
+  const { showError, showSuccess, showInfo, showConfirmation } =
+    useAlertContext();
 
   // Permission store
   const {
@@ -237,13 +239,13 @@ export default function UserPermissionsScreen() {
   const handlePermissionToggle = useCallback(
     async (permissionId: string) => {
       if (!id || !user?.profile?.id) {
-        Alert.alert('Error', 'Missing user or admin ID.');
+        showError('Error', 'Missing user or admin ID.');
         return;
       }
 
       // For super admins, just show a message since they already have all permissions
       if (currentUser?.is_super_admin) {
-        Alert.alert(
+        showInfo(
           'Super Admin',
           'Super administrators have all permissions by default.'
         );
@@ -267,10 +269,9 @@ export default function UserPermissionsScreen() {
           );
 
           if (conflictingDependents.length > 0) {
-            Alert.alert(
+            showError(
               'Cannot Remove Permission',
-              `This permission is required by: ${conflictingDependents.map(p => p.name).join(', ')}`,
-              [{ text: 'OK' }]
+              `This permission is required by: ${conflictingDependents.map(p => p.name).join(', ')}`
             );
             return;
           }
@@ -298,7 +299,7 @@ export default function UserPermissionsScreen() {
           await fetchAll(); // Also refresh admin users to see updated counts
         }
       } catch (error) {
-        Alert.alert(
+        showError(
           'Error',
           `Failed to ${isCurrentlySelected ? 'revoke' : 'grant'} permission: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
@@ -336,13 +337,13 @@ export default function UserPermissionsScreen() {
         setHasUnsavedChanges(false);
         setShowRoleTemplates(false);
 
-        Alert.alert(
+        showSuccess(
           'Success',
           `${template.name} permissions have been applied.`
         );
         await loadUserData(); // Refresh data
       } catch (error) {
-        Alert.alert('Error', 'Failed to apply role template.');
+        showError('Error', 'Failed to apply role template.');
       } finally {
         setLocalLoading(false);
       }
@@ -352,7 +353,7 @@ export default function UserPermissionsScreen() {
 
   const handleSave = useCallback(async () => {
     if (!canManagePermissions()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to manage user permissions."
       );
@@ -360,12 +361,12 @@ export default function UserPermissionsScreen() {
     }
 
     if (!id) {
-      Alert.alert('Error', 'User ID not found.');
+      showError('Error', 'User ID not found.');
       return;
     }
 
     if (!user?.profile?.id) {
-      Alert.alert('Error', 'Current admin ID not found.');
+      showError('Error', 'Current admin ID not found.');
       return;
     }
 
@@ -377,10 +378,10 @@ export default function UserPermissionsScreen() {
         user.profile.id
       );
       setHasUnsavedChanges(false);
-      Alert.alert('Success', 'User permissions updated successfully.');
+      showSuccess('Success', 'User permissions updated successfully.');
       await loadUserData(); // Refresh data
     } catch (error) {
-      Alert.alert('Error', 'Failed to update user permissions.');
+      showError('Error', 'Failed to update user permissions.');
     } finally {
       setLocalLoading(false);
     }
@@ -393,32 +394,25 @@ export default function UserPermissionsScreen() {
   ]);
 
   const handleReset = useCallback(() => {
-    Alert.alert(
+    showConfirmation(
       'Reset Permissions',
       'Are you sure you want to reset all changes? This will revert to the last saved state.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => {
-            setSelectedPermissions(new Set(currentUserPermissions));
-            setHasUnsavedChanges(false);
-          },
-        },
-      ]
+      () => {
+        setSelectedPermissions(new Set(currentUserPermissions));
+        setHasUnsavedChanges(false);
+      }
     );
-  }, [currentUserPermissions]);
+  }, [currentUserPermissions, showConfirmation]);
 
   const handleBulkAction = useCallback(
     async (action: 'select_all' | 'deselect_all' | 'select_category') => {
       if (!id || !user?.profile?.id) {
-        Alert.alert('Error', 'Missing user or admin ID.');
+        showError('Error', 'Missing user or admin ID.');
         return;
       }
 
       if (currentUser?.is_super_admin) {
-        Alert.alert(
+        showInfo(
           'Super Admin',
           'Super administrators have all permissions by default.'
         );
@@ -457,9 +451,9 @@ export default function UserPermissionsScreen() {
         setHasUnsavedChanges(false);
         setShowBulkActions(false);
         await loadUserData(); // Refresh data
-        Alert.alert('Success', 'Bulk permissions updated successfully.');
+        showSuccess('Success', 'Bulk permissions updated successfully.');
       } catch (error) {
-        Alert.alert('Error', 'Failed to update permissions.');
+        showError('Error', 'Failed to update permissions.');
       } finally {
         setLocalLoading(false);
       }
@@ -628,17 +622,12 @@ export default function UserPermissionsScreen() {
             <Pressable
               onPress={() => {
                 if (hasUnsavedChanges) {
-                  Alert.alert(
+                  showConfirmation(
                     'Unsaved Changes',
                     'You have unsaved changes. Are you sure you want to go back?',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Discard Changes',
-                        style: 'destructive',
-                        onPress: () => router.back(),
-                      },
-                    ]
+                    () => router.back(),
+                    undefined,
+                    true // Mark as destructive action
                   );
                 } else {
                   router.back();

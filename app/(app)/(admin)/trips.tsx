@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useTripManagement } from '@/hooks/useTripManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { AdminManagement } from '@/types';
@@ -62,6 +62,7 @@ const getDefaultDateRange = () => {
 
 export default function TripsScreen() {
   const { canViewTrips, canManageTrips } = useAdminPermissions();
+  const { showError } = useAlertContext();
 
   const [filterActive, setFilterActive] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -117,10 +118,7 @@ export default function TripsScreen() {
     if (canManageTrips()) {
       router.push('./trip/new' as any);
     } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to create trips."
-      );
+      showError('Access Denied', "You don't have permission to create trips.");
     }
   };
 

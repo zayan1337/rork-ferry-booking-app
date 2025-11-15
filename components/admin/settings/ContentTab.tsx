@@ -5,11 +5,11 @@ import {
   StyleSheet,
   Pressable,
   FlatList,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { useContentManagement } from '@/hooks/useContentManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { TermsAndConditions, Promotion } from '@/types/content';
@@ -38,6 +38,7 @@ const ContentTab: React.FC<ContentTabProps> = ({
   isActive,
   searchQuery = '',
 }) => {
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
   const { canManageContent, canViewContent } = useAdminPermissions();
   const {
     terms,
@@ -126,7 +127,7 @@ const ContentTab: React.FC<ContentTabProps> = ({
 
   const handleAddContent = useCallback(() => {
     if (!hasManagePermission) {
-      Alert.alert(
+      showError(
         'Access Denied',
         `You don't have permission to create ${activeTab}.`
       );
@@ -135,7 +136,7 @@ const ContentTab: React.FC<ContentTabProps> = ({
 
     const route = activeTab === 'terms' ? '../terms/new' : '../promotion/new';
     router.push(route as any);
-  }, [activeTab, hasManagePermission]);
+  }, [activeTab, hasManagePermission, showError]);
 
   const handleViewAll = useCallback(() => {
     const route = activeTab === 'terms' ? '../terms' : '../promotions';
@@ -169,7 +170,7 @@ const ContentTab: React.FC<ContentTabProps> = ({
   const handleDelete = useCallback(
     async (itemId: string) => {
       if (!hasManagePermission) {
-        Alert.alert(
+        showError(
           'Access Denied',
           `You don't have permission to delete ${activeTab}.`
         );
@@ -178,37 +179,40 @@ const ContentTab: React.FC<ContentTabProps> = ({
 
       const itemType =
         activeTab === 'terms' ? 'terms and conditions' : 'promotion';
-      Alert.alert(
+      showConfirmation(
         `Delete ${itemType}`,
         `Are you sure you want to delete this ${itemType}? This action cannot be undone.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                if (activeTab === 'terms') {
-                  await deleteTerms(itemId);
-                } else {
-                  await deletePromotion(itemId);
-                }
-                Alert.alert('Success', `${itemType} deleted successfully.`);
-              } catch (error) {
-                Alert.alert('Error', `Failed to delete ${itemType}.`);
-              }
-            },
-          },
-        ]
+        async () => {
+          try {
+            if (activeTab === 'terms') {
+              await deleteTerms(itemId);
+            } else {
+              await deletePromotion(itemId);
+            }
+            showSuccess('Success', `${itemType} deleted successfully.`);
+          } catch (error) {
+            showError('Error', `Failed to delete ${itemType}.`);
+          }
+        },
+        undefined,
+        true // Mark as destructive action
       );
     },
-    [activeTab, hasManagePermission, deleteTerms, deletePromotion]
+    [
+      activeTab,
+      hasManagePermission,
+      deleteTerms,
+      deletePromotion,
+      showError,
+      showSuccess,
+      showConfirmation,
+    ]
   );
 
   const handleDuplicate = useCallback(
     async (itemId: string) => {
       if (!hasManagePermission) {
-        Alert.alert(
+        showError(
           'Access Denied',
           `You don't have permission to duplicate ${activeTab}.`
         );
@@ -218,14 +222,14 @@ const ContentTab: React.FC<ContentTabProps> = ({
       try {
         if (activeTab === 'promotions') {
           await duplicatePromotion(itemId);
-          Alert.alert('Success', 'Promotion duplicated successfully.');
+          showSuccess('Success', 'Promotion duplicated successfully.');
         }
       } catch (error) {
         console.error('Error duplicating item:', error);
-        Alert.alert('Error', `Failed to duplicate ${activeTab}.`);
+        showError('Error', `Failed to duplicate ${activeTab}.`);
       }
     },
-    [activeTab, hasManagePermission, duplicatePromotion]
+    [activeTab, hasManagePermission, duplicatePromotion, showError, showSuccess]
   );
 
   // Permission check

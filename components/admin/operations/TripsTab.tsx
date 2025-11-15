@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useTripManagement } from '@/hooks/useTripManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 import { useOperationsStore } from '@/store/admin/operationsStore';
 import { Plus, Eye, AlertTriangle, Calendar, Zap } from 'lucide-react-native';
 
@@ -28,6 +29,7 @@ export default function TripsTab({
   searchQuery = '',
 }: TripsTabProps) {
   const { canViewTrips, canManageTrips } = useAdminPermissions();
+  const { showError } = useAlertContext();
   const {
     trips: allTrips,
     filteredTrips,
@@ -146,10 +148,7 @@ export default function TripsTab({
       // Go directly to the unified trip form
       router.push('../trip/new' as any);
     } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to create trips."
-      );
+      showError('Access Denied', "You don't have permission to create trips.");
     }
   };
 
@@ -168,10 +167,7 @@ export default function TripsTab({
     if (canManageTrips()) {
       router.push(`../trip/new?route_id=${routeId}` as any);
     } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to create trips."
-      );
+      showError('Access Denied', "You don't have permission to create trips.");
     }
   };
 
@@ -179,10 +175,7 @@ export default function TripsTab({
     if (canManageTrips()) {
       router.push(`../trip/new?vessel_id=${vesselId}` as any);
     } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to create trips."
-      );
+      showError('Access Denied', "You don't have permission to create trips.");
     }
   };
 

@@ -38,7 +38,7 @@ import {
 import { DatabaseIsland } from '@/types/database';
 
 export default function HomeScreen() {
-  const { user } = useAuthStore();
+  const { user, isGuestMode } = useAuthStore();
 
   // Add scroll reference
   const scrollViewRef = useRef<ScrollView>(null);
@@ -65,18 +65,25 @@ export default function HomeScreen() {
   // Only show loading indicators within specific components that need the data
 
   // Quick booking functionality
-  const { quickBookingState, updateField, resetForm, validateAndStartBooking } =
-    useQuickBooking();
+  const {
+    quickBookingState,
+    updateField,
+    resetForm,
+    validateAndStartBooking,
+    isLoading: quickBookingLoading,
+  } = useQuickBooking();
 
   // Modal state management
   const { modalStates, openModal, closeModal } = useModalState();
 
   useEffect(() => {
     // Fetch data in background without blocking UI
-    fetchUserBookings();
+    if (!isGuestMode) {
+      fetchUserBookings();
+    }
     fetchAvailableRoutes();
     loadIslands();
-  }, []);
+  }, [isGuestMode]);
 
   const loadIslands = async () => {
     setLoadingIslands(true);
@@ -100,7 +107,9 @@ export default function HomeScreen() {
   );
 
   const handleRefresh = () => {
-    fetchUserBookings();
+    if (!isGuestMode) {
+      fetchUserBookings();
+    }
     loadIslands();
   };
 
@@ -174,14 +183,28 @@ export default function HomeScreen() {
       {/* Welcome Section */}
       <View style={styles.welcomeSection}>
         <View>
-          <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.userName}>{user?.profile?.full_name}</Text>
+          {isGuestMode ? (
+            <>
+              <Text style={styles.welcomeText}>Welcome to</Text>
+              <Text style={styles.userName}>Crystal Transfer Vaavu</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.welcomeText}>Welcome back,</Text>
+              <Text style={styles.userName}>{user?.profile?.full_name}</Text>
+            </>
+          )}
         </View>
         <Pressable
           style={styles.searchButton}
+          android_ripple={{ color: Colors.border }}
           onPress={() => router.push('/validate-ticket')}
         >
-          <Search size={20} color={Colors.text} />
+          {({ pressed }) => (
+            <View style={pressed && { opacity: 0.7 }}>
+              <Search size={20} color={Colors.text} />
+            </View>
+          )}
         </Pressable>
       </View>
 
@@ -194,23 +217,29 @@ export default function HomeScreen() {
         <View style={styles.bookingForm}>
           <Pressable
             style={styles.formRow}
+            android_ripple={{ color: Colors.highlight }}
             onPress={() => openModal('showFromModal')}
           >
-            <View style={styles.formIcon}>
-              <MapPin size={20} color={Colors.primary} />
-            </View>
-            <View style={styles.formField}>
-              <Text style={styles.formLabel}>From</Text>
-              <Text
-                style={[
-                  styles.formPlaceholder,
-                  quickBookingState.selectedFromIsland && styles.formValue,
-                ]}
-              >
-                {quickBookingState.selectedFromIsland ||
-                  'Select departure island'}
-              </Text>
-            </View>
+            {({ pressed }) => (
+              <>
+                <View style={styles.formIcon}>
+                  <MapPin size={20} color={Colors.primary} />
+                </View>
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>From</Text>
+                  <Text
+                    style={[
+                      styles.formPlaceholder,
+                      quickBookingState.selectedFromIsland && styles.formValue,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    {quickBookingState.selectedFromIsland ||
+                      'Select departure island'}
+                  </Text>
+                </View>
+              </>
+            )}
           </Pressable>
 
           <View style={styles.formDivider}>
@@ -219,6 +248,7 @@ export default function HomeScreen() {
 
           <Pressable
             style={styles.formRow}
+            android_ripple={{ color: Colors.highlight }}
             onPress={() => {
               if (!quickBookingState.selectedFromIsland) {
                 updateField('selectedFromIsland', ''); // This will trigger error in hook
@@ -227,47 +257,58 @@ export default function HomeScreen() {
               openModal('showToModal');
             }}
           >
-            <View style={styles.formIcon}>
-              <MapPin size={20} color={Colors.secondary} />
-            </View>
-            <View style={styles.formField}>
-              <Text style={styles.formLabel}>To</Text>
-              <Text
-                style={[
-                  styles.formPlaceholder,
-                  quickBookingState.selectedToIsland && styles.formValue,
-                ]}
-              >
-                {quickBookingState.selectedToIsland ||
-                  (quickBookingState.selectedFromIsland
-                    ? 'Select destination island'
-                    : 'Please select departure island first')}
-              </Text>
-            </View>
+            {({ pressed }) => (
+              <>
+                <View style={styles.formIcon}>
+                  <MapPin size={20} color={Colors.secondary} />
+                </View>
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>To</Text>
+                  <Text
+                    style={[
+                      styles.formPlaceholder,
+                      quickBookingState.selectedToIsland && styles.formValue,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    {quickBookingState.selectedToIsland ||
+                      (quickBookingState.selectedFromIsland
+                        ? 'Select destination island'
+                        : 'Please select departure island first')}
+                  </Text>
+                </View>
+              </>
+            )}
           </Pressable>
 
           <View style={styles.formDivider} />
 
           <Pressable
             style={styles.formRow}
+            android_ripple={{ color: Colors.highlight }}
             onPress={() => openModal('showDateModal')}
           >
-            <View style={styles.formIcon}>
-              <Calendar size={20} color={Colors.primary} />
-            </View>
-            <View style={styles.formField}>
-              <Text style={styles.formLabel}>Date</Text>
-              <Text
-                style={[
-                  styles.formPlaceholder,
-                  quickBookingState.selectedDate && styles.formValue,
-                ]}
-              >
-                {quickBookingState.selectedDate
-                  ? formatDisplayDate(quickBookingState.selectedDate)
-                  : 'Select travel date'}
-              </Text>
-            </View>
+            {({ pressed }) => (
+              <>
+                <View style={styles.formIcon}>
+                  <Calendar size={20} color={Colors.primary} />
+                </View>
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>Date</Text>
+                  <Text
+                    style={[
+                      styles.formPlaceholder,
+                      quickBookingState.selectedDate && styles.formValue,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    {quickBookingState.selectedDate
+                      ? formatDisplayDate(quickBookingState.selectedDate)
+                      : 'Select travel date'}
+                  </Text>
+                </View>
+              </>
+            )}
           </Pressable>
         </View>
 
@@ -283,6 +324,8 @@ export default function HomeScreen() {
         <Button
           title='Start Booking'
           onPress={handleStartBooking}
+          loading={quickBookingLoading}
+          disabled={quickBookingLoading}
           style={styles.bookButton}
         />
       </Card>
@@ -298,9 +341,14 @@ export default function HomeScreen() {
             <Text style={styles.modalTitle}>Select Departure Island</Text>
             <Pressable
               style={styles.modalCloseButton}
+              android_ripple={{ color: Colors.border }}
               onPress={() => closeModal('showFromModal')}
             >
-              <X size={24} color={Colors.text} />
+              {({ pressed }) => (
+                <View style={pressed && { opacity: 0.7 }}>
+                  <X size={24} color={Colors.text} />
+                </View>
+              )}
             </Pressable>
           </View>
 
@@ -313,12 +361,30 @@ export default function HomeScreen() {
                   quickBookingState.selectedFromIsland === island &&
                     styles.islandOptionSelected,
                 ]}
+                android_ripple={{
+                  color:
+                    quickBookingState.selectedFromIsland === island
+                      ? Colors.primary
+                      : Colors.highlight,
+                }}
                 onPress={() => {
                   updateField('selectedFromIsland', island);
                   closeModal('showFromModal');
                 }}
               >
-                <Text style={styles.islandText}>{island}</Text>
+                {({ pressed }) => (
+                  <Text
+                    style={[
+                      styles.islandText,
+                      pressed &&
+                        !(quickBookingState.selectedFromIsland === island) && {
+                          opacity: 0.7,
+                        },
+                    ]}
+                  >
+                    {island}
+                  </Text>
+                )}
               </Pressable>
             ))}
           </ScrollView>
@@ -336,9 +402,14 @@ export default function HomeScreen() {
             <Text style={styles.modalTitle}>Select Destination Island</Text>
             <Pressable
               style={styles.modalCloseButton}
+              android_ripple={{ color: Colors.border }}
               onPress={() => closeModal('showToModal')}
             >
-              <X size={24} color={Colors.text} />
+              {({ pressed }) => (
+                <View style={pressed && { opacity: 0.7 }}>
+                  <X size={24} color={Colors.text} />
+                </View>
+              )}
             </Pressable>
           </View>
 
@@ -351,12 +422,30 @@ export default function HomeScreen() {
                   quickBookingState.selectedToIsland === island &&
                     styles.islandOptionSelected,
                 ]}
+                android_ripple={{
+                  color:
+                    quickBookingState.selectedToIsland === island
+                      ? Colors.primary
+                      : Colors.highlight,
+                }}
                 onPress={() => {
                   updateField('selectedToIsland', island);
                   closeModal('showToModal');
                 }}
               >
-                <Text style={styles.islandText}>{island}</Text>
+                {({ pressed }) => (
+                  <Text
+                    style={[
+                      styles.islandText,
+                      pressed &&
+                        !(quickBookingState.selectedToIsland === island) && {
+                          opacity: 0.7,
+                        },
+                    ]}
+                  >
+                    {island}
+                  </Text>
+                )}
               </Pressable>
             ))}
           </ScrollView>
@@ -381,7 +470,11 @@ export default function HomeScreen() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Upcoming Trips</Text>
         <Pressable onPress={() => router.push('/bookings')}>
-          <Text style={styles.sectionLink}>View All</Text>
+          {({ pressed }) => (
+            <Text style={[styles.sectionLink, pressed && { opacity: 0.7 }]}>
+              View All
+            </Text>
+          )}
         </Pressable>
       </View>
 
@@ -389,92 +482,110 @@ export default function HomeScreen() {
         upcomingBookings.map(booking => (
           <Pressable
             key={booking.id}
+            android_ripple={{ color: Colors.highlight }}
             onPress={() => handleViewBooking(booking.id)}
           >
-            <Card variant='elevated' style={styles.tripCard}>
-              <View style={styles.tripHeader}>
-                <View style={styles.tripRoute}>
-                  <Text style={styles.tripLocation}>
-                    {booking.route.fromIsland.name}
-                  </Text>
-                  <View style={styles.tripArrow}>
-                    <View style={styles.tripLine} />
-                    <ArrowRight size={16} color={Colors.primary} />
-                    <View style={styles.tripLine} />
+            {({ pressed }) => (
+              <View style={pressed && { opacity: 0.8 }}>
+                <Card variant='elevated' style={styles.tripCard}>
+                  <View style={styles.tripHeader}>
+                    <View style={styles.tripRoute}>
+                      <Text style={styles.tripLocation}>
+                        {booking.route.fromIsland.name}
+                      </Text>
+                      <View style={styles.tripArrow}>
+                        <View style={styles.tripLine} />
+                        <ArrowRight size={16} color={Colors.primary} />
+                        <View style={styles.tripLine} />
+                      </View>
+                      <Text style={styles.tripLocation}>
+                        {booking.route.toIsland.name}
+                      </Text>
+                    </View>
+                    <View style={styles.tripBadge}>
+                      <Text style={styles.tripBadgeText}>
+                        #{booking.bookingNumber}
+                      </Text>
+                    </View>
                   </View>
-                  <Text style={styles.tripLocation}>
-                    {booking.route.toIsland.name}
-                  </Text>
-                </View>
-                <View style={styles.tripBadge}>
-                  <Text style={styles.tripBadgeText}>
-                    #{booking.bookingNumber}
-                  </Text>
-                </View>
+
+                  <View style={styles.tripDetails}>
+                    <View style={styles.tripDetail}>
+                      <Calendar
+                        size={16}
+                        color={Colors.textSecondary}
+                        style={styles.tripIcon}
+                      />
+                      <Text style={styles.tripText}>
+                        {new Date(booking.departureDate).toLocaleDateString(
+                          'en-US',
+                          {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          }
+                        )}
+                      </Text>
+                    </View>
+
+                    <View style={styles.tripDetail}>
+                      <Clock
+                        size={16}
+                        color={Colors.textSecondary}
+                        style={styles.tripIcon}
+                      />
+                      <Text style={styles.tripText}>
+                        {booking.departureTime}
+                      </Text>
+                    </View>
+
+                    <View style={styles.tripDetail}>
+                      <Ticket
+                        size={16}
+                        color={Colors.textSecondary}
+                        style={styles.tripIcon}
+                      />
+                      <Text style={styles.tripText}>
+                        {booking.passengers.length} passenger(s)
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.tripFooter}>
+                    <Button
+                      title='View Ticket'
+                      variant='outline'
+                      size='small'
+                      onPress={() => handleViewBooking(booking.id)}
+                    />
+                  </View>
+                </Card>
               </View>
-
-              <View style={styles.tripDetails}>
-                <View style={styles.tripDetail}>
-                  <Calendar
-                    size={16}
-                    color={Colors.textSecondary}
-                    style={styles.tripIcon}
-                  />
-                  <Text style={styles.tripText}>
-                    {new Date(booking.departureDate).toLocaleDateString(
-                      'en-US',
-                      {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      }
-                    )}
-                  </Text>
-                </View>
-
-                <View style={styles.tripDetail}>
-                  <Clock
-                    size={16}
-                    color={Colors.textSecondary}
-                    style={styles.tripIcon}
-                  />
-                  <Text style={styles.tripText}>{booking.departureTime}</Text>
-                </View>
-
-                <View style={styles.tripDetail}>
-                  <Ticket
-                    size={16}
-                    color={Colors.textSecondary}
-                    style={styles.tripIcon}
-                  />
-                  <Text style={styles.tripText}>
-                    {booking.passengers.length} passenger(s)
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.tripFooter}>
-                <Button
-                  title='View Ticket'
-                  variant='outline'
-                  size='small'
-                  onPress={() => handleViewBooking(booking.id)}
-                />
-              </View>
-            </Card>
+            )}
           </Pressable>
         ))
       ) : (
-        <Card variant='outlined' style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No upcoming trips</Text>
-          <Button
-            title='Book Now'
-            variant='primary'
-            size='small'
-            onPress={handleBookNowClick}
-            style={styles.emptyButton}
-          />
-        </Card>
+        <>
+          <Card variant='outlined' style={styles.emptyCard}>
+            <Text style={styles.emptyText}>No upcoming trips</Text>
+            <Button
+              title='Book Now'
+              variant='primary'
+              size='small'
+              onPress={handleBookNowClick}
+              style={styles.emptyButton}
+            />
+          </Card>
+
+          {isGuestMode && (
+            <View style={styles.guestPrompt}>
+              <Text style={styles.guestPromptText}>
+                Sign in or create an account to make bookings.
+              </Text>
+              <Button title='Sign In' onPress={() => router.push('/(auth)')} />
+            </View>
+          )}
+        </>
       )}
 
       {/* Quick Actions Section */}
@@ -485,50 +596,86 @@ export default function HomeScreen() {
       <View style={styles.quickActionsGrid}>
         <Pressable
           style={styles.quickActionCard}
+          android_ripple={{ color: Colors.highlight }}
           onPress={() => router.push('/validate-ticket')}
         >
-          <View
-            style={[styles.quickActionIcon, { backgroundColor: '#e3f2fd' }]}
-          >
-            <Ticket size={24} color={Colors.primary} />
-          </View>
-          <Text style={styles.quickActionText}>Validate Ticket</Text>
+          {({ pressed }) => (
+            <>
+              <View
+                style={[styles.quickActionIcon, { backgroundColor: '#e3f2fd' }]}
+              >
+                <Ticket size={24} color={Colors.primary} />
+              </View>
+              <Text
+                style={[styles.quickActionText, pressed && { opacity: 0.7 }]}
+              >
+                Validate Ticket
+              </Text>
+            </>
+          )}
         </Pressable>
 
         <Pressable
           style={styles.quickActionCard}
+          android_ripple={{ color: Colors.highlight }}
           onPress={() => router.push('/bookings')}
         >
-          <View
-            style={[styles.quickActionIcon, { backgroundColor: '#e8f5e9' }]}
-          >
-            <Clock size={24} color='#2ecc71' />
-          </View>
-          <Text style={styles.quickActionText}>My Bookings</Text>
+          {({ pressed }) => (
+            <>
+              <View
+                style={[styles.quickActionIcon, { backgroundColor: '#e8f5e9' }]}
+              >
+                <Clock size={24} color='#2ecc71' />
+              </View>
+              <Text
+                style={[styles.quickActionText, pressed && { opacity: 0.7 }]}
+              >
+                My Bookings
+              </Text>
+            </>
+          )}
         </Pressable>
 
         <Pressable
           style={styles.quickActionCard}
+          android_ripple={{ color: Colors.highlight }}
           onPress={handleVesselTracking}
         >
-          <View
-            style={[styles.quickActionIcon, { backgroundColor: '#f3e5f5' }]}
-          >
-            <Ship size={24} color='#9c27b0' />
-          </View>
-          <Text style={styles.quickActionText}>Track Vessel</Text>
+          {({ pressed }) => (
+            <>
+              <View
+                style={[styles.quickActionIcon, { backgroundColor: '#f3e5f5' }]}
+              >
+                <Ship size={24} color='#9c27b0' />
+              </View>
+              <Text
+                style={[styles.quickActionText, pressed && { opacity: 0.7 }]}
+              >
+                Track Vessel
+              </Text>
+            </>
+          )}
         </Pressable>
 
         <Pressable
           style={styles.quickActionCard}
+          android_ripple={{ color: Colors.highlight }}
           onPress={() => router.push('/support')}
         >
-          <View
-            style={[styles.quickActionIcon, { backgroundColor: '#fff3e0' }]}
-          >
-            <LifeBuoy size={24} color='#f39c12' />
-          </View>
-          <Text style={styles.quickActionText}>Support</Text>
+          {({ pressed }) => (
+            <>
+              <View
+                style={[styles.quickActionIcon, { backgroundColor: '#fff3e0' }]}
+              >
+                <LifeBuoy size={24} color='#f39c12' />
+              </View>
+              <Text
+                style={[styles.quickActionText, pressed && { opacity: 0.7 }]}
+              >
+                Support
+              </Text>
+            </>
+          )}
         </Pressable>
       </View>
 
@@ -852,5 +999,23 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     color: Colors.error,
+  },
+  guestPrompt: {
+    marginTop: 20,
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  guestPromptText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 12,
   },
 });

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Pressable,
   ScrollView,
@@ -57,6 +56,7 @@ import {
   ChevronRight,
   X,
 } from 'lucide-react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 
 // Function to convert OperationsTrip to Trip type expected by components
 const mapOperationsTripToTrip = (operationsTrip: OperationsTrip): Trip => {
@@ -90,7 +90,8 @@ export default function TripDetailsPage() {
   const { cancel, remove } = useTripManagement();
   const tripStore = useTripStore();
   const { canViewTrips, canManageTrips } = useAdminPermissions();
-
+  const { showError, showSuccess, showConfirmation, showInfo } =
+    useAlertContext();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -191,10 +192,9 @@ export default function TripDetailsPage() {
         }
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to load trip details. Please try again.', [
-        { text: 'Retry', onPress: () => loadTrip() },
-        { text: 'Go Back', onPress: () => router.back() },
-      ]);
+      showError('Error', 'Failed to load trip details. Please try again.', () =>
+        loadTrip()
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -319,12 +319,12 @@ export default function TripDetailsPage() {
       if (success) {
         await loadTrip(); // Refresh the trip data
         setEditMode(false);
-        Alert.alert('Success', 'Trip updated successfully!');
+        showSuccess('Success', 'Trip updated successfully!');
       } else {
         throw new Error('Failed to update trip');
       }
     } catch (error) {
-      Alert.alert(
+      showError(
         'Error',
         error instanceof Error ? error.message : 'Failed to update trip'
       );
@@ -345,7 +345,7 @@ export default function TripDetailsPage() {
         }`
       : 'this trip';
 
-    Alert.alert(
+    showConfirmation(
       'Cancel Trip',
       `Are you sure you want to cancel ${routeName} on ${formatBookingDate(
         trip.travel_date
@@ -354,35 +354,30 @@ export default function TripDetailsPage() {
       )}?\n\nThis will change the trip status to cancelled and notify ${
         trip.booked_seats
       } booked passengers.`,
-      [
-        { text: 'Keep Trip', style: 'cancel' },
-        {
-          text: 'Cancel Trip',
-          style: 'destructive',
-          onPress: async () => {
-            // Use a default reason for cross-platform compatibility
-            const defaultReason = 'Trip cancelled by administrator';
-            try {
-              await cancel(id, defaultReason);
+      async () => {
+        // Use a default reason for cross-platform compatibility
+        const defaultReason = 'Trip cancelled by administrator';
+        try {
+          await cancel(id, defaultReason);
 
-              // Force refresh all stores to get the latest data
-              await tripStore.fetchAll();
-              await refreshAll();
-              await loadTrip(true);
+          // Force refresh all stores to get the latest data
+          await tripStore.fetchAll();
+          await refreshAll();
+          await loadTrip(true);
 
-              Alert.alert(
-                'Trip Cancelled',
-                'The trip has been cancelled successfully. Passengers will be notified.'
-              );
-            } catch (error) {
-              Alert.alert(
-                'Error',
-                error instanceof Error ? error.message : 'Failed to cancel trip'
-              );
-            }
-          },
-        },
-      ]
+          showSuccess(
+            'Trip Cancelled',
+            'The trip has been cancelled successfully. Passengers will be notified.'
+          );
+        } catch (error) {
+          showError(
+            'Error',
+            error instanceof Error ? error.message : 'Failed to cancel trip'
+          );
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 
@@ -396,7 +391,7 @@ export default function TripDetailsPage() {
         }`
       : 'this trip';
 
-    Alert.alert(
+    showConfirmation(
       'Delete Trip',
       `Are you sure you want to permanently delete ${routeName} on ${formatBookingDate(
         trip.travel_date
@@ -405,33 +400,23 @@ export default function TripDetailsPage() {
       )}?\n\n⚠️ WARNING: This action cannot be undone and will permanently remove the trip and all associated data including ${
         trip.booked_seats
       } bookings.`,
-      [
-        { text: 'Keep Trip', style: 'cancel' },
-        {
-          text: 'Delete Permanently',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await remove(id);
-              Alert.alert(
-                'Trip Deleted',
-                'The trip has been permanently deleted from the system.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => router.back(),
-                  },
-                ]
-              );
-            } catch (error) {
-              Alert.alert(
-                'Error',
-                error instanceof Error ? error.message : 'Failed to delete trip'
-              );
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          await remove(id);
+          showSuccess(
+            'Trip Deleted',
+            'The trip has been permanently deleted from the system.',
+            () => router.back()
+          );
+        } catch (error) {
+          showError(
+            'Error',
+            error instanceof Error ? error.message : 'Failed to delete trip'
+          );
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 
@@ -447,12 +432,7 @@ export default function TripDetailsPage() {
 
   const handleShare = () => {
     if (!trip) return;
-
-    Alert.alert('Share Trip', 'Choose how to share this trip information:', [
-      { text: 'Copy Link', onPress: () => {} },
-      { text: 'Export PDF', onPress: () => {} },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    showInfo('Share Trip', 'Share functionality coming soon.');
   };
 
   const getTripStatusInfo = (trip: Trip) => {
@@ -1032,10 +1012,9 @@ export default function TripDetailsPage() {
                   }
 
                   if (!registrationNumber) {
-                    Alert.alert(
+                    showError(
                       'Tracking Unavailable',
-                      'This vessel does not have a registration number for tracking.',
-                      [{ text: 'OK' }]
+                      'This vessel does not have a registration number for tracking.'
                     );
                     return;
                   }
@@ -1047,19 +1026,16 @@ export default function TripDetailsPage() {
                       if (supported) {
                         return Linking.openURL(trackingUrl);
                       } else {
-                        Alert.alert(
+                        showError(
                           'Cannot Open Tracking',
-                          'Unable to open the vessel tracking system.',
-                          [{ text: 'OK' }]
+                          'Unable to open the vessel tracking system.'
                         );
                       }
                     })
                     .catch(error => {
-                      console.error('Error opening tracking URL:', error);
-                      Alert.alert(
+                      showError(
                         'Error',
-                        'An error occurred while trying to open the tracking system.',
-                        [{ text: 'OK' }]
+                        'An error occurred while trying to open the tracking system.'
                       );
                     });
                 }}

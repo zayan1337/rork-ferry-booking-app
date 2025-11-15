@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, View, Pressable, Text, Alert } from 'react-native';
+import { StyleSheet, View, Pressable, Text } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Download, Clock, X, CheckCircle, Calendar } from 'lucide-react-native';
 
 export interface BulkAction {
@@ -32,16 +33,17 @@ export default function TripBulkActions({
   canManageTrips = false,
   isVisible = true,
 }: TripBulkActionsProps) {
+  const { showConfirmation } = useAlertContext();
+
   const handleBulkAction = (action: BulkAction) => {
     if (action.confirmationTitle && action.confirmationMessage) {
-      Alert.alert(action.confirmationTitle, action.confirmationMessage, [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          style: action.variant === 'danger' ? 'destructive' : 'default',
-          onPress: () => onBulkAction(action.key),
-        },
-      ]);
+      showConfirmation(
+        action.confirmationTitle,
+        action.confirmationMessage,
+        () => onBulkAction(action.key),
+        undefined,
+        action.variant === 'danger' // Mark as destructive if danger variant
+      );
     } else {
       onBulkAction(action.key);
     }

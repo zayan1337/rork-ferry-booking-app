@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useContentManagement } from '@/hooks/useContentManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 import { TermsAndConditions } from '@/types/content';
 import {
   ArrowLeft,
@@ -36,6 +36,7 @@ const isTablet = screenWidth >= 768;
 
 export default function TermsScreen() {
   const { canViewContent, canManageContent } = useAdminPermissions();
+  const { showError } = useAlertContext();
 
   const {
     terms: allTerms,
@@ -84,7 +85,7 @@ export default function TermsScreen() {
     if (canManageContent()) {
       router.push('./terms/new' as any);
     } else {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to create terms and conditions."
       );

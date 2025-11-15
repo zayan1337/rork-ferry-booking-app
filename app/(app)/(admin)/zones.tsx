@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { colors } from '@/constants/adminColors';
 // UPDATED: Replace old content store with new zone store
 import { useZoneStore } from '@/store/admin/zoneStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from '@/types';
 // UPDATED: Use new utility functions from admin folder, but keep legacy stats for UI compatibility
@@ -48,6 +48,7 @@ type Zone = AdminManagement.Zone;
 
 export default function ZonesScreen() {
   const { canViewSettings, canManageSettings } = useAdminPermissions();
+  const { showError } = useAlertContext();
 
   // UPDATED: Use new zone store instead of content store
   const {
@@ -90,10 +91,7 @@ export default function ZonesScreen() {
     if (canManageSettings()) {
       router.push('./zone/new' as any);
     } else {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to create zones."
-      );
+      showError('Access Denied', "You don't have permission to create zones.");
     }
   };
 

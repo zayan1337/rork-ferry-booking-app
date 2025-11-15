@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   Share,
   Pressable,
   RefreshControl,
@@ -37,12 +36,14 @@ import {
 // Components
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function PromotionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canManageContent, canViewContent } = useAdminPermissions();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
   const {
     currentPromotion,
     loading,
@@ -70,8 +71,7 @@ export default function PromotionDetailScreen() {
     try {
       await fetchPromotionById(id);
     } catch (error) {
-      console.error('Error loading promotion:', error);
-      Alert.alert('Error', 'Failed to load promotion details');
+      showError('Error', 'Failed to load promotion details');
     }
   };
 
@@ -83,7 +83,7 @@ export default function PromotionDetailScreen() {
 
   const handleEdit = () => {
     if (!canManageContent()) {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to edit promotions."
       );
@@ -95,29 +95,24 @@ export default function PromotionDetailScreen() {
   const handleDelete = () => {
     if (!canManageContent() || !promotion) return;
 
-    Alert.alert(
+    showConfirmation(
       'Delete Promotion',
       `Are you sure you want to delete "${promotion.name}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              await deletePromotion(promotion.id);
-              Alert.alert('Success', 'Promotion deleted successfully');
-              router.back();
-            } catch (error) {
-              console.error('Error deleting promotion:', error);
-              Alert.alert('Error', 'Failed to delete promotion');
-            } finally {
-              setIsDeleting(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        setIsDeleting(true);
+        try {
+          await deletePromotion(promotion.id);
+          showSuccess('Success', 'Promotion deleted successfully', () =>
+            router.back()
+          );
+        } catch (error) {
+          showError('Error', 'Failed to delete promotion');
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 
@@ -127,10 +122,9 @@ export default function PromotionDetailScreen() {
     setIsDuplicating(true);
     try {
       await duplicatePromotion(promotion.id);
-      Alert.alert('Success', 'Promotion duplicated successfully');
+      showSuccess('Success', 'Promotion duplicated successfully');
     } catch (error) {
-      console.error('Error duplicating promotion:', error);
-      Alert.alert('Error', 'Failed to duplicate promotion');
+      showError('Error', 'Failed to duplicate promotion');
     } finally {
       setIsDuplicating(false);
     }

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -35,6 +34,7 @@ import {
 // Components
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -43,6 +43,7 @@ type Zone = AdminManagement.Zone;
 export default function ZoneDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canViewSettings, canManageSettings } = useAdminPermissions();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   // UPDATED: Use new zone store instead of content store
   const {
@@ -84,8 +85,7 @@ export default function ZoneDetailScreen() {
         }
       }
     } catch (error) {
-      console.error('Error loading zone:', error);
-      Alert.alert('Error', 'Failed to load zone details');
+      showError('Error', 'Failed to load zone details');
     } finally {
       setLoading(false);
     }
@@ -99,7 +99,7 @@ export default function ZoneDetailScreen() {
 
   const handleEdit = () => {
     if (!canManageSettings()) {
-      Alert.alert('Access Denied', "You don't have permission to edit zones.");
+      showError('Access Denied', "You don't have permission to edit zones.");
       return;
     }
     router.push(`../zone/edit/${id}` as any);
@@ -107,42 +107,31 @@ export default function ZoneDetailScreen() {
 
   const handleDelete = () => {
     if (!canManageSettings()) {
-      Alert.alert(
-        'Access Denied',
-        "You don't have permission to delete zones."
-      );
+      showError('Access Denied', "You don't have permission to delete zones.");
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Delete Zone',
       `Are you sure you want to delete "${zone?.name}"? This action cannot be undone and will affect all islands in this zone.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await deleteZone(id);
-              Alert.alert('Success', 'Zone deleted successfully');
-              router.back();
-            } catch (error) {
-              console.error('Error deleting zone:', error);
-              Alert.alert(
-                'Error',
-                'Failed to delete zone. There may be islands using this zone.'
-              );
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        setDeleting(true);
+        try {
+          await deleteZone(id);
+          showSuccess('Success', 'Zone deleted successfully', () =>
+            router.back()
+          );
+        } catch (error) {
+          showError(
+            'Error',
+            'Failed to delete zone. There may be islands using this zone.'
+          );
+        } finally {
+          setDeleting(false);
+        }
+      },
+      undefined,
+      true // Mark as destructive action
     );
   };
 

@@ -6,7 +6,6 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -22,8 +21,10 @@ import { useTermsStore } from '@/store';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function TermsAndConditionsScreen() {
+  const { showError } = useAlertContext();
   const { terms, isLoading, error, fetchTerms, clearError } = useTermsStore();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set()
@@ -38,13 +39,13 @@ export default function TermsAndConditionsScreen() {
     try {
       await fetchTerms();
     } catch (error) {
-      Alert.alert(
+      showError(
         'Connection Error',
         'Unable to load terms and conditions. Please check your internet connection and try again.',
-        [
-          { text: 'Retry', onPress: loadTerms },
-          { text: 'Go Back', onPress: () => router.back() },
-        ]
+        () => {
+          // Retry option
+          loadTerms();
+        }
       );
     }
   };

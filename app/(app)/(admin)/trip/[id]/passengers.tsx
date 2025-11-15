@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   TextInput,
@@ -29,6 +28,7 @@ import {
   AlertTriangle,
   Download,
 } from 'lucide-react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 
 interface Passenger {
   id: string;
@@ -50,6 +50,7 @@ export default function TripPassengersPage() {
   const { fetchTrip } = useOperationsStore();
   const { fetchTripPassengers } = useTripStore();
   const { canViewTrips } = useAdminPermissions();
+  const { showError, showConfirmation, showInfo } = useAlertContext();
 
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [trip, setTrip] = useState<any>(null);
@@ -178,7 +179,7 @@ export default function TripPassengersPage() {
       // Fetch real passenger data
       await fetchPassengers();
     } catch (error) {
-      Alert.alert('Error', 'Failed to load passenger data');
+      showError('Error', 'Failed to load passenger data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -190,33 +191,27 @@ export default function TripPassengersPage() {
   };
 
   const handleCheckIn = (passengerId: string) => {
-    Alert.alert('Check In Passenger', 'Mark this passenger as checked in?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Check In',
-        onPress: () => {
-          setPassengers(prev =>
-            prev.map(p =>
-              p.id === passengerId
-                ? {
-                    ...p,
-                    booking_status: 'checked_in',
-                    checked_in_at: new Date().toISOString(),
-                  }
-                : p
-            )
-          );
-        },
-      },
-    ]);
+    showConfirmation(
+      'Check In Passenger',
+      'Mark this passenger as checked in?',
+      () => {
+        setPassengers(prev =>
+          prev.map(p =>
+            p.id === passengerId
+              ? {
+                  ...p,
+                  booking_status: 'checked_in',
+                  checked_in_at: new Date().toISOString(),
+                }
+              : p
+          )
+        );
+      }
+    );
   };
 
   const handleExportManifest = () => {
-    Alert.alert('Export Manifest', 'Choose export format:', [
-      { text: 'PDF', onPress: () => {} },
-      { text: 'Excel', onPress: () => {} },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    showInfo('Export Manifest', 'Export functionality coming soon.');
   };
 
   const getStatusInfo = (status: string) => {

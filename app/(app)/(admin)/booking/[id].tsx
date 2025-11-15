@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
-  Alert,
   ScrollView,
   RefreshControl,
   Dimensions,
@@ -47,6 +46,7 @@ import { supabase } from '@/utils/supabase';
 import { getRouteStops } from '@/utils/segmentUtils';
 import { getBookingSegment } from '@/utils/segmentBookingUtils';
 import type { RouteStop } from '@/types/multiStopRoute';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -55,10 +55,12 @@ export default function BookingDetailsPage() {
   const {
     fetchBooking,
     updateBooking,
+    updatePaymentStatus,
     loading: storeLoading,
     error: storeError,
   } = useAdminBookingStore();
   const { canViewBookings, canUpdateBookings } = useAdminPermissions();
+  const { showSuccess, showError, showInfo } = useAlertContext();
 
   const [booking, setBooking] = useState<AdminBooking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -186,13 +188,12 @@ export default function BookingDetailsPage() {
       if (updatedBooking) {
         setBooking(updatedBooking);
       }
-      Alert.alert(
+      showSuccess(
         'Success',
         `Booking status updated to ${newStatus.replace('_', ' ')}`
       );
     } catch (error) {
-      console.error('Error updating booking status:', error);
-      Alert.alert('Error', 'Failed to update booking status');
+      showError('Error', 'Failed to update booking status');
     } finally {
       setUpdating(false);
     }
@@ -203,15 +204,20 @@ export default function BookingDetailsPage() {
 
     setUpdating(true);
     try {
-      await updateBooking(booking.id, { payment_status: newStatus });
+      await updatePaymentStatus(
+        booking.id,
+        newStatus,
+        booking.total_fare,
+        booking.payment_method || booking.payment_method_type || 'gateway'
+      );
       // Refresh the booking data
       const updatedBooking = await fetchBooking(booking.id);
       if (updatedBooking) {
         setBooking(updatedBooking);
       }
-      Alert.alert('Success', 'Payment status updated successfully');
+      showSuccess('Success', 'Payment status updated successfully');
     } catch (error) {
-      Alert.alert('Error', 'Failed to update payment status');
+      showError('Error', 'Failed to update payment status');
     } finally {
       setUpdating(false);
     }
@@ -228,14 +234,14 @@ export default function BookingDetailsPage() {
   };
 
   const handleShareQR = () => {
-    Alert.alert(
+    showInfo(
       'Share QR Code',
       'QR code sharing functionality will be implemented here.'
     );
   };
 
   const handleDownloadQR = () => {
-    Alert.alert(
+    showInfo(
       'Download QR Code',
       'QR code download functionality will be implemented here.'
     );

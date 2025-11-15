@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Alert,
-  Text,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { ArrowLeft, AlertCircle, RotateCcw } from 'lucide-react-native';
@@ -18,11 +11,13 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import FAQCategoryForm from '@/components/admin/operations/FAQCategoryForm';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import Button from '@/components/admin/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function EditFAQCategoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { loadCategory, categories, refreshAll } = useFAQManagement();
   const { canManageSettings } = useAdminPermissions();
+  const { showError } = useAlertContext();
 
   const [category, setCategory] = useState<FAQCategory | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,8 +54,7 @@ export default function EditFAQCategoryScreen() {
   };
 
   const handleError = (error: string) => {
-    console.error('Error updating FAQ category:', error);
-    Alert.alert('Error', 'Failed to update FAQ category');
+    showError('Error', 'Failed to update FAQ category');
   };
 
   const handleRetry = () => {

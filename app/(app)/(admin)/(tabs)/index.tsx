@@ -6,7 +6,6 @@ import {
   View,
   Pressable,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { AlertTriangle, Eye, Activity } from 'lucide-react-native';
@@ -30,10 +29,12 @@ import SectionHeader from '@/components/admin/SectionHeader';
 import AlertItem from '@/components/admin/AlertItem';
 import BookingItem from '@/components/admin/BookingItem';
 import Button from '@/components/admin/Button';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function DashboardScreen() {
   const { dashboardStats, markAlertAsRead, markAllAlertsAsRead, refreshData } =
     useAdminStore();
+  const { showError } = useAlertContext();
 
   const {
     canViewDashboard,
@@ -85,7 +86,7 @@ export default function DashboardScreen() {
         if (canViewBookings()) {
           router.push('../booking/new' as any);
         } else {
-          Alert.alert(
+          showError(
             'Access Denied',
             "You don't have permission to create bookings."
           );

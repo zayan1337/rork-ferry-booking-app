@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert, Text, Pressable } from 'react-native';
+import { View, StyleSheet, Text, Pressable } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import {
@@ -14,6 +14,7 @@ import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import EmptyState from '@/components/admin/EmptyState';
 import { AlertTriangle, ArrowLeft } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function EditBookingPage() {
   const { id } = useLocalSearchParams();
@@ -24,6 +25,7 @@ export default function EditBookingPage() {
     error: storeError,
   } = useAdminBookingStore();
   const { canUpdateBookings } = useAdminPermissions();
+  const { showSuccess, showError } = useAlertContext();
 
   const [booking, setBooking] = useState<AdminBooking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,11 +101,11 @@ export default function EditBookingPage() {
 
       await updateBooking(booking.id, updateData);
 
-      Alert.alert('Success', 'Booking updated successfully', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      showSuccess('Success', 'Booking updated successfully', () =>
+        router.back()
+      );
     } catch (error) {
-      Alert.alert('Error', 'Failed to update booking. Please try again.');
+      showError('Error', 'Failed to update booking. Please try again.');
     } finally {
       setSaving(false);
     }

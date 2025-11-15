@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { Vessel } from '@/types/admin/management';
 import { formatCurrency } from '@/utils/currencyUtils';
 import Button from '@/components/admin/Button';
@@ -82,6 +82,7 @@ export default function VesselDetails({
   onViewSeatLayout,
   showActions = true,
 }: VesselDetailsProps) {
+  const { showConfirmation } = useAlertContext();
   const [isLoadingSeats, setIsLoadingSeats] = useState(true);
 
   // Simulate seat loading effect
@@ -95,13 +96,12 @@ export default function VesselDetails({
 
   const handleArchive = () => {
     if (onArchive) {
-      Alert.alert(
+      showConfirmation(
         'Archive Vessel',
         `Are you sure you want to archive "${vessel.name}"? This will remove it from active service.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Archive', style: 'destructive', onPress: onArchive },
-        ]
+        onArchive,
+        undefined,
+        true // Mark as destructive action
       );
     }
   };

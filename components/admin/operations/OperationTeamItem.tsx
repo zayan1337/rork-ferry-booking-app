@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import {
   Mail,
   User,
@@ -31,50 +32,34 @@ export default function OperationTeamItem({
   onToggleReceiveManifests,
   canManage,
 }: OperationTeamItemProps) {
+  const { showConfirmation } = useAlertContext();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleDelete = () => {
-    Alert.alert(
+    showConfirmation(
       'Delete Team Member',
       `Are you sure you want to remove ${member.full_name} from the operation team?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => onDelete(member.id),
-        },
-      ]
+      () => onDelete(member.id),
+      undefined,
+      true // Mark as destructive action
     );
   };
 
   const handleToggleActive = () => {
     const newStatus = !member.is_active;
-    Alert.alert(
+    showConfirmation(
       `${newStatus ? 'Activate' : 'Deactivate'} Member`,
       `Are you sure you want to ${newStatus ? 'activate' : 'deactivate'} ${member.full_name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: () => onToggleActive(member.id, newStatus),
-        },
-      ]
+      () => onToggleActive(member.id, newStatus)
     );
   };
 
   const handleToggleManifests = () => {
     const newStatus = !member.receive_manifests;
-    Alert.alert(
+    showConfirmation(
       `${newStatus ? 'Enable' : 'Disable'} Manifest Delivery`,
       `Are you sure you want to ${newStatus ? 'enable' : 'disable'} manifest delivery for ${member.full_name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: () => onToggleReceiveManifests(member.id, newStatus),
-        },
-      ]
+      () => onToggleReceiveManifests(member.id, newStatus)
     );
   };
 

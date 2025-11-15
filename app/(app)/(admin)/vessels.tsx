@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { colors } from '@/constants/adminColors';
 // UPDATED: Use new vessel management hook instead of admin store
 import { useVesselManagement } from '@/hooks/useVesselManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 // UPDATED: Use AdminManagement types for consistency
 import { AdminManagement } from '@/types';
 // UPDATED: Use new utility functions from admin folder
@@ -48,6 +48,7 @@ type Vessel = AdminManagement.Vessel;
 
 export default function VesselsScreen() {
   const { canViewVessels, canManageVessels } = useAdminPermissions();
+  const { showError } = useAlertContext();
 
   // UPDATED: Use new vessel management hook instead of admin store
   const {
@@ -84,7 +85,7 @@ export default function VesselsScreen() {
     if (canManageVessels()) {
       router.push('./vessel/new' as any);
     } else {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to create vessels."
       );

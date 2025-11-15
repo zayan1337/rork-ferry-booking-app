@@ -105,157 +105,162 @@ export default function OperationTeamModal({
     }
   };
 
+  const content = (
+    <View style={styles.modalContainer}>
+      {/* Header */}
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>
+          {member ? 'Edit Team Member' : 'Add Team Member'}
+        </Text>
+        <Pressable onPress={onClose} style={styles.closeButton}>
+          <X size={24} color={colors.text} />
+        </Pressable>
+      </View>
+
+      {/* Content */}
+      <ScrollView
+        style={styles.modalContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps='handled'
+      >
+        {/* Full Name */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Full Name *</Text>
+          <View style={styles.inputContainer}>
+            <User size={20} color={colors.textSecondary} />
+            <TextInput
+              style={styles.input}
+              placeholder='Enter full name'
+              value={formData.full_name}
+              onChangeText={text => handleFieldChange('full_name', text)}
+              editable={!loading}
+            />
+          </View>
+          {errors.full_name && (
+            <Text style={styles.errorText}>{errors.full_name}</Text>
+          )}
+        </View>
+
+        {/* Email */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Email *</Text>
+          <View style={styles.inputContainer}>
+            <Mail size={20} color={colors.textSecondary} />
+            <TextInput
+              style={styles.input}
+              placeholder='Enter email address'
+              value={formData.email}
+              onChangeText={text =>
+                handleFieldChange('email', text.toLowerCase())
+              }
+              keyboardType='email-address'
+              autoCapitalize='none'
+              editable={!loading}
+            />
+          </View>
+          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+        </View>
+
+        {/* Role */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Role *</Text>
+          <View style={styles.inputContainer}>
+            <Shield size={20} color={colors.textSecondary} />
+            <TextInput
+              style={styles.input}
+              placeholder='Enter role (e.g., operations, manager)'
+              value={formData.role}
+              onChangeText={text => handleFieldChange('role', text)}
+              editable={!loading}
+            />
+          </View>
+          {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
+        </View>
+
+        {/* Active Status */}
+        <View style={styles.switchGroup}>
+          <View style={styles.switchLabel}>
+            <Text style={styles.switchLabelText}>Active</Text>
+            <Text style={styles.switchDescription}>
+              Member can receive emails and notifications
+            </Text>
+          </View>
+          <Switch
+            value={formData.is_active}
+            onValueChange={value => handleFieldChange('is_active', value)}
+            disabled={loading}
+            trackColor={{ false: colors.border, true: colors.primaryLight }}
+            thumbColor={
+              formData.is_active ? colors.primary : colors.textSecondary
+            }
+          />
+        </View>
+
+        {/* Receive Manifests */}
+        <View style={styles.switchGroup}>
+          <View style={styles.switchLabel}>
+            <View style={styles.switchLabelWithIcon}>
+              <Bell size={20} color={colors.textSecondary} />
+              <Text style={styles.switchLabelText}>Receive Manifests</Text>
+            </View>
+            <Text style={styles.switchDescription}>
+              Member will receive passenger manifest emails
+            </Text>
+          </View>
+          <Switch
+            value={formData.receive_manifests}
+            onValueChange={value =>
+              handleFieldChange('receive_manifests', value)
+            }
+            disabled={loading}
+            trackColor={{ false: colors.border, true: colors.primaryLight }}
+            thumbColor={
+              formData.receive_manifests ? colors.primary : colors.textSecondary
+            }
+          />
+        </View>
+      </ScrollView>
+
+      {/* Footer */}
+      <View style={styles.modalFooter}>
+        <Button
+          title='Cancel'
+          onPress={onClose}
+          variant='outline'
+          disabled={loading}
+          style={styles.footerButton}
+        />
+        <Button
+          title={member ? 'Update' : 'Add Member'}
+          onPress={handleSubmit}
+          variant='primary'
+          disabled={loading}
+          loading={loading}
+          style={styles.footerButton}
+        />
+      </View>
+    </View>
+  );
+
   return (
     <Modal
       visible={visible}
       animationType='slide'
       transparent={true}
       onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.modalOverlay}
-      >
-        <View style={styles.modalContainer}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {member ? 'Edit Team Member' : 'Add Team Member'}
-            </Text>
-            <Pressable onPress={onClose} style={styles.closeButton}>
-              <X size={24} color={colors.text} />
-            </Pressable>
-          </View>
-
-          {/* Content */}
-          <ScrollView
-            style={styles.modalContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Full Name */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Full Name *</Text>
-              <View style={styles.inputContainer}>
-                <User size={20} color={colors.textSecondary} />
-                <TextInput
-                  style={styles.input}
-                  placeholder='Enter full name'
-                  value={formData.full_name}
-                  onChangeText={text => handleFieldChange('full_name', text)}
-                  editable={!loading}
-                />
-              </View>
-              {errors.full_name && (
-                <Text style={styles.errorText}>{errors.full_name}</Text>
-              )}
-            </View>
-
-            {/* Email */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email *</Text>
-              <View style={styles.inputContainer}>
-                <Mail size={20} color={colors.textSecondary} />
-                <TextInput
-                  style={styles.input}
-                  placeholder='Enter email address'
-                  value={formData.email}
-                  onChangeText={text =>
-                    handleFieldChange('email', text.toLowerCase())
-                  }
-                  keyboardType='email-address'
-                  autoCapitalize='none'
-                  editable={!loading}
-                />
-              </View>
-              {errors.email && (
-                <Text style={styles.errorText}>{errors.email}</Text>
-              )}
-            </View>
-
-            {/* Role */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Role *</Text>
-              <View style={styles.inputContainer}>
-                <Shield size={20} color={colors.textSecondary} />
-                <TextInput
-                  style={styles.input}
-                  placeholder='Enter role (e.g., operations, manager)'
-                  value={formData.role}
-                  onChangeText={text => handleFieldChange('role', text)}
-                  editable={!loading}
-                />
-              </View>
-              {errors.role && (
-                <Text style={styles.errorText}>{errors.role}</Text>
-              )}
-            </View>
-
-            {/* Active Status */}
-            <View style={styles.switchGroup}>
-              <View style={styles.switchLabel}>
-                <Text style={styles.switchLabelText}>Active</Text>
-                <Text style={styles.switchDescription}>
-                  Member can receive emails and notifications
-                </Text>
-              </View>
-              <Switch
-                value={formData.is_active}
-                onValueChange={value => handleFieldChange('is_active', value)}
-                disabled={loading}
-                trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={
-                  formData.is_active ? colors.primary : colors.textSecondary
-                }
-              />
-            </View>
-
-            {/* Receive Manifests */}
-            <View style={styles.switchGroup}>
-              <View style={styles.switchLabel}>
-                <View style={styles.switchLabelWithIcon}>
-                  <Bell size={20} color={colors.textSecondary} />
-                  <Text style={styles.switchLabelText}>Receive Manifests</Text>
-                </View>
-                <Text style={styles.switchDescription}>
-                  Member will receive passenger manifest emails
-                </Text>
-              </View>
-              <Switch
-                value={formData.receive_manifests}
-                onValueChange={value =>
-                  handleFieldChange('receive_manifests', value)
-                }
-                disabled={loading}
-                trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={
-                  formData.receive_manifests
-                    ? colors.primary
-                    : colors.textSecondary
-                }
-              />
-            </View>
-          </ScrollView>
-
-          {/* Footer */}
-          <View style={styles.modalFooter}>
-            <Button
-              title='Cancel'
-              onPress={onClose}
-              variant='outline'
-              disabled={loading}
-              style={styles.footerButton}
-            />
-            <Button
-              title={member ? 'Update' : 'Add Member'}
-              onPress={handleSubmit}
-              variant='primary'
-              disabled={loading}
-              loading={loading}
-              style={styles.footerButton}
-            />
-          </View>
-        </View>
-      </KeyboardAvoidingView>
+      {Platform.OS === 'ios' ? (
+        <KeyboardAvoidingView
+          behavior='padding'
+          keyboardVerticalOffset={80}
+          style={styles.modalOverlay}
+        >
+          {content}
+        </KeyboardAvoidingView>
+      ) : (
+        <View style={styles.modalOverlay}>{content}</View>
+      )}
     </Modal>
   );
 }

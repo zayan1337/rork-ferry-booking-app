@@ -1,4 +1,3 @@
-import { Alert } from 'react-native';
 import { supabase } from './supabase';
 import type { PaymentMethod } from '@/types/pages/booking';
 
@@ -7,12 +6,24 @@ import type { PaymentMethod } from '@/types/pages/booking';
  * @param paymentMethod - Selected payment method
  * @param amount - Payment amount
  * @param bookingId - Booking ID for reference
+ * @param onInfo - Optional info handler function
+ * @param onSuccess - Optional success handler function
  * @returns Promise that resolves when payment processing is complete
  */
 export const processPayment = async (
   paymentMethod: PaymentMethod,
   amount: number,
-  bookingId: string
+  bookingId: string,
+  onInfo?: (
+    title: string,
+    message: string,
+    buttons?: {
+      text: string;
+      style?: 'cancel' | 'destructive';
+      onPress?: () => void;
+    }[]
+  ) => void,
+  onSuccess?: (title: string, message: string) => void
 ): Promise<void> => {
   try {
     switch (paymentMethod) {
@@ -24,37 +35,47 @@ export const processPayment = async (
       case 'ooredoo_m_faisa':
       case 'fahipay':
         return new Promise(resolve => {
-          Alert.alert(
-            'Payment Processing',
-            'Please complete the payment using the selected payment method.',
-            [
-              {
-                text: 'Cancel',
-                style: 'cancel',
-                onPress: () => resolve(),
-              },
-              {
-                text: 'Pay Now',
-                onPress: () => {
-                  // Here you would integrate with actual payment gateway
-                  Alert.alert(
-                    'Payment Successful',
-                    `Payment of MVR ${amount.toFixed(2)} has been processed successfully.`,
-                    [{ text: 'OK', onPress: () => resolve() }]
-                  );
+          if (onInfo) {
+            onInfo(
+              'Payment Processing',
+              'Please complete the payment using the selected payment method.',
+              [
+                {
+                  text: 'Cancel',
+                  style: 'cancel',
+                  onPress: () => resolve(),
                 },
-              },
-            ]
-          );
+                {
+                  text: 'Pay Now',
+                  onPress: () => {
+                    // Here you would integrate with actual payment gateway
+                    if (onSuccess) {
+                      onSuccess(
+                        'Payment Successful',
+                        `Payment of MVR ${amount.toFixed(2)} has been processed successfully.`
+                      );
+                    }
+                    resolve();
+                  },
+                },
+              ]
+            );
+          } else {
+            resolve();
+          }
         });
 
       case 'bank_transfer':
         return new Promise(resolve => {
-          Alert.alert(
-            'Bank Transfer',
-            'Please transfer the amount to our bank account. Details will be provided via SMS/Email.',
-            [{ text: 'OK', onPress: () => resolve() }]
-          );
+          if (onInfo) {
+            onInfo(
+              'Bank Transfer',
+              'Please transfer the amount to our bank account. Details will be provided via SMS/Email.',
+              [{ text: 'OK', onPress: () => resolve() }]
+            );
+          } else {
+            resolve();
+          }
         });
 
       default:

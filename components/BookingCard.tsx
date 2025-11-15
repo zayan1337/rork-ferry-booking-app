@@ -11,7 +11,10 @@ interface BookingCardProps {
   onPress: (booking: Booking) => void;
 }
 
-const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
+const BookingCardComponent: React.FC<BookingCardProps> = ({
+  booking,
+  onPress,
+}) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -118,6 +121,13 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onPress }) => {
     </Pressable>
   );
 };
+
+const BookingCard = React.memo(
+  BookingCardComponent,
+  (prevProps, nextProps) =>
+    prevProps.booking === nextProps.booking &&
+    prevProps.onPress === nextProps.onPress
+);
 
 const styles = StyleSheet.create({
   card: {

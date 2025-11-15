@@ -5,7 +5,6 @@ import {
   Text,
   View,
   Pressable,
-  Alert,
   RefreshControl,
   Modal,
   Platform,
@@ -13,6 +12,7 @@ import {
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAuthStore } from '@/store/authStore';
+import { useAlertContext } from '@/components/AlertProvider';
 import { supabase } from '@/utils/supabase';
 import {
   User,
@@ -35,6 +35,7 @@ type EditableField = 'full_name' | 'mobile_number' | 'date_of_birth';
 
 export default function AdminProfileModal() {
   const { user, signOut } = useAuthStore();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
   const [refreshing, setRefreshing] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
@@ -51,21 +52,20 @@ export default function AdminProfileModal() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut();
-            // Navigation will be handled by the app layout
-          } catch (error) {
-            console.error('Logout error:', error);
-          }
-        },
+    showConfirmation(
+      'Logout',
+      'Are you sure you want to logout?',
+      async () => {
+        try {
+          await signOut();
+          // Navigation will be handled by the app layout
+        } catch (error) {
+          console.error('Logout error:', error);
+        }
       },
-    ]);
+      undefined,
+      false
+    );
   };
 
   const getInitials = (name: string) => {
@@ -130,7 +130,7 @@ export default function AdminProfileModal() {
 
   const handleSaveEdit = async () => {
     if (!editingField || !editValue.trim()) {
-      Alert.alert('Error', 'Please enter a valid value');
+      showError('Error', 'Please enter a valid value');
       return;
     }
 
@@ -153,30 +153,30 @@ export default function AdminProfileModal() {
 
       await updateProfileLocally(updateData);
 
-      Alert.alert('Success', 'Profile updated successfully');
+      showSuccess('Success', 'Profile updated successfully');
       closeEditModal();
     } catch (error) {
       console.error('Update error:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update profile';
-      Alert.alert('Error', errorMessage);
+      showError('Error', errorMessage);
       setIsSaving(false);
     }
   };
 
   const handlePasswordChange = async () => {
     if (!newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all password fields');
+      showError('Error', 'Please fill in all password fields');
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+      showError('Error', 'Password must be at least 6 characters long');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'New passwords do not match');
+      showError('Error', 'New passwords do not match');
       return;
     }
 
@@ -189,13 +189,13 @@ export default function AdminProfileModal() {
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Password updated successfully');
+      showSuccess('Success', 'Password updated successfully');
       closePasswordModal();
     } catch (error) {
       console.error('Password update error:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update password';
-      Alert.alert('Error', errorMessage);
+      showError('Error', errorMessage);
       setIsSaving(false);
     }
   };

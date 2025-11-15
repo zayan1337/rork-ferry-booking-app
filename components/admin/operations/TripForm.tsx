@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
   ScrollView,
   ActivityIndicator,
   Pressable,
 } from 'react-native';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { useTripManagement } from '@/hooks/useTripManagement';
 import { useRouteManagement } from '@/hooks/useRouteManagement';
 import { useVesselManagement } from '@/hooks/useVesselManagement';
@@ -113,6 +113,8 @@ export default function TripForm({
   onCancel,
   initialData,
 }: TripFormProps) {
+  const { showError, showSuccess, showConfirmation, showInfo } =
+    useAlertContext();
   const {
     trips,
     getById,
@@ -332,10 +334,10 @@ export default function TripForm({
 
       setTripFareOverrides(overrides);
       setShowFareEditor(false);
-      Alert.alert('Success', 'Fare overrides saved successfully');
+      showSuccess('Success', 'Fare overrides saved successfully');
     } catch (error) {
       console.error('Error saving fare overrides:', error);
-      Alert.alert('Error', 'Failed to save fare overrides');
+      showError('Error', 'Failed to save fare overrides');
     }
   };
 
@@ -462,20 +464,15 @@ export default function TripForm({
     if (rearrangementPreview.length === 0) return;
 
     // Show confirmation dialog
-    Alert.alert(
+    showConfirmation(
       'Confirm Seat Rearrangement',
       `This will automatically reassign ${rearrangementPreview.length} passengers to new vessel seats. This action cannot be undone. Do you want to continue?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Apply Rearrangement',
-          style: 'destructive',
-          onPress: async () => {
-            setSeatRearrangementStatus('rearranging');
-            await performSeatRearrangement();
-          },
-        },
-      ]
+      async () => {
+        setSeatRearrangementStatus('rearranging');
+        await performSeatRearrangement();
+      },
+      undefined,
+      true // Mark as destructive action
     );
   }, [rearrangementPreview.length]);
 
@@ -513,14 +510,14 @@ export default function TripForm({
       }
 
       setSeatRearrangementStatus('completed');
-      Alert.alert(
+      showSuccess(
         'Seat Rearrangement Complete',
         `Successfully rearranged ${rearrangementPreview.length} passengers to new vessel seats.`
       );
     } catch (error) {
       console.error('Error applying seat rearrangement:', error);
       setSeatRearrangementStatus('error');
-      Alert.alert(
+      showError(
         'Error',
         'Failed to apply seat rearrangement. Please try again.'
       );
@@ -702,19 +699,13 @@ export default function TripForm({
       seatRearrangementStatus === 'completed' &&
       rearrangementPreview.length > 0
     ) {
-      Alert.alert(
+      showConfirmation(
         'Vessel Change Detected',
         'You have changed the vessel and there are existing bookings. Please apply the seat rearrangement first before saving the trip.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Apply Rearrangement & Save',
-            onPress: async () => {
-              await performSeatRearrangement();
-              await performTripUpdate();
-            },
-          },
-        ]
+        async () => {
+          await performSeatRearrangement();
+          await performTripUpdate();
+        }
       );
       return;
     }
@@ -748,7 +739,7 @@ export default function TripForm({
       if (currentTrip) {
         try {
           await update(currentTrip.id, tripFormData);
-          Alert.alert('Success', 'Trip updated successfully');
+          showSuccess('Success', 'Trip updated successfully');
         } catch (updateError: any) {
           // Handle PGRST204 error specifically
           if (
@@ -762,13 +753,13 @@ export default function TripForm({
             try {
               const refreshedTrip = await getById(currentTrip.id);
               if (refreshedTrip) {
-                Alert.alert('Success', 'Trip updated successfully (verified)');
+                showSuccess('Success', 'Trip updated successfully (verified)');
               } else {
                 // If refresh fails, try one more time with a delay
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 const retryTrip = await getById(currentTrip.id);
                 if (retryTrip) {
-                  Alert.alert(
+                  showSuccess(
                     'Success',
                     'Trip updated successfully (verified on retry)'
                   );
@@ -785,8 +776,45 @@ export default function TripForm({
         }
       } else {
         // Create the trip
-        await create(tripFormData);
-        Alert.alert('Success', 'Trip created successfully!');
+        // Note: create function actually returns the created trip data despite type definition
+        const createdTrip = (await create(tripFormData)) as any;
+
+        // Pass the created trip ID to onSave callback
+        // Let the parent component (new.tsx) handle success message and navigation
+        if (onSave) {
+          // createdTrip should have an id field from the database insert
+          const tripId = createdTrip?.id || null;
+
+          if (tripId) {
+            // Reset form to empty state after successful creation
+            setFormData({
+              route_id: initialData?.route_id || '',
+              vessel_id: initialData?.vessel_id || '',
+              travel_date: '',
+              departure_time: '',
+              arrival_time: '',
+              status: 'scheduled',
+              delay_reason: '',
+              fare_multiplier: 1.0,
+              weather_conditions: '',
+              captain_id: '',
+              crew_ids: [],
+              notes: '',
+              is_active: true,
+            });
+            setValidationErrors({});
+            setHasChanges(false);
+
+            // Type assertion for the callback with id
+            onSave({ ...tripFormData, id: tripId } as any);
+          } else {
+            onSave(tripFormData);
+          }
+        } else {
+          // If no onSave callback, show success here
+          showSuccess('Success', 'Trip created successfully!');
+        }
+        return; // Exit early for new trips
       }
 
       if (onSave) {
@@ -864,7 +892,7 @@ export default function TripForm({
       }
 
       setValidationErrors({ general: errorMessage });
-      Alert.alert('Error', errorMessage);
+      showError('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -872,13 +900,12 @@ export default function TripForm({
 
   const handleCancel = () => {
     if (hasChanges) {
-      Alert.alert(
+      showConfirmation(
         'Unsaved Changes',
         'You have unsaved changes. Are you sure you want to cancel?',
-        [
-          { text: 'Continue Editing', style: 'cancel' },
-          { text: 'Discard Changes', style: 'destructive', onPress: onCancel },
-        ]
+        onCancel || (() => {}),
+        undefined,
+        true // Mark as destructive action
       );
     } else {
       onCancel?.();

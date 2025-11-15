@@ -1,4 +1,8 @@
 import { Booking } from '@/types/agent';
+import {
+  BOOKING_BUFFER_MINUTES,
+  ALLOWED_TRIP_STATUSES,
+} from '@/constants/customer';
 
 /**
  * Check if a booking is expired based on its departure date
@@ -331,13 +335,13 @@ export const formatFare = (fare: number, currency: string = 'MVR'): string => {
  * Check if a trip has departed or is about to depart
  * @param travelDate - Trip travel date (YYYY-MM-DD)
  * @param departureTime - Trip departure time (HH:MM or HH:MM:SS)
- * @param bufferMinutes - Buffer time before departure to prevent booking (default: 15)
+ * @param bufferMinutes - Buffer time before departure to prevent booking (default: BOOKING_BUFFER_MINUTES)
  * @returns true if trip is still bookable, false if departed or within buffer time
  */
 export const isTripBookable = (
   travelDate: string,
   departureTime: string,
-  bufferMinutes: number = 15
+  bufferMinutes: number = BOOKING_BUFFER_MINUTES
 ): boolean => {
   try {
     if (!travelDate || !departureTime) {
@@ -371,13 +375,13 @@ export const isTripBookable = (
  * Get user-friendly message for why a trip cannot be booked
  * @param travelDate - Trip travel date (YYYY-MM-DD)
  * @param departureTime - Trip departure time (HH:MM or HH:MM:SS)
- * @param bufferMinutes - Buffer time before departure (default: 15)
+ * @param bufferMinutes - Buffer time before departure (default: BOOKING_BUFFER_MINUTES)
  * @returns User-friendly error message
  */
 export const getTripUnavailableMessage = (
   travelDate: string,
   departureTime: string,
-  bufferMinutes: number = 15
+  bufferMinutes: number = BOOKING_BUFFER_MINUTES
 ): string => {
   try {
     if (!travelDate || !departureTime) {
@@ -437,4 +441,99 @@ export const getMinutesUntilDeparture = (
     console.error('Error calculating minutes until departure:', error);
     return -1;
   }
+};
+
+/**
+ * Check if trip status allows booking
+ * @param status - Trip status (e.g., 'scheduled', 'boarding', 'departed')
+ * @returns true if status allows booking, false otherwise
+ */
+export const isTripStatusBookable = (
+  status: string | null | undefined
+): boolean => {
+  if (!status) return false;
+  const normalizedStatus = status.toLowerCase();
+  return ALLOWED_TRIP_STATUSES.some(
+    allowedStatus => allowedStatus.toLowerCase() === normalizedStatus
+  );
+};
+
+/**
+ * Get user-friendly error message for trip status
+ * @param status - Trip status
+ * @returns Error message explaining why trip cannot be booked
+ */
+export const getTripStatusErrorMessage = (
+  status: string | null | undefined
+): string => {
+  if (!status) {
+    return 'Trip status is unknown. This trip cannot be booked.';
+  }
+
+  const normalizedStatus = status.toLowerCase();
+
+  // Check if status is allowed
+  if (
+    ALLOWED_TRIP_STATUSES.some(
+      allowedStatus => allowedStatus.toLowerCase() === normalizedStatus
+    )
+  ) {
+    return ''; // No error, status is valid
+  }
+
+  switch (normalizedStatus) {
+    case 'boarding':
+      return 'This trip is currently boarding and cannot be booked.';
+    case 'departed':
+      return 'This trip has already departed and cannot be booked.';
+    case 'completed':
+      return 'This trip has been completed and cannot be booked.';
+    case 'cancelled':
+      return 'This trip has been cancelled and cannot be booked.';
+    case 'arrived':
+      return 'This trip has already arrived and cannot be booked.';
+    case 'delayed':
+      return 'This trip is delayed. Please contact support for booking assistance.';
+    default:
+      return `This trip status (${status}) does not allow booking. Only scheduled trips can be booked.`;
+  }
+};
+
+/**
+ * Comprehensive validation for trip booking eligibility
+ * @param trip - Trip object with travel_date, departure_time, and status
+ * @param bufferMinutes - Buffer time before departure (default: BOOKING_BUFFER_MINUTES)
+ * @returns Object with validation result and error message
+ */
+export const validateTripForBooking = (
+  trip: {
+    travel_date: string;
+    departure_time: string;
+    status?: string | null;
+    computed_status?: string | null;
+  },
+  bufferMinutes: number = BOOKING_BUFFER_MINUTES
+): { isValid: boolean; error?: string } => {
+  // Check status first
+  const tripStatus = trip.status || trip.computed_status;
+  if (!isTripStatusBookable(tripStatus)) {
+    return {
+      isValid: false,
+      error: getTripStatusErrorMessage(tripStatus),
+    };
+  }
+
+  // Check if trip is bookable based on time
+  if (!isTripBookable(trip.travel_date, trip.departure_time, bufferMinutes)) {
+    return {
+      isValid: false,
+      error: getTripUnavailableMessage(
+        trip.travel_date,
+        trip.departure_time,
+        bufferMinutes
+      ),
+    };
+  }
+
+  return { isValid: true };
 };

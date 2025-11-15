@@ -8,8 +8,11 @@ import {
   HelpCircle,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import { useAuthStore } from '@/store/authStore';
 
 export default function TabLayout() {
+  const { isGuestMode } = useAuthStore();
+
   return (
     <Tabs
       screenOptions={{
@@ -50,6 +53,8 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <ClipboardList size={size} color={color} />
           ),
+          href: isGuestMode ? null : undefined,
+          tabBarItemStyle: isGuestMode ? { display: 'none' } : undefined,
         }}
       />
       <Tabs.Screen
@@ -57,6 +62,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+          href: undefined,
         }}
       />
       <Tabs.Screen

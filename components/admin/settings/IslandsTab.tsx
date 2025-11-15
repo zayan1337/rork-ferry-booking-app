@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  Alert,
   FlatList,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
+import { useAlertContext } from '@/components/AlertProvider';
 import { useIslandManagement } from '@/hooks/useIslandManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { AdminManagement } from '@/types';
@@ -29,6 +29,7 @@ export default function IslandsTab({
   isActive,
   searchQuery = '',
 }: IslandsTabProps) {
+  const { showError } = useAlertContext();
   const { canViewIslands, canManageIslands } = useAdminPermissions();
   const { islands, loading, loadAll } = useIslandManagement();
 
@@ -86,7 +87,7 @@ export default function IslandsTab({
     if (canManageIslands()) {
       router.push('../island/new' as any);
     } else {
-      Alert.alert(
+      showError(
         'Access Denied',
         "You don't have permission to create islands."
       );

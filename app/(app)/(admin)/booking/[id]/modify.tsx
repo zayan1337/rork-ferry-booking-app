@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
@@ -14,6 +13,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useAdminBookingStore } from '@/store/admin/bookingStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAlertContext } from '@/components/AlertProvider';
 import { useRouteStore, useTripStore } from '@/store/routeStore';
 import { useSeatStore } from '@/store/seatStore';
 import { AdminBooking } from '@/types/admin/management';
@@ -44,6 +44,7 @@ export default function AdminModifyBookingScreen() {
   const router = useRouter();
   const { fetchBooking, updateBooking } = useAdminBookingStore();
   const { canUpdateBookings } = useAdminPermissions();
+  const { showError, showSuccess, showConfirmation } = useAlertContext();
 
   // Store management for trips and seats
   const { availableRoutes, isLoading: routeLoading } = useRouteStore();
@@ -230,8 +231,7 @@ export default function AdminModifyBookingScreen() {
         setNewDate(fetchedBooking.trip_travel_date || null);
       }
     } catch (error) {
-      console.error('Error loading booking:', error);
-      Alert.alert('Error', 'Failed to load booking details');
+      showError('Error', 'Failed to load booking details');
     } finally {
       setLoading(false);
     }
@@ -451,7 +451,7 @@ export default function AdminModifyBookingScreen() {
 
   const handleModify = async () => {
     if (!booking || !canUpdateBookings()) {
-      Alert.alert('Error', 'You do not have permission to modify bookings');
+      showError('Error', 'You do not have permission to modify bookings');
       return;
     }
 
@@ -463,20 +463,17 @@ export default function AdminModifyBookingScreen() {
     if (
       !['reserved', 'pending_payment', 'confirmed'].includes(booking.status)
     ) {
-      Alert.alert(
+      showError(
         'Cannot Modify',
         'This booking cannot be modified in its current status'
       );
       return;
     }
 
-    Alert.alert(
+    showConfirmation(
       'Confirm Modification',
       `Are you sure you want to modify booking #${booking.booking_number}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Yes, Modify', onPress: performModification },
-      ]
+      performModification
     );
   };
 
@@ -514,15 +511,9 @@ export default function AdminModifyBookingScreen() {
         successMessage += ' No additional payment or refund is required.';
       }
 
-      Alert.alert('Booking Modified', successMessage, [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]);
+      showSuccess('Booking Modified', successMessage, () => router.back());
     } catch (error) {
-      console.error('Error modifying booking:', error);
-      Alert.alert('Error', 'Failed to modify booking. Please try again.');
+      showError('Error', 'Failed to modify booking. Please try again.');
     } finally {
       setIsModifying(false);
     }

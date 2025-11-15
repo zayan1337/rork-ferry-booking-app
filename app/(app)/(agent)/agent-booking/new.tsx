@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { useAgentStore } from '@/store/agent/agentStore';
@@ -24,6 +24,7 @@ import {
   AGENT_PAYMENT_OPTIONS,
 } from '@/utils/bookingFormUtils';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
+import { useAlertContext } from '@/components/AlertProvider';
 
 const BOOKING_STEPS = [
   { id: 1, label: 'Trip', description: 'Route, date & trip selection' },
@@ -36,6 +37,7 @@ const BOOKING_STEPS = [
 export default function AgentNewBookingScreen() {
   const router = useRouter();
   const { clientId } = useLocalSearchParams<{ clientId?: string }>();
+  const { showSuccess, showError } = useAlertContext();
 
   // Stores
   const agent = useAgentStore(state => state.agent);
@@ -428,30 +430,19 @@ export default function AgentNewBookingScreen() {
             }
           }
 
-          Alert.alert('Booking Created', successMessage, [
-            {
-              text: 'View Bookings',
-              onPress: () => {
-                // Trigger refresh immediately before navigation
-                useAgentStore
-                  .getState()
-                  .refreshBookingsData()
-                  .then(() => {
-                    router.push('/(app)/(agent)/(tabs)/bookings');
-                  });
-              },
-            },
-            {
-              text: 'New Booking',
-              onPress: () => {
-                // Stay on the same page, everything is already reset
-              },
-            },
-          ]);
+          showSuccess('Booking Created', successMessage, () => {
+            // Trigger refresh immediately before navigation
+            useAgentStore
+              .getState()
+              .refreshBookingsData()
+              .then(() => {
+                router.push('/(app)/(agent)/(tabs)/bookings');
+              });
+          });
         }
       } catch (error) {
         console.error('Booking creation failed:', error);
-        Alert.alert(
+        showError(
           'Booking Failed',
           (error as any)?.message ||
             'The booking could not be created. Please try again.'

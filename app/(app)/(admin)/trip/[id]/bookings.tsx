@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   TextInput,
@@ -36,6 +35,7 @@ import {
   MoreHorizontal,
   RefreshCw,
 } from 'lucide-react-native';
+import { useAlertContext } from '@/components/AlertProvider';
 
 interface Booking {
   id: string;
@@ -64,6 +64,7 @@ export default function TripBookingsPage() {
   const { fetchTrip } = useOperationsStore();
   const { fetchTripBookings } = useTripStore();
   const { canViewTrips, canManageTrips } = useAdminPermissions();
+  const { showError, showConfirmation, showInfo } = useAlertContext();
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [trip, setTrip] = useState<any>(null);
@@ -132,7 +133,7 @@ export default function TripBookingsPage() {
       // Fetch real booking data
       await fetchBookings();
     } catch (error) {
-      Alert.alert('Error', 'Failed to load booking data');
+      showError('Error', 'Failed to load booking data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -217,42 +218,31 @@ export default function TripBookingsPage() {
         setShowBookingDetails(true);
         break;
       case 'confirm':
-        Alert.alert(
+        showConfirmation(
           'Confirm Booking',
           `Confirm booking ${booking.booking_reference}?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Confirm',
-              onPress: () => {
-                setBookings(prev =>
-                  prev.map(b =>
-                    b.id === booking.id ? { ...b, status: 'confirmed' } : b
-                  )
-                );
-              },
-            },
-          ]
+          () => {
+            setBookings(prev =>
+              prev.map(b =>
+                b.id === booking.id ? { ...b, status: 'confirmed' } : b
+              )
+            );
+          }
         );
         break;
       case 'cancel':
-        Alert.alert(
+        showConfirmation(
           'Cancel Booking',
           `Cancel booking ${booking.booking_reference}? This action cannot be undone.`,
-          [
-            { text: 'Keep Booking', style: 'cancel' },
-            {
-              text: 'Cancel Booking',
-              style: 'destructive',
-              onPress: () => {
-                setBookings(prev =>
-                  prev.map(b =>
-                    b.id === booking.id ? { ...b, status: 'cancelled' } : b
-                  )
-                );
-              },
-            },
-          ]
+          () => {
+            setBookings(prev =>
+              prev.map(b =>
+                b.id === booking.id ? { ...b, status: 'cancelled' } : b
+              )
+            );
+          },
+          undefined,
+          true // Mark as destructive action
         );
         break;
     }
@@ -291,34 +281,7 @@ export default function TripBookingsPage() {
             <Pressable
               style={styles.moreButton}
               onPress={() => {
-                Alert.alert(
-                  'Booking Actions',
-                  `Actions for ${item.booking_reference}`,
-                  [
-                    {
-                      text: 'View Details',
-                      onPress: () => handleBookingAction(item, 'view'),
-                    },
-                    ...(item.status === 'reserved'
-                      ? [
-                          {
-                            text: 'Confirm',
-                            onPress: () => handleBookingAction(item, 'confirm'),
-                          },
-                        ]
-                      : []),
-                    ...(item.status !== 'cancelled'
-                      ? [
-                          {
-                            text: 'Cancel',
-                            style: 'destructive' as const,
-                            onPress: () => handleBookingAction(item, 'cancel'),
-                          },
-                        ]
-                      : []),
-                    { text: 'Close', style: 'cancel' as const },
-                  ]
-                );
+                handleBookingAction(item, 'view');
               }}
             >
               <MoreHorizontal size={16} color={colors.textSecondary} />

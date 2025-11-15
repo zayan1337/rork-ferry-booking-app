@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Text,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Text } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useContentManagement } from '@/hooks/useContentManagement';
@@ -22,10 +15,12 @@ import {
 import TermsForm from '@/components/admin/operations/TermsForm';
 import Button from '@/components/admin/Button';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function EditTermsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canManageContent } = useAdminPermissions();
+  const { showSuccess } = useAlertContext();
   const {
     currentTerms,
     loading,
@@ -54,12 +49,9 @@ export default function EditTermsScreen() {
   };
 
   const handleSuccess = () => {
-    Alert.alert('Success', 'Terms and conditions updated successfully', [
-      {
-        text: 'OK',
-        onPress: () => router.back(),
-      },
-    ]);
+    showSuccess('Success', 'Terms and conditions updated successfully', () =>
+      router.back()
+    );
   };
 
   const handleError = (error: string) => {

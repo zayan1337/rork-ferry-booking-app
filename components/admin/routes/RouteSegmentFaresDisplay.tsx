@@ -5,18 +5,12 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  TextInput,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { ArrowRight, Edit, Check, X, DollarSign } from 'lucide-react-native';
 import type { RouteSegmentFare } from '@/types/multiStopRoute';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { useAlertContext } from '@/components/AlertProvider';
 
 interface RouteSegmentFaresDisplayProps {
   segmentFares: RouteSegmentFare[];
@@ -29,6 +23,7 @@ export default function RouteSegmentFaresDisplay({
   editable = false,
   onEditFare,
 }: RouteSegmentFaresDisplayProps) {
+  const { showError, showInfo } = useAlertContext();
   const [editingFareId, setEditingFareId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [saving, setSaving] = useState(false);
@@ -50,7 +45,7 @@ export default function RouteSegmentFaresDisplay({
     const newAmount = parseFloat(editValue);
 
     if (isNaN(newAmount) || newAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Fare must be a positive number');
+      showInfo('Invalid Amount', 'Fare must be a positive number');
       return;
     }
 
@@ -60,7 +55,7 @@ export default function RouteSegmentFaresDisplay({
       setEditingFareId(null);
       setEditValue('');
     } catch (error) {
-      Alert.alert('Error', 'Failed to update fare');
+      showError('Error', 'Failed to update fare');
     } finally {
       setSaving(false);
     }
