@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fies.crystaltransfervaavu",
-      "buildNumber": "6",
+      "buildNumber": "7",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -29,7 +29,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.fies.crystaltransfervaavu",
-      "versionCode": 7,
+      "versionCode": 8,
       "permissions": ["INTERNET", "ACCESS_NETWORK_STATE", "CAMERA"]
     },
     "web": {
