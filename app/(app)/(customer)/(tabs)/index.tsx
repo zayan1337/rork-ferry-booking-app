@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useMemo,
+  useState,
+  useCallback,
+} from 'react';
 import {
   View,
   Text,
@@ -30,6 +36,7 @@ import Button from '@/components/Button';
 import CalendarDatePicker from '@/components/CalendarDatePicker';
 import { useQuickBooking } from '@/hooks/useQuickBooking';
 import { useModalState } from '@/hooks/useModalState';
+import { useAlertContext } from '@/components/AlertProvider';
 import { formatDisplayDate } from '@/utils/customerUtils';
 import {
   fetchActiveIslands,
@@ -39,6 +46,7 @@ import { DatabaseIsland } from '@/types/database';
 
 export default function HomeScreen() {
   const { user, isGuestMode } = useAuthStore();
+  const { showError } = useAlertContext();
 
   // Add scroll reference
   const scrollViewRef = useRef<ScrollView>(null);
@@ -122,9 +130,29 @@ export default function HomeScreen() {
     scrollViewRef.current?.scrollTo({ y: 0, animated: true });
   };
 
-  const handleViewBooking = (bookingId: string) => {
-    router.push(`./booking-details/${bookingId}`);
-  };
+  const navigateToBookings = useCallback(() => {
+    if (isGuestMode) {
+      showError(
+        'Login Required',
+        'Please sign in or create an account to view your bookings.'
+      );
+      router.push('/(auth)' as any);
+      return;
+    }
+    router.push('/bookings' as any);
+  }, [isGuestMode, showError]);
+
+  const handleViewBooking = useCallback(
+    (bookingId: string) => {
+      if (isGuestMode) {
+        showError('Login Required', 'Please sign in to view booking details.');
+        router.push('/(auth)' as any);
+        return;
+      }
+      router.push(`./booking-details/${bookingId}`);
+    },
+    [isGuestMode, showError]
+  );
 
   const handleVesselTracking = () => {
     router.push('/vessel-tracking');
@@ -469,7 +497,7 @@ export default function HomeScreen() {
       {/* Upcoming Trips Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Upcoming Trips</Text>
-        <Pressable onPress={() => router.push('/bookings')}>
+        <Pressable onPress={navigateToBookings}>
           {({ pressed }) => (
             <Text style={[styles.sectionLink, pressed && { opacity: 0.7 }]}>
               View All
@@ -618,7 +646,7 @@ export default function HomeScreen() {
         <Pressable
           style={styles.quickActionCard}
           android_ripple={{ color: Colors.highlight }}
-          onPress={() => router.push('/bookings')}
+          onPress={navigateToBookings}
         >
           {({ pressed }) => (
             <>
