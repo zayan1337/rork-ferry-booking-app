@@ -35,6 +35,10 @@ interface AuthState {
     otp: string,
     type: 'email' | 'recovery'
   ) => Promise<void>;
+  isGuestMode: boolean;
+  enableGuestMode: () => void;
+  disableGuestMode: () => void;
+  deleteAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -49,6 +53,7 @@ export const useAuthStore = create<AuthState>()(
       isRehydrated: false,
       otpEmail: null,
       pendingRegistration: null,
+      isGuestMode: false,
 
       setError: (error: string) => set({ error }),
 
@@ -62,6 +67,20 @@ export const useAuthStore = create<AuthState>()(
       setRehydrated: (rehydrated: boolean) => set({ isRehydrated: rehydrated }),
 
       setOtpEmail: (email: string | null) => set({ otpEmail: email }),
+
+      enableGuestMode: () => {
+        set({
+          isGuestMode: true,
+          isAuthenticated: false,
+          user: null,
+          preventRedirect: false,
+          error: null,
+        });
+      },
+
+      disableGuestMode: () => {
+        set({ isGuestMode: false });
+      },
 
       checkAuth: async () => {
         try {
@@ -85,6 +104,7 @@ export const useAuthStore = create<AuthState>()(
                 user: null,
                 isAuthenticating: false,
                 error: null, // Don't show error for invalid refresh tokens
+                isGuestMode: false,
               });
               return;
             }
@@ -96,7 +116,7 @@ export const useAuthStore = create<AuthState>()(
               .from('user_profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
 
             if (profileError) {
               console.error('Profile fetch error:', profileError);
@@ -126,11 +146,16 @@ export const useAuthStore = create<AuthState>()(
             // Verify user is active
             if (!userProfile.is_active) {
               await supabase.auth.signOut();
+              const statusReason =
+                userProfile.status_reason?.toLowerCase() ?? '';
+              const inactiveMessage = statusReason.includes('deletion')
+                ? 'This account has been deleted. Please contact support if this is unexpected.'
+                : 'Account is inactive. Please contact support.';
               set({
                 isAuthenticated: false,
                 user: null,
                 isAuthenticating: false,
-                error: 'Account is inactive. Please contact support.',
+                error: inactiveMessage,
               });
               return;
             }
@@ -142,12 +167,14 @@ export const useAuthStore = create<AuthState>()(
                 profile: userProfile,
               },
               isAuthenticating: false,
+              isGuestMode: false,
             });
           } else {
             set({
               isAuthenticated: false,
               user: null,
               isAuthenticating: false,
+              isGuestMode: false,
             });
           }
         } catch (error) {
@@ -166,6 +193,7 @@ export const useAuthStore = create<AuthState>()(
               user: null,
               isAuthenticating: false,
               error: null,
+              isGuestMode: false,
             });
             return;
           }
@@ -179,13 +207,14 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isAuthenticating: false,
             error: errorMessage,
+            isGuestMode: false,
           });
         }
       },
 
       login: async (email: string, password: string) => {
         try {
-          set({ isAuthenticating: true, error: null });
+          set({ isAuthenticating: true, error: null, isGuestMode: false });
 
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
@@ -199,18 +228,28 @@ export const useAuthStore = create<AuthState>()(
             .from('user_profiles')
             .select('*')
             .eq('id', data.user.id)
-            .single();
+            .maybeSingle();
 
-          if (profileError)
+          if (profileError) {
             throw new Error(
               `Failed to fetch user profile: ${profileError.message}`
             );
-          if (!profile) throw new Error('User profile not found');
+          }
+          if (!profile) {
+            await supabase.auth.signOut();
+            throw new Error(
+              'Account profile not found. It may have been deleted. Please contact support.'
+            );
+          }
 
           // Verify user is active
           if (!profile.is_active) {
             await supabase.auth.signOut();
-            throw new Error('Account is inactive. Please contact support.');
+            const statusReason = profile.status_reason?.toLowerCase() ?? '';
+            const inactiveMessage = statusReason.includes('deletion')
+              ? 'This account has been deleted. Please contact support if this is unexpected.'
+              : 'Account is inactive. Please contact support.';
+            throw new Error(inactiveMessage);
           }
 
           set({
@@ -221,6 +260,7 @@ export const useAuthStore = create<AuthState>()(
             },
             isAuthenticating: false,
             error: null,
+            isGuestMode: false,
           });
         } catch (error) {
           console.error('Login error:', error);
@@ -326,6 +366,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticating: false,
             error: null,
             preventRedirect: true,
+            isGuestMode: false,
           });
 
           // Allow a small delay before allowing redirects again
@@ -339,6 +380,7 @@ export const useAuthStore = create<AuthState>()(
           set({
             isAuthenticating: false,
             error: errorMessage,
+            isGuestMode: false,
           });
           throw error;
         }
@@ -618,10 +660,85 @@ export const useAuthStore = create<AuthState>()(
           throw error;
         }
       },
+
+      deleteAccount: async () => {
+        const { user } = get();
+        if (!user?.id) {
+          throw new Error('No authenticated user to delete.');
+        }
+
+        try {
+          set({ isLoading: true, error: null });
+
+          const placeholderEmail = `deleted+${user.id}@example.com`;
+          const deletionReason = 'User requested account deletion';
+          const timestamp = new Date().toISOString();
+
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .update({
+              full_name: 'Deleted Account',
+              mobile_number: '0000000000',
+              email: null,
+              is_active: false,
+              status: 'inactive',
+              status_reason: deletionReason,
+              status_updated_at: timestamp,
+              accepted_terms: false,
+              last_login: null,
+              updated_at: timestamp,
+            })
+            .eq('id', user.id);
+
+          if (profileError) {
+            throw profileError;
+          }
+
+          const { error: authUpdateError } =
+            await supabaseAdmin.auth.admin.updateUserById(user.id, {
+              email: placeholderEmail,
+              email_confirm: false,
+              ban_duration: '876000h', // Effectively permanent (~100 years)
+              user_metadata: {
+                ...(user.user_metadata || {}),
+                accountDeleted: true,
+                deletedAt: timestamp,
+              },
+            });
+
+          if (authUpdateError) {
+            throw authUpdateError;
+          }
+
+          await supabase.auth.signOut();
+
+          set({
+            isAuthenticated: false,
+            isGuestMode: false,
+            user: null,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          console.error('Delete account error:', error);
+          const errorMessage =
+            error instanceof Error ? error.message : 'Account deletion failed';
+          set({
+            isLoading: false,
+            error: errorMessage,
+          });
+          throw error;
+        }
+      },
     }),
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: state => ({
+        isAuthenticated: state.isAuthenticated,
+        isGuestMode: state.isGuestMode,
+        user: state.user,
+      }),
       onRehydrateStorage: () => state => {
         if (state) {
           state.setRehydrated(true);

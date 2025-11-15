@@ -14,8 +14,12 @@ import type { Booking, BookingStatus } from '@/types';
 import Colors from '@/constants/colors';
 import BookingCard from '@/components/BookingCard';
 import Input from '@/components/Input';
+import { useAuthStore } from '@/store/authStore';
+import { useAlertContext } from '@/components/AlertProvider';
 
 export default function BookingsScreen() {
+  const { isAuthenticated, isGuestMode } = useAuthStore();
+  const { showError } = useAlertContext();
   const { bookings, fetchUserBookings, isLoading } = useUserBookingsStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>(
@@ -23,8 +27,16 @@ export default function BookingsScreen() {
   );
 
   useEffect(() => {
+    if (isGuestMode || !isAuthenticated) {
+      showError(
+        'Login Required',
+        'Please sign in to view your booking history.'
+      );
+      router.replace('/(auth)' as any);
+      return;
+    }
     fetchUserBookings();
-  }, []);
+  }, [fetchUserBookings, isGuestMode, isAuthenticated, showError, router]);
 
   const handleRefresh = useCallback(() => {
     fetchUserBookings();
@@ -66,6 +78,10 @@ export default function BookingsScreen() {
     ),
     [handleViewBooking]
   );
+
+  if (isGuestMode || !isAuthenticated) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>

@@ -48,7 +48,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth > 768;
 
 export default function CaptainProfileScreen() {
-  const { user, signOut } = useAuthStore();
+  const { user, signOut, deleteAccount } = useAuthStore();
   const {
     profile,
     dashboardStats,
@@ -62,11 +62,14 @@ export default function CaptainProfileScreen() {
 
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [editingField, setEditingField] = useState<EditableField | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [deleteEmailInput, setDeleteEmailInput] = useState('');
   const [, forceUpdate] = useState({});
 
   const handleRefresh = useCallback(async () => {
@@ -91,6 +94,50 @@ export default function CaptainProfileScreen() {
       undefined,
       true // Mark as destructive action
     );
+  };
+
+  const openDeleteModal = () => {
+    setDeleteEmailInput('');
+    setIsDeleteModalVisible(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user?.email) {
+      showError('Error', 'Unable to verify your account email.');
+      return;
+    }
+
+    if (!deleteEmailInput.trim()) {
+      showError('Verification Failed', 'Please enter your email to confirm.');
+      return;
+    }
+
+    if (deleteEmailInput.trim().toLowerCase() !== user.email.toLowerCase()) {
+      showError(
+        'Verification Failed',
+        'Email does not match. Account deletion cancelled.'
+      );
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteAccount();
+      setIsDeleteModalVisible(false);
+      showSuccess(
+        'Account Deleted',
+        'Your account has been scheduled for deletion.'
+      );
+    } catch (error) {
+      console.error('Delete account error:', error);
+      showError(
+        'Deletion Failed',
+        error instanceof Error ? error.message : 'Unable to delete account.'
+      );
+    } finally {
+      setIsDeleting(false);
+      setDeleteEmailInput('');
+    }
   };
 
   const handleNavigation = (screen: string) => {
@@ -484,6 +531,21 @@ export default function CaptainProfileScreen() {
         </View>
       </Card>
 
+      <View style={styles.dangerSection}>
+        <Text style={styles.dangerTitle}>Danger Zone</Text>
+        <Text style={styles.dangerDescription}>
+          Permanently delete your account and remove personal data. This action
+          cannot be undone.
+        </Text>
+        <Button
+          title='Delete Account'
+          onPress={openDeleteModal}
+          style={styles.deleteButton}
+          textStyle={styles.deleteButtonText}
+          fullWidth
+        />
+      </View>
+
       {/* Sign Out */}
       <View style={styles.signOutContainer}>
         <Button
@@ -549,6 +611,57 @@ export default function CaptainProfileScreen() {
                 onPress={handleSaveEdit}
                 style={styles.modalButton}
                 disabled={isSaving}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Account Modal */}
+      <Modal
+        visible={isDeleteModalVisible}
+        animationType='slide'
+        transparent={true}
+        onRequestClose={() => setIsDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Confirm Deletion</Text>
+              <Pressable onPress={() => setIsDeleteModalVisible(false)}>
+                <X size={24} color={Colors.text} />
+              </Pressable>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalInstruction}>
+                Enter your account email ({user?.email}) to confirm permanent
+                deletion. This cannot be undone.
+              </Text>
+              <Input
+                value={deleteEmailInput}
+                onChangeText={setDeleteEmailInput}
+                placeholder='Enter your email'
+                autoCapitalize='none'
+                keyboardType='email-address'
+              />
+            </View>
+
+            <View style={styles.modalFooter}>
+              <Button
+                title='Cancel'
+                variant='outline'
+                onPress={() => setIsDeleteModalVisible(false)}
+                style={styles.modalButton}
+                disabled={isDeleting}
+              />
+              <Button
+                title='Delete'
+                onPress={handleDeleteAccount}
+                style={styles.modalButton}
+                textStyle={styles.deleteButtonText}
+                loading={isDeleting}
+                disabled={isDeleting}
               />
             </View>
           </View>
@@ -796,6 +909,32 @@ const styles = StyleSheet.create({
   signOutButton: {
     borderColor: Colors.error,
   },
+  dangerSection: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#ffebee',
+    borderWidth: 1,
+    borderColor: '#ffcdd2',
+  },
+  dangerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.error,
+    marginBottom: 8,
+  },
+  dangerDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  deleteButton: {
+    borderColor: Colors.error,
+  },
+  deleteButtonText: {
+    color: Colors.error,
+  },
   detailsCard: {
     marginBottom: 16,
   },
@@ -870,6 +1009,12 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
+  },
+  modalInstruction: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
   },
   inputSpacing: {
     height: 16,

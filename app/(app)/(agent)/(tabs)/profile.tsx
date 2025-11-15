@@ -55,7 +55,7 @@ const isTablet = screenWidth > 768;
 export default function AgentProfileScreen() {
   const router = useRouter();
   const { showConfirmation, showError, showSuccess } = useAlertContext();
-  const { signOut, user } = useAuthStore();
+  const { signOut, user, deleteAccount } = useAuthStore();
   const {
     agent,
     stats,
@@ -75,11 +75,14 @@ export default function AgentProfileScreen() {
 
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [editingField, setEditingField] = useState<EditableField | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [deleteEmailInput, setDeleteEmailInput] = useState('');
   const [, forceUpdate] = useState({});
 
   // Use utility function for processing stats (same as dashboard)
@@ -137,6 +140,50 @@ export default function AgentProfileScreen() {
     setNewPassword('');
     setConfirmPassword('');
     setIsSaving(false);
+  };
+
+  const openDeleteModal = () => {
+    setDeleteEmailInput('');
+    setIsDeleteModalVisible(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user?.email) {
+      showError('Error', 'Unable to verify your account email.');
+      return;
+    }
+
+    if (!deleteEmailInput.trim()) {
+      showError('Verification Failed', 'Please enter your email to confirm.');
+      return;
+    }
+
+    if (deleteEmailInput.trim().toLowerCase() !== user.email.toLowerCase()) {
+      showError(
+        'Verification Failed',
+        'Email does not match. Account deletion cancelled.'
+      );
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteAccount();
+      setIsDeleteModalVisible(false);
+      showSuccess(
+        'Account Deleted',
+        'Your account has been scheduled for deletion.'
+      );
+    } catch (error) {
+      console.error('Delete account error:', error);
+      showError(
+        'Deletion Failed',
+        error instanceof Error ? error.message : 'Unable to delete account.'
+      );
+    } finally {
+      setIsDeleting(false);
+      setDeleteEmailInput('');
+    }
   };
 
   // Local update function that doesn't trigger global auth loading
@@ -529,6 +576,22 @@ export default function AgentProfileScreen() {
       {renderQuickActions()}
       {renderSettings()}
 
+      <View style={styles.dangerSection}>
+        <Text style={styles.sectionTitle}>Danger Zone</Text>
+        <Card variant='outlined' style={styles.dangerCard}>
+          <Text style={styles.dangerDescription}>
+            Permanently delete your account and remove personal data. This
+            action cannot be undone.
+          </Text>
+          <Button
+            title='Delete Account'
+            onPress={openDeleteModal}
+            style={styles.deleteButton}
+            textStyle={styles.deleteButtonText}
+          />
+        </Card>
+      </View>
+
       {/* Logout Button */}
       <Button
         title='Log Out'
@@ -591,6 +654,57 @@ export default function AgentProfileScreen() {
                 onPress={handleSaveEdit}
                 style={styles.modalButton}
                 disabled={isSaving}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Account Modal */}
+      <Modal
+        visible={isDeleteModalVisible}
+        animationType='slide'
+        transparent={true}
+        onRequestClose={() => setIsDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Confirm Deletion</Text>
+              <Pressable onPress={() => setIsDeleteModalVisible(false)}>
+                <X size={24} color={Colors.text} />
+              </Pressable>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalInstruction}>
+                Enter your account email ({user?.email}) to confirm permanent
+                deletion. This cannot be undone.
+              </Text>
+              <Input
+                value={deleteEmailInput}
+                onChangeText={setDeleteEmailInput}
+                placeholder='Enter your email'
+                autoCapitalize='none'
+                keyboardType='email-address'
+              />
+            </View>
+
+            <View style={styles.modalFooter}>
+              <Button
+                title='Cancel'
+                variant='outline'
+                onPress={() => setIsDeleteModalVisible(false)}
+                style={styles.modalButton}
+                disabled={isDeleting}
+              />
+              <Button
+                title='Delete'
+                onPress={handleDeleteAccount}
+                style={styles.modalButton}
+                textStyle={styles.deleteButtonText}
+                loading={isDeleting}
+                disabled={isDeleting}
               />
             </View>
           </View>
@@ -814,6 +928,26 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 24,
   },
+  dangerSection: {
+    marginBottom: 24,
+  },
+  dangerCard: {
+    padding: 16,
+    backgroundColor: '#ffebee',
+    borderColor: '#ffcdd2',
+  },
+  dangerDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  deleteButton: {
+    borderColor: Colors.error,
+  },
+  deleteButtonText: {
+    color: Colors.error,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -864,6 +998,12 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
+  },
+  modalInstruction: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
   },
   inputSpacing: {
     height: 16,

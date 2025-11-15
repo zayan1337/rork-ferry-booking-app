@@ -38,7 +38,7 @@ import {
 import { DatabaseIsland } from '@/types/database';
 
 export default function HomeScreen() {
-  const { user } = useAuthStore();
+  const { user, isGuestMode } = useAuthStore();
 
   // Add scroll reference
   const scrollViewRef = useRef<ScrollView>(null);
@@ -78,10 +78,12 @@ export default function HomeScreen() {
 
   useEffect(() => {
     // Fetch data in background without blocking UI
-    fetchUserBookings();
+    if (!isGuestMode) {
+      fetchUserBookings();
+    }
     fetchAvailableRoutes();
     loadIslands();
-  }, []);
+  }, [isGuestMode]);
 
   const loadIslands = async () => {
     setLoadingIslands(true);
@@ -105,7 +107,9 @@ export default function HomeScreen() {
   );
 
   const handleRefresh = () => {
-    fetchUserBookings();
+    if (!isGuestMode) {
+      fetchUserBookings();
+    }
     loadIslands();
   };
 
@@ -179,8 +183,17 @@ export default function HomeScreen() {
       {/* Welcome Section */}
       <View style={styles.welcomeSection}>
         <View>
-          <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.userName}>{user?.profile?.full_name}</Text>
+          {isGuestMode ? (
+            <>
+              <Text style={styles.welcomeText}>Welcome to</Text>
+              <Text style={styles.userName}>Crystal Transfer Vaavu</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.welcomeText}>Welcome back,</Text>
+              <Text style={styles.userName}>{user?.profile?.full_name}</Text>
+            </>
+          )}
         </View>
         <Pressable
           style={styles.searchButton}
@@ -552,16 +565,27 @@ export default function HomeScreen() {
           </Pressable>
         ))
       ) : (
-        <Card variant='outlined' style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No upcoming trips</Text>
-          <Button
-            title='Book Now'
-            variant='primary'
-            size='small'
-            onPress={handleBookNowClick}
-            style={styles.emptyButton}
-          />
-        </Card>
+        <>
+          <Card variant='outlined' style={styles.emptyCard}>
+            <Text style={styles.emptyText}>No upcoming trips</Text>
+            <Button
+              title='Book Now'
+              variant='primary'
+              size='small'
+              onPress={handleBookNowClick}
+              style={styles.emptyButton}
+            />
+          </Card>
+
+          {isGuestMode && (
+            <View style={styles.guestPrompt}>
+              <Text style={styles.guestPromptText}>
+                Sign in or create an account to make bookings.
+              </Text>
+              <Button title='Sign In' onPress={() => router.push('/(auth)')} />
+            </View>
+          )}
+        </>
       )}
 
       {/* Quick Actions Section */}
@@ -975,5 +999,23 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     color: Colors.error,
+  },
+  guestPrompt: {
+    marginTop: 20,
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  guestPromptText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 12,
   },
 });

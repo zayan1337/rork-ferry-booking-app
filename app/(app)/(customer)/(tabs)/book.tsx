@@ -36,6 +36,7 @@ import {
 } from '@/constants/customer';
 import { validateTripForBooking } from '@/utils/bookingUtils';
 import { useAlertContext } from '@/components/AlertProvider';
+import { useAuthStore } from '@/store/authStore';
 
 // Import new step components
 import IslandDateStep from '@/components/booking/steps/IslandDateStep';
@@ -44,6 +45,14 @@ import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 export default function BookScreen() {
   const { showSuccess, showError } = useAlertContext();
+  const { isAuthenticated, isGuestMode } = useAuthStore();
+  const promptLoginForBooking = useCallback(() => {
+    showError(
+      'Login Required',
+      'Please sign in or create an account to continue this booking.'
+    );
+    router.push('/(auth)' as any);
+  }, [showError]);
   const [paymentMethod, setPaymentMethod] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [pricingNoticeAccepted, setPricingNoticeAccepted] = useState(false);
@@ -354,6 +363,11 @@ export default function BookScreen() {
   };
 
   const handleNext = () => {
+    if (isGuestMode && currentStep >= BOOKING_STEPS.TRIP_SELECTION) {
+      promptLoginForBooking();
+      return;
+    }
+
     if (validateStep(currentStep)) {
       setCurrentStep(currentStep + 1);
 
@@ -389,6 +403,11 @@ export default function BookScreen() {
   };
 
   const handleConfirmBooking = async () => {
+    if (isGuestMode) {
+      promptLoginForBooking();
+      return;
+    }
+
     if (validateStep(BOOKING_STEPS.PAYMENT)) {
       try {
         // Final validation before booking - check trip status and time
@@ -566,7 +585,26 @@ export default function BookScreen() {
 
           {/* Step 2: Trip Selection */}
           {currentStep === BOOKING_STEPS.TRIP_SELECTION && (
-            <TripSelectionStep />
+            <>
+              <TripSelectionStep />
+              {isGuestMode && (
+                <View style={styles.guestNotice}>
+                  <Text style={styles.guestNoticeTitle}>
+                    Sign in to continue booking
+                  </Text>
+                  <Text style={styles.guestNoticeText}>
+                    You can browse available routes as a guest, but you need an
+                    account to select seats, add passenger details, and confirm
+                    your booking.
+                  </Text>
+                  <Button
+                    title='Sign In or Create Account'
+                    onPress={promptLoginForBooking}
+                    fullWidth
+                  />
+                </View>
+              )}
+            </>
           )}
 
           {/* Step 3: Seat Selection */}
@@ -1042,6 +1080,25 @@ const styles = StyleSheet.create({
   },
   bookingCard: {
     marginBottom: 16,
+  },
+  guestNotice: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#fff5e6',
+    borderWidth: 1,
+    borderColor: '#ffe0b2',
+    gap: 12,
+  },
+  guestNoticeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  guestNoticeText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
   },
   stepTitle: {
     fontSize: 18,

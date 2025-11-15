@@ -18,6 +18,7 @@ import {
   ChevronRight,
   X,
 } from 'lucide-react-native';
+import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/utils/supabase';
 import Colors from '@/constants/colors';
@@ -31,15 +32,25 @@ import { useAlertContext } from '@/components/AlertProvider';
 type EditableField = 'full_name' | 'mobile_number' | 'date_of_birth';
 
 export default function ProfileScreen() {
-  const { user, signOut, isLoading, error } = useAuthStore();
+  const {
+    user,
+    signOut,
+    isLoading,
+    error,
+    deleteAccount,
+    isGuestMode,
+    isAuthenticated,
+  } = useAuthStore();
   const { showError, showSuccess, showConfirmation } = useAlertContext();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [editingField, setEditingField] = useState<EditableField | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [deleteEmailInput, setDeleteEmailInput] = useState('');
   const [, forceUpdate] = useState({});
 
   useEffect(() => {
@@ -47,6 +58,12 @@ export default function ProfileScreen() {
       showError('Error', error);
     }
   }, [error, showError]);
+
+  const isGuestView = isGuestMode || !isAuthenticated || !user;
+
+  const handleLoginNavigation = () => {
+    router.push('/(auth)' as any);
+  };
 
   if (isLoading) {
     return (
@@ -56,11 +73,39 @@ export default function ProfileScreen() {
     );
   }
 
-  if (!user) {
+  if (isGuestView) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Please log in to view your profile</Text>
-      </View>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+      >
+        <View style={styles.profileHeader}>
+          <View style={styles.profileAvatar}>
+            <Text style={styles.profileInitials}>
+              {getUserInitials('Guest')}
+            </Text>
+          </View>
+          <Text style={styles.profileName}>Guest User</Text>
+          <Text style={styles.profileUsername}>
+            Sign in to complete your profile
+          </Text>
+        </View>
+
+        <Card variant='elevated' style={styles.section}>
+          <Text style={styles.sectionTitle}>Why create an account?</Text>
+          <Text style={styles.guestInfoText}>
+            {'\u2022 Manage bookings and passenger details\n'}
+            {'\u2022 Save your contact information for faster checkout\n'}
+            {'\u2022 Access tickets, invoices, and travel history'}
+          </Text>
+        </Card>
+
+        <Button
+          title='Sign In or Create Account'
+          onPress={handleLoginNavigation}
+          fullWidth
+        />
+      </ScrollView>
     );
   }
 
@@ -79,6 +124,42 @@ export default function ProfileScreen() {
       undefined,
       true // Mark as destructive action
     );
+  };
+
+  const openDeleteModal = () => {
+    setDeleteEmailInput('');
+    setIsDeleteModalVisible(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (
+      !deleteEmailInput ||
+      deleteEmailInput.trim().toLowerCase() !==
+        (user?.email || '').toLowerCase()
+    ) {
+      showError(
+        'Verification Failed',
+        'Email does not match. Account deletion cancelled.'
+      );
+      return;
+    }
+
+    try {
+      await deleteAccount();
+      setIsDeleteModalVisible(false);
+      showSuccess(
+        'Account Deleted',
+        'Your account has been scheduled for deletion.'
+      );
+    } catch (error) {
+      console.error('Delete account error:', error);
+      showError(
+        'Deletion Failed',
+        error instanceof Error
+          ? error.message
+          : 'Unable to delete account right now.'
+      );
+    }
   };
 
   /* Unused functions - Hidden
@@ -396,6 +477,21 @@ export default function ProfileScreen() {
       </Card>
       */}
 
+      <View style={styles.dangerSection}>
+        <Text style={styles.dangerTitle}>Danger Zone</Text>
+        <Text style={styles.dangerDescription}>
+          Permanently delete your account and remove all personal data. This
+          action cannot be undone.
+        </Text>
+        <Button
+          title='Delete Account'
+          onPress={openDeleteModal}
+          style={styles.deleteButton}
+          textStyle={styles.deleteButtonText}
+          fullWidth
+        />
+      </View>
+
       <Button
         title='Logout'
         variant='outline'
@@ -519,6 +615,54 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Delete Account Modal */}
+      <Modal
+        visible={isDeleteModalVisible}
+        animationType='slide'
+        transparent={true}
+        onRequestClose={() => setIsDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Confirm Deletion</Text>
+              <Pressable onPress={() => setIsDeleteModalVisible(false)}>
+                <X size={24} color={Colors.text} />
+              </Pressable>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalInstruction}>
+                Enter your account email ({user?.email}) to confirm permanent
+                deletion. This action cannot be undone.
+              </Text>
+              <Input
+                value={deleteEmailInput}
+                onChangeText={setDeleteEmailInput}
+                placeholder='Enter your email'
+                autoCapitalize='none'
+                keyboardType='email-address'
+              />
+            </View>
+
+            <View style={styles.modalFooter}>
+              <Button
+                title='Cancel'
+                variant='outline'
+                onPress={() => setIsDeleteModalVisible(false)}
+                style={styles.modalButton}
+              />
+              <Button
+                title='Delete'
+                onPress={handleDeleteAccount}
+                style={styles.modalButton}
+                textStyle={styles.deleteButtonText}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -627,6 +771,34 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   */
+  dangerSection: {
+    marginTop: 16,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#ffebee',
+    borderWidth: 1,
+    borderColor: '#ffcdd2',
+  },
+  dangerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.error,
+    marginBottom: 8,
+  },
+  dangerDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  deleteButton: {
+    borderColor: Colors.error,
+    backgroundColor: Colors.card,
+  },
+  deleteButtonText: {
+    color: Colors.error,
+  },
   logoutButton: {
     marginTop: 8,
     borderColor: Colors.error,
@@ -634,23 +806,16 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     color: Colors.error,
   },
+  guestInfoText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.background,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-    padding: 16,
-  },
-  errorText: {
-    fontSize: 16,
-    color: Colors.error,
-    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,
@@ -702,6 +867,12 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
+  },
+  modalInstruction: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
   },
   inputSpacing: {
     height: 16,

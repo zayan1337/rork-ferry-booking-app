@@ -23,6 +23,7 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     user,
     isRehydrated,
     preventRedirect,
+    isGuestMode,
   } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
@@ -30,6 +31,7 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
 
   useEffect(() => {
     if (
+      isGuestMode ||
       !isRehydrated ||
       !isAuthenticated ||
       preventRedirect ||
@@ -53,12 +55,20 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
   }, [
     allowedRoles,
     isAuthenticated,
+    isGuestMode,
     isRehydrated,
     pathname,
     preventRedirect,
     router,
     userRole,
   ]);
+
+  if (isGuestMode) {
+    if (allowedRoles.includes('customer')) {
+      return <>{children}</>;
+    }
+    return <AuthLoadingScreen message='Redirecting to login...' />;
+  }
 
   if (!isRehydrated) {
     return <AuthLoadingScreen message='Loading app data...' />;

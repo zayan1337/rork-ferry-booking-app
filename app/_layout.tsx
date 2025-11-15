@@ -46,6 +46,7 @@ function RootLayoutNav() {
     error,
     isRehydrated,
     preventRedirect,
+    isGuestMode,
   } = useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
@@ -132,7 +133,7 @@ function RootLayoutNav() {
       return;
     }
 
-    const shouldGoToApp = hasValidProfile ?? false;
+    const shouldGoToApp = (hasValidProfile ?? false) || isGuestMode;
     const targetRoute = shouldGoToApp ? '/(app)' : '/(auth)';
     const isAlreadyOnTarget = shouldGoToApp
       ? pathname.startsWith('/(app)')
@@ -153,7 +154,14 @@ function RootLayoutNav() {
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [hasValidProfile, authChecked, isRehydrated, pathname, preventRedirect]);
+  }, [
+    hasValidProfile,
+    authChecked,
+    isRehydrated,
+    pathname,
+    preventRedirect,
+    isGuestMode,
+  ]);
 
   // Show loading screen only during initial app startup (rehydration and initial auth check)
   // Don't show loading during user login - that should only show in the button
@@ -171,7 +179,7 @@ function RootLayoutNav() {
             gestureEnabled: false,
             animationTypeForReplace: 'push',
           }}
-          initialRouteName={hasValidProfile ? '(app)' : '(auth)'}
+          initialRouteName={hasValidProfile || isGuestMode ? '(app)' : '(auth)'}
         >
           <Stack.Screen name='(auth)' />
           <Stack.Screen name='(app)' />

@@ -36,6 +36,7 @@ export default function LoginScreen() {
     error,
     clearError,
     isAuthenticating,
+    enableGuestMode,
   } = useAuthStore();
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -145,6 +146,15 @@ export default function LoginScreen() {
     }
   };
 
+  const handleContinueAsGuest = () => {
+    if (isAuthenticating || isNavigating) {
+      return;
+    }
+
+    enableGuestMode();
+    router.replace('/(app)/(customer)/(tabs)' as any);
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -210,6 +220,20 @@ export default function LoginScreen() {
             disabled={isAuthenticating || isNavigating}
             fullWidth
             style={styles.loginButton}
+          />
+
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Button
+            title='Continue as Guest'
+            onPress={handleContinueAsGuest}
+            disabled={isAuthenticating || isNavigating}
+            fullWidth
+            variant='outline'
           />
 
           <View style={styles.registerContainer}>
@@ -281,6 +305,22 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 8,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: Colors.textSecondary,
+    fontSize: 14,
   },
   registerContainer: {
     flexDirection: 'row',
