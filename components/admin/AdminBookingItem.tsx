@@ -6,9 +6,9 @@ import StatusBadge from './StatusBadge';
 import {
   formatCurrency,
   formatDate,
-  formatRouteName,
   formatPassengerCount,
   formatBookingNumber,
+  getBookingRouteDisplayName,
 } from '@/utils/admin/bookingManagementUtils';
 import {
   Calendar,
@@ -62,16 +62,22 @@ function AdminBookingItem({
           <View style={styles.compactDetailRow}>
             <User size={12} color={colors.textSecondary} />
             <Text style={styles.compactDetailText}>
-              {booking.user_name || 'Unknown Customer'}
+              {booking.agent_id
+                ? booking.agent_name || 'Unknown Agent'
+                : booking.user_name || 'Unknown Customer'}
             </Text>
+            {booking.agent_id &&
+              booking.user_name &&
+              booking.user_name !== booking.agent_name && (
+                <Text style={[styles.compactDetailText, { marginLeft: 4 }]}>
+                  (Client: {booking.user_name})
+                </Text>
+              )}
           </View>
           <View style={styles.compactDetailRow}>
             <MapPin size={12} color={colors.textSecondary} />
             <Text style={styles.compactDetailText}>
-              {formatRouteName(
-                booking.from_island_name,
-                booking.to_island_name
-              )}
+              {getBookingRouteDisplayName(booking as any)}
             </Text>
           </View>
           {booking.trip_travel_date && (
@@ -105,27 +111,69 @@ function AdminBookingItem({
       </View>
 
       <View style={styles.content}>
-        <View style={styles.customerSection}>
-          <View style={styles.customerHeader}>
-            <User size={16} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Customer</Text>
+        {/* Show Agent section if booking was made by agent */}
+        {booking.agent_id ? (
+          <View style={styles.customerSection}>
+            <View style={styles.customerHeader}>
+              <User size={16} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Agent</Text>
+            </View>
+            <Text style={styles.customerName}>
+              {booking.agent_name || 'Unknown Agent'}
+            </Text>
+            {booking.agent_email && (
+              <View style={styles.contactRow}>
+                <Mail size={14} color={colors.textSecondary} />
+                <Text style={styles.contactText}>{booking.agent_email}</Text>
+              </View>
+            )}
+            {/* Show client information if agent booked for a client */}
+            {booking.user_name && booking.user_name !== booking.agent_name && (
+              <View style={styles.clientInfo}>
+                <Text style={styles.clientLabel}>Client:</Text>
+                <Text style={styles.clientName}>{booking.user_name}</Text>
+                {booking.user_email && (
+                  <View style={styles.contactRow}>
+                    <Mail size={12} color={colors.textSecondary} />
+                    <Text style={[styles.contactText, { fontSize: 12 }]}>
+                      {booking.user_email}
+                    </Text>
+                  </View>
+                )}
+                {booking.user_mobile && (
+                  <View style={styles.contactRow}>
+                    <Phone size={12} color={colors.textSecondary} />
+                    <Text style={[styles.contactText, { fontSize: 12 }]}>
+                      {booking.user_mobile}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
-          <Text style={styles.customerName}>
-            {booking.user_name || 'Unknown Customer'}
-          </Text>
-          {booking.user_email && (
-            <View style={styles.contactRow}>
-              <Mail size={14} color={colors.textSecondary} />
-              <Text style={styles.contactText}>{booking.user_email}</Text>
+        ) : (
+          <View style={styles.customerSection}>
+            <View style={styles.customerHeader}>
+              <User size={16} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Customer</Text>
             </View>
-          )}
-          {booking.user_mobile && (
-            <View style={styles.contactRow}>
-              <Phone size={14} color={colors.textSecondary} />
-              <Text style={styles.contactText}>{booking.user_mobile}</Text>
-            </View>
-          )}
-        </View>
+            <Text style={styles.customerName}>
+              {booking.user_name || 'Unknown Customer'}
+            </Text>
+            {booking.user_email && (
+              <View style={styles.contactRow}>
+                <Mail size={14} color={colors.textSecondary} />
+                <Text style={styles.contactText}>{booking.user_email}</Text>
+              </View>
+            )}
+            {booking.user_mobile && (
+              <View style={styles.contactRow}>
+                <Phone size={14} color={colors.textSecondary} />
+                <Text style={styles.contactText}>{booking.user_mobile}</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={styles.tripSection}>
           <View style={styles.tripHeader}>
@@ -133,7 +181,9 @@ function AdminBookingItem({
             <Text style={styles.sectionTitle}>Trip Details</Text>
           </View>
           <Text style={styles.routeName}>
-            {booking.route_name || 'Unknown Route'}
+            {getBookingRouteDisplayName(booking as any) ||
+              booking.route_name ||
+              'Unknown Route'}
           </Text>
           <View style={styles.tripDetails}>
             {booking.trip_travel_date && (
@@ -169,7 +219,8 @@ function AdminBookingItem({
             </Text>
           </View>
 
-          {booking.agent_name && (
+          {/* Only show agent in additional section if not already shown in main section */}
+          {!booking.agent_id && booking.agent_name && (
             <View style={styles.additionalRow}>
               <Text style={styles.additionalLabel}>Agent:</Text>
               <Text style={styles.additionalValue}>{booking.agent_name}</Text>
@@ -314,6 +365,25 @@ const styles = StyleSheet.create({
   },
   customerSection: {
     gap: 6,
+  },
+  clientInfo: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: `${colors.border}30`,
+    gap: 4,
+  },
+  clientLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  clientName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
   },
   customerHeader: {
     flexDirection: 'row',

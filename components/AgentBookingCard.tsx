@@ -16,8 +16,8 @@ import Colors from '@/constants/colors';
 import Card from './Card';
 import { isBookingExpired, isBookingInactive } from '@/utils/bookingUtils';
 import { getClientDisplayName } from '@/utils/clientUtils';
-import { formatCurrency, formatBookingDate } from '@/utils/agentFormatters';
-import { formatTimeAMPM } from '@/utils/dateUtils';
+import { formatCurrency } from '@/utils/agentFormatters';
+import { formatTimeAMPM, formatBookingDate } from '@/utils/dateUtils';
 import { useAgentStore } from '@/store/agent/agentStore';
 
 interface AgentBookingCardProps {
@@ -90,7 +90,22 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
     const bookingInactive = isBookingInactive(booking);
     const isRoundTrip =
       booking.tripType === 'round_trip' || booking.isRoundTrip;
-    const hasDiscount = booking.discountedAmount !== booking.totalAmount;
+
+    // Calculate pricing display
+    // Based on store: totalAmount = originalFare, discountedAmount = final paid amount
+    const originalAmount = booking.totalAmount || 0;
+    const finalAmount = booking.discountedAmount || booking.totalAmount || 0;
+
+    // Only show discount for non-cancelled bookings where there's an actual discount
+    const isCancelled = booking.status === 'cancelled';
+    const hasDiscount =
+      !isCancelled &&
+      booking.discountedAmount &&
+      booking.totalAmount &&
+      booking.discountedAmount < booking.totalAmount &&
+      booking.totalAmount > 0;
+
+    const discountAmount = hasDiscount ? originalAmount - finalAmount : 0;
 
     const handlePress = React.useCallback(() => {
       onPress(booking);
@@ -100,6 +115,9 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
       if (!timeString) return '';
       return formatTimeAMPM(timeString);
     };
+
+    const displayOrigin = booking.pickupName || booking.origin;
+    const displayDestination = booking.dropoffName || booking.destination;
 
     return (
       <Pressable onPress={handlePress}>
@@ -120,7 +138,7 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
                     bookingInactive && styles.inactiveText,
                   ]}
                 >
-                  {booking.origin} → {booking.destination}
+                  {displayOrigin} → {displayDestination}
                 </Text>
                 {isRoundTrip && (
                   <View style={styles.tripTypeContainer}>
@@ -254,21 +272,21 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
               <Text style={styles.bookingId}>ID: {booking.id.slice(-8)}</Text>
             </View>
             <View style={styles.priceInfo}>
-              <Text style={styles.price}>
-                {formatCurrency(booking.discountedAmount)}
-              </Text>
-              {hasDiscount && (
-                <Text style={styles.originalPrice}>
-                  {formatCurrency(booking.totalAmount)}
-                </Text>
-              )}
-              {hasDiscount && (
-                <Text style={styles.discountText}>
-                  Save{' '}
-                  {formatCurrency(
-                    booking.totalAmount - booking.discountedAmount
-                  )}
-                </Text>
+              {/* Show pricing: original amount (if discount exists), final amount, and savings */}
+              {hasDiscount ? (
+                <>
+                  <Text style={styles.price}>
+                    {formatCurrency(finalAmount)}
+                  </Text>
+                  <Text style={styles.originalPrice}>
+                    {formatCurrency(originalAmount)}
+                  </Text>
+                  <Text style={styles.discountText}>
+                    Save {formatCurrency(discountAmount)}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.price}>{formatCurrency(finalAmount)}</Text>
               )}
             </View>
           </View>

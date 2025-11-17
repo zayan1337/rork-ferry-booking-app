@@ -217,6 +217,62 @@ export const formatRouteName = (
 };
 
 /**
+ * Gets route display name from booking, prioritizing segment data if available
+ * This ensures accurate pickup/dropoff display for segment-based bookings
+ */
+export const getBookingRouteDisplayName = (
+  booking: AdminBooking & {
+    // Optional segment data (if available from enriched queries)
+    booking_segments?: {
+      boarding_stop?: {
+        island?: { name?: string };
+        islands?: { name?: string };
+      };
+      destination_stop?: {
+        island?: { name?: string };
+        islands?: { name?: string };
+      };
+    }[];
+  }
+): string => {
+  // Check if booking has segment data (from enriched queries)
+  if (booking.booking_segments && booking.booking_segments.length > 0) {
+    const segment = Array.isArray(booking.booking_segments)
+      ? booking.booking_segments[0]
+      : booking.booking_segments;
+
+    const boardingStop = segment?.boarding_stop;
+    const destinationStop = segment?.destination_stop;
+
+    // Extract island names from segment data
+    // Handle both 'islands' (array) and 'island' (object) structures
+    const boardingIslandName =
+      boardingStop?.islands?.name ||
+      (Array.isArray(boardingStop?.islands)
+        ? boardingStop.islands[0]?.name
+        : null) ||
+      boardingStop?.island?.name ||
+      null;
+
+    const destinationIslandName =
+      destinationStop?.islands?.name ||
+      (Array.isArray(destinationStop?.islands)
+        ? destinationStop.islands[0]?.name
+        : null) ||
+      destinationStop?.island?.name ||
+      null;
+
+    // If we have segment data, use it
+    if (boardingIslandName || destinationIslandName) {
+      return formatRouteName(boardingIslandName, destinationIslandName);
+    }
+  }
+
+  // Fallback to booking's from_island_name and to_island_name
+  return formatRouteName(booking.from_island_name, booking.to_island_name);
+};
+
+/**
  * Formats passenger count for display
  */
 export const formatPassengerCount = (count: number): string => {

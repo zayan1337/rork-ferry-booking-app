@@ -11,10 +11,10 @@ export const formatCurrency = (
   locale: string = 'en-US'
 ): string => {
   if (typeof amount !== 'number' || isNaN(amount)) {
-    return `${currency}0.00`;
+    return `${currency} 0.00`;
   }
 
-  return `${currency}${amount.toLocaleString(locale, {
+  return `${currency} ${amount.toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

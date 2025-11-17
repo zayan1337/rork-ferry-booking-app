@@ -293,7 +293,11 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     }
 
     try {
-      await onSeatToggle(seat);
+      const result = await onSeatToggle(seat);
+      // Ensure we don't accidentally render the result
+      if (result !== undefined && result !== null) {
+        // Result is ignored, just ensuring it doesn't cause rendering issues
+      }
     } catch (error) {
       console.error('Error toggling seat selection:', error);
     } finally {

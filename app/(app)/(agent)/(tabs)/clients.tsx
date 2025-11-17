@@ -79,17 +79,22 @@ export default function AgentClientsScreen() {
     [bookings]
   );
 
-  // Function to get client's total revenue
+  // Function to get client's total revenue (only from valid revenue bookings)
   const getClientTotalRevenue = React.useCallback(
     (clientId: string) => {
       if (!bookings || bookings.length === 0) return 0;
 
       const clientBookings = bookings.filter(booking => {
-        return (
+        const matchesClient =
           booking.clientId === clientId ||
           booking.userId === clientId ||
-          booking.agentClientId === clientId
-        );
+          booking.agentClientId === clientId;
+        // Only count revenue from confirmed, checked_in, or completed bookings
+        const isValidStatus =
+          booking.status === 'confirmed' ||
+          booking.status === 'checked_in' ||
+          booking.status === 'completed';
+        return matchesClient && isValidStatus;
       });
 
       return clientBookings.reduce((total, booking) => {

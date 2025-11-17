@@ -45,13 +45,6 @@ export default function AgentInfoCard({
 
       <View style={styles.infoGrid}>
         <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Credit Balance</Text>
-          <Text style={styles.infoValue}>
-            {formatCurrency(agent.creditBalance)}
-          </Text>
-        </View>
-
-        <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Discount Rate</Text>
           <Text style={styles.infoValue}>
             {formatDiscountRate(agent.discountRate)}
@@ -65,6 +58,13 @@ export default function AgentInfoCard({
               agent.freeTicketsRemaining,
               agent.freeTicketsAllocation
             )}
+          </Text>
+        </View>
+
+        <View style={styles.infoItem}>
+          <Text style={styles.infoLabel}>Agent Status</Text>
+          <Text style={[styles.infoValue, { color: Colors.success }]}>
+            Active
           </Text>
         </View>
 
@@ -120,9 +120,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 8,
   },
   infoItem: {
-    width: '32%',
+    flex: 1,
+    minWidth: '30%',
     marginBottom: 12,
   },
   infoLabel: {

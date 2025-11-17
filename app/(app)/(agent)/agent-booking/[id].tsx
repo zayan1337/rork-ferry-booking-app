@@ -45,8 +45,7 @@ export default function BookingDetailsScreen() {
   const { showError, showSuccess } = useAlertContext();
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { bookings, clients, updateBookingStatus } = useAgentStore();
-  const [loading, setLoading] = useState(false);
+  const { bookings, clients } = useAgentStore();
   const ticketDesignRef = useRef<any>(null);
   const imageGenerationTicketRef = useRef<any>(null);
   const [showTicketPopup, setShowTicketPopup] = useState(false);
@@ -123,19 +122,6 @@ export default function BookingDetailsScreen() {
 
   const handleCloseTicketPopup = () => {
     setShowTicketPopup(false);
-  };
-
-  const handleUpdateStatus = async (status: string) => {
-    try {
-      setLoading(true);
-      await updateBookingStatus(booking.id, status as any);
-      showSuccess('Success', `Booking marked as ${status}`);
-    } catch (error) {
-      console.error('Error updating booking status:', error);
-      showError('Error', 'Failed to update booking status');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const togglePolicySection = (section: keyof typeof expandedPolicies) => {
@@ -394,6 +380,48 @@ export default function BookingDetailsScreen() {
   );
 
   // Prepare data for components
+  const pickupDisplayName =
+    booking.pickupName ||
+    booking.origin ||
+    booking.route?.fromIsland?.name ||
+    'Unknown';
+  const dropoffDisplayName =
+    booking.dropoffName ||
+    booking.destination ||
+    booking.route?.toIsland?.name ||
+    'Unknown';
+
+  const ticketRoute = booking.route
+    ? {
+        ...booking.route,
+        fromIsland: {
+          ...(booking.route.fromIsland || {}),
+          id: booking.route.fromIsland?.id || 'from',
+          zone: booking.route.fromIsland?.zone || 'A',
+          name: pickupDisplayName,
+        },
+        toIsland: {
+          ...(booking.route.toIsland || {}),
+          id: booking.route.toIsland?.id || 'to',
+          zone: booking.route.toIsland?.zone || 'A',
+          name: dropoffDisplayName,
+        },
+      }
+    : ({
+        id: 'unknown',
+        fromIsland: {
+          id: 'from',
+          name: pickupDisplayName,
+          zone: 'A',
+        },
+        toIsland: {
+          id: 'to',
+          name: dropoffDisplayName,
+          zone: 'A',
+        },
+        baseFare: Number(booking.totalAmount) || 0,
+      } as any);
+
   const ticketBookingData = {
     ...booking,
     totalFare: Number(booking.totalAmount) || 0,
@@ -401,22 +429,7 @@ export default function BookingDetailsScreen() {
     bookingNumber: String(booking.bookingNumber || booking.id || 'N/A'),
     tripType: String(booking.tripType || 'one_way'),
     departureTime: String(booking.departureTime || '00:00'),
-    route:
-      booking.route ||
-      ({
-        id: 'unknown',
-        fromIsland: {
-          id: 'from',
-          name: String(booking.origin || 'Unknown'),
-          zone: 'A',
-        },
-        toIsland: {
-          id: 'to',
-          name: String(booking.destination || 'Unknown'),
-          zone: 'A',
-        },
-        baseFare: Number(booking.totalAmount) || 0,
-      } as any),
+    route: ticketRoute,
     seats: Array.isArray(booking.seats) ? booking.seats : [],
   };
 
@@ -511,6 +524,8 @@ export default function BookingDetailsScreen() {
           route={booking.route || undefined}
           origin={booking.origin}
           destination={booking.destination}
+          pickupName={booking.pickupName || booking.origin}
+          dropoffName={booking.dropoffName || booking.destination}
           passengerCount={
             booking.passengers?.length || booking.passengerCount || 0
           }
@@ -584,15 +599,13 @@ export default function BookingDetailsScreen() {
         <BookingActions
           bookingId={String(booking.id || '')}
           status={String(booking.status || '')}
-          departureDate={booking.departureDate}
           tripType={booking.tripType}
           returnDate={booking.returnDate}
-          loading={loading}
           onShare={handleShareTicket}
-          onUpdateStatus={handleUpdateStatus}
           paymentStatus={booking.payment?.status || 'pending'}
           isModifiable={isModifiable}
           isCancellable={isCancellable}
+          eligibilityMessage={message}
         />
 
         <Text style={styles.bookingId}>

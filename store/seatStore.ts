@@ -23,7 +23,11 @@ interface SeatStoreActions {
     tripId: string,
     isReturn?: boolean
   ) => Promise<void>;
-  toggleSeatSelection: (seat: Seat, isReturn?: boolean) => Promise<void>;
+  toggleSeatSelection: (
+    seat: Seat,
+    isReturn?: boolean,
+    tripIdOverride?: string
+  ) => Promise<void>;
   ensureSeatReservations: (tripId: string) => Promise<void>;
   initializeAllSeatReservations: () => Promise<void>;
   subscribeSeatUpdates: (tripId: string, isReturn?: boolean) => void;
@@ -309,7 +313,8 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 
   toggleSeatSelection: async (
     seat: Seat,
-    isReturn: boolean = false
+    isReturn: boolean = false,
+    tripIdOverride?: string
   ): Promise<void> => {
     try {
       const state = get();
@@ -326,17 +331,51 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 
       const currentSeat = seatsArray[seatIndex];
 
-      // Get current trip ID for reservation
-      const { useBookingStore } = await import('./bookingStore');
-      const bookingState = useBookingStore.getState();
-      const tripId = isReturn
-        ? bookingState.currentBooking.returnTrip?.id
-        : bookingState.currentBooking.trip?.id;
+      let bookingState: any = null;
+      let useBookingStore: any = null;
+      let tripId = tripIdOverride;
+
+      if (!tripIdOverride) {
+        const bookingModule = await import('./bookingStore');
+        useBookingStore = bookingModule.useBookingStore;
+        bookingState = useBookingStore.getState();
+        tripId = isReturn
+          ? bookingState.currentBooking.returnTrip?.id
+          : bookingState.currentBooking.trip?.id;
+      }
 
       if (!tripId) {
         console.error('No trip ID available for seat reservation');
         throw new Error('No trip selected');
       }
+
+      const syncBookingStoreSelection = (selectedSeats: Seat[]) => {
+        if (!useBookingStore || !bookingState) {
+          return;
+        }
+
+        const currentBooking = bookingState.currentBooking;
+        const updatedBooking = {
+          ...currentBooking,
+          [isReturn ? 'returnSelectedSeats' : 'selectedSeats']: selectedSeats,
+        };
+
+        // Update passengers array to match departure seat count (primary seats)
+        if (!isReturn) {
+          const newPassengers = selectedSeats.map(
+            (_, index) =>
+              currentBooking.passengers[index] || {
+                fullName: '',
+                idNumber: '',
+                specialAssistance: '',
+              }
+          );
+          updatedBooking.passengers = newPassengers;
+        }
+
+        useBookingStore.setState({ currentBooking: updatedBooking });
+        useBookingStore.getState().calculateTotalFare();
+      };
 
       // Step 1: Refresh seat status to get latest data
       await get().fetchRealtimeSeatStatus(tripId, isReturn);
@@ -368,27 +407,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
             : finalState.availableSeats;
 
           const selectedSeats = finalSeatsArray.filter(s => s.isSelected);
-          const currentBooking = bookingState.currentBooking;
-          const updatedBooking = {
-            ...currentBooking,
-            [isReturn ? 'returnSelectedSeats' : 'selectedSeats']: selectedSeats,
-          };
-
-          // Update passengers array to match departure seat count (primary seats)
-          if (!isReturn) {
-            const newPassengers = selectedSeats.map(
-              (_, index) =>
-                currentBooking.passengers[index] || {
-                  fullName: '',
-                  idNumber: '',
-                  specialAssistance: '',
-                }
-            );
-            updatedBooking.passengers = newPassengers;
-          }
-
-          useBookingStore.setState({ currentBooking: updatedBooking });
-          useBookingStore.getState().calculateTotalFare();
+          syncBookingStoreSelection(selectedSeats);
         } else {
           throw new Error('Failed to release seat reservation');
         }
@@ -425,27 +444,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
           const selectedSeats = finalSeatsArray.filter(
             s => s.isSelected || s.isCurrentUserReservation
           );
-          const currentBooking = bookingState.currentBooking;
-          const updatedBooking = {
-            ...currentBooking,
-            [isReturn ? 'returnSelectedSeats' : 'selectedSeats']: selectedSeats,
-          };
-
-          // Update passengers array to match departure seat count (primary seats)
-          if (!isReturn) {
-            const newPassengers = selectedSeats.map(
-              (_, index) =>
-                currentBooking.passengers[index] || {
-                  fullName: '',
-                  idNumber: '',
-                  specialAssistance: '',
-                }
-            );
-            updatedBooking.passengers = newPassengers;
-          }
-
-          useBookingStore.setState({ currentBooking: updatedBooking });
-          useBookingStore.getState().calculateTotalFare();
+          syncBookingStoreSelection(selectedSeats);
         } else {
           // Refresh seat status to show current state
           await get().fetchRealtimeSeatStatus(tripId, isReturn);

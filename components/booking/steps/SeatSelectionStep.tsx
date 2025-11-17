@@ -11,9 +11,14 @@ interface SeatSelectionStepProps {
   availableReturnSeats: Seat[] | null;
   selectedSeats: Seat[];
   selectedReturnSeats: Seat[];
+  loadingSeats?: Set<string>;
+  seatErrors?: Record<string, string>;
+  departureTripId?: string | null;
+  returnTripId?: string | null;
+  onSeatsUpdated?: (updatedSeats: Seat[], isReturn?: boolean) => void;
 
   // Seat selection handlers
-  onSeatToggle: (seat: Seat, isReturn?: boolean) => void;
+  onSeatToggle: (seat: Seat, isReturn?: boolean) => Promise<void> | void;
 
   // Trip type
   tripType: 'one_way' | 'round_trip' | null;
@@ -39,6 +44,11 @@ const SeatSelectionStep: React.FC<SeatSelectionStepProps> = ({
   availableReturnSeats,
   selectedSeats,
   selectedReturnSeats,
+  loadingSeats,
+  seatErrors,
+  departureTripId,
+  returnTripId,
+  onSeatsUpdated,
   onSeatToggle,
   tripType,
   isLoading,
@@ -49,8 +59,8 @@ const SeatSelectionStep: React.FC<SeatSelectionStepProps> = ({
   errors,
   clearError,
 }) => {
-  const handleSeatToggle = (seat: Seat, isReturn = false) => {
-    onSeatToggle(seat, isReturn);
+  const handleSeatToggle = async (seat: Seat, isReturn = false) => {
+    await onSeatToggle(seat, isReturn);
     if (errors.seats) clearError('seats');
   };
 
@@ -60,12 +70,26 @@ const SeatSelectionStep: React.FC<SeatSelectionStepProps> = ({
 
       {/* Departure Seats */}
       <Text style={styles.seatSectionTitle}>Departure Seats</Text>
-      {availableSeats ? (
+      {availableSeats && Array.isArray(availableSeats) ? (
         <SeatSelector
           seats={availableSeats}
           selectedSeats={selectedSeats}
           onSeatToggle={seat => handleSeatToggle(seat, false)}
           isLoading={isLoading}
+          loadingSeats={loadingSeats}
+          seatErrors={seatErrors}
+          tripId={departureTripId || undefined}
+          onSeatsUpdated={
+            onSeatsUpdated
+              ? (updated: Seat[]) => {
+                  try {
+                    onSeatsUpdated(updated, false);
+                  } catch (error) {
+                    console.error('Error in onSeatsUpdated callback:', error);
+                  }
+                }
+              : undefined
+          }
         />
       ) : (
         <Text style={styles.loadingText}>Loading available seats...</Text>
@@ -75,12 +99,29 @@ const SeatSelectionStep: React.FC<SeatSelectionStepProps> = ({
       {tripType === 'round_trip' && (
         <>
           <Text style={styles.seatSectionTitle}>Return Seats</Text>
-          {availableReturnSeats ? (
+          {availableReturnSeats && Array.isArray(availableReturnSeats) ? (
             <SeatSelector
               seats={availableReturnSeats}
               selectedSeats={selectedReturnSeats}
               onSeatToggle={seat => handleSeatToggle(seat, true)}
               isLoading={isLoading}
+              loadingSeats={loadingSeats}
+              seatErrors={seatErrors}
+              tripId={returnTripId || undefined}
+              onSeatsUpdated={
+                onSeatsUpdated
+                  ? (updated: Seat[]) => {
+                      try {
+                        onSeatsUpdated(updated, true);
+                      } catch (error) {
+                        console.error(
+                          'Error in onSeatsUpdated callback:',
+                          error
+                        );
+                      }
+                    }
+                  : undefined
+              }
             />
           ) : (
             <Text style={styles.loadingText}>

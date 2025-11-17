@@ -222,7 +222,7 @@ export const fetchRecentBookings = async (limit: number = 10) => {
       throw error;
     }
 
-    return (data || []).map((booking: any) => ({
+    const bookings = (data || []).map((booking: any) => ({
       id: booking.id,
       booking_number: booking.booking_number,
       routeId: booking.trip_id,
@@ -243,7 +243,87 @@ export const fetchRecentBookings = async (limit: number = 10) => {
       qrCodeUrl: booking.qr_code_url,
       checkInStatus: booking.check_in_status,
       created_at: booking.created_at,
+      // Include segment-related fields for route display
+      from_island_name: booking.from_island_name,
+      to_island_name: booking.to_island_name,
     }));
+
+    // Enrich bookings with segment data for accurate pickup/dropoff display
+    if (bookings.length > 0) {
+      const bookingIds = bookings.map(b => b.id);
+      try {
+        const { data: segmentsData, error: segmentsError } = await supabase
+          .from('booking_segments')
+          .select(
+            `
+            booking_id,
+            boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
+              id,
+              stop_sequence,
+              islands(name, zone)
+            ),
+            destination_stop:route_stops!booking_segments_destination_stop_id_fkey(
+              id,
+              stop_sequence,
+              islands(name, zone)
+            )
+          `
+          )
+          .in('booking_id', bookingIds);
+
+        if (!segmentsError && segmentsData) {
+          // Create a map of booking_id to segment data
+          const segmentsMap = new Map<string, any>();
+          segmentsData.forEach((segment: any) => {
+            if (!segmentsMap.has(segment.booking_id)) {
+              segmentsMap.set(segment.booking_id, []);
+            }
+            segmentsMap.get(segment.booking_id)!.push(segment);
+          });
+
+          // Enrich bookings with segment data and update routeName
+          return bookings.map(booking => {
+            const segments = segmentsMap.get(booking.id);
+            if (segments && segments.length > 0) {
+              const segment = segments[0];
+              const boardingStop = segment.boarding_stop;
+              const destinationStop = segment.destination_stop;
+
+              // Extract island names from segment data
+              const boardingIslandName =
+                boardingStop?.islands?.name ||
+                (Array.isArray(boardingStop?.islands)
+                  ? boardingStop.islands[0]?.name
+                  : null);
+              const destinationIslandName =
+                destinationStop?.islands?.name ||
+                (Array.isArray(destinationStop?.islands)
+                  ? destinationStop.islands[0]?.name
+                  : null);
+
+              // Update routeName with segment data if available
+              if (boardingIslandName || destinationIslandName) {
+                const routeName = `${boardingIslandName || 'Unknown'} → ${destinationIslandName || 'Unknown'}`;
+                return {
+                  ...booking,
+                  routeName,
+                  booking_segments: segments,
+                };
+              }
+            }
+            return booking;
+          });
+        }
+      } catch (segmentsErr) {
+        // If segment fetch fails, continue without segment data
+        console.warn(
+          'Failed to fetch booking segments for dashboard:',
+          segmentsErr
+        );
+      }
+    }
+
+    return bookings;
   } catch (error) {
     console.error('Failed to fetch recent bookings:', error);
     return [];

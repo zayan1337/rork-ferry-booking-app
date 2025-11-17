@@ -95,16 +95,25 @@ export const useAgentStatsStore = create<AgentStatsState>((set, get) => ({
     const activeBookings = getActiveBookings(bookings);
     const inactiveBookings = getInactiveBookings(bookings);
 
+    // Only count revenue from confirmed, checked_in, or completed bookings (exclude cancelled)
+    const validRevenueBookings = bookings.filter(
+      b =>
+        b.status === 'confirmed' ||
+        b.status === 'checked_in' ||
+        b.status === 'completed'
+    );
+
     return {
       totalBookings: bookings.length,
       activeBookings: activeBookings.length,
       completedBookings: bookings.filter(b => b.status === 'completed').length,
       cancelledBookings: bookings.filter(b => b.status === 'cancelled').length,
-      totalRevenue: bookings.reduce(
-        (sum, booking) => sum + (booking.totalAmount || 0),
+      totalRevenue: validRevenueBookings.reduce(
+        (sum, booking) =>
+          sum + (booking.totalAmount || booking.discountedAmount || 0),
         0
       ),
-      totalCommission: bookings.reduce(
+      totalCommission: validRevenueBookings.reduce(
         (sum, booking) => sum + (booking.commission || 0),
         0
       ),

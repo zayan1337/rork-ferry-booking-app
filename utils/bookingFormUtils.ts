@@ -92,7 +92,7 @@ export const validateBookingStep = (
   const errors: Record<string, string> = {};
 
   switch (step) {
-    case 1: // Trip Type, Date, Route & Trip Selection (Combined)
+    case 1: // Island & Date Selection (NEW - island-based)
       if (!data.tripType) {
         errors.tripType = 'Please select a trip type';
       }
@@ -102,13 +102,22 @@ export const validateBookingStep = (
       if (data.tripType === 'round_trip' && !data.returnDate) {
         errors.returnDate = 'Please select a return date';
       }
-      if (!data.route) {
-        errors.route = 'Please select a departure route';
+      if (!data.boardingIslandId) {
+        errors.boardingIsland = 'Please select a boarding island';
       }
-      if (data.tripType === 'round_trip' && !data.returnRoute) {
-        errors.returnRoute = 'Please select a return route';
+      if (!data.destinationIslandId) {
+        errors.destinationIsland = 'Please select a destination island';
       }
-      // Also validate trip selection in step 1 now
+      if (data.tripType === 'round_trip' && !data.returnBoardingIslandId) {
+        errors.returnBoardingIsland = 'Please select a return boarding island';
+      }
+      if (data.tripType === 'round_trip' && !data.returnDestinationIslandId) {
+        errors.returnDestinationIsland =
+          'Please select a return destination island';
+      }
+      break;
+
+    case 2: // Trip Selection (NEW - auto-discovered trips)
       if (!data.trip) {
         errors.trip = 'Please select a departure trip';
       }
@@ -117,7 +126,7 @@ export const validateBookingStep = (
       }
       break;
 
-    case 2: // Client Info (moved from step 3)
+    case 3: // Client Info
       if (!data.client) {
         if (data.showAddNewClientForm) {
           if (!data.clientForm?.name?.trim()) {
@@ -133,7 +142,7 @@ export const validateBookingStep = (
       }
       break;
 
-    case 3: // Seat Selection (moved from step 4)
+    case 4: // Seat Selection
       if (!data.selectedSeats || data.selectedSeats.length === 0) {
         errors.seats = 'Please select at least one seat';
       }
@@ -151,7 +160,7 @@ export const validateBookingStep = (
       }
       break;
 
-    case 4: // Passenger Details (moved from step 5)
+    case 5: // Passenger Details
       const incompletePassenger = data.passengers?.find(
         (p: any) => !p.fullName?.trim()
       );
@@ -160,7 +169,7 @@ export const validateBookingStep = (
       }
       break;
 
-    case 5: // Payment (moved from step 6)
+    case 6: // Payment
       if (!data.paymentMethod) {
         errors.paymentMethod = 'Please select a payment method';
       }

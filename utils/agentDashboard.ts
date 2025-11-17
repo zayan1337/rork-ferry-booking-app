@@ -3,11 +3,40 @@ import { getInactiveBookings } from './bookingUtils';
 
 /**
  * Process and combine dashboard stats from different sources
+ * Recalculates revenue and commission from bookings to exclude cancelled bookings
  */
 export const getDashboardStats = (
   stats: AgentDashboardStats | null,
-  localStats: AgentDashboardStats | null
+  localStats: AgentDashboardStats | null,
+  bookings?: any[] | null
 ): AgentDashboardStats => {
+  // Recalculate revenue and commission from bookings if available
+  // This ensures cancelled bookings are excluded
+  let calculatedRevenue = stats?.totalRevenue || localStats?.totalRevenue || 0;
+  let calculatedCommission =
+    stats?.totalCommission || localStats?.totalCommission || 0;
+
+  if (bookings && bookings.length > 0) {
+    // Only count revenue from confirmed, checked_in, or completed bookings (exclude cancelled)
+    const validRevenueBookings = bookings.filter(
+      b =>
+        b.status === 'confirmed' ||
+        b.status === 'checked_in' ||
+        b.status === 'completed'
+    );
+
+    calculatedRevenue = validRevenueBookings.reduce(
+      (sum, booking) =>
+        sum + (booking.totalAmount || booking.discountedAmount || 0),
+      0
+    );
+
+    calculatedCommission = validRevenueBookings.reduce(
+      (sum, booking) => sum + (booking.commission || 0),
+      0
+    );
+  }
+
   return {
     totalBookings: stats?.totalBookings || localStats?.totalBookings || 0,
     activeBookings: localStats?.activeBookings || stats?.activeBookings || 0, // Prioritize local calculation
@@ -15,8 +44,8 @@ export const getDashboardStats = (
       stats?.completedBookings || localStats?.completedBookings || 0,
     cancelledBookings:
       stats?.cancelledBookings || localStats?.cancelledBookings || 0,
-    totalRevenue: stats?.totalRevenue || localStats?.totalRevenue || 0,
-    totalCommission: stats?.totalCommission || localStats?.totalCommission || 0,
+    totalRevenue: calculatedRevenue,
+    totalCommission: calculatedCommission,
     uniqueClients: stats?.uniqueClients || localStats?.uniqueClients || 0,
   };
 };
@@ -79,11 +108,19 @@ export const calculatePerformanceMetrics = (
   const cancelledBookings = bookings.filter(
     b => b.status === 'cancelled'
   ).length;
-  const totalRevenue = bookings.reduce(
-    (sum, booking) => sum + (booking.totalAmount || 0),
+  // Only count revenue from confirmed, checked_in, or completed bookings (exclude cancelled)
+  const validRevenueBookings = bookings.filter(
+    b =>
+      b.status === 'confirmed' ||
+      b.status === 'checked_in' ||
+      b.status === 'completed'
+  );
+  const totalRevenue = validRevenueBookings.reduce(
+    (sum, booking) =>
+      sum + (booking.totalAmount || booking.discountedAmount || 0),
     0
   );
-  const totalCommission = bookings.reduce(
+  const totalCommission = validRevenueBookings.reduce(
     (sum, booking) => sum + (booking.commission || 0),
     0
   );
@@ -105,8 +142,15 @@ export const calculatePerformanceMetrics = (
   // Calculate revenue growth rate if previous period data is available
   let revenueGrowthRate = 0;
   if (previousPeriodBookings && previousPeriodBookings.length > 0) {
-    const previousRevenue = previousPeriodBookings.reduce(
-      (sum, booking) => sum + (booking.totalAmount || 0),
+    const previousValidBookings = previousPeriodBookings.filter(
+      b =>
+        b.status === 'confirmed' ||
+        b.status === 'checked_in' ||
+        b.status === 'completed'
+    );
+    const previousRevenue = previousValidBookings.reduce(
+      (sum, booking) =>
+        sum + (booking.totalAmount || booking.discountedAmount || 0),
       0
     );
     if (previousRevenue > 0) {
@@ -121,9 +165,13 @@ export const calculatePerformanceMetrics = (
     cancellationRate:
       bookings.length > 0 ? (cancelledBookings / bookings.length) * 100 : 0,
     averageRevenuePerBooking:
-      bookings.length > 0 ? totalRevenue / bookings.length : 0,
+      validRevenueBookings.length > 0
+        ? totalRevenue / validRevenueBookings.length
+        : 0,
     averageCommissionPerBooking:
-      bookings.length > 0 ? totalCommission / bookings.length : 0,
+      validRevenueBookings.length > 0
+        ? totalCommission / validRevenueBookings.length
+        : 0,
     clientRetentionRate:
       totalUniqueClients > 0
         ? (returningClients / totalUniqueClients) * 100
@@ -190,18 +238,27 @@ export const calculateCreditHealth = (
   const isLowCredit = creditBalance < creditCeiling * 0.3;
   const isCriticalCredit = creditBalance < creditCeiling * 0.1;
 
-  // Calculate average daily spending based on recent bookings
+  // Calculate average daily spending based on recent bookings (only valid revenue bookings)
   let averageDailySpending = 0;
   if (recentBookings && recentBookings.length > 0) {
     const last30Days = recentBookings.filter(booking => {
       const bookingDate = new Date(booking.bookingDate);
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return bookingDate >= thirtyDaysAgo && booking.paymentMethod === 'credit';
+      const isValidStatus =
+        booking.status === 'confirmed' ||
+        booking.status === 'checked_in' ||
+        booking.status === 'completed';
+      return (
+        bookingDate >= thirtyDaysAgo &&
+        booking.paymentMethod === 'credit' &&
+        isValidStatus
+      );
     });
 
     const totalSpent = last30Days.reduce(
-      (sum, booking) => sum + (booking.totalAmount || 0),
+      (sum, booking) =>
+        sum + (booking.totalAmount || booking.discountedAmount || 0),
       0
     );
     averageDailySpending = totalSpent / 30;

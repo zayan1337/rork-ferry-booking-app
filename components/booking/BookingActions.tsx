@@ -7,157 +7,98 @@ import { useAlertContext } from '@/components/AlertProvider';
 interface BookingActionsProps {
   bookingId: string;
   status: string;
-  departureDate: string;
-  tripType?: string;
-  returnDate?: string;
-  loading?: boolean;
-  onShare: () => void;
-  onUpdateStatus?: (status: string) => void;
+  tripType?: string | null;
+  returnDate?: string | null;
   paymentStatus?: string;
+  onShare: () => void;
   isModifiable?: boolean;
   isCancellable?: boolean;
+  eligibilityMessage?: string | null;
 }
 
 const BookingActions: React.FC<BookingActionsProps> = ({
   bookingId,
   status,
-  departureDate,
   tripType,
   returnDate,
-  loading = false,
-  onShare,
-  onUpdateStatus,
   paymentStatus,
-  isModifiable: propIsModifiable,
-  isCancellable: propIsCancellable,
+  onShare,
+  isModifiable = false,
+  isCancellable = false,
+  eligibilityMessage,
 }) => {
   const router = useRouter();
-  const { showError, showConfirmation } = useAlertContext();
+  const { showInfo, alert } = useAlertContext();
 
-  const isModifiable = () => {
-    // Use prop value if provided, otherwise fallback to status check
-    if (propIsModifiable !== undefined) {
-      return propIsModifiable;
-    }
-    const allowedStatuses = ['confirmed'];
-    return allowedStatuses.includes(status);
-  };
+  const unavailableMessage =
+    eligibilityMessage ||
+    'This action is not available for the selected booking because it is too close to the departure time.';
 
-  const isCancellable = () => {
-    // Use prop value if provided, otherwise fallback to status check
-    if (propIsCancellable !== undefined) {
-      return propIsCancellable;
-    }
-    const allowedStatuses = ['confirmed'];
-    return allowedStatuses.includes(status);
-  };
-
-  const checkTimeRestriction = (callback: () => void) => {
-    const departure = new Date(departureDate);
-    const now = new Date();
-    const hoursDifference =
-      (departure.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-    if (hoursDifference < 72) {
-      return false;
-    }
-    return true;
+  const pushToModify = (segment: 'departure' | 'return') => {
+    router.push(
+      `/(agent)/agent-modify-booking/${bookingId}?ticketType=${segment}` as any
+    );
   };
 
   const handleModifyBooking = () => {
     if (!bookingId) {
-      showError('Error', 'Invalid booking ID');
       return;
     }
 
-    const canModify = checkTimeRestriction(() => {});
-
-    const showTicketSelection = () => {
-      if (tripType === 'round_trip' && returnDate) {
-        showConfirmation(
-          'Select Ticket to Modify',
-          'Which ticket would you like to modify?',
-          () => {
-            // This will be handled by buttons in the confirmation dialog
-          },
-          () => {
-            router.push(
-              `/(agent)/agent-modify-booking/${bookingId}?ticketType=return` as any
-            );
-          }
-        );
-        // For now, show a simple confirmation and navigate to departure
-        // The custom alert doesn't support multiple buttons easily, so we'll use a simpler approach
-        router.push(
-          `/(agent)/agent-modify-booking/${bookingId}?ticketType=departure` as any
-        );
-      } else {
-        router.push(
-          `/(agent)/agent-modify-booking/${bookingId}?ticketType=departure` as any
-        );
-      }
-    };
-
-    if (!canModify) {
-      showConfirmation(
-        'Cannot Modify',
-        'Bookings can only be modified at least 72 hours before departure. As an agent, you can override this policy if needed.',
-        showTicketSelection,
-        undefined,
-        false
-      );
+    if (!isModifiable) {
+      showInfo('Cannot Modify Booking', unavailableMessage);
       return;
     }
 
-    showTicketSelection();
+    if (tripType === 'round_trip' && returnDate) {
+      alert('Select Segment', 'Which segment would you like to modify?', [
+        {
+          text: 'Departure Ticket',
+          onPress: () => pushToModify('departure'),
+        },
+        {
+          text: 'Return Ticket',
+          onPress: () => pushToModify('return'),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]);
+      return;
+    }
+
+    pushToModify('departure');
   };
 
   const handleCancelBooking = () => {
     if (!bookingId) {
-      showError('Error', 'Invalid booking ID');
       return;
     }
 
-    const canCancel = checkTimeRestriction(() => {});
-
-    if (!canCancel) {
-      showConfirmation(
-        'Cancel Booking',
-        'Standard policy requires 72 hours notice for cancellation. As an agent, you can override this policy and process the cancellation with appropriate refund terms.',
-        () => router.push(`/(agent)/agent-cancel-booking/${bookingId}` as any),
-        undefined,
-        false
-      );
+    if (!isCancellable) {
+      showInfo('Cannot Cancel Booking', unavailableMessage);
       return;
     }
 
     router.push(`/(agent)/agent-cancel-booking/${bookingId}` as any);
   };
 
-  const handleMarkCompleted = () => {
-    showConfirmation(
-      'Mark as Completed',
-      'Are you sure you want to mark this booking as completed?',
-      () => onUpdateStatus?.('completed'),
-      undefined,
-      false
-    );
-  };
-
   return (
     <View style={styles.actionButtons}>
-      {/* Only show Share Ticket button for confirmed bookings with completed payment */}
-      {status === 'confirmed' && paymentStatus === 'completed' && (
-        <Button
-          title='Share Ticket'
-          onPress={onShare}
-          variant='outline'
-          style={styles.actionButton}
-          textStyle={styles.actionButtonText}
-        />
-      )}
+      {/* Show share option when ticket is paid */}
+      {(status === 'confirmed' || status === 'completed') &&
+        paymentStatus === 'completed' && (
+          <Button
+            title='Share Ticket'
+            onPress={onShare}
+            variant='outline'
+            style={styles.actionButton}
+            textStyle={styles.actionButtonText}
+          />
+        )}
 
-      {isModifiable() && (
+      {isModifiable && (
         <Button
           title='Modify Booking'
           onPress={handleModifyBooking}
@@ -167,23 +108,13 @@ const BookingActions: React.FC<BookingActionsProps> = ({
         />
       )}
 
-      {isCancellable() && (
+      {isCancellable && (
         <Button
           title='Cancel Booking'
           onPress={handleCancelBooking}
           variant='outline'
           style={styles.actionButton}
           textStyle={styles.cancelButtonText}
-          loading={loading}
-        />
-      )}
-
-      {status === 'confirmed' && onUpdateStatus && (
-        <Button
-          title='Mark as Completed'
-          onPress={handleMarkCompleted}
-          variant='secondary'
-          style={styles.actionButton}
         />
       )}
     </View>

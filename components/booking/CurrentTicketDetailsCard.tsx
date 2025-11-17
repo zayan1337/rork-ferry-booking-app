@@ -3,10 +3,12 @@ import { View, Text, StyleSheet } from 'react-native';
 import Card from '@/components/Card';
 import { formatCurrency } from '@/utils/agentFormatters';
 import Colors from '@/constants/colors';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 interface CurrentTicketDetailsCardProps {
   bookingNumber: string;
   clientName: string;
+  clientEmail?: string;
   route?: {
     fromIsland?: { name: string };
     toIsland?: { name: string };
@@ -14,6 +16,7 @@ interface CurrentTicketDetailsCardProps {
   origin?: string;
   destination?: string;
   currentDate: string;
+  currentTime?: string | null;
   currentSeats: any[];
   totalAmount: number;
   ticketLabel: string;
@@ -23,6 +26,8 @@ const CurrentTicketDetailsCard: React.FC<CurrentTicketDetailsCardProps> = ({
   bookingNumber,
   clientName,
   route,
+  clientEmail,
+  currentTime,
   origin,
   destination,
   currentDate,
@@ -30,9 +35,9 @@ const CurrentTicketDetailsCard: React.FC<CurrentTicketDetailsCardProps> = ({
   totalAmount,
   ticketLabel,
 }) => {
-  const formatDate = (dateString: string) => {
-    return dateString ? new Date(dateString).toLocaleDateString() : 'N/A';
-  };
+  // const formatBookingDate = (dateString: string) => {
+  //   return dateString ? new Date(dateString).toLocaleDateString() : 'N/A';
+  // };
 
   const formatSeats = (seats: any[]) => {
     return seats?.map((seat: any) => seat.number).join(', ') || 'N/A';
@@ -54,9 +59,18 @@ const CurrentTicketDetailsCard: React.FC<CurrentTicketDetailsCardProps> = ({
       </View>
 
       <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Client:</Text>
-        <Text style={styles.detailValue}>{clientName}</Text>
+        <Text style={styles.detailLabel}>Client Name:</Text>
+        <Text style={styles.detailValue}>
+          {clientName?.trim() || 'Unknown Client'}
+        </Text>
       </View>
+
+      {clientEmail ? (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Email:</Text>
+          <Text style={styles.detailValue}>{clientEmail}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.detailRow}>
         <Text style={styles.detailLabel}>Route:</Text>
@@ -65,8 +79,15 @@ const CurrentTicketDetailsCard: React.FC<CurrentTicketDetailsCardProps> = ({
 
       <View style={styles.detailRow}>
         <Text style={styles.detailLabel}>Current Date:</Text>
-        <Text style={styles.detailValue}>{formatDate(currentDate)}</Text>
+        <Text style={styles.detailValue}>{formatBookingDate(currentDate)}</Text>
       </View>
+
+      {currentTime ? (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Departure Time:</Text>
+          <Text style={styles.detailValue}>{formatTimeAMPM(currentTime)}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.detailRow}>
         <Text style={styles.detailLabel}>Current Seats:</Text>
@@ -105,7 +126,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: Colors.text,
-    flex: 1,
     textAlign: 'right',
   },
 });

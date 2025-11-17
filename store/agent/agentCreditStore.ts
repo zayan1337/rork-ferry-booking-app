@@ -77,7 +77,16 @@ export const useAgentCreditStore = create<AgentCreditState>((set, get) => ({
 
       return (data || []).map((transaction: any) => ({
         id: transaction.id,
-        date: transaction.date,
+        date:
+          transaction.date ||
+          transaction.created_at ||
+          transaction.transaction_date ||
+          new Date().toISOString(),
+        createdAt:
+          transaction.created_at ||
+          transaction.transaction_date ||
+          transaction.date ||
+          new Date().toISOString(),
         amount: Number(transaction.amount || 0),
         type: transaction.type as CreditTransaction['type'],
         bookingId: transaction.bookingid, // lowercase from database

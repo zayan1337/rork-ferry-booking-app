@@ -8,10 +8,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useAgentStore } from '@/store/agent/agentStore';
-import { useRouteStore, useTripStore } from '@/store/routeStore';
 import { useSeatStore } from '@/store/seatStore';
 import {
   CurrentTicketDetailsCard,
@@ -19,28 +19,33 @@ import {
   PaymentMethodSelector,
   ModificationReasonForm,
 } from '@/components/booking';
-import DatePicker from '@/components/DatePicker';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 import SeatSelector from '@/components/SeatSelector';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
-import { calculateDiscountedFare } from '@/utils/bookingUtils';
+import {
+  calculateDiscountedFare,
+  isTripBookable,
+  getTripUnavailableMessage,
+} from '@/utils/bookingUtils';
 import { formatCurrency } from '@/utils/agentFormatters';
 import Colors from '@/constants/colors';
 import { Seat } from '@/types';
 import { useAlertContext } from '@/components/AlertProvider';
+import { useBookingEligibility } from '@/hooks/useBookingEligibility';
+import { getTripsForSegment } from '@/utils/segmentBookingUtils';
+import SegmentTripCard from '@/components/booking/SegmentTripCard';
+import { supabase } from '@/utils/supabase';
 
-type PaymentMethod = 'agent_credit' | 'bank_transfer' | 'mib';
-
-interface BankDetails {
-  accountNumber: string;
-  accountName: string;
-  bankName: string;
-}
+type PaymentMethod = 'agent_credit' | 'mib';
 
 export default function AgentModifyBookingScreen() {
   const { showSuccess, showError, showInfo } = useAlertContext();
-  const { id, ticketType } = useLocalSearchParams();
+  const { id, ticketType } = useLocalSearchParams<{
+    id?: string | string[];
+    ticketType?: string | string[];
+  }>();
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -50,9 +55,6 @@ export default function AgentModifyBookingScreen() {
   const inputRefs = useRef({
     reason: null as any,
     agentNotes: null as any,
-    accountNumber: null as any,
-    accountName: null as any,
-    bankName: null as any,
   });
 
   // Store management
@@ -63,18 +65,28 @@ export default function AgentModifyBookingScreen() {
     agent,
   } = useAgentStore();
 
-  const { availableRoutes, isLoading: routeLoading } = useRouteStore();
-
-  const { trips, fetchTrips, isLoading: tripLoading } = useTripStore();
-
   const {
     availableSeats,
     fetchAvailableSeats,
+    fetchRealtimeSeatStatus,
+    subscribeSeatUpdates,
+    unsubscribeSeatUpdates,
+    cleanupAllSeatSubscriptions,
+    toggleSeatSelection: toggleSeatSelectionStore,
     isLoading: seatLoading,
   } = useSeatStore();
 
-  // Determine which ticket is being modified
-  const isModifyingReturn = ticketType === 'return';
+  // Local trips state for segment-based booking
+  const [localTrips, setLocalTrips] = useState<any[]>([]);
+  const [localTripsLoading, setLocalTripsLoading] = useState(false);
+
+  const normalizedTicketType = Array.isArray(ticketType)
+    ? ticketType[0]
+    : ticketType;
+  const [activeTicketType, setActiveTicketType] = useState<
+    'departure' | 'return'
+  >(normalizedTicketType === 'return' ? 'return' : 'departure');
+  const isModifyingReturn = activeTicketType === 'return';
   const ticketLabel = isModifyingReturn ? 'Return' : 'Departure';
 
   // State management
@@ -86,11 +98,9 @@ export default function AgentModifyBookingScreen() {
   const [selectedTrip, setSelectedTrip] = useState<any>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>('agent_credit');
-  const [bankAccountDetails, setBankAccountDetails] = useState<BankDetails>({
-    accountNumber: '',
-    accountName: '',
-    bankName: '',
-  });
+  const [tripSeatCounts, setTripSeatCounts] = useState<Record<string, number>>(
+    {}
+  );
   const [isModifying, setIsModifying] = useState(false);
   const [agentDiscountRate, setAgentDiscountRate] = useState(0);
   const [newTotalFare, setNewTotalFare] = useState(0); // Fare with multiplier, before discount
@@ -100,9 +110,7 @@ export default function AgentModifyBookingScreen() {
     seats: '',
     reason: '',
     trip: '',
-    accountNumber: '',
-    accountName: '',
-    bankName: '',
+    paymentMethod: '',
   });
 
   // MIB payment states
@@ -114,6 +122,17 @@ export default function AgentModifyBookingScreen() {
 
   // Find the booking by id
   const booking = bookings.find((b: any) => b.id === id);
+  const bookingData = booking as any;
+  const eligibilityBooking = booking
+    ? {
+        status: booking.status,
+        departureDate: booking.departureDate,
+      }
+    : null;
+
+  const { isModifiable, message: eligibilityMessage } = useBookingEligibility({
+    booking: eligibilityBooking as any,
+  });
 
   // Enhanced keyboard event listeners
   useEffect(() => {
@@ -166,7 +185,9 @@ export default function AgentModifyBookingScreen() {
       const currentDate = isModifyingReturn
         ? booking.returnDate
         : booking.departureDate;
-      const currentSeats = booking.seats;
+      const currentSeats = isModifyingReturn
+        ? (booking as any)?.returnSeats
+        : booking.seats;
 
       setNewDate(currentDate || null);
       setSelectedSeats(
@@ -175,6 +196,7 @@ export default function AgentModifyBookingScreen() {
           isAvailable: true,
         })) || []
       );
+      setSelectedTrip(null);
     }
   }, [booking, isModifyingReturn]);
 
@@ -185,21 +207,20 @@ export default function AgentModifyBookingScreen() {
     }
   }, [agent]);
 
-  // Calculate fare difference when trip changes
+  // Calculate fare difference when trip or seats change
   useEffect(() => {
     if (selectedTrip && booking) {
       const currentPaidFare =
         Number(booking.discountedAmount) || Number(booking.totalAmount) || 0;
       const passengerCount =
-        booking.passengers?.length || booking.passengerCount || 1;
+        selectedSeats.length ||
+        booking.passengers?.length ||
+        booking.passengerCount ||
+        1;
 
-      // Calculate fare using route.base_fare × trip.fare_multiplier
-      // base_fare is in route table, fare_multiplier is in trip table
-      // booking.route.routeBaseFare has the original route base_fare (if available)
-      const routeBaseFare = Number((booking.route as any)?.routeBaseFare || 0);
-      const fareMultiplier = Number(selectedTrip.fare_multiplier) || 1.0;
-      const newFarePerPassenger = routeBaseFare * fareMultiplier;
-      const calculatedNewTotalFare = newFarePerPassenger * passengerCount;
+      // Calculate fare using segment_fare (already includes fare_multiplier consideration)
+      const newFarePerSeat = selectedTrip.segment_fare || 0;
+      const calculatedNewTotalFare = newFarePerSeat * passengerCount;
 
       setNewTotalFare(calculatedNewTotalFare); // Store total fare with multiplier
 
@@ -212,37 +233,311 @@ export default function AgentModifyBookingScreen() {
       const difference = discountCalculation.discountedFare - currentPaidFare;
       setFareDifference(difference);
     }
-  }, [selectedTrip, booking, agentDiscountRate]);
+  }, [selectedTrip, selectedSeats.length, booking, agentDiscountRate]);
 
-  // Fetch trips when date changes
+  // Fetch trips when date changes (island-based segment fetching)
   useEffect(() => {
-    if (newDate && booking?.route) {
-      fetchTrips(booking.route.id, newDate, false);
+    if (!newDate || !booking) {
+      return;
     }
-  }, [newDate, booking, fetchTrips]);
 
-  // Fetch seats when trip changes
+    const route = bookingData?.route;
+
+    if (!route) {
+      return;
+    }
+
+    const getIslandIds = async () => {
+      const segmentEntry = Array.isArray(bookingData?.booking_segments)
+        ? bookingData.booking_segments[0]
+        : bookingData?.booking_segments || null;
+
+      const routeStops =
+        route?.routeStops ||
+        route?.route_stops ||
+        bookingData?.trip?.route?.routeStops ||
+        bookingData?.trip?.route?.route_stops ||
+        [];
+
+      const normalizeName = (name?: string | null) =>
+        name?.trim().toLowerCase() || '';
+
+      const getSegmentIslandId = (stop: any) => {
+        if (!stop) return null;
+        if (typeof stop === 'string') return stop;
+        if (stop.island?.id) return stop.island.id;
+        if (stop.island_id) return stop.island_id;
+        if (stop.islands) {
+          if (Array.isArray(stop.islands)) {
+            return stop.islands[0]?.id || null;
+          }
+          return stop.islands.id || null;
+        }
+        if (stop.islandId) return stop.islandId;
+        return null;
+      };
+
+      const bookingPickupName = isModifyingReturn
+        ? bookingData?.returnPickupName || bookingData?.origin
+        : bookingData?.pickupName || bookingData?.origin;
+      const bookingDropoffName = isModifyingReturn
+        ? bookingData?.returnDropoffName || bookingData?.destination
+        : bookingData?.dropoffName || bookingData?.destination;
+
+      let fromIslandId =
+        getSegmentIslandId(segmentEntry?.boarding_stop) || null;
+      let toIslandId =
+        getSegmentIslandId(segmentEntry?.destination_stop) || null;
+
+      const preferredFromName = bookingPickupName || route.fromIsland?.name;
+      const preferredToName = bookingDropoffName || route.toIsland?.name;
+
+      const findStopIdByName = (name?: string | null) => {
+        if (!name) return null;
+        const normalized = normalizeName(name);
+        if (!normalized || !routeStops?.length) return null;
+        const match = routeStops.find((stop: any) => {
+          const stopName =
+            stop.island?.name ||
+            stop?.island_name ||
+            stop?.island?.island_name ||
+            '';
+          return normalizeName(stopName) === normalized;
+        });
+        if (match?.island?.id) return match.island.id;
+        if (match?.island_id) return match.island_id;
+        if (match?.island?.island_id) return match.island.island_id;
+        return null;
+      };
+
+      if ((!fromIslandId || fromIslandId === '') && routeStops?.length) {
+        const fromStop = findStopIdByName(preferredFromName);
+        if (fromStop) {
+          fromIslandId = fromStop;
+        }
+      }
+
+      if ((!toIslandId || toIslandId === '') && routeStops?.length) {
+        const toStop = findStopIdByName(preferredToName);
+        if (toStop) {
+          toIslandId = toStop;
+        }
+      }
+
+      if ((!fromIslandId || fromIslandId === '') && bookingPickupName) {
+        const { data: island } = await supabase
+          .from('islands')
+          .select('id')
+          .eq('name', bookingPickupName)
+          .single();
+        if (island?.id) {
+          fromIslandId = island.id;
+        }
+      }
+
+      if (
+        (!toIslandId || toIslandId === '') &&
+        bookingDropoffName &&
+        bookingDropoffName.trim() !== ''
+      ) {
+        const { data: island } = await supabase
+          .from('islands')
+          .select('id')
+          .eq('name', bookingDropoffName)
+          .single();
+        if (island?.id) {
+          toIslandId = island.id;
+        }
+      }
+
+      if ((!fromIslandId || fromIslandId === '') && route.fromIsland?.name) {
+        const { data: island } = await supabase
+          .from('islands')
+          .select('id')
+          .eq('name', route.fromIsland.name)
+          .single();
+        if (island?.id) {
+          fromIslandId = island.id;
+        }
+      }
+
+      if ((!toIslandId || toIslandId === '') && route.toIsland?.name) {
+        const { data: island } = await supabase
+          .from('islands')
+          .select('id')
+          .eq('name', route.toIsland.name)
+          .single();
+        if (island?.id) {
+          toIslandId = island.id;
+        }
+      }
+
+      return { fromIslandId, toIslandId };
+    };
+
+    getIslandIds()
+      .then(ids => {
+        if (!ids) {
+          showError(
+            'Error',
+            'Could not determine route information. Please contact support.'
+          );
+          return null;
+        }
+
+        const { fromIslandId, toIslandId } = ids;
+        if (!fromIslandId || !toIslandId) {
+          showError(
+            'Error',
+            'Could not determine route information. Please contact support.'
+          );
+          return null;
+        }
+
+        setLocalTripsLoading(true);
+        return getTripsForSegment(fromIslandId, toIslandId, newDate);
+      })
+      .then((fetchedTrips: any[] | null | undefined) => {
+        if (!fetchedTrips || fetchedTrips.length === 0) {
+          setLocalTrips([]);
+          setTripSeatCounts({});
+          setLocalTripsLoading(false);
+          return;
+        }
+
+        const futureTrips = fetchedTrips.filter(trip =>
+          isTripBookable(trip.travel_date, trip.departure_time)
+        );
+
+        const tripsToShow = futureTrips.length > 0 ? futureTrips : fetchedTrips;
+        setLocalTrips(tripsToShow);
+
+        const seatCounts: Record<string, number> = {};
+        tripsToShow.forEach(trip => {
+          seatCounts[trip.trip_id] = trip.available_seats_for_segment || 0;
+        });
+        setTripSeatCounts(seatCounts);
+
+        setSelectedTrip(null);
+        setSelectedSeats([]);
+        setLocalTripsLoading(false);
+      })
+      .catch((error: any) => {
+        setLocalTrips([]);
+        setTripSeatCounts({});
+        setLocalTripsLoading(false);
+        showError(
+          'Error',
+          `Failed to load trips: ${error?.message || 'Please try again.'}`
+        );
+      });
+  }, [newDate, booking, showError, isModifyingReturn]);
+
+  // Fetch seats and subscribe to real-time updates when trip changes
   useEffect(() => {
-    if (selectedTrip) {
-      fetchAvailableSeats(selectedTrip.id);
-    }
-  }, [selectedTrip, fetchAvailableSeats]);
+    if (selectedTrip?.trip_id) {
+      const initializeSeatsForTrip = async () => {
+        try {
+          // Use real-time seat status fetching
+          await fetchRealtimeSeatStatus(selectedTrip.trip_id, false);
+          // Subscribe to real-time updates for this trip
+          subscribeSeatUpdates(selectedTrip.trip_id, false);
+        } catch (error) {
+          // Fallback to regular fetch if real-time fails
+          console.warn('Real-time seat fetch failed, using fallback:', error);
+          await fetchAvailableSeats(selectedTrip.trip_id);
+        }
+      };
 
-  const toggleSeatSelection = (seat: Seat) => {
+      initializeSeatsForTrip();
+
+      // Cleanup subscriptions when trip changes
+      return () => {
+        unsubscribeSeatUpdates(selectedTrip.trip_id);
+      };
+    }
+  }, [
+    selectedTrip?.trip_id,
+    fetchAvailableSeats,
+    fetchRealtimeSeatStatus,
+    subscribeSeatUpdates,
+    unsubscribeSeatUpdates,
+  ]);
+
+  // Cleanup all subscriptions when component unmounts
+  useEffect(() => {
+    return () => {
+      cleanupAllSeatSubscriptions();
+    };
+  }, [cleanupAllSeatSubscriptions]);
+
+  // Sync selected seats from store when available seats update
+  useEffect(() => {
+    if (availableSeats && availableSeats.length > 0) {
+      const selectedFromStore = availableSeats.filter(
+        s => s.isSelected || s.isCurrentUserReservation
+      );
+      // Only update if there are selected seats in store and they differ from local state
+      if (selectedFromStore.length > 0) {
+        const localSelectedIds = new Set(selectedSeats.map(s => s.id));
+        const storeSelectedIds = new Set(selectedFromStore.map(s => s.id));
+
+        // Check if they differ
+        if (
+          localSelectedIds.size !== storeSelectedIds.size ||
+          ![...localSelectedIds].every(id => storeSelectedIds.has(id))
+        ) {
+          setSelectedSeats(selectedFromStore);
+        }
+      }
+    }
+  }, [availableSeats]);
+
+  const toggleSeatSelection = async (seat: Seat) => {
+    if (!selectedTrip?.trip_id) {
+      showError('Error', 'Please select a trip first');
+      return;
+    }
+
     const maxSeats =
       booking?.passengers?.length || booking?.passengerCount || 1;
 
-    setSelectedSeats(prev => {
-      const isSelected = prev.find(s => s.id === seat.id);
-      if (isSelected) {
-        return prev.filter(s => s.id !== seat.id);
-      } else if (prev.length < maxSeats) {
-        return [...prev, seat];
-      }
-      return prev;
-    });
+    // Check if seat is already selected locally
+    const isSelected = selectedSeats.find(s => s.id === seat.id);
 
-    if (errors.seats) setErrors({ ...errors, seats: '' });
+    try {
+      if (isSelected) {
+        // Deselect seat - release temporary reservation
+        await toggleSeatSelectionStore(seat, false, selectedTrip.trip_id);
+        // Update local state
+        setSelectedSeats(prev => prev.filter(s => s.id !== seat.id));
+      } else {
+        // Check if we've reached max seats
+        if (selectedSeats.length >= maxSeats) {
+          showInfo(
+            'Maximum Seats Selected',
+            `You can select a maximum of ${maxSeats} seats. Please deselect a seat to select another one.`
+          );
+          return;
+        }
+
+        // Select seat - create temporary reservation
+        await toggleSeatSelectionStore(seat, false, selectedTrip.trip_id);
+        // Update local state from store
+        const updatedSeats = availableSeats.filter(
+          s => s.isSelected || s.isCurrentUserReservation
+        );
+        setSelectedSeats(updatedSeats);
+      }
+
+      if (errors.seats) setErrors({ ...errors, seats: '' });
+    } catch (error: any) {
+      console.error('Error toggling seat selection:', error);
+      showError(
+        'Seat Selection Error',
+        error.message || 'Failed to select/deselect seat. Please try again.'
+      );
+    }
   };
 
   const validateForm = () => {
@@ -269,22 +564,6 @@ export default function AgentModifyBookingScreen() {
       isValid = false;
     }
 
-    if (selectedPaymentMethod === 'bank_transfer' && fareDifference < 0) {
-      // Only require bank details for refunds via bank transfer
-      if (!bankAccountDetails.accountNumber.trim()) {
-        newErrors.accountNumber = 'Please enter account number';
-        isValid = false;
-      }
-      if (!bankAccountDetails.accountName.trim()) {
-        newErrors.accountName = 'Please enter account holder name';
-        isValid = false;
-      }
-      if (!bankAccountDetails.bankName.trim()) {
-        newErrors.bankName = 'Please enter bank name';
-        isValid = false;
-      }
-    }
-
     setErrors(newErrors);
     return isValid;
   };
@@ -294,21 +573,26 @@ export default function AgentModifyBookingScreen() {
       return;
     }
 
+    if (!isModifiable) {
+      showInfo(
+        'Cannot Modify Booking',
+        eligibilityMessage ||
+          'Bookings can only be modified at least 72 hours before departure.'
+      );
+      return;
+    }
+
     setIsModifying(true);
 
     try {
       const modificationData = {
         ticketType: isModifyingReturn ? 'return' : 'departure',
-        newTripId: selectedTrip?.id,
+        newTripId: selectedTrip?.trip_id || selectedTrip?.id,
         newDate,
         selectedSeats,
         modificationReason,
         fareDifference,
         paymentMethod: selectedPaymentMethod,
-        bankAccountDetails:
-          fareDifference < 0 && selectedPaymentMethod === 'bank_transfer'
-            ? bankAccountDetails
-            : null,
         agentNotes,
         modifiedByAgent: true,
       };
@@ -342,15 +626,11 @@ export default function AgentModifyBookingScreen() {
       if (fareDifference > 0) {
         if (selectedPaymentMethod === 'agent_credit') {
           successMessage += ` An additional charge of ${formatCurrency(fareDifference)} has been deducted from your agent credit balance.`;
-        } else {
-          successMessage += ` An additional payment of ${formatCurrency(fareDifference)} will be processed via bank transfer.`;
+        } else if (selectedPaymentMethod === 'mib') {
+          successMessage += ` An additional payment of ${formatCurrency(fareDifference)} will be processed via MIB Gateway.`;
         }
       } else if (fareDifference < 0) {
-        if (selectedPaymentMethod === 'agent_credit') {
-          successMessage += ` A refund of ${formatCurrency(Math.abs(fareDifference))} has been credited to your agent account.`;
-        } else {
-          successMessage += ` A refund of ${formatCurrency(Math.abs(fareDifference))} will be processed via bank transfer within 72 hours.`;
-        }
+        successMessage += ` A refund of ${formatCurrency(Math.abs(fareDifference))} has been credited to your agent account.`;
       } else {
         successMessage += ' No additional payment or refund is required.';
       }
@@ -435,9 +715,18 @@ export default function AgentModifyBookingScreen() {
 
   const maxSeats = booking.passengers?.length || booking.passengerCount || 1;
   const originalDate = isModifyingReturn
-    ? booking.returnDate
-    : booking.departureDate;
-  const originalSeats = booking.seats;
+    ? bookingData?.returnDate
+    : booking?.departureDate;
+  const originalTime = isModifyingReturn
+    ? (bookingData?.returnDepartureTime as string | undefined) ||
+      (bookingData?.returnTrip?.departure_time as string | undefined) ||
+      ''
+    : booking?.departureTime ||
+      (bookingData?.trip?.departure_time as string | undefined) ||
+      '';
+  const originalSeats = isModifyingReturn
+    ? (bookingData?.returnSeats as any[]) || []
+    : booking?.seats;
 
   return (
     <>
@@ -464,20 +753,62 @@ export default function AgentModifyBookingScreen() {
           <CurrentTicketDetailsCard
             bookingNumber={booking?.bookingNumber || ''}
             clientName={booking?.clientName || ''}
+            clientEmail={booking?.clientEmail || ''}
             route={booking?.route || {}}
             origin={booking?.origin}
             destination={booking?.destination}
             currentDate={originalDate || ''}
+            currentTime={originalTime || ''}
             currentSeats={originalSeats || []}
             totalAmount={booking?.totalAmount || 0}
             ticketLabel={ticketLabel}
           />
 
+          {booking?.tripType === 'round_trip' && (
+            <View style={styles.segmentToggle}>
+              {[
+                { label: 'Departure Ticket', value: 'departure' as const },
+                { label: 'Return Ticket', value: 'return' as const },
+              ].map(option => {
+                const isActive = activeTicketType === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={[
+                      styles.segmentButton,
+                      isActive && styles.segmentButtonActive,
+                    ]}
+                    onPress={() => setActiveTicketType(option.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentButtonText,
+                        isActive && styles.segmentButtonTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          {!isModifiable && (
+            <Card variant='outlined' style={styles.noticeCard}>
+              <Text style={styles.noticeTitle}>Modification Unavailable</Text>
+              <Text style={styles.noticeText}>
+                {eligibilityMessage ||
+                  'This booking can no longer be modified because it is within 72 hours of departure.'}
+              </Text>
+            </Card>
+          )}
+
           {/* Modification Form */}
           <Card variant='elevated' style={styles.modifyCard}>
             <Text style={styles.cardTitle}>Modify {ticketLabel} Ticket</Text>
 
-            <DatePicker
+            <CalendarDatePicker
               label={`New ${ticketLabel} Date`}
               value={newDate}
               onChange={date => {
@@ -492,44 +823,61 @@ export default function AgentModifyBookingScreen() {
             />
 
             {/* Trip Selection */}
-            {newDate && booking?.route && (
+            {newDate && (
               <View style={styles.tripSelection}>
                 <Text style={styles.sectionTitle}>
                   Select New {ticketLabel} Trip
                 </Text>
-                {tripLoading ? (
-                  <Text style={styles.loadingText}>
-                    Loading available trips...
-                  </Text>
-                ) : trips.length > 0 ? (
-                  trips.map(trip => (
-                    <Pressable
-                      key={trip.id}
-                      style={[
-                        styles.tripOption,
-                        selectedTrip?.id === trip.id &&
-                          styles.tripOptionSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedTrip(trip);
-                        setSelectedSeats([]);
-                        if (errors.trip) setErrors({ ...errors, trip: '' });
-                      }}
-                    >
-                      <Text style={styles.tripTime}>{trip.departure_time}</Text>
-                      <Text style={styles.tripVessel}>
-                        {trip.vessel_name || 'N/A'}
-                      </Text>
-                      <Text style={styles.tripSeats}>
-                        Available: {trip.available_seats || 0} seats
-                      </Text>
-                    </Pressable>
-                  ))
-                ) : (
-                  <Text style={styles.noSeatsText}>
-                    No trips available for this date
-                  </Text>
-                )}
+
+                {localTripsLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size='large' color={Colors.primary} />
+                    <Text style={styles.loadingText}>
+                      Finding available trips...
+                    </Text>
+                  </View>
+                ) : localTrips.length > 0 ? (
+                  <View style={styles.tripsList}>
+                    {localTrips.map(trip => (
+                      <SegmentTripCard
+                        key={trip.trip_id}
+                        trip={trip}
+                        selected={selectedTrip?.trip_id === trip.trip_id}
+                        onPress={() => {
+                          // Validate trip hasn't departed
+                          if (
+                            !isTripBookable(
+                              trip.travel_date,
+                              trip.departure_time
+                            )
+                          ) {
+                            showInfo(
+                              'Trip Unavailable',
+                              getTripUnavailableMessage(
+                                trip.travel_date,
+                                trip.departure_time
+                              )
+                            );
+                            return;
+                          }
+                          setSelectedTrip(trip);
+                          setSelectedSeats([]);
+                          if (errors.trip) setErrors({ ...errors, trip: '' });
+                        }}
+                      />
+                    ))}
+                  </View>
+                ) : newDate ? (
+                  <View style={styles.noTripsContainer}>
+                    <Text style={styles.noTripsTitle}>No Trips Available</Text>
+                    <Text style={styles.noTripsText}>
+                      No trips available for this route on{' '}
+                      {new Date(newDate).toLocaleDateString()}.{'\n\n'}
+                      Please try selecting a different date.
+                    </Text>
+                  </View>
+                ) : null}
+
                 {errors.trip ? (
                   <Text style={styles.errorText}>{errors.trip}</Text>
                 ) : null}
@@ -543,7 +891,7 @@ export default function AgentModifyBookingScreen() {
                   Select New Seats ({selectedSeats.length}/{maxSeats})
                 </Text>
                 {seatLoading ? (
-                  <Text style={styles.loadingText}>
+                  <Text style={styles.seatLoadingText}>
                     Loading available seats...
                   </Text>
                 ) : availableSeats && availableSeats.length > 0 ? (
@@ -552,6 +900,7 @@ export default function AgentModifyBookingScreen() {
                     selectedSeats={selectedSeats}
                     onSeatToggle={toggleSeatSelection}
                     maxSeats={maxSeats}
+                    tripId={selectedTrip?.trip_id}
                   />
                 ) : (
                   <Text style={styles.noSeatsText}>
@@ -617,20 +966,13 @@ export default function AgentModifyBookingScreen() {
           <PaymentMethodSelector
             fareDifference={fareDifference}
             selectedPaymentMethod={selectedPaymentMethod}
-            onPaymentMethodChange={setSelectedPaymentMethod}
-            bankAccountDetails={bankAccountDetails}
-            onBankDetailsChange={setBankAccountDetails}
-            errors={{
-              accountNumber: errors.accountNumber,
-              accountName: errors.accountName,
-              bankName: errors.bankName,
+            onPaymentMethodChange={method => {
+              setSelectedPaymentMethod(method);
+              if (errors.paymentMethod) {
+                setErrors({ ...errors, paymentMethod: '' });
+              }
             }}
-            onErrorClear={field => setErrors({ ...errors, [field]: '' })}
-            onFocus={field => {
-              setActiveInput(field);
-              scrollToInput(field);
-            }}
-            inputRefs={inputRefs}
+            error={errors.paymentMethod}
           />
 
           {/* Action Buttons */}
@@ -645,8 +987,10 @@ export default function AgentModifyBookingScreen() {
             <Button
               title={`Modify Ticket`}
               onPress={handleModify}
-              loading={isModifying || tripLoading || seatLoading}
-              disabled={isModifying || tripLoading || seatLoading}
+              loading={isModifying || localTripsLoading || seatLoading}
+              disabled={
+                !isModifiable || isModifying || localTripsLoading || seatLoading
+              }
               style={styles.modifyButton}
             />
           </View>
@@ -698,6 +1042,48 @@ const styles = StyleSheet.create({
   modifyCard: {
     marginBottom: 24,
   },
+  noticeCard: {
+    marginBottom: 16,
+    borderColor: Colors.warning,
+    backgroundColor: '#fff8e1',
+  },
+  noticeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.warning,
+    marginBottom: 8,
+  },
+  noticeText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 20,
+  },
+  segmentToggle: {
+    flexDirection: 'row',
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 4,
+    marginBottom: 16,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  segmentButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  segmentButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  segmentButtonTextActive: {
+    color: '#fff',
+  },
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -705,40 +1091,45 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tripSelection: {
+    marginTop: 16,
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  tripOption: {
-    padding: 12,
+  tripsList: {
+    gap: 12,
+  },
+  loadingContainer: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  noTripsContainer: {
+    padding: 24,
+    backgroundColor: Colors.highlight,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: Colors.background,
+    marginBottom: 16,
   },
-  tripOptionSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: '#f0f8ff',
-  },
-  tripTime: {
+  noTripsTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
+    marginBottom: 8,
   },
-  tripVessel: {
+  noTripsText: {
     fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  tripSeats: {
-    fontSize: 12,
-    color: Colors.primary,
-    marginTop: 2,
+    lineHeight: 20,
   },
   seatSelection: {
     marginBottom: 16,
@@ -750,7 +1141,7 @@ const styles = StyleSheet.create({
     padding: 20,
     fontStyle: 'italic',
   },
-  loadingText: {
+  seatLoadingText: {
     fontSize: 14,
     color: Colors.primary,
     textAlign: 'center',

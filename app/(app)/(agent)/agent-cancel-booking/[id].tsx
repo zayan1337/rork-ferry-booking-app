@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,23 +6,19 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { AlertTriangle } from 'lucide-react-native';
 import { useAgentStore } from '@/store/agent/agentStore';
-import {
-  AgentPolicyCard,
-  RefundConfigurationCard,
-  CancellationDetailsForm,
-  CommissionImpactCard,
-} from '@/components/booking';
-import { CurrentTicketDetailsCard } from '@/components/booking';
 import Button from '@/components/Button';
-import { formatCurrency } from '@/utils/agentFormatters';
+import Input from '@/components/Input';
+import Card from '@/components/Card';
 import Colors from '@/constants/colors';
+import { formatCurrency } from '@/utils/agentFormatters';
+import { calculateRefundAmount } from '@/utils/paymentUtils';
 import { useAlertContext } from '@/components/AlertProvider';
-
-type RefundMethod = 'agent_credit' | 'original_payment' | 'bank_transfer';
+import { useBookingEligibility } from '@/hooks/useBookingEligibility';
+import { formatBookingDate } from '@/utils/dateUtils';
 
 interface BankDetails {
   accountNumber: string;
@@ -31,30 +27,16 @@ interface BankDetails {
 }
 
 export default function AgentCancelBookingScreen() {
-  const { showConfirmation, showSuccess, showError } = useAlertContext();
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id?: string | string[] }>();
   const router = useRouter();
-  const { bookings, agentCancelBooking, getTranslation } = useAgentStore();
+  const { showSuccess, showError, showWarning } = useAlertContext();
+  const { bookings, agentCancelBooking } = useAgentStore();
 
-  // Ensure id is a string
-  const bookingId = Array.isArray(id) ? id[0] : id;
-
-  // All hooks must be called before any early returns
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [activeInput, setActiveInput] = useState<string | null>(null);
-  const inputRefs = useRef({
-    reason: null as any,
-    agentNotes: null as any,
-    clientNotification: null as any,
-  });
+  const normalizedId = Array.isArray(id) ? id[0] : id;
+  const booking =
+    bookings.find(b => String(b.id) === String(normalizedId)) || null;
 
   const [reason, setReason] = useState('');
-  const [agentNotes, setAgentNotes] = useState('');
-  const [clientNotification, setClientNotification] = useState('');
-  const [refundMethod, setRefundMethod] =
-    useState<RefundMethod>('agent_credit');
-  const [refundPercentage, setRefundPercentage] = useState(100);
   const [bankDetails, setBankDetails] = useState<BankDetails>({
     accountNumber: '',
     accountName: '',
@@ -62,74 +44,21 @@ export default function AgentCancelBookingScreen() {
   });
   const [errors, setErrors] = useState({
     reason: '',
-    bankDetails: '',
+    accountNumber: '',
+    accountName: '',
+    bankName: '',
   });
-  const [isCancelling, setIsCancelling] = useState(false); // Local loading state for cancellation
+  const [isCancelling, setIsCancelling] = useState(false);
 
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
-      e => {
-        setKeyboardHeight(e.endCoordinates.height);
-        if (activeInput) {
-          scrollToInput(activeInput);
-        }
+  const eligibilityBooking = booking
+    ? {
+        status: booking.status,
+        departureDate: booking.departureDate,
       }
-    );
-    const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
-      () => {
-        setKeyboardHeight(0);
-        setActiveInput(null);
-      }
-    );
+    : null;
 
-    return () => {
-      keyboardDidShowListener?.remove();
-      keyboardDidHideListener?.remove();
-    };
-  }, [activeInput]);
-
-  // Early return if no booking ID
-  if (!bookingId) {
-    return (
-      <View style={styles.notFoundContainer}>
-        <Text style={styles.notFoundText}>Invalid booking ID</Text>
-        <Button
-          title='Go Back'
-          onPress={() => router.back()}
-          style={styles.notFoundButton}
-        />
-      </View>
-    );
-  }
-
-  const scrollToInput = (inputKey: string) => {
-    setTimeout(() => {
-      const inputRef =
-        inputRefs.current[inputKey as keyof typeof inputRefs.current];
-      if (inputRef && scrollViewRef.current) {
-        inputRef.measureLayout(
-          scrollViewRef.current,
-          (x: number, y: number) => {
-            const scrollOffset = y - 100;
-            scrollViewRef.current?.scrollTo({
-              x: 0,
-              y: Math.max(0, scrollOffset),
-              animated: true,
-            });
-          },
-          () => {}
-        );
-      }
-    }, 100);
-  };
-
-  // Find the booking by id - ensure bookings is an array
-  const bookingsArray = Array.isArray(bookings) ? bookings : [];
-  const booking = bookingsArray.find((b: any) => {
-    if (!b || !b.id) return false;
-    return String(b.id) === String(bookingId);
+  const { isCancellable, message: eligibilityMessage } = useBookingEligibility({
+    booking: eligibilityBooking as any,
   });
 
   if (!booking) {
@@ -145,262 +74,242 @@ export default function AgentCancelBookingScreen() {
     );
   }
 
-  // Create safe booking object with proper defaults
-  const safeBooking = {
-    id: String(booking.id || ''),
-    bookingNumber: String(booking.bookingNumber || 'N/A'),
-    clientName: String(booking.clientName || 'N/A'),
-    totalAmount: Number(booking.totalAmount) || 0,
-    discountedAmount: Number(booking.discountedAmount) || 0,
-    commission: Number(booking.commission) || 0,
-    departureDate: booking.departureDate || null,
-    origin: String(booking.origin || 'Unknown'),
-    destination: String(booking.destination || 'Unknown'),
-    route: booking.route || null,
-  };
+  const totalAmount = Number(booking.totalAmount) || 0;
+  const refundAmount = calculateRefundAmount(totalAmount);
+  const isMibPayment = booking.payment?.method === 'mib';
+  const requiresBankDetails = !isMibPayment;
 
   const validateForm = () => {
-    let isValid = true;
-    const newErrors = { ...errors };
+    let valid = true;
+    const nextErrors = { ...errors };
 
     if (!reason.trim()) {
-      newErrors.reason = 'Please provide a cancellation reason';
-      isValid = false;
+      nextErrors.reason = 'Please provide a reason for cancellation';
+      valid = false;
     } else {
-      newErrors.reason = '';
+      nextErrors.reason = '';
     }
 
-    if (refundMethod === 'bank_transfer') {
-      if (
-        !bankDetails.accountNumber.trim() ||
-        !bankDetails.accountName.trim() ||
-        !bankDetails.bankName.trim()
-      ) {
-        newErrors.bankDetails =
-          'Please provide complete bank details for bank transfer';
-        isValid = false;
+    if (requiresBankDetails) {
+      if (!bankDetails.accountNumber.trim()) {
+        nextErrors.accountNumber = 'Account number is required';
+        valid = false;
       } else {
-        newErrors.bankDetails = '';
+        nextErrors.accountNumber = '';
+      }
+
+      if (!bankDetails.accountName.trim()) {
+        nextErrors.accountName = 'Account name is required';
+        valid = false;
+      } else {
+        nextErrors.accountName = '';
+      }
+
+      if (!bankDetails.bankName.trim()) {
+        nextErrors.bankName = 'Bank name is required';
+        valid = false;
+      } else {
+        nextErrors.bankName = '';
       }
     } else {
-      newErrors.bankDetails = '';
+      nextErrors.accountNumber = '';
+      nextErrors.accountName = '';
+      nextErrors.bankName = '';
     }
 
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const getRouteDisplay = () => {
-    let fromLocation = 'Unknown';
-    let toLocation = 'Unknown';
-
-    if (safeBooking.route?.fromIsland?.name) {
-      fromLocation = String(safeBooking.route.fromIsland.name);
-    } else if (safeBooking.origin) {
-      fromLocation = safeBooking.origin;
-    }
-
-    if (safeBooking.route?.toIsland?.name) {
-      toLocation = String(safeBooking.route.toIsland.name);
-    } else if (safeBooking.destination) {
-      toLocation = safeBooking.destination;
-    }
-
-    return `${fromLocation} → ${toLocation}`;
-  };
-
-  const getDateDisplay = () => {
-    if (safeBooking.departureDate) {
-      try {
-        return new Date(safeBooking.departureDate).toLocaleDateString();
-      } catch (error) {
-        return 'Invalid Date';
-      }
-    }
-    return 'N/A';
+    setErrors(nextErrors);
+    return valid;
   };
 
   const handleCancel = async () => {
+    if (!isCancellable) {
+      showWarning(
+        'Cannot Cancel Booking',
+        eligibilityMessage ||
+          'Bookings can only be cancelled at least 48 hours before departure.'
+      );
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
 
-    const confirmMessage = `Are you sure you want to cancel this booking? ${String(
-      refundPercentage
-    )}% refund will be processed.`;
+    try {
+      setIsCancelling(true);
 
-    showConfirmation(
-      'Confirm Cancellation',
-      confirmMessage,
-      async () => {
-        setIsCancelling(true);
-        try {
-          const cancellationData = {
-            reason,
-            refundPercentage,
-            refundMethod,
-            bankDetails:
-              refundMethod === 'bank_transfer' ? bankDetails : undefined,
-            agentNotes,
-            overrideFee: true,
-          };
+      const refundMethod = isMibPayment ? 'original_payment' : 'bank_transfer';
 
-          const cancellationNumber = await agentCancelBooking(
-            safeBooking.id,
-            cancellationData
-          );
+      await agentCancelBooking(booking.id, {
+        reason,
+        refundMethod,
+        bankDetails: refundMethod === 'bank_transfer' ? bankDetails : undefined,
+      });
 
-          const calculatedRefundAmount =
-            (safeBooking.totalAmount * refundPercentage) / 100;
-          const refundMethodDisplay = refundMethod.replace('_', ' ');
+      const successMessage = isMibPayment
+        ? `Booking has been cancelled. A refund of ${formatCurrency(
+            refundAmount
+          )} will be processed to the original payment method within 3-5 business days.`
+        : `Booking has been cancelled. A refund of ${formatCurrency(
+            refundAmount
+          )} will be processed to the provided bank account within 5-7 business days.`;
 
-          // Check if booking was paid via MIB to provide appropriate message
-          let successMessage = `Booking has been cancelled successfully. Cancellation number: ${String(
-            cancellationNumber
-          )}.`;
-
-          if (calculatedRefundAmount > 0) {
-            // Get booking payment info from store to check if MIB
-            const cancelledBooking = bookingsArray.find(
-              (b: any) => String(b.id) === String(safeBooking.id)
-            );
-
-            if (
-              cancelledBooking?.payment?.method === 'mib' &&
-              refundMethod === 'original_payment'
-            ) {
-              successMessage += ` A refund of ${formatCurrency(
-                calculatedRefundAmount
-              )} has been initiated via MIB and will be processed within 3-5 business days.`;
-            } else {
-              successMessage += ` ${formatCurrency(
-                calculatedRefundAmount
-              )} will be refunded via ${refundMethodDisplay}.`;
-            }
-          }
-
-          showSuccess('Booking Cancelled', successMessage, () => {
-            router.back();
-          });
-        } catch (error) {
-          console.error('Cancellation error:', error);
-          const errorMessage = `There was an error cancelling the booking: ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`;
-
-          showError('Cancellation Failed', errorMessage);
-        } finally {
-          setIsCancelling(false);
-        }
-      },
-      undefined,
-      true
-    );
+      showSuccess('Booking Cancelled', successMessage, () => router.back());
+    } catch (error) {
+      console.error('Cancellation error:', error);
+      showError(
+        'Cancellation Failed',
+        error instanceof Error
+          ? error.message
+          : 'Unable to cancel booking. Please try again.'
+      );
+    } finally {
+      setIsCancelling(false);
+    }
   };
-
-  // Calculate refund amount
-  const refundAmount = (safeBooking.totalAmount * refundPercentage) / 100;
 
   return (
     <>
       <Stack.Screen
         options={{
           title: 'Cancel Booking',
-          headerTitleStyle: { fontSize: 18 },
         }}
       />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}
-        enabled
       >
         <ScrollView
-          ref={scrollViewRef}
           style={styles.scrollView}
-          contentContainerStyle={[styles.contentContainer, { flexGrow: 1 }]}
-          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.contentContainer}
           keyboardShouldPersistTaps='handled'
+          showsVerticalScrollIndicator={false}
         >
-          {/* Agent Policy Info */}
-          <AgentPolicyCard />
+          <Card variant='outlined' style={styles.warningCard}>
+            <View style={styles.warningHeader}>
+              <AlertTriangle size={20} color={Colors.warning} />
+              <Text style={styles.warningTitle}>Cancellation Policy</Text>
+            </View>
+            <Text style={styles.warningText}>
+              • Only 50% of the fare will be refunded{'\n'}• Refunds must be
+              requested at least 48 hours before departure{'\n'}• Processing
+              time: {isMibPayment ? '3-5' : '5-7'} business days{'\n'}• This
+              action cannot be undone
+            </Text>
+          </Card>
 
-          {/* Booking Details */}
-          <CurrentTicketDetailsCard
-            bookingNumber={safeBooking.bookingNumber}
-            clientName={safeBooking.clientName}
-            route={
-              safeBooking.route
-                ? {
-                    fromIsland: {
-                      name: safeBooking.route.fromIsland?.name || 'Unknown',
-                    },
-                    toIsland: {
-                      name: safeBooking.route.toIsland?.name || 'Unknown',
-                    },
-                  }
-                : undefined
-            }
-            origin={safeBooking.origin}
-            destination={safeBooking.destination}
-            currentDate={safeBooking.departureDate || ''}
-            currentSeats={[]}
-            totalAmount={safeBooking.totalAmount}
-            ticketLabel='Booking'
-          />
+          <Card variant='elevated' style={styles.summaryCard}>
+            <Text style={styles.cardTitle}>Booking Summary</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Booking Number</Text>
+              <Text style={styles.detailValue}>
+                {booking.bookingNumber || booking.id}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Route</Text>
+              <Text style={styles.detailValue}>
+                {booking.origin} → {booking.destination}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Departure Date</Text>
+              <Text style={styles.detailValue}>
+                {booking.departureDate
+                  ? formatBookingDate(booking.departureDate)
+                  : '-'}
+              </Text>
+            </View>
+            <View style={[styles.detailRow, styles.refundRow]}>
+              <Text style={styles.detailLabel}>Refund Amount (50%)</Text>
+              <Text style={[styles.detailValue, styles.refundValue]}>
+                {formatCurrency(refundAmount)}
+              </Text>
+            </View>
+          </Card>
 
-          {/* Refund Configuration */}
-          <RefundConfigurationCard
-            refundMethod={refundMethod}
-            onRefundMethodChange={setRefundMethod}
-            refundPercentage={refundPercentage}
-            onRefundPercentageChange={setRefundPercentage}
-            bankDetails={bankDetails}
-            onBankDetailsChange={setBankDetails}
-            refundAmount={refundAmount}
-            bankDetailsError={errors.bankDetails}
-          />
-
-          {/* Cancellation Details */}
-          <CancellationDetailsForm
-            reason={reason}
-            onReasonChange={text => {
-              setReason(text);
-              if (errors.reason) setErrors({ ...errors, reason: '' });
-            }}
-            agentNotes={agentNotes}
-            onAgentNotesChange={setAgentNotes}
-            clientNotification={clientNotification}
-            onClientNotificationChange={setClientNotification}
-            reasonError={errors.reason}
-            onReasonFocus={() => {
-              setActiveInput('reason');
-              scrollToInput('reason');
-            }}
-            onAgentNotesFocus={() => {
-              setActiveInput('agentNotes');
-              scrollToInput('agentNotes');
-            }}
-            onClientNotificationFocus={() => {
-              setActiveInput('clientNotification');
-              scrollToInput('clientNotification');
-            }}
-            inputRefs={inputRefs}
-          />
-
-          {/* Commission Impact */}
-          <CommissionImpactCard commission={safeBooking.commission} />
-
-          <View style={styles.buttonContainer}>
-            <Button
-              title='Go Back'
-              onPress={() => router.back()}
-              variant='outline'
-              style={styles.backButton}
+          <Card variant='elevated' style={styles.formCard}>
+            <Text style={styles.cardTitle}>Cancellation Details</Text>
+            <Input
+              label='Reason for Cancellation'
+              placeholder='Explain why this booking is being cancelled'
+              value={reason}
+              onChangeText={text => {
+                setReason(text);
+                if (errors.reason) {
+                  setErrors(prev => ({ ...prev, reason: '' }));
+                }
+              }}
+              multiline
+              numberOfLines={3}
+              error={errors.reason}
+              required
             />
 
+            <Text style={[styles.cardTitle, { marginTop: 24 }]}>
+              {isMibPayment
+                ? 'Refund Bank Details (Backup)'
+                : 'Refund Bank Details'}
+            </Text>
+            {isMibPayment && (
+              <Text style={styles.infoText}>
+                Refunds for MIB payments are returned to the original payment
+                method automatically. Bank details are collected as a backup
+                option.
+              </Text>
+            )}
+
+            <Input
+              label='Account Number'
+              placeholder='Enter account number'
+              value={bankDetails.accountNumber}
+              onChangeText={text => {
+                setBankDetails(prev => ({ ...prev, accountNumber: text }));
+                if (errors.accountNumber) {
+                  setErrors(prev => ({ ...prev, accountNumber: '' }));
+                }
+              }}
+              error={errors.accountNumber}
+              required={requiresBankDetails}
+            />
+            <Input
+              label='Account Name'
+              placeholder='Enter account holder name'
+              value={bankDetails.accountName}
+              onChangeText={text => {
+                setBankDetails(prev => ({ ...prev, accountName: text }));
+                if (errors.accountName) {
+                  setErrors(prev => ({ ...prev, accountName: '' }));
+                }
+              }}
+              error={errors.accountName}
+              required={requiresBankDetails}
+            />
+            <Input
+              label='Bank Name'
+              placeholder='Enter bank name'
+              value={bankDetails.bankName}
+              onChangeText={text => {
+                setBankDetails(prev => ({ ...prev, bankName: text }));
+                if (errors.bankName) {
+                  setErrors(prev => ({ ...prev, bankName: '' }));
+                }
+              }}
+              error={errors.bankName}
+              required={requiresBankDetails}
+            />
+          </Card>
+
+          <View style={styles.buttonRow}>
             <Button
-              title='Cancel Booking'
+              title='Go Back'
+              variant='outline'
+              onPress={() => router.back()}
+              style={styles.backButton}
+            />
+            <Button
+              title='Confirm Cancellation'
               onPress={handleCancel}
               loading={isCancelling}
               disabled={isCancelling}
@@ -426,18 +335,77 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  buttonContainer: {
+  warningCard: {
+    marginBottom: 16,
+    borderColor: Colors.warning,
+    backgroundColor: '#fff8e1',
+  },
+  warningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.warning,
+  },
+  warningText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 20,
+  },
+  summaryCard: {
+    marginBottom: 16,
+  },
+  formCard: {
+    marginBottom: 24,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  refundRow: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    marginTop: 4,
+  },
+  refundValue: {
+    color: Colors.success,
+  },
+  infoText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   backButton: {
     flex: 1,
-    marginRight: 8,
   },
   cancelButton: {
     flex: 1,
-    marginLeft: 8,
     backgroundColor: Colors.error,
   },
   cancelButtonText: {
@@ -451,8 +419,8 @@ const styles = StyleSheet.create({
   },
   notFoundText: {
     fontSize: 18,
-    color: Colors.text,
-    marginBottom: 20,
+    color: Colors.textSecondary,
+    marginBottom: 16,
   },
   notFoundButton: {
     minWidth: 120,

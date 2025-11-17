@@ -29,7 +29,6 @@ import {
 import {
   AlertTriangle,
   ArrowLeft,
-  Edit,
   RefreshCw,
   Users,
   CreditCard,
@@ -75,6 +74,20 @@ export default function BookingDetailsPage() {
   const [boardingStop, setBoardingStop] = useState<any | null>(null);
   const [destinationStop, setDestinationStop] = useState<any | null>(null);
   const [bookingSegment, setBookingSegment] = useState<any | null>(null);
+  const [actualPaymentAmount, setActualPaymentAmount] = useState<number | null>(
+    null
+  );
+  const [cancellationData, setCancellationData] = useState<{
+    refund_amount: number;
+    cancellation_fee: number;
+    refund_status?: string;
+  } | null>(null);
+  const [originalPaymentAmount, setOriginalPaymentAmount] = useState<
+    number | null
+  >(null);
+  const [paymentRefundStatus, setPaymentRefundStatus] = useState<string | null>(
+    null
+  );
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -106,21 +119,24 @@ export default function BookingDetailsPage() {
       if (fetchedBooking) {
         setBooking(fetchedBooking);
 
-        // For multi-stop routes, fetch route stops and booking segments
-        if (
-          !fetchedBooking.from_island_name ||
-          !fetchedBooking.to_island_name
-        ) {
-          await loadMultiStopRouteData(fetchedBooking);
+        // For cancelled bookings, fetch actual payment history and cancellation data
+        // The view only counts 'completed' payments, but we need to see all payments
+        if (fetchedBooking.status === 'cancelled') {
+          await Promise.all([
+            loadActualPaymentAmount(fetchedBooking.id),
+            loadCancellationData(fetchedBooking.id),
+          ]);
         } else {
-          // Reset multi-stop data for regular routes
-          setRouteStops([]);
-          setBoardingStopName(null);
-          setDestinationStopName(null);
-          setBoardingStop(null);
-          setDestinationStop(null);
-          setBookingSegment(null);
+          setActualPaymentAmount(null); // Use view's payment_amount for non-cancelled bookings
+          setCancellationData(null);
+          setOriginalPaymentAmount(null);
+          setPaymentRefundStatus(null);
         }
+
+        // Always try to fetch booking segments first (for accurate pickup/dropoff display)
+        // This ensures we show the actual boarding/destination stops from booking_segments
+        // rather than the route endpoints
+        await loadMultiStopRouteData(fetchedBooking);
       } else {
         setError(`Booking with ID "${id}" not found`);
       }
@@ -133,7 +149,118 @@ export default function BookingDetailsPage() {
     }
   };
 
+  const loadCancellationData = async (bookingId: string) => {
+    try {
+      const { data: cancellation, error: cancellationError } = await supabase
+        .from('cancellations')
+        .select('refund_amount, cancellation_fee, status')
+        .eq('booking_id', bookingId)
+        .single();
+
+      if (cancellationError) {
+        // No cancellation record found - that's okay, booking might have been cancelled without a record
+        if (cancellationError.code !== 'PGRST116') {
+          console.error('Error fetching cancellation data:', cancellationError);
+        }
+        setCancellationData(null);
+        return;
+      }
+
+      if (cancellation) {
+        setCancellationData({
+          refund_amount: Number(cancellation.refund_amount || 0),
+          cancellation_fee: Number(cancellation.cancellation_fee || 0),
+          refund_status: cancellation.status,
+        });
+      }
+    } catch (err) {
+      console.error('Error loading cancellation data:', err);
+      setCancellationData(null);
+    }
+  };
+
+  const loadActualPaymentAmount = async (bookingId: string) => {
+    try {
+      // Fetch all payments for this booking to get actual payment history
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('amount, status, payment_method')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: false });
+
+      if (paymentsError) {
+        console.error('Error fetching payment history:', paymentsError);
+        return;
+      }
+
+      if (payments && payments.length > 0) {
+        // Find the original payment (completed payment before refund)
+        const completedPayment = payments.find(p => p.status === 'completed');
+        const refundedPayment = payments.find(
+          p => p.status === 'refunded' || p.status === 'partially_refunded'
+        );
+        const latestPayment = payments[0];
+
+        // Get original payment amount (before refund)
+        if (completedPayment) {
+          setOriginalPaymentAmount(Number(completedPayment.amount || 0));
+        } else if (refundedPayment) {
+          // If payment was refunded, the amount in the payment record is the original amount
+          setOriginalPaymentAmount(Number(refundedPayment.amount || 0));
+          setPaymentRefundStatus(refundedPayment.status);
+        } else if (latestPayment && latestPayment.amount) {
+          // Fallback: use latest payment amount
+          setOriginalPaymentAmount(Number(latestPayment.amount || 0));
+        }
+
+        // For cancelled bookings, we want to see what was actually paid
+        // Sum all payments that were completed (regardless of current status)
+        // But also check if there are any payments at all
+        const completedPayments = payments.filter(
+          p => p.status === 'completed'
+        );
+        const totalPaid = completedPayments.reduce(
+          (sum, p) => sum + Number(p.amount || 0),
+          0
+        );
+
+        // If there are payments but none are 'completed', check the latest payment
+        // This handles cases where payment was made but status changed
+        if (totalPaid === 0 && payments.length > 0) {
+          // Check if latest payment has an amount (might be pending or cancelled)
+          if (latestPayment.amount && Number(latestPayment.amount) > 0) {
+            // For cancelled bookings, if there's a payment record with amount,
+            // it likely means payment was attempted/made before cancellation
+            // We'll use the view's payment_amount (which is 0 for non-completed) as fallback
+            // But we'll note that there was a payment attempt
+            setActualPaymentAmount(0); // Use 0 since payment wasn't completed
+          } else {
+            setActualPaymentAmount(0);
+          }
+        } else {
+          setActualPaymentAmount(totalPaid);
+        }
+      } else {
+        // No payments found
+        setActualPaymentAmount(0);
+        setOriginalPaymentAmount(0);
+      }
+    } catch (err) {
+      console.error('Error loading actual payment amount:', err);
+      setActualPaymentAmount(null); // Fallback to view's payment_amount
+      setOriginalPaymentAmount(null);
+    }
+  };
+
   const loadMultiStopRouteData = async (booking: AdminBooking) => {
+    // Reset state first to avoid showing stale data from previous bookings
+    setRouteStops([]);
+    setBoardingStopName(null);
+    setDestinationStopName(null);
+    setBoardingStop(null);
+    setDestinationStop(null);
+    setBookingSegment(null);
+
     try {
       // Fetch booking segments directly from booking_segments table
       const segmentData = await getBookingSegment(booking.id);
@@ -166,6 +293,7 @@ export default function BookingDetailsPage() {
       }
     } catch (err: any) {
       // If booking segment doesn't exist, it's okay - not all bookings have segments
+      // State has already been reset above, so we'll fall back to from_island_name/to_island_name
       if (err?.code !== 'PGRST116') {
         console.error('Error loading multi-stop route data:', err);
       }
@@ -255,14 +383,21 @@ export default function BookingDetailsPage() {
     const baseFare = booking.trip_base_fare || 0;
 
     // Calculate actual payment amount
+    // Always use the payment_amount from the database view first
+    // The view sums payments with status 'completed', which is correct for most cases
+    // For cancelled bookings, if payment_amount is 0, it means no completed payment was made
     let paymentAmount = 0;
 
-    // Use the payment amount from the database view (which now properly aggregates payments)
+    // Use the payment amount from the database view
+    // Note: The view only counts 'completed' payments, which is correct
+    // For cancelled bookings, if a payment was made and then cancelled/refunded,
+    // the payment status would be 'cancelled' or 'refunded', not 'completed'
+    // So payment_amount = 0 is correct in that case
     if (
       booking.payment_amount !== null &&
       booking.payment_amount !== undefined
     ) {
-      paymentAmount = booking.payment_amount;
+      paymentAmount = Number(booking.payment_amount);
     } else {
       // Fallback: If no payment amount in database, infer based on status
       switch (booking.status) {
@@ -276,7 +411,9 @@ export default function BookingDetailsPage() {
           paymentAmount = 0; // No payment yet
           break;
         case 'cancelled':
-          paymentAmount = 0; // No payment for cancelled bookings
+          // For cancelled bookings, payment_amount from view should already be correct
+          // If it's 0, it means no completed payment was made (or it was refunded)
+          paymentAmount = 0;
           break;
         default:
           paymentAmount = 0;
@@ -440,12 +577,12 @@ export default function BookingDetailsPage() {
               <ArrowLeft size={24} color={colors.primary} />
             </Pressable>
           ),
-          headerRight: () =>
-            canUpdateBookings() ? (
-              <Pressable onPress={handleEdit} style={styles.editButton}>
-                <Edit size={20} color={colors.primary} />
-              </Pressable>
-            ) : null,
+          // headerRight: () =>
+          //   canUpdateBookings() ? (
+          //     <Pressable onPress={handleEdit} style={styles.editButton}>
+          //       <Edit size={20} color={colors.primary} />
+          //     </Pressable>
+          //   ) : null,
         }}
       />
 
@@ -474,13 +611,13 @@ export default function BookingDetailsPage() {
                 <MapPin size={16} color={colors.primary} />
                 <Text style={styles.routeName}>
                   {(() => {
-                    // Prioritize booking's from_island_name and to_island_name
-                    if (booking.from_island_name && booking.to_island_name) {
-                      return `${booking.from_island_name} → ${booking.to_island_name}`;
-                    }
-                    // Fallback to boarding/destination stops for multi-stop routes
+                    // Prioritize booking segments (actual boarding/destination stops)
                     if (boardingStopName && destinationStopName) {
                       return `${boardingStopName} → ${destinationStopName}`;
+                    }
+                    // Fallback to booking's from_island_name and to_island_name
+                    if (booking.from_island_name && booking.to_island_name) {
+                      return `${booking.from_island_name} → ${booking.to_island_name}`;
                     }
                     // If we have route stops, show first and last
                     if (routeStops.length > 0) {
@@ -662,7 +799,13 @@ export default function BookingDetailsPage() {
         />
 
         {/* Payment Details Section */}
-        <BookingPaymentDetails booking={booking} />
+        <BookingPaymentDetails
+          booking={booking}
+          actualPaymentAmount={actualPaymentAmount}
+          cancellationData={cancellationData}
+          originalPaymentAmount={originalPaymentAmount}
+          paymentRefundStatus={paymentRefundStatus}
+        />
 
         {/* Passenger Details Section */}
         <BookingPassengerDetails booking={booking} />
@@ -792,9 +935,9 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
-  editButton: {
-    padding: 8,
-  },
+  // editButton: {
+  //   padding: 8,
+  // },
   errorTitle: {
     fontSize: 24,
     fontWeight: 'bold',

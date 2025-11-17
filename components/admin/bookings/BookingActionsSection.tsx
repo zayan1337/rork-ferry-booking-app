@@ -252,7 +252,7 @@ export default function BookingActionsSection({
             <Text style={styles.groupTitle}>Booking Management</Text>
           </View>
           <View style={styles.actionButtons}>
-            <Pressable
+            {/* <Pressable
               style={[styles.actionButton, styles.outlineAction]}
               onPress={() =>
                 router.push(`/(admin)/booking/${booking.id}/modify` as any)
@@ -265,7 +265,7 @@ export default function BookingActionsSection({
               >
                 Modify Booking
               </Text>
-            </Pressable>
+            </Pressable> */}
             <Pressable
               style={[styles.actionButton, styles.dangerAction]}
               onPress={() =>

@@ -24,7 +24,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
-import DatePicker from '@/components/DatePicker';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 import SeatSelector from '@/components/SeatSelector';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
 import { processPayment, calculateFareDifference } from '@/utils/paymentUtils';
@@ -36,7 +36,7 @@ import type {
   BookingFormErrors,
 } from '@/types/pages/booking';
 import { getTripsForSegment } from '@/utils/segmentBookingUtils';
-import { formatTimeAMPM } from '@/utils/dateUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { useAlertContext } from '@/components/AlertProvider';
 import SegmentTripCard from '@/components/booking/SegmentTripCard';
 import {
@@ -827,7 +827,7 @@ export default function ModifyBookingScreen() {
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Current Date:</Text>
             <Text style={styles.detailValue}>
-              {new Date(booking.departureDate).toLocaleDateString('en-GB')}
+              {formatBookingDate(booking.departureDate)}
             </Text>
           </View>
 
@@ -862,7 +862,7 @@ export default function ModifyBookingScreen() {
         <Card variant='elevated' style={styles.modifyCard}>
           <Text style={styles.cardTitle}>Modify Booking</Text>
 
-          <DatePicker
+          <CalendarDatePicker
             label='New Travel Date'
             value={selectedDate}
             onChange={date => {

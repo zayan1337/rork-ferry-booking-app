@@ -125,6 +125,15 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
     try {
       validateRequired(agentId, 'Agent ID');
 
+      // Get agent profile to access discount rate for reverse calculation
+      const { data: agentProfile } = await supabase
+        .from('user_profiles')
+        .select('agent_discount')
+        .eq('id', agentId)
+        .single();
+
+      const agentDiscountRate = Number(agentProfile?.agent_discount || 0);
+
       // Get ALL bookings for this agent with comprehensive trip, route, vessel, and passenger details
       const { data: allAgentBookings, error: allBookingsError } = await supabase
         .from('bookings')
@@ -158,7 +167,16 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                                 name,
                                 zone
                             ),
-                            base_fare
+                            base_fare,
+                            route_stops:route_stops!route_stops_route_id_fkey(
+                                id,
+                                stop_sequence,
+                                island:island_id(
+                                    id,
+                                    name,
+                                    zone
+                                )
+                            )
                         ),
                         travel_date,
                         departure_time,
@@ -190,6 +208,28 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                         email,
                         mobile_number,
                         client_id
+                    ),
+                    booking_segments(
+                        id,
+                        fare_amount,
+                        boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
+                            id,
+                            stop_sequence,
+                            islands:island_id(
+                                id,
+                                name,
+                                zone
+                            )
+                        ),
+                        destination_stop:route_stops!booking_segments_destination_stop_id_fkey(
+                            id,
+                            stop_sequence,
+                            islands:island_id(
+                                id,
+                                name,
+                                zone
+                            )
+                        )
                     )
                 `
         )
@@ -201,10 +241,18 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
         throw allBookingsError;
       }
 
-      // Get user profiles for bookings that have user_id but no agent_client_id
-      const userIds = (allAgentBookings || [])
+      // Collect all user IDs we need profiles for (direct bookings or linked agent clients)
+      const directUserIds = (allAgentBookings || [])
         .filter((booking: any) => booking.user_id && !booking.agent_client_id)
         .map((booking: any) => booking.user_id);
+
+      const agentClientUserIds = (allAgentBookings || [])
+        .map((booking: any) => booking.agent_clients?.client_id)
+        .filter((clientId: string | null | undefined) => !!clientId);
+
+      const userIds = Array.from(
+        new Set([...directUserIds, ...agentClientUserIds])
+      );
 
       let userProfiles: { [key: string]: any } = {};
       if (userIds.length > 0) {
@@ -234,24 +282,106 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
         const fareMultiplier = Number(booking.trip?.fare_multiplier || 1.0);
         const multipliedFare = routeBaseFare * fareMultiplier;
 
-        const route = booking.trip?.route
+        const defaultFromIsland = booking.trip?.route?.from_island
           ? {
-              id: booking.trip.route.id,
-              fromIsland: {
-                id: booking.trip.route.from_island.id,
-                name: booking.trip.route.from_island.name,
-                zone: booking.trip.route.from_island.zone,
-              },
-              toIsland: {
-                id: booking.trip.route.to_island.id,
-                name: booking.trip.route.to_island.name,
-                zone: booking.trip.route.to_island.zone,
-              },
-              baseFare: multipliedFare, // Store multiplied fare (route.base_fare × trip.fare_multiplier)
-              routeBaseFare: routeBaseFare, // Keep original route base fare for reference
-              fareMultiplier: fareMultiplier, // Keep multiplier for reference
+              id: booking.trip.route.from_island.id,
+              name: booking.trip.route.from_island.name,
+              zone: booking.trip.route.from_island.zone,
             }
-          : null;
+          : {
+              id: '',
+              name: 'Unknown Origin',
+              zone: '',
+            };
+
+        const defaultToIsland = booking.trip?.route?.to_island
+          ? {
+              id: booking.trip.route.to_island.id,
+              name: booking.trip.route.to_island.name,
+              zone: booking.trip.route.to_island.zone,
+            }
+          : {
+              id: '',
+              name: 'Unknown Destination',
+              zone: '',
+            };
+
+        const rawRouteStops = booking.trip?.route?.route_stops || [];
+        const formattedRouteStops: {
+          id: string;
+          stopSequence: number;
+          island: { id: string; name: string; zone: string };
+        }[] = rawRouteStops.length
+          ? rawRouteStops
+              .sort((a: any, b: any) => a.stop_sequence - b.stop_sequence)
+              .map((stop: any) => ({
+                id: stop.id,
+                stopSequence: stop.stop_sequence,
+                island: {
+                  id: stop.island?.id || '',
+                  name: stop.island?.name || 'Unknown',
+                  zone: stop.island?.zone || '',
+                },
+              }))
+          : [];
+
+        const segmentEntry = Array.isArray(booking.booking_segments)
+          ? booking.booking_segments[0]
+          : booking.booking_segments || null;
+
+        const extractSegmentIslandName = (stop: any) => {
+          if (!stop) return null;
+          const islandData = stop.island || stop.islands;
+          const normalizedIsland = Array.isArray(islandData)
+            ? islandData[0]
+            : islandData;
+          if (!normalizedIsland) return null;
+          return normalizedIsland.name || null;
+        };
+
+        const getStopNameBySequence = (sequence?: number | null) => {
+          if (!sequence || !formattedRouteStops.length) return null;
+          const stop = formattedRouteStops.find(
+            stopItem => stopItem.stopSequence === sequence
+          );
+          return stop?.island?.name || null;
+        };
+
+        const pickupName =
+          extractSegmentIslandName(segmentEntry?.boarding_stop) ||
+          getStopNameBySequence(segmentEntry?.boarding_stop_sequence) ||
+          defaultFromIsland.name;
+        const dropoffName =
+          extractSegmentIslandName(segmentEntry?.destination_stop) ||
+          getStopNameBySequence(segmentEntry?.destination_stop_sequence) ||
+          defaultToIsland.name;
+
+        const fromIsland = {
+          id: defaultFromIsland.id,
+          name: pickupName,
+          zone: defaultFromIsland.zone,
+        };
+
+        const toIsland = {
+          id: defaultToIsland.id,
+          name: dropoffName,
+          zone: defaultToIsland.zone,
+        };
+
+        const route =
+          booking.trip?.route || segmentEntry
+            ? {
+                id: booking.trip?.route?.id || segmentEntry?.id || '',
+                fromIsland,
+                toIsland,
+                baseFare: multipliedFare, // Store multiplied fare (route.base_fare × trip.fare_multiplier)
+                routeBaseFare: routeBaseFare, // Keep original route base fare for reference
+                fareMultiplier: fareMultiplier, // Keep multiplier for reference
+                routeStops: formattedRouteStops.length
+                  ? formattedRouteStops
+                  : undefined,
+              }
+            : null;
 
         // Extract vessel information
         const vessel = booking.trip?.vessel
@@ -313,14 +443,23 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
         } else if (booking.agent_client_id) {
           // Booking for client WITHOUT account or WITH account via agent_clients
           const hasAccount = !!booking.agent_clients?.client_id;
+          const linkedProfile =
+            hasAccount && booking.agent_clients?.client_id
+              ? userProfiles[booking.agent_clients.client_id]
+              : null;
           clientInfo = {
             clientId: booking.agent_client_id,
             clientName:
+              linkedProfile?.full_name ||
               booking.agent_clients?.full_name ||
               booking.agent_clients?.email ||
               'Unknown Client',
-            clientEmail: booking.agent_clients?.email || '',
-            clientPhone: booking.agent_clients?.mobile_number || '',
+            clientEmail:
+              linkedProfile?.email || booking.agent_clients?.email || '',
+            clientPhone:
+              linkedProfile?.mobile_number ||
+              booking.agent_clients?.mobile_number ||
+              '',
             hasAccount,
             userId: hasAccount ? booking.agent_clients?.client_id : undefined,
             agentClientId: booking.agent_client_id,
@@ -330,12 +469,73 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
         // Calculate commission based on fare difference using trip's multiplied fare
         const discountedFare = Number(booking.total_fare || 0);
 
-        // Calculate original fare using trip's base_fare × fare_multiplier
-        // Use the already calculated multipliedFare from above
-        const originalFare =
-          booking.trip && passengers.length > 0
-            ? passengers.length * multipliedFare
-            : discountedFare;
+        // Calculate original fare (before discount)
+        // Strategy: Try multiple methods and use the most reliable one
+        let originalFare = discountedFare; // Default fallback
+
+        // Method 1: Reverse-calculate from discount rate if available
+        if (
+          agentDiscountRate > 0 &&
+          agentDiscountRate < 100 &&
+          discountedFare > 0
+        ) {
+          // Reverse calculation: discountedFare = originalFare * (1 - discountRate/100)
+          // Therefore: originalFare = discountedFare / (1 - discountRate/100)
+          const reverseCalculated =
+            discountedFare / (1 - agentDiscountRate / 100);
+          // Only use if it's reasonable (not too far off)
+          if (
+            reverseCalculated >= discountedFare &&
+            reverseCalculated <= discountedFare * 2
+          ) {
+            originalFare = reverseCalculated;
+          }
+        }
+
+        // Method 2: Use booking_segments fare_amount if available and it's higher than discounted
+        if (booking.booking_segments && booking.booking_segments.length > 0) {
+          const segmentFare = Number(
+            booking.booking_segments[0].fare_amount || 0
+          );
+          // Use segment fare if it's higher than discounted (meaningful discount)
+          // or if reverse calculation wasn't available
+          if (segmentFare >= discountedFare && segmentFare > originalFare) {
+            originalFare = segmentFare;
+          } else if (originalFare === discountedFare && segmentFare > 0) {
+            // If we still have default, try segment fare (might be per passenger)
+            // Check if multiplying by passengers makes sense
+            if (passengers.length > 0) {
+              const segmentFarePerPassenger = segmentFare;
+              const totalSegmentFare =
+                segmentFarePerPassenger * passengers.length;
+              if (totalSegmentFare >= discountedFare) {
+                originalFare = totalSegmentFare;
+              }
+            }
+          }
+        }
+
+        // Method 3: Calculate from trip data (route base_fare × multiplier × passengers)
+        if (booking.trip && passengers.length > 0) {
+          const calculatedFare = passengers.length * multipliedFare;
+          // Use calculated fare if it's higher than current originalFare and makes sense
+          if (
+            calculatedFare >= discountedFare &&
+            calculatedFare > originalFare
+          ) {
+            originalFare = calculatedFare;
+          } else if (originalFare === discountedFare && calculatedFare > 0) {
+            // If we still have default, use calculated fare
+            originalFare = calculatedFare;
+          }
+        }
+
+        // Final validation: Ensure originalFare is at least equal to discountedFare
+        // If still less, use discountedFare as original (no discount was applied)
+        if (originalFare < discountedFare) {
+          originalFare = discountedFare;
+        }
+
         const commission =
           originalFare > discountedFare ? originalFare - discountedFare : 0;
 
@@ -347,8 +547,10 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
           clientName: clientInfo.clientName,
           clientEmail: clientInfo.clientEmail,
           clientPhone: clientInfo.clientPhone,
-          origin: route?.fromIsland?.name || 'Unknown Origin',
-          destination: route?.toIsland?.name || 'Unknown Destination',
+          origin: pickupName || fromIsland?.name || 'Unknown Origin',
+          destination: dropoffName || toIsland?.name || 'Unknown Destination',
+          pickupName,
+          dropoffName,
           departureDate: booking.trip?.travel_date || booking.created_at,
           departureTime: booking.trip?.departure_time || '',
           returnDate: undefined, // Handle return trips separately if needed

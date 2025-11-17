@@ -21,6 +21,9 @@ export interface Route {
   to_island_id: string;
   from_island?: Island;
   to_island?: Island;
+  // Support camelCase references used in mobile app components
+  fromIsland?: Island;
+  toIsland?: Island;
   distance: string;
   duration: string;
   base_fare: number;

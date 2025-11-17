@@ -1,37 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, BackHandler } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { Check } from 'lucide-react-native';
 
 import { useAgentStore } from '@/store/agent/agentStore';
 import { useAgentBookingFormStore } from '@/store/agent/agentBookingFormStore';
-import { useRouteStore, useTripStore } from '@/store';
 import type { AgentClient } from '@/types/agent';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 
-import { Passenger } from '@/types';
+import { Passenger, Seat } from '@/types';
 import {
-  BookingProgressStepper,
-  TripRouteSelectionStep,
   ClientInfoStep,
   SeatSelectionStep,
   PassengerDetailsStep,
   PaymentStep,
 } from '@/components/booking';
+import AgentIslandDateStep from '@/components/booking/steps/AgentIslandDateStep';
+import AgentTripSelectionStep from '@/components/booking/steps/AgentTripSelectionStep';
 import {
   validateBookingStep,
   AGENT_PAYMENT_OPTIONS,
 } from '@/utils/bookingFormUtils';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
 import { useAlertContext } from '@/components/AlertProvider';
+import { AGENT_BOOKING_STEPS, AGENT_STEP_LABELS } from '@/constants/agent';
 
 const BOOKING_STEPS = [
-  { id: 1, label: 'Trip', description: 'Route, date & trip selection' },
-  { id: 2, label: 'Client', description: 'Select or add client' },
-  { id: 3, label: 'Seats', description: 'Choose seats' },
-  { id: 4, label: 'Details', description: 'Passenger information' },
-  { id: 5, label: 'Payment', description: 'Payment & confirmation' },
+  {
+    id: AGENT_BOOKING_STEPS.ISLAND_DATE_SELECTION,
+    label: AGENT_STEP_LABELS[AGENT_BOOKING_STEPS.ISLAND_DATE_SELECTION],
+    description: 'Island, date & trip selection',
+  },
+  {
+    id: AGENT_BOOKING_STEPS.TRIP_SELECTION,
+    label: AGENT_STEP_LABELS[AGENT_BOOKING_STEPS.TRIP_SELECTION],
+    description: 'Select trip',
+  },
+  {
+    id: AGENT_BOOKING_STEPS.CLIENT_SELECTION,
+    label: AGENT_STEP_LABELS[AGENT_BOOKING_STEPS.CLIENT_SELECTION],
+    description: 'Select or add client',
+  },
+  {
+    id: AGENT_BOOKING_STEPS.SEAT_SELECTION,
+    label: AGENT_STEP_LABELS[AGENT_BOOKING_STEPS.SEAT_SELECTION],
+    description: 'Choose seats',
+  },
+  {
+    id: AGENT_BOOKING_STEPS.PASSENGER_DETAILS,
+    label: AGENT_STEP_LABELS[AGENT_BOOKING_STEPS.PASSENGER_DETAILS],
+    description: 'Passenger information',
+  },
+  {
+    id: AGENT_BOOKING_STEPS.PAYMENT,
+    label: AGENT_STEP_LABELS[AGENT_BOOKING_STEPS.PAYMENT],
+    description: 'Payment & confirmation',
+  },
 ];
 
 export default function AgentNewBookingScreen() {
@@ -42,21 +69,6 @@ export default function AgentNewBookingScreen() {
   // Stores
   const agent = useAgentStore(state => state.agent);
   const clients = useAgentStore(state => state.clients);
-
-  // Route management
-  const {
-    availableRoutes,
-    fetchAvailableRoutes,
-    isLoading: routeLoading,
-  } = useRouteStore();
-
-  // Trip management
-  const {
-    trips,
-    returnTrips,
-    fetchTrips,
-    isLoading: tripLoading,
-  } = useTripStore();
 
   // Agent booking store
   const {
@@ -80,12 +92,20 @@ export default function AgentNewBookingScreen() {
     setReturnDate,
     setTrip,
     setReturnTrip,
+    setBoardingIsland,
+    setDestinationIsland,
+    setReturnBoardingIsland,
+    setReturnDestinationIsland,
     setClient,
     createNewClient,
     searchClients,
     clearClientSearch,
     setClientSearchQuery,
     fetchAvailableSeats,
+    refreshAvailableSeatsSilently,
+    subscribeSeatUpdates,
+    unsubscribeSeatUpdates,
+    cleanupSeatSubscriptions,
     toggleSeatSelection,
     updatePassengers,
     updatePassengerDetail,
@@ -109,6 +129,20 @@ export default function AgentNewBookingScreen() {
   const [showAddNewClientForm, setShowAddNewClientForm] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [localSelectedSeats, setLocalSelectedSeats] = useState([] as Seat[]);
+  const [localReturnSelectedSeats, setLocalReturnSelectedSeats] = useState(
+    [] as Seat[]
+  );
+  const [loadingSeats, setLoadingSeats] = useState<Set<string>>(new Set());
+  const [seatErrors, setSeatErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setLocalSelectedSeats(currentBooking.selectedSeats);
+  }, [currentBooking.selectedSeats]);
+
+  useEffect(() => {
+    setLocalReturnSelectedSeats(currentBooking.returnSelectedSeats);
+  }, [currentBooking.returnSelectedSeats]);
 
   // MIB Payment WebView state
   const [showMibPayment, setShowMibPayment] = useState(false);
@@ -131,7 +165,7 @@ export default function AgentNewBookingScreen() {
   });
 
   // Combined loading states
-  const combinedLoading = isLoading || routeLoading || tripLoading;
+  const combinedLoading = isLoading;
 
   useEffect(() => {
     // Initialize agent when component mounts
@@ -149,11 +183,6 @@ export default function AgentNewBookingScreen() {
       setOnBookingCreated(undefined);
     };
   }, [setOnBookingCreated]);
-
-  useEffect(() => {
-    // Load routes when component mounts
-    fetchAvailableRoutes();
-  }, [fetchAvailableRoutes]);
 
   useEffect(() => {
     // Pre-select client if coming from client page
@@ -179,24 +208,6 @@ export default function AgentNewBookingScreen() {
     }
   }, [clientId, clients, setClient]);
 
-  useEffect(() => {
-    // Fetch trips when route and date are selected
-    if (currentBooking.route && currentBooking.departureDate) {
-      fetchTrips(currentBooking.route.id, currentBooking.departureDate, false);
-    }
-  }, [currentBooking.route, currentBooking.departureDate, fetchTrips]);
-
-  useEffect(() => {
-    // Fetch return trips when return route and date are selected
-    if (currentBooking.returnRoute && currentBooking.returnDate) {
-      fetchTrips(
-        currentBooking.returnRoute.id,
-        currentBooking.returnDate,
-        true
-      );
-    }
-  }, [currentBooking.returnRoute, currentBooking.returnDate, fetchTrips]);
-
   // Fetch seats when trip is selected
   useEffect(() => {
     if (currentBooking.trip?.id) {
@@ -210,6 +221,60 @@ export default function AgentNewBookingScreen() {
     }
   }, [currentBooking.returnTrip?.id, fetchAvailableSeats]);
 
+  useEffect(() => {
+    const tripId = currentBooking.trip?.id;
+    if (!tripId) {
+      return;
+    }
+    subscribeSeatUpdates(tripId, false);
+    return () => {
+      unsubscribeSeatUpdates(tripId, false);
+    };
+  }, [currentBooking.trip?.id, subscribeSeatUpdates, unsubscribeSeatUpdates]);
+
+  useEffect(() => {
+    const returnTripId = currentBooking.returnTrip?.id;
+    if (!returnTripId) {
+      return;
+    }
+    subscribeSeatUpdates(returnTripId, true);
+    return () => {
+      unsubscribeSeatUpdates(returnTripId, true);
+    };
+  }, [
+    currentBooking.returnTrip?.id,
+    subscribeSeatUpdates,
+    unsubscribeSeatUpdates,
+  ]);
+
+  useEffect(() => {
+    if (currentStep !== AGENT_BOOKING_STEPS.SEAT_SELECTION) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (currentBooking.trip?.id) {
+        refreshAvailableSeatsSilently(currentBooking.trip.id, false);
+      }
+      if (currentBooking.returnTrip?.id) {
+        refreshAvailableSeatsSilently(currentBooking.returnTrip.id, true);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [
+    currentStep,
+    currentBooking.trip?.id,
+    currentBooking.returnTrip?.id,
+    refreshAvailableSeatsSilently,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      cleanupSeatSubscriptions();
+    };
+  }, [cleanupSeatSubscriptions]);
+
   // Auto-generate passengers array when seats are selected
   useEffect(() => {
     if (currentBooking.selectedSeats.length > 0) {
@@ -217,6 +282,7 @@ export default function AgentNewBookingScreen() {
         (_, index) => ({
           fullName: currentBooking.passengers[index]?.fullName || '',
           idNumber: currentBooking.passengers[index]?.idNumber || '',
+          phoneNumber: currentBooking.passengers[index]?.phoneNumber || '',
           specialAssistance:
             currentBooking.passengers[index]?.specialAssistance || '',
         })
@@ -227,6 +293,27 @@ export default function AgentNewBookingScreen() {
       updatePassengers([]);
     }
   }, [currentBooking.selectedSeats.length, updatePassengers]);
+
+  const handleSeatToggle = async (seat: Seat, isReturn = false) => {
+    if (loadingSeats.has(seat.id)) return;
+
+    setLoadingSeats(prev => new Set(prev).add(seat.id));
+    setSeatErrors(prev => ({ ...prev, [seat.id]: '' }));
+
+    try {
+      await toggleSeatSelection(seat, isReturn);
+      if (errors.seats) setErrors(prev => ({ ...prev, seats: '' }));
+    } catch (error: any) {
+      setSeatErrors(prev => ({ ...prev, [seat.id]: error.message }));
+      showError('Seat Selection Error', error.message);
+    } finally {
+      setLoadingSeats(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(seat.id);
+        return newSet;
+      });
+    }
+  };
 
   // Clear client search when leaving step 3 or component unmounts
   useEffect(() => {
@@ -257,13 +344,19 @@ export default function AgentNewBookingScreen() {
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
+      // Handle island/date step - move to trip selection
+      if (currentStep === AGENT_BOOKING_STEPS.ISLAND_DATE_SELECTION) {
+        setCurrentStep(AGENT_BOOKING_STEPS.TRIP_SELECTION);
+        return;
+      }
+
       // Save client info before moving to seat selection
-      if (currentStep === 2) {
+      if (currentStep === AGENT_BOOKING_STEPS.CLIENT_SELECTION) {
         if (showAddNewClientForm) {
           handleSaveClient();
           return;
         } else if (currentBooking.client) {
-          setCurrentStep(3); // Move to seat selection
+          setCurrentStep(AGENT_BOOKING_STEPS.SEAT_SELECTION);
           return;
         }
       }
@@ -273,19 +366,48 @@ export default function AgentNewBookingScreen() {
     }
   };
 
+  const handleFindTrips = () => {
+    // Move to trip selection step
+    setCurrentStep(AGENT_BOOKING_STEPS.TRIP_SELECTION);
+  };
+
   const handleBack = () => {
-    if (currentStep === 2 && showAddNewClientForm) {
+    if (
+      currentStep === AGENT_BOOKING_STEPS.CLIENT_SELECTION &&
+      showAddNewClientForm
+    ) {
       // If we're on add new client form, go back to search
       setShowAddNewClientForm(false);
       setClientForm({ name: '', email: '', phone: '', idNumber: '' });
       if (errors.client) setErrors({ ...errors, client: '' });
     } else {
-      if (currentStep === 2) {
+      if (currentStep === AGENT_BOOKING_STEPS.CLIENT_SELECTION) {
         setLocalSearchQuery('');
       }
       setCurrentStep(currentStep - 1);
     }
   };
+
+  // Handle hardware back button to go to previous booking step instead of leaving screen
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        if (currentStep === AGENT_BOOKING_STEPS.ISLAND_DATE_SELECTION) {
+          return false; // allow default behavior (leave screen)
+        }
+
+        handleBack();
+        return true; // prevent default behavior
+      };
+
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        onBackPress
+      );
+
+      return () => subscription.remove();
+    }, [currentStep, handleBack])
+  );
 
   const handleClientFormChange = (field: string, value: string) => {
     setClientForm(prev => ({ ...prev, [field]: value }));
@@ -455,63 +577,21 @@ export default function AgentNewBookingScreen() {
     return `MVR ${amount.toFixed(2)}`;
   };
 
-  // Format route options for dropdown
-  const routeOptions = (availableRoutes || []).map(route => ({
-    label: `${route.fromIsland?.name || 'Unknown'} → ${
-      route.toIsland?.name || 'Unknown'
-    }`,
-    value: route.id,
-  }));
-
-  const tripOptions = (trips || []).map(trip => ({
-    label: `${String(trip.departure_time || '').slice(0, 5)} - ${
-      trip.vessel_name || 'Unknown'
-    } (${String(trip.available_seats || 0)} seats)`,
-    value: trip.id,
-  }));
-
-  const returnTripOptions = (returnTrips || []).map(trip => ({
-    label: `${String(trip.departure_time || '').slice(0, 5)} - ${
-      trip.vessel_name || 'Unknown'
-    } (${String(trip.available_seats || 0)} seats)`,
-    value: trip.id,
-  }));
-
   // Payment method options - using the centralized options from utils
   const paymentOptions = [...AGENT_PAYMENT_OPTIONS];
 
   // Render current step
   const renderCurrentStep = () => {
     switch (currentStep) {
-      case 1:
-        // Combined Trip, Route & Date Selection (like customer booking)
-        return (
-          <TripRouteSelectionStep
-            tripType={currentBooking.tripType}
-            onTripTypeChange={setTripType}
-            departureDate={currentBooking.departureDate}
-            returnDate={currentBooking.returnDate}
-            onDepartureDateChange={setDepartureDate}
-            onReturnDateChange={setReturnDate}
-            routes={availableRoutes || []}
-            selectedRoute={currentBooking.route}
-            selectedReturnRoute={currentBooking.returnRoute}
-            onRouteChange={setRoute}
-            onReturnRouteChange={setReturnRoute}
-            trips={(trips || []) as any}
-            returnTrips={(returnTrips || []) as any}
-            selectedTrip={currentBooking.trip}
-            selectedReturnTrip={currentBooking.returnTrip}
-            onTripChange={setTrip as any}
-            onReturnTripChange={setReturnTrip as any}
-            isLoadingRoutes={routeLoading}
-            isLoadingTrips={tripLoading}
-            errors={errors}
-            clearError={field => setErrors({ ...errors, [field]: '' })}
-          />
-        );
+      case AGENT_BOOKING_STEPS.ISLAND_DATE_SELECTION:
+        // Island & Date Selection (island-based, like customer)
+        return <AgentIslandDateStep onFindTrips={handleFindTrips} />;
 
-      case 2:
+      case AGENT_BOOKING_STEPS.TRIP_SELECTION:
+        // Trip Selection (auto-discovered trips)
+        return <AgentTripSelectionStep />;
+
+      case AGENT_BOOKING_STEPS.CLIENT_SELECTION:
         // Client Selection (agent-specific step)
         return (
           <ClientInfoStep
@@ -532,15 +612,15 @@ export default function AgentNewBookingScreen() {
           />
         );
 
-      case 3:
+      case AGENT_BOOKING_STEPS.SEAT_SELECTION:
         // Seat Selection
         return (
           <SeatSelectionStep
             availableSeats={availableSeats}
             availableReturnSeats={availableReturnSeats}
-            selectedSeats={currentBooking.selectedSeats}
-            selectedReturnSeats={currentBooking.returnSelectedSeats}
-            onSeatToggle={toggleSeatSelection}
+            selectedSeats={localSelectedSeats}
+            selectedReturnSeats={localReturnSelectedSeats}
+            onSeatToggle={handleSeatToggle}
             tripType={currentBooking.tripType}
             isLoading={combinedLoading}
             totalFare={currentBooking.totalFare || 0}
@@ -549,10 +629,23 @@ export default function AgentNewBookingScreen() {
             agent={storeAgent}
             errors={errors}
             clearError={setError}
+            loadingSeats={loadingSeats}
+            seatErrors={seatErrors}
+            departureTripId={currentBooking.trip?.id || null}
+            returnTripId={currentBooking.returnTrip?.id || null}
+            onSeatsUpdated={(updatedSeats, isReturn) => {
+              // Sync local state when seats are updated via real-time
+              if (isReturn) {
+                // Return seats are managed by store, no local sync needed
+              } else {
+                // Departure seats - sync if needed
+                // The store already manages this, so we just ensure local state is in sync
+              }
+            }}
           />
         );
 
-      case 4:
+      case AGENT_BOOKING_STEPS.PASSENGER_DETAILS:
         // Passenger Details
         return (
           <PassengerDetailsStep
@@ -566,7 +659,7 @@ export default function AgentNewBookingScreen() {
           />
         );
 
-      case 5:
+      case AGENT_BOOKING_STEPS.PAYMENT:
         // Payment & Confirmation
         return (
           <PaymentStep
@@ -579,6 +672,12 @@ export default function AgentNewBookingScreen() {
             selectedSeats={currentBooking.selectedSeats}
             selectedReturnSeats={currentBooking.returnSelectedSeats}
             passengers={currentBooking.passengers}
+            boardingIslandName={currentBooking.boardingIslandName}
+            destinationIslandName={currentBooking.destinationIslandName}
+            returnBoardingIslandName={currentBooking.returnBoardingIslandName}
+            returnDestinationIslandName={
+              currentBooking.returnDestinationIslandName
+            }
             totalFare={currentBooking.totalFare || 0}
             discountedFare={currentBooking.discountedFare}
             agent={storeAgent}
@@ -603,12 +702,29 @@ export default function AgentNewBookingScreen() {
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
     >
-      {/* Progress Stepper */}
+      {/* Progress Steps - Matching customer portal style */}
       <View style={styles.progressContainer}>
-        <BookingProgressStepper
-          steps={BOOKING_STEPS}
-          currentStep={currentStep}
-        />
+        {BOOKING_STEPS.map(step => (
+          <View key={step.id} style={styles.progressStep}>
+            <View
+              style={[
+                styles.progressDot,
+                currentStep >= step.id && styles.progressDotActive,
+              ]}
+            >
+              {currentStep > step.id && <Check size={12} color='#fff' />}
+            </View>
+            <Text
+              style={[
+                styles.progressText,
+                currentStep >= step.id && styles.progressTextActive,
+              ]}
+            >
+              {step.label}
+            </Text>
+          </View>
+        ))}
+        <View style={styles.progressLine} />
       </View>
 
       <Card variant='elevated' style={styles.bookingCard}>
@@ -623,7 +739,7 @@ export default function AgentNewBookingScreen() {
 
         {/* Navigation Buttons */}
         <View style={styles.buttonContainer}>
-          {currentStep > 1 && (
+          {currentStep > AGENT_BOOKING_STEPS.ISLAND_DATE_SELECTION && (
             <Button
               title='Back'
               onPress={handleBack}
@@ -632,15 +748,24 @@ export default function AgentNewBookingScreen() {
             />
           )}
 
-          {currentStep < 5 ? (
+          {currentStep ===
+          AGENT_BOOKING_STEPS.ISLAND_DATE_SELECTION ? null : currentStep === // Island/Date step - button is inside AgentIslandDateStep
+            AGENT_BOOKING_STEPS.TRIP_SELECTION ? (
             <Button
               title='Next'
               onPress={handleNext}
-              style={
-                currentStep === 1
-                  ? styles.singleButton
-                  : styles.navigationButton
+              style={styles.navigationButton}
+              disabled={
+                !currentBooking.trip ||
+                (currentBooking.tripType === 'round_trip' &&
+                  !currentBooking.returnTrip)
               }
+            />
+          ) : currentStep < AGENT_BOOKING_STEPS.PAYMENT ? (
+            <Button
+              title='Next'
+              onPress={handleNext}
+              style={styles.navigationButton}
             />
           ) : (
             <Button
@@ -738,7 +863,45 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   progressContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 24,
+    position: 'relative',
+  },
+  progressLine: {
+    position: 'absolute',
+    top: 12,
+    left: 25,
+    right: 25,
+    height: 2,
+    backgroundColor: Colors.border,
+    zIndex: -1,
+  },
+  progressStep: {
+    alignItems: 'center',
+  },
+  progressDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.card,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  progressDotActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  progressText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  progressTextActive: {
+    color: Colors.primary,
+    fontWeight: '600',
   },
   bookingCard: {
     marginBottom: 16,
@@ -764,10 +927,5 @@ const styles = StyleSheet.create({
   navigationButton: {
     flex: 1,
     marginHorizontal: 8,
-  },
-  singleButton: {
-    flex: 1,
-    marginLeft: 'auto',
-    marginRight: 8,
   },
 });

@@ -78,8 +78,8 @@ const PassengerDetailsStep: React.FC<PassengerDetailsStepProps> = ({
           />
 
           <Input
-            label='ID Number (Optional)'
-            placeholder='Enter ID number (passport, national ID, etc.)'
+            label='ID Number'
+            placeholder='Enter ID number (optional)'
             value={passenger.idNumber || ''}
             onChangeText={text =>
               handlePassengerChange(index, 'idNumber', text)
@@ -87,8 +87,18 @@ const PassengerDetailsStep: React.FC<PassengerDetailsStepProps> = ({
           />
 
           <Input
-            label='Special Assistance (Optional)'
-            placeholder='Any special requirements or assistance needed?'
+            label='Phone Number'
+            placeholder='Enter phone number (optional)'
+            value={passenger.phoneNumber || ''}
+            onChangeText={text =>
+              handlePassengerChange(index, 'phoneNumber', text)
+            }
+            keyboardType='phone-pad'
+          />
+
+          <Input
+            label='Special Assistance'
+            placeholder='Any special requirements? (optional)'
             value={passenger.specialAssistance || ''}
             onChangeText={text =>
               handlePassengerChange(index, 'specialAssistance', text)

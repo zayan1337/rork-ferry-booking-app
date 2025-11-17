@@ -51,6 +51,11 @@ export default function CreditSummaryCard({
   };
 
   const formatUtilization = (utilization: number) => {
+    // If utilization is very small but greater than 0, show at least 0.01%
+    if (utilization > 0 && utilization < 0.5) {
+      return Math.max(0.01, Math.round(utilization * 100) / 100);
+    }
+    // For larger values, round to nearest integer
     return Math.round(utilization);
   };
 
@@ -94,7 +99,10 @@ export default function CreditSummaryCard({
         {/* Utilization Percentage */}
         <View style={styles.utilizationContainer}>
           <Text style={styles.utilizationPercentage}>
-            {formatUtilization(summary.creditUtilization)}%
+            {summary.creditUtilization > 0 && summary.creditUtilization < 1
+              ? summary.creditUtilization.toFixed(2)
+              : formatUtilization(summary.creditUtilization)}
+            %
           </Text>
           <Text style={styles.utilizationLabel}>Used</Text>
         </View>

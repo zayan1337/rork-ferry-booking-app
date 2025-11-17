@@ -19,6 +19,12 @@ interface PaymentStepProps {
   selectedReturnSeats: Seat[];
   passengers: Passenger[];
 
+  // Island names (for island-based booking flow)
+  boardingIslandName?: string | null;
+  destinationIslandName?: string | null;
+  returnBoardingIslandName?: string | null;
+  returnDestinationIslandName?: string | null;
+
   // Fare calculation
   totalFare: number;
   discountedFare?: number;
@@ -50,6 +56,10 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   selectedSeats,
   selectedReturnSeats,
   passengers,
+  boardingIslandName,
+  destinationIslandName,
+  returnBoardingIslandName,
+  returnDestinationIslandName,
   totalFare,
   discountedFare,
   agent,
@@ -60,15 +70,44 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   errors,
   clearError,
 }) => {
+  // Use island names if available (island-based flow), otherwise fall back to route
+  const getRouteDisplay = () => {
+    if (boardingIslandName && destinationIslandName) {
+      return `${boardingIslandName} → ${destinationIslandName}`;
+    }
+    if (route) {
+      // Try different route property structures
+      if (route.from_island?.name && route.to_island?.name) {
+        return `${route.from_island.name} → ${route.to_island.name}`;
+      }
+      if (route.fromIsland?.name && route.toIsland?.name) {
+        return `${route.fromIsland.name} → ${route.toIsland.name}`;
+      }
+    }
+    return 'N/A';
+  };
+
+  const getReturnRouteDisplay = () => {
+    if (returnBoardingIslandName && returnDestinationIslandName) {
+      return `${returnBoardingIslandName} → ${returnDestinationIslandName}`;
+    }
+    if (returnRoute) {
+      // Try different route property structures
+      if (returnRoute.from_island?.name && returnRoute.to_island?.name) {
+        return `${returnRoute.from_island.name} → ${returnRoute.to_island.name}`;
+      }
+      if (returnRoute.fromIsland?.name && returnRoute.toIsland?.name) {
+        return `${returnRoute.fromIsland.name} → ${returnRoute.toIsland.name}`;
+      }
+    }
+    return null;
+  };
+
   const summaryData = {
     clientName: client?.name || 'N/A',
     tripType: tripType === 'one_way' ? 'One Way' : 'Round Trip',
-    routeDisplay: route
-      ? `${route.from_island?.name || 'Unknown'} → ${route.to_island?.name || 'Unknown'}`
-      : 'N/A',
-    returnRouteDisplay: returnRoute
-      ? `${returnRoute.from_island?.name || 'Unknown'} → ${returnRoute.to_island?.name || 'Unknown'}`
-      : null,
+    routeDisplay: getRouteDisplay(),
+    returnRouteDisplay: getReturnRouteDisplay(),
     departureDate: departureDate
       ? new Date(departureDate).toLocaleDateString()
       : 'N/A',

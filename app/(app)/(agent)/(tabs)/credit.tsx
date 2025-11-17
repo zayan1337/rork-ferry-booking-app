@@ -501,11 +501,11 @@ export default function AgentCreditScreen() {
         wt => ({
           id: wt.id,
           type: 'refill' as const,
-          amount: wt.amount,
+          amount: wt.amount || 0,
           description: wt.description || 'Manual payment recorded by admin',
-          createdAt: wt.created_at,
+          createdAt: wt.created_at || wt.updated_at || new Date().toISOString(),
           bookingNumber: wt.reference_id || undefined,
-          date: wt.created_at,
+          date: wt.created_at || wt.updated_at || new Date().toISOString(),
           balance: 0, // Balance is managed in user_profiles, not individual transactions
         })
       );

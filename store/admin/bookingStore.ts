@@ -184,7 +184,7 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
       }
 
       // Transform the data to match AdminBooking interface
-      const transformedBookings: AdminBooking[] = (data || []).map(
+      let transformedBookings: AdminBooking[] = (data || []).map(
         (booking: any) => ({
           id: booking.id,
           booking_number: booking.booking_number,
@@ -222,6 +222,57 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
           payment_method: booking.payment_method,
         })
       );
+
+      // Enrich bookings with segment data for accurate pickup/dropoff display
+      if (transformedBookings.length > 0) {
+        const bookingIds = transformedBookings.map(b => b.id);
+        try {
+          const { data: segmentsData, error: segmentsError } = await supabase
+            .from('booking_segments')
+            .select(
+              `
+              booking_id,
+              boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
+                id,
+                stop_sequence,
+                islands(name, zone)
+              ),
+              destination_stop:route_stops!booking_segments_destination_stop_id_fkey(
+                id,
+                stop_sequence,
+                islands(name, zone)
+              )
+            `
+            )
+            .in('booking_id', bookingIds);
+
+          if (!segmentsError && segmentsData) {
+            // Create a map of booking_id to segment data
+            const segmentsMap = new Map<string, any>();
+            segmentsData.forEach((segment: any) => {
+              if (!segmentsMap.has(segment.booking_id)) {
+                segmentsMap.set(segment.booking_id, []);
+              }
+              segmentsMap.get(segment.booking_id)!.push(segment);
+            });
+
+            // Enrich bookings with segment data
+            transformedBookings = transformedBookings.map(booking => {
+              const segments = segmentsMap.get(booking.id);
+              if (segments && segments.length > 0) {
+                return {
+                  ...booking,
+                  booking_segments: segments,
+                } as AdminBooking & { booking_segments?: any[] };
+              }
+              return booking;
+            });
+          }
+        } catch (segmentsErr) {
+          // If segment fetch fails, continue without segment data
+          console.warn('Failed to fetch booking segments:', segmentsErr);
+        }
+      }
 
       const totalItems = count || 0;
       const hasMore = from + transformedBookings.length < totalItems;

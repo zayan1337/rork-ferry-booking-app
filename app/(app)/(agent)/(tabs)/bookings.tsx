@@ -127,13 +127,22 @@ export default function AgentBookingsScreen() {
       return activeTab === 'all' || booking.status === activeTab;
     });
 
+    // Only count revenue from confirmed, checked_in, or completed bookings (exclude cancelled)
+    const validRevenueBookings = filteredBookings.filter(
+      booking =>
+        booking.status === 'confirmed' ||
+        booking.status === 'checked_in' ||
+        booking.status === 'completed'
+    );
+
     return {
       total: filteredBookings.length,
-      revenue: filteredBookings.reduce(
-        (sum, booking) => sum + booking.discountedAmount,
+      revenue: validRevenueBookings.reduce(
+        (sum, booking) =>
+          sum + (booking.discountedAmount || booking.totalAmount || 0),
         0
       ),
-      commission: filteredBookings.reduce(
+      commission: validRevenueBookings.reduce(
         (sum, booking) => sum + (booking.commission || 0),
         0
       ),

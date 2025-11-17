@@ -6,6 +6,8 @@ import Colors from '@/constants/colors';
 
 interface Payment {
   status?: string;
+  method?: string;
+  payment_method?: string;
 }
 
 interface PaymentDetailsCardProps {
@@ -23,21 +25,57 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
   payment,
   commission,
 }) => {
-  const hasDiscount = discountedAmount && discountedAmount !== totalAmount;
+  // Based on agentBookingsStore.ts:
+  // - totalAmount = originalFare (calculated from trip base_fare × multiplier × passengers)
+  // - discountedAmount = discountedFare (booking.total_fare from database - what was actually paid)
+  // The final amount is what was actually paid (discountedAmount if available, otherwise totalAmount)
   const finalAmount = discountedAmount || totalAmount;
 
+  // totalAmount is always the original fare (before discount)
+  const originalAmount = totalAmount;
+
+  // Only show discount if discountedAmount exists, is less than originalAmount (actual discount), and is different
+  const hasDiscount =
+    discountedAmount &&
+    discountedAmount < originalAmount &&
+    discountedAmount !== originalAmount &&
+    originalAmount > 0;
+
+  const discountAmount = hasDiscount ? originalAmount - discountedAmount : 0;
+  const discountPercentage =
+    hasDiscount && originalAmount > 0
+      ? (discountAmount / originalAmount) * 100
+      : 0;
+
   const getPaymentMethodDisplay = (method?: string) => {
-    switch (method) {
+    if (!method) return 'Not Specified';
+
+    switch (method.toLowerCase()) {
       case 'credit':
         return 'Agent Credit';
+      case 'mib':
+        return 'MIB';
       case 'free':
         return 'Free Ticket';
       case 'gateway':
         return 'Payment Gateway';
+      case 'cash':
+        return 'Cash';
+      case 'bank_transfer':
+        return 'Bank Transfer';
       default:
-        return 'Payment Gateway';
+        // Return formatted version of the method name
+        return method
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
     }
   };
+
+  // Determine the actual payment method used
+  // Priority: 1) payment.method or payment.payment_method (actual payment record), 2) paymentMethod prop (booking's intended method)
+  const actualPaymentMethod =
+    payment?.method || payment?.payment_method || paymentMethod;
 
   const getPaymentStatusStyle = (status?: string) => {
     switch (status) {
@@ -59,27 +97,38 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
 
       <View style={styles.paymentRow}>
         <Text style={styles.paymentLabel}>Original Amount</Text>
-        <Text style={styles.paymentValue}>{formatCurrency(totalAmount)}</Text>
+        <Text style={styles.paymentValue}>
+          {formatCurrency(originalAmount)}
+        </Text>
       </View>
 
-      {hasDiscount && (
+      {/* Always show discount/adjustment details if discountedAmount exists and is different from totalAmount */}
+      {discountedAmount && discountedAmount !== totalAmount && (
         <>
-          <View style={styles.paymentRow}>
-            <Text style={styles.paymentLabel}>Agent Discount</Text>
-            <Text style={[styles.paymentValue, { color: Colors.warning }]}>
-              {(
-                ((totalAmount - discountedAmount!) / totalAmount) *
-                100
-              ).toFixed(1)}
-              %
-            </Text>
-          </View>
-          <View style={styles.paymentRow}>
-            <Text style={styles.paymentLabel}>Discount Amount</Text>
-            <Text style={[styles.paymentValue, { color: Colors.warning }]}>
-              -{formatCurrency(totalAmount - discountedAmount!)}
-            </Text>
-          </View>
+          {hasDiscount && discountPercentage > 0 ? (
+            <>
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Agent Discount</Text>
+                <Text style={[styles.paymentValue, { color: Colors.success }]}>
+                  {discountPercentage.toFixed(1)}%
+                </Text>
+              </View>
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Discount Amount</Text>
+                <Text style={[styles.paymentValue, { color: Colors.success }]}>
+                  -{formatCurrency(discountAmount)}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Price Adjustment</Text>
+              <Text style={[styles.paymentValue, { color: Colors.warning }]}>
+                {discountedAmount > originalAmount ? '+' : ''}
+                {formatCurrency(discountedAmount - originalAmount)}
+              </Text>
+            </View>
+          )}
           <View style={styles.paymentRow}>
             <Text style={styles.paymentLabel}>Final Amount</Text>
             <Text
@@ -88,7 +137,7 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
                 { color: Colors.primary, fontWeight: '700' },
               ]}
             >
-              {formatCurrency(discountedAmount!)}
+              {formatCurrency(discountedAmount)}
             </Text>
           </View>
         </>
@@ -97,7 +146,7 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
       <View style={styles.paymentRow}>
         <Text style={styles.paymentLabel}>Payment Method</Text>
         <Text style={styles.paymentValue}>
-          {getPaymentMethodDisplay(paymentMethod)}
+          {getPaymentMethodDisplay(actualPaymentMethod)}
         </Text>
       </View>
 

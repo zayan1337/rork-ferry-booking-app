@@ -596,6 +596,7 @@ export default function AdminModifyBookingScreen() {
           <CurrentTicketDetailsCard
             bookingNumber={booking.booking_number || ''}
             clientName={booking.user_name || 'Customer Name'}
+            clientEmail={booking.user_email || ''}
             origin={
               booking.from_island_name ||
               boardingStopName ||
@@ -611,6 +612,7 @@ export default function AdminModifyBookingScreen() {
               'Unknown'
             }
             currentDate={booking.trip_travel_date || booking.created_at}
+            currentTime={booking.trip_departure_time || ''}
             currentSeats={currentSeats}
             totalAmount={booking.total_fare || 0}
             ticketLabel='Booking'

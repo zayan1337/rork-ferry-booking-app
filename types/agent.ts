@@ -64,6 +64,24 @@ export interface AgentCurrentBooking {
   departureDate: string | null;
   returnDate: string | null;
 
+  // Island selection (NEW - for island-based booking flow)
+  boardingIslandId: string | null;
+  boardingIslandName: string | null;
+  destinationIslandId: string | null;
+  destinationIslandName: string | null;
+  returnBoardingIslandId: string | null;
+  returnBoardingIslandName: string | null;
+  returnDestinationIslandId: string | null;
+  returnDestinationIslandName: string | null;
+
+  // Stop selection (NEW - for multi-stop routes)
+  boardingStop: any | null;
+  destinationStop: any | null;
+  returnBoardingStop: any | null;
+  returnDestinationStop: any | null;
+  segmentFare: number | null;
+  returnSegmentFare: number | null;
+
   // Client details
   client: AgentClient | null;
 
@@ -89,6 +107,7 @@ export interface AgentBookingState {
   // Available data
   availableSeats: any[];
   availableReturnSeats: any[];
+  seatSubscriptions?: Map<string, any>;
 
   // Client search functionality
   clientSearchResults: AgentClient[];
@@ -175,7 +194,13 @@ export interface Booking {
   }[];
   totalAmount: number;
   discountedAmount: number;
-  status: 'confirmed' | 'completed' | 'cancelled' | 'pending' | 'modified';
+  status:
+    | 'confirmed'
+    | 'completed'
+    | 'cancelled'
+    | 'pending'
+    | 'modified'
+    | 'checked_in';
   bookingDate: string;
   updatedAt?: string;
   paymentMethod: 'credit' | 'gateway' | 'free' | 'mib';
@@ -192,6 +217,10 @@ export interface Booking {
   qrCodeUrl?: string | null;
   checkInStatus?: string | null;
   tripType?: 'one_way' | 'round_trip';
+  pickupName?: string;
+  dropoffName?: string;
+  returnPickupName?: string;
+  returnDropoffName?: string;
 }
 
 export interface Client {

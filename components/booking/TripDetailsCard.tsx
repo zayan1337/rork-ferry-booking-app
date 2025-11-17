@@ -28,6 +28,10 @@ interface TripDetailsCardProps {
   getStatusColor?: (status: string) => string;
   getStatusBadgeStyle?: (status: string) => object;
   getStatusTextStyle?: (status: string) => object;
+  pickupName?: string;
+  dropoffName?: string;
+  returnPickupName?: string;
+  returnDropoffName?: string;
 }
 
 const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
@@ -44,6 +48,10 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
   getStatusColor,
   getStatusBadgeStyle,
   getStatusTextStyle,
+  pickupName,
+  dropoffName,
+  returnPickupName,
+  returnDropoffName,
 }) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -110,6 +118,13 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
   const statusBadgeFn = getStatusBadgeStyle || getDefaultStatusBadgeStyle;
   const statusTextFn = getStatusTextStyle || getDefaultStatusTextStyle;
 
+  const fromDisplay =
+    pickupName || route?.fromIsland?.name || origin || 'Unknown';
+  const toDisplay =
+    dropoffName || route?.toIsland?.name || destination || 'Unknown';
+  const returnFromDisplay = returnPickupName || null;
+  const returnToDisplay = returnDropoffName || null;
+
   return (
     <Card variant='elevated' style={styles.detailsCard}>
       <Text style={styles.cardTitle}>Trip Details</Text>
@@ -148,6 +163,20 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
         </View>
       )}
 
+      {tripType === 'round_trip' && returnFromDisplay && returnToDisplay && (
+        <View style={styles.detailRow}>
+          <View style={styles.detailIcon}>
+            <MapPin size={20} color={Colors.primary} />
+          </View>
+          <View style={styles.detailContent}>
+            <Text style={styles.detailLabel}>Return Route</Text>
+            <Text style={styles.detailValue}>
+              {returnFromDisplay} → {returnToDisplay}
+            </Text>
+          </View>
+        </View>
+      )}
+
       <View style={styles.detailRow}>
         <View style={styles.detailIcon}>
           <MapPin size={20} color={Colors.primary} />
@@ -155,8 +184,7 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
         <View style={styles.detailContent}>
           <Text style={styles.detailLabel}>Route</Text>
           <Text style={styles.detailValue}>
-            {route?.fromIsland?.name || origin || 'Unknown'} →{' '}
-            {route?.toIsland?.name || destination || 'Unknown'}
+            {fromDisplay} → {toDisplay}
           </Text>
         </View>
       </View>

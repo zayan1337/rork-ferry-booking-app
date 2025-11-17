@@ -26,8 +26,27 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
   ({ transaction }) => {
     const isCredit = transaction.type === 'refill';
 
-    const formatDate = (dateString: string) => {
+    const formatDate = (dateString: string | null | undefined) => {
+      if (!dateString) return 'N/A';
+
       const date = new Date(dateString);
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        // Try using the date field as fallback
+        if (transaction.date) {
+          const fallbackDate = new Date(transaction.date);
+          if (!isNaN(fallbackDate.getTime())) {
+            return fallbackDate.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            });
+          }
+        }
+        return 'N/A';
+      }
+
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -35,8 +54,26 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
       });
     };
 
-    const formatTime = (dateString: string) => {
+    const formatTime = (dateString: string | null | undefined) => {
+      if (!dateString) return 'N/A';
+
       const date = new Date(dateString);
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        // Try using the date field as fallback
+        if (transaction.date) {
+          const fallbackDate = new Date(transaction.date);
+          if (!isNaN(fallbackDate.getTime())) {
+            return fallbackDate.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          }
+        }
+        return 'N/A';
+      }
+
       return date.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',

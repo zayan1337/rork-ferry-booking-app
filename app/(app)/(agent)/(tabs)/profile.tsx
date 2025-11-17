@@ -86,7 +86,7 @@ export default function AgentProfileScreen() {
   const [, forceUpdate] = useState({});
 
   // Use utility function for processing stats (same as dashboard)
-  const displayStats = getDashboardStats(stats, localStats);
+  const displayStats = getDashboardStats(stats, localStats, bookings);
 
   const handleSignOut = async () => {
     try {

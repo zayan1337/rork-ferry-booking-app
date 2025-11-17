@@ -8,14 +8,49 @@ import { formatCurrency } from '@/utils/admin/bookingManagementUtils';
 
 interface BookingPaymentDetailsProps {
   booking: AdminBooking;
+  actualPaymentAmount?: number | null; // For cancelled bookings, actual payment from payments table
+  cancellationData?: {
+    refund_amount: number;
+    cancellation_fee: number;
+    refund_status?: string;
+  } | null;
+  originalPaymentAmount?: number | null; // Original payment amount before refund
+  paymentRefundStatus?: string | null; // Payment status: 'refunded' or 'partially_refunded'
 }
 
 export default function BookingPaymentDetails({
   booking,
+  actualPaymentAmount,
+  cancellationData,
+  originalPaymentAmount,
+  paymentRefundStatus,
 }: BookingPaymentDetailsProps) {
-  const baseFare = booking.trip_base_fare || booking.total_fare || 0;
-  const paidAmount = booking.payment_amount || 0;
-  const outstanding = Math.max(0, baseFare - paidAmount);
+  const isCancelled = booking.status === 'cancelled';
+  const totalFare = booking.total_fare || 0;
+  const baseFare = booking.trip_base_fare || totalFare;
+  const isRefunded =
+    paymentRefundStatus === 'refunded' ||
+    paymentRefundStatus === 'partially_refunded';
+
+  // Get actual payment amount
+  // For cancelled bookings: use actualPaymentAmount if provided (from payments table)
+  // Otherwise use payment_amount from view (which only counts 'completed' payments)
+  const paidAmount =
+    actualPaymentAmount !== null && actualPaymentAmount !== undefined
+      ? actualPaymentAmount
+      : booking.payment_amount
+        ? Number(booking.payment_amount)
+        : 0;
+
+  // For refunded payments, use original payment amount
+  const originalPaid =
+    originalPaymentAmount !== null && originalPaymentAmount !== undefined
+      ? originalPaymentAmount
+      : paidAmount;
+
+  // For cancelled bookings, show refund/cancellation info instead of outstanding
+  // Outstanding doesn't make sense for cancelled bookings
+  const outstanding = isCancelled ? 0 : Math.max(0, totalFare - paidAmount);
 
   return (
     <View style={styles.container}>
@@ -26,17 +61,81 @@ export default function BookingPaymentDetails({
 
       {/* Payment Amount */}
       <View style={styles.fareSection}>
-        <View style={[styles.fareRow, styles.totalRow]}>
-          <Text style={styles.totalLabel}>Amount Paid</Text>
-          <Text style={styles.totalValue}>{formatCurrency(paidAmount)}</Text>
-        </View>
-        {outstanding > 0 && (
-          <View style={styles.fareRow}>
-            <Text style={styles.fareLabel}>Outstanding</Text>
-            <Text style={[styles.fareValue, { color: colors.warning }]}>
-              {formatCurrency(outstanding)}
-            </Text>
-          </View>
+        {isCancelled ? (
+          <>
+            {/* For cancelled bookings, show booking total and refund info */}
+            <View style={styles.fareRow}>
+              <Text style={styles.fareLabel}>Booking Total</Text>
+              <Text style={styles.fareValue}>{formatCurrency(totalFare)}</Text>
+            </View>
+            {/* Show original payment amount if payment was refunded */}
+            {isRefunded && originalPaid > 0 ? (
+              <>
+                <View style={styles.fareRow}>
+                  <Text style={styles.fareLabel}>Original Payment</Text>
+                  <Text style={styles.fareValue}>
+                    {formatCurrency(originalPaid)}
+                  </Text>
+                </View>
+                <View style={styles.fareRow}>
+                  <Text style={[styles.fareLabel, { color: colors.success }]}>
+                    Payment Status:{' '}
+                    {paymentRefundStatus === 'refunded'
+                      ? 'Fully Refunded'
+                      : 'Partially Refunded'}
+                  </Text>
+                </View>
+              </>
+            ) : paidAmount > 0 ? (
+              <View style={styles.fareRow}>
+                <Text style={styles.fareLabel}>Amount Paid</Text>
+                <Text style={styles.fareValue}>
+                  {formatCurrency(paidAmount)}
+                </Text>
+              </View>
+            ) : null}
+            {cancellationData && cancellationData.cancellation_fee > 0 && (
+              <View style={styles.fareRow}>
+                <Text style={styles.fareLabel}>Cancellation Fee</Text>
+                <Text style={[styles.fareValue, { color: colors.warning }]}>
+                  {formatCurrency(cancellationData.cancellation_fee)}
+                </Text>
+              </View>
+            )}
+            {cancellationData && cancellationData.refund_amount > 0 && (
+              <View style={[styles.fareRow, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Refund Amount</Text>
+                <Text style={[styles.totalValue, { color: colors.success }]}>
+                  {formatCurrency(cancellationData.refund_amount)}
+                </Text>
+              </View>
+            )}
+            {paidAmount === 0 && originalPaid === 0 && !cancellationData && (
+              <View style={styles.fareRow}>
+                <Text style={[styles.fareLabel, { fontStyle: 'italic' }]}>
+                  No payment was made for this booking
+                </Text>
+              </View>
+            )}
+          </>
+        ) : (
+          <>
+            {/* For active bookings, show amount paid and outstanding */}
+            <View style={[styles.fareRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>Amount Paid</Text>
+              <Text style={styles.totalValue}>
+                {formatCurrency(paidAmount)}
+              </Text>
+            </View>
+            {outstanding > 0 && (
+              <View style={styles.fareRow}>
+                <Text style={styles.fareLabel}>Outstanding</Text>
+                <Text style={[styles.fareValue, { color: colors.warning }]}>
+                  {formatCurrency(outstanding)}
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </View>
 
@@ -65,13 +164,17 @@ export default function BookingPaymentDetails({
             <View style={styles.statusContainer}>
               <StatusBadge
                 status={
-                  booking.payment_status
-                    ? (booking.payment_status as any)
-                    : booking.status === 'confirmed'
-                      ? 'paid'
-                      : booking.status === 'pending_payment'
-                        ? 'pending_payment'
-                        : 'pending'
+                  // For refunded payments, show refunded status
+                  paymentRefundStatus === 'refunded' ||
+                  paymentRefundStatus === 'partially_refunded'
+                    ? (paymentRefundStatus as any)
+                    : booking.payment_status
+                      ? (booking.payment_status as any)
+                      : booking.status === 'confirmed'
+                        ? 'paid'
+                        : booking.status === 'pending_payment'
+                          ? 'pending_payment'
+                          : 'pending'
                 }
                 variant='payment'
               />

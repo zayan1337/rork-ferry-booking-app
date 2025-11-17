@@ -117,6 +117,41 @@ const QuickActionCard = ({
   </Pressable>
 );
 
+// Credit Status Badge Component (reusable)
+const CreditStatusBadge = ({
+  type,
+  label,
+}: {
+  type: 'critical' | 'low';
+  label: string;
+}) => {
+  const color = type === 'critical' ? Colors.error : Colors.warning;
+  return (
+    <View style={[styles.creditBadge, { backgroundColor: `${color}20` }]}>
+      <AlertCircle size={14} color={color} />
+      <Text style={[styles.creditBadgeText, { color }]}>{label}</Text>
+    </View>
+  );
+};
+
+// Credit Metric Item Component (reusable)
+const CreditMetricItem = ({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) => (
+  <View style={styles.creditMetric}>
+    <Text style={styles.creditLabel}>{label}</Text>
+    <Text style={[styles.creditValue, valueColor && { color: valueColor }]}>
+      {value}
+    </Text>
+  </View>
+);
+
 // Enhanced Credit Overview Component
 const CreditOverviewCard = ({
   agent,
@@ -128,71 +163,47 @@ const CreditOverviewCard = ({
   if (!agent) return null;
 
   const creditHealth = calculateCreditHealth(agent, bookings);
+  const formatUtilizationValue = (value: number) => {
+    if (value <= 0) return '0.00%';
+    if (value < 1) return `${value.toFixed(2)}%`;
+    return `${value.toFixed(1)}%`;
+  };
+  const utilizationPercentage = Math.min(
+    100,
+    Math.max(0, creditHealth.utilizationPercentage)
+  );
+  const getCreditColor = () => {
+    if (creditHealth.isCriticalCredit) return Colors.error;
+    if (creditHealth.isLowCredit) return Colors.warning;
+    return Colors.success;
+  };
 
   return (
     <Card style={styles.creditOverviewCard}>
       <View style={styles.creditHeader}>
         <Text style={styles.creditTitle}>Credit Overview</Text>
         {creditHealth.isCriticalCredit && (
-          <View
-            style={[
-              styles.creditBadge,
-              { backgroundColor: `${Colors.error}20` },
-            ]}
-          >
-            <AlertCircle size={14} color={Colors.error} />
-            <Text style={[styles.creditBadgeText, { color: Colors.error }]}>
-              Critical
-            </Text>
-          </View>
+          <CreditStatusBadge type='critical' label='Critical' />
         )}
         {creditHealth.isLowCredit && !creditHealth.isCriticalCredit && (
-          <View
-            style={[
-              styles.creditBadge,
-              { backgroundColor: `${Colors.warning}20` },
-            ]}
-          >
-            <AlertCircle size={14} color={Colors.warning} />
-            <Text style={[styles.creditBadgeText, { color: Colors.warning }]}>
-              Low Credit
-            </Text>
-          </View>
+          <CreditStatusBadge type='low' label='Low Credit' />
         )}
       </View>
 
       <View style={styles.creditMetrics}>
-        <View style={styles.creditMetric}>
-          <Text style={styles.creditLabel}>Available Credit</Text>
-          <Text
-            style={[
-              styles.creditValue,
-              {
-                color: creditHealth.isCriticalCredit
-                  ? Colors.error
-                  : creditHealth.isLowCredit
-                    ? Colors.warning
-                    : Colors.success,
-              },
-            ]}
-          >
-            {formatCurrency(agent.creditBalance)}
-          </Text>
-        </View>
-
-        <View style={styles.creditMetric}>
-          <Text style={styles.creditLabel}>Credit Ceiling</Text>
-          <Text style={styles.creditValue}>
-            {formatCurrency(agent.creditCeiling)}
-          </Text>
-        </View>
-
-        <View style={styles.creditMetric}>
-          <Text style={styles.creditLabel}>Utilization</Text>
-          <Text style={styles.creditValue}>
-            {creditHealth.utilizationPercentage.toFixed(1)}%
-          </Text>
-        </View>
+        <CreditMetricItem
+          label='Available Credit'
+          value={formatCurrency(agent.creditBalance)}
+          valueColor={getCreditColor()}
+        />
+        <CreditMetricItem
+          label='Credit Ceiling'
+          value={formatCurrency(agent.creditCeiling)}
+        />
+        <CreditMetricItem
+          label='Utilization'
+          value={formatUtilizationValue(utilizationPercentage)}
+        />
       </View>
 
       {/* Credit Usage Bar */}
@@ -201,12 +212,8 @@ const CreditOverviewCard = ({
           style={[
             styles.creditBarFill,
             {
-              width: `${creditHealth.utilizationPercentage}%`,
-              backgroundColor: creditHealth.isCriticalCredit
-                ? Colors.error
-                : creditHealth.isLowCredit
-                  ? Colors.warning
-                  : Colors.success,
+              width: `${utilizationPercentage}%`,
+              backgroundColor: getCreditColor(),
             },
           ]}
         />
@@ -220,19 +227,48 @@ const CreditOverviewCard = ({
           </Text>
         </View>
       )}
-
-      {agent.freeTicketsAllocation > 0 && (
-        <View style={styles.freeTicketsInfo}>
-          <TicketIcon size={16} color={Colors.secondary} />
-          <Text style={styles.freeTicketsText}>
-            {agent.freeTicketsRemaining}/{agent.freeTicketsAllocation} free
-            tickets remaining
-          </Text>
-        </View>
-      )}
     </Card>
   );
 };
+
+// Performance Metric Item Component (reusable)
+const PerformanceMetricItem = ({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) => (
+  <View style={styles.performanceMetric}>
+    <Text style={styles.performanceLabel}>{label}</Text>
+    <Text
+      style={[styles.performanceValue, valueColor && { color: valueColor }]}
+    >
+      {value}
+    </Text>
+  </View>
+);
+
+// Trend Item Component (reusable)
+const TrendItem = ({
+  label,
+  value,
+  change,
+}: {
+  label: string;
+  value: number;
+  change: number;
+}) => (
+  <View style={styles.trendItem}>
+    <Text style={styles.trendLabel}>{label}</Text>
+    <View style={styles.trendValueContainer}>
+      <Text style={styles.trendValue}>{value} bookings</Text>
+      {change !== 0 && <TrendIndicator value={change} />}
+    </View>
+  </View>
+);
 
 // Enhanced Performance Insights Component
 const PerformanceInsightsCard = ({
@@ -255,49 +291,34 @@ const PerformanceInsightsCard = ({
       </View>
 
       <View style={styles.performanceMetrics}>
-        <View style={styles.performanceMetric}>
-          <Text style={styles.performanceLabel}>Completion Rate</Text>
-          <Text style={[styles.performanceValue, { color: Colors.success }]}>
-            {metrics.completionRate.toFixed(1)}%
-          </Text>
-        </View>
-
-        <View style={styles.performanceMetric}>
-          <Text style={styles.performanceLabel}>Client Retention</Text>
-          <Text style={[styles.performanceValue, { color: Colors.secondary }]}>
-            {metrics.clientRetentionRate.toFixed(1)}%
-          </Text>
-        </View>
-
-        <View style={styles.performanceMetric}>
-          <Text style={styles.performanceLabel}>Avg Revenue/Booking</Text>
-          <Text style={styles.performanceValue}>
-            {formatCurrency(metrics.averageRevenuePerBooking)}
-          </Text>
-        </View>
+        <PerformanceMetricItem
+          label='Completion Rate'
+          value={`${metrics.completionRate.toFixed(1)}%`}
+          valueColor={Colors.success}
+        />
+        <PerformanceMetricItem
+          label='Client Retention'
+          value={`${metrics.clientRetentionRate.toFixed(1)}%`}
+          valueColor={Colors.secondary}
+        />
+        <PerformanceMetricItem
+          label='Avg Revenue/Booking'
+          value={formatCurrency(metrics.averageRevenuePerBooking)}
+        />
       </View>
 
       {/* Trends Section */}
       <View style={styles.trendsSection}>
-        <View style={styles.trendItem}>
-          <Text style={styles.trendLabel}>This Week</Text>
-          <View style={styles.trendValueContainer}>
-            <Text style={styles.trendValue}>{trends.thisWeek} bookings</Text>
-            {trends.weeklyChange !== 0 && (
-              <TrendIndicator value={trends.weeklyChange} />
-            )}
-          </View>
-        </View>
-
-        <View style={styles.trendItem}>
-          <Text style={styles.trendLabel}>This Month</Text>
-          <View style={styles.trendValueContainer}>
-            <Text style={styles.trendValue}>{trends.thisMonth} bookings</Text>
-            {trends.monthlyChange !== 0 && (
-              <TrendIndicator value={trends.monthlyChange} />
-            )}
-          </View>
-        </View>
+        <TrendItem
+          label='This Week'
+          value={trends.thisWeek}
+          change={trends.weeklyChange}
+        />
+        <TrendItem
+          label='This Month'
+          value={trends.thisMonth}
+          change={trends.monthlyChange}
+        />
       </View>
     </Card>
   );
@@ -328,7 +349,7 @@ const UpcomingDeparturesCard = ({
       </View>
 
       <ScrollView style={styles.upcomingList} nestedScrollEnabled>
-        {upcomingBookings.slice(0, 3).map((booking, index) => {
+        {upcomingBookings.slice(0, 3).map(booking => {
           const statusInfo = formatBookingStatus(booking.status);
           const departureDate = new Date(booking.departureDate);
           const isToday =
@@ -337,9 +358,11 @@ const UpcomingDeparturesCard = ({
             departureDate.toDateString() ===
             new Date(Date.now() + 86400000).toDateString();
 
-          let dateLabel = departureDate.toLocaleDateString();
-          if (isToday) dateLabel = 'Today';
-          else if (isTomorrow) dateLabel = 'Tomorrow';
+          const dateLabel = isToday
+            ? 'Today'
+            : isTomorrow
+              ? 'Tomorrow'
+              : departureDate.toLocaleDateString();
 
           return (
             <View key={booking.id} style={styles.upcomingItem}>
@@ -427,7 +450,8 @@ export default function AgentDashboardScreen() {
   });
 
   // Use utility functions for processing data
-  const displayStats = getDashboardStats(stats, localStats);
+  // Pass bookings to recalculate revenue/commission excluding cancelled bookings
+  const displayStats = getDashboardStats(stats, localStats, bookings);
   const recentBookings = getDashboardBookings(bookings);
   const agentFirstName = formatAgentDisplayName(agent);
 
@@ -539,7 +563,7 @@ export default function AgentDashboardScreen() {
         </Pressable>
       </View>
 
-      {/* Agent Information Card */}
+      {/* Agent Information Card - Quick Stats */}
       <View style={styles.agentInfoCard}>
         {isInitializing || !agent ? (
           <SkeletonAgentInfoSection delay={0} />
@@ -548,7 +572,7 @@ export default function AgentDashboardScreen() {
         )}
       </View>
 
-      {/* Credit Overview */}
+      {/* Credit Overview - Detailed Credit Information */}
       {!isInitializing && agent && (
         <CreditOverviewCard agent={agent} bookings={bookings || []} />
       )}
@@ -596,44 +620,54 @@ export default function AgentDashboardScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.statsContainer}
           >
-            <StatCard
-              title='Total Bookings'
-              value={displayStats.totalBookings}
-              icon={<TicketIcon size={16} color={Colors.primary} />}
-            />
-            <StatCard
-              title='Active Bookings'
-              value={displayStats.activeBookings}
-              icon={<Calendar size={16} color={Colors.primary} />}
-            />
-            <StatCard
-              title='Completed'
-              value={displayStats.completedBookings}
-              icon={<CheckCircle size={16} color={Colors.success} />}
-              color={Colors.success}
-            />
-            <StatCard
-              title='Cancelled'
-              value={displayStats.cancelledBookings}
-              icon={<XCircle size={16} color={Colors.error} />}
-              color={Colors.error}
-            />
-            <StatCard
-              title='Total Revenue'
-              value={formatCurrency(displayStats.totalRevenue)}
-              icon={<DollarSign size={16} color={Colors.primary} />}
-            />
-            <StatCard
-              title='Commission'
-              value={formatCurrency(displayStats.totalCommission)}
-              icon={<CreditCard size={16} color={Colors.secondary} />}
-              color={Colors.secondary}
-            />
-            <StatCard
-              title='Unique Clients'
-              value={displayStats.uniqueClients}
-              icon={<Users size={16} color={Colors.primary} />}
-            />
+            {[
+              {
+                title: 'Total Bookings',
+                value: displayStats.totalBookings,
+                icon: <TicketIcon size={16} color={Colors.primary} />,
+              },
+              {
+                title: 'Active Bookings',
+                value: displayStats.activeBookings,
+                icon: <Calendar size={16} color={Colors.primary} />,
+              },
+              {
+                title: 'Completed',
+                value: displayStats.completedBookings,
+                icon: <CheckCircle size={16} color={Colors.success} />,
+                color: Colors.success,
+              },
+              {
+                title: 'Cancelled',
+                value: displayStats.cancelledBookings,
+                icon: <XCircle size={16} color={Colors.error} />,
+                color: Colors.error,
+              },
+              {
+                title: 'Total Revenue',
+                value: formatCurrency(displayStats.totalRevenue),
+                icon: <DollarSign size={16} color={Colors.primary} />,
+              },
+              {
+                title: 'Commission',
+                value: formatCurrency(displayStats.totalCommission),
+                icon: <CreditCard size={16} color={Colors.secondary} />,
+                color: Colors.secondary,
+              },
+              {
+                title: 'Unique Clients',
+                value: displayStats.uniqueClients,
+                icon: <Users size={16} color={Colors.primary} />,
+              },
+            ].map((stat, index) => (
+              <StatCard
+                key={index}
+                title={stat.title}
+                value={stat.value}
+                icon={stat.icon}
+                color={stat.color}
+              />
+            ))}
           </ScrollView>
 
           {/* Performance Insights */}
@@ -716,6 +750,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingBottom: 32,
   },
   loadingContainer: {
     flex: 1,
@@ -733,7 +768,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 24,
     paddingTop: 8,
   },
   greeting: {
@@ -784,20 +819,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   agentInfoCard: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: Colors.text,
     marginBottom: 16,
-    marginTop: 8,
+    marginTop: 24,
   },
   quickActionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 32,
+    gap: 12,
   },
   quickActionCard: {
     width: responsiveConfig.isTablet
@@ -819,7 +855,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   creditOverviewCard: {
-    marginBottom: 24,
+    marginBottom: 32,
     padding: 16,
   },
   creditHeader: {
@@ -886,22 +922,9 @@ const styles = StyleSheet.create({
     color: Colors.warning,
     textAlign: 'center',
   },
-  freeTicketsInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  freeTicketsText: {
-    fontSize: 14,
-    color: Colors.secondary,
-    fontWeight: '500',
-    marginLeft: 8,
-  },
   performanceCard: {
-    marginTop: 16,
+    marginTop: 24,
+    marginBottom: 32,
     padding: 16,
   },
   performanceHeader: {
@@ -974,7 +997,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   upcomingCard: {
-    marginBottom: 24,
+    marginBottom: 32,
     padding: 16,
   },
   upcomingHeader: {
@@ -1069,8 +1092,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 24,
+    marginBottom: 16,
   },
   recentBookingsTitle: {
     flexDirection: 'row',

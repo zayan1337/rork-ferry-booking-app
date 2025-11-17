@@ -7,18 +7,21 @@ import type {
   AgentCurrentBooking,
   AgentBookingState,
 } from '@/types/agent';
-import {
-  calculateBookingFare,
-  calculateDiscountedFare,
-} from '@/utils/bookingUtils';
+import { calculateDiscountedFare } from '@/utils/bookingUtils';
+import { calculateSegmentFareWithSeats } from '@/utils/segmentBookingUtils';
 import { parseBookingQrCode } from '@/utils/qrCodeUtils';
 import {
   confirmSeatReservations,
   cleanupUserTempReservations,
   tempReserveSeat,
   releaseTempSeatReservation,
+  getTripSeatStatus,
+  convertToSeatType,
+  subscribeToSeatUpdates,
+  unsubscribeFromSeatUpdates,
 } from '@/utils/realtimeSeatReservation';
 import { useAgentStore } from './agentStore';
+import { createBookingSegment } from '@/utils/segmentBookingUtils';
 
 /**
  * Email validation regex pattern
@@ -131,6 +134,32 @@ interface AgentBookingFormActions {
   setTrip: (trip: Trip | null) => void;
   setReturnTrip: (trip: Trip | null) => void;
 
+  // Island selection (NEW)
+  setBoardingIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => void;
+  setDestinationIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => void;
+  setReturnBoardingIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => void;
+  setReturnDestinationIsland: (
+    islandId: string | null,
+    islandName: string | null
+  ) => void;
+
+  // Stop selection (NEW - for multi-stop routes)
+  setBoardingStop: (stop: any | null) => void;
+  setDestinationStop: (stop: any | null) => void;
+  setReturnBoardingStop: (stop: any | null) => void;
+  setReturnDestinationStop: (stop: any | null) => void;
+  setSegmentFare: (fare: number | null) => void;
+  setReturnSegmentFare: (fare: number | null) => void;
+
   // Client management
   setClient: (client: AgentClient | null) => void;
   createNewClient: (clientData: Omit<AgentClient, 'id' | 'hasAccount'>) => void;
@@ -140,6 +169,17 @@ interface AgentBookingFormActions {
 
   // Seat management
   fetchAvailableSeats: (tripId: string, isReturn?: boolean) => Promise<void>;
+  refreshAvailableSeatsSilently: (
+    tripId: string,
+    isReturn?: boolean
+  ) => Promise<void>;
+  fetchRealtimeSeatStatus: (
+    tripId: string,
+    isReturn?: boolean
+  ) => Promise<boolean>;
+  subscribeSeatUpdates: (tripId: string, isReturn?: boolean) => void;
+  unsubscribeSeatUpdates: (tripId: string, isReturn?: boolean) => void;
+  cleanupSeatSubscriptions: () => void;
   toggleSeatSelection: (seat: Seat, isReturn?: boolean) => Promise<void>;
   ensureSeatReservations: (tripId: string) => Promise<void>;
 
@@ -195,6 +235,22 @@ const initialBooking: AgentCurrentBooking = {
   returnTrip: null,
   departureDate: null,
   returnDate: null,
+  // Island selection (NEW)
+  boardingIslandId: null,
+  boardingIslandName: null,
+  destinationIslandId: null,
+  destinationIslandName: null,
+  returnBoardingIslandId: null,
+  returnBoardingIslandName: null,
+  returnDestinationIslandId: null,
+  returnDestinationIslandName: null,
+  // Stop selection (NEW)
+  boardingStop: null,
+  destinationStop: null,
+  returnBoardingStop: null,
+  returnDestinationStop: null,
+  segmentFare: null,
+  returnSegmentFare: null,
   client: null,
   passengers: [],
   selectedSeats: [],
@@ -310,6 +366,132 @@ export const useAgentBookingFormStore = create<
         returnSelectedSeats: [], // Reset return selected seats
       },
     }));
+  },
+
+  /**
+   * Island selection methods (NEW)
+   */
+  setBoardingIsland: (islandId, islandName) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        boardingIslandId: islandId,
+        boardingIslandName: islandName,
+        destinationIslandId: null, // Reset destination when boarding changes
+        destinationIslandName: null,
+        trip: null, // Reset trip
+        route: null, // Reset route
+        selectedSeats: [], // Reset selected seats
+      },
+    }));
+  },
+
+  setDestinationIsland: (islandId, islandName) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        destinationIslandId: islandId,
+        destinationIslandName: islandName,
+        trip: null, // Reset trip when destination changes
+        route: null, // Reset route
+        selectedSeats: [], // Reset selected seats
+      },
+    }));
+  },
+
+  setReturnBoardingIsland: (islandId, islandName) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        returnBoardingIslandId: islandId,
+        returnBoardingIslandName: islandName,
+        returnDestinationIslandId: null, // Reset return destination when return boarding changes
+        returnDestinationIslandName: null,
+        returnTrip: null, // Reset return trip
+        returnRoute: null, // Reset return route
+        returnSelectedSeats: [], // Reset return selected seats
+      },
+    }));
+  },
+
+  setReturnDestinationIsland: (islandId, islandName) => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        returnDestinationIslandId: islandId,
+        returnDestinationIslandName: islandName,
+        returnTrip: null, // Reset return trip when return destination changes
+        returnRoute: null, // Reset return route
+        returnSelectedSeats: [], // Reset return selected seats
+      },
+    }));
+  },
+
+  /**
+   * Stop selection methods (NEW - for multi-stop routes)
+   */
+  setBoardingStop: stop => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        boardingStop: stop,
+        segmentFare: null, // Reset segment fare when stop changes
+      },
+    }));
+    get().calculateFares();
+  },
+
+  setDestinationStop: stop => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        destinationStop: stop,
+        segmentFare: null, // Reset segment fare when stop changes
+      },
+    }));
+    get().calculateFares();
+  },
+
+  setReturnBoardingStop: stop => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        returnBoardingStop: stop,
+        returnSegmentFare: null, // Reset return segment fare when stop changes
+      },
+    }));
+    get().calculateFares();
+  },
+
+  setReturnDestinationStop: stop => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        returnDestinationStop: stop,
+        returnSegmentFare: null, // Reset return segment fare when stop changes
+      },
+    }));
+    get().calculateFares();
+  },
+
+  setSegmentFare: fare => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        segmentFare: fare,
+      },
+    }));
+    get().calculateFares();
+  },
+
+  setReturnSegmentFare: fare => {
+    set(state => ({
+      currentBooking: {
+        ...state.currentBooking,
+        returnSegmentFare: fare,
+      },
+    }));
+    get().calculateFares();
   },
 
   setTrip: trip => {
@@ -482,7 +664,22 @@ export const useAgentBookingFormStore = create<
   fetchAvailableSeats: async (tripId: string, isReturn = false) => {
     try {
       set({ isLoading: true, error: null });
+      const realtimeSuccess = await get().fetchRealtimeSeatStatus(
+        tripId,
+        isReturn
+      );
+      if (realtimeSuccess) {
+        set({ isLoading: false });
+        return;
+      }
+    } catch (realtimeError) {
+      console.warn(
+        'Realtime seat fetch failed, falling back to database:',
+        realtimeError
+      );
+    }
 
+    try {
       // Get trip details to find vessel
       const { data: tripData, error: tripError } = await supabase
         .from('trips')
@@ -537,6 +734,7 @@ export const useAgentBookingFormStore = create<
         console.warn(`No seats found for vessel ${tripData.vessel_id}`);
         set(state => ({
           [isReturn ? 'availableReturnSeats' : 'availableSeats']: [],
+          isLoading: false,
         }));
         return;
       }
@@ -683,6 +881,84 @@ export const useAgentBookingFormStore = create<
     } catch (error: any) {
       handleError(error, 'Failed to fetch available seats', set);
     }
+  },
+
+  refreshAvailableSeatsSilently: async (tripId: string, isReturn = false) => {
+    try {
+      const updated = await get().fetchRealtimeSeatStatus(tripId, isReturn);
+      if (!updated) {
+        console.warn(
+          'Realtime seat refresh failed silently, skipping fallback to avoid UI flicker.'
+        );
+      }
+    } catch (error) {
+      console.error('Error refreshing seats silently:', error);
+    }
+  },
+
+  fetchRealtimeSeatStatus: async (tripId: string, isReturn = false) => {
+    try {
+      const realtimeSeatStatus = await getTripSeatStatus(tripId);
+      if (!realtimeSeatStatus || realtimeSeatStatus.length === 0) {
+        return false;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const seats: Seat[] = realtimeSeatStatus.map(status =>
+        convertToSeatType(status, user?.id)
+      );
+
+      set(state => ({
+        [isReturn ? 'availableReturnSeats' : 'availableSeats']: seats,
+      }));
+
+      return true;
+    } catch (error) {
+      console.error('Error fetching realtime seat status:', error);
+      return false;
+    }
+  },
+
+  subscribeSeatUpdates: (tripId: string, isReturn = false) => {
+    if (!tripId) return;
+    const key = `${tripId}_${isReturn ? 'return' : 'departure'}`;
+    const currentSubscriptions = get().seatSubscriptions || new Map();
+    if (currentSubscriptions.has(key)) {
+      return;
+    }
+
+    const subscription = subscribeToSeatUpdates(tripId, async () => {
+      await get().fetchRealtimeSeatStatus(tripId, isReturn);
+    });
+
+    set(state => {
+      const updatedSubscriptions = new Map(state.seatSubscriptions || []);
+      updatedSubscriptions.set(key, subscription);
+      return { seatSubscriptions: updatedSubscriptions };
+    });
+  },
+
+  unsubscribeSeatUpdates: (tripId: string, isReturn = false) => {
+    if (!tripId) return;
+    const key = `${tripId}_${isReturn ? 'return' : 'departure'}`;
+    const currentSubscriptions = get().seatSubscriptions || new Map();
+    const subscription = currentSubscriptions.get(key);
+    if (subscription) {
+      unsubscribeFromSeatUpdates(subscription);
+      currentSubscriptions.delete(key);
+      set({ seatSubscriptions: new Map(currentSubscriptions) });
+    }
+  },
+
+  cleanupSeatSubscriptions: () => {
+    const currentSubscriptions = get().seatSubscriptions || new Map();
+    currentSubscriptions.forEach(subscription => {
+      unsubscribeFromSeatUpdates(subscription);
+    });
+    set({ seatSubscriptions: new Map() });
   },
 
   ensureSeatReservations: async (tripId: string) => {
@@ -850,6 +1126,7 @@ export const useAgentBookingFormStore = create<
     }));
 
     get().calculateFares();
+    await get().fetchRealtimeSeatStatus(tripId, isReturn);
   },
 
   // Passenger management
@@ -886,7 +1163,6 @@ export const useAgentBookingFormStore = create<
     const { currentBooking, agent } = get();
 
     // Only calculate fare if we have the minimum required data
-    // Changed: now we need trip (with fare multiplier), not just route
     if (!currentBooking.trip) {
       set(state => ({
         currentBooking: {
@@ -899,30 +1175,85 @@ export const useAgentBookingFormStore = create<
       return;
     }
 
-    const fareCalculation = calculateBookingFare(
-      currentBooking.trip,
-      currentBooking.returnTrip,
-      currentBooking.selectedSeats,
-      currentBooking.returnSelectedSeats,
-      currentBooking.tripType
-    );
+    // Check if we're using multi-stop segments
+    const useSegments =
+      currentBooking.boardingStop &&
+      currentBooking.destinationStop &&
+      currentBooking.segmentFare !== null;
+    const useReturnSegments =
+      currentBooking.returnBoardingStop &&
+      currentBooking.returnDestinationStop &&
+      currentBooking.returnSegmentFare !== null;
 
-    // Only log warnings if we have some data but validation fails
+    let totalFare = 0;
+
+    // Calculate departure fare
+    if (currentBooking.selectedSeats.length > 0) {
+      if (useSegments && currentBooking.segmentFare !== null) {
+        // Use segment-based fare
+        totalFare = calculateSegmentFareWithSeats(
+          currentBooking.segmentFare,
+          currentBooking.selectedSeats,
+          1.0 // Segment fare already includes trip multiplier
+        );
+      } else {
+        // Fall back to route-based fare calculation
+        // Ensure trip has route with base_fare
+        const trip = currentBooking.trip;
+        const baseFare =
+          trip.route?.base_fare ||
+          trip.route?.baseFare ||
+          currentBooking.route?.base_fare ||
+          currentBooking.route?.baseFare ||
+          0;
+        const fareMultiplier = Number(trip.fare_multiplier) || 1.0;
+        const tripFare = baseFare * fareMultiplier;
+
+        totalFare = currentBooking.selectedSeats.reduce((sum, seat) => {
+          const seatMultiplier =
+            seat.priceMultiplier || seat.price_multiplier || 1.0;
+          return sum + tripFare * seatMultiplier;
+        }, 0);
+      }
+    }
+
+    // Calculate return fare for round trips
     if (
-      !fareCalculation.isValid &&
-      (currentBooking.selectedSeats.length > 0 ||
-        currentBooking.returnSelectedSeats.length > 0)
+      currentBooking.tripType === 'round_trip' &&
+      currentBooking.returnTrip &&
+      currentBooking.returnSelectedSeats.length > 0
     ) {
-      console.warn(
-        'Fare calculation validation failed:',
-        fareCalculation.errors
-      );
+      if (useReturnSegments && currentBooking.returnSegmentFare !== null) {
+        // Use segment-based fare for return trip
+        totalFare += calculateSegmentFareWithSeats(
+          currentBooking.returnSegmentFare,
+          currentBooking.returnSelectedSeats,
+          1.0 // Segment fare already includes trip multiplier
+        );
+      } else {
+        // Fall back to route-based fare for return trip
+        const returnTrip = currentBooking.returnTrip;
+        const returnBaseFare =
+          returnTrip.route?.base_fare ||
+          returnTrip.route?.baseFare ||
+          currentBooking.returnRoute?.base_fare ||
+          currentBooking.returnRoute?.baseFare ||
+          0;
+        const returnFareMultiplier = Number(returnTrip.fare_multiplier) || 1.0;
+        const returnTripFare = returnBaseFare * returnFareMultiplier;
+
+        totalFare += currentBooking.returnSelectedSeats.reduce((sum, seat) => {
+          const seatMultiplier =
+            seat.priceMultiplier || seat.price_multiplier || 1.0;
+          return sum + returnTripFare * seatMultiplier;
+        }, 0);
+      }
     }
 
     // Apply agent discount
     const discountRate = Number(agent?.discountRate) || 0;
     const discountCalculation = calculateDiscountedFare(
-      fareCalculation.totalFare,
+      totalFare,
       discountRate
     );
 
@@ -936,7 +1267,7 @@ export const useAgentBookingFormStore = create<
     set(state => ({
       currentBooking: {
         ...state.currentBooking,
-        totalFare: fareCalculation.totalFare,
+        totalFare,
         discountedFare: discountCalculation.discountedFare,
         discountRate,
       },
@@ -1161,6 +1492,27 @@ export const useAgentBookingFormStore = create<
       if (qrUpdateError) {
         console.error('Failed to update departure QR code URL:', qrUpdateError);
         // Don't throw error - booking was created successfully, just QR code failed
+      }
+
+      // Store segment info for actual pickup/dropoff if available
+      if (
+        currentBooking.boardingStop &&
+        currentBooking.destinationStop &&
+        currentBooking.segmentFare !== null
+      ) {
+        try {
+          await createBookingSegment(
+            booking.id,
+            currentBooking.boardingStop.id,
+            currentBooking.destinationStop.id,
+            currentBooking.boardingStop.stop_sequence,
+            currentBooking.destinationStop.stop_sequence,
+            currentBooking.segmentFare
+          );
+        } catch (segmentError) {
+          console.error('Failed to create booking segment:', segmentError);
+          // Non-critical: continue booking flow
+        }
       }
 
       // Create passengers and seat reservations
@@ -1683,6 +2035,7 @@ export const useAgentBookingFormStore = create<
       currentStep: 1,
       availableSeats: [],
       availableReturnSeats: [],
+      seatSubscriptions: new Map(),
       clientSearchResults: [],
       isSearchingClients: false,
       clientSearchQuery: '',
