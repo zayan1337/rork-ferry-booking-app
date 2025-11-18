@@ -364,6 +364,12 @@ export const useFinanceData = () => {
       ) {
         promises.push(fetchWalletTransactions());
       }
+      if (
+        canViewWallets() &&
+        (!agentCreditTransactions || agentCreditTransactions.length === 0)
+      ) {
+        promises.push(fetchAgentCreditTransactions());
+      }
       promises.push(fetchStats());
 
       await Promise.all(promises);
@@ -399,6 +405,19 @@ export const useFinanceData = () => {
       return walletTransactions?.filter(t => t.wallet_id === walletId) || [];
     },
     [walletTransactions]
+  );
+
+  // Get agent credit transactions by agent ID
+  const getAgentCreditTransactionsByAgent = useCallback(
+    (agentId: string) => {
+      if (!agentId) return [];
+      return (
+        agentCreditTransactions?.filter(
+          tx => tx.agent_id === agentId || tx.user_id === agentId
+        ) || []
+      );
+    },
+    [agentCreditTransactions]
   );
 
   // Format currency
@@ -465,6 +484,7 @@ export const useFinanceData = () => {
     getPaymentById,
     getWalletById,
     getWalletTransactions,
+    getAgentCreditTransactionsByAgent,
     formatCurrency,
     formatDate,
 

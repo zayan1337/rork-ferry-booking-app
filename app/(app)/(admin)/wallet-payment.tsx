@@ -26,6 +26,9 @@ export default function WalletPaymentPage() {
   const userId = params.userId as string;
   const amount = parseFloat(params.amount as string);
   const paymentType = params.paymentType as string;
+  const accountType = (params.accountType as string) || 'wallet';
+  const isCreditAccount =
+    accountType === 'credit' || (walletId && walletId.startsWith('credit-'));
   const { showError, showSuccess, showInfo } = useAlertContext();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -40,33 +43,24 @@ export default function WalletPaymentPage() {
   const fetchWalletInfo = async () => {
     try {
       setIsLoading(true);
+      const targetUserId = userId || walletId?.replace('credit-', '') || walletId;
 
-      // Fetch wallet and user details
-      const { data: wallet, error: walletError } = await supabase
-        .from('wallets')
-        .select(
-          `
-          *,
-          user_profiles!inner(
-            id,
-            full_name,
-            email,
-            credit_balance,
-            credit_ceiling
-          )
-        `
-        )
-        .eq('id', walletId)
+      const { data: userProfile, error: userError } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email, credit_balance, credit_ceiling')
+        .eq('id', targetUserId)
         .single();
 
-      if (walletError) throw walletError;
+      if (userError) throw userError;
 
       setWalletInfo({
-        ...wallet,
-        user_name: wallet.user_profiles.full_name,
-        user_email: wallet.user_profiles.email,
-        credit_balance: wallet.user_profiles.credit_balance,
-        credit_ceiling: wallet.user_profiles.credit_ceiling,
+        id: walletId,
+        user_id: userProfile?.id,
+        user_name: userProfile?.full_name,
+        user_email: userProfile?.email,
+        credit_balance: userProfile?.credit_balance,
+        credit_ceiling: userProfile?.credit_ceiling,
+        is_credit_account: true,
       });
     } catch (error) {
       console.error('Error fetching wallet info:', error);
@@ -84,7 +78,7 @@ export default function WalletPaymentPage() {
       const { data, error } = await supabase.functions.invoke('mib-payment', {
         body: {
           action: 'create-session',
-          bookingId: walletId, // Use walletId as bookingId for tracking
+          bookingId: userId || walletId,
           amount: amount,
           currency: 'MVR',
           returnUrl: `${window.location.origin}/wallet-payment-success`,
@@ -122,16 +116,12 @@ export default function WalletPaymentPage() {
 
   const handlePaymentSuccess = async (result: any) => {
     try {
-      // Call the database function to record the payment
-      const { data, error } = await supabase.rpc(
-        'record_agent_credit_payment',
-        {
-          p_user_id: userId,
-          p_payment_amount: amount,
-          p_payment_method: 'mib_gateway',
-          p_reference: sessionData?.sessionId || result?.sessionId,
-        }
-      );
+      const { error } = await supabase.rpc('record_agent_credit_payment', {
+        p_user_id: userId,
+        p_payment_amount: amount,
+        p_payment_method: 'mib_gateway',
+        p_reference: sessionData?.sessionId || result?.sessionId,
+      });
 
       if (error) throw error;
 
@@ -214,7 +204,7 @@ export default function WalletPaymentPage() {
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <CreditCard size={28} color={colors.primary} />
-            <Text style={styles.summaryTitle}>Payment Summary</Text>
+            <Text style={styles.summaryTitle}>Credit Payment Summary</Text>
           </View>
 
           {/* Amount */}
@@ -237,9 +227,11 @@ export default function WalletPaymentPage() {
 
               <View style={styles.detailRow}>
                 <WalletIcon size={16} color={colors.textSecondary} />
-                <Text style={styles.detailLabel}>Wallet ID</Text>
+                <Text style={styles.detailLabel}>
+                  Credit Account
+                </Text>
                 <Text style={styles.detailValue} numberOfLines={1}>
-                  {walletId.substring(0, 8)}...
+                  {userId}
                 </Text>
               </View>
 

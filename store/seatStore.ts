@@ -340,8 +340,8 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
         useBookingStore = bookingModule.useBookingStore;
         bookingState = useBookingStore.getState();
         tripId = isReturn
-          ? bookingState.currentBooking.returnTrip?.id
-          : bookingState.currentBooking.trip?.id;
+        ? bookingState.currentBooking.returnTrip?.id
+        : bookingState.currentBooking.trip?.id;
       }
 
       if (!tripId) {

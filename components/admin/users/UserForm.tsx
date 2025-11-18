@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import { UserFormData } from '@/types/userManagement';
+import { UserProfile } from '@/types/userManagement';
 import { useUserForm } from '@/hooks/useUserForm';
 import {
   User as UserIcon,
@@ -19,55 +19,13 @@ import Button from '@/components/admin/Button';
 import TextInput from '@/components/admin/TextInput';
 import Dropdown from '@/components/admin/Dropdown';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
-import { DateSelector } from '@/components/DateSelector';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 
 interface UserFormProps {
   userId?: string;
-  onSave?: (userData: UserFormData) => void;
+  onSave?: (updatedUser: UserProfile) => void;
   onCancel?: () => void;
   isModal?: boolean;
-}
-
-interface FormData {
-  name: string;
-  email: string;
-  mobile_number: string;
-  role: 'admin' | 'agent' | 'customer' | 'passenger' | 'captain';
-  status: 'active' | 'inactive' | 'suspended';
-  date_of_birth?: string;
-  gender?: 'male' | 'female' | 'other';
-  profile_picture?: string;
-  address?: {
-    street: string;
-    city: string;
-    state: string;
-    country: string;
-    postal_code: string;
-    island?: string;
-    atoll?: string;
-  };
-  emergency_contact?: {
-    name: string;
-    relationship: string;
-    phone: string;
-  };
-  preferences?: {
-    language: string;
-    currency: string;
-    notifications: {
-      email: boolean;
-      sms: boolean;
-      push: boolean;
-    };
-    accessibility: {
-      assistance_required: boolean;
-      assistance_type?: string;
-    };
-  };
-  password?: string;
-  confirm_password?: string;
-  send_welcome_email?: boolean;
-  send_credentials_sms?: boolean;
 }
 
 interface ValidationErrors {
@@ -196,7 +154,11 @@ export default function UserForm({
     setValidationErrors({});
 
     try {
-      await handleSubmit();
+      const result = await handleSubmit();
+      if (result) {
+        setHasChanges(false);
+        onSave?.(result);
+      }
     } catch (error) {
       console.error('Error saving user:', error);
       let errorMessage =
@@ -263,12 +225,6 @@ export default function UserForm({
     { label: 'Active', value: 'active' },
     { label: 'Inactive', value: 'inactive' },
     { label: 'Suspended', value: 'suspended' },
-  ];
-
-  const genderOptions = [
-    { label: 'Male', value: 'male' },
-    { label: 'Female', value: 'female' },
-    { label: 'Other', value: 'other' },
   ];
 
   if (isLoading) {
@@ -365,37 +321,20 @@ export default function UserForm({
             </View>
           </View>
 
-          <View style={styles.formRow}>
-            <View style={styles.formHalf}>
-              <DateSelector
-                label='Date of Birth'
-                value={formData.date_of_birth || null}
-                onChange={date => {
-                  setFieldValue('date_of_birth', date);
-                  clearFieldError('date_of_birth');
-                }}
-                isDateOfBirth={true}
-                maxDate={new Date().toISOString().split('T')[0]}
-                error={
-                  validationErrors.date_of_birth ||
-                  getFieldError('date_of_birth')
-                }
-              />
-            </View>
-
-            <View style={styles.formHalf}>
-              <Dropdown
-                label='Gender'
-                value={formData.gender || ''}
-                onValueChange={value => {
-                  setFieldValue('gender', value);
-                  clearFieldError('gender');
-                }}
-                options={genderOptions}
-                placeholder='Select gender'
-                error={validationErrors.gender || getFieldError('gender')}
-              />
-            </View>
+          <View style={styles.formGroup}>
+            <CalendarDatePicker
+              label='Date of Birth'
+              value={formData.date_of_birth || null}
+              onChange={date => {
+                setFieldValue('date_of_birth', date);
+                clearFieldError('date_of_birth');
+              }}
+              maxDate={new Date().toISOString().split('T')[0]}
+              placeholder='Select date of birth'
+              error={
+                validationErrors.date_of_birth || getFieldError('date_of_birth')
+              }
+            />
           </View>
         </View>
 

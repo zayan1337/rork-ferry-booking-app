@@ -65,17 +65,37 @@ export const fetchWallets = async (
       throw walletsError;
     }
 
+    // Note: We continue even if wallets is empty, because we also fetch agent credit accounts
     if (!wallets || wallets.length === 0) {
-      return [];
+      console.log('ℹ️ [fetchWallets] No wallets found in database, will check for agent credit accounts');
+    } else {
+      console.log(`✅ [fetchWallets] Found ${wallets.length} wallet(s) in database`);
     }
 
-    // Fetch user profiles with credit info separately
-    const userIds = wallets.map(w => w.user_id);
+    // Also fetch agent credit accounts (agents don't have wallets, they use credit_balance)
+    const { data: agentProfiles, error: agentProfilesError } = await supabase
+      .from('user_profiles')
+      .select('id, full_name, email, role, credit_ceiling, credit_balance')
+      .eq('role', 'agent')
+      .eq('is_active', true)
+      .or('credit_balance.gt.0,credit_ceiling.gt.0');
 
+    if (agentProfilesError) {
+      console.warn('⚠️ [fetchWallets] Error fetching agent profiles:', agentProfilesError);
+    } else {
+      console.log(`✅ [fetchWallets] Found ${agentProfiles?.length || 0} agent credit account(s)`);
+    }
+
+    // Combine wallet user IDs with agent IDs for profile lookup
+    const walletUserIds = wallets.map(w => w.user_id);
+    const agentIds = agentProfiles?.map(a => a.id) || [];
+    const allUserIds = [...new Set([...walletUserIds, ...agentIds])];
+
+    // Fetch user profiles for both wallets and agents
     const { data: userProfiles, error: profilesError } = await supabase
       .from('user_profiles')
       .select('id, full_name, email, role, credit_ceiling, credit_balance')
-      .in('id', userIds);
+      .in('id', allUserIds.length > 0 ? allUserIds : ['00000000-0000-0000-0000-000000000000']); // Dummy ID if empty
 
     if (profilesError) {
       console.error(
@@ -83,10 +103,12 @@ export const fetchWallets = async (
         profilesError
       );
       // Continue without user profiles
+    } else {
+      console.log(`✅ [fetchWallets] Found ${userProfiles?.length || 0} user profile(s)`);
     }
 
-    // Combine data
-    const walletsWithUsers = wallets.map((wallet: any) => {
+    // Combine wallet data with user profiles
+    const walletsWithUsers = (wallets || []).map((wallet: any) => {
       const userProfile = userProfiles?.find(up => up.id === wallet.user_id);
       const isAgent = userProfile?.role === 'agent';
 
@@ -121,22 +143,158 @@ export const fetchWallets = async (
         credit_balance: creditBalance,
         credit_used: creditUsed,
         balance_to_pay: balanceToPay,
+        is_wallet: true, // Flag to distinguish from credit accounts
       };
     });
+
+    // Add agent credit accounts (agents without wallets but with credit)
+    const agentCreditAccounts = (agentProfiles || [])
+      .filter(agent => {
+        // Only include agents that don't already have a wallet entry
+        return !(wallets || []).some(w => w.user_id === agent.id);
+      })
+      .map((agent: any) => {
+        const creditCeiling = Number(agent.credit_ceiling || 0);
+        const creditBalance = Number(agent.credit_balance || 0);
+        const creditUsed = creditCeiling > 0 ? creditCeiling - creditBalance : 0;
+        const balanceToPay = creditUsed;
+
+        return {
+          id: `credit-${agent.id}`, // Synthetic ID for credit accounts
+          user_id: agent.id,
+          user_name: agent.full_name || 'Unknown Agent',
+          user_email: agent.email || '',
+          user_role: 'agent',
+          balance: creditBalance, // Use credit_balance as the balance
+          currency: 'MVR',
+          is_active: creditBalance > 0 || creditCeiling > 0,
+          total_credits: 0,
+          total_debits: 0,
+          created_at: new Date().toISOString(), // Use current date as fallback
+          updated_at: new Date().toISOString(),
+          // Agent-specific credit fields
+          credit_ceiling: creditCeiling,
+          credit_balance: creditBalance,
+          credit_used: creditUsed,
+          balance_to_pay: balanceToPay,
+          is_wallet: false, // Flag to distinguish from actual wallets
+          is_credit_account: true, // Flag to identify credit accounts
+        };
+      });
+
+    // Combine wallets and agent credit accounts
+    const allAccounts = [...walletsWithUsers, ...agentCreditAccounts];
 
     // Apply search filter after combining data
     if (filters?.searchQuery) {
       const searchLower = filters.searchQuery.toLowerCase();
-      return walletsWithUsers.filter(
-        wallet =>
-          wallet.user_name.toLowerCase().includes(searchLower) ||
-          wallet.user_email.toLowerCase().includes(searchLower)
+      return allAccounts.filter(
+        account =>
+          account.user_name.toLowerCase().includes(searchLower) ||
+          account.user_email.toLowerCase().includes(searchLower)
       );
     }
 
-    return walletsWithUsers;
+    console.log(`✅ [fetchWallets] Returning ${allAccounts.length} account(s) (${walletsWithUsers.length} wallets + ${agentCreditAccounts.length} agent credit accounts)`);
+    return allAccounts;
   } catch (error) {
     console.error('❌ [fetchWallets] Failed to fetch wallets:', error);
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
+  }
+};
+
+/**
+ * Create wallets for all agent users who don't have one
+ * Useful for migrating existing agents to have wallets
+ */
+export const createWalletsForAllUsers = async (): Promise<{
+  created: number;
+  skipped: number;
+  errors: number;
+}> => {
+  try {
+    // Get all agent users from user_profiles
+    const { data: users, error: usersError } = await supabase
+      .from('user_profiles')
+      .select('id, role')
+      .eq('is_active', true)
+      .eq('role', 'agent');
+
+    if (usersError) {
+      console.error('Error fetching agent users:', usersError);
+      throw usersError;
+    }
+
+    if (!users || users.length === 0) {
+      console.log('ℹ️ No active agent users found');
+      return { created: 0, skipped: 0, errors: 0 };
+    }
+
+    console.log(`📊 Found ${users.length} active agent user(s)`);
+
+    // Get all existing wallets
+    const { data: existingWallets, error: walletsError } = await supabase
+      .from('wallets')
+      .select('user_id');
+
+    if (walletsError) {
+      console.error('Error fetching existing wallets:', walletsError);
+      throw walletsError;
+    }
+
+    const existingWalletUserIds = new Set(
+      existingWallets?.map(w => w.user_id) || []
+    );
+
+    // Find agent users without wallets
+    const agentsWithoutWallets = users.filter(
+      user => !existingWalletUserIds.has(user.id)
+    );
+
+    if (agentsWithoutWallets.length === 0) {
+      console.log('✅ All agent users already have wallets');
+      return {
+        created: 0,
+        skipped: users.length,
+        errors: 0,
+      };
+    }
+
+    console.log(
+      `📝 Creating wallets for ${agentsWithoutWallets.length} agent user(s) without wallets`
+    );
+
+    // Create wallets for agent users without them
+    const walletInserts = agentsWithoutWallets.map(user => ({
+      user_id: user.id,
+      balance: 0,
+      currency: 'MVR',
+    }));
+
+    const { data: createdWallets, error: createError } = await supabase
+      .from('wallets')
+      .insert(walletInserts)
+      .select('id');
+
+    if (createError) {
+      console.error('Error creating wallets:', createError);
+      throw createError;
+    }
+
+    console.log(
+      `✅ Created ${createdWallets?.length || 0} wallet(s) for agent users without wallets`
+    );
+
+    return {
+      created: createdWallets?.length || 0,
+      skipped: existingWallets?.filter(w =>
+        users.some(u => u.id === w.user_id)
+      ).length || 0,
+      errors: 0,
+    };
+  } catch (error) {
+    console.error('Failed to create wallets for agent users:', error);
     throw error;
   }
 };

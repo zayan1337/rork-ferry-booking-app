@@ -1193,7 +1193,7 @@ export const useAgentBookingFormStore = create<
         // Use segment-based fare
         totalFare = calculateSegmentFareWithSeats(
           currentBooking.segmentFare,
-          currentBooking.selectedSeats,
+      currentBooking.selectedSeats,
           1.0 // Segment fare already includes trip multiplier
         );
       } else {

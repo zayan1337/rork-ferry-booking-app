@@ -11,7 +11,7 @@ import {
 import { colors } from '@/constants/adminColors';
 import { useAlertContext } from '@/components/AlertProvider';
 import { X, Download, FileText, Check } from 'lucide-react-native';
-import { DateSelector } from '@/components/DateSelector';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 
 export type FileType = 'excel' | 'pdf' | 'csv';
 
@@ -180,20 +180,20 @@ export default function ExportModal({
                   Date Range (Default: Last Month)
                 </Text>
                 <View style={styles.dateRangeContainer}>
-                  <DateSelector
+                  <CalendarDatePicker
                     label='From Date'
                     value={dateFrom}
                     onChange={setDateFrom}
                     maxDate={dateTo || getMaxDate()}
-                    isDateOfBirth={true}
+                    placeholder='Select start date'
                   />
-                  <DateSelector
+                  <CalendarDatePicker
                     label='To Date'
                     value={dateTo}
                     onChange={setDateTo}
                     minDate={dateFrom || undefined}
                     maxDate={getMaxDate()}
-                    isDateOfBirth={true}
+                    placeholder='Select end date'
                   />
                 </View>
 

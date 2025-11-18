@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -11,6 +11,9 @@ export default function WalletDetailPage() {
   const {
     getWalletById,
     getWalletTransactions,
+    getAgentCreditTransactionsByAgent,
+    fetchAgentCreditTransactions,
+    agentCreditTransactions,
     formatCurrency,
     formatDate,
     loading,
@@ -20,7 +23,45 @@ export default function WalletDetailPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const wallet = getWalletById(walletId);
-  const allTransactions = getWalletTransactions(walletId);
+  const isCreditAccount =
+    wallet?.is_credit_account && wallet?.is_wallet === false;
+
+  useEffect(() => {
+    if (
+      isCreditAccount &&
+      (!agentCreditTransactions || agentCreditTransactions.length === 0)
+    ) {
+      fetchAgentCreditTransactions().catch(error =>
+        console.error('Error fetching agent credit transactions:', error)
+      );
+    }
+  }, [
+    agentCreditTransactions,
+    fetchAgentCreditTransactions,
+    isCreditAccount,
+  ]);
+
+  const creditTransactions = useMemo(() => {
+    if (!wallet || !isCreditAccount) return [];
+    const transactions = getAgentCreditTransactionsByAgent(wallet.user_id);
+
+    return transactions.map(tx => ({
+      id: tx.id,
+      wallet_id: wallet.id,
+      user_id: wallet.user_id,
+      user_name: wallet.user_name,
+      amount: Math.abs(Number(tx.amount ?? 0)),
+      transaction_type: tx.transaction_type === 'refill' ? 'credit' : 'debit',
+      status: 'completed' as const,
+      description: tx.description,
+      reference_id: tx.booking_id || undefined,
+      created_at: tx.created_at || tx.transaction_date || new Date().toISOString(),
+    }));
+  }, [getAgentCreditTransactionsByAgent, isCreditAccount, wallet]);
+
+  const allTransactions = isCreditAccount
+    ? creditTransactions
+    : getWalletTransactions(walletId);
 
   const handleRefreshData = async () => {
     setIsRefreshing(true);

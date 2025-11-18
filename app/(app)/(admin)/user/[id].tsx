@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,7 +8,12 @@ import {
   Text,
   Pressable,
 } from 'react-native';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import {
+  Stack,
+  router,
+  useLocalSearchParams,
+  useFocusEffect,
+} from 'expo-router';
 import { colors } from '@/constants/adminColors';
 
 import { UserProfile } from '@/types/userManagement';
@@ -68,44 +73,7 @@ export default function UserDetailsPage() {
     to: string;
   } | null>(null);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        setPassengerTripData(null);
-        setIslandNames(null);
-
-        if (!id || typeof id !== 'string') {
-          setError('Invalid user ID');
-          return;
-        }
-
-        // Try to fetch user from the store
-        const fetchedUser = await fetchById(id);
-
-        if (fetchedUser) {
-          setUser(fetchedUser);
-
-          // If it's a passenger, fetch their trip details
-          if (fetchedUser.role === 'passenger') {
-            await loadPassengerTripData(fetchedUser.id);
-          }
-        } else {
-          setError(`User with ID "${id}" not found`);
-        }
-      } catch (err) {
-        setError('Failed to load user details');
-        console.error('Error loading user:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadUser();
-  }, [id, fetchById]);
-
-  const loadPassengerTripData = async (passengerId: string) => {
+  const loadPassengerTripData = useCallback(async (passengerId: string) => {
     try {
       // First, get the passenger's booking_id from the passengers table
       const { data: passengerData, error: passengerError } = await supabase
@@ -202,22 +170,61 @@ export default function UserDetailsPage() {
     } catch (error) {
       console.error('Error loading passenger trip data:', error);
     }
-  };
+  }, []);
+
+  const loadUser = useCallback(
+    async ({ showLoader = true }: { showLoader?: boolean } = {}) => {
+      try {
+        if (showLoader) {
+          setLoading(true);
+        }
+        setError(null);
+        setPassengerTripData(null);
+        setIslandNames(null);
+
+        if (!id || typeof id !== 'string') {
+          setError('Invalid user ID');
+          return;
+        }
+
+        // Try to fetch user from the store
+        const fetchedUser = await fetchById(id);
+
+        if (fetchedUser) {
+          setUser(fetchedUser);
+
+          // If it's a passenger, fetch their trip details
+          if (fetchedUser.role === 'passenger') {
+            await loadPassengerTripData(fetchedUser.id);
+          }
+        } else {
+          setError(`User with ID "${id}" not found`);
+        }
+      } catch (err) {
+        setError('Failed to load user details');
+        console.error('Error loading user:', err);
+      } finally {
+        if (showLoader) {
+          setLoading(false);
+        }
+      }
+    },
+    [id, fetchById, loadPassengerTripData]
+  );
+
+  const hasLoadedRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUser({ showLoader: !hasLoadedRef.current });
+      hasLoadedRef.current = true;
+    }, [loadUser])
+  );
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      if (id && typeof id === 'string') {
-        const fetchedUser = await fetchById(id);
-        if (fetchedUser) {
-          setUser(fetchedUser);
-
-          // If it's a passenger, refresh trip data too
-          if (fetchedUser.role === 'passenger') {
-            await loadPassengerTripData(fetchedUser.id);
-          }
-        }
-      }
+      await loadUser({ showLoader: false });
     } catch (err) {
       console.error('Error refreshing user:', err);
     } finally {

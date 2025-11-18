@@ -53,19 +53,40 @@ function FinanceScreen() {
 
       try {
         // Fetch all data in parallel for faster loading
-        await Promise.all([
-          canViewPayments() ? fetchPayments() : Promise.resolve(),
-          canViewWallets() ? fetchWallets() : Promise.resolve(),
-          canViewWallets() ? fetchWalletTransactions() : Promise.resolve(),
-          fetchStats(),
-        ]);
+        const promises = [];
+        
+        if (canViewPayments()) {
+          promises.push(fetchPayments().catch(err => {
+            console.error('Error fetching payments:', err);
+          }));
+        }
+        
+        if (canViewWallets()) {
+          promises.push(
+            fetchWallets().catch(err => {
+              console.error('Error fetching wallets:', err);
+            }),
+            fetchWalletTransactions().catch(err => {
+              console.error('Error fetching wallet transactions:', err);
+            })
+          );
+        }
+        
+        promises.push(
+          fetchStats().catch(err => {
+            console.error('Error fetching stats:', err);
+          })
+        );
+
+        await Promise.all(promises);
       } catch (error) {
         console.error('Error initializing finance data:', error);
       }
     };
 
     initializeData();
-  }, []); // Remove dependencies to prevent infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);

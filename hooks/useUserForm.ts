@@ -42,6 +42,37 @@ export function useUserForm(
   return useUserFormImpl(props, userId);
 }
 
+const createDefaultPreferences = () => ({
+  language: 'en',
+  currency: 'MVR',
+  notifications: {
+    email: true,
+    sms: true,
+    push: true,
+  },
+  accessibility: {
+    assistance_required: false,
+    assistance_type: '',
+  },
+});
+
+const mapUserToFormState = (userData: UserProfile): UserFormData => ({
+  name: userData.name,
+  email: userData.email,
+  mobile_number: userData.mobile_number,
+  role: userData.role,
+  status: userData.status === 'banned' ? 'suspended' : userData.status,
+  profile_picture: userData.profile_picture || '',
+  date_of_birth: userData.date_of_birth || '',
+  address: userData.address,
+  emergency_contact: userData.emergency_contact,
+  preferences: userData.preferences || createDefaultPreferences(),
+  password: '',
+  confirm_password: '',
+  send_welcome_email: false,
+  send_credentials_sms: false,
+});
+
 const useUserFormImpl = (
   { initialData, onSuccess, onError }: UseUserFormProps = {},
   userId?: string
@@ -65,22 +96,9 @@ const useUserFormImpl = (
     status: 'active',
     profile_picture: '',
     date_of_birth: '',
-    gender: undefined,
     address: undefined,
     emergency_contact: undefined,
-    preferences: {
-      language: 'en',
-      currency: 'MVR',
-      notifications: {
-        email: true,
-        sms: true,
-        push: true,
-      },
-      accessibility: {
-        assistance_required: false,
-        assistance_type: '',
-      },
-    },
+    preferences: createDefaultPreferences(),
     password: '',
     confirm_password: '',
     send_welcome_email: true,
@@ -90,6 +108,12 @@ const useUserFormImpl = (
   const [errors, setErrors] = useState<UserValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [originalIdentifiers, setOriginalIdentifiers] = useState<{
+    email: string;
+    mobile_number: string;
+  } | null>(null);
+
+  const editingUserId = initialData?.id ?? userId;
 
   // Fetch user data when userId is provided but no initialData
   useEffect(() => {
@@ -99,35 +123,10 @@ const useUserFormImpl = (
           const userData = await fetchById(userId);
           if (userData) {
             // Set the fetched user data as initialData
-            setFormData({
-              name: userData.name,
+            setFormData(mapUserToFormState(userData));
+            setOriginalIdentifiers({
               email: userData.email,
               mobile_number: userData.mobile_number,
-              role: userData.role,
-              status:
-                userData.status === 'banned' ? 'suspended' : userData.status,
-              profile_picture: userData.profile_picture || '',
-              date_of_birth: userData.date_of_birth || '',
-              gender: userData.gender,
-              address: userData.address,
-              emergency_contact: userData.emergency_contact,
-              preferences: userData.preferences || {
-                language: 'en',
-                currency: 'MVR',
-                notifications: {
-                  email: true,
-                  sms: true,
-                  push: true,
-                },
-                accessibility: {
-                  assistance_required: false,
-                  assistance_type: '',
-                },
-              },
-              password: '',
-              confirm_password: '',
-              send_welcome_email: false,
-              send_credentials_sms: false,
             });
           }
         } catch (error) {
@@ -143,35 +142,10 @@ const useUserFormImpl = (
   // Initialize form data when initialData changes
   useEffect(() => {
     if (initialData) {
-      setFormData({
-        name: initialData.name,
+      setFormData(mapUserToFormState(initialData));
+      setOriginalIdentifiers({
         email: initialData.email,
         mobile_number: initialData.mobile_number,
-        role: initialData.role,
-        status:
-          initialData.status === 'banned' ? 'suspended' : initialData.status, // Map banned to suspended for form
-        profile_picture: initialData.profile_picture || '',
-        date_of_birth: initialData.date_of_birth || '',
-        gender: initialData.gender,
-        address: initialData.address,
-        emergency_contact: initialData.emergency_contact,
-        preferences: initialData.preferences || {
-          language: 'en',
-          currency: 'MVR',
-          notifications: {
-            email: true,
-            sms: true,
-            push: true,
-          },
-          accessibility: {
-            assistance_required: false,
-            assistance_type: '',
-          },
-        },
-        password: '',
-        confirm_password: '',
-        send_welcome_email: false,
-        send_credentials_sms: false,
       });
     }
   }, [initialData]);
@@ -296,17 +270,26 @@ const useUserFormImpl = (
   const validateForm = useCallback((): boolean => {
     const validationErrors = validateUserForm(formData);
 
+    const emailChanged =
+      !originalIdentifiers ||
+      formData.email.trim().toLowerCase() !==
+        originalIdentifiers.email?.trim().toLowerCase();
+    const mobileChanged =
+      !originalIdentifiers ||
+      (formData.mobile_number || '').trim() !==
+        (originalIdentifiers.mobile_number || '').trim();
+
     // Check uniqueness (only if users array is available and has data)
-    if (safeUsers.length > 0) {
+    if (safeUsers.length > 0 && (emailChanged || mobileChanged)) {
       const uniqueCheck = validateUserUniqueness(
         formData,
         safeUsers,
-        initialData?.id
+        editingUserId
       );
-      if (uniqueCheck.emailExists) {
+      if (uniqueCheck.emailExists && emailChanged) {
         validationErrors.email = 'A user with this email already exists';
       }
-      if (uniqueCheck.mobileExists) {
+      if (uniqueCheck.mobileExists && mobileChanged) {
         validationErrors.mobile_number =
           'A user with this mobile number already exists';
       }
@@ -314,7 +297,7 @@ const useUserFormImpl = (
 
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
-  }, [formData, safeUsers, initialData]);
+  }, [formData, safeUsers, initialData, editingUserId, originalIdentifiers]);
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -325,22 +308,9 @@ const useUserFormImpl = (
       status: 'active',
       profile_picture: '',
       date_of_birth: '',
-      gender: undefined,
       address: undefined,
       emergency_contact: undefined,
-      preferences: {
-        language: 'en',
-        currency: 'MVR',
-        notifications: {
-          email: true,
-          sms: true,
-          push: true,
-        },
-        accessibility: {
-          assistance_required: false,
-          assistance_type: '',
-        },
-      },
+      preferences: createDefaultPreferences(),
       password: '',
       confirm_password: '',
       send_welcome_email: true,
@@ -366,7 +336,6 @@ const useUserFormImpl = (
         status: formData.status,
         profile_picture: formData.profile_picture,
         date_of_birth: formData.date_of_birth,
-        gender: formData.gender,
         address: formData.address,
         emergency_contact: formData.emergency_contact,
         preferences: formData.preferences,
@@ -374,13 +343,22 @@ const useUserFormImpl = (
       };
 
       let result: UserProfile;
-      if (initialData) {
-        result = await update(initialData.id, userData);
+      if (editingUserId) {
+        result = await update(editingUserId, userData);
       } else {
         result = await create(userData);
       }
 
       onSuccess?.(result);
+
+      if (editingUserId) {
+        setFormData(mapUserToFormState(result));
+        setOriginalIdentifiers({
+          email: result.email,
+          mobile_number: result.mobile_number,
+        });
+        setIsDirty(false);
+      }
 
       if (!initialData) {
         resetForm();
@@ -401,7 +379,7 @@ const useUserFormImpl = (
   }, [
     formData,
     validateForm,
-    initialData,
+    editingUserId,
     create,
     update,
     onSuccess,

@@ -28,7 +28,7 @@ import {
 } from 'lucide-react-native';
 import Button from '@/components/admin/Button';
 import Input from '@/components/Input';
-import { DateSelector } from '@/components/DateSelector';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 import { formatProfileDate } from '@/utils/customerUtils';
 
 type EditableField = 'full_name' | 'mobile_number' | 'date_of_birth';
@@ -437,12 +437,12 @@ export default function AdminProfileModal() {
 
             <View style={styles.modalBody}>
               {editingField === 'date_of_birth' ? (
-                <DateSelector
+                <CalendarDatePicker
                   label='Date of Birth'
-                  value={editValue}
+                  value={editValue || null}
                   onChange={setEditValue}
                   maxDate={new Date().toISOString().split('T')[0]}
-                  isDateOfBirth={true}
+                  placeholder='Select date of birth'
                 />
               ) : (
                 <Input

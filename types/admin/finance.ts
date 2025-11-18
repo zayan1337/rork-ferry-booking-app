@@ -11,6 +11,8 @@ export interface Wallet {
   balance: number;
   currency: string;
   is_active: boolean;
+  is_wallet?: boolean;
+  is_credit_account?: boolean;
   transactions?: WalletTransaction[];
   total_credits?: number;
   total_debits?: number;

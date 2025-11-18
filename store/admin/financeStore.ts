@@ -12,6 +12,7 @@ import {
   createPayment,
   updatePaymentStatus,
   getWalletByUserId,
+  createWalletsForAllUsers,
 } from '@/utils/admin/financeService';
 import {
   Wallet,
@@ -94,6 +95,11 @@ interface FinanceState {
   createPayment: (paymentData: PaymentFormData) => Promise<Payment>;
   updatePaymentStatus: (paymentId: string, status: string) => Promise<void>;
   getWalletByUserId: (userId: string) => Promise<Wallet | null>;
+  createWalletsForAllUsers: () => Promise<{
+    created: number;
+    skipped: number;
+    errors: number;
+  }>;
 
   // Search and filter actions
   setSearchQuery: (
@@ -201,14 +207,20 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   // Data fetching actions
   fetchWallets: async (refresh = false) => {
     const state = get();
-    if (state.loading.wallets && !refresh) return;
+    // Prevent concurrent fetches unless explicitly refreshing
+    if (state.loading.wallets && !refresh) {
+      console.log('⏸️ [financeStore] Wallet fetch already in progress, skipping...');
+      return;
+    }
 
     set({ loading: { ...state.loading, wallets: true }, error: null });
 
     try {
       const filters = state.filters.wallets;
+      console.log('🔄 [financeStore] Fetching wallets with filters:', filters);
       const wallets = await fetchWallets(filters);
 
+      console.log(`✅ [financeStore] Fetched ${wallets.length} wallet(s)`);
       set({
         wallets,
         loading: { ...state.loading, wallets: false },
@@ -216,8 +228,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         hasMore: wallets.length >= state.itemsPerPage,
       });
     } catch (error) {
-      console.error('Failed to fetch wallets:', error);
+      console.error('❌ [financeStore] Failed to fetch wallets:', error);
       set({
+        wallets: [], // Ensure wallets is set to empty array on error
         loading: { ...state.loading, wallets: false },
         error:
           error instanceof Error ? error.message : 'Failed to fetch wallets',
@@ -511,6 +524,33 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       return await getWalletByUserId(userId);
     } catch (error) {
       console.error('Failed to get wallet by user ID:', error);
+      throw error;
+    }
+  },
+
+  createWalletsForAllUsers: async () => {
+    const state = get();
+    set({ loading: { ...state.loading, creating: true }, error: null });
+
+    try {
+      const result = await createWalletsForAllUsers();
+      
+      // Refresh wallets list after creating
+      if (result.created > 0) {
+        await state.fetchWallets(true);
+      }
+
+      set({ loading: { ...state.loading, creating: false } });
+      return result;
+    } catch (error) {
+      console.error('Failed to create wallets for all users:', error);
+      set({
+        loading: { ...state.loading, creating: false },
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to create wallets for all users',
+      });
       throw error;
     }
   },

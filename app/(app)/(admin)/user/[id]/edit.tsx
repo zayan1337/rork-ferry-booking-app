@@ -3,7 +3,7 @@ import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { UserForm } from '@/components/admin/users';
-import { UserProfile, UserFormData } from '@/types/userManagement';
+import { UserProfile } from '@/types/userManagement';
 import { useUserStore } from '@/store/admin/userStore';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import RoleGuard from '@/components/RoleGuard';
@@ -13,7 +13,7 @@ import { useAlertContext } from '@/components/AlertProvider';
 
 export default function EditUserPage() {
   const { id } = useLocalSearchParams();
-  const { fetchById, update } = useUserStore();
+  const { fetchById } = useUserStore();
   const { canUpdateUsers } = useAdminPermissions();
   const { showSuccess, showError } = useAlertContext();
 
@@ -52,11 +52,9 @@ export default function EditUserPage() {
     loadUser();
   }, [id, fetchById]);
 
-  const handleSave = async (userData: UserFormData) => {
-    if (!user) return;
-
+  const handleSave = async (updatedUser: UserProfile) => {
     try {
-      await update(user.id, userData);
+      setUser(updatedUser);
       showSuccess('Success', 'User updated successfully!', () => router.back());
     } catch (error) {
       showError(

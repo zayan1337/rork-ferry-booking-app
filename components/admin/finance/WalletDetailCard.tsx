@@ -6,9 +6,9 @@ import {
   ScrollView,
   Pressable,
   FlatList,
-  Alert,
   TextInput,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -55,6 +55,21 @@ function WalletDetailCard({
   const [isUpdating, setIsUpdating] = useState(false);
 
   const isAgent = wallet.user_role === 'agent';
+  const isCreditAccount = !!wallet.credit_ceiling || !!wallet.is_credit_account;
+  const isCreditOnlyAccount =
+    wallet.is_credit_account && wallet.is_wallet === false;
+  const primaryBalanceLabel = isCreditOnlyAccount
+    ? 'Available Credit'
+    : 'Wallet Balance';
+  const primaryBalanceValue = isCreditOnlyAccount
+    ? wallet.credit_balance ?? wallet.balance
+    : wallet.balance;
+  const canShowGatewayPayment =
+    wallet.balance_to_pay !== undefined && wallet.balance_to_pay > 0;
+  const [manualPaymentAmount, setManualPaymentAmount] = useState('');
+  const [manualModalVisible, setManualModalVisible] = useState(false);
+  const [isManualPaymentProcessing, setIsManualPaymentProcessing] =
+    useState(false);
 
   // Calculate transaction statistics
   const transactionStats = useMemo(() => {
@@ -122,18 +137,31 @@ function WalletDetailCard({
   };
 
   const handlePayViaGateway = () => {
+    const amountDue = wallet.balance_to_pay || 0;
+    if (amountDue <= 0) {
+      showInfo('No Outstanding Balance', 'There is no balance due to pay.');
+      return;
+    }
+
+    const paymentAccountType =
+      wallet.is_credit_account || wallet.credit_ceiling !== undefined
+        ? 'credit'
+        : 'wallet';
+
     showConfirmation(
       'Pay via Gateway',
-      `Pay ${formatCurrency(wallet.balance_to_pay || 0)} through MIB payment gateway?`,
+      `Pay ${formatCurrency(amountDue)} through MIB payment gateway?`,
       () => {
-        // Navigate to payment gateway page with amount
         router.push({
           pathname: '/(app)/(admin)/wallet-payment' as any,
           params: {
             walletId: wallet.id,
             userId: wallet.user_id,
-            amount: wallet.balance_to_pay || 0,
-            paymentType: 'credit_repayment',
+            amount: amountDue,
+            paymentType: paymentAccountType === 'credit'
+              ? 'credit_repayment'
+              : 'wallet_repayment',
+            accountType: paymentAccountType,
           },
         });
       }
@@ -141,69 +169,61 @@ function WalletDetailCard({
   };
 
   const handleManualPayment = () => {
-    Alert.prompt(
-      'Manual Payment',
-      `Record a manual payment for ${wallet.user_name}.\n\nBalance to Pay: ${formatCurrency(wallet.balance_to_pay || 0)}\n\nEnter payment amount:`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Record Payment',
-          onPress: async (amountStr: any) => {
-            const amount = parseFloat(amountStr || '0');
+    setManualPaymentAmount('');
+    setManualModalVisible(true);
+  };
 
-            if (isNaN(amount) || amount <= 0) {
-              showError(
-                'Invalid Amount',
-                'Please enter a valid payment amount.'
-              );
-              return;
-            }
+  const handleSubmitManualPayment = async () => {
+    const amount = parseFloat(manualPaymentAmount || '0');
 
-            if (amount > (wallet.balance_to_pay || 0)) {
-              showError(
-                'Amount Too High',
-                `Payment amount cannot exceed the balance to pay (${formatCurrency(wallet.balance_to_pay || 0)}).`
-              );
-              return;
-            }
+    if (isNaN(amount) || amount <= 0) {
+      showError('Invalid Amount', 'Please enter a valid payment amount.');
+      return;
+    }
 
-            try {
-              // Record the manual payment
-              const { error } = await supabase.rpc(
-                'record_agent_credit_payment',
-                {
-                  p_user_id: wallet.user_id,
-                  p_payment_amount: amount,
-                  p_payment_method: 'manual',
-                  p_reference: `MANUAL-${Date.now()}`,
-                }
-              );
+    if (amount > (wallet.balance_to_pay || 0)) {
+      showError(
+        'Amount Too High',
+        `Payment amount cannot exceed the balance to pay (${formatCurrency(
+          wallet.balance_to_pay || 0
+        )}).`
+      );
+      return;
+    }
 
-              if (error) throw error;
+    try {
+      setIsManualPaymentProcessing(true);
+      // Record the manual payment
+      const { error } = await supabase.rpc('record_agent_credit_payment', {
+        p_user_id: wallet.user_id,
+        p_payment_amount: amount,
+        p_payment_method: 'manual',
+        p_reference: `MANUAL-${Date.now()}`,
+      });
 
-              showSuccess(
-                'Payment Recorded',
-                `Successfully recorded payment of ${formatCurrency(amount)}`,
-                async () => {
-                  if (onRefresh) {
-                    await onRefresh();
-                  }
-                }
-              );
-            } catch (error) {
-              console.error('Error recording manual payment:', error);
-              showError('Error', 'Failed to record payment. Please try again.');
-            }
-          },
-        },
-      ],
-      'plain-text',
-      '',
-      'numeric'
-    );
+      if (error) throw error;
+
+      showSuccess(
+        'Payment Recorded',
+        `Successfully recorded payment of ${formatCurrency(amount)}`,
+        async () => {
+          setManualModalVisible(false);
+          if (onRefresh) {
+            await onRefresh();
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error recording manual payment:', error);
+      showError('Error', 'Failed to record payment. Please try again.');
+    } finally {
+      setIsManualPaymentProcessing(false);
+    }
+  };
+
+  const handleCancelManualPayment = () => {
+    if (isManualPaymentProcessing) return;
+    setManualModalVisible(false);
   };
 
   const renderTransaction = ({ item }: { item: WalletTransaction }) => (
@@ -252,9 +272,9 @@ function WalletDetailCard({
       {/* Balance Card */}
       <View style={styles.balanceCard}>
         <WalletIcon size={32} color={colors.primary} />
-        <Text style={styles.balanceLabel}>Wallet Balance</Text>
+        <Text style={styles.balanceLabel}>{primaryBalanceLabel}</Text>
         <Text style={styles.balanceValue}>
-          {formatCurrency(wallet.balance)}
+          {formatCurrency(primaryBalanceValue)}
         </Text>
         <Text style={styles.currency}>{wallet.currency}</Text>
       </View>
@@ -353,15 +373,20 @@ function WalletDetailCard({
               <View style={styles.paymentOptionsContainer}>
                 <Text style={styles.paymentOptionsTitle}>Pay Balance</Text>
                 <View style={styles.paymentButtons}>
-                  <Pressable
-                    style={[styles.paymentButton, styles.gatewayPaymentButton]}
-                    onPress={handlePayViaGateway}
-                  >
-                    <CreditCard size={20} color={colors.white} />
-                    <Text style={styles.paymentButtonText}>
-                      Pay via Gateway
-                    </Text>
-                  </Pressable>
+                  {canShowGatewayPayment && (
+                    <Pressable
+                      style={[
+                        styles.paymentButton,
+                        styles.gatewayPaymentButton,
+                      ]}
+                      onPress={handlePayViaGateway}
+                    >
+                      <CreditCard size={20} color={colors.white} />
+                      <Text style={styles.paymentButtonText}>
+                        Pay via Gateway
+                      </Text>
+                    </Pressable>
+                  )}
                   <Pressable
                     style={[styles.paymentButton, styles.manualPaymentButton]}
                     onPress={handleManualPayment}
@@ -560,6 +585,54 @@ function WalletDetailCard({
                 <Text style={styles.modalSaveText}>
                   {isUpdating ? 'Saving...' : 'Save'}
                 </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={manualModalVisible}
+        transparent
+        animationType='fade'
+        onRequestClose={handleCancelManualPayment}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Manual Payment</Text>
+            <Text style={styles.modalSubtitle}>
+              Balance to Pay:{' '}
+              {formatCurrency(wallet.balance_to_pay || 0)}
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder='Enter payment amount'
+              keyboardType='decimal-pad'
+              value={manualPaymentAmount}
+              onChangeText={setManualPaymentAmount}
+              editable={!isManualPaymentProcessing}
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={handleCancelManualPayment}
+                disabled={isManualPaymentProcessing}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.modalButton,
+                  styles.modalConfirmButton,
+                  isManualPaymentProcessing && styles.modalButtonDisabled,
+                ]}
+                onPress={handleSubmitManualPayment}
+                disabled={isManualPaymentProcessing}
+              >
+                {isManualPaymentProcessing ? (
+                  <ActivityIndicator size='small' color={colors.white} />
+                ) : (
+                  <Text style={styles.modalConfirmText}>Record Payment</Text>
+                )}
               </Pressable>
             </View>
           </View>
@@ -916,6 +989,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
   modalContent: {
     backgroundColor: colors.card,
     borderRadius: 16,
@@ -939,6 +1019,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   modalBody: {
     padding: 20,
@@ -984,6 +1070,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
   modalButton: {
     flex: 1,
     flexDirection: 'row',
@@ -999,6 +1090,10 @@ const styles = StyleSheet.create({
   modalSaveButton: {
     backgroundColor: colors.primary,
   },
+  modalConfirmButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+  },
   modalButtonDisabled: {
     opacity: 0.5,
   },
@@ -1008,6 +1103,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   modalSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  modalConfirmText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.white,

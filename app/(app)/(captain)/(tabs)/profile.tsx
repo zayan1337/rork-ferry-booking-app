@@ -37,7 +37,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
-import { DateSelector } from '@/components/DateSelector';
+import CalendarDatePicker from '@/components/CalendarDatePicker';
 import StatCard from '@/components/StatCard';
 import { formatProfileDate } from '@/utils/customerUtils';
 import { useAlertContext } from '@/components/AlertProvider';
@@ -578,12 +578,12 @@ export default function CaptainProfileScreen() {
 
             <View style={styles.modalBody}>
               {editingField === 'date_of_birth' ? (
-                <DateSelector
+                <CalendarDatePicker
                   label='Date of Birth'
-                  value={editValue}
+                  value={editValue || null}
                   onChange={setEditValue}
                   maxDate={new Date().toISOString().split('T')[0]}
-                  isDateOfBirth={true}
+                  placeholder='Select date of birth'
                 />
               ) : (
                 <Input

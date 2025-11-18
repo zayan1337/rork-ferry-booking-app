@@ -1,4 +1,4 @@
-import React, { useState, useMemo, memo, useEffect } from 'react';
+import React, { useState, useMemo, memo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
@@ -25,22 +25,39 @@ interface WalletsTabProps {
 
 function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
   const { canViewWallets, canManageWallets } = useAdminPermissions();
-  const { wallets, loading, fetchWallets, setSearchQuery, searchQueries } =
-    useFinanceStore();
+  const {
+    wallets,
+    loading,
+    fetchWallets,
+    setSearchQuery,
+    searchQueries,
+    createWalletsForAllUsers,
+  } = useFinanceStore();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const hasFetchedRef = useRef(false);
 
   // Local search state - completely client-side, no store updates
   const [localSearchQuery, setLocalSearchQuery] = useState('');
 
-  // Fetch wallets when tab becomes active
+  // Fetch wallets when tab becomes active (only once per activation)
   useEffect(() => {
-    if (!isActive) return;
-    if (canViewWallets()) {
-      fetchWallets();
+    if (!isActive) {
+      // Reset ref when tab becomes inactive
+      hasFetchedRef.current = false;
+      return;
+    }
+    
+    if (canViewWallets() && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      console.log('🔄 [WalletsTab] Tab active, fetching wallets...');
+      fetchWallets(true).catch(err => {
+        console.error('❌ [WalletsTab] Error fetching wallets:', err);
+        hasFetchedRef.current = false; // Reset on error so we can retry
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive]);
+  }, [isActive]); // Only depend on isActive, not fetchWallets
 
   // Filter wallets based on search query - client-side only
   const filteredWallets = useMemo(() => {
@@ -88,6 +105,16 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
     router.push('/(app)/(admin)/wallets' as any);
   };
 
+  const handleCreateWalletsForAllUsers = async () => {
+    try {
+      const result = await createWalletsForAllUsers();
+      console.log('✅ Created wallets:', result);
+      // Wallets will be automatically refreshed by the store
+    } catch (error: any) {
+      console.error('❌ Error creating wallets:', error);
+    }
+  };
+
   // Permission check
   if (!canViewWallets()) {
     return (
@@ -132,6 +159,22 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
         )}
       </View>
 
+      {/* Create Wallets for All Agent Users Button - Show when no wallets exist */}
+      {wallets.length === 0 && canManageWallets() && (
+        <View style={styles.createAllWalletsContainer}>
+          <Text style={styles.createAllWalletsText}>
+            No wallets found. Create wallets for all active agent users?
+          </Text>
+          <Button
+            title='Create Wallets for All Agents'
+            onPress={handleCreateWalletsForAllUsers}
+            size='medium'
+            variant='primary'
+            disabled={loading.creating}
+          />
+        </View>
+      )}
+
       {/* Search Bar */}
       <SearchBar
         placeholder='Search wallets...'
@@ -164,6 +207,11 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
                     {isAgent && (
                       <View style={styles.agentBadge}>
                         <Text style={styles.agentBadgeText}>AGENT</Text>
+                      </View>
+                    )}
+                    {(wallet as any).is_credit_account && (
+                      <View style={styles.creditBadge}>
+                        <Text style={styles.creditBadgeText}>CREDIT</Text>
                       </View>
                     )}
                   </View>
@@ -321,6 +369,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
   },
+  creditBadge: {
+    backgroundColor: colors.warning,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  creditBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: colors.white,
+  },
   walletEmail: {
     fontSize: 14,
     color: colors.textSecondary,
@@ -411,6 +470,20 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     maxWidth: 280,
+  },
+  createAllWalletsContainer: {
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: `${colors.primary}30`,
+  },
+  createAllWalletsText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 } as any);
 

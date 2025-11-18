@@ -5,8 +5,7 @@ import { colors } from '@/constants/adminColors';
 import { ArrowLeft, AlertCircle } from 'lucide-react-native';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 // UPDATED: Use new user management hook and types
-import { useUserManagement } from '@/hooks/useUserManagement';
-import { UserFormData } from '@/types/userManagement';
+import { UserProfile } from '@/types/userManagement';
 
 // Components
 import UserForm from '@/components/admin/users/UserForm';
@@ -15,16 +14,11 @@ import { useAlertContext } from '@/components/AlertProvider';
 
 export default function NewUserScreen() {
   const { canCreateUsers } = useAdminPermissions();
-  const { create, loading } = useUserManagement();
   const { showSuccess, showError } = useAlertContext();
 
-  const handleSuccess = async (userData: UserFormData): Promise<void> => {
+  const handleSuccess = async (_user: UserProfile): Promise<void> => {
     try {
-      // Create the user
-      await create(userData);
-
       showSuccess('Success', 'User created successfully!', () => {
-        // Navigate back - user can create another from the list if needed
         router.back();
       });
     } catch (error) {
