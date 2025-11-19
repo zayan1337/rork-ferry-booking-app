@@ -54,13 +54,15 @@ function FinanceScreen() {
       try {
         // Fetch all data in parallel for faster loading
         const promises = [];
-        
+
         if (canViewPayments()) {
-          promises.push(fetchPayments().catch(err => {
-            console.error('Error fetching payments:', err);
-          }));
+          promises.push(
+            fetchPayments().catch(err => {
+              console.error('Error fetching payments:', err);
+            })
+          );
         }
-        
+
         if (canViewWallets()) {
           promises.push(
             fetchWallets().catch(err => {
@@ -71,7 +73,7 @@ function FinanceScreen() {
             })
           );
         }
-        
+
         promises.push(
           fetchStats().catch(err => {
             console.error('Error fetching stats:', err);

@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase';
 import type { TicketStoreState } from '@/types/booking';
 import type { Booking, BookingStatus } from '@/types';
 import type { ValidationResult } from '@/types/pages/booking';
+import { normalizeTime } from '@/utils/dateUtils';
 
 interface TicketStoreActions {
   validateTicket: (bookingNumber: string) => Promise<ValidationResult>;
@@ -370,17 +371,16 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
         console.error('Error fetching booking segment:', segmentFetchError);
       }
 
-      // STEP 5.6: Fetch vessel name if missing and we have trip_id
-      if (
-        (!ticketData.vessel_name ||
-          ticketData.vessel_name === 'Unknown Vessel') &&
-        ticketData.trip_id
-      ) {
+      // STEP 5.6: ALWAYS fetch trip data directly to ensure we get the correct departure_time
+      // This is critical because views/RPCs might return time in unexpected formats
+      if (ticketData.trip_id) {
         try {
           const { data: tripData, error: tripError } = await supabase
             .from('trips')
             .select(
               `
+              departure_time,
+              travel_date,
               vessel_id,
               vessels!inner(
                 name
@@ -391,6 +391,20 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
             .single();
 
           if (!tripError && tripData) {
+            // ALWAYS update departure_time and travel_date from trip data
+            // This ensures we get the raw database value, not a transformed one
+            if (
+              tripData.departure_time !== null &&
+              tripData.departure_time !== undefined
+            ) {
+              ticketData.departure_time = tripData.departure_time;
+            }
+
+            if (tripData.travel_date) {
+              ticketData.travel_date = tripData.travel_date;
+            }
+
+            // Update vessel name if missing
             const vessel = Array.isArray(tripData.vessels)
               ? tripData.vessels[0]
               : tripData.vessels;
@@ -398,19 +412,24 @@ export const useTicketStore = create<TicketStore>((set, get) => ({
               ticketData.vessel_name = vessel.name;
             }
           }
-        } catch (vesselFetchError) {
-          // Continue with existing vessel name if fetch fails
-          console.error('Error fetching vessel name:', vesselFetchError);
+        } catch (tripFetchError) {
+          // Continue with existing data if fetch fails
+          console.error('Exception fetching trip data:', tripFetchError);
         }
       }
 
       // STEP 6: Create the booking object
+      // Normalize departure_time to ensure consistent format
+      const normalizedDepartureTime = normalizeTime(
+        ticketData.departure_time || '00:00:00'
+      );
+
       const booking: Booking = {
         id: ticketData.booking_id,
         bookingNumber: ticketData.booking_number,
         status: ticketData.status as BookingStatus,
         departureDate: ticketData.travel_date,
-        departureTime: ticketData.departure_time,
+        departureTime: normalizedDepartureTime,
         tripType: 'one_way', // Default for validation
         route: {
           id: '',

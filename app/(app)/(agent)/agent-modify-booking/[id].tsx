@@ -530,7 +530,7 @@ export default function AgentModifyBookingScreen() {
         setSelectedSeats(updatedSeats);
       }
 
-    if (errors.seats) setErrors({ ...errors, seats: '' });
+      if (errors.seats) setErrors({ ...errors, seats: '' });
     } catch (error: any) {
       console.error('Error toggling seat selection:', error);
       showError(
@@ -630,7 +630,7 @@ export default function AgentModifyBookingScreen() {
           successMessage += ` An additional payment of ${formatCurrency(fareDifference)} will be processed via MIB Gateway.`;
         }
       } else if (fareDifference < 0) {
-          successMessage += ` A refund of ${formatCurrency(Math.abs(fareDifference))} has been credited to your agent account.`;
+        successMessage += ` A refund of ${formatCurrency(Math.abs(fareDifference))} has been credited to your agent account.`;
       } else {
         successMessage += ' No additional payment or refund is required.';
       }

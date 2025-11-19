@@ -43,7 +43,8 @@ export default function WalletPaymentPage() {
   const fetchWalletInfo = async () => {
     try {
       setIsLoading(true);
-      const targetUserId = userId || walletId?.replace('credit-', '') || walletId;
+      const targetUserId =
+        userId || walletId?.replace('credit-', '') || walletId;
 
       const { data: userProfile, error: userError } = await supabase
         .from('user_profiles')
@@ -227,9 +228,7 @@ export default function WalletPaymentPage() {
 
               <View style={styles.detailRow}>
                 <WalletIcon size={16} color={colors.textSecondary} />
-                <Text style={styles.detailLabel}>
-                  Credit Account
-                </Text>
+                <Text style={styles.detailLabel}>Credit Account</Text>
                 <Text style={styles.detailValue} numberOfLines={1}>
                   {userId}
                 </Text>

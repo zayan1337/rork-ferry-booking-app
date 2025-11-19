@@ -35,11 +35,7 @@ export default function WalletDetailPage() {
         console.error('Error fetching agent credit transactions:', error)
       );
     }
-  }, [
-    agentCreditTransactions,
-    fetchAgentCreditTransactions,
-    isCreditAccount,
-  ]);
+  }, [agentCreditTransactions, fetchAgentCreditTransactions, isCreditAccount]);
 
   const creditTransactions = useMemo(() => {
     if (!wallet || !isCreditAccount) return [];
@@ -55,7 +51,8 @@ export default function WalletDetailPage() {
       status: 'completed' as const,
       description: tx.description,
       reference_id: tx.booking_id || undefined,
-      created_at: tx.created_at || tx.transaction_date || new Date().toISOString(),
+      created_at:
+        tx.created_at || tx.transaction_date || new Date().toISOString(),
     }));
   }, [getAgentCreditTransactionsByAgent, isCreditAccount, wallet]);
 

@@ -26,7 +26,11 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import type { ValidationResult } from '@/types/pages/booking';
-import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
+import {
+  formatBookingDate,
+  formatTimeAMPM,
+  normalizeTime,
+} from '@/utils/dateUtils';
 import { useAlertContext } from '@/components/AlertProvider';
 
 const { width } = Dimensions.get('window');
@@ -114,9 +118,21 @@ export default function CaptainCheckinScreen() {
     }
 
     // Check if it's within the check-in window (30 minutes before and after departure)
+    // Normalize time format to ensure proper parsing
+    const normalizedTime = normalizeTime(booking.departureTime || '00:00:00');
     const departureDateTime = new Date(
-      `${booking.departureDate}T${booking.departureTime}`
+      `${booking.departureDate}T${normalizedTime}`
     );
+
+    // Validate that the date was parsed correctly
+    if (isNaN(departureDateTime.getTime())) {
+      showError(
+        'Invalid Date/Time',
+        `Unable to parse departure date/time. Date: ${booking.departureDate}, Time: ${booking.departureTime}`
+      );
+      return;
+    }
+
     const now = new Date();
     const timeDifferenceMs = departureDateTime.getTime() - now.getTime();
     const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60);
@@ -126,7 +142,8 @@ export default function CaptainCheckinScreen() {
       timeDifferenceMinutes >= -30 && timeDifferenceMinutes <= 30;
 
     if (!isWithinCheckInWindow) {
-      const departureTimeStr = `${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(booking.departureTime)}`;
+      // Use normalizedTime for display to ensure correct time format
+      const departureTimeStr = `${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(normalizedTime)}`;
       if (timeDifferenceMinutes > 30) {
         showWarning(
           'Too Early for Check-in',
@@ -267,9 +284,21 @@ export default function CaptainCheckinScreen() {
       }
       // Check if it's within the valid time window
       else {
-        const departureDateTime = new Date(
-          `${booking.departureDate}T${booking.departureTime}`
+        // Normalize time format to ensure proper parsing
+        const normalizedTime = normalizeTime(
+          booking.departureTime || '00:00:00'
         );
+        const departureDateTime = new Date(
+          `${booking.departureDate}T${normalizedTime}`
+        );
+
+        // Validate that the date was parsed correctly
+        if (isNaN(departureDateTime.getTime())) {
+          throw new Error(
+            `Invalid departure date/time. Date: ${booking.departureDate}, Time: ${booking.departureTime}`
+          );
+        }
+
         const now = new Date();
         const timeDifferenceMs = departureDateTime.getTime() - now.getTime();
         const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60);
@@ -280,10 +309,10 @@ export default function CaptainCheckinScreen() {
 
         if (timeDifferenceMinutes > 30) {
           ticketStatus = 'Future';
-          statusMessage = `Ticket is valid but check-in window hasn't opened yet.\n\nDeparture: ${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(booking.departureTime)}\nCheck-in opens: 30 minutes before departure`;
+          statusMessage = `Ticket is valid but check-in window hasn't opened yet.\n\nDeparture: ${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(normalizedTime)}\nCheck-in opens: 30 minutes before departure`;
         } else if (timeDifferenceMinutes < -30) {
           ticketStatus = 'Expired';
-          statusMessage = `Ticket has expired. Check-in window closed 30 minutes after departure.\n\nDeparture was: ${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(booking.departureTime)}`;
+          statusMessage = `Ticket has expired. Check-in window closed 30 minutes after departure.\n\nDeparture was: ${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(normalizedTime)}`;
         } else if (currentBooking.check_in_status) {
           ticketStatus = 'Used';
           statusMessage =
@@ -296,7 +325,7 @@ export default function CaptainCheckinScreen() {
         } else if (isWithinCheckInWindow) {
           ticketStatus = 'Valid';
           statusMessage = 'Ticket is valid and within check-in window.';
-          additionalInfo = `\nDeparture: ${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(booking.departureTime)}\nCheck-in window: 30 min before to 30 min after departure`;
+          additionalInfo = `\nDeparture: ${formatBookingDate(booking.departureDate)} at ${formatTimeAMPM(normalizedTime)}\nCheck-in window: 30 min before to 30 min after departure`;
         }
       }
 
@@ -455,21 +484,47 @@ export default function CaptainCheckinScreen() {
     setValidationResult(null);
   };
 
-  const handleViewTripDetails = () => {
+  const handleViewTripDetails = async () => {
     if (!validationResult?.booking) return;
 
     const bookingData = validationResult.booking as any;
-    const tripId = bookingData.tripId || bookingData.trip_id;
+    let tripId = bookingData.tripId || bookingData.trip_id;
+
+    // If tripId is not in the booking object, fetch it from the database
+    if (!tripId && bookingData.id) {
+      try {
+        const { data: bookingRecord, error: fetchError } = await supabase
+          .from('bookings')
+          .select('trip_id')
+          .eq('id', bookingData.id)
+          .single();
+
+        if (!fetchError && bookingRecord?.trip_id) {
+          tripId = bookingRecord.trip_id;
+        }
+      } catch (error) {
+        console.error('Error fetching trip_id:', error);
+      }
+    }
 
     if (!tripId) {
       showError(
         'Trip Not Found',
-        'Unable to find trip details for this booking.'
+        'Unable to find trip details for this booking. The booking may not be associated with a trip.'
       );
       return;
     }
 
-    router.push(`/(captain)/trip-details/${tripId}` as any);
+    try {
+      router.push(`/(captain)/trip-details/${tripId}` as any);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      showError(
+        'Navigation Error',
+        `Failed to navigate to trip details: ${errorMessage}`
+      );
+    }
   };
 
   // Create separate styles for valid and invalid result cards

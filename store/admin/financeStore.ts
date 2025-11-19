@@ -209,7 +209,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const state = get();
     // Prevent concurrent fetches unless explicitly refreshing
     if (state.loading.wallets && !refresh) {
-      console.log('⏸️ [financeStore] Wallet fetch already in progress, skipping...');
+      console.log(
+        '⏸️ [financeStore] Wallet fetch already in progress, skipping...'
+      );
       return;
     }
 
@@ -534,7 +536,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     try {
       const result = await createWalletsForAllUsers();
-      
+
       // Refresh wallets list after creating
       if (result.created > 0) {
         await state.fetchWallets(true);

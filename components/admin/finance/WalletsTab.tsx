@@ -47,7 +47,7 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
       hasFetchedRef.current = false;
       return;
     }
-    
+
     if (canViewWallets() && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
       console.log('🔄 [WalletsTab] Tab active, fetching wallets...');

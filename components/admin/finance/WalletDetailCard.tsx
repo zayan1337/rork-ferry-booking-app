@@ -62,7 +62,7 @@ function WalletDetailCard({
     ? 'Available Credit'
     : 'Wallet Balance';
   const primaryBalanceValue = isCreditOnlyAccount
-    ? wallet.credit_balance ?? wallet.balance
+    ? (wallet.credit_balance ?? wallet.balance)
     : wallet.balance;
   const canShowGatewayPayment =
     wallet.balance_to_pay !== undefined && wallet.balance_to_pay > 0;
@@ -158,9 +158,10 @@ function WalletDetailCard({
             walletId: wallet.id,
             userId: wallet.user_id,
             amount: amountDue,
-            paymentType: paymentAccountType === 'credit'
-              ? 'credit_repayment'
-              : 'wallet_repayment',
+            paymentType:
+              paymentAccountType === 'credit'
+                ? 'credit_repayment'
+                : 'wallet_repayment',
             accountType: paymentAccountType,
           },
         });
@@ -600,8 +601,7 @@ function WalletDetailCard({
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Manual Payment</Text>
             <Text style={styles.modalSubtitle}>
-              Balance to Pay:{' '}
-              {formatCurrency(wallet.balance_to_pay || 0)}
+              Balance to Pay: {formatCurrency(wallet.balance_to_pay || 0)}
             </Text>
             <TextInput
               style={styles.modalInput}

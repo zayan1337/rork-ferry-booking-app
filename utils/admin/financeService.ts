@@ -67,9 +67,13 @@ export const fetchWallets = async (
 
     // Note: We continue even if wallets is empty, because we also fetch agent credit accounts
     if (!wallets || wallets.length === 0) {
-      console.log('ℹ️ [fetchWallets] No wallets found in database, will check for agent credit accounts');
+      console.log(
+        'ℹ️ [fetchWallets] No wallets found in database, will check for agent credit accounts'
+      );
     } else {
-      console.log(`✅ [fetchWallets] Found ${wallets.length} wallet(s) in database`);
+      console.log(
+        `✅ [fetchWallets] Found ${wallets.length} wallet(s) in database`
+      );
     }
 
     // Also fetch agent credit accounts (agents don't have wallets, they use credit_balance)
@@ -81,9 +85,14 @@ export const fetchWallets = async (
       .or('credit_balance.gt.0,credit_ceiling.gt.0');
 
     if (agentProfilesError) {
-      console.warn('⚠️ [fetchWallets] Error fetching agent profiles:', agentProfilesError);
+      console.warn(
+        '⚠️ [fetchWallets] Error fetching agent profiles:',
+        agentProfilesError
+      );
     } else {
-      console.log(`✅ [fetchWallets] Found ${agentProfiles?.length || 0} agent credit account(s)`);
+      console.log(
+        `✅ [fetchWallets] Found ${agentProfiles?.length || 0} agent credit account(s)`
+      );
     }
 
     // Combine wallet user IDs with agent IDs for profile lookup
@@ -95,7 +104,12 @@ export const fetchWallets = async (
     const { data: userProfiles, error: profilesError } = await supabase
       .from('user_profiles')
       .select('id, full_name, email, role, credit_ceiling, credit_balance')
-      .in('id', allUserIds.length > 0 ? allUserIds : ['00000000-0000-0000-0000-000000000000']); // Dummy ID if empty
+      .in(
+        'id',
+        allUserIds.length > 0
+          ? allUserIds
+          : ['00000000-0000-0000-0000-000000000000']
+      ); // Dummy ID if empty
 
     if (profilesError) {
       console.error(
@@ -104,7 +118,9 @@ export const fetchWallets = async (
       );
       // Continue without user profiles
     } else {
-      console.log(`✅ [fetchWallets] Found ${userProfiles?.length || 0} user profile(s)`);
+      console.log(
+        `✅ [fetchWallets] Found ${userProfiles?.length || 0} user profile(s)`
+      );
     }
 
     // Combine wallet data with user profiles
@@ -156,7 +172,8 @@ export const fetchWallets = async (
       .map((agent: any) => {
         const creditCeiling = Number(agent.credit_ceiling || 0);
         const creditBalance = Number(agent.credit_balance || 0);
-        const creditUsed = creditCeiling > 0 ? creditCeiling - creditBalance : 0;
+        const creditUsed =
+          creditCeiling > 0 ? creditCeiling - creditBalance : 0;
         const balanceToPay = creditUsed;
 
         return {
@@ -195,7 +212,9 @@ export const fetchWallets = async (
       );
     }
 
-    console.log(`✅ [fetchWallets] Returning ${allAccounts.length} account(s) (${walletsWithUsers.length} wallets + ${agentCreditAccounts.length} agent credit accounts)`);
+    console.log(
+      `✅ [fetchWallets] Returning ${allAccounts.length} account(s) (${walletsWithUsers.length} wallets + ${agentCreditAccounts.length} agent credit accounts)`
+    );
     return allAccounts;
   } catch (error) {
     console.error('❌ [fetchWallets] Failed to fetch wallets:', error);
@@ -288,9 +307,9 @@ export const createWalletsForAllUsers = async (): Promise<{
 
     return {
       created: createdWallets?.length || 0,
-      skipped: existingWallets?.filter(w =>
-        users.some(u => u.id === w.user_id)
-      ).length || 0,
+      skipped:
+        existingWallets?.filter(w => users.some(u => u.id === w.user_id))
+          .length || 0,
       errors: 0,
     };
   } catch (error) {
