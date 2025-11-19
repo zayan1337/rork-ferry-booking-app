@@ -47,7 +47,9 @@ export default function WalletDetailPage() {
       user_id: wallet.user_id,
       user_name: wallet.user_name,
       amount: Math.abs(Number(tx.amount ?? 0)),
-      transaction_type: tx.transaction_type === 'refill' ? 'credit' : 'debit',
+      transaction_type: (tx.transaction_type === 'refill'
+        ? 'credit'
+        : 'debit') as 'credit' | 'debit',
       status: 'completed' as const,
       description: tx.description,
       reference_id: tx.booking_id || undefined,

@@ -61,6 +61,7 @@ export default function FlexibleSeatManager({
   const [lastVesselId, setLastVesselId] = useState<string>('');
   const [userHasModified, setUserHasModified] = useState(false);
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
+  const [lastGeneratedCapacity, setLastGeneratedCapacity] = useState<number>(0);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [editingSeat, setEditingSeat] = useState<Seat | null>(null);
@@ -124,6 +125,7 @@ export default function FlexibleSeatManager({
     setRows(ferryRows);
     setIsInitialized(true);
     setLastVesselId(vesselId);
+    setLastGeneratedCapacity(capacity);
   }, [vesselId, seatingCapacity]);
 
   const loadExistingSeats = useCallback(() => {
@@ -233,6 +235,7 @@ export default function FlexibleSeatManager({
       setUserHasModified(false);
       setHasLoadedInitialData(false);
       setLastVesselId(vesselId);
+      setLastGeneratedCapacity(0);
       setRows([]); // Clear existing rows when switching vessels
     }
   }, [vesselId, lastVesselId]);
@@ -269,6 +272,27 @@ export default function FlexibleSeatManager({
     vesselId,
     lastVesselId,
     hasLoadedInitialData,
+  ]);
+
+  // Regenerate template when seating capacity changes (only for new layouts)
+  useEffect(() => {
+    const desiredCapacity = Number(seatingCapacity) || 0;
+    const hasInitialSeats = initialSeats && initialSeats.length > 0;
+
+    if (
+      desiredCapacity > 0 &&
+      !hasInitialSeats &&
+      !userHasModified &&
+      desiredCapacity !== lastGeneratedCapacity
+    ) {
+      generateFerryTemplate();
+    }
+  }, [
+    seatingCapacity,
+    initialSeats,
+    userHasModified,
+    lastGeneratedCapacity,
+    generateFerryTemplate,
   ]);
 
   const generateSeatsForRow = useCallback(
@@ -526,11 +550,21 @@ export default function FlexibleSeatManager({
   const handleSave = useCallback(async () => {
     try {
       const allSeats = getAllSeats();
+      const targetCapacity = Number(seatingCapacity) || 0;
+
+      if (targetCapacity > 0 && allSeats.length !== targetCapacity) {
+        showError(
+          'Seat Count Mismatch',
+          `You have configured ${allSeats.length} seats but the vessel capacity is ${targetCapacity}. Update the capacity or adjust the layout before saving.`
+        );
+        return;
+      }
+
       await onSave(allSeats);
     } catch (error) {
       showError('Error', 'Failed to save seat layout');
     }
-  }, [getAllSeats, onSave, showError]);
+  }, [getAllSeats, onSave, showError, seatingCapacity]);
 
   const handleReset = useCallback(() => {
     showConfirmation(

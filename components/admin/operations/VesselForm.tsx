@@ -13,7 +13,6 @@ import { useVesselStore } from '@/store/admin/vesselStore';
 // Removed unused vessel utilities - using only flexible ferry layout
 import {
   Ship,
-  Users,
   Settings,
   Save,
   RotateCcw,
@@ -47,9 +46,8 @@ interface ValidationErrors {
   make?: string;
   model?: string;
   registration_number?: string;
-  captain_name?: string;
-  contact_number?: string;
   description?: string;
+  seat_layout?: string;
   general?: string;
 }
 
@@ -77,8 +75,6 @@ export default function VesselForm({
     make: initialData?.make || '',
     model: initialData?.model || '',
     registration_number: initialData?.registration_number || '',
-    captain_name: initialData?.captain_name || '',
-    contact_number: initialData?.contact_number || '',
     maintenance_schedule: initialData?.maintenance_schedule || '',
     last_maintenance_date: initialData?.last_maintenance_date || '',
     next_maintenance_date: initialData?.next_maintenance_date || '',
@@ -180,8 +176,6 @@ export default function VesselForm({
         formData.vessel_type !== (initialData.vessel_type || 'passenger') ||
         formData.registration_number !==
           (initialData.registration_number || '') ||
-        formData.captain_name !== (initialData.captain_name || '') ||
-        formData.contact_number !== (initialData.contact_number || '') ||
         formData.maintenance_schedule !==
           (initialData.maintenance_schedule || '') ||
         formData.last_maintenance_date !==
@@ -205,8 +199,6 @@ export default function VesselForm({
         formData.is_active !== true ||
         formData.vessel_type !== 'passenger' ||
         (formData.registration_number || '').trim() !== '' ||
-        (formData.captain_name || '').trim() !== '' ||
-        (formData.contact_number || '').trim() !== '' ||
         (formData.maintenance_schedule || '').trim() !== '' ||
         (formData.last_maintenance_date || '').trim() !== '' ||
         (formData.next_maintenance_date || '').trim() !== '' ||
@@ -255,19 +247,6 @@ export default function VesselForm({
         'Registration number must be at least 3 characters';
     }
 
-    // Captain name validation
-    if (formData.captain_name && formData.captain_name.trim().length < 2) {
-      errors.captain_name = 'Captain name must be at least 2 characters';
-    }
-
-    // Contact number validation
-    if (
-      formData.contact_number &&
-      !/^[\+]?[0-9\s\-\(\)]{7,15}$/.test(formData.contact_number)
-    ) {
-      errors.contact_number = 'Please enter a valid contact number';
-    }
-
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -275,6 +254,31 @@ export default function VesselForm({
   const handleSubmit = async () => {
     if (!validateForm()) {
       return;
+    }
+
+    // Validate seat layout matches seating capacity
+    if (formData.seating_capacity > 0) {
+      let seatCount = 0;
+
+      // Check custom layout data first (if user has modified the layout)
+      if (customLayoutData && customLayoutData.seats) {
+        seatCount = customLayoutData.seats.length;
+      } else if (existingSeats && existingSeats.length > 0) {
+        // Check existing seats if no custom layout
+        seatCount = existingSeats.length;
+      }
+
+      // If we have a seat count, validate it matches capacity
+      if (seatCount > 0 && seatCount !== formData.seating_capacity) {
+        setValidationErrors({
+          seat_layout: `Seat layout has ${seatCount} seats but seating capacity is ${formData.seating_capacity}. Please adjust the layout to match the capacity before saving.`,
+        });
+        showError(
+          'Seat Layout Mismatch',
+          `The seat layout has ${seatCount} seats, but the seating capacity is set to ${formData.seating_capacity}. Please update the seat layout to match the capacity or adjust the capacity to match the layout.`
+        );
+        return;
+      }
     }
 
     try {
@@ -288,8 +292,6 @@ export default function VesselForm({
         make: formData.make?.trim() || undefined,
         model: formData.model?.trim() || undefined,
         registration_number: formData.registration_number?.trim() || undefined,
-        captain_name: formData.captain_name?.trim() || undefined,
-        contact_number: formData.contact_number?.trim() || undefined,
         maintenance_schedule:
           formData.maintenance_schedule?.trim() || undefined,
         last_maintenance_date:
@@ -333,8 +335,6 @@ export default function VesselForm({
         is_active: initialData.is_active ?? true,
         vessel_type: initialData.vessel_type || 'passenger',
         registration_number: initialData.registration_number || '',
-        captain_name: initialData.captain_name || '',
-        contact_number: initialData.contact_number || '',
         maintenance_schedule: initialData.maintenance_schedule || '',
         last_maintenance_date: initialData.last_maintenance_date || '',
         next_maintenance_date: initialData.next_maintenance_date || '',
@@ -353,8 +353,6 @@ export default function VesselForm({
         is_active: true,
         vessel_type: 'passenger',
         registration_number: '',
-        captain_name: '',
-        contact_number: '',
         maintenance_schedule: '',
         last_maintenance_date: '',
         next_maintenance_date: '',
@@ -513,13 +511,26 @@ export default function VesselForm({
             <View style={styles.formHalf}>
               <TextInput
                 label='Seating Capacity'
-                value={formData.seating_capacity.toString()}
+                value={
+                  formData.seating_capacity === 0
+                    ? ''
+                    : formData.seating_capacity.toString()
+                }
                 onChangeText={text => {
-                  const numericValue = parseInt(text) || 0;
+                  const numericValue =
+                    text.trim() === '' ? 0 : parseInt(text, 10) || 0;
                   setFormData(prev => ({
                     ...prev,
                     seating_capacity: numericValue,
                   }));
+                  // Clear seat layout validation error when capacity changes
+                  if (validationErrors.seat_layout) {
+                    setValidationErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.seat_layout;
+                      return newErrors;
+                    });
+                  }
                 }}
                 placeholder='Enter capacity'
                 keyboardType='numeric'
@@ -527,41 +538,6 @@ export default function VesselForm({
                 required
               />
             </View>
-          </View>
-        </View>
-
-        {/* Crew Information */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderIcon}>
-              <Users size={20} color={colors.primary} />
-            </View>
-            <Text style={styles.sectionTitle}>Crew Information</Text>
-          </View>
-
-          <View style={styles.formGroup}>
-            <TextInput
-              label='Captain Name'
-              value={formData.captain_name}
-              onChangeText={text =>
-                setFormData(prev => ({ ...prev, captain_name: text }))
-              }
-              placeholder="Enter captain's full name"
-              error={validationErrors.captain_name}
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <TextInput
-              label='Contact Number'
-              value={formData.contact_number}
-              onChangeText={text =>
-                setFormData(prev => ({ ...prev, contact_number: text }))
-              }
-              placeholder='Enter contact number'
-              keyboardType='phone-pad'
-              error={validationErrors.contact_number}
-            />
           </View>
         </View>
 
@@ -590,9 +566,14 @@ export default function VesselForm({
             <View style={styles.formHalf}>
               <TextInput
                 label='Max Speed (knots)'
-                value={(formData.max_speed || 0).toString()}
+                value={
+                  formData.max_speed && formData.max_speed > 0
+                    ? formData.max_speed.toString()
+                    : ''
+                }
                 onChangeText={text => {
-                  const numericValue = parseFloat(text) || 0;
+                  const numericValue =
+                    text.trim() === '' ? 0 : parseFloat(text) || 0;
                   setFormData(prev => ({ ...prev, max_speed: numericValue }));
                 }}
                 placeholder='Enter max speed'
@@ -603,9 +584,14 @@ export default function VesselForm({
             <View style={styles.formHalf}>
               <TextInput
                 label='Fuel Capacity (liters)'
-                value={(formData.fuel_capacity || 0).toString()}
+                value={
+                  formData.fuel_capacity && formData.fuel_capacity > 0
+                    ? formData.fuel_capacity.toString()
+                    : ''
+                }
                 onChangeText={text => {
-                  const numericValue = parseFloat(text) || 0;
+                  const numericValue =
+                    text.trim() === '' ? 0 : parseFloat(text) || 0;
                   setFormData(prev => ({
                     ...prev,
                     fuel_capacity: numericValue,
@@ -811,51 +797,53 @@ export default function VesselForm({
           )}
 
           {formData.seating_capacity > 0 && (
-            <View style={styles.seatLayoutContainer}>
-              <SeatArrangementManager
-                key={`seat-layout-${initialData?.id || 'new'}`}
-                vesselId={initialData?.id || 'new'}
-                seatingCapacity={formData.seating_capacity}
-                vesselType={formData.vessel_type}
-                initialLayout={existingSeatLayout}
-                initialSeats={existingSeats}
-                onChange={(layout, seats) => {
-                  // Use a more robust debouncing mechanism
-                  if ((global as any).vesselFormChangeTimeout) {
-                    clearTimeout((global as any).vesselFormChangeTimeout);
-                  }
+            <>
+              {validationErrors.seat_layout && (
+                <View style={styles.seatLayoutErrorContainer}>
+                  <View style={styles.seatLayoutErrorIcon}>
+                    <AlertCircle size={20} color={colors.error} />
+                  </View>
+                  <Text style={styles.seatLayoutErrorText}>
+                    {validationErrors.seat_layout}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.seatLayoutContainer}>
+                <SeatArrangementManager
+                  key={`seat-layout-${initialData?.id || 'new'}`}
+                  vesselId={initialData?.id || 'new'}
+                  seatingCapacity={formData.seating_capacity}
+                  vesselType={formData.vessel_type}
+                  initialLayout={existingSeatLayout}
+                  initialSeats={existingSeats}
+                  onChange={(layout, seats) => {
+                    // Clear seat layout validation error when layout changes
+                    if (validationErrors.seat_layout) {
+                      setValidationErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.seat_layout;
+                        return newErrors;
+                      });
+                    }
 
-                  (global as any).vesselFormChangeTimeout = setTimeout(() => {
-                    // Prevent unnecessary updates by checking if data actually changed
-                    const newData = { layout, seats };
-                    const currentData = customLayoutData;
+                    // Use a more robust debouncing mechanism
+                    if ((global as any).vesselFormChangeTimeout) {
+                      clearTimeout((global as any).vesselFormChangeTimeout);
+                    }
 
-                    // Only update if data actually changed
-                    const hasChanged =
-                      !currentData ||
-                      JSON.stringify(currentData.layout.layout_data) !==
-                        JSON.stringify(layout.layout_data) ||
-                      currentData.seats.length !== seats.length ||
-                      JSON.stringify(
-                        currentData.seats
-                          .map(s => ({
-                            id: s.id,
-                            seat_number: s.seat_number,
-                            row_number: s.row_number,
-                            position_x: s.position_x,
-                            position_y: s.position_y,
-                            seat_type: s.seat_type,
-                            seat_class: s.seat_class,
-                            is_premium: s.is_premium,
-                            is_window: s.is_window,
-                            is_aisle: s.is_aisle,
-                            is_disabled: s.is_disabled,
-                            price_multiplier: s.price_multiplier,
-                          }))
-                          .sort((a, b) => a.id?.localeCompare(b.id || '') || 0)
-                      ) !==
+                    (global as any).vesselFormChangeTimeout = setTimeout(() => {
+                      // Prevent unnecessary updates by checking if data actually changed
+                      const newData = { layout, seats };
+                      const currentData = customLayoutData;
+
+                      // Only update if data actually changed
+                      const hasChanged =
+                        !currentData ||
+                        JSON.stringify(currentData.layout.layout_data) !==
+                          JSON.stringify(layout.layout_data) ||
+                        currentData.seats.length !== seats.length ||
                         JSON.stringify(
-                          seats
+                          currentData.seats
                             .map(s => ({
                               id: s.id,
                               seat_number: s.seat_number,
@@ -873,60 +861,81 @@ export default function VesselForm({
                             .sort(
                               (a, b) => a.id?.localeCompare(b.id || '') || 0
                             )
-                        );
+                        ) !==
+                          JSON.stringify(
+                            seats
+                              .map(s => ({
+                                id: s.id,
+                                seat_number: s.seat_number,
+                                row_number: s.row_number,
+                                position_x: s.position_x,
+                                position_y: s.position_y,
+                                seat_type: s.seat_type,
+                                seat_class: s.seat_class,
+                                is_premium: s.is_premium,
+                                is_window: s.is_window,
+                                is_aisle: s.is_aisle,
+                                is_disabled: s.is_disabled,
+                                price_multiplier: s.price_multiplier,
+                              }))
+                              .sort(
+                                (a, b) => a.id?.localeCompare(b.id || '') || 0
+                              )
+                          );
 
-                    if (hasChanged) {
-                      setCustomLayoutData(newData);
-                      setCustomLayoutModified(true);
-                    }
-                  }, 500); // 500ms debounce
-                }}
-                onSave={async (layout, seats) => {
-                  try {
-                    // Store the custom layout data for later saving
-                    setCustomLayoutData({ layout, seats });
-                    setCustomLayoutModified(true);
-
-                    if (initialData?.id) {
-                      // For existing vessels, check if we have an existing layout to update
-                      if (existingSeatLayout?.id) {
-                        // Update existing layout using the new simplified approach
-                        const { saveCustomSeatLayout } =
-                          useVesselStore.getState();
-                        await saveCustomSeatLayout(
-                          initialData.id,
-                          layout.layout_data,
-                          seats
-                        );
-                      } else {
-                        // Create new layout for existing vessel
-                        const { saveCustomSeatLayout } =
-                          useVesselStore.getState();
-                        await saveCustomSeatLayout(
-                          initialData.id,
-                          layout.layout_data,
-                          seats
-                        );
+                      if (hasChanged) {
+                        setCustomLayoutData(newData);
+                        setCustomLayoutModified(true);
                       }
-                      // Reset modification state after successful save
-                      setCustomLayoutModified(false);
-                      setCustomLayoutData(null);
-                    } else {
-                      // For new vessels, the layout will be saved after vessel creation
+                    }, 500); // 500ms debounce
+                  }}
+                  onSave={async (layout, seats) => {
+                    try {
+                      // Store the custom layout data for later saving
+                      setCustomLayoutData({ layout, seats });
+                      setCustomLayoutModified(true);
+
+                      if (initialData?.id) {
+                        // For existing vessels, check if we have an existing layout to update
+                        if (existingSeatLayout?.id) {
+                          // Update existing layout using the new simplified approach
+                          const { saveCustomSeatLayout } =
+                            useVesselStore.getState();
+                          await saveCustomSeatLayout(
+                            initialData.id,
+                            layout.layout_data,
+                            seats
+                          );
+                        } else {
+                          // Create new layout for existing vessel
+                          const { saveCustomSeatLayout } =
+                            useVesselStore.getState();
+                          await saveCustomSeatLayout(
+                            initialData.id,
+                            layout.layout_data,
+                            seats
+                          );
+                        }
+                        // Reset modification state after successful save
+                        setCustomLayoutModified(false);
+                        setCustomLayoutData(null);
+                      } else {
+                        // For new vessels, the layout will be saved after vessel creation
+                      }
+                    } catch (error) {
+                      console.error('Error saving seat layout:', error);
+                      showError('Error', 'Failed to save seat layout');
                     }
-                  } catch (error) {
-                    console.error('Error saving seat layout:', error);
-                    showError('Error', 'Failed to save seat layout');
-                  }
-                }}
-                onCancel={() => {
-                  // Reset seat layout data when cancelled
-                  setCustomLayoutModified(false);
-                  setCustomLayoutData(null);
-                }}
-                loading={loading}
-              />
-            </View>
+                  }}
+                  onCancel={() => {
+                    // Reset seat layout data when cancelled
+                    setCustomLayoutModified(false);
+                    setCustomLayoutData(null);
+                  }}
+                  loading={loading}
+                />
+              </View>
+            </>
           )}
 
           {formData.seating_capacity > 0 && (
@@ -1120,6 +1129,32 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  seatLayoutErrorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.errorLight,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.error,
+  },
+  seatLayoutErrorIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${colors.error}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  seatLayoutErrorText: {
+    fontSize: 14,
+    color: colors.error,
+    flex: 1,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   layoutInfo: {
     marginTop: 16,

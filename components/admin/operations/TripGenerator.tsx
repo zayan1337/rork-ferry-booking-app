@@ -7,6 +7,7 @@ import {
   Pressable,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/constants/adminColors';
 import { useAlertContext } from '@/components/AlertProvider';
 import { useTripManagement } from '@/hooks/useTripManagement';
@@ -858,7 +859,7 @@ export default function TripGenerator({
       animationType='slide'
       presentationStyle='pageSheet'
     >
-      <View style={styles.previewContainer}>
+      <SafeAreaView style={styles.previewContainer} edges={['top', 'bottom']}>
         <View style={styles.previewHeader}>
           <Text style={styles.previewTitle}>Trip Generation Preview</Text>
           <Pressable onPress={() => setShowPreview(false)}>
@@ -925,7 +926,7 @@ export default function TripGenerator({
             loading={isGenerating}
           />
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 
@@ -988,7 +989,7 @@ export default function TripGenerator({
       animationType='slide'
       presentationStyle='pageSheet'
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.modalHeader}>
           <View style={styles.modalHeaderLeft}>
             <Zap size={24} color={colors.primary} />
@@ -1017,7 +1018,7 @@ export default function TripGenerator({
         </ScrollView>
 
         {renderPreviewModal()}
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

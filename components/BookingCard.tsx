@@ -4,7 +4,7 @@ import { ChevronRight, Calendar, Clock, Users } from 'lucide-react-native';
 import type { Booking } from '@/types';
 import Colors from '@/constants/colors';
 import Card from './Card';
-import { formatTimeAMPM } from '@/utils/dateUtils';
+import { formatTimeAMPM, formatBookingDate } from '@/utils/dateUtils';
 
 interface BookingCardProps {
   booking: Booking;
@@ -15,16 +15,6 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
   booking,
   onPress,
 }) => {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed':
@@ -84,7 +74,7 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
               style={styles.infoIcon}
             />
             <Text style={styles.infoText}>
-              {formatDate(booking.departureDate)}
+              {formatBookingDate(booking.departureDate)}
             </Text>
           </View>
 

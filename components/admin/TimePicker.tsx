@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -33,9 +33,8 @@ export default function TimePicker({
   compact = false,
 }: TimePickerProps) {
   const [isVisible, setIsVisible] = useState(false);
-  // Local temp selections so the modal doesn't close immediately on first tap
-  const [tempHour, setTempHour] = useState<number | undefined>(undefined);
-  const [tempMinute, setTempMinute] = useState<number | undefined>(undefined);
+  const [tempHour, setTempHour] = useState<number | null>(null);
+  const [tempMinute, setTempMinute] = useState<number | null>(null);
 
   const { selectedHour, selectedMinute } = useMemo(() => {
     const [h, m] = (value || '').split(':');
@@ -48,12 +47,35 @@ export default function TimePicker({
   const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
   const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
 
-  const finalizeSelection = (hour: number, minute: number) => {
-    const hh = String(hour).padStart(2, '0');
-    const mm = String(minute).padStart(2, '0');
+  useEffect(() => {
+    if (isVisible) {
+      setTempHour(selectedHour ?? 0);
+      setTempMinute(selectedMinute ?? 0);
+    } else {
+      setTempHour(null);
+      setTempMinute(null);
+    }
+  }, [isVisible, selectedHour, selectedMinute]);
+
+  const previewDisplay = useMemo(() => {
+    if (tempHour === null || tempMinute === null) return '--:--';
+    const hour12 =
+      tempHour === 0 ? 12 : tempHour > 12 ? tempHour - 12 : tempHour;
+    const period = tempHour >= 12 ? 'PM' : 'AM';
+    return `${hour12.toString().padStart(2, '0')}:${tempMinute
+      .toString()
+      .padStart(2, '0')} ${period}`;
+  }, [tempHour, tempMinute]);
+
+  const handleConfirm = () => {
+    if (tempHour === null || tempMinute === null) return;
+    const hh = String(tempHour).padStart(2, '0');
+    const mm = String(tempMinute).padStart(2, '0');
     onChange(`${hh}:${mm}`);
     setIsVisible(false);
   };
+
+  const quickMinutes = [0, 15, 30, 45];
 
   return (
     <View style={[styles.container, compact && { marginBottom: 0 }]}>
@@ -105,6 +127,11 @@ export default function TimePicker({
               </Pressable>
             </View>
 
+            <View style={styles.previewContainer}>
+              <Text style={styles.previewLabel}>Selected Time</Text>
+              <Text style={styles.previewValue}>{previewDisplay}</Text>
+            </View>
+
             <View style={styles.pickersRow}>
               {/* Hours */}
               <View style={styles.pickerColumn}>
@@ -118,21 +145,14 @@ export default function TimePicker({
                       key={h}
                       style={[
                         styles.option,
-                        selectedHour === h && styles.optionSelected,
+                        tempHour === h && styles.optionSelected,
                       ]}
-                      onPress={() => {
-                        setTempHour(h);
-                        // If minute already chosen in this session or existing value, finalize
-                        const minuteToUse = tempMinute ?? selectedMinute ?? 0;
-                        if (minuteToUse !== undefined && minuteToUse !== null) {
-                          finalizeSelection(h, minuteToUse);
-                        }
-                      }}
+                      onPress={() => setTempHour(h)}
                     >
                       <Text
                         style={[
                           styles.optionText,
-                          selectedHour === h && styles.optionTextSelected,
+                          tempHour === h && styles.optionTextSelected,
                         ]}
                       >
                         {String(h).padStart(2, '0')}
@@ -154,19 +174,14 @@ export default function TimePicker({
                       key={m}
                       style={[
                         styles.option,
-                        selectedMinute === m && styles.optionSelected,
+                        tempMinute === m && styles.optionSelected,
                       ]}
-                      onPress={() => {
-                        setTempMinute(m);
-                        // If hour already chosen in this session or existing value, finalize
-                        const hourToUse = tempHour ?? selectedHour ?? 0;
-                        finalizeSelection(hourToUse, m);
-                      }}
+                      onPress={() => setTempMinute(m)}
                     >
                       <Text
                         style={[
                           styles.optionText,
-                          selectedMinute === m && styles.optionTextSelected,
+                          tempMinute === m && styles.optionTextSelected,
                         ]}
                       >
                         {String(m).padStart(2, '0')}
@@ -175,6 +190,51 @@ export default function TimePicker({
                   ))}
                 </ScrollView>
               </View>
+            </View>
+
+            <View style={styles.quickRow}>
+              <Text style={styles.quickLabel}>Quick minutes</Text>
+              <View style={styles.quickChips}>
+                {quickMinutes.map(min => (
+                  <Pressable
+                    key={min}
+                    style={[
+                      styles.quickChip,
+                      tempMinute === min && styles.quickChipActive,
+                    ]}
+                    onPress={() => setTempMinute(min)}
+                  >
+                    <Text
+                      style={[
+                        styles.quickChipText,
+                        tempMinute === min && styles.quickChipTextActive,
+                      ]}
+                    >
+                      {String(min).padStart(2, '0')}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => setIsVisible(false)}
+              >
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.primaryButton,
+                  (tempHour === null || tempMinute === null) &&
+                    styles.primaryButtonDisabled,
+                ]}
+                onPress={handleConfirm}
+                disabled={tempHour === null || tempMinute === null}
+              >
+                <Text style={styles.primaryButtonText}>Confirm</Text>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -258,9 +318,27 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 6,
   },
+  previewContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  previewLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  previewValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+  },
   pickersRow: {
     flexDirection: 'row',
     gap: 12,
+    marginBottom: 16,
   },
   pickerColumn: {
     flex: 1,
@@ -283,9 +361,12 @@ const styles = StyleSheet.create({
   option: {
     paddingVertical: 10,
     paddingHorizontal: 16,
+    borderRadius: 10,
   },
   optionSelected: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: `${colors.primary}15`,
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
   optionText: {
     fontSize: 16,
@@ -294,5 +375,66 @@ const styles = StyleSheet.create({
   optionTextSelected: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  quickRow: {
+    marginBottom: 16,
+  },
+  quickLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  quickChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  quickChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  quickChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  quickChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  quickChipTextActive: {
+    color: colors.primary,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  secondaryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  primaryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.5,
+  },
+  primaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.white,
   },
 });

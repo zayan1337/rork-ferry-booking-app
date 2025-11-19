@@ -107,6 +107,87 @@ const formatTimeForForm = (time: string | undefined): string => {
   return time.substring(0, 5);
 };
 
+// Helper function to format time for display (12-hour format with AM/PM)
+const formatTimeDisplay = (time: string): string => {
+  if (!time) return '';
+  const [hours, minutes] = time.split(':');
+  const hour = parseInt(hours, 10);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${displayHour}:${minutes} ${period}`;
+};
+
+// Helper function to calculate duration between two times
+const calculateDuration = (
+  departureTime: string,
+  arrivalTime: string
+): string => {
+  if (!departureTime || !arrivalTime) return '';
+
+  const [depHours, depMinutes] = departureTime.split(':').map(Number);
+  const [arrHours, arrMinutes] = arrivalTime.split(':').map(Number);
+
+  const depTotalMinutes = depHours * 60 + depMinutes;
+  const arrTotalMinutes = arrHours * 60 + arrMinutes;
+
+  // Handle next day arrival
+  let diffMinutes = arrTotalMinutes - depTotalMinutes;
+  if (diffMinutes < 0) {
+    diffMinutes += 24 * 60; // Add 24 hours
+  }
+
+  const hours = Math.floor(diffMinutes / 60);
+  const minutes = diffMinutes % 60;
+
+  if (hours === 0) {
+    return `${minutes}m`;
+  } else if (minutes === 0) {
+    return `${hours}h`;
+  } else {
+    return `${hours}h ${minutes}m`;
+  }
+};
+
+// Helper function to generate quick arrival time suggestions
+const generateQuickArrivalTimes = (
+  departureTime: string
+): { value: string; label: string }[] => {
+  const [hours, minutes] = departureTime.split(':').map(Number);
+  const suggestions: { value: string; label: string }[] = [];
+
+  // Common ferry trip durations: 30min, 1h, 1h30min, 2h, 3h
+  const durations = [
+    { minutes: 30, label: '30 min' },
+    { minutes: 60, label: '1 hour' },
+    { minutes: 90, label: '1.5 hours' },
+    { minutes: 120, label: '2 hours' },
+    { minutes: 180, label: '3 hours' },
+  ];
+
+  durations.forEach(({ minutes: duration, label }) => {
+    let arrHours = hours;
+    let arrMinutes = minutes + duration;
+
+    // Handle hour overflow
+    while (arrMinutes >= 60) {
+      arrMinutes -= 60;
+      arrHours += 1;
+    }
+
+    // Handle day overflow
+    if (arrHours >= 24) {
+      arrHours -= 24;
+    }
+
+    const arrTime = `${String(arrHours).padStart(2, '0')}:${String(
+      arrMinutes
+    ).padStart(2, '0')}`;
+    suggestions.push({ value: arrTime, label });
+  });
+
+  return suggestions;
+};
+
 export default function TripForm({
   tripId,
   onSave,
@@ -1281,31 +1362,123 @@ export default function TripForm({
             />
           </View>
 
-          <View style={styles.formRow}>
-            <View style={styles.formHalf}>
-              <TimePicker
-                label='Departure Time'
-                value={formData.departure_time}
-                onChange={time =>
-                  setFormData(prev => ({ ...prev, departure_time: time }))
-                }
-                placeholder='HH:MM (24-hour)'
-                error={validationErrors.departure_time}
-                required
-              />
+          {/* Improved Time Selection */}
+          <View style={styles.timeSelectionContainer}>
+            <View style={styles.timeSelectionHeader}>
+              <Text style={styles.timeSelectionTitle}>Trip Times</Text>
+              {formData.departure_time && formData.arrival_time && (
+                <View style={styles.durationBadge}>
+                  <Clock size={12} color={colors.primary} />
+                  <Text style={styles.durationText}>
+                    {calculateDuration(
+                      formData.departure_time,
+                      formData.arrival_time
+                    )}
+                  </Text>
+                </View>
+              )}
             </View>
 
-            <View style={styles.formHalf}>
-              <TimePicker
-                label='Arrival Time'
-                value={formData.arrival_time || ''}
-                onChange={time =>
-                  setFormData(prev => ({ ...prev, arrival_time: time }))
-                }
-                placeholder='HH:MM (24-hour)'
-                error={validationErrors.arrival_time}
-              />
+            <View style={styles.timeInputsRow}>
+              {/* Departure Time */}
+              <View style={styles.timeInputWrapper}>
+                <View style={styles.timeInputHeader}>
+                  <Text style={styles.timeInputLabel}>Departure</Text>
+                  {validationErrors.departure_time && (
+                    <Text style={styles.timeErrorIndicator}>⚠</Text>
+                  )}
+                </View>
+                <TimePicker
+                  value={formData.departure_time}
+                  onChange={time =>
+                    setFormData(prev => ({ ...prev, departure_time: time }))
+                  }
+                  placeholder='Select time'
+                  error={validationErrors.departure_time}
+                  required
+                  compact
+                />
+                {formData.departure_time && (
+                  <Text style={styles.timeDisplayText}>
+                    {formatTimeDisplay(formData.departure_time)}
+                  </Text>
+                )}
+              </View>
+
+              {/* Arrow Connector */}
+              <View style={styles.timeConnector}>
+                <View style={styles.timeConnectorLine} />
+                <View style={styles.timeConnectorArrow}>
+                  <Text style={styles.timeConnectorArrowText}>→</Text>
+                </View>
+                <View style={styles.timeConnectorLine} />
+              </View>
+
+              {/* Arrival Time */}
+              <View style={styles.timeInputWrapper}>
+                <View style={styles.timeInputHeader}>
+                  <Text style={styles.timeInputLabel}>Arrival</Text>
+                  {validationErrors.arrival_time && (
+                    <Text style={styles.timeErrorIndicator}>⚠</Text>
+                  )}
+                </View>
+                <TimePicker
+                  value={formData.arrival_time || ''}
+                  onChange={time =>
+                    setFormData(prev => ({ ...prev, arrival_time: time }))
+                  }
+                  placeholder='Select time'
+                  error={validationErrors.arrival_time}
+                  compact
+                />
+                {formData.arrival_time && (
+                  <Text style={styles.timeDisplayText}>
+                    {formatTimeDisplay(formData.arrival_time)}
+                  </Text>
+                )}
+              </View>
             </View>
+
+            {/* Quick Time Suggestions */}
+            {formData.departure_time && !formData.arrival_time && (
+              <View style={styles.quickTimeSuggestions}>
+                <Text style={styles.quickTimeLabel}>
+                  Quick arrival suggestions:
+                </Text>
+                <View style={styles.quickTimeButtons}>
+                  {generateQuickArrivalTimes(formData.departure_time).map(
+                    (suggestion, index) => (
+                      <Pressable
+                        key={index}
+                        style={styles.quickTimeButton}
+                        onPress={() =>
+                          setFormData(prev => ({
+                            ...prev,
+                            arrival_time: suggestion.value,
+                          }))
+                        }
+                      >
+                        <Text style={styles.quickTimeButtonText}>
+                          {suggestion.label}
+                        </Text>
+                      </Pressable>
+                    )
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Validation Messages */}
+            {validationErrors.departure_time && (
+              <Text style={styles.timeErrorText}>
+                {validationErrors.departure_time}
+              </Text>
+            )}
+            {validationErrors.arrival_time && (
+              <Text style={styles.timeErrorText}>
+                {validationErrors.arrival_time}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -1939,5 +2112,132 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  // Improved Time Selection Styles
+  timeSelectionContainer: {
+    marginTop: 8,
+  },
+  timeSelectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  timeSelectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  durationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  durationText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  timeInputsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
+  timeInputWrapper: {
+    flex: 1,
+    minWidth: 0,
+  },
+  timeInputHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  timeInputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  timeErrorIndicator: {
+    fontSize: 16,
+    color: colors.error,
+  },
+  timeDisplayText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  timeConnector: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 28,
+    width: 40,
+  },
+  timeConnectorLine: {
+    width: 1,
+    height: 12,
+    backgroundColor: colors.border,
+  },
+  timeConnectorArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  timeConnectorArrowText: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  quickTimeSuggestions: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickTimeLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 10,
+  },
+  quickTimeButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  quickTimeButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickTimeButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  timeErrorText: {
+    fontSize: 12,
+    color: colors.error,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });

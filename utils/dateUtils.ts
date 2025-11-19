@@ -53,7 +53,9 @@ export const isDateInPast = (dateString: string): boolean => {
  * @param timeStr - Time string or Date object
  * @returns Normalized time string in HH:mm:ss format
  */
-export const normalizeTime = (timeStr: string | Date | null | undefined): string => {
+export const normalizeTime = (
+  timeStr: string | Date | null | undefined
+): string => {
   // Handle null, undefined, or empty string
   if (!timeStr) {
     return '00:00:00';

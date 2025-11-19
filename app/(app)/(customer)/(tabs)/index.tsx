@@ -37,7 +37,7 @@ import CalendarDatePicker from '@/components/CalendarDatePicker';
 import { useQuickBooking } from '@/hooks/useQuickBooking';
 import { useModalState } from '@/hooks/useModalState';
 import { useAlertContext } from '@/components/AlertProvider';
-import { formatDisplayDate } from '@/utils/customerUtils';
+import { formatTimeAMPM, formatBookingDate } from '@/utils/dateUtils';
 import {
   fetchActiveIslands,
   getOppositeZoneIslands,
@@ -331,7 +331,7 @@ export default function HomeScreen() {
                     ]}
                   >
                     {quickBookingState.selectedDate
-                      ? formatDisplayDate(quickBookingState.selectedDate)
+                      ? formatBookingDate(quickBookingState.selectedDate)
                       : 'Select travel date'}
                   </Text>
                 </View>
@@ -545,14 +545,7 @@ export default function HomeScreen() {
                         style={styles.tripIcon}
                       />
                       <Text style={styles.tripText}>
-                        {new Date(booking.departureDate).toLocaleDateString(
-                          'en-US',
-                          {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          }
-                        )}
+                        {formatBookingDate(booking.departureDate)}
                       </Text>
                     </View>
 
@@ -563,7 +556,7 @@ export default function HomeScreen() {
                         style={styles.tripIcon}
                       />
                       <Text style={styles.tripText}>
-                        {booking.departureTime}
+                        {formatTimeAMPM(booking.departureTime)}
                       </Text>
                     </View>
 
