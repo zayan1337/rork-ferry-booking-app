@@ -98,6 +98,13 @@ export default React.memo(function AdminLayout() {
             presentation: 'card',
           }}
         />
+        <Stack.Screen
+          name='support'
+          options={{
+            title: 'Contact Support',
+            presentation: 'card',
+          }}
+        />
       </Stack>
     </RoleGuard>
   );

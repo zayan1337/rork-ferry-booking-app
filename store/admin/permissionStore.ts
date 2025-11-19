@@ -299,34 +299,66 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
     grantedBy: string
   ) => {
     try {
-      // First check if permission already exists
-      const { data: existing } = await supabase
+      // 1. Validate permission exists and is active
+      const permissions = get().data;
+      const permission = permissions.find(p => p.id === permissionId && p.is_active);
+      
+      if (!permission) {
+        throw new Error(`Permission with ID ${permissionId} does not exist or is inactive`);
+      }
+
+      // 2. Check and grant dependencies first
+      if (permission.dependencies && permission.dependencies.length > 0) {
+        const userPermissions = get().getUserPermissions(userId);
+        const missingDeps = permission.dependencies.filter(
+          depId => !userPermissions.includes(depId)
+        );
+
+        if (missingDeps.length > 0) {
+          // Grant dependencies first
+          for (const depId of missingDeps) {
+            await get().grantPermission(userId, depId, grantedBy);
+          }
+        }
+      }
+
+      // 3. Check if permission already exists
+      const { data: existing, error: checkError } = await supabase
         .from('user_permissions')
-        .select('id')
+        .select('id, is_active')
         .eq('user_id', userId)
         .eq('permission_id', permissionId)
-        .single();
+        .maybeSingle();
 
-      let data, error;
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 is "not found" which is fine
+        throw checkError;
+      }
+
+      let result;
 
       if (existing) {
-        // Update existing permission
-        const updateResult = await supabase
+        if (existing.is_active) {
+          // Already granted and active, nothing to do
+          return;
+        }
+        
+        // Reactivate existing permission
+        const { data, error } = await supabase
           .from('user_permissions')
           .update({
             is_active: true,
             granted_by: grantedBy,
             granted_at: new Date().toISOString(),
           })
-          .eq('user_id', userId)
-          .eq('permission_id', permissionId)
+          .eq('id', existing.id)
           .select();
 
-        data = updateResult.data;
-        error = updateResult.error;
+        if (error) throw error;
+        result = data;
       } else {
         // Insert new permission
-        const insertResult = await supabase
+        const { data, error } = await supabase
           .from('user_permissions')
           .insert({
             user_id: userId,
@@ -336,31 +368,46 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
           })
           .select();
 
-        data = insertResult.data;
-        error = insertResult.error;
+        if (error) throw error;
+        result = data;
       }
 
-      if (error) {
-        throw error;
-      }
-
-      // Wait a bit for database consistency
-      await new Promise(resolve => setTimeout(resolve, 100));
-
+      // 4. Refresh data
       await Promise.all([
         get().fetchUserPermissions(userId),
         get().fetchAdminUsers(),
       ]);
+
+      return result;
     } catch (error) {
       set({
         error:
           error instanceof Error ? error.message : 'Failed to grant permission',
       });
+      throw error;
     }
   },
 
   revokePermission: async (userId: string, permissionId: string) => {
     try {
+      // Check for dependencies - permissions that require this one
+      const permissions = get().data;
+      const userPermissions = get().getUserPermissions(userId);
+      const permission = permissions.find(p => p.id === permissionId);
+      
+      if (permission) {
+        // Find permissions that depend on this one
+        const dependents = permissions.filter(
+          p => p.dependencies?.includes(permissionId) && userPermissions.includes(p.id)
+        );
+        
+        if (dependents.length > 0) {
+          throw new Error(
+            `Cannot revoke permission "${permission.name}" because it is required by: ${dependents.map(p => p.name).join(', ')}`
+          );
+        }
+      }
+
       const { error } = await supabase
         .from('user_permissions')
         .update({ is_active: false })
@@ -379,6 +426,7 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
             ? error.message
             : 'Failed to revoke permission',
       });
+      throw error;
     }
   },
 
@@ -388,27 +436,160 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
     grantedBy: string
   ) => {
     try {
-      // Deactivate existing permissions
-      await supabase
+      // 1. Get current active permissions
+      const { data: currentPerms, error: fetchError } = await supabase
         .from('user_permissions')
-        .update({ is_active: false })
-        .eq('user_id', userId);
+        .select('permission_id')
+        .eq('user_id', userId)
+        .eq('is_active', true);
 
-      // Insert new permissions
+      if (fetchError) throw fetchError;
+
+      const currentIds = (currentPerms || []).map(p => p.permission_id);
+
+      // 2. Calculate differences
+      const toAdd = permissionIds.filter(id => !currentIds.includes(id));
+      const toRemove = currentIds.filter(id => !permissionIds.includes(id));
+
+      // 3. Validate all permissions exist and are active
       if (permissionIds.length > 0) {
-        const newPermissions = permissionIds.map(permissionId => ({
-          user_id: userId,
-          permission_id: permissionId,
-          granted_by: grantedBy,
-          is_active: true,
-        }));
+        const { data: allPerms, error: validateError } = await supabase
+          .from('permissions')
+          .select('id')
+          .in('id', permissionIds)
+          .eq('is_active', true);
 
-        const { error } = await supabase
-          .from('user_permissions')
-          .upsert(newPermissions);
-        if (error) throw error;
+        if (validateError) throw validateError;
+
+        if (allPerms.length !== permissionIds.length) {
+          const invalidIds = permissionIds.filter(
+            id => !allPerms.some(p => p.id === id)
+          );
+          throw new Error(
+            `Some permissions do not exist or are inactive: ${invalidIds.join(', ')}`
+          );
+        }
       }
 
+      // 4. Handle removals - deactivate existing
+      if (toRemove.length > 0) {
+        // Check for dependencies before removing
+        const permissions = get().data;
+        const userPerms = get().getUserPermissions(userId);
+        
+        for (const permId of toRemove) {
+          const permission = permissions.find(p => p.id === permId);
+          if (permission) {
+            // Find permissions that depend on this one
+            const dependents = permissions.filter(
+              p => p.dependencies?.includes(permId) && userPerms.includes(p.id)
+            );
+            
+            if (dependents.length > 0) {
+              throw new Error(
+                `Cannot remove permission "${permission.name}" because it is required by: ${dependents.map(p => p.name).join(', ')}`
+              );
+            }
+          }
+        }
+
+        const { error: removeError } = await supabase
+          .from('user_permissions')
+          .update({ is_active: false })
+          .eq('user_id', userId)
+          .in('permission_id', toRemove);
+
+        if (removeError) throw removeError;
+      }
+
+      // 5. Handle additions
+      if (toAdd.length > 0) {
+        // Check for existing inactive permissions to reactivate
+        const { data: inactivePerms, error: inactiveError } = await supabase
+          .from('user_permissions')
+          .select('id, permission_id')
+          .eq('user_id', userId)
+          .in('permission_id', toAdd)
+          .eq('is_active', false);
+
+        if (inactiveError) throw inactiveError;
+
+        const toReactivate = (inactivePerms || []).map(p => p.id);
+        const toCreate = toAdd.filter(
+          id => !inactivePerms?.some(p => p.permission_id === id)
+        );
+
+        // Reactivate existing
+        if (toReactivate.length > 0) {
+          const { error: reactivateError } = await supabase
+            .from('user_permissions')
+            .update({
+              is_active: true,
+              granted_by: grantedBy,
+              granted_at: new Date().toISOString(),
+            })
+            .in('id', toReactivate);
+
+          if (reactivateError) throw reactivateError;
+        }
+
+        // Create new
+        if (toCreate.length > 0) {
+          // Grant dependencies first
+          const permissions = get().data;
+          const dependenciesToAdd: string[] = [];
+
+          for (const permId of toCreate) {
+            const permission = permissions.find(p => p.id === permId);
+            if (permission?.dependencies) {
+              for (const depId of permission.dependencies) {
+                if (
+                  !permissionIds.includes(depId) &&
+                  !currentIds.includes(depId) &&
+                  !dependenciesToAdd.includes(depId)
+                ) {
+                  dependenciesToAdd.push(depId);
+                }
+              }
+            }
+          }
+
+          // Add dependencies first
+          if (dependenciesToAdd.length > 0) {
+            const depPermissions = dependenciesToAdd.map(permissionId => ({
+              user_id: userId,
+              permission_id: permissionId,
+              granted_by: grantedBy,
+              is_active: true,
+            }));
+
+            const { error: depError } = await supabase
+              .from('user_permissions')
+              .upsert(depPermissions, {
+                onConflict: 'user_id,permission_id',
+                ignoreDuplicates: false,
+              });
+
+            if (depError) throw depError;
+          }
+
+          // Create new permissions
+          const newPermissions = toCreate.map(permissionId => ({
+            user_id: userId,
+            permission_id: permissionId,
+            granted_by: grantedBy,
+            is_active: true,
+          }));
+
+          const { error: createError } = await supabase
+            .from('user_permissions')
+            .insert(newPermissions);
+
+          if (createError) throw createError;
+        }
+      }
+
+      // 6. Refresh data
       await Promise.all([
         get().fetchUserPermissions(userId),
         get().fetchAdminUsers(),
@@ -420,6 +601,7 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
             ? error.message
             : 'Failed to update user permissions',
       });
+      throw error;
     }
   },
 

@@ -184,22 +184,46 @@ export const fetchSystemAlerts = async (): Promise<Alert[]> => {
       throw error;
     }
 
-    return (data || []).map((notification: any) => ({
-      id: notification.id,
-      type: notification.notification_type || 'info',
-      title: notification.title,
-      message: notification.message,
-      severity:
-        notification.priority === 2
-          ? 'critical'
-          : notification.priority === 1
-            ? 'high'
-            : 'low',
-      status: notification.status || 'active',
-      read: notification.is_read || false,
-      timestamp: notification.created_at,
-      action_url: notification.action_url || undefined,
-    }));
+    return (data || []).map((notification: any) => {
+      // Map notification types to valid Alert types
+      const typeMap: { [key: string]: Alert['type'] } = {
+        permission_request: 'security',
+        contact_form: 'system',
+        schedule_change: 'schedule',
+        payment_issue: 'payment',
+        capacity_warning: 'capacity',
+        maintenance_required: 'maintenance',
+        security_alert: 'security',
+      };
+
+      const alertType =
+        typeMap[notification.notification_type] ||
+        (notification.notification_type === 'system' ||
+        notification.notification_type === 'schedule' ||
+        notification.notification_type === 'payment' ||
+        notification.notification_type === 'capacity' ||
+        notification.notification_type === 'maintenance' ||
+        notification.notification_type === 'security'
+          ? notification.notification_type
+          : 'system');
+
+      return {
+        id: notification.id,
+        type: alertType,
+        title: notification.title,
+        message: notification.message,
+        severity:
+          notification.priority === 2
+            ? 'critical'
+            : notification.priority === 1
+              ? 'high'
+              : 'low',
+        status: notification.status || 'active',
+        read: notification.is_read || false,
+        timestamp: notification.created_at,
+        action_url: notification.action_url || undefined,
+      };
+    });
   } catch (error) {
     console.error('Failed to fetch system alerts:', error);
     return [];

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, Pressable, Text } from 'react-native';
+import { View, Pressable, Text, ScrollView, StyleSheet } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { usePermissionStore } from '@/store/admin/permissionStore';
@@ -146,17 +146,31 @@ export default function AdminTabLayout() {
   // 2. All data is fully loaded (permissions, admin users, and user-specific data)
   // 3. User actually has no permissions
   if (user?.profile?.id && !hasAnyPermissions()) {
+    const handleRequestPermissions = () => {
+      router.push('../settings' as any);
+    };
+
+    const handleViewProfile = () => {
+      router.push('../modal' as any);
+    };
+
     return (
-      <SafeView backgroundColor={colors.backgroundSecondary}>
-        <View
-          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+      <SafeView
+        backgroundColor={colors.backgroundSecondary}
+        edges={['top', 'bottom']}
+      >
+        <ScrollView
+          contentContainerStyle={styles.noPermissionsContainer}
+          showsVerticalScrollIndicator={false}
         >
-          <NoPermissionsWelcome
-            adminName={adminName}
-            adminRole={adminRole}
-            isSuperAdmin={isSuperAdmin}
-          />
-        </View>
+            <NoPermissionsWelcome
+              adminName={adminName}
+              adminRole={adminRole}
+              isSuperAdmin={isSuperAdmin}
+            />
+
+           
+        </ScrollView>
       </SafeView>
     );
   }
@@ -277,3 +291,49 @@ export default function AdminTabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  noPermissionsContainer: {
+    flexGrow: 1,
+    padding: 24,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  noPermissionsCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 24,
+    gap: 20,
+    shadowColor: colors.shadow ?? '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 6,
+  },
+  noPermissionsActions: {
+    gap: 12,
+  },
+  primaryAction: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  primaryActionText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  secondaryAction: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    backgroundColor: colors.backgroundSecondary,
+  },
+  secondaryActionText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+});

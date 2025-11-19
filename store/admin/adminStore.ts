@@ -186,6 +186,9 @@ interface AdminState {
   // Special assistance notifications
   fetchSpecialAssistanceNotifications: () => Promise<any[]>;
   fetchSpecialAssistanceCount: () => Promise<number>;
+
+  // Permission request alert
+  createPermissionRequestAlert: (adminName: string, adminRole: string, userId: string) => Promise<void>;
 }
 
 // Mock data for new entities
@@ -1144,6 +1147,65 @@ export const useAdminStore = create<AdminState>()(
         } catch (error) {
           console.error('Error fetching special assistance count:', error);
           return 0;
+        }
+      },
+
+      createPermissionRequestAlert: async (
+        adminName: string,
+        adminRole: string,
+        userId: string
+      ) => {
+        try {
+          const { supabase } = await import('@/utils/supabase');
+
+          // Create notification in database
+          const { data, error } = await supabase
+            .from('admin_notifications')
+            .insert({
+              title: 'Permission Request',
+              message: `${adminName} (${adminRole}) is requesting additional permissions for their admin account.`,
+              notification_type: 'permission_request',
+              recipient_role: 'admin', // Send to all admins
+              priority: 1, // High priority
+              is_system: false,
+              metadata: {
+                admin_name: adminName,
+                admin_role: adminRole,
+                user_id: userId,
+                requested_at: new Date().toISOString(),
+              },
+              action_url: `/admin/user/${userId}/permissions`,
+              action_label: 'Review Permissions',
+            })
+            .select()
+            .single();
+
+          if (error) {
+            console.error('Error creating permission request alert:', error);
+            throw error;
+          }
+
+          // Convert to Alert format and add to local store
+          const alert: Alert = {
+            id: data.id,
+            type: 'security', // Map permission request to security type
+            title: data.title,
+            message: data.message,
+            severity: 'high',
+            status: 'active',
+            timestamp: data.created_at,
+            read: false,
+            action_required: 'Review and assign permissions',
+          };
+
+          // Add to local store
+          get().addAlert(alert);
+
+          // Refresh dashboard data to get updated alerts
+          await get().fetchDashboardData();
+        } catch (error) {
+          console.error('Failed to create permission request alert:', error);
+          throw error;
         }
       },
     }),

@@ -1,30 +1,13 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Dimensions,
-  ScrollView,
-  StatusBar,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import {
-  Shield,
-  User,
-  MessageSquare,
-  HelpCircle,
-  ArrowRight,
-  Crown,
-  Phone,
-  Mail,
-  ExternalLink,
-} from 'lucide-react-native';
+import { Shield, User, CheckCircle2, ChevronRight } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
+import { useAdminStore } from '@/store/admin/adminStore';
+import { useAlertContext } from '@/components/AlertProvider';
 import Button from './Button';
-
-const { width: screenWidth } = Dimensions.get('window');
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface NoPermissionsWelcomeProps {
   adminName?: string;
@@ -35,25 +18,49 @@ interface NoPermissionsWelcomeProps {
 export default function NoPermissionsWelcome({
   adminName,
   adminRole,
-  isSuperAdmin = false,
 }: NoPermissionsWelcomeProps) {
   const { user } = useAuthStore();
-  const isTablet = screenWidth >= 768;
+  const { createPermissionRequestAlert } = useAdminStore();
+  const { showSuccess, showError } = useAlertContext();
 
   const displayName = adminName || user?.profile?.full_name || 'Administrator';
   const displayRole =
     adminRole || user?.profile?.role || 'System Administrator';
 
+  const handleRequestPermissions = async () => {
+    try {
+      const userId = user?.profile?.id;
+      if (!userId) {
+        showError('Error', 'User ID not found. Please try again.');
+        return;
+      }
+
+      // Create the permission request alert
+      await createPermissionRequestAlert(displayName, displayRole, userId);
+
+      // Show success message
+      showSuccess(
+        'Request Submitted',
+        'Your permission request has been submitted. A super admin will review your request shortly.'
+      );
+
+      // Navigate to settings with alerts tab open
+      router.push('./settings?tab=alerts' as any);
+    } catch (error) {
+      console.error('Error creating permission request:', error);
+      showError(
+        'Error',
+        'Failed to submit permission request. Please try again or contact support.'
+      );
+    }
+  };
+
   const handleContactSupport = () => {
-    router.push('../modal' as any);
+    router.push('../support' as any);
   };
 
   const handleViewProfile = () => {
     router.push('../modal' as any);
-  };
-
-  const handleRequestPermissions = () => {
-    handleContactSupport();
   };
 
   const getPermissionSuggestions = () => {
@@ -148,159 +155,88 @@ export default function NoPermissionsWelcome({
   const suggestions = getPermissionSuggestions();
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle='dark-content' backgroundColor={colors.background} />
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <LinearGradient
+        colors={[`${colors.primary}0D`, `${colors.primary}00`]}
+        style={styles.heroCard}
       >
-        {/* Main Welcome Card */}
-        <View style={styles.mainCard}>
-          <View style={styles.iconContainer}>
-            {isSuperAdmin ? (
-              <Crown size={40} color={colors.warning} />
-            ) : (
-              <Shield size={40} color={colors.primary} />
-            )}
-          </View>
-
-          <Text style={styles.title}>
-            {isSuperAdmin
-              ? 'Welcome, Super Administrator!'
-              : `Welcome, ${displayName}!`}
-          </Text>
-
-          <Text style={styles.subtitle}>
-            {isSuperAdmin
-              ? 'You have full system access with comprehensive privileges.'
-              : 'Your account is being configured for optimal access.'}
-          </Text>
-
-          {isSuperAdmin && (
-            <View style={styles.badge}>
-              <Crown size={14} color={colors.warning} />
-              <Text style={styles.badgeText}>Super Administrator</Text>
-            </View>
-          )}
+        <View style={styles.heroIcon}>
+          <Shield size={36} color={colors.primary} />
         </View>
+        <Text style={styles.title}>{`Welcome, ${displayName}!`}</Text>
+        <Text style={styles.subtitle}>
+          Your account is being configured for optimal access.
+        </Text>
 
-        {/* User Info Card */}
-        <View style={styles.userCard}>
-          <View style={styles.userHeader}>
-            <View style={styles.avatar}>
-              <User size={20} color={colors.primary} />
-            </View>
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>{displayName}</Text>
-              <Text style={styles.userRole}>{displayRole}</Text>
-            </View>
-            <View style={styles.status}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Active</Text>
-            </View>
+        <View style={styles.userChip}>
+          <View style={styles.avatar}>
+            <User size={18} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.userName}>{displayName}</Text>
+            <Text style={styles.userRole}>{displayRole}</Text>
+          </View>
+          <View style={styles.statusBadge}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>Active</Text>
           </View>
         </View>
+      </LinearGradient>
 
-        {/* Permissions Section */}
-        <View style={styles.permissionsSection}>
-          <Text style={styles.sectionTitle}>Recommended Permissions</Text>
-          <Text style={styles.sectionSubtitle}>
-            Based on your role, you might need these permissions:
-          </Text>
-
-          <View style={styles.permissionsGrid}>
-            {suggestions.map((suggestion, index) => (
-              <View key={index} style={styles.permissionCard}>
-                <View
-                  style={[
-                    styles.permissionIcon,
-                    { backgroundColor: `${suggestion.color}15` },
-                  ]}
-                >
-                  <Shield size={16} color={suggestion.color} />
-                </View>
-                <View>
-                  <Text style={styles.permissionTitle}>{suggestion.label}</Text>
-                  <Text style={styles.permissionDescription}>
-                    {suggestion.description}
-                  </Text>
-                </View>
+      <View style={styles.permissionsCard}>
+        <Text style={styles.sectionTitle}>Recommended Permissions</Text>
+        <Text style={styles.sectionSubtitle}>
+          Based on your role, you might need these permissions:
+        </Text>
+        <View style={{ gap: 12 }}>
+          {suggestions.map((suggestion, index) => (
+            <View key={index} style={styles.permissionRow}>
+              <View
+                style={[
+                  styles.permissionIcon,
+                  { backgroundColor: `${suggestion.color}15` },
+                ]}
+              >
+                <Shield size={18} color={suggestion.color} />
               </View>
-            ))}
-          </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.permissionTitle}>{suggestion.label}</Text>
+                <Text style={styles.permissionDescription}>
+                  {suggestion.description}
+                </Text>
+              </View>
+              <ChevronRight size={18} color={colors.textSecondary} />
+            </View>
+          ))}
         </View>
+      </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionsContainer}>
-          <Button
-            title='Request Permissions'
-            onPress={handleRequestPermissions}
-            style={styles.primaryButton}
-            icon={React.createElement(Shield, { size: 16, color: 'white' })}
-          />
+      <View style={styles.actionsCard}>
+        <Button
+          title='Request Permissions'
+          onPress={handleRequestPermissions}
+          style={styles.primaryButton}
+          icon={React.createElement(CheckCircle2, { size: 18, color: 'white' })}
+        />
 
-          <View style={styles.secondaryButtons}>
-            <Button
-              title='Contact Support'
-              onPress={handleContactSupport}
-              variant='outline'
-              style={styles.secondaryButton}
-              icon={React.createElement(MessageSquare, {
-                size: 16,
-                color: colors.primary,
-              })}
-            />
-            <Button
-              title='View Profile'
-              onPress={handleViewProfile}
-              style={styles.secondaryButton}
-              variant='outline'
-              icon={React.createElement(User, {
-                size: 16,
-                color: colors.primary,
-              })}
-            />
-          </View>
+        <View style={styles.secondaryRow}>
+          <Pressable
+            style={styles.secondaryAction}
+            onPress={handleContactSupport}
+          >
+            <Text style={styles.secondaryActionText}>Contact Support</Text>
+          </Pressable>
+
+          <Pressable style={styles.secondaryAction} onPress={handleViewProfile}>
+            <Text style={styles.secondaryActionText}>View Profile</Text>
+          </Pressable>
         </View>
-
-        {/* Help Section */}
-        <View style={styles.helpCard}>
-          <View style={styles.helpHeader}>
-            <HelpCircle size={20} color={colors.warning} />
-            <Text style={styles.helpTitle}>Need Assistance?</Text>
-          </View>
-
-          <View style={styles.helpOptions}>
-            <Pressable style={styles.helpOption} onPress={handleContactSupport}>
-              <Phone size={14} color={colors.primary} />
-              <Text style={styles.helpOptionText}>Call Support</Text>
-              <ArrowRight size={14} color={colors.textSecondary} />
-            </Pressable>
-
-            <Pressable style={styles.helpOption} onPress={handleContactSupport}>
-              <Mail size={14} color={colors.primary} />
-              <Text style={styles.helpOptionText}>Email Support</Text>
-              <ArrowRight size={14} color={colors.textSecondary} />
-            </Pressable>
-
-            <Pressable style={styles.helpOption} onPress={handleContactSupport}>
-              <ExternalLink size={14} color={colors.primary} />
-              <Text style={styles.helpOptionText}>Documentation</Text>
-              <ArrowRight size={14} color={colors.textSecondary} />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Crystal Transfer Vaavu • Admin Panel
-          </Text>
-        </View>
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -309,238 +245,145 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
   },
-  scrollView: {
-    flex: 1,
-  },
   scrollContent: {
-    paddingTop: 40,
-    paddingBottom: 40,
+    gap: 16,
   },
-  mainCard: {
+  heroCard: {
+    borderRadius: 24,
+    padding: 20,
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 20,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: `${colors.border}70`,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 6,
+    gap: 16,
   },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: `${colors.primary}15`,
+  heroIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.card,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    alignSelf: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: 8,
-    lineHeight: 30,
   },
   subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 400,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: `${colors.warning}15`,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: `${colors.warning}30`,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.warning,
-    marginLeft: 6,
-  },
-  userCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: `${colors.border}80`,
-  },
-  userHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: `${colors.primary}15`,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  userRole: {
     fontSize: 14,
     color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
-  status: {
+  userChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 18,
+    padding: 12,
+    gap: 12,
+    backgroundColor: colors.card,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${colors.primary}12`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  userRole: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: colors.success,
-    marginRight: 6,
   },
   statusText: {
     fontSize: 12,
     color: colors.success,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  permissionsSection: {
-    marginBottom: 24,
+  permissionsCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 20,
+    gap: 12,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 4,
   },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  permissionsGrid: {
-    gap: 12,
-  },
-  permissionCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: `${colors.border}80`,
-  },
-  permissionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 8,
   },
+  permissionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  permissionIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   permissionTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
   },
   permissionDescription: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
-    lineHeight: 18,
   },
-  actionsContainer: {
-    marginBottom: 24,
-    gap: 12,
+  actionsCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 20,
+    gap: 16,
   },
   primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
+    borderRadius: 14,
   },
-  secondaryButtons: {
+  secondaryRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
   },
-  secondaryButton: {
+  secondaryAction: {
     flex: 1,
-  },
-  helpCard: {
-    backgroundColor: `${colors.warning}08`,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: `${colors.warning}20`,
-  },
-  helpHeader: {
-    flexDirection: 'row',
+    borderRadius: 14,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginBottom: 12,
+    backgroundColor: colors.backgroundSecondary,
   },
-  helpTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginLeft: 8,
-  },
-  helpOptions: {
-    gap: 8,
-  },
-  helpOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: `${colors.border}20`,
-  },
-  helpOptionText: {
-    flex: 1,
+  secondaryActionText: {
     fontSize: 14,
-    color: colors.text,
-    marginLeft: 8,
-  },
-  footer: {
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: `${colors.border}20`,
-  },
-  footerText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: colors.primary,
   },
 });
