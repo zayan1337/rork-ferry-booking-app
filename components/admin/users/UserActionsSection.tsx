@@ -8,6 +8,7 @@ import {
   CreditCard,
   Ship,
   Route as RouteIcon,
+  Ticket,
 } from 'lucide-react-native';
 import { colors } from '@/constants/adminColors';
 import { UserProfile } from '@/types/userManagement';
@@ -23,6 +24,9 @@ interface UserActionsSectionProps {
   onViewTrips?: () => void;
   onViewVessel?: () => void;
   onViewRoutes?: () => void;
+  onManageFreeTickets?: () => void;
+  freeTicketsAllocation?: number;
+  freeTicketsRemaining?: number;
 }
 
 export default function UserActionsSection({
@@ -35,6 +39,9 @@ export default function UserActionsSection({
   onViewTrips,
   onViewVessel,
   onViewRoutes,
+  onManageFreeTickets,
+  freeTicketsAllocation,
+  freeTicketsRemaining,
 }: UserActionsSectionProps) {
   const renderCustomerActions = () => (
     <View style={styles.actionButtons}>
@@ -79,8 +86,17 @@ export default function UserActionsSection({
           variant='outline'
           onPress={onViewBookings || (() => {})}
           icon={<Calendar size={16} color={colors.primary} />}
-          style={[styles.agentActionButton, styles.agentActionButtonFull]}
+          style={styles.agentActionButton}
         />
+        {onManageFreeTickets && (
+          <Button
+            title={`Free Tickets`}
+            variant='outline'
+            onPress={onManageFreeTickets}
+            icon={<Ticket size={16} color={colors.primary} />}
+            style={styles.agentActionButton}
+          />
+        )}
       </View>
     </View>
   );
@@ -92,13 +108,6 @@ export default function UserActionsSection({
         variant='outline'
         onPress={onViewPermissions || (() => {})}
         icon={<Shield size={16} color={colors.primary} />}
-        style={styles.actionButton}
-      />
-      <Button
-        title='View Activity'
-        variant='outline'
-        onPress={onViewActivity || (() => {})}
-        icon={<Activity size={16} color={colors.primary} />}
         style={styles.actionButton}
       />
     </View>
@@ -208,9 +217,5 @@ const styles = StyleSheet.create({
   agentActionButton: {
     flex: 1,
     minWidth: 140,
-  },
-  agentActionButtonFull: {
-    flex: 1,
-    minWidth: 'auto',
   },
 });

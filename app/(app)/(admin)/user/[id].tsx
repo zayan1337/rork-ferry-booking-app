@@ -43,7 +43,9 @@ import {
   UserInfoSection,
   UserActionsSection,
   UserSystemInfoSection,
+  UserStatusManager,
 } from '@/components/admin/users';
+import FreeTicketsModal from '@/components/admin/users/FreeTicketsModal';
 import { useAlertContext } from '@/components/AlertProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -72,6 +74,9 @@ export default function UserDetailsPage() {
     from: string;
     to: string;
   } | null>(null);
+  const [userStatsData, setUserStatsData] = useState<any>(null);
+  const [freeTicketsModalVisible, setFreeTicketsModalVisible] = useState(false);
+  const [statusManagerVisible, setStatusManagerVisible] = useState(false);
 
   const loadPassengerTripData = useCallback(async (passengerId: string) => {
     try {
@@ -172,6 +177,389 @@ export default function UserDetailsPage() {
     }
   }, []);
 
+  const fetchUserStats = useCallback(
+    async (userId: string, userRole: string) => {
+      try {
+        const stats: any = {};
+
+        switch (userRole) {
+          case 'agent': {
+            // Fetch agent profile, user profile, and bookings data
+            const [
+              profileData,
+              allBookingsData,
+              commissionBookingsData,
+              agentClientsData,
+            ] = await Promise.all([
+              supabase
+                .from('user_profiles')
+                .select(
+                  'credit_ceiling, credit_balance, agent_discount, free_tickets_allocation, free_tickets_remaining'
+                )
+                .eq('id', userId)
+                .single(),
+              // Fetch ALL bookings for active bookings count
+              supabase
+                .from('bookings')
+                .select('id, status, user_id, agent_client_id')
+                .eq('agent_id', userId),
+              // Fetch bookings with trip data for commission calculation (only confirmed/checked_in/completed)
+              // Note: agent_discount is in user_profiles, not bookings table - we use profileData for that
+              supabase
+                .from('bookings')
+                .select(
+                  'id, status, total_fare, trip_id, trips(id, fare_multiplier, route_id, routes(id, base_fare)), passengers(id), booking_segments(fare_amount)'
+                )
+                .eq('agent_id', userId)
+                .in('status', ['confirmed', 'checked_in', 'completed'])
+                .not('total_fare', 'is', null),
+              // Count all clients from agent_clients table
+              supabase
+                .from('agent_clients')
+                .select('id', { count: 'exact', head: true })
+                .eq('agent_id', userId),
+            ]);
+
+            const allBookings = allBookingsData.data || [];
+            let commissionBookings = commissionBookingsData.data || [];
+
+            // Check for query errors
+            if (allBookingsData.error) {
+              console.error(
+                '[Agent Stats] Error fetching all bookings:',
+                allBookingsData.error
+              );
+            }
+            if (commissionBookingsData.error) {
+              console.error(
+                '[Agent Stats] Error fetching commission bookings:',
+                commissionBookingsData.error
+              );
+            }
+
+            // If no bookings found with trips, fetch confirmed bookings without trip requirement
+            // We can calculate commission using total_fare and discount even without trip data
+            if (commissionBookings.length === 0 && allBookings.length > 0) {
+              // Fetch confirmed bookings directly
+              const { data: confirmedBookings, error: confirmedError } =
+                await supabase
+                  .from('bookings')
+                  .select('id, status, total_fare, trip_id, passengers(id)')
+                  .eq('agent_id', userId)
+                  .in('status', ['confirmed', 'checked_in', 'completed'])
+                  .not('total_fare', 'is', null);
+
+              if (
+                !confirmedError &&
+                confirmedBookings &&
+                confirmedBookings.length > 0
+              ) {
+                // Use these bookings for commission calculation
+                // We'll calculate commission using total_fare and agent discount
+                commissionBookings = confirmedBookings.map((b: any) => ({
+                  ...b,
+                  trips: null,
+                  booking_segments: [],
+                }));
+              } else if (confirmedError) {
+                console.error(
+                  '[Agent Stats] Error fetching confirmed bookings:',
+                  confirmedError
+                );
+              }
+            }
+
+            // Client count should be from agent_clients table (simple count)
+            stats.totalClients = agentClientsData.count || 0;
+
+            // Calculate commission from confirmed/checked_in/completed bookings
+            // Commission = discount amount = (original fare - discounted fare)
+            // Note: total_fare is usually the discounted fare that client pays
+            // Original fare = route base_fare * fare_multiplier * passengers (or from booking_segments)
+            let totalCommission = 0;
+            const agentDiscount = Number(profileData.data?.agent_discount || 0);
+
+            // Calculate commission using the same logic as agent pages
+            // Commission = originalFare - discountedFare (total_fare)
+            commissionBookings.forEach((booking: any, index: number) => {
+              try {
+                const trip = booking.trips
+                  ? Array.isArray(booking.trips)
+                    ? booking.trips[0]
+                    : booking.trips
+                  : null;
+                const route = trip?.routes
+                  ? Array.isArray(trip.routes)
+                    ? trip.routes[0]
+                    : trip.routes
+                  : null;
+
+                const passengers = Array.isArray(booking.passengers)
+                  ? booking.passengers.length
+                  : booking.passengers
+                    ? 1
+                    : 0;
+
+                const discountedFare = Number(booking.total_fare || 0); // This is what client pays (after discount)
+                const fareMultiplier = Number(trip?.fare_multiplier || 1);
+                const routeBaseFare = Number(route?.base_fare || 0);
+                const multipliedFare = routeBaseFare * fareMultiplier;
+
+                // Calculate original fare (before discount) - same logic as agent store
+                let originalFare = discountedFare; // Default fallback
+
+                // Method 1: Reverse-calculate from discount rate if available
+                if (
+                  agentDiscount > 0 &&
+                  agentDiscount < 100 &&
+                  discountedFare > 0
+                ) {
+                  // Reverse calculation: discountedFare = originalFare * (1 - discountRate/100)
+                  // Therefore: originalFare = discountedFare / (1 - discountRate/100)
+                  const reverseCalculated =
+                    discountedFare / (1 - agentDiscount / 100);
+                  // Only use if it's reasonable (not too far off)
+                  if (
+                    reverseCalculated >= discountedFare &&
+                    reverseCalculated <= discountedFare * 2
+                  ) {
+                    originalFare = reverseCalculated;
+                  }
+                }
+
+                // Method 2: Use booking_segments fare_amount if available
+                const segments = Array.isArray(booking.booking_segments)
+                  ? booking.booking_segments
+                  : booking.booking_segments
+                    ? [booking.booking_segments]
+                    : [];
+
+                if (segments.length > 0) {
+                  const segmentFare = Number(
+                    segments[0]?.fare_amount ||
+                      segments.reduce(
+                        (sum: number, seg: any) =>
+                          sum + Number(seg.fare_amount || 0),
+                        0
+                      )
+                  );
+
+                  // Check if segment fare per passenger
+                  if (passengers > 0 && segmentFare > 0) {
+                    const totalSegmentFare = segmentFare * passengers;
+                    if (
+                      totalSegmentFare >= discountedFare &&
+                      totalSegmentFare > originalFare
+                    ) {
+                      originalFare = totalSegmentFare;
+                    } else if (
+                      segmentFare >= discountedFare &&
+                      segmentFare > originalFare
+                    ) {
+                      originalFare = segmentFare;
+                    } else if (
+                      originalFare === discountedFare &&
+                      totalSegmentFare > discountedFare
+                    ) {
+                      originalFare = totalSegmentFare;
+                    }
+                  } else if (
+                    segmentFare >= discountedFare &&
+                    segmentFare > originalFare
+                  ) {
+                    originalFare = segmentFare;
+                  }
+                }
+
+                // Method 3: Calculate from trip data (route base_fare × multiplier × passengers)
+                if (trip && passengers > 0 && multipliedFare > 0) {
+                  const calculatedFare = passengers * multipliedFare;
+                  if (
+                    calculatedFare >= discountedFare &&
+                    calculatedFare > originalFare
+                  ) {
+                    originalFare = calculatedFare;
+                  } else if (
+                    originalFare === discountedFare &&
+                    calculatedFare > 0
+                  ) {
+                    originalFare = calculatedFare;
+                  }
+                }
+
+                // Final validation: Ensure originalFare is at least equal to discountedFare
+                if (originalFare < discountedFare) {
+                  originalFare = discountedFare;
+                }
+
+                // Calculate commission = originalFare - discountedFare (same as agent store)
+                const commissionAmount =
+                  originalFare > discountedFare
+                    ? originalFare - discountedFare
+                    : 0;
+
+                if (commissionAmount > 0) {
+                  totalCommission += commissionAmount;
+                }
+              } catch (error) {
+                console.error(
+                  'Error calculating commission for booking:',
+                  booking.id,
+                  error
+                );
+              }
+            });
+
+            stats.totalCommissions = Math.round(totalCommission * 100) / 100; // Round to 2 decimal places
+
+            // Count active bookings (confirmed or checked_in)
+            stats.activeBookings = allBookings.filter(
+              (b: any) => b.status === 'confirmed' || b.status === 'checked_in'
+            ).length;
+
+            stats.creditLimit = profileData.data?.credit_ceiling || 0;
+            stats.availableCredit = profileData.data?.credit_balance || 0;
+            stats.freeTicketsAllocation =
+              profileData.data?.free_tickets_allocation || 0;
+            stats.freeTicketsRemaining =
+              profileData.data?.free_tickets_remaining || 0;
+            break;
+          }
+
+          case 'customer': {
+            // Fetch active bookings, completed trips, and pending payments
+            const [bookingsData, paymentsData] = await Promise.all([
+              supabase
+                .from('bookings')
+                .select('id, status, trip_id, total_fare')
+                .eq('user_id', userId),
+              supabase
+                .from('payments')
+                .select('id, status, amount')
+                .eq('user_id', userId),
+            ]);
+
+            const bookings = bookingsData.data || [];
+            const payments = paymentsData.data || [];
+
+            stats.activeBookings = bookings.filter(
+              (b: any) => b.status === 'confirmed' || b.status === 'checked_in'
+            ).length;
+
+            // Count completed trips (bookings with trip_id and completed status)
+            const tripsWithBooking = new Set(
+              bookings
+                .filter((b: any) => b.trip_id && b.status === 'completed')
+                .map((b: any) => b.trip_id)
+            );
+            stats.completedTrips = tripsWithBooking.size;
+
+            // Pending payments (payments that are pending or failed)
+            stats.pendingPayments = payments
+              .filter(
+                (p: any) => p.status === 'pending' || p.status === 'failed'
+              )
+              .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+            break;
+          }
+
+          case 'passenger': {
+            // Fetch passenger bookings to determine completed/upcoming trips
+            const { data: passengerData } = await supabase
+              .from('passengers')
+              .select('booking_id')
+              .eq('id', userId)
+              .single();
+
+            if (passengerData?.booking_id) {
+              const { data: bookingData } = await supabase
+                .from('bookings')
+                .select(
+                  'id, status, trip_id, trips!inner(travel_date, departure_time)'
+                )
+                .eq('id', passengerData.booking_id)
+                .single();
+
+              if (bookingData) {
+                const trip: any = Array.isArray(bookingData.trips)
+                  ? bookingData.trips[0]
+                  : bookingData.trips;
+
+                if (trip) {
+                  const travelDate = new Date(trip.travel_date);
+                  const now = new Date();
+                  const isUpcoming = travelDate >= now;
+
+                  stats.completedTrips = isUpcoming ? 0 : 1;
+                  stats.upcomingTrips = isUpcoming ? 1 : 0;
+                }
+              }
+            } else {
+              stats.completedTrips = 0;
+              stats.upcomingTrips = 0;
+            }
+            break;
+          }
+
+          case 'captain': {
+            // Fetch captain routes (distinct routes from trips), trips, and rating
+            const [tripsData, profileData] = await Promise.all([
+              supabase
+                .from('trips')
+                .select('id, route_id, captain_id')
+                .eq('captain_id', userId),
+              supabase
+                .from('user_profiles')
+                .select('average_rating, created_at')
+                .eq('id', userId)
+                .single(),
+            ]);
+
+            // Count distinct routes from trips
+            const trips = tripsData.data || [];
+            const distinctRoutes = new Set(trips.map((t: any) => t.route_id));
+
+            stats.totalRoutes = distinctRoutes.size;
+            stats.totalTrips = trips.length;
+            stats.averageRating = profileData.data?.average_rating || 0;
+
+            // Calculate experience years from created_at
+            if (profileData.data?.created_at) {
+              const createdDate = new Date(profileData.data.created_at);
+              const now = new Date();
+              const yearsDiff = now.getFullYear() - createdDate.getFullYear();
+              const monthsDiff = now.getMonth() - createdDate.getMonth();
+              stats.experienceYears =
+                monthsDiff < 0 ? yearsDiff - 1 : yearsDiff;
+            } else {
+              stats.experienceYears = 0;
+            }
+            break;
+          }
+
+          case 'admin': {
+            // Admin users don't need stats - just fetch last login
+            const { data: profileData } = await supabase
+              .from('user_profiles')
+              .select('last_login')
+              .eq('id', userId)
+              .single();
+
+            stats.lastLogin =
+              profileData?.last_login || new Date().toISOString();
+            break;
+          }
+        }
+
+        setUserStatsData(stats);
+      } catch (error) {
+        console.error('Error fetching user stats:', error);
+        setUserStatsData({});
+      }
+    },
+    []
+  );
+
   const loadUser = useCallback(
     async ({ showLoader = true }: { showLoader?: boolean } = {}) => {
       try {
@@ -181,6 +569,7 @@ export default function UserDetailsPage() {
         setError(null);
         setPassengerTripData(null);
         setIslandNames(null);
+        setUserStatsData(null);
 
         if (!id || typeof id !== 'string') {
           setError('Invalid user ID');
@@ -192,6 +581,9 @@ export default function UserDetailsPage() {
 
         if (fetchedUser) {
           setUser(fetchedUser);
+
+          // Fetch role-specific stats
+          await fetchUserStats(fetchedUser.id, fetchedUser.role);
 
           // If it's a passenger, fetch their trip details
           if (fetchedUser.role === 'passenger') {
@@ -209,7 +601,7 @@ export default function UserDetailsPage() {
         }
       }
     },
-    [id, fetchById, loadPassengerTripData]
+    [id, fetchById, loadPassengerTripData, fetchUserStats]
   );
 
   const hasLoadedRef = useRef(false);
@@ -234,25 +626,20 @@ export default function UserDetailsPage() {
 
   const handleStatusChange = () => {
     if (!user) return;
-    // Show status change options
-    showInfo(
-      'Change User Status',
-      `Current status: ${user.status}. Use the status management section to change user status.`
-    );
-    // Alternative: Could show a modal with status options
-    // For now, just show info - actual status change should be handled in a dedicated section
+    setStatusManagerVisible(true);
   };
 
-  const updateUserStatus = async (
+  const handleStatusUpdate = async (
     newStatus: 'active' | 'inactive' | 'suspended'
   ) => {
     if (!user) return;
 
     try {
       await update(user.id, { status: newStatus });
-      showSuccess(`User status updated to ${newStatus}`, '', () =>
-        handleRefresh()
-      );
+      showSuccess('Success', `User status updated to ${newStatus}`, () => {
+        handleRefresh();
+        setStatusManagerVisible(false);
+      });
     } catch (error) {
       showError('Error', 'Failed to update user status');
     }
@@ -281,6 +668,18 @@ export default function UserDetailsPage() {
   const handleViewTransactions = () => {
     if (!user) return;
     router.push(`../user/${user.id}/transactions` as any);
+  };
+
+  const handleManageFreeTickets = () => {
+    if (!user) return;
+    setFreeTicketsModalVisible(true);
+  };
+
+  const handleFreeTicketsUpdate = async () => {
+    // Reload user stats to refresh free tickets data
+    if (user) {
+      await fetchUserStats(user.id, user.role);
+    }
   };
 
   const handleViewTrips = async () => {
@@ -345,7 +744,7 @@ export default function UserDetailsPage() {
     router.push(`./${user.id}/edit` as any);
   };
 
-  // Calculate user statistics based on role
+  // Calculate user statistics based on role using fetched data
   const userStats = useMemo(() => {
     if (!user) return null;
 
@@ -363,10 +762,10 @@ export default function UserDetailsPage() {
       case 'customer':
         return {
           ...baseStats,
-          // Customer-specific stats
-          activeBookings: Math.floor(baseStats.totalBookings * 0.3),
-          completedTrips: Math.floor(baseStats.totalTrips * 0.8),
-          pendingPayments: Math.floor(baseStats.totalSpent * 0.1),
+          // Customer-specific stats from database
+          activeBookings: userStatsData?.activeBookings || 0,
+          completedTrips: userStatsData?.completedTrips || 0,
+          pendingPayments: userStatsData?.pendingPayments || 0,
         } as typeof baseStats & {
           activeBookings: number;
           completedTrips: number;
@@ -375,26 +774,33 @@ export default function UserDetailsPage() {
       case 'agent':
         return {
           ...baseStats,
-          // Agent-specific stats
-          totalClients: Math.floor(Math.random() * 50) + 10,
-          totalCommissions: Math.floor(baseStats.totalSpent * 0.05),
-          activeBookings: Math.floor(baseStats.totalBookings * 0.4),
-          creditLimit: 10000,
-          availableCredit: 7500,
+          // Agent-specific stats from database
+          totalClients: userStatsData?.totalClients || 0,
+          totalCommissions: userStatsData?.totalCommissions || 0,
+          activeBookings: userStatsData?.activeBookings || 0,
+          creditLimit: userStatsData?.creditLimit || 0,
+          availableCredit: userStatsData?.availableCredit || 0,
+          freeTicketsAllocation: userStatsData?.freeTicketsAllocation || 0,
+          freeTicketsRemaining: userStatsData?.freeTicketsRemaining || 0,
         } as typeof baseStats & {
           totalClients: number;
           totalCommissions: number;
           activeBookings: number;
           creditLimit: number;
           availableCredit: number;
+          freeTicketsAllocation: number;
+          freeTicketsRemaining: number;
         };
       case 'admin':
         return {
           ...baseStats,
-          // Admin-specific stats
-          managedUsers: Math.floor(Math.random() * 200) + 50,
-          systemActions: Math.floor(Math.random() * 1000) + 200,
-          lastLogin: user.last_login || new Date().toISOString(),
+          // Admin-specific stats from database
+          managedUsers: userStatsData?.managedUsers || 0,
+          systemActions: userStatsData?.systemActions || 0,
+          lastLogin:
+            userStatsData?.lastLogin ||
+            user.last_login ||
+            new Date().toISOString(),
         } as typeof baseStats & {
           managedUsers: number;
           systemActions: number;
@@ -403,10 +809,10 @@ export default function UserDetailsPage() {
       case 'passenger':
         return {
           ...baseStats,
-          // Passenger-specific stats
+          // Passenger-specific stats from database
           totalTrips: baseStats.totalBookings,
-          completedTrips: Math.floor(baseStats.totalBookings * 0.9),
-          upcomingTrips: Math.floor(baseStats.totalBookings * 0.1),
+          completedTrips: userStatsData?.completedTrips || 0,
+          upcomingTrips: userStatsData?.upcomingTrips || 0,
         } as typeof baseStats & {
           totalTrips: number;
           completedTrips: number;
@@ -415,11 +821,12 @@ export default function UserDetailsPage() {
       case 'captain':
         return {
           ...baseStats,
-          // Captain-specific stats
-          totalRoutes: Math.floor(Math.random() * 20) + 5,
-          totalTrips: Math.floor(Math.random() * 100) + 20,
-          averageRating: 4.5 + Math.random() * 0.5,
-          experienceYears: Math.floor(Math.random() * 10) + 5,
+          // Captain-specific stats from database
+          totalRoutes: userStatsData?.totalRoutes || 0,
+          totalTrips: userStatsData?.totalTrips || baseStats.totalTrips,
+          averageRating:
+            userStatsData?.averageRating || baseStats.averageRating,
+          experienceYears: userStatsData?.experienceYears || 0,
         } as typeof baseStats & {
           totalRoutes: number;
           totalTrips: number;
@@ -429,7 +836,7 @@ export default function UserDetailsPage() {
       default:
         return baseStats;
     }
-  }, [user]);
+  }, [user, userStatsData]);
 
   if (loading) {
     return (
@@ -555,6 +962,11 @@ export default function UserDetailsPage() {
             onViewTrips={handleViewTrips}
             onViewVessel={handleViewVessel}
             onViewRoutes={handleViewRoutes}
+            onManageFreeTickets={
+              user.role === 'agent' ? handleManageFreeTickets : undefined
+            }
+            freeTicketsAllocation={(userStats as any)?.freeTicketsAllocation}
+            freeTicketsRemaining={(userStats as any)?.freeTicketsRemaining}
           />
 
           {/* System Information */}
@@ -690,6 +1102,29 @@ export default function UserDetailsPage() {
             )}
           </View>
         </ScrollView>
+
+        {/* Free Tickets Modal */}
+        {user && user.role === 'agent' && (
+          <FreeTicketsModal
+            userId={user.id}
+            userName={user.name}
+            visible={freeTicketsModalVisible}
+            onClose={() => setFreeTicketsModalVisible(false)}
+            onUpdate={handleFreeTicketsUpdate}
+            currentAllocation={(userStats as any)?.freeTicketsAllocation || 0}
+            currentRemaining={(userStats as any)?.freeTicketsRemaining || 0}
+          />
+        )}
+
+        {/* Status Manager Modal */}
+        {user && (
+          <UserStatusManager
+            user={user}
+            visible={statusManagerVisible}
+            onClose={() => setStatusManagerVisible(false)}
+            onStatusUpdate={handleStatusUpdate}
+          />
+        )}
       </View>
     </RoleGuard>
   );

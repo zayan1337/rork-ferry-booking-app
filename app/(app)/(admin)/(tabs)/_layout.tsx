@@ -163,13 +163,11 @@ export default function AdminTabLayout() {
           contentContainerStyle={styles.noPermissionsContainer}
           showsVerticalScrollIndicator={false}
         >
-            <NoPermissionsWelcome
-              adminName={adminName}
-              adminRole={adminRole}
-              isSuperAdmin={isSuperAdmin}
-            />
-
-           
+          <NoPermissionsWelcome
+            adminName={adminName}
+            adminRole={adminRole}
+            isSuperAdmin={isSuperAdmin}
+          />
         </ScrollView>
       </SafeView>
     );

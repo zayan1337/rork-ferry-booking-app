@@ -188,7 +188,11 @@ interface AdminState {
   fetchSpecialAssistanceCount: () => Promise<number>;
 
   // Permission request alert
-  createPermissionRequestAlert: (adminName: string, adminRole: string, userId: string) => Promise<void>;
+  createPermissionRequestAlert: (
+    adminName: string,
+    adminRole: string,
+    userId: string
+  ) => Promise<void>;
 }
 
 // Mock data for new entities

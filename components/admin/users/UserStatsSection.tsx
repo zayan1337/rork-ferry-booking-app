@@ -166,38 +166,10 @@ export default function UserStatsSection({
     </>
   );
 
-  const renderAdminStats = () => (
-    <View style={styles.statsRow}>
-      <View style={styles.statCard}>
-        <View style={styles.statCardIcon}>
-          <Users size={20} color={colors.primary} />
-        </View>
-        <View style={styles.statCardContent}>
-          <Text style={styles.statCardValue}>
-            {(userStats as any).managedUsers}
-          </Text>
-          <Text style={styles.statCardLabel}>Managed Users</Text>
-        </View>
-      </View>
-
-      <View style={styles.statCard}>
-        <View
-          style={[
-            styles.statCardIcon,
-            { backgroundColor: colors.successLight },
-          ]}
-        >
-          <Activity size={20} color={colors.success} />
-        </View>
-        <View style={styles.statCardContent}>
-          <Text style={styles.statCardValue}>
-            {(userStats as any).systemActions}
-          </Text>
-          <Text style={styles.statCardLabel}>System Actions</Text>
-        </View>
-      </View>
-    </View>
-  );
+  const renderAdminStats = () => {
+    // Admin users don't need stats displayed
+    return null;
+  };
 
   const renderPassengerStats = () => (
     <View style={styles.statsRow}>

@@ -301,10 +301,14 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
     try {
       // 1. Validate permission exists and is active
       const permissions = get().data;
-      const permission = permissions.find(p => p.id === permissionId && p.is_active);
-      
+      const permission = permissions.find(
+        p => p.id === permissionId && p.is_active
+      );
+
       if (!permission) {
-        throw new Error(`Permission with ID ${permissionId} does not exist or is inactive`);
+        throw new Error(
+          `Permission with ID ${permissionId} does not exist or is inactive`
+        );
       }
 
       // 2. Check and grant dependencies first
@@ -342,7 +346,7 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
           // Already granted and active, nothing to do
           return;
         }
-        
+
         // Reactivate existing permission
         const { data, error } = await supabase
           .from('user_permissions')
@@ -394,13 +398,15 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
       const permissions = get().data;
       const userPermissions = get().getUserPermissions(userId);
       const permission = permissions.find(p => p.id === permissionId);
-      
+
       if (permission) {
         // Find permissions that depend on this one
         const dependents = permissions.filter(
-          p => p.dependencies?.includes(permissionId) && userPermissions.includes(p.id)
+          p =>
+            p.dependencies?.includes(permissionId) &&
+            userPermissions.includes(p.id)
         );
-        
+
         if (dependents.length > 0) {
           throw new Error(
             `Cannot revoke permission "${permission.name}" because it is required by: ${dependents.map(p => p.name).join(', ')}`
@@ -476,7 +482,7 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
         // Check for dependencies before removing
         const permissions = get().data;
         const userPerms = get().getUserPermissions(userId);
-        
+
         for (const permId of toRemove) {
           const permission = permissions.find(p => p.id === permId);
           if (permission) {
@@ -484,7 +490,7 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
             const dependents = permissions.filter(
               p => p.dependencies?.includes(permId) && userPerms.includes(p.id)
             );
-            
+
             if (dependents.length > 0) {
               throw new Error(
                 `Cannot remove permission "${permission.name}" because it is required by: ${dependents.map(p => p.name).join(', ')}`

@@ -15,3 +15,4 @@ export { default as UserInfoSection } from './UserInfoSection';
 export { default as UserActionsSection } from './UserActionsSection';
 export { default as UserSystemInfoSection } from './UserSystemInfoSection';
 export { default as UserStatusManager } from './UserStatusManager';
+export { default as FreeTicketsModal } from './FreeTicketsModal';
