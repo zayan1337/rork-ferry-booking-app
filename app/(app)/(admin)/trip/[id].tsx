@@ -25,7 +25,7 @@ import { useTripManagement } from '@/hooks/useTripManagement';
 import { useTripStore } from '@/store/admin/tripStore';
 import RoleGuard from '@/components/RoleGuard';
 import { formatCurrency } from '@/utils/currencyUtils';
-import { formatTripStatus, getTripOccupancy } from '@/utils/tripUtils';
+import { formatTripStatus } from '@/utils/tripUtils';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import type {
   RouteSegmentFare,
@@ -111,6 +111,8 @@ export default function TripDetailsPage() {
   const [isMultiStopRoute, setIsMultiStopRoute] = useState(false);
   const [specialAssistanceCount, setSpecialAssistanceCount] = useState(0);
   const [showSeatBlocking, setShowSeatBlocking] = useState(false);
+  const [vesselData, setVesselData] = useState<any>(null);
+  const [tripRevenue, setTripRevenue] = useState<number>(0);
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -162,6 +164,54 @@ export default function TripDetailsPage() {
         } catch (e) {
           setSpecialAssistanceCount(0);
         }
+
+        // Load vessel data if vessel_id exists
+        if (tripData.vessel_id) {
+          try {
+            const { data: vessel, error: vesselError } = await supabase
+              .from('vessels')
+              .select('id, name, seating_capacity, registration_number')
+              .eq('id', tripData.vessel_id)
+              .single();
+
+            if (!vesselError && vessel) {
+              setVesselData(vessel);
+            }
+          } catch (e) {
+            console.error('Error loading vessel:', e);
+          }
+        }
+
+        // Load actual revenue from bookings
+        try {
+          const { data: bookings, error: bookingsError } = await supabase
+            .from('bookings')
+            .select('total_fare, status')
+            .eq('trip_id', tripData.id)
+            .in('status', ['confirmed', 'checked_in', 'completed']);
+
+          if (!bookingsError && bookings) {
+            const revenue = bookings.reduce(
+              (sum, booking) => sum + Number(booking.total_fare || 0),
+              0
+            );
+            setTripRevenue(revenue);
+          } else {
+            // Fallback to trip data revenue if available
+            setTripRevenue(
+              (tripData as any).total_revenue ||
+                (tripData as any).trip_revenue ||
+                0
+            );
+          }
+        } catch (e) {
+          console.error('Error loading revenue:', e);
+          setTripRevenue(
+            (tripData as any).total_revenue ||
+              (tripData as any).trip_revenue ||
+              0
+          );
+        }
       } else {
         // Fallback to operations store
         const operationsTripData = await fetchTrip(id);
@@ -188,6 +238,54 @@ export default function TripDetailsPage() {
             setSpecialAssistanceCount(count || 0);
           } catch (e) {
             setSpecialAssistanceCount(0);
+          }
+
+          // Load vessel data if vessel_id exists
+          if (mappedTrip.vessel_id) {
+            try {
+              const { data: vessel, error: vesselError } = await supabase
+                .from('vessels')
+                .select('id, name, seating_capacity, registration_number')
+                .eq('id', mappedTrip.vessel_id)
+                .single();
+
+              if (!vesselError && vessel) {
+                setVesselData(vessel);
+              }
+            } catch (e) {
+              console.error('Error loading vessel:', e);
+            }
+          }
+
+          // Load actual revenue from bookings
+          try {
+            const { data: bookings, error: bookingsError } = await supabase
+              .from('bookings')
+              .select('total_fare, status')
+              .eq('trip_id', mappedTrip.id)
+              .in('status', ['confirmed', 'checked_in', 'completed']);
+
+            if (!bookingsError && bookings) {
+              const revenue = bookings.reduce(
+                (sum, booking) => sum + Number(booking.total_fare || 0),
+                0
+              );
+              setTripRevenue(revenue);
+            } else {
+              // Fallback to trip data revenue if available
+              setTripRevenue(
+                (operationsTripData as any).total_revenue ||
+                  (operationsTripData as any).trip_revenue ||
+                  0
+              );
+            }
+          } catch (e) {
+            console.error('Error loading revenue:', e);
+            setTripRevenue(
+              (operationsTripData as any).total_revenue ||
+                (operationsTripData as any).trip_revenue ||
+                0
+            );
           }
         }
       }
@@ -267,6 +365,25 @@ export default function TripDetailsPage() {
         } catch (e) {
           // Silently fail
         }
+
+        // Update revenue silently
+        try {
+          const { data: bookings } = await supabase
+            .from('bookings')
+            .select('total_fare, status')
+            .eq('trip_id', tripData.id)
+            .in('status', ['confirmed', 'checked_in', 'completed']);
+
+          if (bookings) {
+            const revenue = bookings.reduce(
+              (sum, booking) => sum + Number(booking.total_fare || 0),
+              0
+            );
+            setTripRevenue(revenue);
+          }
+        } catch (e) {
+          // Silently fail
+        }
       } else {
         // Fallback to operations store
         const operationsTripData = await fetchTrip(id);
@@ -286,6 +403,25 @@ export default function TripDetailsPage() {
               .neq('special_assistance_request', '')
               .eq('bookings.trip_id', mappedTrip.id);
             setSpecialAssistanceCount(count || 0);
+          } catch (e) {
+            // Silently fail
+          }
+
+          // Update revenue silently
+          try {
+            const { data: bookings } = await supabase
+              .from('bookings')
+              .select('total_fare, status')
+              .eq('trip_id', mappedTrip.id)
+              .in('status', ['confirmed', 'checked_in', 'completed']);
+
+            if (bookings) {
+              const revenue = bookings.reduce(
+                (sum, booking) => sum + Number(booking.total_fare || 0),
+                0
+              );
+              setTripRevenue(revenue);
+            }
           } catch (e) {
             // Silently fail
           }
@@ -437,18 +573,74 @@ export default function TripDetailsPage() {
 
   const getTripStatusInfo = (trip: Trip) => {
     const status = formatTripStatus(trip.status);
-    const occupancy = getTripOccupancy(trip);
     const route = routes?.find(r => r.id === trip.route_id);
-    const vessel = vessels?.find(v => v.id === trip.vessel_id);
+
+    // Try to get vessel from multiple sources
+    let vessel = vessels?.find(v => v.id === trip.vessel_id);
+
+    // If not found in vessels array, use vesselData state
+    if (!vessel && vesselData && vesselData.id === trip.vessel_id) {
+      vessel = vesselData;
+    }
+
+    // If still not found, create a vessel object from trip data
+    if (!vessel && trip.vessel_id) {
+      vessel = {
+        id: trip.vessel_id,
+        name:
+          (trip as any).vessel_name ||
+          (trip as any).vesselName ||
+          'Unknown Vessel',
+        seating_capacity: trip.capacity || 0,
+        status: 'active' as const,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      } as any;
+    }
+
+    // Calculate occupancy using vessel capacity or trip capacity
+    const totalCapacity = vessel?.seating_capacity || trip.capacity || 0;
+    const bookedSeats = trip.booked_seats || 0;
+    const occupancy =
+      totalCapacity > 0 ? Math.round((bookedSeats / totalCapacity) * 100) : 0;
+
+    // Use actual revenue from bookings state, or calculate from route if not available
+    let revenue = tripRevenue || 0;
+    if (revenue === 0 && route && bookedSeats > 0) {
+      // Fallback to calculated revenue if actual revenue not loaded yet
+      revenue = bookedSeats * route.base_fare * (trip.fare_multiplier || 1);
+    }
+
+    // Calculate duration from route stops or use route duration
+    let duration = route?.duration || 'N/A';
+    if (routeStops.length > 0 && duration === 'N/A') {
+      // Calculate total duration from route stops
+      const totalMinutes = routeStops.reduce((sum, stop, index) => {
+        if (index > 0 && stop.estimated_travel_time) {
+          return sum + stop.estimated_travel_time;
+        }
+        return sum;
+      }, 0);
+
+      if (totalMinutes > 0) {
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        duration =
+          hours > 0
+            ? `${hours}h ${minutes}m`
+            : minutes > 0
+              ? `${minutes}m`
+              : 'N/A';
+      }
+    }
 
     return {
       status,
       occupancy,
       route,
       vessel,
-      revenue: route
-        ? trip.booked_seats * route.base_fare * trip.fare_multiplier
-        : 0,
+      revenue,
+      duration,
     };
   };
 
@@ -1235,11 +1427,12 @@ export default function TripDetailsPage() {
                     <TrendingUp size={16} color={colors.success} />
                   </View>
                   <Text style={styles.analyticsValue}>
-                    {tripInfo.route
-                      ? Math.round(
-                          (tripInfo.revenue / tripInfo.route.base_fare) * 100
-                        ) / 100
-                      : 0}
+                    {tripInfo.route && trip.booked_seats > 0
+                      ? (
+                          tripInfo.revenue /
+                          (tripInfo.route.base_fare * trip.booked_seats)
+                        ).toFixed(2)
+                      : trip.fare_multiplier || 1}
                     x
                   </Text>
                   <Text style={styles.analyticsLabel}>Revenue Multiple</Text>
@@ -1249,7 +1442,7 @@ export default function TripDetailsPage() {
                     <Clock size={16} color={colors.info} />
                   </View>
                   <Text style={styles.analyticsValue}>
-                    {tripInfo.route?.duration || 'N/A'}
+                    {tripInfo.duration || 'N/A'}
                   </Text>
                   <Text style={styles.analyticsLabel}>Estimated Duration</Text>
                 </View>

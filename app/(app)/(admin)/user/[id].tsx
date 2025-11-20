@@ -427,8 +427,8 @@ export default function UserDetailsPage() {
           }
 
           case 'customer': {
-            // Fetch active bookings, completed trips, and pending payments
-            const [bookingsData, paymentsData] = await Promise.all([
+            // Fetch active bookings, completed trips, pending payments, and wallet balance
+            const [bookingsData, paymentsData, walletData] = await Promise.all([
               supabase
                 .from('bookings')
                 .select('id, status, trip_id, total_fare')
@@ -437,6 +437,11 @@ export default function UserDetailsPage() {
                 .from('payments')
                 .select('id, status, amount')
                 .eq('user_id', userId),
+              supabase
+                .from('wallets')
+                .select('balance')
+                .eq('user_id', userId)
+                .single(),
             ]);
 
             const bookings = bookingsData.data || [];
@@ -460,6 +465,11 @@ export default function UserDetailsPage() {
                 (p: any) => p.status === 'pending' || p.status === 'failed'
               )
               .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
+            // Wallet balance from wallets table
+            stats.walletBalance = walletData.data?.balance
+              ? Number(walletData.data.balance)
+              : 0;
             break;
           }
 
@@ -722,9 +732,12 @@ export default function UserDetailsPage() {
       } catch (error) {
         showError('Error', "Failed to find passenger's trip details.");
       }
+    } else if (user.role === 'captain') {
+      // For captains, navigate to trips page filtered by captain
+      router.push(`../trips?captain=${user.id}` as any);
     } else {
-      // For other users, navigate to their trips list
-      router.push(`../user/${user.id}/trips` as any);
+      // For other users, navigate to trips list
+      router.push(`../trips` as any);
     }
   };
 
@@ -763,10 +776,13 @@ export default function UserDetailsPage() {
         return {
           ...baseStats,
           // Customer-specific stats from database
+          walletBalance:
+            userStatsData?.walletBalance ?? baseStats.walletBalance,
           activeBookings: userStatsData?.activeBookings || 0,
           completedTrips: userStatsData?.completedTrips || 0,
           pendingPayments: userStatsData?.pendingPayments || 0,
         } as typeof baseStats & {
+          walletBalance: number;
           activeBookings: number;
           completedTrips: number;
           pendingPayments: number;

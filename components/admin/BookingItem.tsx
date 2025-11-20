@@ -114,15 +114,15 @@ export default function BookingItem({
 
       {/* Route name for compact layout */}
       {compact && (
-        <Text
-          style={[
-            styles.routeName,
-            { fontSize: sizeStyles.titleSize, marginBottom: 8 },
-          ]}
-          numberOfLines={1}
-        >
-          {booking.routeName}
-        </Text>
+        <View style={styles.routeContainer}>
+          <MapPin size={sizeStyles.iconSize - 2} color={colors.textSecondary} />
+          <Text
+            style={[styles.routeName, { fontSize: sizeStyles.titleSize }]}
+            numberOfLines={1}
+          >
+            {booking.routeName}
+          </Text>
+        </View>
       )}
 
       {/* Customer name */}

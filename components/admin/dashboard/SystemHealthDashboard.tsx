@@ -26,10 +26,26 @@ export default function SystemHealthDashboard({
             <Database size={16} color={colors.success} />
           </View>
           <Text style={styles.healthLabel}>Database</Text>
-          <Text style={[styles.healthStatus, { color: colors.success }]}>
-            {dashboardStats.systemHealth?.status === 'healthy'
+          <Text
+            style={[
+              styles.healthStatus,
+              {
+                color:
+                  dashboardStats.systemHealth?.database_status === 'healthy'
+                    ? colors.success
+                    : dashboardStats.systemHealth?.database_status === 'slow'
+                      ? colors.warning
+                      : colors.danger,
+              },
+            ]}
+          >
+            {dashboardStats.systemHealth?.database_status === 'healthy'
               ? 'Healthy'
-              : 'Warning'}
+              : dashboardStats.systemHealth?.database_status === 'slow'
+                ? 'Slow'
+                : dashboardStats.systemHealth?.database_status === 'unknown'
+                  ? 'Unknown'
+                  : 'Unhealthy'}
           </Text>
         </View>
 
@@ -37,14 +53,41 @@ export default function SystemHealthDashboard({
           <View
             style={[
               styles.healthIcon,
-              { backgroundColor: `${colors.primary}20` },
+              {
+                backgroundColor: `${
+                  dashboardStats.systemHealth?.api_status === 'online'
+                    ? colors.primary
+                    : colors.danger
+                }20`,
+              },
             ]}
           >
-            <Wifi size={16} color={colors.primary} />
+            <Wifi
+              size={16}
+              color={
+                dashboardStats.systemHealth?.api_status === 'online'
+                  ? colors.primary
+                  : colors.danger
+              }
+            />
           </View>
           <Text style={styles.healthLabel}>API</Text>
-          <Text style={[styles.healthStatus, { color: colors.primary }]}>
-            Online
+          <Text
+            style={[
+              styles.healthStatus,
+              {
+                color:
+                  dashboardStats.systemHealth?.api_status === 'online'
+                    ? colors.primary
+                    : colors.danger,
+              },
+            ]}
+          >
+            {dashboardStats.systemHealth?.api_status === 'online'
+              ? 'Online'
+              : dashboardStats.systemHealth?.api_status === 'offline'
+                ? 'Offline'
+                : 'Unknown'}
           </Text>
         </View>
 
@@ -52,14 +95,49 @@ export default function SystemHealthDashboard({
           <View
             style={[
               styles.healthIcon,
-              { backgroundColor: `${colors.warning}20` },
+              {
+                backgroundColor: `${
+                  dashboardStats.systemHealth?.load_status === 'normal'
+                    ? colors.success
+                    : dashboardStats.systemHealth?.load_status === 'high'
+                      ? colors.warning
+                      : colors.danger
+                }20`,
+              },
             ]}
           >
-            <Activity size={16} color={colors.warning} />
+            <Activity
+              size={16}
+              color={
+                dashboardStats.systemHealth?.load_status === 'normal'
+                  ? colors.success
+                  : dashboardStats.systemHealth?.load_status === 'high'
+                    ? colors.warning
+                    : colors.danger
+              }
+            />
           </View>
           <Text style={styles.healthLabel}>Load</Text>
-          <Text style={[styles.healthStatus, { color: colors.warning }]}>
-            Normal
+          <Text
+            style={[
+              styles.healthStatus,
+              {
+                color:
+                  dashboardStats.systemHealth?.load_status === 'normal'
+                    ? colors.success
+                    : dashboardStats.systemHealth?.load_status === 'high'
+                      ? colors.warning
+                      : colors.danger,
+              },
+            ]}
+          >
+            {dashboardStats.systemHealth?.load_status === 'normal'
+              ? 'Normal'
+              : dashboardStats.systemHealth?.load_status === 'high'
+                ? 'High'
+                : dashboardStats.systemHealth?.load_status === 'critical'
+                  ? 'Critical'
+                  : 'Unknown'}
           </Text>
         </View>
 
@@ -74,7 +152,30 @@ export default function SystemHealthDashboard({
           </View>
           <Text style={styles.healthLabel}>Backup</Text>
           <Text style={[styles.healthStatus, { color: colors.secondary }]}>
-            {dashboardStats.systemHealth?.last_backup ? 'Today' : 'N/A'}
+            {dashboardStats.systemHealth?.last_backup
+              ? (() => {
+                  const backupDate = new Date(
+                    dashboardStats.systemHealth.last_backup!
+                  );
+                  const today = new Date();
+                  const yesterday = new Date(today);
+                  yesterday.setDate(yesterday.getDate() - 1);
+
+                  if (backupDate.toDateString() === today.toDateString()) {
+                    return 'Today';
+                  } else if (
+                    backupDate.toDateString() === yesterday.toDateString()
+                  ) {
+                    return 'Yesterday';
+                  } else {
+                    const daysAgo = Math.floor(
+                      (today.getTime() - backupDate.getTime()) /
+                        (1000 * 60 * 60 * 24)
+                    );
+                    return `${daysAgo}d ago`;
+                  }
+                })()
+              : 'N/A'}
           </Text>
         </View>
       </View>

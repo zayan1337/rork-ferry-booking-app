@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
-import { Phone, Mail, MessageCircle, ArrowLeft } from 'lucide-react-native';
+import { Phone, Mail, ArrowLeft } from 'lucide-react-native';
 import Button from '@/components/admin/Button';
 import TextInput from '@/components/admin/TextInput';
 import { useContactForm } from '@/hooks/useContactForm';

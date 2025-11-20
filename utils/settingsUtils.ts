@@ -71,6 +71,42 @@ export const calculateSettingsStats = (
     return now.getTime() - logDate.getTime() < timeframes[selectedTimeframe];
   }).length;
 
+  // Calculate system health percentage (will be overridden by real data if available)
+  let systemHealthPercentage = 98.5;
+  if (systemSettings?.systemHealth) {
+    const health = systemSettings.systemHealth;
+    switch (health.status) {
+      case 'healthy':
+        systemHealthPercentage = 100;
+        break;
+      case 'warning':
+        systemHealthPercentage = 75;
+        break;
+      case 'critical':
+        systemHealthPercentage = 50;
+        break;
+      default:
+        systemHealthPercentage = 85;
+    }
+  }
+
+  // Get last backup from system settings or system health
+  let lastBackup = 'Never';
+  if (systemSettings?.last_backup) {
+    lastBackup = systemSettings.last_backup;
+  } else if (systemSettings?.systemHealth?.last_backup) {
+    const backupDate = new Date(systemSettings.systemHealth.last_backup);
+    const now = new Date();
+    const diffMs = now.getTime() - backupDate.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) lastBackup = 'Today';
+    else if (diffDays === 1) lastBackup = 'Yesterday';
+    else if (diffDays < 7) lastBackup = `${diffDays}d ago`;
+    else if (diffDays < 30) lastBackup = `${Math.floor(diffDays / 7)}w ago`;
+    else lastBackup = backupDate.toLocaleDateString();
+  }
+
   return {
     totalAdminUsers: adminUsers.length,
     activeAdminUsers: adminUsers.filter(u => u.status === 'active').length,
@@ -84,8 +120,8 @@ export const calculateSettingsStats = (
     criticalAlerts,
     totalActivityLogs: activityLogs.length,
     recentActivity,
-    systemHealth: 98.5, // This would come from actual system metrics
-    lastBackup: systemSettings?.last_backup || 'Never',
+    systemHealth: systemHealthPercentage,
+    lastBackup,
   };
 };
 

@@ -45,7 +45,7 @@ interface Booking {
   customer_phone?: string;
   passenger_count: number;
   total_fare: number;
-  status: 'reserved' | 'confirmed' | 'cancelled' | 'completed';
+  status: 'reserved' | 'confirmed' | 'checked_in' | 'completed' | 'cancelled';
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
   payment_method?:
     | 'gateway'
@@ -204,10 +204,20 @@ export default function TripBookingsPage() {
     confirmed: bookings.filter(b => b.status === 'confirmed').length,
     pending: bookings.filter(b => b.status === 'reserved').length,
     totalRevenue: bookings
-      .filter(b => b.payment_status === 'paid')
+      .filter(
+        b =>
+          b.status === 'confirmed' ||
+          b.status === 'checked_in' ||
+          b.status === 'completed'
+      )
       .reduce((sum, b) => sum + b.total_fare, 0),
     totalPassengers: bookings
-      .filter(b => b.status === 'confirmed')
+      .filter(
+        b =>
+          b.status === 'confirmed' ||
+          b.status === 'checked_in' ||
+          b.status === 'completed'
+      )
       .reduce((sum, b) => sum + b.passenger_count, 0),
   };
 

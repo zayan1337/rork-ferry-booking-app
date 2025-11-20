@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { useTripManagement } from '@/hooks/useTripManagement';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -63,6 +63,7 @@ const getDefaultDateRange = () => {
 export default function TripsScreen() {
   const { canViewTrips, canManageTrips } = useAdminPermissions();
   const { showError } = useAlertContext();
+  const { captain } = useLocalSearchParams<{ captain?: string }>();
 
   const [filterActive, setFilterActive] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -73,6 +74,7 @@ export default function TripsScreen() {
   const [searchInput, setSearchInput] = useState('');
   const [selectedVesselId, setSelectedVesselId] = useState<string>('');
   const [selectedRouteId, setSelectedRouteId] = useState<string>('');
+  const selectedCaptainId = captain || '';
 
   const {
     trips: allTrips,
@@ -191,6 +193,11 @@ export default function TripsScreen() {
       filtered = filtered.filter(trip => trip.route_id === selectedRouteId);
     }
 
+    // Apply captain filter
+    if (selectedCaptainId) {
+      filtered = filtered.filter(trip => trip.captain_id === selectedCaptainId);
+    }
+
     // Apply search filter
     if (searchInput) {
       filtered = searchTrips(filtered, searchInput);
@@ -212,6 +219,7 @@ export default function TripsScreen() {
     dateRange,
     selectedVesselId,
     selectedRouteId,
+    selectedCaptainId,
   ]);
 
   // Calculate stats for all trips (not filtered by date)

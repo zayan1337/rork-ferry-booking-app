@@ -339,8 +339,6 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
         throw checkError;
       }
 
-      let result;
-
       if (existing) {
         if (existing.is_active) {
           // Already granted and active, nothing to do
@@ -359,7 +357,6 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
           .select();
 
         if (error) throw error;
-        result = data;
       } else {
         // Insert new permission
         const { data, error } = await supabase
@@ -373,7 +370,6 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
           .select();
 
         if (error) throw error;
-        result = data;
       }
 
       // 4. Refresh data
@@ -381,8 +377,6 @@ export const usePermissionStore = create<PermissionStore>()((set, get) => ({
         get().fetchUserPermissions(userId),
         get().fetchAdminUsers(),
       ]);
-
-      return result;
     } catch (error) {
       set({
         error:

@@ -296,42 +296,4 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: colors.backgroundSecondary,
   },
-  noPermissionsCard: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 24,
-    gap: 20,
-    shadowColor: colors.shadow ?? '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 6,
-  },
-  noPermissionsActions: {
-    gap: 12,
-  },
-  primaryAction: {
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  primaryActionText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  secondaryAction: {
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    backgroundColor: colors.backgroundSecondary,
-  },
-  secondaryActionText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
 });

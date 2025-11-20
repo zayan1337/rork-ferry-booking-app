@@ -338,8 +338,11 @@ export type DashboardStats = {
   };
   systemHealth: {
     status: 'healthy' | 'warning' | 'critical';
-    last_backup: string;
-    database_size: string;
+    database_status?: 'healthy' | 'slow' | 'unhealthy' | 'unknown';
+    api_status?: 'online' | 'offline' | 'unknown';
+    load_status?: 'normal' | 'high' | 'critical' | 'unknown';
+    last_backup: string | null;
+    database_size?: string;
     active_sessions: number;
   };
 };

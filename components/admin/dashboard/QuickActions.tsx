@@ -1,13 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { colors } from '@/constants/adminColors';
-import {
-  CreditCard,
-  Ship,
-  Users,
-  DollarSign,
-  MessageSquare,
-} from 'lucide-react-native';
+import { CreditCard, Ship, Users, DollarSign } from 'lucide-react-native';
 import SectionHeader from '@/components/admin/SectionHeader';
 
 interface QuickActionsProps {
@@ -70,7 +64,7 @@ export default function QuickActions({
           </Pressable>
         )}
 
-        {canViewNotifications && (
+        {/* {canViewNotifications && (
           <Pressable
             style={styles.quickActionItem}
             onPress={() => onActionPress('communications')}
@@ -78,7 +72,7 @@ export default function QuickActions({
             <MessageSquare size={24} color='#FF3B30' />
             <Text style={styles.quickActionText}>Communications</Text>
           </Pressable>
-        )}
+        )} */}
       </View>
     </View>
   );

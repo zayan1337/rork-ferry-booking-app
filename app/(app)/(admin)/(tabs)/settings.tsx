@@ -65,6 +65,7 @@ export default function SettingsScreen() {
     alerts,
     activityLogs,
     systemSettings,
+    dashboardStats,
     refreshData,
     markAllAlertsAsRead,
     fetchSpecialAssistanceCount,
@@ -163,7 +164,11 @@ export default function SettingsScreen() {
         alerts,
         activityLogs,
         selectedTimeframe,
-        systemSettings
+        {
+          ...systemSettings,
+          systemHealth: dashboardStats?.systemHealth,
+          last_backup: dashboardStats?.systemHealth?.last_backup,
+        }
       ),
     [
       adminUsers,
@@ -173,6 +178,7 @@ export default function SettingsScreen() {
       activityLogs,
       selectedTimeframe,
       systemSettings,
+      dashboardStats?.systemHealth,
     ]
   );
 
@@ -295,6 +301,8 @@ export default function SettingsScreen() {
         return (
           <SystemTab
             stats={stats}
+            systemHealth={dashboardStats?.systemHealth}
+            activityLogs={activityLogs}
             onSystemBackup={handleSystemBackup}
             onClearCache={handleClearCache}
             onRestartSystem={handleRestartSystem}
