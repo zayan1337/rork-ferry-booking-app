@@ -557,13 +557,13 @@ export default function WalletsListPage({
       </Pressable>
 
       {/* Recharge Button */}
-      <Pressable
+      {/* <Pressable
         style={styles.rechargeButton}
         onPress={() => handleRechargeWallet(item)}
       >
         <Plus size={18} color={colors.white} />
         <Text style={styles.rechargeButtonText}>Recharge</Text>
-      </Pressable>
+      </Pressable> */}
     </View>
   );
 

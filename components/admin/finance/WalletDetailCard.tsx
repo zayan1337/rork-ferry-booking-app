@@ -73,11 +73,50 @@ function WalletDetailCard({
 
   // Calculate transaction statistics
   const transactionStats = useMemo(() => {
-    const credits = transactions.filter(t => t.transaction_type === 'credit');
-    const debits = transactions.filter(t => t.transaction_type === 'debit');
+    // Defensive check: ensure transactions is an array
+    if (!transactions || !Array.isArray(transactions)) {
+      console.warn('[WalletDetailCard] Invalid transactions array:', transactions);
+      return {
+        totalCredits: 0,
+        totalDebits: 0,
+        creditCount: 0,
+        debitCount: 0,
+        netFlow: 0,
+        transactionCount: 0,
+      };
+    }
 
-    const totalCredits = credits.reduce((sum, t) => sum + t.amount, 0);
-    const totalDebits = debits.reduce((sum, t) => sum + t.amount, 0);
+    // Filter and validate transactions
+    const credits = transactions.filter(
+      t => t && t.transaction_type === 'credit' && typeof t.amount === 'number'
+    );
+    const debits = transactions.filter(
+      t => t && t.transaction_type === 'debit' && typeof t.amount === 'number'
+    );
+
+    // Calculate totals with defensive checks
+    const totalCredits = credits.reduce((sum, t) => {
+      const amount = Number(t.amount) || 0;
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+    
+    const totalDebits = debits.reduce((sum, t) => {
+      const amount = Number(t.amount) || 0;
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+
+    // Log for debugging if transactions exist but stats are zero
+    if (transactions.length > 0 && totalCredits === 0 && totalDebits === 0) {
+      // console.log('[WalletDetailCard] Transactions found but stats are zero:', {
+      //   transactionCount: transactions.length,
+      //   sampleTransactions: transactions.slice(0, 3).map(t => ({
+      //     id: t.id,
+      //     type: t.transaction_type,
+      //     amount: t.amount,
+      //     amountType: typeof t.amount,
+      //   })),
+      // });
+    }
 
     return {
       totalCredits,
@@ -204,15 +243,16 @@ function WalletDetailCard({
 
       if (error) throw error;
 
+      setManualModalVisible(false);
+      setManualPaymentAmount('');
+
+      if (onRefresh) {
+        await onRefresh();
+      }
+
       showSuccess(
         'Payment Recorded',
-        `Successfully recorded payment of ${formatCurrency(amount)}`,
-        async () => {
-          setManualModalVisible(false);
-          if (onRefresh) {
-            await onRefresh();
-          }
-        }
+        `Successfully recorded payment of ${formatCurrency(amount)}`
       );
     } catch (error) {
       console.error('Error recording manual payment:', error);
@@ -227,49 +267,71 @@ function WalletDetailCard({
     setManualModalVisible(false);
   };
 
-  const renderTransaction = ({ item }: { item: WalletTransaction }) => (
-    <View style={styles.transactionItem}>
-      <View style={styles.transactionIcon}>
-        {item.transaction_type === 'credit' ? (
-          <TrendingUp size={20} color={colors.success} />
-        ) : (
-          <TrendingDown size={20} color={colors.danger} />
-        )}
-      </View>
-      <View style={styles.transactionInfo}>
-        <Text style={styles.transactionDescription}>
-          {item.description || `${item.transaction_type} Transaction`}
-        </Text>
-        <Text style={styles.transactionDate}>
-          {formatDate(item.created_at)}
-        </Text>
-        {item.reference_id && (
-          <Text style={styles.transactionReference}>
-            Ref: {item.reference_id}
+  const renderTransaction = ({ item }: { item: WalletTransaction }) => {
+    // Defensive check: ensure item is valid
+    if (!item || !item.id) {
+      console.warn('[WalletDetailCard] Invalid transaction item:', item);
+      return null;
+    }
+
+    // Determine transaction type with fallback
+    const isCredit = item.transaction_type === 'credit';
+    const isDebit = item.transaction_type === 'debit';
+    
+    // If transaction type is not recognized, log warning but still render
+    if (!isCredit && !isDebit) {
+      console.warn('[WalletDetailCard] Unknown transaction type:', {
+        transactionId: item.id,
+        transactionType: item.transaction_type,
+        defaultingToDebit: true,
+      });
+    }
+
+    const displayType = isCredit ? 'credit' : 'debit';
+    const amount = typeof item.amount === 'number' ? item.amount : Number(item.amount) || 0;
+
+    return (
+      <View style={styles.transactionItem}>
+        <View style={styles.transactionIcon}>
+          {isCredit ? (
+            <TrendingUp size={20} color={colors.success} />
+          ) : (
+            <TrendingDown size={20} color={colors.danger} />
+          )}
+        </View>
+        <View style={styles.transactionInfo}>
+          <Text style={styles.transactionDescription}>
+            {item.description || `${displayType} Transaction`}
           </Text>
-        )}
+          <Text style={styles.transactionDate}>
+            {formatDate(item.created_at)}
+          </Text>
+          {item.reference_id && (
+            <Text style={styles.transactionReference}>
+              Ref: {item.reference_id}
+            </Text>
+          )}
+        </View>
+        <View style={styles.transactionAmount}>
+          <Text
+            style={[
+              styles.transactionAmountText,
+              {
+                color: isCredit ? colors.success : colors.danger,
+              },
+            ]}
+          >
+            {isCredit ? '+' : '-'}
+            {formatCurrency(amount)}
+          </Text>
+        </View>
       </View>
-      <View style={styles.transactionAmount}>
-        <Text
-          style={[
-            styles.transactionAmountText,
-            {
-              color:
-                item.transaction_type === 'credit'
-                  ? colors.success
-                  : colors.danger,
-            },
-          ]}
-        >
-          {item.transaction_type === 'credit' ? '+' : '-'}
-          {formatCurrency(item.amount)}
-        </Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Balance Card */}
       <View style={styles.balanceCard}>
         <WalletIcon size={32} color={colors.primary} />
@@ -374,7 +436,7 @@ function WalletDetailCard({
               <View style={styles.paymentOptionsContainer}>
                 <Text style={styles.paymentOptionsTitle}>Pay Balance</Text>
                 <View style={styles.paymentButtons}>
-                  {canShowGatewayPayment && (
+                  {/* {canShowGatewayPayment && (
                     <Pressable
                       style={[
                         styles.paymentButton,
@@ -387,7 +449,7 @@ function WalletDetailCard({
                         Pay via Gateway
                       </Text>
                     </Pressable>
-                  )}
+                  )} */}
                   <Pressable
                     style={[styles.paymentButton, styles.manualPaymentButton]}
                     onPress={handleManualPayment}
@@ -599,19 +661,49 @@ function WalletDetailCard({
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Manual Payment</Text>
-            <Text style={styles.modalSubtitle}>
-              Balance to Pay: {formatCurrency(wallet.balance_to_pay || 0)}
-            </Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder='Enter payment amount'
-              keyboardType='decimal-pad'
-              value={manualPaymentAmount}
-              onChangeText={setManualPaymentAmount}
-              editable={!isManualPaymentProcessing}
-            />
-            <View style={styles.modalActions}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Manual Payment</Text>
+              <Pressable
+                onPress={handleCancelManualPayment}
+                disabled={isManualPaymentProcessing}
+                style={styles.modalCloseButton}
+              >
+                <X
+                  size={20}
+                  color={
+                    isManualPaymentProcessing
+                      ? colors.textSecondary
+                      : colors.text
+                  }
+                />
+              </Pressable>
+            </View>
+
+            <View style={styles.modalBody}>
+              <View style={styles.manualBalanceSummary}>
+                <Text style={styles.manualBalanceLabel}>Balance to Pay</Text>
+                <Text style={styles.manualBalanceValue}>
+                  {formatCurrency(wallet.balance_to_pay || 0)}
+                </Text>
+              </View>
+
+              <Text style={styles.modalLabel}>
+                Payment Amount ({wallet.currency})
+              </Text>
+              <TextInput
+                style={[styles.modalInput, styles.manualAmountInput]}
+                placeholder='Enter payment amount'
+                keyboardType='decimal-pad'
+                value={manualPaymentAmount}
+                onChangeText={setManualPaymentAmount}
+                editable={!isManualPaymentProcessing}
+              />
+              <Text style={styles.manualHelperText}>
+                Add the exact amount received from the agent.
+              </Text>
+            </View>
+
+            <View style={styles.modalFooter}>
               <Pressable
                 style={[styles.modalButton, styles.modalCancelButton]}
                 onPress={handleCancelManualPayment}
@@ -628,17 +720,29 @@ function WalletDetailCard({
                 onPress={handleSubmitManualPayment}
                 disabled={isManualPaymentProcessing}
               >
-                {isManualPaymentProcessing ? (
-                  <ActivityIndicator size='small' color={colors.white} />
-                ) : (
-                  <Text style={styles.modalConfirmText}>Record Payment</Text>
-                )}
+                <View style={styles.modalButtonContent}>
+                  {isManualPaymentProcessing && (
+                    <ActivityIndicator size='small' color={colors.white} />
+                  )}
+                  <Text style={styles.modalConfirmText}>
+                    {isManualPaymentProcessing ? 'Recording' : 'Record Payment'}
+                  </Text>
+                </View>
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
     </ScrollView>
+      {isManualPaymentProcessing && (
+        <View style={styles.globalLoadingOverlay}>
+          <View style={styles.globalLoadingContent}>
+            <ActivityIndicator size='large' color={colors.primary} />
+            <Text style={styles.globalLoadingText}>Recording payment...</Text>
+          </View>
+        </View>
+      )}
+    </>
   );
 }
 
@@ -1111,6 +1215,69 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.white,
+  },
+  modalButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  modalCloseButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  manualBalanceSummary: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  manualBalanceLabel: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  manualBalanceValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.danger,
+  },
+  manualAmountInput: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  manualHelperText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  globalLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  globalLoadingContent: {
+    backgroundColor: colors.card,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  globalLoadingText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
   },
 
   // Payment Options Styles

@@ -20,6 +20,7 @@ export const useFinanceData = () => {
     payments,
     wallets,
     walletTransactions,
+    walletTransactionsLoaded,
     agentCreditTransactions,
     stats,
     paymentMethodStats,
@@ -36,6 +37,7 @@ export const useFinanceData = () => {
     setFilters,
     clearFilters,
     refreshData,
+    getManualWalletCreditsByAgent,
   } = useFinanceStore();
 
   const {
@@ -410,14 +412,81 @@ export const useFinanceData = () => {
   // Get agent credit transactions by agent ID
   const getAgentCreditTransactionsByAgent = useCallback(
     (agentId: string) => {
-      if (!agentId) return [];
-      return (
-        agentCreditTransactions?.filter(
-          tx => tx.agent_id === agentId || tx.user_id === agentId
-        ) || []
-      );
+      if (!agentId) {
+      //  console.log('[getAgentCreditTransactionsByAgent] Missing agentId');
+        return [];
+      }
+
+      if (
+        (!walletTransactionsLoaded || (walletTransactions?.length ?? 0) === 0) &&
+        !loading.transactions
+      ) {
+      //  console.log(
+      //    '[getAgentCreditTransactionsByAgent] Wallet transactions not ready, requesting fetch'
+      //  );
+        void fetchWalletTransactions();
+      }
+
+      const baseTransactions = (agentCreditTransactions || []).filter(tx => {
+        if (!tx) return false;
+        const txAgentId = tx.agent_id || tx.user_id;
+        return txAgentId === agentId;
+      });
+
+      const manualCreditSourceReady = walletTransactionsLoaded;
+
+      const manualCredits =
+        (manualCreditSourceReady
+          ? getManualWalletCreditsByAgent(agentId)
+          : []
+        )?.map(tx => {
+          const createdAt = tx.created_at || new Date().toISOString();
+          const amount = Math.abs(Number(tx.amount ?? 0));
+
+          return {
+            id: `manual-${tx.id}`,
+            agent_id: tx.user_id || agentId,
+            user_id: tx.user_id || agentId,
+            transaction_type: 'refill',
+            amount,
+            description:
+              tx.description ||
+              'Manual credit payment recorded via wallet transaction',
+            booking_id: tx.reference_id || null,
+            reference_id: tx.reference_id || null,
+            created_at: createdAt,
+            transaction_date: createdAt,
+            source: 'wallet_manual_credit' as const,
+          };
+        }) || [];
+
+      const merged = [...baseTransactions, ...manualCredits].sort((a, b) => {
+        const dateA = new Date(
+          a.created_at || a.transaction_date || new Date(0).toISOString()
+        ).getTime();
+        const dateB = new Date(
+          b.created_at || b.transaction_date || new Date(0).toISOString()
+        ).getTime();
+        return dateB - dateA;
+      });
+
+        // console.log('[getAgentCreditTransactionsByAgent] Aggregated transactions', {
+        //   agentId,
+        //   agentCreditCount: baseTransactions.length,
+        //   manualCreditCount: manualCredits.length,
+        //   total: merged.length,
+        // });
+
+      return merged;
     },
-    [agentCreditTransactions]
+    [
+      agentCreditTransactions,
+      fetchWalletTransactions,
+      getManualWalletCreditsByAgent,
+      loading.transactions,
+      walletTransactions,
+      walletTransactionsLoaded,
+    ]
   );
 
   // Format currency

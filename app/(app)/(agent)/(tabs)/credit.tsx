@@ -348,7 +348,11 @@ const CreditPaymentModal = React.memo(
 
     return (
       <Modal visible={visible} transparent animationType='slide'>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Top Up Credit</Text>
@@ -437,7 +441,7 @@ const CreditPaymentModal = React.memo(
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     );
   }
@@ -584,7 +588,7 @@ export default function AgentCreditScreen() {
     }
   };
 
-  const creditSummary = calculateCreditSummary(agent, creditTransactions);
+  const creditSummary = calculateCreditSummary(agent, allTransactions);
 
   const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text);
@@ -730,7 +734,7 @@ export default function AgentCreditScreen() {
         <View style={styles.summarySection}>
           <CreditSummaryCard
             agent={agent}
-            transactions={creditTransactions}
+            transactions={allTransactions}
             onRequestCredit={handleRequestCredit}
           />
         </View>

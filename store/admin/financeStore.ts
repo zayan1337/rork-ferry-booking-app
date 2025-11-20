@@ -42,12 +42,14 @@ interface LoadingState {
   dashboard: boolean;
   creating: boolean;
   updating: boolean;
+  agentCredit: boolean;
 }
 
 interface FinanceState {
   // Data
   wallets: Wallet[];
   walletTransactions: WalletTransaction[];
+  walletTransactionsLoaded: boolean;
   payments: Payment[];
   paymentReports: PaymentReport[];
   agentCreditTransactions: any[];
@@ -120,6 +122,7 @@ interface FinanceState {
   // Utility actions
   reset: () => void;
   getFilteredData: (type: 'wallets' | 'transactions' | 'payments') => any[];
+  getManualWalletCreditsByAgent: (agentId: string) => WalletTransaction[];
 }
 
 // ============================================================================
@@ -134,6 +137,7 @@ const initialLoadingState: LoadingState = {
   dashboard: false,
   creating: false,
   updating: false,
+  agentCredit: false,
 };
 
 const initialFilters = {
@@ -185,6 +189,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   // Initial state
   wallets: [],
   walletTransactions: [],
+  walletTransactionsLoaded: false,
   payments: [],
   paymentReports: [],
   agentCreditTransactions: [],
@@ -209,9 +214,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const state = get();
     // Prevent concurrent fetches unless explicitly refreshing
     if (state.loading.wallets && !refresh) {
-      console.log(
-        '⏸️ [financeStore] Wallet fetch already in progress, skipping...'
-      );
       return;
     }
 
@@ -219,10 +221,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     try {
       const filters = state.filters.wallets;
-      console.log('🔄 [financeStore] Fetching wallets with filters:', filters);
       const wallets = await fetchWallets(filters);
 
-      console.log(`✅ [financeStore] Fetched ${wallets.length} wallet(s)`);
       set({
         wallets,
         loading: { ...state.loading, wallets: false },
@@ -252,6 +252,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
       set({
         walletTransactions: transactions,
+        walletTransactionsLoaded: true,
         loading: { ...state.loading, transactions: false },
         totalItems: transactions.length,
         hasMore: transactions.length >= state.itemsPerPage,
@@ -260,6 +261,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       console.error('Failed to fetch wallet transactions:', error);
       set({
         loading: { ...state.loading, transactions: false },
+        walletTransactionsLoaded: false,
         error:
           error instanceof Error
             ? error.message
@@ -348,21 +350,21 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
   fetchAgentCreditTransactions: async () => {
     const state = get();
-    if (state.loading.transactions) return;
+    if (state.loading.agentCredit) return;
 
-    set({ loading: { ...state.loading, transactions: true }, error: null });
+    set({ loading: { ...state.loading, agentCredit: true }, error: null });
 
     try {
       const agentTransactions = await fetchAgentCreditTransactions();
 
       set({
         agentCreditTransactions: agentTransactions,
-        loading: { ...state.loading, transactions: false },
+        loading: { ...state.loading, agentCredit: false },
       });
     } catch (error) {
       console.error('Failed to fetch agent credit transactions:', error);
       set({
-        loading: { ...state.loading, transactions: false },
+        loading: { ...state.loading, agentCredit: false },
         error:
           error instanceof Error
             ? error.message
@@ -608,7 +610,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       !state.hasMore ||
       state.loading.wallets ||
       state.loading.transactions ||
-      state.loading.payments
+      state.loading.payments ||
+      state.loading.agentCredit
     ) {
       return;
     }
@@ -639,6 +642,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     set({
       wallets: [],
       walletTransactions: [],
+      walletTransactionsLoaded: false,
       payments: [],
       paymentReports: [],
       stats: initialStats,
@@ -656,5 +660,28 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       totalItems: 0,
       hasMore: false,
     });
+  },
+  getManualWalletCreditsByAgent: agentId => {
+    const state = get();
+
+    if (!agentId) {
+      return [];
+    }
+    const hasTransactions = Array.isArray(state.walletTransactions);
+    const needsFetch =
+      !state.walletTransactionsLoaded ||
+      (hasTransactions && state.walletTransactions.length === 0);
+
+    if (needsFetch && !state.loading.transactions) {
+      void state.fetchWalletTransactions();
+    }
+
+    if (!hasTransactions || state.walletTransactions.length === 0) {
+      return [];
+    }
+
+    return state.walletTransactions.filter(
+      tx => tx && tx.transaction_type === 'credit' && tx.wallet_id === agentId
+    );
   },
 }));

@@ -8,7 +8,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { CreditCard, RefreshCw, AlertTriangle } from 'lucide-react-native';
-import { Agent } from '@/types/agent';
+import { Agent, CreditTransaction } from '@/types/agent';
 import {
   formatCurrency,
   calculateCreditSummary,
@@ -21,7 +21,7 @@ const isTablet = screenWidth >= 768;
 
 interface CreditSummaryCardProps {
   agent: Agent | null;
-  transactions: any[];
+  transactions: CreditTransaction[];
   onRequestCredit?: () => void;
   style?: ViewStyle;
 }
