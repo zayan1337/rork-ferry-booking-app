@@ -725,7 +725,7 @@ function WalletDetailCard({
                     <ActivityIndicator size='small' color={colors.white} />
                   )}
                   <Text style={styles.modalConfirmText}>
-                    {isManualPaymentProcessing ? 'Recording' : 'Record Payment'}
+                    {isManualPaymentProcessing ? 'Payment processing...' : 'Manual Payment'}
                   </Text>
                 </View>
               </Pressable>
@@ -738,7 +738,7 @@ function WalletDetailCard({
         <View style={styles.globalLoadingOverlay}>
           <View style={styles.globalLoadingContent}>
             <ActivityIndicator size='large' color={colors.primary} />
-            <Text style={styles.globalLoadingText}>Recording payment...</Text>
+            <Text style={styles.globalLoadingText}>Payment processing...</Text>
           </View>
         </View>
       )}
