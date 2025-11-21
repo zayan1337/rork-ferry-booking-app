@@ -1020,6 +1020,7 @@ export interface VesselStoreState {
   currentSeatLayout: SeatLayout | null;
   seats: Seat[];
   currentSeats: Seat[];
+  seatLayoutError?: string | null;
 
   // Sort configuration
   sortBy:

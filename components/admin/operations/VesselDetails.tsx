@@ -429,10 +429,8 @@ export default function VesselDetails({
 
   const getSeatColor = (seat: Seat) => {
     if (seat.is_disabled || seat.seat_type === 'disabled') return colors.danger;
-    if (seat.is_premium) return colors.success;
     if (seat.seat_type === 'crew') return colors.warning;
-    if (seat.is_window) return colors.info;
-    if (seat.is_aisle) return colors.primary;
+    if (seat.is_premium) return colors.secondary;
     return colors.primary;
   };
 
@@ -1351,7 +1349,7 @@ const styles = StyleSheet.create({
   },
   windowIndicator: {
     position: 'absolute',
-    top: 2,
+    bottom: 2,
     right: 2,
     width: 6,
     height: 6,
@@ -1364,16 +1362,16 @@ const styles = StyleSheet.create({
     left: 2,
     width: 6,
     height: 6,
-    // backgroundColor: colors.warning,
+    backgroundColor: colors.textSecondary,
     borderRadius: 3,
   },
   premiumIndicator: {
     position: 'absolute',
-    top: 2,
+    bottom: 2,
     left: 2,
     width: 6,
     height: 6,
-    backgroundColor: colors.success,
+    backgroundColor: colors.secondary,
     borderRadius: 3,
   },
   disabledSeat: {

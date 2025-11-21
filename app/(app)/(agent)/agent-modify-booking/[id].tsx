@@ -499,9 +499,6 @@ export default function AgentModifyBookingScreen() {
       return;
     }
 
-    const maxSeats =
-      booking?.passengers?.length || booking?.passengerCount || 1;
-
     // Check if seat is already selected locally
     const isSelected = selectedSeats.find(s => s.id === seat.id);
 
@@ -512,15 +509,6 @@ export default function AgentModifyBookingScreen() {
         // Update local state
         setSelectedSeats(prev => prev.filter(s => s.id !== seat.id));
       } else {
-        // Check if we've reached max seats
-        if (selectedSeats.length >= maxSeats) {
-          showInfo(
-            'Maximum Seats Selected',
-            `You can select a maximum of ${maxSeats} seats. Please deselect a seat to select another one.`
-          );
-          return;
-        }
-
         // Select seat - create temporary reservation
         await toggleSeatSelectionStore(seat, false, selectedTrip.trip_id);
         // Update local state from store
@@ -713,7 +701,6 @@ export default function AgentModifyBookingScreen() {
     );
   }
 
-  const maxSeats = booking.passengers?.length || booking.passengerCount || 1;
   const originalDate = isModifyingReturn
     ? bookingData?.returnDate
     : booking?.departureDate;
@@ -888,7 +875,7 @@ export default function AgentModifyBookingScreen() {
             {selectedTrip && (
               <View style={styles.seatSelection}>
                 <Text style={styles.sectionTitle}>
-                  Select New Seats ({selectedSeats.length}/{maxSeats})
+                  Select New Seats ({selectedSeats.length})
                 </Text>
                 {seatLoading ? (
                   <Text style={styles.seatLoadingText}>
@@ -899,7 +886,6 @@ export default function AgentModifyBookingScreen() {
                     seats={availableSeats}
                     selectedSeats={selectedSeats}
                     onSeatToggle={toggleSeatSelection}
-                    maxSeats={maxSeats}
                     tripId={selectedTrip?.trip_id}
                   />
                 ) : (

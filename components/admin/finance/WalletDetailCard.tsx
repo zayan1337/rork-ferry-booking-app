@@ -75,7 +75,10 @@ function WalletDetailCard({
   const transactionStats = useMemo(() => {
     // Defensive check: ensure transactions is an array
     if (!transactions || !Array.isArray(transactions)) {
-      console.warn('[WalletDetailCard] Invalid transactions array:', transactions);
+      console.warn(
+        '[WalletDetailCard] Invalid transactions array:',
+        transactions
+      );
       return {
         totalCredits: 0,
         totalDebits: 0,
@@ -99,7 +102,7 @@ function WalletDetailCard({
       const amount = Number(t.amount) || 0;
       return sum + (isNaN(amount) ? 0 : amount);
     }, 0);
-    
+
     const totalDebits = debits.reduce((sum, t) => {
       const amount = Number(t.amount) || 0;
       return sum + (isNaN(amount) ? 0 : amount);
@@ -277,7 +280,7 @@ function WalletDetailCard({
     // Determine transaction type with fallback
     const isCredit = item.transaction_type === 'credit';
     const isDebit = item.transaction_type === 'debit';
-    
+
     // If transaction type is not recognized, log warning but still render
     if (!isCredit && !isDebit) {
       console.warn('[WalletDetailCard] Unknown transaction type:', {
@@ -288,7 +291,8 @@ function WalletDetailCard({
     }
 
     const displayType = isCredit ? 'credit' : 'debit';
-    const amount = typeof item.amount === 'number' ? item.amount : Number(item.amount) || 0;
+    const amount =
+      typeof item.amount === 'number' ? item.amount : Number(item.amount) || 0;
 
     return (
       <View style={styles.transactionItem}>
@@ -332,111 +336,117 @@ function WalletDetailCard({
   return (
     <>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Balance Card */}
-      <View style={styles.balanceCard}>
-        <WalletIcon size={32} color={colors.primary} />
-        <Text style={styles.balanceLabel}>{primaryBalanceLabel}</Text>
-        <Text style={styles.balanceValue}>
-          {formatCurrency(primaryBalanceValue)}
-        </Text>
-        <Text style={styles.currency}>{wallet.currency}</Text>
-      </View>
+        {/* Balance Card */}
+        <View style={styles.balanceCard}>
+          <WalletIcon size={32} color={colors.primary} />
+          <Text style={styles.balanceLabel}>{primaryBalanceLabel}</Text>
+          <Text style={styles.balanceValue}>
+            {formatCurrency(primaryBalanceValue)}
+          </Text>
+          <Text style={styles.currency}>{wallet.currency}</Text>
+        </View>
 
-      {/* Agent Credit Information */}
-      {isAgent && wallet.credit_ceiling !== undefined && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <CreditCard size={20} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Agent Credit Information</Text>
-            <Pressable
-              onPress={handleEditCreditLimit}
-              style={styles.editButton}
-            >
-              <Edit size={18} color={colors.primary} />
-            </Pressable>
-          </View>
-
-          <View style={styles.creditInfoCard}>
-            {/* Credit Limit */}
-            <View style={styles.creditInfoRow}>
-              <Text style={styles.creditInfoLabel}>Credit Limit</Text>
-              <Text style={styles.creditInfoValue}>
-                {formatCurrency(wallet.credit_ceiling)}
-              </Text>
-            </View>
-
-            {/* Available Credit */}
-            <View style={styles.creditInfoRow}>
-              <Text style={styles.creditInfoLabel}>Available Credit</Text>
-              <Text style={[styles.creditInfoValue, { color: colors.success }]}>
-                {formatCurrency(wallet.credit_balance || 0)}
-              </Text>
-            </View>
-
-            {/* Credit Used */}
-            <View style={styles.creditInfoRow}>
-              <Text style={styles.creditInfoLabel}>Credit Used</Text>
-              <Text style={[styles.creditInfoValue, { color: colors.warning }]}>
-                {formatCurrency(wallet.credit_used || 0)}
-              </Text>
-            </View>
-
-            {/* Balance to Pay */}
-            <View style={[styles.creditInfoRow, styles.creditInfoHighlight]}>
-              <Text style={[styles.creditInfoLabel, { fontWeight: '700' }]}>
-                Balance to Pay
-              </Text>
-              <Text
-                style={[
-                  styles.creditInfoValue,
-                  { color: colors.danger, fontWeight: '700', fontSize: 18 },
-                ]}
+        {/* Agent Credit Information */}
+        {isAgent && wallet.credit_ceiling !== undefined && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <CreditCard size={20} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Agent Credit Information</Text>
+              <Pressable
+                onPress={handleEditCreditLimit}
+                style={styles.editButton}
               >
-                {formatCurrency(wallet.balance_to_pay || 0)}
-              </Text>
+                <Edit size={18} color={colors.primary} />
+              </Pressable>
             </View>
 
-            {/* Credit Utilization Bar */}
-            <View style={styles.creditUtilizationContainer}>
-              <Text style={styles.creditUtilizationLabel}>
-                Credit Utilization
-              </Text>
-              <View style={styles.progressBar}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${Math.min(
-                        ((wallet.credit_used || 0) / wallet.credit_ceiling) *
-                          100,
-                        100
-                      )}%`,
-                      backgroundColor:
-                        (wallet.credit_used || 0) / wallet.credit_ceiling > 0.8
-                          ? colors.danger
-                          : (wallet.credit_used || 0) / wallet.credit_ceiling >
-                              0.6
-                            ? colors.warning
-                            : colors.success,
-                    },
-                  ]}
-                />
+            <View style={styles.creditInfoCard}>
+              {/* Credit Limit */}
+              <View style={styles.creditInfoRow}>
+                <Text style={styles.creditInfoLabel}>Credit Limit</Text>
+                <Text style={styles.creditInfoValue}>
+                  {formatCurrency(wallet.credit_ceiling)}
+                </Text>
               </View>
-              <Text style={styles.creditUtilizationText}>
-                {(
-                  ((wallet.credit_used || 0) / wallet.credit_ceiling) *
-                  100
-                ).toFixed(1)}
-                % Used
-              </Text>
-            </View>
 
-            {/* Payment Options - Only show if there's a balance to pay */}
-            {wallet.balance_to_pay && wallet.balance_to_pay > 0 && (
-              <View style={styles.paymentOptionsContainer}>
-                <Text style={styles.paymentOptionsTitle}>Pay Balance</Text>
-                <View style={styles.paymentButtons}>
-                  {/* {canShowGatewayPayment && (
+              {/* Available Credit */}
+              <View style={styles.creditInfoRow}>
+                <Text style={styles.creditInfoLabel}>Available Credit</Text>
+                <Text
+                  style={[styles.creditInfoValue, { color: colors.success }]}
+                >
+                  {formatCurrency(wallet.credit_balance || 0)}
+                </Text>
+              </View>
+
+              {/* Credit Used */}
+              <View style={styles.creditInfoRow}>
+                <Text style={styles.creditInfoLabel}>Credit Used</Text>
+                <Text
+                  style={[styles.creditInfoValue, { color: colors.warning }]}
+                >
+                  {formatCurrency(wallet.credit_used || 0)}
+                </Text>
+              </View>
+
+              {/* Balance to Pay */}
+              <View style={[styles.creditInfoRow, styles.creditInfoHighlight]}>
+                <Text style={[styles.creditInfoLabel, { fontWeight: '700' }]}>
+                  Balance to Pay
+                </Text>
+                <Text
+                  style={[
+                    styles.creditInfoValue,
+                    { color: colors.danger, fontWeight: '700', fontSize: 18 },
+                  ]}
+                >
+                  {formatCurrency(wallet.balance_to_pay || 0)}
+                </Text>
+              </View>
+
+              {/* Credit Utilization Bar */}
+              <View style={styles.creditUtilizationContainer}>
+                <Text style={styles.creditUtilizationLabel}>
+                  Credit Utilization
+                </Text>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${Math.min(
+                          ((wallet.credit_used || 0) / wallet.credit_ceiling) *
+                            100,
+                          100
+                        )}%`,
+                        backgroundColor:
+                          (wallet.credit_used || 0) / wallet.credit_ceiling >
+                          0.8
+                            ? colors.danger
+                            : (wallet.credit_used || 0) /
+                                  wallet.credit_ceiling >
+                                0.6
+                              ? colors.warning
+                              : colors.success,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.creditUtilizationText}>
+                  {(
+                    ((wallet.credit_used || 0) / wallet.credit_ceiling) *
+                    100
+                  ).toFixed(1)}
+                  % Used
+                </Text>
+              </View>
+
+              {/* Payment Options - Only show if there's a balance to pay */}
+              {wallet.balance_to_pay && wallet.balance_to_pay > 0 && (
+                <View style={styles.paymentOptionsContainer}>
+                  <Text style={styles.paymentOptionsTitle}>Pay Balance</Text>
+                  <View style={styles.paymentButtons}>
+                    {/* {canShowGatewayPayment && (
                     <Pressable
                       style={[
                         styles.paymentButton,
@@ -450,258 +460,237 @@ function WalletDetailCard({
                       </Text>
                     </Pressable>
                   )} */}
-                  <Pressable
-                    style={[styles.paymentButton, styles.manualPaymentButton]}
-                    onPress={handleManualPayment}
-                  >
-                    <DollarSign size={20} color={colors.primary} />
-                    <Text
-                      style={[
-                        styles.paymentButtonText,
-                        { color: colors.primary },
-                      ]}
+                    <Pressable
+                      style={[styles.paymentButton, styles.manualPaymentButton]}
+                      onPress={handleManualPayment}
                     >
-                      Manual Payment
-                    </Text>
-                  </Pressable>
+                      <DollarSign size={20} color={colors.primary} />
+                      <Text
+                        style={[
+                          styles.paymentButtonText,
+                          { color: colors.primary },
+                        ]}
+                      >
+                        Manual Payment
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
-              </View>
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* User Information */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <User size={20} color={colors.primary} />
-          <Text style={styles.sectionTitle}>User Information</Text>
-        </View>
-        <Pressable style={styles.infoCard} onPress={handleViewUser}>
-          <InfoRow label='Full Name' value={wallet.user_name} />
-          <InfoRow label='Email' value={wallet.user_email} />
-          <InfoRow label='User ID' value={wallet.user_id} />
-          <View style={styles.viewUserButton}>
-            <Text style={styles.viewUserText}>View User Profile</Text>
-            <ArrowLeft
-              size={16}
-              color={colors.primary}
-              style={{ transform: [{ rotate: '180deg' }] }}
-            />
-          </View>
-        </Pressable>
-      </View>
-
-      {/* Transaction Statistics */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <BarChart3 size={20} color={colors.primary} />
-          <Text style={styles.sectionTitle}>Transaction Statistics</Text>
-        </View>
-        <View style={styles.statsGrid}>
-          <View style={[styles.statCard, styles.successCard]}>
-            <TrendingUp size={24} color={colors.success} />
-            <Text style={styles.statLabel}>Total Credits</Text>
-            <Text style={[styles.statValue, { color: colors.success }]}>
-              {formatCurrency(transactionStats.totalCredits)}
-            </Text>
-            <Text style={styles.statCount}>
-              {transactionStats.creditCount} transactions
-            </Text>
-          </View>
-          <View style={[styles.statCard, styles.dangerCard]}>
-            <TrendingDown size={24} color={colors.danger} />
-            <Text style={styles.statLabel}>Total Debits</Text>
-            <Text style={[styles.statValue, { color: colors.danger }]}>
-              {formatCurrency(transactionStats.totalDebits)}
-            </Text>
-            <Text style={styles.statCount}>
-              {transactionStats.debitCount} transactions
-            </Text>
-          </View>
-        </View>
-        <View style={styles.netFlowCard}>
-          <Activity size={20} color={colors.primary} />
-          <View style={styles.netFlowInfo}>
-            <Text style={styles.netFlowLabel}>Net Flow</Text>
-            <Text
-              style={[
-                styles.netFlowValue,
-                {
-                  color:
-                    transactionStats.netFlow >= 0
-                      ? colors.success
-                      : colors.danger,
-                },
-              ]}
-            >
-              {transactionStats.netFlow >= 0 ? '+' : ''}
-              {formatCurrency(Math.abs(transactionStats.netFlow))}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Recent Transactions */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Activity size={20} color={colors.primary} />
-          <Text style={styles.sectionTitle}>
-            Recent Transactions ({transactionStats.transactionCount})
-          </Text>
-        </View>
-        {transactions.length > 0 ? (
-          <FlatList
-            data={transactions.slice(0, 10)}
-            renderItem={renderTransaction}
-            keyExtractor={item => item.id}
-            scrollEnabled={false}
-            style={styles.transactionList}
-          />
-        ) : (
-          <View style={styles.emptyState}>
-            <Activity size={48} color={colors.textSecondary} />
-            <Text style={styles.emptyStateText}>No transactions yet</Text>
+              )}
+            </View>
           </View>
         )}
-      </View>
 
-      {/* Wallet Information */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <DollarSign size={20} color={colors.primary} />
-          <Text style={styles.sectionTitle}>Wallet Information</Text>
-        </View>
-        <View style={styles.infoCard}>
-          <InfoRow label='Wallet ID' value={wallet.id} />
-          <InfoRow
-            label='User Role'
-            value={wallet.user_role?.toUpperCase() || 'N/A'}
-          />
-          <InfoRow label='Currency' value={wallet.currency} />
-          <InfoRow
-            label='Status'
-            value={wallet.is_active ? 'Active' : 'Inactive'}
-          />
-          <InfoRow label='Created At' value={formatDate(wallet.created_at)} />
-          <InfoRow label='Last Updated' value={formatDate(wallet.updated_at)} />
-        </View>
-      </View>
-
-      {/* Edit Credit Limit Modal */}
-      <Modal
-        visible={isEditingCreditLimit}
-        transparent
-        animationType='fade'
-        onRequestClose={handleCancelEdit}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Credit Limit</Text>
-              <Pressable onPress={handleCancelEdit}>
-                <X size={24} color={colors.text} />
-              </Pressable>
-            </View>
-
-            <View style={styles.modalBody}>
-              <Text style={styles.modalLabel}>
-                New Credit Limit ({wallet.currency})
-              </Text>
-              <TextInput
-                style={styles.modalInput}
-                value={newCreditLimit}
-                onChangeText={setNewCreditLimit}
-                keyboardType='numeric'
-                placeholder='Enter credit limit'
-                editable={!isUpdating}
+        {/* User Information */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <User size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>User Information</Text>
+          </View>
+          <Pressable style={styles.infoCard} onPress={handleViewUser}>
+            <InfoRow label='Full Name' value={wallet.user_name} />
+            <InfoRow label='Email' value={wallet.user_email} />
+            <InfoRow label='User ID' value={wallet.user_id} />
+            <View style={styles.viewUserButton}>
+              <Text style={styles.viewUserText}>View User Profile</Text>
+              <ArrowLeft
+                size={16}
+                color={colors.primary}
+                style={{ transform: [{ rotate: '180deg' }] }}
               />
-
-              <View style={styles.currentLimitInfo}>
-                <Text style={styles.currentLimitLabel}>Current Limit:</Text>
-                <Text style={styles.currentLimitValue}>
-                  {formatCurrency(wallet.credit_ceiling || 0)}
-                </Text>
-              </View>
             </View>
+          </Pressable>
+        </View>
 
-            <View style={styles.modalFooter}>
-              <Pressable
-                style={[styles.modalButton, styles.modalCancelButton]}
-                onPress={handleCancelEdit}
-                disabled={isUpdating}
-              >
-                <X size={18} color={colors.textSecondary} />
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-
-              <Pressable
+        {/* Transaction Statistics */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <BarChart3 size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Transaction Statistics</Text>
+          </View>
+          <View style={styles.statsGrid}>
+            <View style={[styles.statCard, styles.successCard]}>
+              <TrendingUp size={24} color={colors.success} />
+              <Text style={styles.statLabel}>Total Credits</Text>
+              <Text style={[styles.statValue, { color: colors.success }]}>
+                {formatCurrency(transactionStats.totalCredits)}
+              </Text>
+              <Text style={styles.statCount}>
+                {transactionStats.creditCount} transactions
+              </Text>
+            </View>
+            <View style={[styles.statCard, styles.dangerCard]}>
+              <TrendingDown size={24} color={colors.danger} />
+              <Text style={styles.statLabel}>Total Debits</Text>
+              <Text style={[styles.statValue, { color: colors.danger }]}>
+                {formatCurrency(transactionStats.totalDebits)}
+              </Text>
+              <Text style={styles.statCount}>
+                {transactionStats.debitCount} transactions
+              </Text>
+            </View>
+          </View>
+          <View style={styles.netFlowCard}>
+            <Activity size={20} color={colors.primary} />
+            <View style={styles.netFlowInfo}>
+              <Text style={styles.netFlowLabel}>Net Flow</Text>
+              <Text
                 style={[
-                  styles.modalButton,
-                  styles.modalSaveButton,
-                  isUpdating && styles.modalButtonDisabled,
+                  styles.netFlowValue,
+                  {
+                    color:
+                      transactionStats.netFlow >= 0
+                        ? colors.success
+                        : colors.danger,
+                  },
                 ]}
-                onPress={handleSaveCreditLimit}
-                disabled={isUpdating}
               >
-                <Check size={18} color={colors.white} />
-                <Text style={styles.modalSaveText}>
-                  {isUpdating ? 'Saving...' : 'Save'}
-                </Text>
-              </Pressable>
+                {transactionStats.netFlow >= 0 ? '+' : ''}
+                {formatCurrency(Math.abs(transactionStats.netFlow))}
+              </Text>
             </View>
           </View>
         </View>
-      </Modal>
-      <Modal
-        visible={manualModalVisible}
-        transparent
-        animationType='fade'
-        onRequestClose={handleCancelManualPayment}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Manual Payment</Text>
-              <Pressable
-                onPress={handleCancelManualPayment}
-                disabled={isManualPaymentProcessing}
-                style={styles.modalCloseButton}
-              >
-                <X
-                  size={20}
-                  color={
-                    isManualPaymentProcessing
-                      ? colors.textSecondary
-                      : colors.text
-                  }
-                />
-              </Pressable>
-            </View>
 
-            <View style={styles.modalBody}>
-              <View style={styles.manualBalanceSummary}>
-                <Text style={styles.manualBalanceLabel}>Balance to Pay</Text>
-                <Text style={styles.manualBalanceValue}>
-                  {formatCurrency(wallet.balance_to_pay || 0)}
-                </Text>
+        {/* Recent Transactions */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Activity size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>
+              Recent Transactions ({transactionStats.transactionCount})
+            </Text>
+          </View>
+          {transactions.length > 0 ? (
+            <FlatList
+              data={transactions.slice(0, 10)}
+              renderItem={renderTransaction}
+              keyExtractor={item => item.id}
+              scrollEnabled={false}
+              style={styles.transactionList}
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <Activity size={48} color={colors.textSecondary} />
+              <Text style={styles.emptyStateText}>No transactions yet</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Wallet Information */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <DollarSign size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Wallet Information</Text>
+          </View>
+          <View style={styles.infoCard}>
+            <InfoRow label='Wallet ID' value={wallet.id} />
+            <InfoRow
+              label='User Role'
+              value={wallet.user_role?.toUpperCase() || 'N/A'}
+            />
+            <InfoRow label='Currency' value={wallet.currency} />
+            <InfoRow
+              label='Status'
+              value={wallet.is_active ? 'Active' : 'Inactive'}
+            />
+            <InfoRow label='Created At' value={formatDate(wallet.created_at)} />
+            <InfoRow
+              label='Last Updated'
+              value={formatDate(wallet.updated_at)}
+            />
+          </View>
+        </View>
+
+        {/* Edit Credit Limit Modal */}
+        <Modal
+          visible={isEditingCreditLimit}
+          transparent
+          animationType='fade'
+          onRequestClose={handleCancelEdit}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Edit Credit Limit</Text>
+                <Pressable onPress={handleCancelEdit}>
+                  <X size={24} color={colors.text} />
+                </Pressable>
               </View>
 
-              <Text style={styles.modalLabel}>
-                Payment Amount ({wallet.currency})
-              </Text>
-              <TextInput
-                style={[styles.modalInput, styles.manualAmountInput]}
-                placeholder='Enter payment amount'
-                keyboardType='decimal-pad'
-                value={manualPaymentAmount}
-                onChangeText={setManualPaymentAmount}
-                editable={!isManualPaymentProcessing}
-              />
-              <Text style={styles.manualHelperText}>
-                Add the exact amount received from the agent.
-              </Text>
+              <View style={styles.modalBody}>
+                <Text style={styles.modalLabel}>
+                  New Credit Limit ({wallet.currency})
+                </Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={newCreditLimit}
+                  onChangeText={setNewCreditLimit}
+                  keyboardType='numeric'
+                  placeholder='Enter credit limit'
+                  editable={!isUpdating}
+                />
+
+                <View style={styles.currentLimitInfo}>
+                  <Text style={styles.currentLimitLabel}>Current Limit:</Text>
+                  <Text style={styles.currentLimitValue}>
+                    {formatCurrency(wallet.credit_ceiling || 0)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.modalFooter}>
+                <Pressable
+                  style={[styles.modalButton, styles.modalCancelButton]}
+                  onPress={handleCancelEdit}
+                  disabled={isUpdating}
+                >
+                  <X size={18} color={colors.textSecondary} />
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.modalButton,
+                    styles.modalSaveButton,
+                    isUpdating && styles.modalButtonDisabled,
+                  ]}
+                  onPress={handleSaveCreditLimit}
+                  disabled={isUpdating}
+                >
+                  <Check size={18} color={colors.white} />
+                  <Text style={styles.modalSaveText}>
+                    {isUpdating ? 'Saving...' : 'Save'}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
+          </View>
+        </Modal>
+        <Modal
+          visible={manualModalVisible}
+          transparent
+          animationType='fade'
+          onRequestClose={handleCancelManualPayment}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Manual Payment</Text>
+                <Pressable
+                  onPress={handleCancelManualPayment}
+                  disabled={isManualPaymentProcessing}
+                  style={styles.modalCloseButton}
+                >
+                  <X
+                    size={20}
+                    color={
+                      isManualPaymentProcessing
+                        ? colors.textSecondary
+                        : colors.text
+                    }
+                  />
+                </Pressable>
+              </View>
 
             <View style={styles.modalFooter}>
               <Pressable
@@ -728,12 +717,56 @@ function WalletDetailCard({
                     {isManualPaymentProcessing ? 'Payment processing...' : 'Manual Payment'}
                   </Text>
                 </View>
-              </Pressable>
+
+                <Text style={styles.modalLabel}>
+                  Payment Amount ({wallet.currency})
+                </Text>
+                <TextInput
+                  style={[styles.modalInput, styles.manualAmountInput]}
+                  placeholder='Enter payment amount'
+                  keyboardType='decimal-pad'
+                  value={manualPaymentAmount}
+                  onChangeText={setManualPaymentAmount}
+                  editable={!isManualPaymentProcessing}
+                />
+                <Text style={styles.manualHelperText}>
+                  Add the exact amount received from the agent.
+                </Text>
+              </View>
+
+              <View style={styles.modalFooter}>
+                <Pressable
+                  style={[styles.modalButton, styles.modalCancelButton]}
+                  onPress={handleCancelManualPayment}
+                  disabled={isManualPaymentProcessing}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.modalButton,
+                    styles.modalConfirmButton,
+                    isManualPaymentProcessing && styles.modalButtonDisabled,
+                  ]}
+                  onPress={handleSubmitManualPayment}
+                  disabled={isManualPaymentProcessing}
+                >
+                  <View style={styles.modalButtonContent}>
+                    {isManualPaymentProcessing && (
+                      <ActivityIndicator size='small' color={colors.white} />
+                    )}
+                    <Text style={styles.modalConfirmText}>
+                      {isManualPaymentProcessing
+                        ? 'Recording'
+                        : 'Record Payment'}
+                    </Text>
+                  </View>
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        </Modal>
+      </ScrollView>
       {isManualPaymentProcessing && (
         <View style={styles.globalLoadingOverlay}>
           <View style={styles.globalLoadingContent}>

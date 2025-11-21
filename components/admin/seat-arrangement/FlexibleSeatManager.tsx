@@ -315,14 +315,9 @@ export default function FlexibleSeatManager({
           is_row_aisle: row.hasRowAisleAfter || false, // Mark all seats in this row if row has aisle after
           seat_type: row.rowType === 'crew' ? 'crew' : 'standard',
           seat_class: 'economy',
-          is_premium: row.rowType === 'bow' || row.rowType === 'stern',
+          is_premium: false, // All seats start as standard; admins can upgrade manually
           is_disabled: false,
-          price_multiplier:
-            row.rowType === 'crew'
-              ? 0
-              : row.rowType === 'bow' || row.rowType === 'stern'
-                ? 1.5
-                : 1.0,
+          price_multiplier: row.rowType === 'crew' ? 0 : 1.0,
           vessel_id: vesselId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -788,6 +783,15 @@ export default function FlexibleSeatManager({
   };
 
   const totalSeats = getAllSeats().length;
+  const seatLegendItems = [
+    { label: 'Standard', color: colors.primary },
+    { label: 'Premium', color: colors.secondary },
+    { label: 'Crew', color: colors.warning },
+    {
+      label: 'Accessible / Wheelchair',
+      color: colors.accessible || colors.info,
+    },
+  ];
 
   return (
     <View style={styles.container}>
@@ -808,6 +812,29 @@ export default function FlexibleSeatManager({
         <Text style={styles.ferryNote}>
           Visual indicator only - no seats here
         </Text>
+      </View>
+
+      {/* Seat Legend */}
+      <View style={styles.legend}>
+        {seatLegendItems.map(item => (
+          <View key={item.label} style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+            <Text style={styles.legendText}>{item.label}</Text>
+          </View>
+        ))}
+        <View style={styles.legendItem}>
+          <View style={[styles.legendBadge, { borderColor: colors.info }]} />
+          <Text style={styles.legendText}>Window seat</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View
+            style={[
+              styles.legendStripe,
+              { backgroundColor: colors.textSecondary },
+            ]}
+          />
+          <Text style={styles.legendText}>Aisle marker</Text>
+        </View>
       </View>
 
       {/* Rows */}
@@ -1062,16 +1089,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   standardSeat: {
-    backgroundColor: colors.success,
+    backgroundColor: colors.primary,
   },
   premiumSeat: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.secondary,
   },
   crewSeat: {
     backgroundColor: colors.warning,
   },
   disabledSeat: {
-    backgroundColor: colors.textSecondary,
+    backgroundColor: colors.accessible || colors.info,
   },
   selectedSeat: {
     borderWidth: 2,
@@ -1200,5 +1227,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.white,
+  },
+  legend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
+  legendBadge: {
+    width: 18,
+    height: 14,
+    borderRadius: 4,
+    borderWidth: 2,
+  },
+  legendStripe: {
+    width: 18,
+    height: 4,
+    borderRadius: 2,
+  },
+  legendText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
 });

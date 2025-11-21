@@ -58,9 +58,7 @@ export default function WalletDetailPage() {
 
     // Debug logging to track transaction data
     if (transactions.length > 0) {
-      
     } else {
-    
     }
 
     return transactions
@@ -76,7 +74,7 @@ export default function WalletDetailPage() {
         // Explicitly handle transaction types: 'refill' = credit, 'deduction' = debit
         const rawTransactionType = tx.transaction_type;
         let transactionType: 'credit' | 'debit';
-        
+
         if (rawTransactionType === 'refill') {
           transactionType = 'credit';
         } else if (rawTransactionType === 'deduction') {
@@ -116,7 +114,9 @@ export default function WalletDetailPage() {
           amount: amountValue,
           transaction_type: transactionType,
           status: 'completed' as const,
-          description: tx.description || `${rawTransactionType || 'transaction'} transaction`,
+          description:
+            tx.description ||
+            `${rawTransactionType || 'transaction'} transaction`,
           reference_id: tx.booking_id || undefined,
           created_at:
             tx.created_at || tx.transaction_date || new Date().toISOString(),
@@ -139,7 +139,12 @@ export default function WalletDetailPage() {
 
         return mappedTransaction;
       });
-  }, [getAgentCreditTransactionsByAgent, isCreditAccount, wallet, agentCreditTransactions]);
+  }, [
+    getAgentCreditTransactionsByAgent,
+    isCreditAccount,
+    wallet,
+    agentCreditTransactions,
+  ]);
 
   // Merge and sort all transactions for credit accounts
   const allTransactions = useMemo(() => {
@@ -151,24 +156,17 @@ export default function WalletDetailPage() {
         return dateB - dateA;
       });
 
-     
-
       return sorted;
     }
     return getWalletTransactions(walletId);
-  }, [
-    isCreditAccount,
-    creditTransactions,
-    getWalletTransactions,
-    walletId,
-  ]);
+  }, [isCreditAccount, creditTransactions, getWalletTransactions, walletId]);
 
   const handleRefreshData = async () => {
     setIsRefreshing(true);
     try {
       // Refresh all relevant data
       await handleRefresh();
-      
+
       // For credit accounts, ensure both transaction types are refreshed
       if (isCreditAccount) {
         await Promise.all([

@@ -54,6 +54,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>(
     currentSeatLayout: null,
     seats: [],
     currentSeats: [],
+    seatLayoutError: null,
 
     // Sort configuration
     sortBy: 'name',
@@ -598,16 +599,18 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>(
 
         set({
           currentSeatLayout: data || null,
+          seatLayoutError: null,
           loading: { ...get().loading, fetchLayout: false },
         });
 
         return data || null;
       } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to fetch seat layout';
         set({
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Failed to fetch seat layout',
+          seatLayoutError: message,
           loading: { ...get().loading, fetchLayout: false },
         });
         return null;
@@ -630,14 +633,16 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>(
         set({
           seats: data || [],
           currentSeats: data || [],
+          seatLayoutError: null,
           loading: { ...get().loading, fetchSeats: false },
         });
 
         return data || [];
       } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to fetch seats';
         set({
-          error:
-            error instanceof Error ? error.message : 'Failed to fetch seats',
+          seatLayoutError: message,
           loading: { ...get().loading, fetchSeats: false },
         });
         return [];
@@ -900,7 +905,7 @@ export const useVesselStore = create<VesselStoreState & VesselStoreActions>(
     setCurrentItem: item => set({ currentItem: item }),
     setCurrentVessel: vessel => set({ currentItem: vessel }),
     setCurrentSeatLayout: layout => set({ currentSeatLayout: layout }),
-    clearError: () => set({ error: null }),
+    clearError: () => set({ error: null, seatLayoutError: null }),
     setError: error => set({ error }),
 
     // ========================================================================

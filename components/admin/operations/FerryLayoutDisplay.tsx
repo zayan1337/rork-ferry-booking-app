@@ -63,16 +63,19 @@ export default function FerryLayoutDisplay({
         >
           {seat.seat_number}
         </Text>
+
+        {seat.is_window && <View style={styles.windowIndicator} />}
+        {seat.is_premium && <View style={styles.premiumIndicator} />}
+        {isDisabled && <View style={styles.disabledIndicator} />}
       </View>
     );
   };
 
   const getSeatColor = (seat: Seat) => {
     if (seat.is_disabled || seat.seat_type === 'disabled')
-      return colors.textSecondary;
+      return colors.accessible || colors.info;
     if (seat.seat_type === 'crew') return colors.warning;
-    if (seat.is_premium) return colors.success;
-    if (seat.is_window) return colors.info;
+    if (seat.is_premium) return colors.secondary;
     return colors.primary;
   };
 
@@ -250,38 +253,53 @@ export default function FerryLayoutDisplay({
         </View>
 
         {/* Legend */}
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View
-              style={[styles.legendDot, { backgroundColor: colors.primary }]}
-            />
-            <Text style={styles.legendText}>Standard</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.legendScrollContent}
+          style={styles.legendScroll}
+        >
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View
+                style={[styles.legendDot, { backgroundColor: colors.primary }]}
+              />
+              <Text style={styles.legendText}>Standard seat</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View
+                style={[
+                  styles.legendDot,
+                  { backgroundColor: colors.secondary },
+                ]}
+              />
+              <Text style={styles.legendText}>Premium seat</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View
+                style={[styles.legendDot, { backgroundColor: colors.warning }]}
+              />
+              <Text style={styles.legendText}>Crew seat</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View
+                style={[
+                  styles.legendDot,
+                  { backgroundColor: colors.accessible || colors.info },
+                ]}
+              />
+              <Text style={styles.legendText}>
+                Accessible / Wheelchair seat
+              </Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View
+                style={[styles.legendBadge, { borderColor: colors.info }]}
+              />
+              <Text style={styles.legendText}>Window badge</Text>
+            </View>
           </View>
-          <View style={styles.legendItem}>
-            <View
-              style={[styles.legendDot, { backgroundColor: colors.success }]}
-            />
-            <Text style={styles.legendText}>Premium</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View
-              style={[styles.legendDot, { backgroundColor: colors.info }]}
-            />
-            <Text style={styles.legendText}>Window</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View
-              style={[styles.legendDot, { backgroundColor: colors.warning }]}
-            />
-            <Text style={styles.legendText}>Crew</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View
-              style={[styles.legendDot, { backgroundColor: colors.danger }]}
-            />
-            <Text style={styles.legendText}>Disabled</Text>
-          </View>
-        </View>
+        </ScrollView>
 
         {/* Statistics */}
         <View style={styles.stats}>
@@ -462,6 +480,33 @@ const styles = StyleSheet.create({
   disabledSeatText: {
     color: colors.textSecondary,
   },
+  windowIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.info,
+  },
+  premiumIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.secondary,
+  },
+  disabledIndicator: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accessible || colors.info,
+  },
   aisle: {
     width: 8,
     height: 24,
@@ -487,12 +532,19 @@ const styles = StyleSheet.create({
   },
   legend: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginTop: 12,
+    alignItems: 'center',
+    gap: 12,
     paddingVertical: 8,
+    paddingHorizontal: 12,
     backgroundColor: colors.card,
     borderRadius: 8,
+  },
+  legendScroll: {
+    width: '100%',
+    marginTop: 12,
+  },
+  legendScrollContent: {
+    paddingHorizontal: 0,
   },
   legendItem: {
     flexDirection: 'row',
@@ -503,6 +555,12 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+  },
+  legendBadge: {
+    width: 16,
+    height: 10,
+    borderRadius: 4,
+    borderWidth: 2,
   },
   legendText: {
     fontSize: 10,

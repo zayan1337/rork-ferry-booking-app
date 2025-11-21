@@ -14,6 +14,8 @@ export const colors = {
   errorLight: '#FFEBEA',
   info: '#007AFF',
   infoLight: '#E5F2FF',
+  accessible: '#8C52FF',
+  accessibleLight: '#F0E9FF',
   text: '#1C1C1E',
   textSecondary: '#8E8E93',
   textTertiary: '#C7C7CC',

@@ -413,17 +413,18 @@ export const useFinanceData = () => {
   const getAgentCreditTransactionsByAgent = useCallback(
     (agentId: string) => {
       if (!agentId) {
-      //  console.log('[getAgentCreditTransactionsByAgent] Missing agentId');
+        //  console.log('[getAgentCreditTransactionsByAgent] Missing agentId');
         return [];
       }
 
       if (
-        (!walletTransactionsLoaded || (walletTransactions?.length ?? 0) === 0) &&
+        (!walletTransactionsLoaded ||
+          (walletTransactions?.length ?? 0) === 0) &&
         !loading.transactions
       ) {
-      //  console.log(
-      //    '[getAgentCreditTransactionsByAgent] Wallet transactions not ready, requesting fetch'
-      //  );
+        //  console.log(
+        //    '[getAgentCreditTransactionsByAgent] Wallet transactions not ready, requesting fetch'
+        //  );
         void fetchWalletTransactions();
       }
 
@@ -470,12 +471,12 @@ export const useFinanceData = () => {
         return dateB - dateA;
       });
 
-        // console.log('[getAgentCreditTransactionsByAgent] Aggregated transactions', {
-        //   agentId,
-        //   agentCreditCount: baseTransactions.length,
-        //   manualCreditCount: manualCredits.length,
-        //   total: merged.length,
-        // });
+      // console.log('[getAgentCreditTransactionsByAgent] Aggregated transactions', {
+      //   agentId,
+      //   agentCreditCount: baseTransactions.length,
+      //   manualCreditCount: manualCredits.length,
+      //   total: merged.length,
+      // });
 
       return merged;
     },

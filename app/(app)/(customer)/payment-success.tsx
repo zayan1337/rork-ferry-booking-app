@@ -230,6 +230,11 @@ export default function PaymentSuccessScreen() {
                 );
               }
             }
+
+            // Reset booking state on cancellation
+            if (shouldResetBooking) {
+              resetBookingState();
+            }
           } else if (result === 'FAILURE') {
             setStatus('failed');
             // Cancel booking and release seats when payment fails
@@ -266,6 +271,11 @@ export default function PaymentSuccessScreen() {
                 'Failed to cancel booking on payment failure:',
                 cancelError
               );
+            }
+
+            // Reset booking state on failure
+            if (shouldResetBooking) {
+              resetBookingState();
             }
           } else {
             setStatus('pending');
@@ -366,6 +376,11 @@ export default function PaymentSuccessScreen() {
               bookingStatus: 'cancelled',
             });
             setStatus('cancelled');
+
+            // Reset booking state on cancellation
+            if (shouldResetBooking) {
+              resetBookingState();
+            }
           } else if (result === 'FAILURE') {
             // Cancel booking and release seats when payment fails
             try {
@@ -405,6 +420,11 @@ export default function PaymentSuccessScreen() {
               bookingStatus: 'cancelled',
             });
             setStatus('failed');
+
+            // Reset booking state on failure
+            if (shouldResetBooking) {
+              resetBookingState();
+            }
           } else {
             setPaymentResult({
               success: false,
@@ -481,6 +501,11 @@ export default function PaymentSuccessScreen() {
               'Failed to release seats on payment failure:',
               seatError
             );
+          }
+
+          // Reset booking state on failure
+          if (shouldResetBooking) {
+            resetBookingState();
           }
         } else {
           setStatus('pending');
@@ -721,6 +746,11 @@ export default function PaymentSuccessScreen() {
             seatError
           );
         }
+
+        // Reset booking state on failure
+        if (shouldResetBooking) {
+          resetBookingState();
+        }
       } else {
         setStatus('pending');
       }
@@ -802,14 +832,14 @@ export default function PaymentSuccessScreen() {
           {status === 'failed' && (
             <>
               <Button
-                title='Try Again'
-                onPress={handleRetryPayment}
+                title={isAgent ? 'View Bookings' : 'View My Bookings'}
+                onPress={handleViewBookings}
                 style={styles.primaryButton}
               />
               {isAgent && (
                 <Button
-                  title='View Bookings'
-                  onPress={handleViewBookings}
+                  title='New Booking'
+                  onPress={handleNewBooking}
                   variant='outline'
                   style={styles.secondaryButton}
                 />
@@ -826,8 +856,8 @@ export default function PaymentSuccessScreen() {
           {status === 'cancelled' && (
             <>
               <Button
-                title='Try Again'
-                onPress={handleRetryPayment}
+                title={isAgent ? 'View Bookings' : 'View My Bookings'}
+                onPress={handleViewBookings}
                 style={styles.primaryButton}
               />
               {isAgent && (

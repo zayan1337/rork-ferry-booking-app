@@ -535,15 +535,6 @@ export default function ModifyBookingScreen() {
           );
         }
       } else {
-        // Check max seats limit
-        if (selectedSeats.length >= (booking?.passengers?.length || 0)) {
-          showWarning(
-            'Maximum Seats Selected',
-            `You can only select ${booking?.passengers?.length || 0} seat(s) for this booking.`
-          );
-          return;
-        }
-
         // Double-check availability at selection time
         if (!seat.isAvailable && !seat.isCurrentUserReservation) {
           throw new Error('This seat is no longer available');
@@ -603,8 +594,8 @@ export default function ModifyBookingScreen() {
       isValid = false;
     }
 
-    if (selectedSeats.length !== (booking?.passengers?.length || 0)) {
-      newErrors.seats = `Please select ${booking?.passengers?.length || 0} seat(s)`;
+    if (selectedSeats.length === 0) {
+      newErrors.seats = 'Please select at least one seat';
       isValid = false;
     }
 
@@ -935,8 +926,7 @@ export default function ModifyBookingScreen() {
 
           {/* Seat Selection */}
           <Text style={styles.seatSectionTitle}>
-            Select New Seats ({selectedSeats.length}/{booking.passengers.length}
-            )
+            Select New Seats ({selectedSeats.length})
           </Text>
           {!selectedTrip ? (
             <Text style={styles.noSeatsText}>Please select a trip first</Text>
@@ -950,7 +940,6 @@ export default function ModifyBookingScreen() {
               seats={availableSeats}
               selectedSeats={selectedSeats}
               onSeatToggle={handleSeatToggle}
-              maxSeats={booking.passengers.length}
               isLoading={seatLoading}
               loadingSeats={loadingSeats}
               seatErrors={seatErrors}

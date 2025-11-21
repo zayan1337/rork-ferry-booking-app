@@ -819,13 +819,13 @@ export default function AgentNewBookingScreen() {
             setMibBookingDetails(null);
 
             // Navigate to agent payment success page with failure status
-            // Don't reset booking state so user can retry payment
+            // Reset booking state on failure
             router.push({
               pathname: '/(app)/(agent)/payment-success',
               params: {
                 bookingId: currentBookingId,
                 result: 'FAILURE',
-                resetBooking: 'false', // Don't reset booking on failure
+                resetBooking: 'true', // Reset booking on failure
               },
             });
           }}
@@ -837,13 +837,13 @@ export default function AgentNewBookingScreen() {
             setMibBookingDetails(null);
 
             // Navigate to agent payment success page with cancelled status
-            // Don't reset booking state so user can retry payment
+            // Reset booking state on cancellation
             router.push({
               pathname: '/(app)/(agent)/payment-success',
               params: {
                 bookingId: currentBookingId,
                 result: 'CANCELLED',
-                resetBooking: 'false', // Don't reset booking on cancellation
+                resetBooking: 'true', // Reset booking on cancellation
               },
             });
           }}

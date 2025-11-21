@@ -19,7 +19,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
   seats,
   selectedSeats,
   onSeatToggle,
-  maxSeats = 10,
+  maxSeats,
   isLoading = false,
   loadingSeats: externalLoadingSeats,
   seatErrors: externalSeatErrors,
@@ -256,8 +256,10 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
     return selectedSeats.some(seat => seat.id === seatId);
   };
 
-  // Check if max seats are selected
-  const isMaxSeatsSelected = selectedSeats.length >= maxSeats;
+  // Check if max seats are selected (only if maxSeats is defined and valid)
+  const hasMaxLimit =
+    maxSeats !== undefined && maxSeats !== null && maxSeats > 0;
+  const isMaxSeatsSelected = hasMaxLimit && selectedSeats.length >= maxSeats;
 
   // Handle seat selection with loading state
   const handleSeatPress = async (seat: Seat) => {
@@ -507,7 +509,8 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
 
       <View style={styles.selectionInfo}>
         <Text style={styles.selectionText}>
-          Selected: {selectedSeats?.length || 0}/{maxSeats} seats
+          Selected: {selectedSeats?.length || 0}
+          {hasMaxLimit ? `/${maxSeats}` : ''} seats
         </Text>
         {isMaxSeatsSelected && (
           <Text style={styles.maxReachedText}>

@@ -23,7 +23,6 @@ import {
   TrendingDown,
   Users,
   DollarSign,
-  Plus,
   CreditCard,
   X,
 } from 'lucide-react-native';
