@@ -534,6 +534,18 @@ export default function AgentPaymentSuccessScreen() {
     }
   };
 
+  const formatStatusToCamelCase = (status: string): string => {
+    return status
+      .split('_')
+      .map((word, index) => {
+        if (index === 0) {
+          return word.toLowerCase();
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
+      .join('');
+  };
+
   const handleRetryPayment = () => {
     // Navigate back to booking page to retry payment
     // Set the booking step to payment step if booking state wasn't reset
@@ -660,13 +672,13 @@ export default function AgentPaymentSuccessScreen() {
             <View style={styles.resultRow}>
               <Text style={styles.resultLabel}>Payment Status:</Text>
               <Text style={styles.resultValue}>
-                {paymentResult.paymentStatus}
+                {formatStatusToCamelCase(paymentResult.paymentStatus)}
               </Text>
             </View>
             <View style={styles.resultRow}>
               <Text style={styles.resultLabel}>Booking Status:</Text>
               <Text style={styles.resultValue}>
-                {paymentResult.bookingStatus}
+                {formatStatusToCamelCase(paymentResult.bookingStatus)}
               </Text>
             </View>
             {/* {paymentResult.bookingId && (
