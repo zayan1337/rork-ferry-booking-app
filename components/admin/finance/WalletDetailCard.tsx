@@ -241,7 +241,7 @@ function WalletDetailCard({
         p_user_id: wallet.user_id,
         p_payment_amount: amount,
         p_payment_method: 'manual',
-        p_reference: `MANUAL-${Date.now()}`,
+        p_reference: `Admin Manual Payment-${Date.now()}`,
       });
 
       if (error) throw error;
