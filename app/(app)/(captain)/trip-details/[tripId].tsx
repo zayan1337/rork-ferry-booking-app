@@ -97,6 +97,7 @@ export default function CaptainTripDetailsScreen() {
   // New multi-stop workflow state
   const [currentStop, setCurrentStop] = useState<any>(null);
   const [stopPassengers, setStopPassengers] = useState<any[]>([]);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
 
   // Bulk check-in state
   const [selectedPassengers, setSelectedPassengers] = useState<Set<string>>(
@@ -105,6 +106,19 @@ export default function CaptainTripDetailsScreen() {
   const [bulkCheckInMode, setBulkCheckInMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'checked_in' | 'pending'>(
     'all'
+  );
+  const updateTripInStore = useCallback(
+    (updates: Partial<CaptainTrip>) => {
+      if (!tripId) return;
+
+      useCaptainStore.setState(state => ({
+        ...state,
+        trips: state.trips.map(t =>
+          t.id === tripId ? ({ ...t, ...updates } as CaptainTrip) : t
+        ),
+      }));
+    },
+    [tripId]
   );
 
   // QR Scanner state
@@ -753,9 +767,17 @@ export default function CaptainTripDetailsScreen() {
   // Handle button press
   const handleButtonPress = useCallback(async () => {
     const buttonState = getButtonState();
-    if (!buttonState || !tripId || !user?.id || !currentStop) return;
+    if (
+      !buttonState ||
+      !tripId ||
+      !user?.id ||
+      !currentStop ||
+      isProcessingAction
+    )
+      return;
 
     try {
+      setIsProcessingAction(true);
       switch (buttonState.action) {
         case 'start_boarding':
           await handleStartBoarding();
@@ -779,8 +801,10 @@ export default function CaptainTripDetailsScreen() {
     } catch (error) {
       console.error('Error handling button press:', error);
       showError('Error', 'An error occurred. Please try again.');
+    } finally {
+      setIsProcessingAction(false);
     }
-  }, [getButtonState, tripId, user?.id, currentStop]);
+  }, [getButtonState, tripId, user?.id, currentStop, isProcessingAction]);
 
   // Action handlers
   const handleStartBoarding = async () => {
@@ -790,16 +814,57 @@ export default function CaptainTripDetailsScreen() {
       'Start Boarding',
       `Allow passengers to board at ${currentStop.island.name}?`,
       async () => {
+        setIsProcessingAction(true);
         try {
-          // First, check if trip progress is initialized
-          const { data: progressCheck, error: checkError } = await supabase
+          // Optimistic UI Update: Update local state immediately for better UX
+          const optimisticTrip = trip
+            ? ({
+                ...trip,
+                status: 'boarding',
+                current_stop_sequence: currentStop.stop_sequence,
+                current_stop_id: currentStop.stop_id,
+              } as CaptainTrip)
+            : null;
+
+          const optimisticStops = routeStops.map(stop =>
+            stop.stop_id === currentStop.stop_id
+              ? { ...stop, status: 'boarding', is_current_stop: true }
+              : { ...stop, is_current_stop: false }
+          );
+
+          const optimisticCurrentStop = {
+            ...currentStop,
+            status: 'boarding',
+            is_current_stop: true,
+          };
+
+          // Apply optimistic updates immediately
+          if (optimisticTrip) {
+            setTrip(optimisticTrip);
+            updateTripInStore(optimisticTrip);
+          } else {
+            updateTripInStore({
+              status: 'boarding',
+              current_stop_sequence: currentStop.stop_sequence,
+              current_stop_id: currentStop.stop_id,
+            });
+          }
+          setRouteStops(optimisticStops);
+          setCurrentStop(optimisticCurrentStop);
+
+          // Check if trip progress is initialized (in parallel with other operations)
+          const progressCheckPromise = supabase
             .from('trip_stop_progress')
             .select('id, status, stop_id')
-            .eq('trip_id', tripId);
+            .eq('trip_id', tripId)
+            .limit(1);
+
+          // Start both operations
+          const [progressResult] = await Promise.all([progressCheckPromise]);
 
           // If no progress exists, initialize it first
-          if (!progressCheck || progressCheck.length === 0) {
-            const { data: initData, error: initError } = await supabase.rpc(
+          if (!progressResult.data || progressResult.data.length === 0) {
+            const { error: initError } = await supabase.rpc(
               'initialize_trip_stop_progress',
               {
                 p_trip_id: tripId,
@@ -808,192 +873,258 @@ export default function CaptainTripDetailsScreen() {
             );
 
             if (initError) {
+              // Revert optimistic update on error
+              if (trip) {
+                setTrip(trip);
+                updateTripInStore(trip);
+              }
+              setRouteStops(routeStops);
+              setCurrentStop(currentStop);
+
               console.error('Error initializing trip progress:', initError);
               showError(
                 'Error',
                 `Failed to initialize trip progress: ${initError.message}`
               );
+              setIsProcessingAction(false);
               return;
             }
           }
 
-          // Now update stop status to 'boarding'
-          // FIXED: Use stop_id (route_stops.id) not currentStop.id (trip_stop_progress.id)
-          const { data: updateData, error: updateError } = await supabase.rpc(
-            'update_stop_status',
-            {
+          // Execute both updates in parallel for better performance
+          const [updateResult, tripUpdateResult] = await Promise.all([
+            // Update stop status to 'boarding'
+            supabase.rpc('update_stop_status', {
               p_trip_id: tripId,
-              p_stop_id: currentStop.stop_id, // FIXED: Use stop_id
+              p_stop_id: currentStop.stop_id,
               p_status: 'boarding',
               p_captain_id: user?.id,
-            }
-          );
+            }),
+            // Update trip status to 'boarding' (in parallel)
+            supabase
+              .from('trips')
+              .update({
+                status: 'boarding',
+                current_stop_sequence: currentStop.stop_sequence,
+                current_stop_id: currentStop.stop_id,
+                trip_progress_status: 'boarding_in_progress',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', tripId),
+          ]);
 
-          if (updateError) {
-            console.error('Error starting boarding:', updateError);
+          // Check for errors
+          if (updateResult.error) {
+            // Revert optimistic update on error
+            if (trip) {
+              setTrip(trip);
+              updateTripInStore(trip);
+            }
+            setRouteStops(routeStops);
+            setCurrentStop(currentStop);
+
+            console.error('Error starting boarding:', updateResult.error);
             showError(
               'Error',
-              `Failed to start boarding: ${updateError.message}`
+              `Failed to start boarding: ${updateResult.error.message}`
             );
+            setIsProcessingAction(false);
             return;
           }
 
-          if (!updateData) {
+          if (!updateResult.data) {
+            // Revert optimistic update on error
+            if (trip) {
+              setTrip(trip);
+              updateTripInStore(trip);
+            }
+            setRouteStops(routeStops);
+            setCurrentStop(currentStop);
+
             showError(
               'Error',
               'Failed to update stop status. Please try again.'
             );
+            setIsProcessingAction(false);
             return;
           }
 
-          // Update trip status to 'boarding'
-          const { error: tripUpdateError } = await supabase
-            .from('trips')
-            .update({
-              status: 'boarding',
-              current_stop_sequence: currentStop.stop_sequence,
-              current_stop_id: currentStop.stop_id,
-              trip_progress_status: 'boarding_in_progress',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', tripId);
-
-          if (tripUpdateError) {
-            console.error('Error updating trip status:', tripUpdateError);
-            showError('Error', 'Failed to update trip status');
-            return;
+          if (tripUpdateResult.error) {
+            console.error(
+              'Error updating trip status:',
+              tripUpdateResult.error
+            );
+            // Don't revert here - stop update succeeded, just log the error
+            // The silent reload will fix the trip status
+            console.warn(
+              'Stop status updated but trip status update failed. Will sync on reload.'
+            );
           }
 
-          // Optimistic UI Update: Update local state immediately
-          if (trip) {
-            setTrip({
-              ...trip,
-              status: 'boarding',
-              current_stop_sequence: currentStop.stop_sequence,
-              current_stop_id: currentStop.stop_id,
-            } as CaptainTrip);
-          }
-
-          // Update route stops state immediately
-          setRouteStops(prevStops =>
-            prevStops.map(stop =>
-              stop.stop_id === currentStop.stop_id
-                ? { ...stop, status: 'boarding', is_current_stop: true }
-                : { ...stop, is_current_stop: false }
-            )
+          // Show success message
+          showSuccess(
+            'Boarding Started',
+            `Passengers can now board at ${currentStop.island.name}`
           );
 
-          // Update current stop state
-          setCurrentStop((prev: any) => ({
-            ...prev,
-            status: 'boarding',
-            is_current_stop: true,
-          }));
-
-          // Reload data silently to sync with database
-          setTimeout(() => reloadDataSilently(), 500);
+          // Reload data silently after a short delay to ensure DB consistency
+          // Increased delay to allow database to fully commit
+          setTimeout(() => {
+            reloadDataSilently();
+            setIsProcessingAction(false);
+          }, 1000);
         } catch (err: any) {
+          // Revert optimistic update on error
+          if (trip) {
+            setTrip(trip);
+            updateTripInStore(trip);
+          }
+          setRouteStops(routeStops);
+          setCurrentStop(currentStop);
+
           console.error('Unexpected error:', err);
           showError(
             'Error',
             `An unexpected error occurred: ${err.message || 'Unknown error'}`
           );
+          setIsProcessingAction(false);
         }
       }
     );
   };
 
   const handleDepart = async () => {
-    if (!currentStop || !tripId) return;
+    if (!currentStop || !tripId || isProcessingAction) return;
 
     showConfirmation(
       'Depart',
       `Ready to depart from ${currentStop.island.name}?`,
       async () => {
+        setIsProcessingAction(true);
         try {
-          // Update stop status to 'departed'
-          const { data, error } = await supabase.rpc('update_stop_status', {
-            p_trip_id: tripId,
-            p_stop_id: currentStop.stop_id, // FIXED: Use stop_id
-            p_status: 'departed',
-            p_captain_id: user?.id,
-          });
+          // Determine if there are more pickup stops (before async operations)
+          const remainingPickups = routeStops.filter(
+            s =>
+              s.stop_sequence > currentStop.stop_sequence &&
+              (s.stop_type === 'pickup' || s.stop_type === 'both') &&
+              !s.is_completed
+          );
 
-          if (!error && data) {
-            // Determine if there are more pickup stops
-            const remainingPickups = routeStops.filter(
-              s =>
-                s.stop_sequence > currentStop.stop_sequence &&
-                (s.stop_type === 'pickup' || s.stop_type === 'both') &&
-                !s.is_completed
-            );
+          const newTripStatus =
+            remainingPickups.length > 0 ? 'boarding' : 'departed';
+          const newProgressStatus =
+            remainingPickups.length > 0 ? 'boarding_in_progress' : 'in_transit';
 
-            const newTripStatus =
-              remainingPickups.length > 0 ? 'boarding' : 'departed';
-            const newProgressStatus =
-              remainingPickups.length > 0
-                ? 'boarding_in_progress'
-                : 'in_transit';
+          // Optimistic UI Update: Update local state immediately
+          const optimisticTrip = trip
+            ? ({
+                ...trip,
+                status: newTripStatus,
+              } as CaptainTrip)
+            : null;
 
-            // Update trip status
-            const { error: tripUpdateError } = await supabase
+          const optimisticStops = routeStops.map(stop =>
+            stop.stop_id === currentStop.stop_id
+              ? { ...stop, status: 'departed', is_completed: true }
+              : stop
+          );
+
+          const optimisticCurrentStop = {
+            ...currentStop,
+            status: 'departed',
+            is_completed: true,
+          };
+
+          // Apply optimistic updates
+          if (optimisticTrip) {
+            setTrip(optimisticTrip);
+            updateTripInStore(optimisticTrip);
+          } else {
+            updateTripInStore({ status: newTripStatus });
+          }
+          setRouteStops(optimisticStops);
+          setCurrentStop(optimisticCurrentStop);
+
+          // Execute both updates in parallel for better performance
+          const [updateResult, tripUpdateResult] = await Promise.all([
+            // Update stop status to 'departed'
+            supabase.rpc('update_stop_status', {
+              p_trip_id: tripId,
+              p_stop_id: currentStop.stop_id,
+              p_status: 'departed',
+              p_captain_id: user?.id,
+            }),
+            // Update trip status (in parallel)
+            supabase
               .from('trips')
               .update({
                 status: newTripStatus,
                 trip_progress_status: newProgressStatus,
                 updated_at: new Date().toISOString(),
               })
-              .eq('id', tripId);
+              .eq('id', tripId),
+          ]);
 
-            if (tripUpdateError) {
-              console.error('Error updating trip status:', tripUpdateError);
-              showError('Error', 'Failed to update trip status');
-              return;
-            }
-
-            // Optimistic UI Update: Update local state immediately
+          // Check for errors
+          if (updateResult.error || !updateResult.data) {
+            // Revert optimistic update on error
             if (trip) {
-              setTrip({
-                ...trip,
-                status: newTripStatus,
-              } as CaptainTrip);
+              setTrip(trip);
+              updateTripInStore(trip);
             }
+            setRouteStops(routeStops);
+            setCurrentStop(currentStop);
 
-            // Update route stops state immediately
-            setRouteStops(prevStops =>
-              prevStops.map(stop =>
-                stop.stop_id === currentStop.stop_id
-                  ? { ...stop, status: 'departed', is_completed: true }
-                  : stop
-              )
-            );
-
-            // Update current stop state
-            setCurrentStop((prev: any) => ({
-              ...prev,
-              status: 'departed',
-              is_completed: true,
-            }));
-
-            // Send manifest in background if this was the last pickup stop
-            if (remainingPickups.length === 0) {
-              sendManifest(tripId, currentStop.id).catch(manifestError => {
-                console.error('Error sending manifest:', manifestError);
-              });
-            }
-
-            // Reload data silently to sync with database
-            setTimeout(() => reloadDataSilently(), 500);
-          } else {
-            console.error('Error departing:', error);
+            console.error('Error departing:', updateResult.error);
             showError(
               'Error',
-              'Failed to depart: ' + (error?.message || 'Unknown error')
+              'Failed to depart: ' +
+                (updateResult.error?.message || 'Unknown error')
+            );
+            setIsProcessingAction(false);
+            return;
+          }
+
+          if (tripUpdateResult.error) {
+            console.error(
+              'Error updating trip status:',
+              tripUpdateResult.error
+            );
+            // Don't revert - stop update succeeded
+            console.warn(
+              'Stop status updated but trip status update failed. Will sync on reload.'
             );
           }
+
+          // Send manifest in background if this was the last pickup stop
+          if (remainingPickups.length === 0) {
+            sendManifest(tripId, currentStop.id).catch(manifestError => {
+              console.error('Error sending manifest:', manifestError);
+            });
+          }
+
+          showSuccess(
+            'Departed',
+            `Successfully departed from ${currentStop.island.name}`
+          );
+
+          // Reload data silently after delay to ensure DB consistency
+          setTimeout(() => {
+            reloadDataSilently();
+            setIsProcessingAction(false);
+          }, 1000);
         } catch (err) {
+          // Revert optimistic update on error
+          if (trip) {
+            setTrip(trip);
+            updateTripInStore(trip);
+          }
+          setRouteStops(routeStops);
+          setCurrentStop(currentStop);
+
           console.error('Unexpected error:', err);
           showError('Error', 'An unexpected error occurred');
+          setIsProcessingAction(false);
         }
       }
     );
@@ -2149,9 +2280,14 @@ export default function CaptainTripDetailsScreen() {
             getButtonState() && (
               <View style={styles.multiStopActions}>
                 <Button
-                  title={getButtonState()!.text}
+                  title={
+                    isProcessingAction
+                      ? 'Processing...'
+                      : getButtonState()!.text
+                  }
                   onPress={handleButtonPress}
                   variant={getButtonState()!.variant as any}
+                  disabled={isProcessingAction}
                 />
               </View>
             )}

@@ -35,6 +35,7 @@ export default function TextInput({
       <RNTextInput
         style={[
           styles.input,
+          props.multiline && styles.inputMultiline,
           error && styles.inputError,
           props.editable === false && styles.inputDisabled,
           style,
@@ -76,7 +77,17 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: colors.text,
-    minHeight: 48,
+    minHeight: 52,
+    lineHeight: 22,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
+  inputMultiline: {
+    textAlignVertical: 'top',
+    paddingTop: 14,
+    paddingBottom: 14,
+    minHeight: 80,
+    lineHeight: 22,
   },
   inputError: {
     borderColor: colors.error,

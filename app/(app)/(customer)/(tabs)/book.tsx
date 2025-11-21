@@ -340,6 +340,21 @@ export default function BookScreen() {
           newErrors.passengers = 'Please enter all passenger details';
           isValid = false;
         }
+        // Check if accessible seat passengers have special assistance
+        const accessibleSeatPassengers = currentBooking.passengers.filter(
+          (p, index) => {
+            const seat = localSelectedSeats[index];
+            return seat && (seat.isDisabled || seat.seatType === 'disabled');
+          }
+        );
+        const missingAssistance = accessibleSeatPassengers.find(
+          p => !p.specialAssistance || !p.specialAssistance.trim()
+        );
+        if (missingAssistance) {
+          newErrors.passengers =
+            'Special assistance is required for accessible/wheelchair seats. Please provide details for all passengers using accessible seats.';
+          isValid = false;
+        }
         break;
 
       case BOOKING_STEPS.PAYMENT:
@@ -694,13 +709,32 @@ export default function BookScreen() {
 
                   <Input
                     label='Special Assistance'
-                    placeholder='Any special requirements? (optional)'
+                    placeholder={
+                      localSelectedSeats[index] &&
+                      (localSelectedSeats[index].isDisabled ||
+                        localSelectedSeats[index].seatType === 'disabled')
+                        ? 'Please describe accessibility requirements (required for accessible seats)'
+                        : 'Any special requirements? (optional)'
+                    }
                     value={passenger.specialAssistance || ''}
                     onChangeText={text =>
                       updatePassengerDetail(index, 'specialAssistance', text)
                     }
                     multiline
                     numberOfLines={2}
+                    required={
+                      localSelectedSeats[index] &&
+                      (localSelectedSeats[index].isDisabled ||
+                        localSelectedSeats[index].seatType === 'disabled')
+                    }
+                    error={
+                      localSelectedSeats[index] &&
+                      (localSelectedSeats[index].isDisabled ||
+                        localSelectedSeats[index].seatType === 'disabled') &&
+                      !passenger.specialAssistance?.trim()
+                        ? 'Special assistance is required for accessible seats'
+                        : undefined
+                    }
                   />
                 </View>
               ))}

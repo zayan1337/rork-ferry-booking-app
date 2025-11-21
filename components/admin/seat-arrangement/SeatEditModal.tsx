@@ -53,6 +53,7 @@ export default function SeatEditModal({
   const { showError, showConfirmation } = useAlertContext();
   const [editedSeat, setEditedSeat] = useState<Seat | null>(null);
   const [isNewSeat, setIsNewSeat] = useState(false);
+  const [priceMultiplierText, setPriceMultiplierText] = useState<string>('');
 
   useEffect(() => {
     if (seat) {
@@ -68,9 +69,14 @@ export default function SeatEditModal({
 
       setEditedSeat(normalizedSeat);
       setIsNewSeat(!seat.id);
+      // Initialize price multiplier text
+      setPriceMultiplierText(
+        normalizedSeat.price_multiplier?.toString() || '1.0'
+      );
     } else {
       setEditedSeat(null);
       setIsNewSeat(false);
+      setPriceMultiplierText('');
     }
   }, [seat]);
 
@@ -83,6 +89,24 @@ export default function SeatEditModal({
       return;
     }
 
+    // Warn if seat name is too long (but allow it)
+    if (editedSeat.seat_number.length > 8) {
+      showConfirmation(
+        'Long Seat Name',
+        `The seat name "${editedSeat.seat_number}" is ${editedSeat.seat_number.length} characters long. It may be truncated in the seat layout view. Do you want to continue?`,
+        () => {
+          proceedWithSave();
+        },
+        undefined,
+        false
+      );
+      return;
+    }
+
+    proceedWithSave();
+  };
+
+  const proceedWithSave = () => {
     if (editedSeat.row_number <= 0 || (editedSeat.position_x || 1) <= 0) {
       showError('Error', 'Row and column numbers must be greater than 0');
       return;
@@ -98,6 +122,13 @@ export default function SeatEditModal({
     };
 
     onSave(finalSeat);
+  };
+
+  const getSeatPreviewStyle = (seat: Seat) => {
+    if (seat.seat_type === 'crew') return styles.seatPreviewCrew;
+    if (seat.is_premium) return styles.seatPreviewPremium;
+    if (seat.is_disabled) return styles.seatPreviewDisabled;
+    return styles.seatPreviewStandard;
   };
 
   const handleDelete = () => {
@@ -340,19 +371,62 @@ export default function SeatEditModal({
 
           {/* Seat Name/Number */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Seat Name</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>Seat Name</Text>
+              <Text
+                style={[
+                  styles.characterCount,
+                  editedSeat.seat_number.length > 8 &&
+                    styles.characterCountWarning,
+                ]}
+              >
+                {editedSeat.seat_number.length}/8
+              </Text>
+            </View>
             <View style={styles.seatNameContainer}>
               <RNTextInput
-                style={styles.seatNameInput}
+                style={[
+                  styles.seatNameInput,
+                  editedSeat.seat_number.length > 8 &&
+                    styles.seatNameInputWarning,
+                ]}
                 value={editedSeat.seat_number}
                 onChangeText={text => updateSeat({ seat_number: text })}
                 placeholder='Enter seat name (e.g., A1, B2, VIP1)'
                 placeholderTextColor={colors.textSecondary}
-                maxLength={10}
+                maxLength={8}
+                autoCapitalize='characters'
               />
-              <Text style={styles.seatNameHint}>
-                Custom name for this seat (max 10 characters)
+              <Text
+                style={[
+                  styles.seatNameHint,
+                  editedSeat.seat_number.length > 8 &&
+                    styles.seatNameHintWarning,
+                ]}
+              >
+                {editedSeat.seat_number.length > 8
+                  ? '⚠️ Name is too long for seat display (max 8 characters recommended)'
+                  : 'Short names work best (max 8 characters recommended)'}
               </Text>
+              {editedSeat.seat_number.length > 0 && (
+                <View style={styles.seatPreviewContainer}>
+                  <Text style={styles.seatPreviewLabel}>Preview:</Text>
+                  <View
+                    style={[
+                      styles.seatPreview,
+                      getSeatPreviewStyle(editedSeat),
+                    ]}
+                  >
+                    <Text
+                      style={styles.seatPreviewText}
+                      numberOfLines={1}
+                      ellipsizeMode='tail'
+                    >
+                      {editedSeat.seat_number}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
 
@@ -444,37 +518,63 @@ export default function SeatEditModal({
             </View>
           </View>
 
-          {/* Price Multiplier - Only for premium seats */}
-          {(editedSeat.seat_type === 'premium' ||
-            editedSeat.seat_class === 'business' ||
-            editedSeat.seat_class === 'first') && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Price Adjustment</Text>
-              <View style={styles.priceSection}>
-                <View style={styles.priceRow}>
-                  <DollarSign size={20} color={colors.primary} />
-                  <Text style={styles.priceLabel}>Multiplier</Text>
-                  <CustomTextInput
-                    style={styles.priceInput}
-                    value={editedSeat.price_multiplier.toString()}
-                    onChangeText={(text: string) => {
-                      const value = Math.max(0.1, parseFloat(text) || 1.0);
-                      updateSeat({ price_multiplier: value });
-                    }}
-                    placeholder='1.0'
-                    keyboardType='decimal-pad'
-                  />
-                </View>
-                <Text style={styles.priceHint}>
-                  {editedSeat.price_multiplier < 1
-                    ? '↓ Discounted'
-                    : editedSeat.price_multiplier > 1
-                      ? '↑ Premium pricing'
-                      : '= Standard price'}
-                </Text>
+          {/* Price Multiplier - Available for all seat types */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Price Adjustment</Text>
+            <View style={styles.priceSection}>
+              <View style={styles.priceRow}>
+                <DollarSign size={20} color={colors.primary} />
+                <Text style={styles.priceLabel}>Multiplier</Text>
+                <CustomTextInput
+                  style={styles.priceInput}
+                  value={priceMultiplierText}
+                  onChangeText={(text: string) => {
+                    // Allow empty string and valid numbers during editing
+                    setPriceMultiplierText(text);
+                    // Only update seat if it's a valid number
+                    const numValue = parseFloat(text);
+                    if (!isNaN(numValue) && text.trim() !== '') {
+                      // Crew seats can be 0, others minimum 0.1
+                      const minValue =
+                        editedSeat.seat_type === 'crew' ? 0 : 0.1;
+                      const clampedValue = Math.max(minValue, numValue);
+                      updateSeat({ price_multiplier: clampedValue });
+                    }
+                  }}
+                  onBlur={() => {
+                    // When user finishes editing, validate and set default if needed
+                    const numValue = parseFloat(priceMultiplierText);
+                    if (isNaN(numValue) || priceMultiplierText.trim() === '') {
+                      // Default to 1.0 if empty or invalid
+                      setPriceMultiplierText('1.0');
+                      updateSeat({ price_multiplier: 1.0 });
+                    } else {
+                      // Crew seats can be 0, others minimum 0.1
+                      const minValue =
+                        editedSeat.seat_type === 'crew' ? 0 : 0.1;
+                      const clampedValue = Math.max(minValue, numValue);
+                      setPriceMultiplierText(clampedValue.toString());
+                      updateSeat({ price_multiplier: clampedValue });
+                    }
+                  }}
+                  placeholder='1.0'
+                  keyboardType='decimal-pad'
+                />
               </View>
+              <Text style={styles.priceHint}>
+                {editedSeat.price_multiplier < 1
+                  ? '↓ Discounted'
+                  : editedSeat.price_multiplier > 1
+                    ? '↑ Premium pricing'
+                    : '= Standard price'}
+              </Text>
+              {editedSeat.seat_type === 'crew' && (
+                <Text style={[styles.priceHint, { color: colors.warning }]}>
+                  Note: Crew seats typically have a multiplier of 0 (free)
+                </Text>
+              )}
             </View>
-          )}
+          </View>
         </View>
       </ScrollView>
 
@@ -665,6 +765,80 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  seatNameHintWarning: {
+    color: colors.warning,
+    fontWeight: '600',
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  characterCount: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    backgroundColor: colors.backgroundSecondary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  characterCountWarning: {
+    color: colors.warning,
+    backgroundColor: `${colors.warning}15`,
+  },
+  seatNameInputWarning: {
+    borderColor: colors.warning,
+    backgroundColor: `${colors.warning}08`,
+  },
+  seatPreviewContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    alignItems: 'center',
+    gap: 8,
+  },
+  seatPreviewLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  seatPreview: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  seatPreviewStandard: {
+    backgroundColor: colors.primary,
+  },
+  seatPreviewPremium: {
+    backgroundColor: colors.secondary,
+  },
+  seatPreviewCrew: {
+    backgroundColor: colors.warning,
+  },
+  seatPreviewDisabled: {
+    backgroundColor: colors.accessible || colors.info,
+  },
+  seatPreviewText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.white,
+    textAlign: 'center',
+    maxWidth: '100%',
   },
   selectionGrid: {
     flexDirection: 'row',

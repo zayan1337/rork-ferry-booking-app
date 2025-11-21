@@ -16,4 +16,6 @@ export default {
   skeleton: '#e9ecef', // Light gray - skeleton base color
   skeletonHighlight: '#f8f9fa', // Very light gray - skeleton highlight
   surface: '#ffffff', // White - surface backgrounds
+  info: '#3498db', // Info blue - informational elements
+  accessible: '#8C52FF', // Purple - accessible/wheelchair seats
 };

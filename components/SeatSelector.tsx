@@ -348,7 +348,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendBox, styles.disabledSeat]} />
-          <Text style={styles.legendText}>Disabled</Text>
+          <Text style={styles.legendText}>Accessible / Wheelchair</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={styles.windowIndicator} />
@@ -435,9 +435,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                           (!seat.isAvailable &&
                                             !seat.isCurrentUserReservation) ||
                                           (seat.isTempReserved &&
-                                            !seat.isCurrentUserReservation) ||
-                                          seat.isDisabled ||
-                                          seat.seatType === 'disabled'
+                                            !seat.isCurrentUserReservation)
                                         }
                                       >
                                         {isLoadingSeat ? (
@@ -695,8 +693,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.warning,
   },
   disabledSeat: {
-    backgroundColor: Colors.error,
-    borderColor: Colors.error,
+    backgroundColor:
+      (Colors as any).accessible || (Colors as any).info || '#8C52FF',
+    borderColor:
+      (Colors as any).accessible || (Colors as any).info || '#8C52FF',
   },
   seatNumber: {
     fontSize: 12,

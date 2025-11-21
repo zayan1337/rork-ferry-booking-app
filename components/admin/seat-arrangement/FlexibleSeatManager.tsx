@@ -731,7 +731,13 @@ export default function FlexibleSeatManager({
                     setSelectedSeat(selectedSeat === seat.id ? null : seat.id)
                   }
                 >
-                  <Text style={styles.seatNumber}>{seat.seat_number}</Text>
+                  <Text
+                    style={styles.seatNumber}
+                    numberOfLines={1}
+                    ellipsizeMode='tail'
+                  >
+                    {seat.seat_number}
+                  </Text>
                 </Pressable>
 
                 {/* Aisle controls between seats (after each seat except the last one) */}
@@ -1077,11 +1083,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   seat: {
-    width: 40,
-    height: 40,
+    minWidth: 44,
+    width: 44,
+    minHeight: 44,
+    height: 44,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 4,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -1110,9 +1119,11 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   seatNumber: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 9,
+    fontWeight: '700',
     color: colors.white,
+    textAlign: 'center',
+    maxWidth: '100%',
   },
   addRowButton: {
     flexDirection: 'row',
