@@ -259,10 +259,12 @@ export const useAgentStore = create<AgentState>()(
             isLoadingClients: true,
             isLoadingStats: true,
             isLoadingCredit: true,
+            isLoadingProfile: true,
             error: null,
           });
 
           await Promise.all([
+            useAgentAuthStore.getState().refreshAgentProfile(agent.id),
             useAgentClientsStore.getState().fetchClients(agent.id),
             useAgentBookingsStore.getState().fetchBookings(agent.id),
             useAgentStatsStore.getState().updateStats(agent.id),
@@ -275,6 +277,7 @@ export const useAgentStore = create<AgentState>()(
             isLoadingClients: false,
             isLoadingStats: false,
             isLoadingCredit: false,
+            isLoadingProfile: false,
           });
         } catch (error) {
           console.error('Error refreshing all agent data:', error);
@@ -287,6 +290,7 @@ export const useAgentStore = create<AgentState>()(
             isLoadingClients: false,
             isLoadingStats: false,
             isLoadingCredit: false,
+            isLoadingProfile: false,
           });
         }
       },

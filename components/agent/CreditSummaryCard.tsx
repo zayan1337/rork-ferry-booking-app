@@ -26,7 +26,7 @@ interface CreditSummaryCardProps {
   style?: ViewStyle;
 }
 
-export default function CreditSummaryCard({
+function CreditSummaryCard({
   agent,
   transactions = [],
   onRequestCredit,
@@ -169,11 +169,9 @@ export default function CreditSummaryCard({
 
           <View style={styles.quickStat}>
             <Text style={styles.quickStatValue}>
-              {formatCurrency(
-                summary.totalCreditAdded - summary.totalCreditUsed
-              )}
+              {formatCurrency(summary.creditCeiling - summary.creditBalance)}
             </Text>
-            <Text style={styles.quickStatLabel}>Net Change</Text>
+            <Text style={styles.quickStatLabel}>Balance to Pay</Text>
           </View>
         </View>
       </View>
@@ -188,11 +186,7 @@ export default function CreditSummaryCard({
           onPress={onRequestCredit}
         >
           <RefreshCw size={16} color='white' />
-          <Text style={styles.requestText}>
-            {summary.creditUtilization > 70
-              ? 'Request Credit Now'
-              : 'Request More Credit'}
-          </Text>
+          <Text style={styles.requestText}>Pay Balance</Text>
         </Pressable>
       )}
     </Card>
@@ -337,10 +331,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   quickStatLabel: {
-    fontSize: 11,
+    fontSize: 8,
     color: Colors.subtext,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    alignItems: 'center',
   },
   statDivider: {
     width: 1,
@@ -365,3 +360,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
+export default React.memo(CreditSummaryCard);

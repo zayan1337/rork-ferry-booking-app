@@ -254,12 +254,12 @@ function WalletDetailCard({
       }
 
       showSuccess(
-        'Payment Recorded',
-        `Successfully recorded payment of ${formatCurrency(amount)}`
+        'Payment completed',
+        `Successfully processed payment of ${formatCurrency(amount)}`
       );
     } catch (error) {
-      console.error('Error recording manual payment:', error);
-      showError('Error', 'Failed to record payment. Please try again.');
+      console.error('Error  manual payment:', error);
+      showError('Error', 'Failed to  payment. Please try again.');
     } finally {
       setIsManualPaymentProcessing(false);
     }
@@ -692,32 +692,7 @@ function WalletDetailCard({
                 </Pressable>
               </View>
 
-            <View style={styles.modalFooter}>
-              <Pressable
-                style={[styles.modalButton, styles.modalCancelButton]}
-                onPress={handleCancelManualPayment}
-                disabled={isManualPaymentProcessing}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.modalButton,
-                  styles.modalConfirmButton,
-                  isManualPaymentProcessing && styles.modalButtonDisabled,
-                ]}
-                onPress={handleSubmitManualPayment}
-                disabled={isManualPaymentProcessing}
-              >
-                <View style={styles.modalButtonContent}>
-                  {isManualPaymentProcessing && (
-                    <ActivityIndicator size='small' color={colors.white} />
-                  )}
-                  <Text style={styles.modalConfirmText}>
-                    {isManualPaymentProcessing ? 'Payment processing...' : 'Manual Payment'}
-                  </Text>
-                </View>
-
+              <View style={styles.modalBody}>
                 <Text style={styles.modalLabel}>
                   Payment Amount ({wallet.currency})
                 </Text>
@@ -757,8 +732,8 @@ function WalletDetailCard({
                     )}
                     <Text style={styles.modalConfirmText}>
                       {isManualPaymentProcessing
-                        ? 'Recording'
-                        : 'Record Payment'}
+                        ? 'Process Payment'
+                        : ' Payment'}
                     </Text>
                   </View>
                 </Pressable>

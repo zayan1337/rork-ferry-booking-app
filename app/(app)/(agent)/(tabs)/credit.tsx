@@ -192,6 +192,14 @@ const CreditPaymentModal = React.memo(
     const [amount, setAmount] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // Reset state when modal closes
+    useEffect(() => {
+      if (!visible) {
+        setAmount('');
+        setIsProcessing(false);
+      }
+    }, [visible]);
+
     const predefinedAmounts = [500, 1000, 2000, 5000, 10000];
 
     const handleAmountSelect = (value: number) => {
@@ -201,27 +209,27 @@ const CreditPaymentModal = React.memo(
     const handleProceedToPayment = async () => {
       const parsedAmount = parseFloat(amount);
 
-      // Validation
-      if (!parsedAmount || parsedAmount < 100) {
-        showError(
-          'Invalid Amount',
-          'Please enter an amount of at least MVR 100'
-        );
+      // Basic validation - these happen before processing starts
+      if (!amount || amount.trim() === '') {
+        showError('Invalid Amount', 'Please enter an amount');
         return;
       }
 
-      if (!amount || amount.trim() === '') {
-        showError('Invalid Amount', 'Please enter an amount');
+      if (!parsedAmount || parsedAmount <= 0) {
+        showError(
+          'Invalid Amount',
+          'Please enter an amount greater than MVR 0'
+        );
         return;
       }
 
       setIsProcessing(true);
 
       try {
-        // Step 1: Get current agent balance
+        // Step 1: Get current agent balance and credit ceiling to calculate balance_to_pay
         const { data: agentData, error: agentError } = await supabase
           .from('user_profiles')
-          .select('credit_balance, full_name')
+          .select('credit_balance, credit_ceiling, full_name')
           .eq('id', agentId)
           .single();
 
@@ -234,6 +242,28 @@ const CreditPaymentModal = React.memo(
         }
 
         const currentBalance = agentData?.credit_balance || 0;
+        const creditCeiling = agentData?.credit_ceiling || 0;
+        const balanceToPay = creditCeiling - currentBalance;
+
+        // Validation: Check if there's a balance to pay
+        if (balanceToPay <= 0) {
+          setIsProcessing(false);
+          showError(
+            'No Balance to Pay',
+            'You currently have no outstanding balance. Your credit balance is fully available.'
+          );
+          return;
+        }
+
+        // Validation: Payment amount should not exceed balance_to_pay
+        if (parsedAmount > balanceToPay) {
+          setIsProcessing(false);
+          showError(
+            'Amount Exceeds Balance',
+            `You can pay a maximum of ${formatCurrency(balanceToPay)}. Please enter an amount less than or equal to your balance.`
+          );
+          return;
+        }
 
         // Step 2: Create pending transaction
         const { data: transactionData, error: transactionError } =
@@ -243,7 +273,7 @@ const CreditPaymentModal = React.memo(
               agent_id: agentId,
               amount: parsedAmount,
               transaction_type: 'refill',
-              description: 'Credit top-up via MIB Payment (Pending)',
+              description: 'Balance payment via MIB Payment (Pending)',
               balance_after: currentBalance,
             })
             .select()
@@ -251,16 +281,18 @@ const CreditPaymentModal = React.memo(
 
         if (transactionError) {
           console.error(
-            '[CREDIT TOPUP] ❌ Transaction creation error:',
+            '[PAYMENT MODAL] ❌ Transaction creation error:',
             transactionError
           );
+          setIsProcessing(false);
           throw new Error(
             'Failed to create transaction: ' + transactionError.message
           );
         }
 
         if (!transactionData) {
-          console.error('[CREDIT TOPUP] ❌ No transaction data returned');
+          console.error('[PAYMENT MODAL] ❌ No transaction data returned');
+          setIsProcessing(false);
           throw new Error('Failed to create transaction record');
         }
 
@@ -282,32 +314,40 @@ const CreditPaymentModal = React.memo(
           });
 
         if (mibError) {
+          console.error(
+            '[PAYMENT MODAL] ❌ MIB payment session creation error',
+            { mibError }
+          );
           // Delete the failed transaction
           await supabase
             .from('agent_credit_transactions')
             .delete()
             .eq('id', topupId);
-
+          setIsProcessing(false);
           throw new Error(
             `Payment Gateway Error: ${mibError.message || JSON.stringify(mibError)}`
           );
         }
 
         if (!mibData) {
+          console.error('[PAYMENT MODAL] ❌ No MIB data returned');
           await supabase
             .from('agent_credit_transactions')
             .delete()
             .eq('id', topupId);
+          setIsProcessing(false);
           throw new Error(
             'No response from payment gateway. The edge function may not be deployed or accessible.'
           );
         }
 
         if (mibData.success === false) {
+          console.error('[PAYMENT MODAL] ❌ MIB payment failed', { mibData });
           await supabase
             .from('agent_credit_transactions')
             .delete()
             .eq('id', topupId);
+          setIsProcessing(false);
           throw new Error(
             mibData.error ||
               'Payment gateway returned an error. Please check edge function logs.'
@@ -315,10 +355,14 @@ const CreditPaymentModal = React.memo(
         }
 
         if (!mibData.redirectUrl && !mibData.sessionUrl) {
+          console.error('[PAYMENT MODAL] ❌ No payment URL in MIB response', {
+            mibData,
+          });
           await supabase
             .from('agent_credit_transactions')
             .delete()
             .eq('id', topupId);
+          setIsProcessing(false);
           throw new Error('Payment gateway did not return a payment URL');
         }
 
@@ -331,6 +375,11 @@ const CreditPaymentModal = React.memo(
         setIsProcessing(false);
         onMibPaymentReady(topupId, sessionData, parsedAmount);
       } catch (error: any) {
+        console.error('[PAYMENT MODAL] ❌ Payment processing error caught', {
+          error: error.message,
+          stack: error.stack,
+          isProcessing: true,
+        });
         setIsProcessing(false);
 
         // Show detailed error to user
@@ -342,20 +391,33 @@ const CreditPaymentModal = React.memo(
     };
 
     const handleClose = () => {
+      if (isProcessing) {
+        // Allow closing during processing - reset state on close
+        setIsProcessing(false);
+      }
       setAmount('');
       onClose();
     };
 
     return (
-      <Modal visible={visible} transparent animationType='slide'>
+      <Modal
+        visible={visible}
+        transparent
+        animationType='slide'
+        onRequestClose={handleClose}
+      >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
         >
-          <View style={styles.modalContent}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Top Up Credit</Text>
+              <Text style={styles.modalTitle}>Pay Balance</Text>
               <Pressable onPress={handleClose}>
                 <X size={24} color={Colors.text} />
               </Pressable>
@@ -363,7 +425,7 @@ const CreditPaymentModal = React.memo(
 
             <View style={styles.modalBody}>
               <Text style={styles.modalLabel}>
-                Select or enter amount (MVR)
+                Select or enter payment amount (MVR)
               </Text>
 
               {/* Predefined amounts */}
@@ -395,7 +457,7 @@ const CreditPaymentModal = React.memo(
                 <Text style={styles.modalLabel}>Or enter custom amount</Text>
                 <TextInput
                   style={styles.amountInput}
-                  placeholder='Enter amount (min. MVR 100)'
+                  placeholder='Enter payment amount'
                   keyboardType='numeric'
                   value={amount}
                   onChangeText={setAmount}
@@ -435,7 +497,7 @@ const CreditPaymentModal = React.memo(
               <Pressable
                 style={styles.cancelButton}
                 onPress={handleClose}
-                disabled={isProcessing}
+                disabled={false}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
@@ -456,11 +518,8 @@ export default function AgentCreditScreen() {
     creditTransactions,
     isLoadingCredit,
     refreshCreditTransactions,
+    refreshAgentData,
   } = useAgentData();
-
-  const { isRefreshing, onRefresh } = useRefreshControl({
-    onRefresh: refreshCreditTransactions,
-  });
 
   // State for filters and search
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -531,14 +590,26 @@ export default function AgentCreditScreen() {
     fetchWalletTransactions();
   }, [fetchWalletTransactions]);
 
+  // Handle refresh - refresh all data including agent data
+  const handleRefresh = useCallback(async () => {
+    await refreshAgentData(); // Refresh agent data to update credit_balance and credit_ceiling
+    await refreshCreditTransactions();
+    await fetchWalletTransactions();
+  }, [refreshAgentData, refreshCreditTransactions, fetchWalletTransactions]);
+
+  const { isRefreshing, onRefresh } = useRefreshControl({
+    onRefresh: handleRefresh,
+  });
+
   // Combined transactions (credit + wallet)
   const allTransactions = useMemo(() => {
     const combined = [...(creditTransactions || []), ...walletTransactions];
     // Sort by date (newest first)
-    return combined.sort(
+    const sorted = combined.sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
+    return sorted;
   }, [creditTransactions, walletTransactions]);
 
   const handleRequestCredit = () => {
@@ -546,11 +617,7 @@ export default function AgentCreditScreen() {
   };
 
   const handlePaymentSuccess = async () => {
-    await refreshCreditTransactions();
-    await fetchWalletTransactions();
-  };
-
-  const handleRefresh = async () => {
+    await refreshAgentData(); // Refresh agent data to update credit_balance and credit_ceiling
     await refreshCreditTransactions();
     await fetchWalletTransactions();
   };
@@ -588,7 +655,10 @@ export default function AgentCreditScreen() {
     }
   };
 
-  const creditSummary = calculateCreditSummary(agent, allTransactions);
+  const creditSummary = useMemo(() => {
+    const summary = calculateCreditSummary(agent, allTransactions);
+    return summary;
+  }, [agent, allTransactions]);
 
   const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text);
@@ -936,6 +1006,7 @@ export default function AgentCreditScreen() {
     ),
     [
       agent,
+      allTransactions,
       creditTransactions,
       creditSummary,
       recentTransactions,
@@ -950,6 +1021,7 @@ export default function AgentCreditScreen() {
       renderFilterButton,
       handleSortChange,
       clearAllFilters,
+      handleRequestCredit,
     ]
   );
 
@@ -1058,7 +1130,7 @@ export default function AgentCreditScreen() {
               visible={true}
               bookingDetails={{
                 bookingNumber: `TOP-${creditTopupId.slice(0, 8).toUpperCase()}`,
-                route: 'Credit Top-up',
+                route: 'Balance Payment',
                 travelDate: new Date().toISOString(),
                 amount: topupAmount,
                 currency: 'MVR',
@@ -1093,12 +1165,12 @@ export default function AgentCreditScreen() {
                   await supabase
                     .from('agent_credit_transactions')
                     .update({
-                      description: `Credit top-up via MIB Payment (Completed) - Session: ${result.sessionId || 'N/A'}`,
+                      description: `Balance payment via MIB Payment (Completed) - Session: ${result.sessionId || 'N/A'}`,
                       balance_after: newBalance,
                     })
                     .eq('id', creditTopupId);
 
-                  // Update agent credit balance
+                  // Update agent credit balance (this reduces the owed amount)
                   await supabase
                     .from('user_profiles')
                     .update({
@@ -1111,13 +1183,16 @@ export default function AgentCreditScreen() {
                   setCreditTopupId(null);
                   setMibSessionData(null);
 
+                  const oldBalanceToPay = creditCeiling - currentBalance;
+                  const newBalanceToPay = creditCeiling - newBalance;
+
                   showSuccess(
                     'Payment Successful! 🎉',
-                    `Top-up Amount: ${formatCurrency(topupAmount)}\n\n` +
-                      `Previous Balance: ${formatCurrency(currentBalance)}\n` +
-                      `New Balance: ${formatCurrency(newBalance)}\n\n` +
+                    `Payment Amount: ${formatCurrency(topupAmount)}\n\n` +
+                      `Previous Balance Owed: ${formatCurrency(oldBalanceToPay)}\n` +
+                      `New Balance Owed: ${formatCurrency(newBalanceToPay)}\n\n` +
                       `Available Credit: ↑ ${formatCurrency(topupAmount)}\n` +
-                      `Used Credit: ↓ ${formatCurrency(usedCreditReduction)}`,
+                      `Balance Paid: ↓ ${formatCurrency(topupAmount)}`,
                     () => {
                       handlePaymentSuccess();
                     }
@@ -1138,7 +1213,7 @@ export default function AgentCreditScreen() {
                   await supabase
                     .from('agent_credit_transactions')
                     .update({
-                      description: 'Credit top-up via MIB Payment (Failed)',
+                      description: 'Balance payment via MIB Payment (Failed)',
                     })
                     .eq('id', creditTopupId);
                 }
@@ -1152,7 +1227,8 @@ export default function AgentCreditScreen() {
                   await supabase
                     .from('agent_credit_transactions')
                     .update({
-                      description: 'Credit top-up via MIB Payment (Cancelled)',
+                      description:
+                        'Balance payment via MIB Payment (Cancelled)',
                     })
                     .eq('id', creditTopupId);
                 }
@@ -1161,7 +1237,7 @@ export default function AgentCreditScreen() {
                 setMibSessionData(null);
                 showInfo(
                   'Payment Cancelled',
-                  'Your credit top-up has been cancelled'
+                  'Your balance payment has been cancelled'
                 );
               }}
             />

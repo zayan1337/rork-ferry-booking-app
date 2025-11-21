@@ -48,6 +48,7 @@ interface AgentAuthState {
   getAgentProfile: (
     agentId: string
   ) => Promise<{ agent: Agent; stats: any } | null>;
+  refreshAgentProfile: (agentId: string) => Promise<void>;
   getTranslations: (
     languageCode: string,
     context?: string
@@ -90,6 +91,33 @@ export const useAgentAuthStore = create<AgentAuthState>()(
        * @returns Agent profile with stats or null if not found
        */
       getAgentProfile: (agentId: string) => fetchAgentProfileWithStats(agentId),
+
+      /**
+       * Refresh agent profile from database
+       * Updates the agent data in the store with latest data from database
+       * @param agentId - Agent ID to refresh profile for
+       */
+      refreshAgentProfile: async (agentId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          const profileData = await get().getAgentProfile(agentId);
+
+          if (profileData) {
+            set({
+              agent: profileData.agent,
+              isLoading: false,
+            });
+          } else {
+            set({
+              error: 'Agent profile not found',
+              isLoading: false,
+            });
+          }
+        } catch (error) {
+          handleError(error, 'Failed to refresh agent profile', set);
+        }
+      },
 
       /**
        * Get translations for specified language and context
