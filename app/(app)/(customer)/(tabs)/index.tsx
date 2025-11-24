@@ -182,18 +182,45 @@ export default function HomeScreen() {
     return oppositeZoneIslands.map(island => island.name);
   }, [allIslands, quickBookingState.selectedFromIsland]);
 
-  // Get upcoming bookings (confirmed status and future date)
+  // Get upcoming bookings (confirmed status and future datetime)
   const upcomingBookings = bookings
-    .filter(
-      booking =>
-        booking.status === 'confirmed' &&
-        new Date(booking.departureDate) >= new Date()
-    )
-    .sort(
-      (a, b) =>
-        new Date(a.departureDate).getTime() -
-        new Date(b.departureDate).getTime()
-    )
+    .filter(booking => {
+      if (booking.status !== 'confirmed') return false;
+
+      // Combine departure date and time for accurate comparison
+      const departureDate = new Date(booking.departureDate);
+      const now = new Date();
+
+      // If booking has a departure time, combine it with the date
+      if (booking.departureTime) {
+        const [hours, minutes] = booking.departureTime.split(':').map(Number);
+        departureDate.setHours(hours || 0, minutes || 0, 0, 0);
+      } else {
+        // If no time, set to start of day for date-only comparison
+        departureDate.setHours(0, 0, 0, 0);
+        now.setHours(0, 0, 0, 0);
+      }
+
+      // Only show bookings that haven't departed yet
+      return departureDate >= now;
+    })
+    .sort((a, b) => {
+      // Sort by combined date and time
+      const dateA = new Date(a.departureDate);
+      const dateB = new Date(b.departureDate);
+
+      if (a.departureTime) {
+        const [hoursA, minutesA] = a.departureTime.split(':').map(Number);
+        dateA.setHours(hoursA || 0, minutesA || 0, 0, 0);
+      }
+
+      if (b.departureTime) {
+        const [hoursB, minutesB] = b.departureTime.split(':').map(Number);
+        dateB.setHours(hoursB || 0, minutesB || 0, 0, 0);
+      }
+
+      return dateA.getTime() - dateB.getTime();
+    })
     .slice(0, 2); // Show only the next 2 upcoming bookings
 
   return (

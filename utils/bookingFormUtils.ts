@@ -167,6 +167,22 @@ export const validateBookingStep = (
       if (incompletePassenger) {
         errors.passengers = 'Please enter details for all passengers';
       }
+      // Check if accessible seat passengers have special assistance
+      if (data.selectedSeats && data.passengers) {
+        const accessibleSeatPassengers = data.passengers.filter(
+          (p: any, index: number) => {
+            const seat = data.selectedSeats[index];
+            return seat && (seat.isDisabled || seat.seatType === 'disabled');
+          }
+        );
+        const missingAssistance = accessibleSeatPassengers.find(
+          (p: any) => !p.specialAssistance || !p.specialAssistance.trim()
+        );
+        if (missingAssistance) {
+          errors.passengers =
+            'Special assistance is required for accessible/wheelchair seats. Please provide details for all passengers using accessible seats.';
+        }
+      }
       break;
 
     case 6: // Payment

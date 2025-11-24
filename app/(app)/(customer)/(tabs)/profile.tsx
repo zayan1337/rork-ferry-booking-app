@@ -149,7 +149,7 @@ export default function ProfileScreen() {
       setIsDeleteModalVisible(false);
       showSuccess(
         'Account Deleted',
-        'Your account has been scheduled for deletion.'
+        'Your account has been permanently deleted.'
       );
     } catch (error) {
       console.error('Delete account error:', error);
@@ -480,8 +480,13 @@ export default function ProfileScreen() {
       <View style={styles.dangerSection}>
         <Text style={styles.dangerTitle}>Danger Zone</Text>
         <Text style={styles.dangerDescription}>
-          Permanently delete your account and remove all personal data. This
+          Permanently delete your account. This will remove your personal
+          information and you will lose access to your account immediately. This
           action cannot be undone.
+        </Text>
+        <Text style={styles.dangerNote}>
+          Note: Booking records may be retained for legal compliance purposes,
+          but will not contain your personal information.
         </Text>
         <Button
           title='Delete Account'
@@ -635,7 +640,12 @@ export default function ProfileScreen() {
             <View style={styles.modalBody}>
               <Text style={styles.modalInstruction}>
                 Enter your account email ({user?.email}) to confirm permanent
-                deletion. This action cannot be undone.
+                account deletion.
+              </Text>
+              <Text style={styles.modalWarning}>
+                This will permanently delete your account and remove your
+                personal information. You will lose access immediately and this
+                action cannot be undone.
               </Text>
               <Input
                 value={deleteEmailInput}
@@ -882,5 +892,18 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 8,
     fontStyle: 'italic',
+  },
+  dangerNote: {
+    fontSize: 13,
+    color: Colors.error,
+    marginTop: 8,
+    fontWeight: '600',
+  },
+  modalWarning: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 8,
+    marginBottom: 12,
+    lineHeight: 18,
   },
 });

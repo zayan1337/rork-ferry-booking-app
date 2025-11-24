@@ -31,6 +31,7 @@ import {
   Calendar,
   DollarSign,
   Edit,
+  User,
 } from 'lucide-react-native';
 import { supabase } from '@/utils/supabase';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
@@ -80,10 +81,19 @@ export default function UserDetailsPage() {
 
   const loadPassengerTripData = useCallback(async (passengerId: string) => {
     try {
-      // First, get the passenger's booking_id from the passengers table
+      // First, get the passenger's booking_id and seat information from the passengers table
       const { data: passengerData, error: passengerError } = await supabase
         .from('passengers')
-        .select('booking_id')
+        .select(
+          `
+          booking_id,
+          seat_id,
+          seats(
+            seat_number,
+            row_number
+          )
+        `
+        )
         .eq('id', passengerId)
         .single();
 
@@ -159,6 +169,127 @@ export default function UserDetailsPage() {
         to: toIsland,
       });
 
+      // Extract seat information
+      // Try multiple sources: direct relationship, seat_reservations, seat_segment_reservations, and captain_passengers_view
+      let seat = passengerData.seats
+        ? Array.isArray(passengerData.seats)
+          ? passengerData.seats[0]
+          : passengerData.seats
+        : null;
+
+      // If no seat found via direct relationship, check seat_reservations by booking_id
+      if (!seat && passengerData.booking_id && bookingData.trip_id) {
+        try {
+          const { data: seatReservation, error: resError } = await supabase
+            .from('seat_reservations')
+            .select(
+              `
+              seat_id,
+              seats(
+                seat_number,
+                row_number
+              )
+            `
+            )
+            .eq('booking_id', passengerData.booking_id)
+            .eq('trip_id', bookingData.trip_id)
+            .maybeSingle();
+
+          if (!resError && seatReservation) {
+            const reservationSeat = seatReservation.seats
+              ? Array.isArray(seatReservation.seats)
+                ? seatReservation.seats[0]
+                : seatReservation.seats
+              : null;
+            if (reservationSeat) {
+              seat = reservationSeat;
+            }
+          }
+        } catch (resErr) {
+          console.error('Error fetching seat from reservations:', resErr);
+        }
+      }
+
+      // If still no seat, check seat_segment_reservations
+      if (!seat && passengerData.booking_id && bookingData.trip_id) {
+        try {
+          const { data: segmentReservation, error: segError } = await supabase
+            .from('seat_segment_reservations')
+            .select(
+              `
+              seat_id,
+              seats(
+                seat_number,
+                row_number
+              )
+            `
+            )
+            .eq('passenger_id', passengerId)
+            .eq('booking_id', passengerData.booking_id)
+            .eq('trip_id', bookingData.trip_id)
+            .maybeSingle();
+
+          if (!segError && segmentReservation) {
+            const reservationSeat = segmentReservation.seats
+              ? Array.isArray(segmentReservation.seats)
+                ? segmentReservation.seats[0]
+                : segmentReservation.seats
+              : null;
+            if (reservationSeat) {
+              seat = reservationSeat;
+            }
+          }
+        } catch (segErr) {
+          console.error(
+            'Error fetching seat from segment reservations:',
+            segErr
+          );
+        }
+      }
+
+      // Last resort: check captain_passengers_view which has seat_number directly
+      if (!seat && passengerId && bookingData.trip_id) {
+        try {
+          const { data: viewData, error: viewError } = await supabase
+            .from('captain_passengers_view')
+            .select('seat_number, seat_id')
+            .eq('id', passengerId)
+            .eq('trip_id', bookingData.trip_id)
+            .maybeSingle();
+
+          if (
+            !viewError &&
+            viewData &&
+            viewData.seat_number &&
+            viewData.seat_number !== 'Not assigned'
+          ) {
+            // If we have seat_number from view, fetch full seat details
+            if (viewData.seat_id) {
+              const { data: seatData, error: seatError } = await supabase
+                .from('seats')
+                .select('seat_number, row_number')
+                .eq('id', viewData.seat_id)
+                .single();
+
+              if (!seatError && seatData) {
+                seat = seatData;
+              }
+            } else {
+              // Fallback: create seat object from view data
+              seat = {
+                seat_number: viewData.seat_number,
+                row_number: null,
+              };
+            }
+          }
+        } catch (viewErr) {
+          console.error(
+            'Error fetching seat from captain_passengers_view:',
+            viewErr
+          );
+        }
+      }
+
       // Transform the data to match the expected structure
       const transformedData = {
         booking_id: passengerData.booking_id,
@@ -169,6 +300,12 @@ export default function UserDetailsPage() {
           created_at: bookingData.created_at,
         },
         trip: tripData,
+        seat: seat
+          ? {
+              seat_number: seat.seat_number || null,
+              row_number: seat.row_number || null,
+            }
+          : null,
       };
 
       setPassengerTripData(transformedData);
@@ -1045,6 +1182,22 @@ export default function UserDetailsPage() {
                         MVR {passengerTripData.booking?.total_fare || 'N/A'}
                       </Text>
                     </View>
+
+                    {passengerTripData.seat?.seat_number ? (
+                      <View style={styles.tripDetailItem}>
+                        <User size={16} color={colors.textSecondary} />
+                        <Text style={styles.tripDetailLabel}>Seat</Text>
+                        <Text style={styles.tripDetailValue}>
+                          {passengerTripData.seat.seat_number}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.tripDetailItem}>
+                        <User size={16} color={colors.textSecondary} />
+                        <Text style={styles.tripDetailLabel}>Seat</Text>
+                        <Text style={styles.tripDetailValue}>Not assigned</Text>
+                      </View>
+                    )}
                   </View>
 
                   {/* Booking Status */}

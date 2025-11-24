@@ -6,6 +6,8 @@ import { useAlertContext } from '@/components/AlertProvider';
 import SegmentTripCard from '@/components/booking/SegmentTripCard';
 import { getTripsForSegment } from '@/utils/segmentBookingUtils';
 import { TRIP_TYPES } from '@/constants/customer';
+import { formatBookingDate } from '@/utils/dateUtils';
+
 import {
   isTripBookable,
   isTripStatusBookable,
@@ -319,9 +321,8 @@ export default function TripSelectionStep() {
           <Text style={styles.noTripsText}>
             No trips available for this route on{' '}
             {currentBooking.departureDate &&
-              new Date(currentBooking.departureDate).toLocaleDateString()}
-            .{'\n\n'}
-            Please try selecting a different date or route.
+              formatBookingDate(currentBooking.departureDate)}
+            . Please try selecting a different date or route.
           </Text>
         </View>
       )}

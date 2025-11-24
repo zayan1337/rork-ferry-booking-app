@@ -635,6 +635,7 @@ export default function BookScreen() {
                 isLoading={isLoading}
                 loadingSeats={loadingSeats}
                 seatErrors={seatErrors}
+                allowDisabledSeats={true}
               />
 
               {currentBooking.tripType === TRIP_TYPES.ROUND_TRIP && (
@@ -647,6 +648,7 @@ export default function BookScreen() {
                     isLoading={isLoading}
                     loadingSeats={loadingSeats}
                     seatErrors={seatErrors}
+                    allowDisabledSeats={true}
                   />
                 </>
               )}

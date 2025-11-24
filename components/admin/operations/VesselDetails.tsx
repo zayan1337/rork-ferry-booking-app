@@ -22,14 +22,12 @@ import {
   AlertTriangle,
   Anchor,
   Gauge,
-  Wrench,
   Fuel,
   BarChart3,
   DollarSign,
   Target,
   Phone,
   Layout,
-  UserCheck,
   Star,
   Info,
 } from 'lucide-react-native';
@@ -636,7 +634,7 @@ export default function VesselDetails({
               </View>
             </View>
 
-            <View style={styles.infoItem}>
+            {/* <View style={styles.infoItem}>
               <View
                 style={[
                   styles.infoIcon,
@@ -651,7 +649,7 @@ export default function VesselDetails({
                   {vessel.captain_name || 'N/A'}
                 </Text>
               </View>
-            </View>
+            </View> */}
           </View>
 
           {vessel.contact_number && (
@@ -831,7 +829,7 @@ export default function VesselDetails({
               />
             )}
 
-            {onViewMaintenance && (
+            {/* {onViewMaintenance && (
               <Button
                 title='Maintenance Log'
                 variant='outline'
@@ -839,7 +837,7 @@ export default function VesselDetails({
                 icon={<Wrench size={16} color={colors.primary} />}
                 style={styles.operationButton}
               />
-            )}
+            )} */}
           </View>
         </View>
       </View>

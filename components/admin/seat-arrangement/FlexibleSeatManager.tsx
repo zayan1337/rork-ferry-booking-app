@@ -221,6 +221,7 @@ export default function FlexibleSeatManager({
     setIsInitialized(true);
     setLastVesselId(vesselId);
     setHasLoadedInitialData(true);
+    setLastGeneratedCapacity(initialSeats.length);
 
     // Trigger onChange with existing seats
     if (onChange) {
@@ -277,22 +278,41 @@ export default function FlexibleSeatManager({
   // Regenerate template when seating capacity changes (only for new layouts)
   useEffect(() => {
     const desiredCapacity = Number(seatingCapacity) || 0;
-    const hasInitialSeats = initialSeats && initialSeats.length > 0;
+    if (desiredCapacity <= 0 || userHasModified) {
+      return;
+    }
 
-    if (
-      desiredCapacity > 0 &&
-      !hasInitialSeats &&
-      !userHasModified &&
-      desiredCapacity !== lastGeneratedCapacity
-    ) {
+    const currentSeatCount = rows.reduce(
+      (sum, row) => sum + row.seats.length,
+      0
+    );
+
+    const isLoadingExistingData =
+      initialSeats &&
+      initialSeats.length > 0 &&
+      !hasLoadedInitialData &&
+      !isInitialized;
+
+    if (isLoadingExistingData) {
+      return;
+    }
+
+    const needsRegeneration =
+      desiredCapacity !== lastGeneratedCapacity ||
+      currentSeatCount !== desiredCapacity;
+
+    if (needsRegeneration) {
       generateFerryTemplate();
     }
   }, [
     seatingCapacity,
-    initialSeats,
+    rows,
     userHasModified,
     lastGeneratedCapacity,
     generateFerryTemplate,
+    initialSeats,
+    hasLoadedInitialData,
+    isInitialized,
   ]);
 
   const generateSeatsForRow = useCallback(

@@ -1146,7 +1146,9 @@ export const useTripStore = create<TripStore>((set, get) => ({
                         booking_number,
                         status,
                         trip_id,
-                        user_id
+                        user_id,
+                        checked_in_at,
+                        check_in_status
                     ),
                     seats (
                         seat_number

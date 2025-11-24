@@ -40,7 +40,7 @@ interface RouteFormProps {
 interface RouteStopData {
   id: string; // Temporary UI ID or database ID
   island_id: string;
-  stop_type: 'pickup' | 'dropoff' | 'both';
+  stop_type: 'pickup' | 'dropoff';
   estimated_travel_time_from_previous: number | null;
   notes?: string;
 }
@@ -138,7 +138,7 @@ export default function RouteForm({
       const routeStops: RouteStopData[] = stops.map((stop, index) => ({
         id: stop.id,
         island_id: stop.island_id,
-        stop_type: stop.stop_type as 'pickup' | 'dropoff' | 'both',
+        stop_type: stop.stop_type as 'pickup' | 'dropoff',
         estimated_travel_time_from_previous:
           stop.estimated_travel_time_from_previous,
         notes: stop.notes || '',
@@ -459,13 +459,11 @@ export default function RouteForm({
       const firstStop = formData.route_stops[0];
       const lastStop = formData.route_stops[formData.route_stops.length - 1];
 
-      if (firstStop.stop_type !== 'pickup' && firstStop.stop_type !== 'both') {
-        errors.route_stops =
-          'First stop must allow passenger pickup (pickup or both)';
+      if (firstStop.stop_type !== 'pickup') {
+        errors.route_stops = 'First stop must allow passenger pickup';
       }
-      if (lastStop.stop_type !== 'dropoff' && lastStop.stop_type !== 'both') {
-        errors.route_stops =
-          'Last stop must allow passenger dropoff (dropoff or both)';
+      if (lastStop.stop_type !== 'dropoff') {
+        errors.route_stops = 'Last stop must allow passenger dropoff';
       }
     }
 
@@ -743,10 +741,10 @@ export default function RouteForm({
           <View style={styles.infoBox}>
             <Info size={16} color={colors.info} />
             <Text style={styles.infoText}>
-              Define the islands this route visits in order. The first stop
-              should allow pickup, the last stop should allow dropoff, and
-              intermediate stops can be set to both. All stop types are
-              editable.
+              Define the islands this route visits in order. The first stop must
+              be set to pickup, the last stop must be set to dropoff, and
+              intermediate stops can be set to either pickup or dropoff. All
+              stop types are editable.
             </Text>
           </View>
 
@@ -826,13 +824,12 @@ export default function RouteForm({
                       value={stop.stop_type}
                       onValueChange={value =>
                         updateStop(stop.id, {
-                          stop_type: value as 'pickup' | 'dropoff' | 'both',
+                          stop_type: value as 'pickup' | 'dropoff',
                         })
                       }
                       options={[
                         { label: 'Pickup', value: 'pickup' },
                         { label: 'Dropoff', value: 'dropoff' },
-                        { label: 'Both', value: 'both' },
                       ]}
                     />
                     {index === 0 && stop.stop_type !== 'pickup' && (

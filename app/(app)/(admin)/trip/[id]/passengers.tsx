@@ -29,6 +29,8 @@ import {
   Download,
 } from 'lucide-react-native';
 import { useAlertContext } from '@/components/AlertProvider';
+import { supabase } from '@/utils/supabase';
+import { useAuthStore } from '@/store/authStore';
 
 interface Passenger {
   id: string;
@@ -51,6 +53,7 @@ export default function TripPassengersPage() {
   const { fetchTripPassengers } = useTripStore();
   const { canViewTrips } = useAdminPermissions();
   const { showError, showConfirmation, showInfo } = useAlertContext();
+  const { user: authUser } = useAuthStore();
 
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [trip, setTrip] = useState<any>(null);
@@ -82,16 +85,12 @@ export default function TripPassengersPage() {
           booking_status: passenger.bookings?.status,
           passenger_type: 'adult', // Default since it's not in the schema
           special_requirements: passenger.special_assistance_request,
-          checked_in_at:
-            passenger.bookings?.status === 'checked_in'
-              ? new Date().toISOString()
-              : undefined,
+          checked_in_at: passenger.bookings?.checked_in_at || undefined,
         })
       );
 
       // Fetch boarding and dropoff stops for each booking
       if (transformedPassengers.length > 0) {
-        const { supabase } = await import('@/utils/supabase');
         const bookingIds = transformedPassengers
           .map(p => p.booking_id)
           .filter(Boolean);
@@ -190,22 +189,103 @@ export default function TripPassengersPage() {
     loadData(true);
   };
 
-  const handleCheckIn = (passengerId: string) => {
+  const handleCheckIn = async (passengerId: string) => {
+    const passenger = passengers.find(p => p.id === passengerId);
+    if (!passenger || !passenger.booking_id) {
+      showError('Error', 'Passenger or booking information not found');
+      return;
+    }
+
+    if (passenger.booking_status === 'checked_in') {
+      showInfo('Already Checked In', 'This passenger is already checked in.');
+      return;
+    }
+
     showConfirmation(
       'Check In Passenger',
-      'Mark this passenger as checked in?',
-      () => {
-        setPassengers(prev =>
-          prev.map(p =>
-            p.id === passengerId
-              ? {
-                  ...p,
-                  booking_status: 'checked_in',
-                  checked_in_at: new Date().toISOString(),
-                }
-              : p
-          )
-        );
+      `Mark ${passenger.name} as checked in?`,
+      async () => {
+        try {
+          // Get current user (admin/captain)
+          // Try to get user from auth store first (faster, already loaded)
+          let userId: string | null = null;
+
+          if (authUser?.id) {
+            userId = authUser.id;
+          } else {
+            // Fallback to getting from supabase auth
+            const {
+              data: { user },
+              error: userError,
+            } = await supabase.auth.getUser();
+
+            if (userError) {
+              console.error('Auth error:', userError);
+              throw new Error(`Authentication error: ${userError.message}`);
+            }
+
+            if (!user) {
+              throw new Error(
+                'No authenticated user found. Please log in again.'
+              );
+            }
+
+            userId = user.id;
+          }
+
+          if (!userId) {
+            throw new Error('Authentication required. Please log in again.');
+          }
+
+          // Update the booking check-in status in the database
+          const checkInTime = new Date().toISOString();
+          const { error: updateError } = await supabase
+            .from('bookings')
+            .update({
+              status: 'checked_in',
+              check_in_status: true,
+              checked_in_at: checkInTime,
+              checked_in_by: userId,
+              updated_at: checkInTime,
+            })
+            .eq('id', passenger.booking_id);
+
+          if (updateError) {
+            throw updateError;
+          }
+
+          // Create check-in log (optional, don't fail if this fails)
+          try {
+            const { data: passengerCount } = await supabase
+              .from('passengers')
+              .select('id', { count: 'exact' })
+              .eq('booking_id', passenger.booking_id);
+
+            await supabase.from('check_in_logs').insert({
+              booking_id: passenger.booking_id,
+              captain_id: userId,
+              check_in_time: checkInTime,
+              passenger_count: passengerCount?.length || 0,
+              notes: 'Admin check-in',
+            });
+          } catch (logError) {
+            // Log creation is optional, don't fail check-in if this fails
+            console.error('Failed to create check-in log:', logError);
+          }
+
+          // Refresh passenger data to get updated status
+          await fetchPassengers();
+
+          showInfo('Success', 'Passenger checked in successfully');
+        } catch (error) {
+          console.error('Error checking in passenger:', error);
+          showError(
+            'Check-in Failed',
+            error instanceof Error
+              ? error.message
+              : 'Failed to check in passenger. Please try again.'
+          );
+        }
       }
     );
   };

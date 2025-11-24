@@ -508,6 +508,29 @@ export default function ModifyBookingScreen() {
       return;
     }
 
+    // Check if trying to select a disabled/accessible seat
+    const isDisabledSeat = seat.isDisabled || seat.seatType === 'disabled';
+
+    if (isDisabledSeat) {
+      // Check if user already has a disabled seat in their current booking
+      const hasDisabledSeatInBooking = booking?.seats?.some(
+        (bSeat: Seat) => bSeat.isDisabled || bSeat.seatType === 'disabled'
+      );
+
+      // Also check if they've already selected a disabled seat in the new selection
+      const hasDisabledSeatInSelection = selectedSeats.some(
+        s => s.isDisabled || s.seatType === 'disabled'
+      );
+
+      if (!hasDisabledSeatInBooking && !hasDisabledSeatInSelection) {
+        showWarning(
+          'Accessible Seat',
+          'Accessible/wheelchair seats are only available for passengers who already have accessible seating in their booking. If you need an accessible seat, please contact support or ensure your original booking includes accessible seating.'
+        );
+        return;
+      }
+    }
+
     // Set loading state for this seat
     setLoadingSeats(prev => new Set(prev).add(seat.id));
     setSeatErrors(prev => ({ ...prev, [seat.id]: '' }));
@@ -943,6 +966,12 @@ export default function ModifyBookingScreen() {
               isLoading={seatLoading}
               loadingSeats={loadingSeats}
               seatErrors={seatErrors}
+              allowDisabledSeats={
+                booking?.seats?.some(
+                  (bSeat: Seat) =>
+                    bSeat.isDisabled || bSeat.seatType === 'disabled'
+                ) || false
+              }
             />
           ) : (
             <Text style={styles.noSeatsText}>

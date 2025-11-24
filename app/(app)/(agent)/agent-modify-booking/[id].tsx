@@ -499,6 +499,34 @@ export default function AgentModifyBookingScreen() {
       return;
     }
 
+    // Check if trying to select a disabled/accessible seat
+    const isDisabledSeat = seat.isDisabled || seat.seatType === 'disabled';
+
+    if (isDisabledSeat) {
+      // Get current seats from booking (departure or return based on what we're modifying)
+      const currentSeats = isModifyingReturn
+        ? (bookingData?.returnSeats as any[]) || []
+        : booking?.seats || [];
+
+      // Check if user already has a disabled seat in their current booking
+      const hasDisabledSeatInBooking = currentSeats.some(
+        (bSeat: Seat) => bSeat.isDisabled || bSeat.seatType === 'disabled'
+      );
+
+      // Also check if they've already selected a disabled seat in the new selection
+      const hasDisabledSeatInSelection = selectedSeats.some(
+        s => s.isDisabled || s.seatType === 'disabled'
+      );
+
+      if (!hasDisabledSeatInBooking && !hasDisabledSeatInSelection) {
+        showInfo(
+          'Accessible Seat',
+          'Accessible/wheelchair seats are only available for passengers who already have accessible seating in their booking. If you need an accessible seat, please contact support or ensure the original booking includes accessible seating.'
+        );
+        return;
+      }
+    }
+
     // Check if seat is already selected locally
     const isSelected = selectedSeats.find(s => s.id === seat.id);
 
@@ -887,6 +915,17 @@ export default function AgentModifyBookingScreen() {
                     selectedSeats={selectedSeats}
                     onSeatToggle={toggleSeatSelection}
                     tripId={selectedTrip?.trip_id}
+                    allowDisabledSeats={
+                      (() => {
+                        const currentSeats = isModifyingReturn
+                          ? (bookingData?.returnSeats as any[]) || []
+                          : booking?.seats || [];
+                        return currentSeats.some(
+                          (bSeat: Seat) =>
+                            bSeat.isDisabled || bSeat.seatType === 'disabled'
+                        );
+                      })() || false
+                    }
                   />
                 ) : (
                   <Text style={styles.noSeatsText}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { useAlertContext } from '@/components/AlertProvider';
@@ -251,24 +251,124 @@ export default function VesselForm({
     return Object.keys(errors).length === 0;
   };
 
+  const generateAutoLayoutForCapacity = useCallback(
+    (capacity: number) => {
+      if (!capacity || capacity <= 0) {
+        return null;
+      }
+
+      const seatsPerRow = Math.min(4, Math.max(1, capacity));
+      const totalRows = Math.ceil(capacity / seatsPerRow);
+      const aislePositions =
+        seatsPerRow >= 3 ? [Math.ceil(seatsPerRow / 2)] : [];
+
+      const seats: AdminManagement.Seat[] = [];
+      const timestamp = new Date().toISOString();
+
+      for (let row = 1; row <= totalRows; row++) {
+        const seatsRemaining = capacity - seats.length;
+        const seatsInRow = Math.min(seatsPerRow, seatsRemaining);
+        const rowLabel = String.fromCharCode(64 + row); // A, B, C...
+
+        for (let col = 1; col <= seatsInRow; col++) {
+          seats.push({
+            id: `auto-${row}-${col}-${Math.random().toString(36).slice(2, 8)}`,
+            vessel_id: initialData?.id || 'temp',
+            seat_number: `${rowLabel}${col}`,
+            row_number: row,
+            position_x: col,
+            position_y: row,
+            is_window: col === 1 || col === seatsInRow,
+            is_aisle: aislePositions.includes(col),
+            is_row_aisle: false,
+            seat_type: 'standard',
+            seat_class: 'economy',
+            is_premium: false,
+            is_disabled: false,
+            price_multiplier: 1,
+            created_at: timestamp,
+            updated_at: timestamp,
+          });
+        }
+      }
+
+      const columns = Math.min(seatsPerRow, capacity) || 1;
+
+      const layout: AdminManagement.SeatLayout = {
+        id: existingSeatLayout?.id || '',
+        vessel_id: initialData?.id || 'temp',
+        layout_name: `Auto Layout (${capacity} seats)`,
+        layout_data: {
+          rows: totalRows,
+          columns,
+          aisles: aislePositions,
+          rowAisles: [],
+          premium_rows: [],
+          disabled_seats: [],
+          crew_seats: [],
+          floors: [
+            {
+              floor_number: 1,
+              floor_name: 'Main Deck',
+              rows: totalRows,
+              columns,
+              aisles: aislePositions,
+              rowAisles: [],
+              premium_rows: [],
+              disabled_seats: [],
+              crew_seats: [],
+              is_active: true,
+              seat_count: seats.length,
+            },
+          ],
+          layout_type: 'flexible',
+          ferry_layout: true,
+        },
+        is_active: true,
+        created_at: existingSeatLayout?.created_at || timestamp,
+        updated_at: timestamp,
+      };
+
+      return { layout, seats };
+    },
+    [existingSeatLayout?.created_at, existingSeatLayout?.id, initialData?.id]
+  );
+
+  const capacityChanged =
+    (initialData?.seating_capacity || 0) !== formData.seating_capacity;
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       return;
     }
 
+    let seatLayoutPayload = customLayoutData || null;
+
     // Validate seat layout matches seating capacity
     if (formData.seating_capacity > 0) {
       let seatCount = 0;
 
-      // Check custom layout data first (if user has modified the layout)
       if (customLayoutData && customLayoutData.seats) {
         seatCount = customLayoutData.seats.length;
       } else if (existingSeats && existingSeats.length > 0) {
-        // Check existing seats if no custom layout
         seatCount = existingSeats.length;
       }
 
-      // If we have a seat count, validate it matches capacity
+      // Auto-generate a layout when capacity changed but seats weren't updated
+      if (
+        capacityChanged &&
+        formData.seating_capacity > 0 &&
+        seatCount !== formData.seating_capacity
+      ) {
+        const autoLayout = generateAutoLayoutForCapacity(
+          formData.seating_capacity
+        );
+        if (autoLayout) {
+          seatLayoutPayload = autoLayout;
+          seatCount = autoLayout.seats.length;
+        }
+      }
+
       if (seatCount > 0 && seatCount !== formData.seating_capacity) {
         setValidationErrors({
           seat_layout: `Seat layout has ${seatCount} seats but seating capacity is ${formData.seating_capacity}. Please adjust the layout to match the capacity before saving.`,
@@ -278,6 +378,10 @@ export default function VesselForm({
           `The seat layout has ${seatCount} seats, but the seating capacity is set to ${formData.seating_capacity}. Please update the seat layout to match the capacity or adjust the capacity to match the layout.`
         );
         return;
+      }
+
+      if (seatLayoutPayload) {
+        setCustomLayoutData(seatLayoutPayload);
       }
     }
 
@@ -307,10 +411,8 @@ export default function VesselForm({
         notes: formData.notes?.trim() || undefined,
       };
 
-      // Handle custom layout data for both new and existing vessels
-      if (customLayoutData) {
-        // Store custom layout data in submitData for the store to handle
-        (submitData as any).customSeatLayout = customLayoutData;
+      if (seatLayoutPayload) {
+        (submitData as any).customSeatLayout = seatLayoutPayload;
       }
 
       // Removed auto-generation flag - using only flexible ferry layout

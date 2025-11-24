@@ -35,9 +35,8 @@ import Button from '@/components/Button';
 import TicketCard from '@/components/TicketCard';
 import TicketDesign from '@/components/TicketDesign';
 import { shareBookingTicket } from '@/utils/shareUtils';
-import { formatBookingDate } from '@/utils/dateUtils';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { formatPaymentMethod } from '@/utils/paymentUtils';
-import { formatTimeAMPM } from '@/utils/dateUtils';
 import { useAlertContext } from '@/components/AlertProvider';
 
 export default function BookingDetailsScreen() {

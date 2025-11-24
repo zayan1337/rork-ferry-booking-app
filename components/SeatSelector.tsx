@@ -25,6 +25,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
   seatErrors: externalSeatErrors,
   tripId, // For real-time updates
   onSeatsUpdated, // Callback when seats are updated
+  allowDisabledSeats = true, // Default to true to maintain backward compatibility
 }) => {
   const { showInfo } = useAlertContext();
   const [internalLoadingSeats, setInternalLoadingSeats] = React.useState<
@@ -435,7 +436,10 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
                                           (!seat.isAvailable &&
                                             !seat.isCurrentUserReservation) ||
                                           (seat.isTempReserved &&
-                                            !seat.isCurrentUserReservation)
+                                            !seat.isCurrentUserReservation) ||
+                                          ((seat.isDisabled ||
+                                            seat.seatType === 'disabled') &&
+                                            !allowDisabledSeats)
                                         }
                                       >
                                         {isLoadingSeat ? (

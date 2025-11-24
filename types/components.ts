@@ -15,6 +15,7 @@ export type SeatSelectorProps = {
   seatErrors?: Record<string, string>;
   tripId?: string; // Optional: for real-time seat availability updates
   onSeatsUpdated?: (updatedSeats: Seat[]) => void; // Optional: callback when seats are updated via real-time
+  allowDisabledSeats?: boolean; // If true, allows selecting disabled/accessible seats. If false, disables them.
 };
 
 export type InputProps = {

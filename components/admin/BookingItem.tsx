@@ -4,6 +4,7 @@ import { colors } from '@/constants/adminColors';
 import { Calendar, Clock, Users, MapPin } from 'lucide-react-native';
 import StatusBadge from './StatusBadge';
 import { Booking } from '@/types/admin';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 interface BookingItemProps {
   booking: Booking;
@@ -140,7 +141,7 @@ export default function BookingItem({
           <Text
             style={[styles.detailText, { fontSize: sizeStyles.detailSize }]}
           >
-            {formatDate(booking.date)}
+            {formatBookingDate(booking.date)}
           </Text>
         </View>
 
@@ -149,7 +150,7 @@ export default function BookingItem({
           <Text
             style={[styles.detailText, { fontSize: sizeStyles.detailSize }]}
           >
-            {booking.departureTime}
+            {formatTimeAMPM(booking.departureTime)}
           </Text>
         </View>
 

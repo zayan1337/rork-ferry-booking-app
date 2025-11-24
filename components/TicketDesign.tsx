@@ -123,10 +123,8 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
               </View>
 
               <View style={styles.priceSection}>
-                <Text style={styles.priceLabel}>Ticket Price (MVR)</Text>
-                <Text style={styles.priceValue}>
-                  {Math.round(booking.totalFare / booking.passengers.length)}
-                </Text>
+                <Text style={styles.priceLabel}>Total Fare (MVR)</Text>
+                <Text style={styles.priceValue}>{booking.totalFare}</Text>
               </View>
             </View>
 

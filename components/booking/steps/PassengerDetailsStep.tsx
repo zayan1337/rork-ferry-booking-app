@@ -98,13 +98,32 @@ const PassengerDetailsStep: React.FC<PassengerDetailsStepProps> = ({
 
           <Input
             label='Special Assistance'
-            placeholder='Any special requirements? (optional)'
+            placeholder={
+              selectedSeats[index] &&
+              (selectedSeats[index].isDisabled ||
+                selectedSeats[index].seatType === 'disabled')
+                ? 'Please describe accessibility requirements (required for accessible seats)'
+                : 'Any special requirements? (optional)'
+            }
             value={passenger.specialAssistance || ''}
             onChangeText={text =>
               handlePassengerChange(index, 'specialAssistance', text)
             }
             multiline
             numberOfLines={2}
+            required={
+              selectedSeats[index] &&
+              (selectedSeats[index].isDisabled ||
+                selectedSeats[index].seatType === 'disabled')
+            }
+            error={
+              selectedSeats[index] &&
+              (selectedSeats[index].isDisabled ||
+                selectedSeats[index].seatType === 'disabled') &&
+              !passenger.specialAssistance?.trim()
+                ? 'Special assistance is required for accessible seats'
+                : undefined
+            }
           />
         </View>
       ))}

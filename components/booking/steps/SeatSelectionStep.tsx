@@ -79,6 +79,7 @@ const SeatSelectionStep: React.FC<SeatSelectionStepProps> = ({
           loadingSeats={loadingSeats}
           seatErrors={seatErrors}
           tripId={departureTripId || undefined}
+          allowDisabledSeats={true}
           onSeatsUpdated={
             onSeatsUpdated
               ? (updated: Seat[]) => {
@@ -108,6 +109,7 @@ const SeatSelectionStep: React.FC<SeatSelectionStepProps> = ({
               loadingSeats={loadingSeats}
               seatErrors={seatErrors}
               tripId={returnTripId || undefined}
+              allowDisabledSeats={true}
               onSeatsUpdated={
                 onSeatsUpdated
                   ? (updated: Seat[]) => {

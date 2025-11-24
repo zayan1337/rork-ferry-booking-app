@@ -674,6 +674,13 @@ export const useAuthStore = create<AuthState>()(
           const deletionReason = 'User requested account deletion';
           const timestamp = new Date().toISOString();
 
+          // Soft delete: Anonymize personal data and deactivate account
+          // This approach is necessary because:
+          // 1. Booking records must be retained for 7 years (legal compliance)
+          // 2. Foreign key constraints prevent hard deletion of users with bookings
+          // 3. Financial records must be preserved for accounting/tax purposes
+          // 4. Safety records (passenger manifests) must be maintained
+          // Personal data is immediately anonymized while transaction records are retained
           const { error: profileError } = await supabase
             .from('user_profiles')
             .update({
@@ -694,6 +701,7 @@ export const useAuthStore = create<AuthState>()(
             throw profileError;
           }
 
+          // Ban auth user and mark as deleted in metadata
           const { error: authUpdateError } =
             await supabaseAdmin.auth.admin.updateUserById(user.id, {
               email: placeholderEmail,
@@ -703,6 +711,7 @@ export const useAuthStore = create<AuthState>()(
                 ...(user.user_metadata || {}),
                 accountDeleted: true,
                 deletedAt: timestamp,
+                deletionType: 'soft', // Track that this is a soft delete
               },
             });
 
