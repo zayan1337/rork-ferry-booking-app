@@ -32,7 +32,6 @@ export default function LoginScreen() {
   const {
     login,
     isAuthenticated,
-    isLoading,
     error,
     clearError,
     isAuthenticating,

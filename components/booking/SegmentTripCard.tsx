@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Clock, Users, Check } from 'lucide-react-native';
+import { Clock, Users, Ship, Route } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import { formatTimeAMPM } from '@/utils/dateUtils';
@@ -45,23 +45,14 @@ export default function SegmentTripCard({
           selected ? { ...styles.card, ...styles.cardSelected } : styles.card
         }
       >
-        {/* Compact Horizontal Layout */}
-        <View style={styles.container}>
-          {/* Left Section: Time */}
-          <View style={styles.leftSection}>
-            <Clock size={16} color={Colors.primary} />
-            <Text style={styles.time}>
-              {formatTimeAMPM(trip.departure_time)}
-            </Text>
-          </View>
-
-          {/* Middle Section: Route and Details */}
-          <View style={styles.middleSection}>
-            {/* Vessel Name */}
-            <Text style={styles.vesselName}>{trip.vessel_name}</Text>
-
-            {/* Route Info */}
+        <View style={styles.row}>
+          <View style={styles.infoSection}>
+            <View style={styles.titleRow}>
+              <Ship size={13} color={Colors.primary} />
+              <Text style={styles.vesselName}>{trip.vessel_name}</Text>
+            </View>
             <View style={styles.routeInfo}>
+              <Route size={13} color={Colors.primary} />
               <Text style={styles.stopNameCompact}>
                 {trip.boarding_island_name}
               </Text>
@@ -70,29 +61,25 @@ export default function SegmentTripCard({
                 {trip.destination_island_name}
               </Text>
             </View>
-
-            {/* Quick Stats */}
             <View style={styles.quickStats}>
-              <View style={styles.quickStat}>
-                <Users size={12} color={Colors.primary} />
-                <Text style={styles.quickStatText}>
-                  {availableSeats} / {totalSeats} seats
-                </Text>
-              </View>
+              <Users size={11} color={Colors.primary} />
+              <Text style={styles.quickStatText}>
+                {availableSeats} / {totalSeats} seats
+              </Text>
             </View>
           </View>
 
-          {/* Right Section: Price and Selection */}
-          <View style={styles.rightSection}>
-            <View style={styles.priceBox}>
+          <View style={styles.badgeColumn}>
+            <View style={styles.timeBadge}>
+              <Clock size={13} color={Colors.primary} />
+              <Text style={styles.time}>
+                {formatTimeAMPM(trip.departure_time)}
+              </Text>
+            </View>
+            <View style={styles.priceBadge}>
               <Text style={styles.priceLabel}>Per Seat</Text>
               <Text style={styles.price}>{formatFare(perSeatFare)}</Text>
             </View>
-            {selected && (
-              <View style={styles.selectedIndicator}>
-                <Check size={18} color={Colors.primary} />
-              </View>
-            )}
           </View>
         </View>
       </Card>
@@ -106,10 +93,9 @@ export default function SegmentTripCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 10,
-    position: 'relative',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
   },
   cardSelected: {
     borderColor: Colors.primary,
@@ -117,33 +103,28 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.highlight,
   },
 
-  // Compact Horizontal Layout
-  container: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
   },
-  leftSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.background,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+  infoSection: {
+    flex: 1,
+    gap: 4,
   },
   time: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.primary,
   },
-  middleSection: {
-    flex: 1,
-    justifyContent: 'center',
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   vesselName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: Colors.text,
   },
@@ -151,7 +132,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
   },
   stopNameCompact: {
     fontSize: 12,
@@ -166,27 +146,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
   },
-  quickStat: {
+  quickStatText: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  badgeColumn: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  timeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-  },
-  quickStatText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  rightSection: {
-    alignItems: 'flex-end',
-  },
-  priceBox: {
-    backgroundColor: Colors.highlight,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  priceBadge: {
+    borderWidth: 1,
+    borderColor: Colors.primary + '33',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: Colors.highlight,
   },
   priceLabel: {
     fontSize: 10,
@@ -196,10 +182,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.text,
-  },
-  selectedIndicator: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
   },
 });

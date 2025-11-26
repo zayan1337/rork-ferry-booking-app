@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   Modal,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/constants/adminColors';
@@ -94,6 +95,15 @@ export default function TripGenerator({
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [routeStops, setRouteStops] = useState<Record<string, RouteStop[]>>({});
   const [loadingRouteStops, setLoadingRouteStops] = useState(false);
+  const [fareMultiplierDisplay, setFareMultiplierDisplay] =
+    useState<string>('');
+
+  // Initialize fare multiplier display value
+  useEffect(() => {
+    if (fareMultiplierDisplay === '' && formData.fare_multiplier) {
+      setFareMultiplierDisplay(formData.fare_multiplier.toString());
+    }
+  }, [formData.fare_multiplier]);
 
   // Load data and clear errors when modal opens
   useEffect(() => {
@@ -104,6 +114,36 @@ export default function TripGenerator({
       setErrors({}); // Clear any previous errors
     }
   }, [visible]);
+
+  // Handle hardware back button - use useCallback to stabilize the handler
+  const handleBackPress = useCallback(() => {
+    // If preview modal is open, close it first
+    if (showPreview) {
+      setShowPreview(false);
+      return true; // Prevent default behavior
+    }
+
+    // If main modal is open, close it
+    if (visible && onClose) {
+      onClose();
+    }
+    return true; // Prevent default behavior
+  }, [visible, showPreview, onClose]);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      handleBackPress
+    );
+
+    return () => {
+      backHandler.remove();
+    };
+  }, [visible, handleBackPress]);
 
   // Load route stops when routes are loaded
   useEffect(() => {
@@ -768,32 +808,32 @@ export default function TripGenerator({
         />
       </View>
 
-      <View style={styles.formRow}>
-        <View style={styles.formHalf}>
-          <TextInput
-            label='Fare Multiplier'
-            value={formData.fare_multiplier?.toString()}
-            onChangeText={text =>
-              handleUpdateField('fare_multiplier', parseFloat(text) || 1.0)
+      <View style={styles.formGroup}>
+        <TextInput
+          label='Fare Multiplier'
+          value={
+            fareMultiplierDisplay || formData.fare_multiplier?.toString() || ''
+          }
+          onChangeText={text => {
+            setFareMultiplierDisplay(text);
+            if (text === '') {
+              // User cleared the field - keep 1.0 internally for calculations
+              handleUpdateField('fare_multiplier', 1.0);
+            } else if (text === '.') {
+              // Don't update if just a decimal point
+              return;
+            } else {
+              const numericValue = parseFloat(text);
+              if (!isNaN(numericValue)) {
+                // Allow zero to be entered (validation will catch it if needed)
+                handleUpdateField('fare_multiplier', numericValue);
+              }
             }
-            placeholder='1.0'
-            keyboardType='decimal-pad'
-            error={errors.fare_multiplier}
-          />
-        </View>
-
-        <View style={styles.formHalf}>
-          <TextInput
-            label='Available Seats'
-            value={formData.vessel_capacity?.toString()}
-            onChangeText={text =>
-              handleUpdateField('vessel_capacity', parseInt(text) || 50)
-            }
-            placeholder='50'
-            keyboardType='number-pad'
-            error={errors.vessel_capacity}
-          />
-        </View>
+          }}
+          placeholder='1.0'
+          keyboardType='numeric'
+          error={errors.fare_multiplier}
+        />
       </View>
 
       <View style={styles.infoPreview}>
@@ -801,8 +841,7 @@ export default function TripGenerator({
           <Info size={16} color={colors.success} />
         </View>
         <Text style={styles.infoPreviewText}>
-          Fare multiplier adjusts base route fare • Vessel capacity overrides
-          default seating
+          Fare multiplier adjusts base route fare
         </Text>
       </View>
     </View>
@@ -858,6 +897,7 @@ export default function TripGenerator({
       visible={showPreview}
       animationType='slide'
       presentationStyle='pageSheet'
+      onRequestClose={() => setShowPreview(false)}
     >
       <SafeAreaView style={styles.previewContainer} edges={['top', 'bottom']}>
         <View style={styles.previewHeader}>
@@ -988,6 +1028,7 @@ export default function TripGenerator({
       visible={visible}
       animationType='slide'
       presentationStyle='pageSheet'
+      onRequestClose={handleBackPress}
     >
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.modalHeader}>

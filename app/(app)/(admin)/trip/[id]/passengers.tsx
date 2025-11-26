@@ -72,6 +72,7 @@ export default function TripPassengersPage() {
       const data = await fetchTripPassengers(id);
 
       // Transform the data to match our interface
+      // Show ALL passengers including cancelled (for manifest display)
       const transformedPassengers: Passenger[] = (data || []).map(
         (passenger: any) => ({
           id: passenger.id,
@@ -89,7 +90,7 @@ export default function TripPassengersPage() {
         })
       );
 
-      // Fetch boarding and dropoff stops for each booking
+      // Fetch boarding and dropoff stops for each booking (including cancelled)
       if (transformedPassengers.length > 0) {
         const bookingIds = transformedPassengers
           .map(p => p.booking_id)
@@ -427,6 +428,13 @@ export default function TripPassengersPage() {
               <Text style={styles.checkInButtonText}>Check In</Text>
             </Pressable>
           )}
+
+          {item.booking_status === 'cancelled' && (
+            <View style={styles.cancelledBadge}>
+              <AlertTriangle size={14} color={colors.danger} />
+              <Text style={styles.cancelledText}>Booking Cancelled</Text>
+            </View>
+          )}
         </View>
       </View>
     );
@@ -484,8 +492,16 @@ export default function TripPassengersPage() {
         {/* Header Stats */}
         <View style={styles.headerStats}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{passengers.length}</Text>
-            <Text style={styles.statLabel}>Total Passengers</Text>
+            <Text style={styles.statValue}>
+              {
+                passengers.filter(p =>
+                  ['confirmed', 'checked_in', 'completed'].includes(
+                    p.booking_status || ''
+                  )
+                ).length
+              }
+            </Text>
+            <Text style={styles.statLabel}>Confirmed</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>
@@ -495,9 +511,9 @@ export default function TripPassengersPage() {
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>
-              {passengers.filter(p => p.booking_status === 'confirmed').length}
+              {passengers.filter(p => p.booking_status === 'cancelled').length}
             </Text>
-            <Text style={styles.statLabel}>Pending Check-in</Text>
+            <Text style={styles.statLabel}>Cancelled</Text>
           </View>
         </View>
 
@@ -716,5 +732,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.primary,
+  },
+  cancelledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${colors.danger}20`,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 8,
+  },
+  cancelledText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.danger,
   },
 });

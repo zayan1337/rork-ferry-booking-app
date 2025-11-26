@@ -254,21 +254,20 @@ serve(async req => {
     let emailTemplate = getEmailTemplate();
 
     // Replace placeholders in template
-    const appUrl = Deno.env.get('APP_URL') || 'https://crystaltransfervaavu.mv';
+    const appUrl = Deno.env.get('APP_URL') || 'https://www.crystalhotels.mv';
     const supportEmail =
-      Deno.env.get('SUPPORT_EMAIL') || 'mailto:support@crystaltransfervaavu.mv';
+      Deno.env.get('SUPPORT_EMAIL') || 'mailto:crystalhotelsmv@gmail.com';
     const faqUrl = `${appUrl}/faq`;
     const privacyUrl = `${appUrl}/privacy-policy`;
     const termsUrl = `${appUrl}/terms-and-conditions`;
     const facebookUrl =
       Deno.env.get('FACEBOOK_URL') ||
-      'https://www.facebook.com/share/1BB6QKWWMj/';
+      'https://www.facebook.com/people/Crystal-Transfer-Vaavu/61580302100438/';
     const instagramUrl =
       Deno.env.get('INSTAGRAM_URL') ||
       'https://www.instagram.com/crystaltransfermv';
     const tiktokUrl =
-      Deno.env.get('TIKTOK_URL') ||
-      'https://www.tiktok.com/@crystaltransfervaavu';
+      Deno.env.get('TIKTOK_URL') || 'https://www.tiktok.com/@crystal.transfer';
 
     emailTemplate = emailTemplate
       .replace(/{{USER_NAME}}/g, userName)

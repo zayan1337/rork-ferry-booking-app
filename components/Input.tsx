@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -31,10 +31,34 @@ const Input: React.FC<InputProps> = ({
   leftIcon,
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [textAreaHeight, setTextAreaHeight] = useState<number | undefined>(
+    undefined
+  );
 
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
   };
+
+  const handleContentSizeChange = (event: any) => {
+    if (multiline) {
+      const { height } = event.nativeEvent.contentSize;
+      // Set minimum height and allow growth
+      // Base height calculation: line height (~20) * numberOfLines + padding
+      const minHeight = numberOfLines * 20 + (Platform.OS === 'ios' ? 24 : 20);
+      const calculatedHeight = height + (Platform.OS === 'ios' ? 12 : 10);
+      setTextAreaHeight(Math.max(minHeight, calculatedHeight));
+    }
+  };
+
+  // Set initial height for multiline inputs
+  useEffect(() => {
+    if (multiline && !textAreaHeight) {
+      // Estimate initial height based on numberOfLines
+      const estimatedHeight =
+        numberOfLines * 20 + (Platform.OS === 'ios' ? 24 : 20);
+      setTextAreaHeight(estimatedHeight);
+    }
+  }, [multiline, numberOfLines, textAreaHeight]);
 
   return (
     <View style={[styles.container, style]}>
@@ -59,6 +83,7 @@ const Input: React.FC<InputProps> = ({
             styles.input,
             leftIcon ? styles.inputWithLeftIcon : null,
             multiline ? styles.textMultiline : null,
+            multiline && textAreaHeight ? { height: textAreaHeight } : null,
             inputStyle,
           ]}
           placeholder={placeholder}
@@ -72,6 +97,8 @@ const Input: React.FC<InputProps> = ({
           multiline={multiline}
           numberOfLines={multiline ? numberOfLines : 1}
           placeholderTextColor={Colors.textSecondary}
+          onContentSizeChange={multiline ? handleContentSizeChange : undefined}
+          textAlignVertical={multiline ? 'top' : 'center'}
         />
 
         {secureTextEntry && (
@@ -131,9 +158,13 @@ const styles = StyleSheet.create({
   },
   textMultiline: {
     textAlignVertical: 'top',
+    textAlign: 'left',
   },
   inputMultiline: {
-    minHeight: 100,
+    minHeight: 80,
+    alignItems: 'flex-start',
+    paddingTop: Platform.OS === 'ios' ? 12 : 10,
+    paddingBottom: Platform.OS === 'ios' ? 12 : 10,
   },
   iconContainer: {
     padding: 10,

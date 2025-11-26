@@ -24,6 +24,7 @@ import Colors from '@/constants/colors';
 import { useAuthStore } from '@/store/authStore';
 import { useCaptainStore } from '@/store/captainStore';
 import Card from '@/components/Card';
+import SafeView from '@/components/SafeView';
 import { formatTimeAMPM, formatSimpleDate } from '@/utils/dateUtils';
 import { useAlertContext } from '@/components/AlertProvider';
 
@@ -272,134 +273,137 @@ export default function CaptainTabLayout() {
         animationType='slide'
         presentationStyle='pageSheet'
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              Special Assistance Notifications
-            </Text>
-            <View style={styles.modalHeaderActions}>
-              <Pressable
-                style={styles.refreshButton}
-                onPress={loadNotifications}
-                disabled={loadingNotifications}
-              >
-                <Animated.View
-                  style={{
-                    transform: [
-                      {
-                        rotate: spinValue.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0deg', '360deg'],
-                        }),
-                      },
-                    ],
-                  }}
-                >
-                  <RefreshCw
-                    size={20}
-                    color={
-                      loadingNotifications
-                        ? Colors.textSecondary
-                        : Colors.primary
-                    }
-                  />
-                </Animated.View>
-              </Pressable>
-              <Pressable
-                style={styles.closeButton}
-                onPress={() => setShowNotifications(false)}
-              >
-                <X size={24} color={Colors.text} />
-              </Pressable>
-            </View>
-          </View>
-
-          <ScrollView
-            style={styles.notificationList}
-            contentContainerStyle={styles.notificationListContent}
-          >
-            {notifications.length === 0 ? (
-              <Card style={styles.emptyCard}>
-                <AlertCircle size={48} color={Colors.textSecondary} />
-                <Text style={styles.emptyText}>
-                  No special assistance notifications
-                </Text>
-                <Text style={styles.emptySubtext}>
-                  You'll see notifications here when passengers require special
-                  assistance
-                </Text>
-              </Card>
-            ) : (
-              notifications.map((notification, index) => (
+        <SafeView edges={['top', 'bottom']} backgroundColor={Colors.background}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Special Assistance</Text>
+              <View style={styles.modalHeaderActions}>
                 <Pressable
-                  key={index}
-                  style={styles.notificationCard}
-                  onPress={() => handleTripPress(notification.tripId)}
+                  style={styles.refreshButton}
+                  onPress={loadNotifications}
+                  disabled={loadingNotifications}
                 >
-                  <View style={styles.notificationHeader}>
-                    <AlertCircle size={16} color={Colors.warning} />
-                    <View style={styles.tripInfo}>
-                      <Text style={styles.tripTitle}>
-                        {notification.tripName}
-                      </Text>
-                      <View style={styles.tripMeta}>
-                        <Text style={styles.tripTime}>
-                          {formatSimpleDate(notification.travelDate)} ·{' '}
-                          {formatTimeAMPM(notification.departureTime)}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.tripStatus,
-                            { color: getStatusColor(notification.tripStatus) },
-                          ]}
-                        >
-                          {notification.tripStatus?.toUpperCase() || 'UNKNOWN'}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.passengerCount}>
-                      {notification.passengers.length} passenger
-                      {notification.passengers.length !== 1 ? 's' : ''}
-                    </Text>
-                  </View>
-
-                  <View style={styles.passengerList}>
-                    {notification.passengers
-                      .slice(0, 2)
-                      .map((passenger: any, pIndex: number) => (
-                        <View key={pIndex} style={styles.passengerItem}>
-                          <Text style={styles.passengerName}>
-                            {passenger.name}
-                          </Text>
-                          <Text style={styles.passengerAssistance}>
-                            {passenger.assistance}
-                          </Text>
-                          <View style={styles.passengerDetails}>
-                            <Text style={styles.passengerDetailText}>
-                              Seat {passenger.seatNumber}
-                            </Text>
-                            <Text style={styles.passengerDetailText}>
-                              {passenger.bookingNumber}
-                            </Text>
-                            {passenger.contactNumber !== 'N/A' && (
-                              <Text style={styles.passengerDetailText}>
-                                {passenger.contactNumber}
-                              </Text>
-                            )}
-                          </View>
-                        </View>
-                      ))}
-                    {notification.passengers.length > 2 && (
-                      <Text style={styles.morePassengers}>
-                        +{notification.passengers.length - 2} more passengers
-                      </Text>
-                    )}
-                  </View>
+                  <Animated.View
+                    style={{
+                      transform: [
+                        {
+                          rotate: spinValue.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['0deg', '360deg'],
+                          }),
+                        },
+                      ],
+                    }}
+                  >
+                    <RefreshCw
+                      size={20}
+                      color={
+                        loadingNotifications
+                          ? Colors.textSecondary
+                          : Colors.primary
+                      }
+                    />
+                  </Animated.View>
                 </Pressable>
-              ))
-            )}
-          </ScrollView>
-        </View>
+                <Pressable
+                  style={styles.closeButton}
+                  onPress={() => setShowNotifications(false)}
+                >
+                  <X size={24} color={Colors.text} />
+                </Pressable>
+              </View>
+            </View>
+
+            <ScrollView
+              style={styles.notificationList}
+              contentContainerStyle={styles.notificationListContent}
+            >
+              {notifications.length === 0 ? (
+                <Card style={styles.emptyCard}>
+                  <AlertCircle size={48} color={Colors.textSecondary} />
+                  <Text style={styles.emptyText}>
+                    No special assistance notifications
+                  </Text>
+                  <Text style={styles.emptySubtext}>
+                    You'll see notifications here when passengers require
+                    special assistance
+                  </Text>
+                </Card>
+              ) : (
+                notifications.map((notification, index) => (
+                  <Pressable
+                    key={index}
+                    style={styles.notificationCard}
+                    onPress={() => handleTripPress(notification.tripId)}
+                  >
+                    <View style={styles.notificationHeader}>
+                      <AlertCircle size={16} color={Colors.warning} />
+                      <View style={styles.tripInfo}>
+                        <Text style={styles.tripTitle}>
+                          {notification.tripName}
+                        </Text>
+                        <View style={styles.tripMeta}>
+                          <Text style={styles.tripTime}>
+                            {formatSimpleDate(notification.travelDate)} ·{' '}
+                            {formatTimeAMPM(notification.departureTime)}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.tripStatus,
+                              {
+                                color: getStatusColor(notification.tripStatus),
+                              },
+                            ]}
+                          >
+                            {notification.tripStatus?.toUpperCase() ||
+                              'UNKNOWN'}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.passengerCount}>
+                        {notification.passengers.length} passenger
+                        {notification.passengers.length !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+
+                    <View style={styles.passengerList}>
+                      {notification.passengers
+                        .slice(0, 2)
+                        .map((passenger: any, pIndex: number) => (
+                          <View key={pIndex} style={styles.passengerItem}>
+                            <Text style={styles.passengerName}>
+                              {passenger.name}
+                            </Text>
+                            <Text style={styles.passengerAssistance}>
+                              {passenger.assistance}
+                            </Text>
+                            <View style={styles.passengerDetails}>
+                              <Text style={styles.passengerDetailText}>
+                                Seat {passenger.seatNumber}
+                              </Text>
+                              <Text style={styles.passengerDetailText}>
+                                {passenger.bookingNumber}
+                              </Text>
+                              {passenger.contactNumber !== 'N/A' && (
+                                <Text style={styles.passengerDetailText}>
+                                  {passenger.contactNumber}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                        ))}
+                      {notification.passengers.length > 2 && (
+                        <Text style={styles.morePassengers}>
+                          +{notification.passengers.length - 2} more passengers
+                        </Text>
+                      )}
+                    </View>
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </SafeView>
       </Modal>
     </>
   );

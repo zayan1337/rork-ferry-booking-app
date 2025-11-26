@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFonts } from 'expo-font';
 import { Stack, router, usePathname } from 'expo-router';
@@ -63,7 +63,9 @@ function RootLayoutNav() {
       };
       initAuth();
     }
-  }, [checkAuth, authChecked, isRehydrated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authChecked, isRehydrated]);
+  // Note: checkAuth is a stable Zustand function, no need to include in deps
 
   // Handle deep linking for payment success
   useEffect(() => {
@@ -120,16 +122,26 @@ function RootLayoutNav() {
   }, []);
 
   // Determine if user has valid profile after authentication
-  const hasValidProfile =
-    isAuthenticated && user?.profile && user.profile.is_active;
+  // Memoize to prevent unnecessary re-computations and re-renders
+  const hasValidProfile = useMemo(
+    () => isAuthenticated && user?.profile && user.profile.is_active,
+    [isAuthenticated, user?.profile?.is_active]
+  );
 
   const pathname = usePathname();
   // Track previous target route to avoid duplicate navigation calls
   const previousTarget = useRef<string | null>(null);
+  // Track if navigation is in progress to prevent multiple navigations
+  const isNavigatingRef = useRef(false);
 
   // Handle navigation when authentication state changes
   useEffect(() => {
-    if (!authChecked || !isRehydrated || preventRedirect) {
+    if (
+      !authChecked ||
+      !isRehydrated ||
+      preventRedirect ||
+      isNavigatingRef.current
+    ) {
       return;
     }
 
@@ -144,16 +156,24 @@ function RootLayoutNav() {
     }
 
     previousTarget.current = targetRoute;
+    isNavigatingRef.current = true;
 
     const timer = setTimeout(() => {
       try {
         router.replace(targetRoute as any);
+        // Reset navigation flag after a delay to allow navigation to complete
+        setTimeout(() => {
+          isNavigatingRef.current = false;
+        }, 500);
       } catch (error) {
         console.error('Navigation error:', error);
+        isNavigatingRef.current = false;
       }
     }, 100);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [
     hasValidProfile,
     authChecked,

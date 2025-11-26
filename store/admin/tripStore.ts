@@ -227,15 +227,61 @@ export const useTripStore = create<TripStore>((set, get) => ({
         }
       }
 
-      const trips = allTripRows.map(item =>
-        processTripData({
+      // Process trips and verify booked_seats exclude cancelled bookings
+      // Query passengers directly from non-cancelled bookings to ensure accuracy
+      const tripIds = allTripRows.map(t => t.id);
+
+      // Get correct passenger counts for all trips
+      // Query bookings with status filter, then count their passengers
+      const { data: validBookings, error: bookingError } = await supabase
+        .from('bookings')
+        .select('id, trip_id')
+        .in('trip_id', tripIds)
+        .in('status', ['confirmed', 'checked_in', 'completed']);
+
+      // Build a map of trip_id -> passenger count
+      const tripPassengerCounts: Record<string, number> = {};
+      if (!bookingError && validBookings && validBookings.length > 0) {
+        const bookingIds = validBookings.map(b => b.id);
+
+        // Count passengers for these valid bookings
+        const { data: passengers, error: passengerError } = await supabase
+          .from('passengers')
+          .select('booking_id')
+          .in('booking_id', bookingIds);
+
+        if (!passengerError && passengers) {
+          // Group by trip_id and count passengers
+          validBookings.forEach((booking: any) => {
+            const tripId = booking.trip_id;
+            const passengerCount = passengers.filter(
+              (p: any) => p.booking_id === booking.id
+            ).length;
+            tripPassengerCounts[tripId] =
+              (tripPassengerCounts[tripId] || 0) + passengerCount;
+          });
+        }
+      }
+
+      const trips = allTripRows.map(item => {
+        // Use verified passenger count from non-cancelled bookings, fallback to view value
+        const verifiedBookedSeats =
+          tripPassengerCounts[item.id] ?? (Number(item.booked_seats) || 0);
+        const capacity = item.capacity || 0;
+
+        return processTripData({
           ...item,
+          booked_seats: verifiedBookedSeats,
           confirmed_bookings: item.confirmed_bookings || item.bookings,
-          seating_capacity: item.capacity,
+          seating_capacity: capacity,
           computed_status: item.computed_status,
-          occupancy_rate: item.occupancy_rate,
-        })
-      );
+          // Recalculate occupancy_rate based on verified booked_seats
+          occupancy_rate:
+            capacity > 0
+              ? Math.round((verifiedBookedSeats / capacity) * 100 * 100) / 100
+              : item.occupancy_rate || 0,
+        });
+      });
 
       set({ data: trips });
       get().calculateComputedData();
@@ -260,12 +306,53 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
       if (error) throw error;
 
+      // Verify booked_seats by querying passengers from non-cancelled bookings only
+      let verifiedBookedSeats = Number(data.booked_seats) || 0;
+
+      try {
+        // Get bookings with status filter (excludes cancelled)
+        const { data: validBookings, error: bookingError } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('trip_id', id)
+          .in('status', ['confirmed', 'checked_in', 'completed']);
+
+        if (!bookingError && validBookings && validBookings.length > 0) {
+          const bookingIds = validBookings.map(b => b.id);
+
+          // Count passengers for these valid bookings
+          const { data: passengers, error: passengerError } = await supabase
+            .from('passengers')
+            .select('booking_id')
+            .in('booking_id', bookingIds);
+
+          if (!passengerError && passengers) {
+            verifiedBookedSeats = passengers.length;
+          }
+        } else if (
+          !bookingError &&
+          (!validBookings || validBookings.length === 0)
+        ) {
+          // No valid bookings, so booked_seats should be 0
+          verifiedBookedSeats = 0;
+        }
+      } catch (verifyError) {
+        console.warn('Error verifying booked_seats for trip:', id, verifyError);
+        // Use view value as fallback
+      }
+
+      const capacity = data.capacity || 0;
       const processedTrip = processTripData({
         ...data,
+        booked_seats: verifiedBookedSeats,
         confirmed_bookings: data.confirmed_bookings || data.bookings,
-        seating_capacity: data.capacity,
+        seating_capacity: capacity,
         computed_status: data.computed_status,
-        occupancy_rate: data.occupancy_rate,
+        // Recalculate occupancy_rate based on verified booked_seats
+        occupancy_rate:
+          capacity > 0
+            ? Math.round((verifiedBookedSeats / capacity) * 100 * 100) / 100
+            : data.occupancy_rate || 0,
       });
 
       set({ currentItem: processedTrip });
@@ -1131,6 +1218,8 @@ export const useTripStore = create<TripStore>((set, get) => ({
   // Trip-specific data fetching
   fetchTripPassengers: async (tripId: string) => {
     try {
+      // Fetch ALL passengers including cancelled bookings (for manifest display)
+      // But cancelled bookings won't count toward booked_seats
       const { data, error } = await supabase
         .from('passengers')
         .select(

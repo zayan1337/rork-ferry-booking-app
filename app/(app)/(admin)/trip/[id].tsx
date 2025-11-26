@@ -60,6 +60,15 @@ import { useAlertContext } from '@/components/AlertProvider';
 
 // Function to convert OperationsTrip to Trip type expected by components
 const mapOperationsTripToTrip = (operationsTrip: OperationsTrip): Trip => {
+  // Use booked_seats from view (excludes cancelled bookings) instead of bookings count
+  const bookedSeats = Number(operationsTrip.booked_seats) || 0;
+
+  const confirmedBookings =
+    'confirmed_bookings' in operationsTrip &&
+    typeof (operationsTrip as any).confirmed_bookings !== 'undefined'
+      ? Number((operationsTrip as any).confirmed_bookings)
+      : Number(operationsTrip.bookings) || 0;
+
   return {
     id: operationsTrip.id,
     route_id: operationsTrip.route_id,
@@ -70,14 +79,14 @@ const mapOperationsTripToTrip = (operationsTrip: OperationsTrip): Trip => {
     estimated_duration: '1h 30m', // Default estimate
     status: operationsTrip.status as any,
     available_seats: operationsTrip.available_seats,
-    booked_seats: operationsTrip.booked_seats || operationsTrip.bookings || 0,
+    booked_seats: bookedSeats, // Use verified booked_seats (excludes cancelled)
     fare_multiplier: 1.0, // Default multiplier
     created_at: operationsTrip.created_at,
     updated_at: operationsTrip.created_at, // Use created_at as fallback
     // Display fields
     routeName: operationsTrip.route_name || operationsTrip.routeName,
     vesselName: operationsTrip.vessel_name || operationsTrip.vesselName,
-    bookings: operationsTrip.bookings || operationsTrip.booked_seats || 0,
+    bookings: confirmedBookings,
     capacity: operationsTrip.seating_capacity || operationsTrip.capacity,
     is_active: operationsTrip.is_active,
   };
@@ -141,8 +150,12 @@ export default function TripDetailsPage() {
       const tripData = await tripStore.fetchById(id);
 
       if (tripData) {
-        // Use the trip data directly with type assertion (both types are compatible in practice)
-        setTrip(tripData as Trip);
+        // Ensure booked_seats uses the correct value (excludes cancelled bookings)
+        const verifiedTrip = {
+          ...tripData,
+          booked_seats: Number(tripData.booked_seats) || 0,
+        } as Trip;
+        setTrip(verifiedTrip);
 
         // Load multi-stop route data if applicable
         if (tripData.route_id) {
@@ -217,7 +230,12 @@ export default function TripDetailsPage() {
         const operationsTripData = await fetchTrip(id);
         if (operationsTripData) {
           const mappedTrip = mapOperationsTripToTrip(operationsTripData);
-          setTrip(mappedTrip);
+          // Ensure booked_seats is correct (excludes cancelled bookings)
+          const verifiedTrip = {
+            ...mappedTrip,
+            booked_seats: Number(operationsTripData.booked_seats) || 0,
+          };
+          setTrip(verifiedTrip);
 
           // Load multi-stop route data if applicable
           if (mappedTrip.route_id) {
@@ -389,7 +407,12 @@ export default function TripDetailsPage() {
         const operationsTripData = await fetchTrip(id);
         if (operationsTripData) {
           const mappedTrip = mapOperationsTripToTrip(operationsTripData);
-          setTrip(mappedTrip);
+          // Ensure booked_seats is correct (excludes cancelled bookings)
+          const verifiedTrip = {
+            ...mappedTrip,
+            booked_seats: Number(operationsTripData.booked_seats) || 0,
+          };
+          setTrip(verifiedTrip);
 
           // Update special assistance count silently
           try {
@@ -571,6 +594,43 @@ export default function TripDetailsPage() {
     showInfo('Share Trip', 'Share functionality coming soon.');
   };
 
+  // Check if trip has departed or is boarding (should disable certain actions)
+  const isTripDepartedOrBoarding = (trip: Trip): boolean => {
+    if (!trip) return false;
+
+    // Check status first
+    const status = (trip.status || '').toLowerCase();
+    if (
+      status === 'departed' ||
+      status === 'boarding' ||
+      status === 'completed'
+    ) {
+      return true;
+    }
+
+    // Check if departure time has passed
+    if (trip.travel_date && trip.departure_time) {
+      try {
+        const now = new Date();
+        const tripDate = new Date(trip.travel_date);
+        const [hours, minutes] = trip.departure_time.split(':').map(Number);
+
+        // Set trip departure datetime
+        const departureDateTime = new Date(tripDate);
+        departureDateTime.setHours(hours, minutes, 0, 0);
+
+        // Compare with current time - if departure time has passed, disable actions
+        if (departureDateTime <= now) {
+          return true;
+        }
+      } catch (error) {
+        console.error('Error checking departure time:', error);
+      }
+    }
+
+    return false;
+  };
+
   const getTripStatusInfo = (trip: Trip) => {
     const status = formatTripStatus(trip.status);
     const route = routes?.find(r => r.id === trip.route_id);
@@ -698,6 +758,7 @@ export default function TripDetailsPage() {
   }
 
   const tripInfo = getTripStatusInfo(trip);
+  const isDepartedOrBoarding = isTripDepartedOrBoarding(trip);
 
   return (
     <RoleGuard allowedRoles={['admin', 'captain']}>
@@ -716,7 +777,7 @@ export default function TripDetailsPage() {
               </Pressable>
             ),
             headerRight: () =>
-              !editMode && canManageTrips() ? (
+              !editMode && canManageTrips() && !isDepartedOrBoarding ? (
                 <Pressable onPress={handleEdit} style={styles.editButton}>
                   <Edit size={20} color={colors.primary} />
                 </Pressable>
@@ -1143,7 +1204,7 @@ export default function TripDetailsPage() {
                 <ChevronRight size={20} color={colors.textSecondary} />
               </Pressable>
 
-              {canManageTrips() && trip.vessel_id && (
+              {canManageTrips() && trip.vessel_id && !isDepartedOrBoarding && (
                 <Pressable
                   style={styles.managementAction}
                   onPress={() => setShowSeatBlocking(!showSeatBlocking)}
@@ -1248,37 +1309,39 @@ export default function TripDetailsPage() {
                 <ChevronRight size={20} color={colors.textSecondary} />
               </Pressable>
 
-              {trip.status !== 'completed' && trip.status !== 'cancelled' && (
-                <Pressable
-                  style={[styles.managementAction, styles.dangerAction]}
-                  onPress={handleCancel}
-                >
-                  <View style={styles.managementActionLeft}>
-                    <View
-                      style={[
-                        styles.managementIconContainer,
-                        styles.dangerIconContainer,
-                      ]}
-                    >
-                      <AlertTriangle size={20} color={colors.danger} />
-                    </View>
-                    <View>
-                      <Text
+              {trip.status !== 'completed' &&
+                trip.status !== 'cancelled' &&
+                !isDepartedOrBoarding && (
+                  <Pressable
+                    style={[styles.managementAction, styles.dangerAction]}
+                    onPress={handleCancel}
+                  >
+                    <View style={styles.managementActionLeft}>
+                      <View
                         style={[
-                          styles.managementActionTitle,
-                          styles.dangerActionTitle,
+                          styles.managementIconContainer,
+                          styles.dangerIconContainer,
                         ]}
                       >
-                        Cancel Trip
-                      </Text>
-                      <Text style={styles.managementActionSubtitle}>
-                        Cancel this trip and notify passengers
-                      </Text>
+                        <AlertTriangle size={20} color={colors.danger} />
+                      </View>
+                      <View>
+                        <Text
+                          style={[
+                            styles.managementActionTitle,
+                            styles.dangerActionTitle,
+                          ]}
+                        >
+                          Cancel Trip
+                        </Text>
+                        <Text style={styles.managementActionSubtitle}>
+                          Cancel this trip and notify passengers
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  <ChevronRight size={20} color={colors.danger} />
-                </Pressable>
-              )}
+                    <ChevronRight size={20} color={colors.danger} />
+                  </Pressable>
+                )}
 
               {/* Delete action removed per requirements */}
             </View>

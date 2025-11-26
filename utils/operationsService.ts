@@ -205,30 +205,42 @@ export const fetchTrips = async (): Promise<OperationsTrip[]> => {
 
     if (error) throw error;
 
-    return (data || []).map((trip: any) => ({
-      id: trip.id,
-      route_id: trip.route_id,
-      travel_date: trip.travel_date,
-      departure_time: trip.departure_time,
-      arrival_time: trip.arrival_time || null,
-      vessel_id: trip.vessel_id,
-      available_seats: trip.available_seats,
-      is_active: trip.is_active,
-      created_at: trip.created_at,
-      // Computed fields from view
-      vessel_name: trip.vessel_name,
-      route_name: trip.route_name,
-      from_island_name: trip.from_island_name,
-      to_island_name: trip.to_island_name,
-      seating_capacity: trip.capacity,
-      booked_seats: trip.bookings || 0,
-      bookings: trip.bookings || 0,
-      capacity: trip.capacity,
-      status: trip.computed_status,
-      // Backward compatibility
-      routeName: trip.route_name,
-      vesselName: trip.vessel_name,
-    }));
+    return (data || []).map((trip: any) => {
+      const confirmedBookings =
+        typeof trip.confirmed_bookings !== 'undefined' &&
+        trip.confirmed_bookings !== null
+          ? Number(trip.confirmed_bookings)
+          : Number(trip.bookings) || 0;
+
+      return {
+        id: trip.id,
+        route_id: trip.route_id,
+        travel_date: trip.travel_date,
+        departure_time: trip.departure_time,
+        arrival_time: trip.arrival_time || null,
+        vessel_id: trip.vessel_id,
+        available_seats: trip.available_seats,
+        is_active: trip.is_active,
+        created_at: trip.created_at,
+        // Computed fields from view
+        vessel_name: trip.vessel_name,
+        route_name: trip.route_name,
+        from_island_name: trip.from_island_name,
+        to_island_name: trip.to_island_name,
+        seating_capacity: trip.capacity,
+        // Use booked_seats from view (excludes cancelled bookings - total_passengers)
+        // NOT trip.bookings which is just the count of bookings
+        booked_seats: Number(trip.booked_seats) || 0,
+        bookings: confirmedBookings,
+        capacity: trip.capacity,
+        status: trip.computed_status,
+        total_revenue: Number(trip.total_revenue) || 0,
+        occupancy_rate: Number(trip.occupancy_rate) || 0,
+        // Backward compatibility
+        routeName: trip.route_name,
+        vesselName: trip.vessel_name,
+      };
+    });
   } catch (error) {
     console.error('Error fetching trips:', error);
     return [];
@@ -246,6 +258,12 @@ export const fetchTrip = async (id: string): Promise<OperationsTrip | null> => {
     if (error) throw error;
     if (!data) return null;
 
+    const confirmedBookings =
+      typeof data.confirmed_bookings !== 'undefined' &&
+      data.confirmed_bookings !== null
+        ? Number(data.confirmed_bookings)
+        : Number(data.bookings) || 0;
+
     return {
       id: data.id,
       route_id: data.route_id,
@@ -262,10 +280,14 @@ export const fetchTrip = async (id: string): Promise<OperationsTrip | null> => {
       from_island_name: data.from_island_name,
       to_island_name: data.to_island_name,
       seating_capacity: data.capacity,
-      booked_seats: data.bookings || 0,
-      bookings: data.bookings || 0,
+      // Use booked_seats from view (excludes cancelled bookings - total_passengers)
+      // NOT data.bookings which is just the count of bookings
+      booked_seats: Number(data.booked_seats) || 0,
+      bookings: confirmedBookings,
       capacity: data.capacity,
       status: data.computed_status,
+      total_revenue: Number(data.total_revenue) || 0,
+      occupancy_rate: Number(data.occupancy_rate) || 0,
       // Backward compatibility
       routeName: data.route_name,
       vesselName: data.vessel_name,

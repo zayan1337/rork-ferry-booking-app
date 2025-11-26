@@ -231,6 +231,8 @@ export default function TripForm({
   );
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [fareMultiplierDisplay, setFareMultiplierDisplay] =
+    useState<string>('');
 
   // Vessel change detection and seat rearrangement
   const [originalVesselId, setOriginalVesselId] = useState<string | null>(null);
@@ -240,6 +242,12 @@ export default function TripForm({
     'idle' | 'analyzing' | 'rearranging' | 'completed' | 'error'
   >('idle');
   const [rearrangementPreview, setRearrangementPreview] = useState<any[]>([]);
+  const [vesselValidationStatus, setVesselValidationStatus] = useState<
+    'idle' | 'valid' | 'invalid' | 'checking'
+  >('idle');
+  const [vesselValidationMessage, setVesselValidationMessage] = useState<
+    string | null
+  >(null);
 
   // Fare editing state
   const [showFareEditor, setShowFareEditor] = useState(false);
@@ -251,6 +259,308 @@ export default function TripForm({
   >([]);
   const [loadingSegmentData, setLoadingSegmentData] = useState(false);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+
+  const normalizeTimeString = (time?: string | null) => {
+    if (!time) return null;
+    const trimmed = time.trim();
+    if (!trimmed) return null;
+    return trimmed.length >= 5 ? trimmed.substring(0, 5) : trimmed;
+  };
+
+  const timeStringToMinutes = (time?: string | null) => {
+    const sanitized = normalizeTimeString(time);
+    if (!sanitized) return null;
+    const [hours, minutes] = sanitized.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return null;
+    return hours * 60 + minutes;
+  };
+
+  const getPassengerCount = useCallback(() => {
+    if (existingBookings.length > 0) {
+      return existingBookings.reduce(
+        (total, booking) => total + (booking.passengers?.length || 0),
+        0
+      );
+    }
+    if (
+      currentTrip?.booked_seats !== undefined &&
+      currentTrip?.booked_seats !== null
+    ) {
+      return Number(currentTrip.booked_seats) || 0;
+    }
+    return 0;
+  }, [existingBookings, currentTrip?.booked_seats]);
+
+  const fetchExistingBookings = useCallback(async () => {
+    if (!tripId) return [];
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(
+          `
+          id,
+          booking_number,
+          status,
+          total_fare,
+          passengers (
+            id,
+            passenger_name,
+            seat_id,
+            seats (
+              id,
+              seat_number,
+              row_number,
+              is_window,
+              is_aisle
+            )
+          )
+        `
+        )
+        .eq('trip_id', tripId)
+        .in('status', ['confirmed', 'checked_in', 'completed']);
+
+      if (error) {
+        console.error('Error fetching existing bookings:', error);
+        return [];
+      }
+
+      const safeBookings = data || [];
+      setExistingBookings(safeBookings);
+      return safeBookings;
+    } catch (error) {
+      console.error('Error fetching existing bookings:', error);
+      return [];
+    }
+  }, [tripId]);
+
+  interface VesselConflictResult {
+    conflict: boolean;
+    tripId?: string;
+    departure_time?: string;
+    arrival_time?: string;
+  }
+
+  const hasVesselScheduleConflict = useCallback(
+    async (
+      vesselId: string,
+      travelDate?: string,
+      departureTime?: string,
+      arrivalTime?: string | null
+    ): Promise<VesselConflictResult> => {
+      if (!travelDate || !departureTime) {
+        return { conflict: false };
+      }
+
+      try {
+        let query = supabase
+          .from('trips')
+          .select('id, departure_time, arrival_time')
+          .eq('vessel_id', vesselId)
+          .eq('travel_date', travelDate);
+
+        if (currentTrip?.id) {
+          query = query.neq('id', currentTrip.id);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error('Error checking vessel conflicts:', error);
+          return { conflict: false };
+        }
+
+        if (!data || data.length === 0) {
+          return { conflict: false };
+        }
+
+        const candidateStart =
+          timeStringToMinutes(departureTime) ??
+          timeStringToMinutes('00:00') ??
+          0;
+        const candidateEnd =
+          timeStringToMinutes(arrivalTime) ?? candidateStart + 120;
+
+        const conflictingTrip = data.find(trip => {
+          const otherStart =
+            timeStringToMinutes(trip.departure_time) ??
+            timeStringToMinutes('00:00') ??
+            0;
+          const otherEnd =
+            timeStringToMinutes(trip.arrival_time) ?? otherStart + 120;
+          return candidateStart < otherEnd && otherStart < candidateEnd;
+        });
+
+        if (conflictingTrip) {
+          return {
+            conflict: true,
+            tripId: conflictingTrip.id,
+            departure_time: conflictingTrip.departure_time,
+            arrival_time: conflictingTrip.arrival_time,
+          };
+        }
+
+        return { conflict: false };
+      } catch (error) {
+        console.error('Error checking vessel conflicts:', error);
+        return { conflict: false };
+      }
+    },
+    [currentTrip?.id]
+  );
+
+  const validateVesselChange = useCallback(
+    async (
+      nextVesselId: string
+    ): Promise<{ valid: boolean; error?: string }> => {
+      if (!nextVesselId) {
+        return { valid: false, error: 'Please select a vessel.' };
+      }
+
+      const travelDate = formData.travel_date || currentTrip?.travel_date;
+      const departureTime =
+        formData.departure_time ||
+        formatTimeForForm(currentTrip?.departure_time);
+      const arrivalTime =
+        formData.arrival_time || formatTimeForForm(currentTrip?.arrival_time);
+
+      const currentStatus = formData.status || currentTrip?.status;
+      if (
+        currentStatus &&
+        ['departed', 'boarding', 'completed'].includes(currentStatus)
+      ) {
+        return {
+          valid: false,
+          error:
+            'Cannot change vessel for trips that have departed, are boarding, or already completed.',
+        };
+      }
+
+      if (travelDate && departureTime) {
+        const normalizedDeparture = normalizeTimeString(departureTime);
+        if (normalizedDeparture) {
+          const departureDateTime = new Date(
+            `${travelDate}T${normalizedDeparture}:00`
+          );
+          if (!isNaN(departureDateTime.valueOf())) {
+            const now = new Date();
+            if (departureDateTime.getTime() <= now.getTime()) {
+              return {
+                valid: false,
+                error:
+                  'Cannot change vessel for trips that have already departed.',
+              };
+            }
+          }
+        }
+      }
+
+      const newVessel = vessels?.find(vessel => vessel.id === nextVesselId);
+      if (!newVessel) {
+        return { valid: false, error: 'Selected vessel is not available.' };
+      }
+
+      if (!newVessel.is_active) {
+        return {
+          valid: false,
+          error: 'Selected vessel is inactive. Please choose another vessel.',
+        };
+      }
+
+      const passengerCount = getPassengerCount();
+      if (
+        newVessel.seating_capacity &&
+        passengerCount > newVessel.seating_capacity
+      ) {
+        return {
+          valid: false,
+          error: `Selected vessel has ${newVessel.seating_capacity} seats but ${passengerCount} passengers are booked.`,
+        };
+      }
+
+      if (travelDate && departureTime) {
+        const conflictResult = await hasVesselScheduleConflict(
+          nextVesselId,
+          travelDate,
+          normalizeTimeString(departureTime) || departureTime,
+          normalizeTimeString(arrivalTime || undefined) || arrivalTime
+        );
+        if (conflictResult.conflict) {
+          return {
+            valid: false,
+            error: `Selected vessel is already assigned to Trip #${conflictResult.tripId} on ${travelDate} at ${formatTimeDisplay(
+              normalizeTimeString(conflictResult.departure_time) ||
+                conflictResult.departure_time ||
+                '00:00'
+            )}.`,
+          };
+        }
+      }
+
+      return { valid: true };
+    },
+    [
+      currentTrip,
+      formData.arrival_time,
+      formData.departure_time,
+      formData.status,
+      formData.travel_date,
+      getPassengerCount,
+      hasVesselScheduleConflict,
+      vessels,
+    ]
+  );
+
+  const handleVesselSelection = useCallback(
+    async (value: string) => {
+      if (value === formData.vessel_id) {
+        return;
+      }
+
+      if (!tripId) {
+        setFormData(prev => ({ ...prev, vessel_id: value }));
+        return;
+      }
+
+      setVesselValidationStatus('checking');
+      setVesselValidationMessage(null);
+
+      const validation = await validateVesselChange(value);
+      if (!validation.valid) {
+        setVesselValidationStatus('invalid');
+        setVesselValidationMessage(validation.error || null);
+        if (validation.error) {
+          showError('Cannot Change Vessel', validation.error);
+        }
+        return;
+      }
+
+      setVesselValidationStatus('valid');
+      const count = getPassengerCount();
+      if (count > 0) {
+        setVesselValidationMessage(
+          `Ready to transfer ${count} passenger${count === 1 ? '' : 's'} to the new vessel.`
+        );
+      } else {
+        setVesselValidationMessage('Vessel selection looks good.');
+      }
+
+      setFormData(prev => ({ ...prev, vessel_id: value }));
+    },
+    [
+      formData.vessel_id,
+      getPassengerCount,
+      showError,
+      tripId,
+      validateVesselChange,
+    ]
+  );
+
+  // Initialize fare multiplier display value
+  useEffect(() => {
+    if (fareMultiplierDisplay === '') {
+      setFareMultiplierDisplay(formData.fare_multiplier.toString());
+    }
+  }, [formData.fare_multiplier]);
 
   // Load routes, vessels, and users on component mount
   useEffect(() => {
@@ -266,6 +576,12 @@ export default function TripForm({
 
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (tripId) {
+      fetchExistingBookings();
+    }
+  }, [fetchExistingBookings, tripId]);
 
   // Load segment data when route changes
   useEffect(() => {
@@ -283,73 +599,6 @@ export default function TripForm({
       setOriginalVesselId(currentTrip.vessel_id);
     }
   }, [currentTrip?.vessel_id, originalVesselId]);
-
-  // Detect vessel changes and fetch existing bookings
-  useEffect(() => {
-    const detectVesselChange = async () => {
-      if (!tripId || !formData.vessel_id || !originalVesselId) return;
-
-      if (formData.vessel_id !== originalVesselId) {
-        setVesselChangeDetected(true);
-        setSeatRearrangementStatus('analyzing');
-
-        try {
-          // Fetch existing bookings for this trip
-          const { data: bookings, error } = await supabase
-            .from('bookings')
-            .select(
-              `
-              id,
-              booking_number,
-              status,
-              total_fare,
-              passengers (
-                id,
-                passenger_name,
-                seat_id,
-                seats (
-                  id,
-                  seat_number,
-                  row_number,
-                  is_window,
-                  is_aisle
-                )
-              )
-            `
-            )
-            .eq('trip_id', tripId)
-            .eq('status', 'confirmed');
-
-          if (error) {
-            console.error('Error fetching existing bookings:', error);
-            setSeatRearrangementStatus('error');
-            return;
-          }
-
-          setExistingBookings(bookings || []);
-
-          // Generate seat rearrangement preview
-          if (bookings && bookings.length > 0) {
-            await generateSeatRearrangementPreview(bookings);
-          } else {
-            setSeatRearrangementStatus('completed');
-          }
-        } catch (error) {
-          console.error('Error analyzing vessel change:', error);
-          setSeatRearrangementStatus('error');
-        }
-      } else {
-        setVesselChangeDetected(false);
-        setSeatRearrangementStatus('idle');
-        setExistingBookings([]);
-        setRearrangementPreview([]);
-      }
-    };
-
-    // Add a small delay to prevent rapid fire calls
-    const timeoutId = setTimeout(detectVesselChange, 300);
-    return () => clearTimeout(timeoutId);
-  }, [formData.vessel_id, originalVesselId, tripId]);
 
   // Load segment data for fare editing
   const loadSegmentData = async (routeId: string) => {
@@ -481,36 +730,157 @@ export default function TripForm({
     (passengers: any[], newVesselSeats: any[]) => {
       const rearrangement: any[] = [];
 
-      // Sort passengers by their original seat preferences (window, aisle, etc.)
-      const sortedPassengers = [...passengers].sort((a, b) => {
-        const seatA = a.seats;
-        const seatB = b.seats;
+      if (!newVesselSeats || newVesselSeats.length === 0) {
+        return rearrangement;
+      }
 
-        // Prioritize window seats, then aisle seats
-        if (seatA?.is_window && !seatB?.is_window) return -1;
-        if (!seatA?.is_window && seatB?.is_window) return 1;
-        if (seatA?.is_aisle && !seatB?.is_aisle) return -1;
-        if (!seatA?.is_aisle && seatB?.is_aisle) return 1;
+      const rowSeatMap = new Map<
+        number,
+        {
+          id: string;
+          seat_number: string;
+          row_number: number;
+          is_window: boolean;
+          is_aisle: boolean;
+        }[]
+      >();
 
-        return 0;
+      newVesselSeats.forEach(seat => {
+        const row = seat.row_number || 0;
+        if (!rowSeatMap.has(row)) {
+          rowSeatMap.set(row, []);
+        }
+        rowSeatMap.get(row)?.push(seat);
       });
 
-      // Sort new vessel seats by preference (window, aisle, etc.)
-      const sortedNewSeats = [...newVesselSeats].sort((a, b) => {
-        if (a.is_window && !b.is_window) return -1;
-        if (!a.is_window && b.is_window) return 1;
-        if (a.is_aisle && !b.is_aisle) return -1;
-        if (!a.is_aisle && b.is_aisle) return 1;
-
-        // Then by row number and seat number
-        if (a.row_number !== b.row_number) return a.row_number - b.row_number;
-        return a.seat_number - b.seat_number;
+      const sortedRowNumbers = Array.from(rowSeatMap.keys()).sort(
+        (a, b) => a - b
+      );
+      sortedRowNumbers.forEach(row => {
+        rowSeatMap.get(row)?.sort((a, b) => {
+          const seatA = a.seat_number || '';
+          const seatB = b.seat_number || '';
+          if (a.is_window && !b.is_window) return -1;
+          if (!a.is_window && b.is_window) return 1;
+          if (a.is_aisle && !b.is_aisle) return -1;
+          if (!a.is_aisle && b.is_aisle) return 1;
+          return seatA.localeCompare(seatB, undefined, { numeric: true });
+        });
       });
 
-      // Map passengers to new seats
-      sortedPassengers.forEach((passenger, index) => {
-        if (index < sortedNewSeats.length) {
-          const newSeat = sortedNewSeats[index];
+      const passengersByBooking = passengers.reduce(
+        (acc: Record<string, any[]>, passenger: any) => {
+          const bookingId = passenger.booking_id || passenger.id;
+          if (!acc[bookingId]) {
+            acc[bookingId] = [];
+          }
+          acc[bookingId].push(passenger);
+          return acc;
+        },
+        {}
+      );
+
+      const sortPassengersBySeatPreference = (list: any[]) => {
+        return [...list].sort((a, b) => {
+          const seatA = a.seats;
+          const seatB = b.seats;
+          if (seatA?.row_number !== seatB?.row_number) {
+            return (seatA?.row_number || 0) - (seatB?.row_number || 0);
+          }
+          if (seatA?.is_window && !seatB?.is_window) return -1;
+          if (!seatA?.is_window && seatB?.is_window) return 1;
+          if (seatA?.is_aisle && !seatB?.is_aisle) return -1;
+          if (!seatA?.is_aisle && seatB?.is_aisle) return 1;
+          return (seatA?.seat_number || '').localeCompare(
+            seatB?.seat_number || '',
+            undefined,
+            { numeric: true }
+          );
+        });
+      };
+
+      const bookingGroups = Object.entries(passengersByBooking).map(
+        ([bookingId, passengerList]) => {
+          const sorted = sortPassengersBySeatPreference(passengerList);
+          const preferredRows = Array.from(
+            new Set(
+              sorted
+                .map(p => p.seats?.row_number)
+                .filter(row => typeof row === 'number')
+            )
+          ) as number[];
+
+          return {
+            bookingId,
+            passengers: sorted,
+            preferredRows: preferredRows.length > 0 ? preferredRows : [],
+          };
+        }
+      );
+
+      bookingGroups.sort((a, b) => {
+        const rowA = a.preferredRows[0] ?? Infinity;
+        const rowB = b.preferredRows[0] ?? Infinity;
+        if (rowA !== rowB) return rowA - rowB;
+        return a.bookingId.localeCompare(b.bookingId);
+      });
+
+      const findRowWithSeats = (
+        size: number,
+        targetRows: number[]
+      ): { row: number; seats: any[] } | null => {
+        const tried = new Set<number>();
+        for (const row of targetRows) {
+          if (tried.has(row)) continue;
+          tried.add(row);
+
+          const seats = rowSeatMap.get(row);
+          if (seats && seats.length >= size) {
+            return { row, seats: seats.splice(0, size) };
+          }
+        }
+
+        for (const row of sortedRowNumbers) {
+          if (tried.has(row)) continue;
+          const seats = rowSeatMap.get(row);
+          if (seats && seats.length >= size) {
+            return { row, seats: seats.splice(0, size) };
+          }
+        }
+
+        const pooled: any[] = [];
+        for (const row of sortedRowNumbers) {
+          const seats = rowSeatMap.get(row);
+          while (seats && seats.length && pooled.length < size) {
+            pooled.push(seats.shift());
+          }
+          if (pooled.length === size) {
+            return { row, seats: pooled };
+          }
+        }
+
+        return pooled.length
+          ? {
+              row: pooled[0]?.row_number || sortedRowNumbers[0],
+              seats: pooled,
+            }
+          : null;
+      };
+
+      bookingGroups.forEach(group => {
+        const allocation = findRowWithSeats(
+          group.passengers.length,
+          group.preferredRows
+        );
+
+        if (!allocation) {
+          return;
+        }
+
+        allocation.seats.forEach((seat, index) => {
+          const passenger = group.passengers[index];
+          if (!passenger) return;
+
           rearrangement.push({
             passenger_id: passenger.id,
             passenger_name: passenger.passenger_name,
@@ -524,15 +894,15 @@ export default function TripForm({
               is_aisle: passenger.seats?.is_aisle,
             },
             new_seat: {
-              id: newSeat.id,
-              number: newSeat.seat_number,
-              row: newSeat.row_number,
-              is_window: newSeat.is_window,
-              is_aisle: newSeat.is_aisle,
+              id: seat.id,
+              number: seat.seat_number,
+              row: seat.row_number,
+              is_window: seat.is_window,
+              is_aisle: seat.is_aisle,
             },
             status: 'pending',
           });
-        }
+        });
       });
 
       return rearrangement;
@@ -541,72 +911,146 @@ export default function TripForm({
   );
 
   // Apply seat rearrangement
-  const applySeatRearrangement = useCallback(async () => {
-    if (rearrangementPreview.length === 0) return;
-
-    // Show confirmation dialog
-    showConfirmation(
-      'Confirm Seat Rearrangement',
-      `This will automatically reassign ${rearrangementPreview.length} passengers to new vessel seats. This action cannot be undone. Do you want to continue?`,
-      async () => {
-        setSeatRearrangementStatus('rearranging');
-        await performSeatRearrangement();
-      },
-      undefined,
-      true // Mark as destructive action
-    );
-  }, [rearrangementPreview.length]);
-
-  // Perform the actual seat rearrangement
-  const performSeatRearrangement = useCallback(async () => {
+  const cleanupOldSeatReservations = useCallback(async () => {
+    if (!tripId || !originalVesselId) return;
     try {
-      // Update seat reservations for each passenger
-      for (const rearrangement of rearrangementPreview) {
-        const { error } = await supabase
-          .from('seat_reservations')
-          .update({
-            seat_id: rearrangement.new_seat.id,
-            is_available: false,
-            is_reserved: true,
-          })
-          .eq('trip_id', tripId)
-          .eq('seat_id', rearrangement.old_seat.id);
+      const { data: oldSeats, error } = await supabase
+        .from('seats')
+        .select('id')
+        .eq('vessel_id', originalVesselId);
 
-        if (error) {
-          console.error('Error updating seat reservation:', error);
-          continue;
-        }
-
-        // Update passenger's seat assignment
-        const { error: passengerError } = await supabase
-          .from('passengers')
-          .update({
-            seat_id: rearrangement.new_seat.id,
-          })
-          .eq('id', rearrangement.passenger_id);
-
-        if (passengerError) {
-          console.error('Error updating passenger seat:', passengerError);
-        }
+      if (error) {
+        console.error('Error fetching old vessel seats:', error);
+        return;
       }
 
-      setSeatRearrangementStatus('completed');
-      showSuccess(
-        'Seat Rearrangement Complete',
-        `Successfully rearranged ${rearrangementPreview.length} passengers to new vessel seats.`
-      );
-    } catch (error) {
-      console.error('Error applying seat rearrangement:', error);
-      setSeatRearrangementStatus('error');
-      showError(
-        'Error',
-        'Failed to apply seat rearrangement. Please try again.'
-      );
-    }
-  }, [rearrangementPreview, tripId]);
+      if (!oldSeats || oldSeats.length === 0) {
+        return;
+      }
 
-  // Check if rearrangement is in progress
-  const isRearranging = seatRearrangementStatus === 'rearranging';
+      await supabase
+        .from('seat_reservations')
+        .delete()
+        .eq('trip_id', tripId)
+        .in(
+          'seat_id',
+          oldSeats.map(seat => seat.id)
+        );
+    } catch (error) {
+      console.error('Error cleaning up old seat reservations:', error);
+    }
+  }, [originalVesselId, tripId]);
+
+  // Perform the actual seat rearrangement
+  const performSeatRearrangement = useCallback(
+    async (options?: { silent?: boolean }) => {
+      try {
+        // Update seat reservations for each passenger
+        for (const rearrangement of rearrangementPreview) {
+          const { error } = await supabase
+            .from('seat_reservations')
+            .update({
+              seat_id: rearrangement.new_seat.id,
+              is_available: false,
+              is_reserved: true,
+            })
+            .eq('trip_id', tripId)
+            .eq('seat_id', rearrangement.old_seat.id);
+
+          if (error) {
+            console.error('Error updating seat reservation:', error);
+            continue;
+          }
+
+          // Update passenger's seat assignment
+          const { error: passengerError } = await supabase
+            .from('passengers')
+            .update({
+              seat_id: rearrangement.new_seat.id,
+            })
+            .eq('id', rearrangement.passenger_id);
+
+          if (passengerError) {
+            console.error('Error updating passenger seat:', passengerError);
+          }
+        }
+
+        await cleanupOldSeatReservations();
+        setSeatRearrangementStatus('completed');
+
+        if (!options?.silent) {
+          showSuccess(
+            'Seat Rearrangement Complete',
+            `Successfully rearranged ${rearrangementPreview.length} passengers to new vessel seats.`
+          );
+        }
+      } catch (error) {
+        console.error('Error applying seat rearrangement:', error);
+        setSeatRearrangementStatus('error');
+        if (!options?.silent) {
+          showError(
+            'Error',
+            'Failed to apply seat rearrangement. Please try again.'
+          );
+        } else {
+          throw error;
+        }
+      }
+    },
+    [
+      cleanupOldSeatReservations,
+      rearrangementPreview,
+      showError,
+      showSuccess,
+      tripId,
+    ]
+  );
+
+  // Detect vessel changes and fetch existing bookings
+  useEffect(() => {
+    const detectVesselChange = async () => {
+      if (!tripId || !formData.vessel_id || !originalVesselId) return;
+
+      if (formData.vessel_id !== originalVesselId) {
+        setVesselChangeDetected(true);
+        setSeatRearrangementStatus('analyzing');
+
+        try {
+          const bookings =
+            existingBookings.length > 0
+              ? existingBookings
+              : await fetchExistingBookings();
+
+          // Generate seat rearrangement preview
+          if (bookings && bookings.length > 0) {
+            await generateSeatRearrangementPreview(bookings);
+          } else {
+            setSeatRearrangementStatus('completed');
+          }
+        } catch (error) {
+          console.error('Error analyzing vessel change:', error);
+          setSeatRearrangementStatus('error');
+        }
+      } else {
+        setVesselChangeDetected(false);
+        setSeatRearrangementStatus('idle');
+        setRearrangementPreview([]);
+        setVesselValidationStatus('idle');
+        setVesselValidationMessage(null);
+      }
+    };
+
+    // Add a small delay to prevent rapid fire calls
+    const timeoutId = setTimeout(detectVesselChange, 300);
+    return () => clearTimeout(timeoutId);
+  }, [
+    existingBookings.length,
+    fetchExistingBookings,
+    formData.vessel_id,
+    generateSeatRearrangementPreview,
+    originalVesselId,
+    tripId,
+  ]);
 
   // Track form changes
   useEffect(() => {
@@ -774,21 +1218,64 @@ export default function TripForm({
       return;
     }
 
-    // Check for vessel change conflicts
-    if (
-      vesselChangeDetected &&
-      seatRearrangementStatus === 'completed' &&
-      rearrangementPreview.length > 0
-    ) {
-      showConfirmation(
-        'Vessel Change Detected',
-        'You have changed the vessel and there are existing bookings. Please apply the seat rearrangement first before saving the trip.',
-        async () => {
-          await performSeatRearrangement();
-          await performTripUpdate();
+    const vesselChanged = Boolean(
+      tripId &&
+        originalVesselId &&
+        formData.vessel_id &&
+        formData.vessel_id !== originalVesselId
+    );
+
+    if (vesselChanged && formData.vessel_id) {
+      const validation = await validateVesselChange(formData.vessel_id);
+      if (!validation.valid) {
+        const message =
+          validation.error ||
+          'Cannot change vessel with the current configuration.';
+        setValidationErrors(prev => ({ ...prev, general: message }));
+        showError('Cannot Change Vessel', message);
+        return;
+      }
+
+      if (seatRearrangementStatus === 'analyzing') {
+        showInfo(
+          'Analyzing Bookings',
+          'Seat rearrangement is still being analyzed. Please wait a moment and try again.'
+        );
+        return;
+      }
+
+      const bookings =
+        existingBookings.length > 0
+          ? existingBookings
+          : await fetchExistingBookings();
+
+      if (bookings.length > 0) {
+        if (
+          seatRearrangementStatus !== 'completed' ||
+          rearrangementPreview.length === 0
+        ) {
+          await generateSeatRearrangementPreview(bookings);
         }
-      );
-      return;
+
+        showInfo(
+          'Transferring Passengers',
+          `Moving ${passengerCount} passenger${
+            passengerCount === 1 ? '' : 's'
+          } to ${selectedVessel?.name || 'the new vessel'}...`
+        );
+        setSeatRearrangementStatus('rearranging');
+        try {
+          await performSeatRearrangement({ silent: true });
+        } catch (error) {
+          console.error('Automatic seat transfer failed:', error);
+          setSeatRearrangementStatus('error');
+          showError(
+            'Seat Transfer Failed',
+            'Unable to transfer passengers to the new vessel. Please review seat rearrangement.'
+          );
+          return;
+        }
+      }
     }
 
     await performTripUpdate();
@@ -800,6 +1287,8 @@ export default function TripForm({
       // Get vessel capacity for available_seats
       const selectedVessel = vessels?.find(v => v.id === formData.vessel_id);
       const vesselCapacity = selectedVessel?.seating_capacity || 50; // Default fallback
+      const passengerCount = getPassengerCount();
+      const availableSeats = Math.max(vesselCapacity - passengerCount, 0);
 
       const tripFormData: TripFormData = {
         route_id: formData.route_id,
@@ -811,8 +1300,7 @@ export default function TripForm({
         fare_multiplier: formData.fare_multiplier,
         captain_id: formData.captain_id?.trim() || undefined,
         is_active: formData.is_active,
-        available_seats: vesselCapacity, // ✅ ADD missing available_seats field
-        booked_seats: 0, // ✅ ADD missing booked_seats field
+        available_seats: availableSeats,
         // Note: delay_reason, weather_conditions, notes, and crew_ids are not in the trips table
         // These fields need to be handled separately or added to the database schema
       };
@@ -900,6 +1388,17 @@ export default function TripForm({
 
       if (onSave) {
         onSave(tripFormData);
+      }
+
+      if (
+        currentTrip &&
+        formData.vessel_id &&
+        currentTrip.vessel_id !== formData.vessel_id
+      ) {
+        setOriginalVesselId(formData.vessel_id);
+        setVesselChangeDetected(false);
+        setVesselValidationStatus('idle');
+        setVesselValidationMessage(null);
       }
     } catch (error) {
       console.error('Error saving trip:', error);
@@ -1110,6 +1609,16 @@ export default function TripForm({
       })),
   ];
 
+  const selectedVessel = useMemo(() => {
+    if (!formData.vessel_id) return null;
+    return vessels?.find(vessel => vessel.id === formData.vessel_id) || null;
+  }, [formData.vessel_id, vessels]);
+
+  const passengerCount = getPassengerCount();
+  const capacityRemaining = selectedVessel
+    ? Math.max(selectedVessel.seating_capacity - passengerCount, 0)
+    : null;
+
   if (loading || tripLoading.data || !initialDataLoaded) {
     return (
       <View style={styles.loadingContainer}>
@@ -1215,9 +1724,7 @@ export default function TripForm({
             <Dropdown
               label='Vessel'
               value={formData.vessel_id}
-              onValueChange={(value: string) =>
-                setFormData(prev => ({ ...prev, vessel_id: value }))
-              }
+              onValueChange={handleVesselSelection}
               options={vesselOptions}
               placeholder='Select vessel'
               error={validationErrors.vessel_id}
@@ -1225,19 +1732,39 @@ export default function TripForm({
             />
           </View>
 
+          {vesselValidationMessage && (
+            <Text
+              style={[
+                styles.vesselValidationText,
+                vesselValidationStatus === 'invalid'
+                  ? styles.validationErrorText
+                  : styles.validationSuccessText,
+              ]}
+            >
+              {vesselValidationMessage}
+            </Text>
+          )}
+
           {/* Route Preview */}
           {formData.route_id && formData.vessel_id && (
             <View style={styles.routePreview}>
               <View style={styles.routePreviewIcon}>
                 <Ship size={16} color={colors.primary} />
               </View>
-              <Text style={styles.routePreviewText}>
-                {routes?.find(r => r.id === formData.route_id)?.name ||
-                  'Selected Route'}{' '}
-                •{' '}
-                {vessels?.find(v => v.id === formData.vessel_id)?.name ||
-                  'Selected Vessel'}
-              </Text>
+              <View style={styles.routePreviewContent}>
+                <Text style={styles.routePreviewText}>
+                  {routes?.find(r => r.id === formData.route_id)?.name ||
+                    'Selected Route'}{' '}
+                  • {selectedVessel?.name || 'Selected Vessel'}
+                </Text>
+                {selectedVessel && (
+                  <Text style={styles.capacityText}>
+                    Passenger load: {passengerCount}/
+                    {selectedVessel.seating_capacity} · Remaining:{' '}
+                    {capacityRemaining}
+                  </Text>
+                )}
+              </View>
             </View>
           )}
 
@@ -1311,17 +1838,6 @@ export default function TripForm({
                         +{rearrangementPreview.length - 3} more passengers
                       </Text>
                     )}
-
-                    <View style={styles.rearrangementActions}>
-                      <Button
-                        title='Apply Seat Rearrangement'
-                        onPress={applySeatRearrangement}
-                        variant='primary'
-                        icon={<RefreshCw size={16} color={colors.white} />}
-                        loading={isRearranging}
-                        disabled={isRearranging}
-                      />
-                    </View>
                   </View>
                 )}
 
@@ -1555,30 +2071,33 @@ export default function TripForm({
             <View style={styles.formHalf}>
               <TextInput
                 label='Fare Multiplier'
-                value={formData.fare_multiplier.toString()}
+                value={fareMultiplierDisplay}
                 onChangeText={text => {
-                  const numericValue = parseFloat(text) || 1.0;
-                  setFormData(prev => ({
-                    ...prev,
-                    fare_multiplier: numericValue,
-                  }));
+                  setFareMultiplierDisplay(text);
+                  if (text === '') {
+                    // User cleared the field - keep 1.0 internally for calculations
+                    setFormData(prev => ({
+                      ...prev,
+                      fare_multiplier: 1.0,
+                    }));
+                  } else if (text === '.') {
+                    // Don't update if just a decimal point
+                    return;
+                  } else {
+                    const numericValue = parseFloat(text);
+                    if (!isNaN(numericValue)) {
+                      // Allow zero to be entered (validation will catch it)
+                      setFormData(prev => ({
+                        ...prev,
+                        fare_multiplier: numericValue,
+                      }));
+                    }
+                  }
                 }}
-                placeholder='Enter fare multiplier'
-                keyboardType='decimal-pad'
+                placeholder='1.0'
+                keyboardType='numeric'
                 error={validationErrors.fare_multiplier}
                 required
-              />
-            </View>
-
-            <View style={styles.formHalf}>
-              <TextInput
-                label='Weather Conditions'
-                value={formData.weather_conditions || ''}
-                onChangeText={text =>
-                  setFormData(prev => ({ ...prev, weather_conditions: text }))
-                }
-                placeholder='Enter weather conditions'
-                error={validationErrors.weather_conditions}
               />
             </View>
           </View>
@@ -1598,20 +2117,6 @@ export default function TripForm({
               />
             </View>
           )}
-
-          <View style={styles.formGroup}>
-            <TextInput
-              label='Notes'
-              value={formData.notes || ''}
-              onChangeText={text =>
-                setFormData(prev => ({ ...prev, notes: text }))
-              }
-              placeholder='Enter trip notes (optional)'
-              multiline
-              numberOfLines={3}
-              error={validationErrors.notes}
-            />
-          </View>
         </View>
 
         {/* Settings */}
@@ -1655,7 +2160,11 @@ export default function TripForm({
             title={currentTrip ? 'Update Trip' : 'Create Trip'}
             onPress={handleSubmit}
             loading={loading}
-            disabled={loading}
+            disabled={
+              loading ||
+              (vesselChangeDetected && vesselValidationStatus === 'invalid') ||
+              seatRearrangementStatus === 'analyzing'
+            }
             variant='primary'
             icon={<Save size={18} color={colors.white} />}
           />
@@ -1819,12 +2328,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  routePreviewContent: {
+    flex: 1,
+  },
   routePreviewText: {
     fontSize: 14,
-    flex: 1,
     fontWeight: '600',
     lineHeight: 18,
     color: colors.primary,
+  },
+  capacityText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
   statusDescription: {
     flexDirection: 'row',
@@ -1948,6 +2465,18 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 18,
   },
+  vesselValidationText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: -12,
+    marginBottom: 12,
+  },
+  validationErrorText: {
+    color: colors.error,
+  },
+  validationSuccessText: {
+    color: colors.success,
+  },
   // Rearrangement status styles
   rearrangementStatus: {
     flexDirection: 'row',
@@ -2038,9 +2567,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 8,
-  },
-  rearrangementActions: {
-    marginTop: 16,
   },
   // Error status styles
   errorStatus: {

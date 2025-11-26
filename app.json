@@ -2,7 +2,7 @@
   "expo": {
     "name": "Crystal Transfer Vaavu",
     "slug": "crystal-transfer-vaavu",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "crystaltransfervaavu",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fies.crystaltransfervaavu",
-      "buildNumber": "7",
+      "buildNumber": "10",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -29,7 +29,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.fies.crystaltransfervaavu",
-      "versionCode": 8,
+      "versionCode": 9,
       "permissions": ["INTERNET", "ACCESS_NETWORK_STATE", "CAMERA"]
     },
     "web": {

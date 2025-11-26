@@ -202,8 +202,11 @@ export interface OperationsTrip extends DatabaseTrip {
   seating_capacity: number;
   booked_seats: number;
   bookings: number;
+  confirmed_bookings?: number;
   capacity: number;
   arrival_time: string;
+  total_revenue?: number;
+  occupancy_rate?: number;
   // Computed fields for display
   routeName?: string;
   vesselName?: string;

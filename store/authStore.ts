@@ -356,8 +356,23 @@ export const useAuthStore = create<AuthState>()(
       signOut: async () => {
         try {
           set({ isAuthenticating: true, error: null });
-          const { error } = await supabase.auth.signOut();
-          // if (error) throw error;
+
+          // Clear local storage for this device only
+          // Don't call supabase.auth.signOut() as it would sign out all devices
+
+          // Clear Zustand persisted auth state
+          await AsyncStorage.removeItem('auth-storage');
+
+          // Clear Supabase's local session storage
+          // Supabase stores sessions under keys like 'sb-<project-ref>-auth-token'
+          // We'll get all keys and clear Supabase-related auth keys
+          const allKeys = await AsyncStorage.getAllKeys();
+          const supabaseAuthKeys = allKeys.filter(
+            key => key.startsWith('sb-') && key.includes('auth')
+          );
+          await Promise.all(
+            supabaseAuthKeys.map(key => AsyncStorage.removeItem(key))
+          );
 
           // Set preventRedirect to true to avoid immediate navigation
           set({

@@ -17,6 +17,7 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { useTripStore } from '@/store/admin/tripStore';
 import RoleGuard from '@/components/RoleGuard';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { formatBookingDate } from '@/utils/dateUtils';
 import {
   ArrowLeft,
   Search,
@@ -325,7 +326,7 @@ export default function TripBookingsPage() {
             <View style={styles.detailItem}>
               <Calendar size={14} color={colors.textSecondary} />
               <Text style={styles.detailText}>
-                {new Date(item.booking_date).toLocaleDateString()}
+                {formatBookingDate(item.booking_date)}
               </Text>
             </View>
           </View>

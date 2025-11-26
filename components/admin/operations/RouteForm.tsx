@@ -686,10 +686,21 @@ export default function RouteForm({
             <View style={styles.formHalf}>
               <TextInput
                 label='Base Fare per Segment (MVR)'
-                value={formData.base_fare.toString()}
+                value={
+                  formData.base_fare === 0 ? '' : formData.base_fare.toString()
+                }
                 onChangeText={text => {
-                  const numericValue = parseFloat(text) || 0;
-                  setFormData(prev => ({ ...prev, base_fare: numericValue }));
+                  if (text === '' || text === '.') {
+                    setFormData(prev => ({ ...prev, base_fare: 0 }));
+                  } else {
+                    const numericValue = parseFloat(text);
+                    if (!isNaN(numericValue)) {
+                      setFormData(prev => ({
+                        ...prev,
+                        base_fare: numericValue,
+                      }));
+                    }
+                  }
                 }}
                 placeholder='Enter base fare per segment'
                 keyboardType='numeric'
@@ -850,14 +861,24 @@ export default function RouteForm({
                     <Input
                       label='Travel Time (min)'
                       value={
-                        stop.estimated_travel_time_from_previous?.toString() ||
-                        '30'
+                        stop.estimated_travel_time_from_previous === null ||
+                        stop.estimated_travel_time_from_previous === undefined
+                          ? ''
+                          : stop.estimated_travel_time_from_previous.toString()
                       }
                       onChangeText={text => {
-                        const time = parseInt(text) || 30;
-                        updateStop(stop.id, {
-                          estimated_travel_time_from_previous: time,
-                        });
+                        if (text === '') {
+                          updateStop(stop.id, {
+                            estimated_travel_time_from_previous: null,
+                          });
+                        } else {
+                          const time = parseInt(text);
+                          if (!isNaN(time)) {
+                            updateStop(stop.id, {
+                              estimated_travel_time_from_previous: time,
+                            });
+                          }
+                        }
                       }}
                       placeholder='30'
                       keyboardType='numeric'
@@ -970,10 +991,16 @@ export default function RouteForm({
                       </View>
                       <View style={styles.fareInputGroup}>
                         <Input
-                          value={fare.toString()}
+                          value={fare === 0 ? '' : fare.toString()}
                           onChangeText={text => {
-                            const newFare = parseFloat(text) || 0;
-                            updateSegmentFare(key, newFare);
+                            if (text === '' || text === '.') {
+                              updateSegmentFare(key, 0);
+                            } else {
+                              const newFare = parseFloat(text);
+                              if (!isNaN(newFare)) {
+                                updateSegmentFare(key, newFare);
+                              }
+                            }
                           }}
                           placeholder='0'
                           keyboardType='numeric'

@@ -7,9 +7,12 @@ import {
   Pressable,
   Keyboard,
   Clipboard,
+  Dimensions,
 } from 'react-native';
 import Colors from '@/constants/colors';
 import { useAlertContext } from '@/components/AlertProvider';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface OTPInputProps {
   length?: number;
@@ -210,6 +213,53 @@ export default function OTPInput({
   );
 }
 
+// Calculate responsive dimensions to ensure all inputs fit in one line
+const getResponsiveDimensions = () => {
+  const isSmallScreen = SCREEN_WIDTH < 375;
+  const isMediumScreen = SCREEN_WIDTH >= 375 && SCREEN_WIDTH < 414;
+
+  // Account for screen padding (20px on each side = 40px total)
+  // Card padding (16-20px on each side)
+  // Container padding
+  const screenPadding = 40; // 20px on each side
+  const cardPadding = isSmallScreen ? 32 : isMediumScreen ? 36 : 40; // 16-20px on each side
+  const containerPadding = isSmallScreen ? 4 : isMediumScreen ? 6 : 8; // Minimal padding inside container
+
+  // Calculate available width for 6 inputs
+  const availableWidth =
+    SCREEN_WIDTH - screenPadding - cardPadding - containerPadding * 2;
+
+  // Calculate margins - use smaller margins on small screens
+  const inputMargin = isSmallScreen ? 3 : isMediumScreen ? 4 : 5;
+  const totalMarginSpace = inputMargin * 2 * 6; // 6 inputs with margin on each side
+
+  // Calculate input width to fit exactly 6 inputs in one line
+  const calculatedWidth = Math.floor((availableWidth - totalMarginSpace) / 6);
+
+  // Set minimum and maximum constraints
+  const minWidth = 38; // Minimum touchable size
+  const maxWidth = isSmallScreen ? 42 : isMediumScreen ? 48 : 52;
+
+  // Use calculated width but respect constraints
+  const inputWidth = Math.max(minWidth, Math.min(calculatedWidth, maxWidth));
+
+  // Adjust height proportionally
+  const inputHeight = isSmallScreen ? 52 : isMediumScreen ? 58 : 62;
+
+  // Font size that fits well
+  const inputFontSize = isSmallScreen ? 20 : isMediumScreen ? 22 : 24;
+
+  return {
+    inputWidth,
+    inputHeight,
+    inputMargin,
+    inputFontSize,
+    containerPadding,
+  };
+};
+
+const responsiveDims = getResponsiveDimensions();
+
 const styles = StyleSheet.create({
   container: {
     width: '100%',
@@ -219,7 +269,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     width: '100%',
-    height: 60,
+    height: responsiveDims.inputHeight,
     opacity: 0,
     zIndex: 1,
   },
@@ -227,14 +277,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 10,
+    marginBottom: SCREEN_WIDTH < 375 ? 16 : 20,
+    paddingHorizontal: responsiveDims.containerPadding,
+    flexWrap: 'nowrap',
+    width: '100%',
   },
   inputWrapper: {
-    width: 50,
-    height: 60,
-    marginHorizontal: 6,
-    borderRadius: 12,
+    width: responsiveDims.inputWidth,
+    height: responsiveDims.inputHeight,
+    marginHorizontal: responsiveDims.inputMargin,
+    borderRadius: SCREEN_WIDTH < 375 ? 10 : 12,
     borderWidth: 2,
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
@@ -245,7 +297,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    display: 'flex',
+    flexShrink: 0, // Prevent shrinking to ensure all fit in one line
+    flexGrow: 0, // Prevent growing
   },
   inputWrapperFocused: {
     borderColor: Colors.primary,
@@ -266,11 +319,11 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   input: {
-    fontSize: 24,
+    fontSize: responsiveDims.inputFontSize,
     fontWeight: '700',
     color: Colors.text,
     textAlign: 'center',
-    lineHeight: 28,
+    lineHeight: responsiveDims.inputFontSize + 4,
     letterSpacing: 1,
     includeFontPadding: false,
   },
@@ -285,21 +338,21 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 20,
+    marginBottom: SCREEN_WIDTH < 375 ? 12 : 16,
+    paddingHorizontal: SCREEN_WIDTH < 375 ? 16 : 20,
   },
   errorText: {
     color: Colors.error,
-    fontSize: 14,
+    fontSize: SCREEN_WIDTH < 375 ? 13 : 14,
     textAlign: 'center',
   },
   dismissButton: {
     alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: SCREEN_WIDTH < 375 ? 6 : 8,
+    paddingHorizontal: SCREEN_WIDTH < 375 ? 12 : 16,
   },
   dismissButtonText: {
     color: Colors.textSecondary,
-    fontSize: 14,
+    fontSize: SCREEN_WIDTH < 375 ? 13 : 14,
   },
 });

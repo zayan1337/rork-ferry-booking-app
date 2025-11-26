@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react';
 import {
   View,
   Text,
@@ -97,10 +103,12 @@ const CategoryChip = React.memo<CategoryChipProps>(
 CategoryChip.displayName = 'CategoryChip';
 
 export default function SupportScreen() {
-  const { showAlert, showInfo } = useAlertContext();
+  const { showAlert } = useAlertContext();
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const [formOffset, setFormOffset] = useState(0);
 
   // Use contact form hook
   const { formState, updateField, submitForm, isValid } = useContactForm();
@@ -214,8 +222,10 @@ export default function SupportScreen() {
   };
 
   const handleChat = () => {
-    // In a real app, this would open a chat interface
-    showInfo('Chat Support', 'Chat support would open here');
+    scrollViewRef.current?.scrollTo({
+      y: Math.max(formOffset - 20, 0),
+      animated: true,
+    });
   };
 
   const handleSubmitMessage = async () => {
@@ -224,6 +234,7 @@ export default function SupportScreen() {
 
   return (
     <ScrollView
+      ref={scrollViewRef}
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
       refreshControl={
@@ -405,43 +416,48 @@ export default function SupportScreen() {
 
       {/* Contact Form */}
       <Text style={styles.sectionTitle}>Send Us a Message</Text>
-      <Card variant='elevated' style={styles.formCard}>
-        <Input
-          label='Name'
-          placeholder='Enter your name'
-          value={formState.contactName}
-          onChangeText={text => updateField('contactName', text)}
-          required
-        />
+      <View
+        onLayout={event => setFormOffset(event.nativeEvent.layout.y)}
+        style={styles.formWrapper}
+      >
+        <Card variant='elevated' style={styles.formCard}>
+          <Input
+            label='Name'
+            placeholder='Enter your name'
+            value={formState.contactName}
+            onChangeText={text => updateField('contactName', text)}
+            required
+          />
 
-        <Input
-          label='Email'
-          placeholder='Enter your email'
-          value={formState.contactEmail}
-          onChangeText={text => updateField('contactEmail', text)}
-          keyboardType='email-address'
-          required
-        />
+          <Input
+            label='Email'
+            placeholder='Enter your email'
+            value={formState.contactEmail}
+            onChangeText={text => updateField('contactEmail', text)}
+            keyboardType='email-address'
+            required
+          />
 
-        <Input
-          label='Message'
-          placeholder='How can we help you?'
-          value={formState.contactMessage}
-          onChangeText={text => updateField('contactMessage', text)}
-          multiline
-          numberOfLines={4}
-          required
-        />
+          <Input
+            label='Message'
+            placeholder='How can we help you?'
+            value={formState.contactMessage}
+            onChangeText={text => updateField('contactMessage', text)}
+            multiline
+            numberOfLines={4}
+            required
+          />
 
-        <Button
-          title='Send Message'
-          onPress={handleSubmitMessage}
-          loading={formState.isSubmitting}
-          disabled={formState.isSubmitting}
-          fullWidth
-          style={styles.submitButton}
-        />
-      </Card>
+          <Button
+            title='Send Message'
+            onPress={handleSubmitMessage}
+            loading={formState.isSubmitting}
+            disabled={formState.isSubmitting}
+            fullWidth
+            style={styles.submitButton}
+          />
+        </Card>
+      </View>
     </ScrollView>
   );
 }
@@ -673,6 +689,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  formWrapper: {
+    marginBottom: 24,
   },
   formCard: {
     marginBottom: 24,

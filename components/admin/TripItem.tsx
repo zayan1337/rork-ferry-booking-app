@@ -121,13 +121,25 @@ const TripItem = memo(({ trip, onPress, showStats = true }: TripItemProps) => {
         trip.to_island_name || 'Unknown'
       }`;
 
+    // Use vessel capacity instead of available_seats from trips table
+    // available_seats in trips table might be outdated or incorrect
+    const vesselCapacity = trip.capacity || trip.available_seats || 0;
+    const bookedSeats = trip.booked_seats || 0;
+
+    // Calculate actual available seats: capacity - booked
+    const actualAvailableSeats = Math.max(0, vesselCapacity - bookedSeats);
+
     const occupancyRate =
       trip.occupancy_rate ||
-      (trip.capacity ? (trip.booked_seats / trip.capacity) * 100 : 0);
+      (vesselCapacity > 0 ? (bookedSeats / vesselCapacity) * 100 : 0);
 
     const totalFare = (trip.base_fare || 0) * trip.fare_multiplier;
+    // Use total_revenue from database if available (excludes cancelled bookings)
+    // Otherwise calculate as fallback
     const estimatedRevenue =
-      totalFare * (trip.confirmed_bookings || trip.booked_seats);
+      trip.total_revenue !== undefined && trip.total_revenue !== null
+        ? Number(trip.total_revenue) || 0
+        : totalFare * (trip.confirmed_bookings || bookedSeats);
 
     const statusColor = getStatusColor(trip.status);
     const occupancyColor = getOccupancyColor(occupancyRate);
@@ -154,6 +166,9 @@ const TripItem = memo(({ trip, onPress, showStats = true }: TripItemProps) => {
       formattedArrivalTime,
       formattedTotalFare,
       formattedRevenue,
+      actualAvailableSeats,
+      vesselCapacity,
+      bookedSeats,
     };
   }, [
     trip.route_name,
@@ -161,6 +176,7 @@ const TripItem = memo(({ trip, onPress, showStats = true }: TripItemProps) => {
     trip.to_island_name,
     trip.occupancy_rate,
     trip.capacity,
+    trip.available_seats,
     trip.booked_seats,
     trip.base_fare,
     trip.fare_multiplier,
@@ -169,6 +185,7 @@ const TripItem = memo(({ trip, onPress, showStats = true }: TripItemProps) => {
     trip.departure_time,
     trip.travel_date,
     trip.arrival_time,
+    trip.total_revenue,
   ]);
 
   const handlePress = useMemo(() => () => onPress(trip.id), [onPress, trip.id]);
@@ -268,7 +285,7 @@ const TripItem = memo(({ trip, onPress, showStats = true }: TripItemProps) => {
               <Users size={14} color={computedValues.occupancyColor} />
               <Text style={styles.statLabel}>Seats</Text>
               <Text style={styles.statValue}>
-                {trip.booked_seats}/{trip.available_seats}
+                {computedValues.bookedSeats}/{computedValues.vesselCapacity}
               </Text>
             </View>
 

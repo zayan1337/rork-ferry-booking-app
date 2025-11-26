@@ -8,6 +8,7 @@ import {
   Platform,
   ScrollView,
   BackHandler,
+  Dimensions,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
@@ -15,6 +16,8 @@ import Colors from '@/constants/colors';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -258,6 +261,13 @@ export default function ForgotPasswordScreen() {
   );
 }
 
+// Responsive helper function
+const getResponsiveValue = (small: number, medium: number, large: number) => {
+  if (SCREEN_WIDTH < 375) return small;
+  if (SCREEN_WIDTH < 414) return medium;
+  return large;
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -265,82 +275,97 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 20,
+    padding: getResponsiveValue(16, 18, 20),
     justifyContent: 'center',
+    minHeight: SCREEN_HEIGHT * 0.9,
   },
   card: {
     width: '100%',
+    maxWidth: 500,
+    alignSelf: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: getResponsiveValue(22, 23, 24),
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 16,
+    marginBottom: getResponsiveValue(12, 14, 16),
     textAlign: 'center',
+    paddingHorizontal: getResponsiveValue(8, 12, 16),
   },
   description: {
-    fontSize: 16,
+    fontSize: getResponsiveValue(14, 15, 16),
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: getResponsiveValue(20, 22, 24),
+    lineHeight: getResponsiveValue(20, 22, 24),
+    paddingHorizontal: getResponsiveValue(8, 12, 16),
   },
   errorContainer: {
     backgroundColor: '#ffebee',
-    padding: 16,
+    padding: getResponsiveValue(12, 14, 16),
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: getResponsiveValue(12, 14, 16),
     alignItems: 'center',
+    marginHorizontal: getResponsiveValue(4, 8, 12),
   },
   errorText: {
     color: Colors.error,
-    fontSize: 14,
+    fontSize: getResponsiveValue(13, 13.5, 14),
     textAlign: 'center',
+    lineHeight: getResponsiveValue(18, 19, 20),
   },
   successContainer: {
     alignItems: 'center',
-    padding: 20,
+    padding: getResponsiveValue(16, 18, 20),
     backgroundColor: '#e8f5e9',
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: getResponsiveValue(12, 14, 16),
+    marginHorizontal: getResponsiveValue(4, 8, 12),
   },
   successIcon: {
-    fontSize: 32,
+    fontSize: getResponsiveValue(28, 30, 32),
     color: Colors.success,
-    marginBottom: 12,
+    marginBottom: getResponsiveValue(10, 11, 12),
   },
   successTitle: {
-    fontSize: 20,
+    fontSize: getResponsiveValue(18, 19, 20),
     fontWeight: '600',
     color: Colors.success,
-    marginBottom: 12,
+    marginBottom: getResponsiveValue(10, 11, 12),
+    textAlign: 'center',
+    paddingHorizontal: getResponsiveValue(8, 12, 16),
   },
   successText: {
-    fontSize: 16,
+    fontSize: getResponsiveValue(14, 15, 16),
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: getResponsiveValue(12, 14, 16),
+    lineHeight: getResponsiveValue(20, 22, 24),
+    paddingHorizontal: getResponsiveValue(8, 12, 16),
   },
   successNote: {
-    fontSize: 14,
+    fontSize: getResponsiveValue(13, 13.5, 14),
     color: Colors.textSecondary,
     fontStyle: 'italic',
-    marginBottom: 16,
+    marginBottom: getResponsiveValue(12, 14, 16),
+    textAlign: 'center',
   },
   resetButton: {
-    marginTop: 8,
+    marginTop: getResponsiveValue(6, 7, 8),
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: getResponsiveValue(20, 22, 24),
+    flexWrap: 'wrap',
   },
   loginText: {
     color: Colors.textSecondary,
-    fontSize: 16,
+    fontSize: getResponsiveValue(14, 15, 16),
   },
   loginLink: {
     color: Colors.primary,
-    fontSize: 16,
+    fontSize: getResponsiveValue(14, 15, 16),
     fontWeight: '600',
   },
   disabledLink: {

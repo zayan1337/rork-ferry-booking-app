@@ -574,16 +574,11 @@ export default function PaymentSuccessScreen() {
     }
   };
 
-  const formatStatusToCamelCase = (status: string): string => {
+  const formatStatusLabel = (status: string): string => {
     return status
       .split('_')
-      .map((word, index) => {
-        if (index === 0) {
-          return word.toLowerCase();
-        }
-        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-      })
-      .join('');
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   };
 
   const isNavigatingRef = useRef(false);
@@ -804,13 +799,13 @@ export default function PaymentSuccessScreen() {
             <View style={styles.resultRow}>
               <Text style={styles.resultLabel}>Payment Status:</Text>
               <Text style={styles.resultValue}>
-                {formatStatusToCamelCase(paymentResult.paymentStatus)}
+                {formatStatusLabel(paymentResult.paymentStatus)}
               </Text>
             </View>
             <View style={styles.resultRow}>
               <Text style={styles.resultLabel}>Booking Status:</Text>
               <Text style={styles.resultValue}>
-                {formatStatusToCamelCase(paymentResult.bookingStatus)}
+                {formatStatusLabel(paymentResult.bookingStatus)}
               </Text>
             </View>
           </View>

@@ -285,24 +285,32 @@ export const sortTrips = (
 // ============================================================================
 
 export const calculateTripStats = (trips: Trip[]): TripStats => {
-  const total = trips.length;
-  const active = trips.filter(trip => trip.is_active).length;
+  // Filter out cancelled trips for accurate counts and revenue
+  const activeTrips = trips.filter(trip => trip.status !== 'cancelled');
+  const total = activeTrips.length;
+  const active = activeTrips.filter(trip => trip.is_active).length;
   const inactive = total - active;
 
-  // Status counts
-  const scheduled = trips.filter(trip => trip.status === 'scheduled').length;
-  const inProgress = trips.filter(
+  // Status counts (excluding cancelled from total)
+  const scheduled = activeTrips.filter(
+    trip => trip.status === 'scheduled'
+  ).length;
+  const inProgress = activeTrips.filter(
     trip => trip.status === 'boarding' || trip.status === 'departed'
   ).length;
-  const completed = trips.filter(trip => trip.status === 'arrived').length;
+  const completed = activeTrips.filter(
+    trip => trip.status === 'arrived'
+  ).length;
   const cancelled = trips.filter(trip => trip.status === 'cancelled').length;
-  const delayed = trips.filter(trip => trip.status === 'delayed').length;
+  const delayed = activeTrips.filter(trip => trip.status === 'delayed').length;
 
-  // Today's trips
+  // Today's trips (excluding cancelled)
   const today = new Date().toISOString().split('T')[0];
-  const todayTrips = trips.filter(trip => trip.travel_date === today).length;
+  const todayTrips = activeTrips.filter(
+    trip => trip.travel_date === today
+  ).length;
 
-  // Calculate aggregations
+  // Calculate aggregations (only for non-cancelled trips)
   let totalRevenue = 0;
   let totalOccupancy = 0;
   let tripsWithOccupancy = 0;
@@ -310,9 +318,18 @@ export const calculateTripStats = (trips: Trip[]): TripStats => {
   let totalPassengers = 0;
   let onTimeTrips = 0;
 
-  trips.forEach(trip => {
-    const fare = (trip.base_fare || 0) * trip.fare_multiplier;
-    totalRevenue += fare * (trip.confirmed_bookings || trip.booked_seats || 0);
+  activeTrips.forEach(trip => {
+    // Use total_revenue from database if available (already excludes cancelled bookings)
+    // Otherwise fallback to calculated revenue
+    if (trip.total_revenue !== undefined && trip.total_revenue !== null) {
+      totalRevenue += Number(trip.total_revenue) || 0;
+    } else {
+      // Fallback calculation (shouldn't happen if database view is correct)
+      const fare = (trip.base_fare || 0) * trip.fare_multiplier;
+      totalRevenue +=
+        fare * (trip.confirmed_bookings || trip.booked_seats || 0);
+    }
+
     totalBookings += trip.confirmed_bookings || 0;
     totalPassengers += trip.booked_seats || 0;
 
@@ -326,35 +343,37 @@ export const calculateTripStats = (trips: Trip[]): TripStats => {
     }
   });
 
-  // Calculate averages
+  // Calculate averages (using active trips only)
   const averageOccupancy =
     tripsWithOccupancy > 0 ? totalOccupancy / tripsWithOccupancy : 0;
   const onTimePerformance = total > 0 ? (onTimeTrips / total) * 100 : 0;
   const avgFare =
     total > 0
-      ? trips.reduce(
+      ? activeTrips.reduce(
           (sum, trip) => sum + (trip.base_fare || 0) * trip.fare_multiplier,
           0
         ) / total
       : 0;
 
-  // Find top performers
+  // Find top performers (excluding cancelled trips)
   let topTripByRevenue: { trip: string; revenue: number } | undefined;
   let topTripByOccupancy: { trip: string; occupancy: number } | undefined;
 
   if (total > 0) {
-    const tripRevenues = trips.map(trip => ({
+    const tripRevenues = activeTrips.map(trip => ({
       trip: `${trip.route_name || 'Unknown Route'} - ${trip.travel_date} ${trip.departure_time}`,
       revenue:
-        (trip.base_fare || 0) *
-        trip.fare_multiplier *
-        (trip.confirmed_bookings || trip.booked_seats || 0),
+        trip.total_revenue !== undefined && trip.total_revenue !== null
+          ? Number(trip.total_revenue) || 0
+          : (trip.base_fare || 0) *
+            trip.fare_multiplier *
+            (trip.confirmed_bookings || trip.booked_seats || 0),
     }));
     topTripByRevenue = tripRevenues.reduce((max, current) =>
       current.revenue > max.revenue ? current : max
     );
 
-    const tripOccupancies = trips
+    const tripOccupancies = activeTrips
       .filter(trip => trip.occupancy_rate)
       .map(trip => ({
         trip: `${trip.route_name || 'Unknown Route'} - ${trip.travel_date} ${trip.departure_time}`,
@@ -367,9 +386,9 @@ export const calculateTripStats = (trips: Trip[]): TripStats => {
     }
   }
 
-  // Route with most trips
+  // Route with most trips (excluding cancelled)
   const routeTripCounts: Record<string, number> = {};
-  trips.forEach(trip => {
+  activeTrips.forEach(trip => {
     const routeName = trip.route_name || 'Unknown Route';
     routeTripCounts[routeName] = (routeTripCounts[routeName] || 0) + 1;
   });
