@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from 'react';
 import {
   View,
   Text,
@@ -8,6 +14,8 @@ import {
   BackHandler,
   KeyboardAvoidingView,
   Platform,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -33,10 +41,22 @@ import {
   PAYMENT_OPTIONS,
   REFRESH_INTERVALS,
   BOOKING_BUFFER_MINUTES,
+  BUFFER_MINUTES_PAYMENT_WINDOW,
 } from '@/constants/customer';
-import { validateTripForBooking } from '@/utils/bookingUtils';
+import {
+  getMinutesUntilDeparture,
+  validateTripForBooking,
+} from '@/utils/bookingUtils';
+import {
+  calculateBookingExpiry,
+  combineTripDateTime,
+} from '@/utils/bookingExpiryUtils';
+import { cancelPendingBookingDirectly } from '@/utils/paymentUtils';
 import { useAlertContext } from '@/components/AlertProvider';
 import { useAuthStore } from '@/store/authStore';
+import { usePaymentSessionStore } from '@/store/paymentSessionStore';
+import { usePendingBookingWatcher } from '@/hooks/usePendingBookingWatcher';
+import { supabase } from '@/utils/supabase';
 
 // Import new step components
 import IslandDateStep from '@/components/booking/steps/IslandDateStep';
@@ -44,7 +64,7 @@ import TripSelectionStep from '@/components/booking/steps/TripSelectionStep';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 export default function BookScreen() {
-  const { showSuccess, showError } = useAlertContext();
+  const { showSuccess, showError, showInfo } = useAlertContext();
   const { isAuthenticated, isGuestMode } = useAuthStore();
   const promptLoginForBooking = useCallback(() => {
     showError(
@@ -71,6 +91,16 @@ export default function BookScreen() {
   const [currentBookingId, setCurrentBookingId] = useState('');
   const [mibSessionData, setMibSessionData] = useState<any>(null);
   const [mibBookingDetails, setMibBookingDetails] = useState<any>(null);
+  const paymentSession = usePaymentSessionStore(state => state.session);
+  const setPaymentSession = usePaymentSessionStore(state => state.setSession);
+  const updatePaymentSession = usePaymentSessionStore(
+    state => state.updateSession
+  );
+  const clearPaymentSession = usePaymentSessionStore(
+    state => state.clearSession
+  );
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const timerExpiredRef = useRef(false);
 
   // Core booking state
   const {
@@ -100,6 +130,367 @@ export default function BookScreen() {
   const { isLoading: operationLoading } = useBookingOperationsStore();
 
   const isLoading = bookingLoading || seatLoading || operationLoading;
+
+  const calculatePaymentWindowSeconds = useCallback(
+    (tripInfo?: { travelDate: string; departureTime: string }) => {
+      if (tripInfo?.travelDate && tripInfo?.departureTime) {
+        const minutesUntilDeparture = getMinutesUntilDeparture(
+          tripInfo.travelDate,
+          tripInfo.departureTime
+        );
+        if (minutesUntilDeparture > 0) {
+          return Math.max(
+            30,
+            Math.min(
+              BUFFER_MINUTES_PAYMENT_WINDOW * 60,
+              minutesUntilDeparture * 60
+            )
+          );
+        }
+        return 0;
+      }
+      return BUFFER_MINUTES_PAYMENT_WINDOW * 60;
+    },
+    []
+  );
+
+  // Helper function to check booking status
+  const checkBookingStatus = useCallback(
+    async (
+      bookingId: string
+    ): Promise<'cancelled' | 'confirmed' | 'pending_payment' | 'unknown'> => {
+      try {
+        const { data: booking, error } = await supabase
+          .from('bookings')
+          .select('status')
+          .eq('id', bookingId)
+          .single();
+
+        if (error || !booking) return 'unknown';
+        return booking.status as 'cancelled' | 'confirmed' | 'pending_payment';
+      } catch (error) {
+        console.error('Error checking booking status:', error);
+        return 'unknown';
+      }
+    },
+    []
+  );
+
+  const finalizePaymentFlow = useCallback(
+    (
+      bookingId: string,
+      result: 'SUCCESS' | 'FAILURE' | 'CANCELLED',
+      extraParams: Record<string, string> = {},
+      skipPaymentSuccess: boolean = false
+    ) => {
+      const sessionContext = paymentSession?.context;
+      const sessionOriginalBookingId = paymentSession?.originalBookingId;
+
+      setShowMibPayment(false);
+      setCurrentBookingId('');
+      setMibSessionData(null);
+      setMibBookingDetails(null);
+      clearPaymentSession();
+
+      if (skipPaymentSuccess) {
+        // Redirect to bookings list instead of payment-success
+        router.replace('/(app)/(customer)/(tabs)/bookings');
+        return;
+      }
+
+      const finalParams: Record<string, string> = {
+        bookingId,
+        result,
+        resetBooking:
+          extraParams.resetBooking ??
+          (sessionContext === 'modification' ? 'false' : 'true'),
+        ...extraParams,
+      };
+
+      if (sessionContext === 'modification') {
+        finalParams.isModification = 'true';
+        if (sessionOriginalBookingId) {
+          finalParams.originalBookingId = sessionOriginalBookingId;
+        }
+      } else if (!('isModification' in finalParams)) {
+        finalParams.isModification = 'false';
+      }
+
+      router.replace({
+        pathname: '/(app)/(customer)/payment-success',
+        params: finalParams,
+      });
+    },
+    [clearPaymentSession, router, paymentSession]
+  );
+
+  const startPaymentSessionTracking = useCallback(
+    (
+      bookingId: string,
+      details: {
+        bookingNumber: string;
+        route: string;
+        travelDate: string;
+        amount: number;
+        currency: string;
+        passengerCount: number;
+      },
+      tripInfo?: { travelDate: string; departureTime: string }
+    ) => {
+      const seconds = calculatePaymentWindowSeconds(tripInfo);
+      const expiresAt =
+        seconds > 0
+          ? new Date(Date.now() + seconds * 1000).toISOString()
+          : new Date().toISOString();
+
+      setPaymentSession({
+        bookingId,
+        bookingDetails: details,
+        context: 'booking',
+        tripInfo,
+        sessionData: null,
+        startedAt: new Date().toISOString(),
+        expiresAt,
+      });
+    },
+    [calculatePaymentWindowSeconds, setPaymentSession]
+  );
+
+  const handleResumePayment = useCallback(() => {
+    if (!paymentSession) return;
+    setMibBookingDetails(paymentSession.bookingDetails);
+    setCurrentBookingId(paymentSession.bookingId);
+    setMibSessionData(paymentSession.sessionData || null);
+    setShowMibPayment(true);
+  }, [paymentSession]);
+
+  const handlePendingPaymentCancel = useCallback(async () => {
+    if (!paymentSession) return;
+    try {
+      // Cancel booking directly for instant response
+      await cancelPendingBookingDirectly(
+        paymentSession.bookingId,
+        'Cancelled by user from resume banner'
+      );
+      // Clear payment session immediately
+      clearPaymentSession();
+      finalizePaymentFlow(paymentSession.bookingId, 'CANCELLED');
+    } catch (error: any) {
+      console.error('Failed to cancel pending booking:', error);
+      // Clear payment session even if cancellation fails
+      clearPaymentSession();
+      // Still navigate to cancelled screen even if cancellation fails
+      finalizePaymentFlow(paymentSession.bookingId, 'CANCELLED');
+    }
+  }, [paymentSession, finalizePaymentFlow, clearPaymentSession]);
+
+  const resetLocalFormState = useCallback(() => {
+    setPaymentMethod('');
+    setTermsAccepted(false);
+    setPricingNoticeAccepted(false);
+    setErrors(createEmptyFormErrors());
+    setLocalSelectedSeats([]);
+    setLocalReturnSelectedSeats([]);
+    setSeatErrors({});
+    setShowMibPayment(false);
+    setCurrentBookingId('');
+    setMibSessionData(null);
+    setMibBookingDetails(null);
+  }, []);
+
+  const handlePaymentTimeout = useCallback(async () => {
+    if (!paymentSession) return;
+
+    const isModificationSession = paymentSession?.context === 'modification';
+
+    try {
+      // Call auto-cancel function
+      await supabase.functions.invoke('auto-cancel-pending', {
+        body: { bookingId: paymentSession.bookingId },
+      });
+
+      // Wait a moment for database update
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Check if booking was actually cancelled
+      const status = await checkBookingStatus(paymentSession.bookingId);
+
+      if (status === 'cancelled') {
+        // Booking was auto-cancelled - don't show payment-success page
+        clearPaymentSession();
+        if (isModificationSession) {
+          showInfo(
+            'Modification Cancelled',
+            'The payment window expired and the modification booking was automatically cancelled. Your original booking remains unchanged.'
+          );
+          router.replace('/(app)/(customer)/(tabs)/bookings');
+        } else {
+          showInfo(
+            'Payment Session Expired',
+            'The payment window expired and your booking was automatically cancelled. Seats have been released.'
+          );
+          resetCurrentBooking();
+          setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
+          resetLocalFormState();
+        }
+        return;
+      }
+    } catch (error) {
+      console.warn('Auto cancellation function failed:', error);
+    }
+
+    // Fallback: if status check fails, still show info but redirect to bookings
+    clearPaymentSession();
+    if (isModificationSession) {
+      showInfo(
+        'Modification Cancelled',
+        'The payment window has expired. Your original booking remains unchanged.'
+      );
+      router.replace('/(app)/(customer)/(tabs)/bookings');
+    } else {
+      showInfo(
+        'Payment Session Expired',
+        'The payment window has expired. Please check your bookings for the current status.'
+      );
+      resetCurrentBooking();
+      setCurrentStep(BOOKING_STEPS.ISLAND_DATE_SELECTION);
+      resetLocalFormState();
+    }
+  }, [
+    paymentSession,
+    checkBookingStatus,
+    clearPaymentSession,
+    showInfo,
+    resetCurrentBooking,
+    setCurrentStep,
+    resetLocalFormState,
+    router,
+  ]);
+
+  const getActiveBookingId = useCallback(() => {
+    return currentBookingId || paymentSession?.bookingId || '';
+  }, [currentBookingId, paymentSession]);
+
+  // Calculate smart expiry for resume banner
+  const resumeBannerExpiry = useMemo(() => {
+    if (!paymentSession || !paymentSession.tripInfo) {
+      return null;
+    }
+
+    try {
+      const bookingCreatedAt = new Date(paymentSession.startedAt);
+      const tripDeparture = combineTripDateTime(
+        paymentSession.tripInfo.travelDate,
+        paymentSession.tripInfo.departureTime
+      );
+      return calculateBookingExpiry(bookingCreatedAt, tripDeparture);
+    } catch (error) {
+      console.error('Error calculating resume banner expiry:', error);
+      return null;
+    }
+  }, [paymentSession]);
+
+  const { status: pendingBookingStatus, isLoading: pendingStatusLoading } =
+    usePendingBookingWatcher({
+      bookingId: paymentSession?.bookingId,
+      enabled: !!paymentSession,
+    });
+  const pendingStatusHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (!paymentSession?.bookingId) {
+      pendingStatusHandledRef.current = false;
+      return;
+    }
+
+    if (
+      !pendingStatusLoading &&
+      pendingBookingStatus &&
+      pendingBookingStatus !== 'pending_payment' &&
+      !pendingStatusHandledRef.current
+    ) {
+      pendingStatusHandledRef.current = true;
+      clearPaymentSession();
+      if (pendingBookingStatus === 'cancelled') {
+        showInfo(
+          'Booking Cancelled',
+          'The payment window expired and your booking was automatically cancelled.'
+        );
+      }
+      router.replace('/(app)/(customer)/(tabs)/bookings');
+    }
+  }, [
+    pendingBookingStatus,
+    pendingStatusLoading,
+    paymentSession?.bookingId,
+    clearPaymentSession,
+    showInfo,
+    router,
+  ]);
+
+  const shouldShowResumeBanner =
+    !!paymentSession &&
+    !showMibPayment &&
+    resumeBannerExpiry !== null &&
+    !resumeBannerExpiry.isExpired &&
+    pendingBookingStatus === 'pending_payment' &&
+    !pendingStatusLoading;
+
+  const hasBlockingPendingPayment =
+    shouldShowResumeBanner && paymentSession?.context === 'modification';
+
+  const [resumeCountdown, setResumeCountdown] = useState<{
+    minutes: number;
+    seconds: number;
+    totalSeconds: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (
+      !shouldShowResumeBanner ||
+      !resumeBannerExpiry?.expiresAt ||
+      pendingBookingStatus !== 'pending_payment'
+    ) {
+      setResumeCountdown(null);
+      return;
+    }
+
+    let timeoutTriggered = false;
+
+    const updateCountdown = () => {
+      const expiresAt =
+        resumeBannerExpiry.expiresAt instanceof Date
+          ? resumeBannerExpiry.expiresAt
+          : new Date(resumeBannerExpiry.expiresAt);
+      const diff = Math.max(0, expiresAt.getTime() - new Date().getTime());
+      const totalSeconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+
+      setResumeCountdown({ minutes, seconds, totalSeconds });
+
+      if (totalSeconds === 0 && !timeoutTriggered) {
+        timeoutTriggered = true;
+        handlePaymentTimeout();
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [
+    shouldShowResumeBanner,
+    resumeBannerExpiry?.expiresAt,
+    pendingBookingStatus,
+    handlePaymentTimeout,
+  ]);
+
+  const formatResumeCountdown = () => {
+    if (!resumeCountdown) return '--:--';
+    const pad = (value: number) => value.toString().padStart(2, '0');
+    return `${pad(resumeCountdown.minutes)}:${pad(resumeCountdown.seconds)}`;
+  };
 
   // Initialize default trip type
   useEffect(() => {
@@ -171,19 +562,34 @@ export default function BookScreen() {
     };
   }, []);
 
-  const resetLocalFormState = useCallback(() => {
-    setPaymentMethod('');
-    setTermsAccepted(false);
-    setPricingNoticeAccepted(false);
-    setErrors(createEmptyFormErrors());
-    setLocalSelectedSeats([]);
-    setLocalReturnSelectedSeats([]);
-    setSeatErrors({});
-    setShowMibPayment(false);
-    setCurrentBookingId('');
-    setMibSessionData(null);
-    setMibBookingDetails(null);
-  }, []);
+  useEffect(() => {
+    if (!paymentSession || showMibPayment) return;
+    if (new Date(paymentSession.expiresAt).getTime() <= Date.now()) {
+      handlePaymentTimeout();
+    }
+  }, [paymentSession, showMibPayment, handlePaymentTimeout]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextState: AppStateStatus) => {
+        if (
+          appStateRef.current.match(/inactive|background/) &&
+          nextState === 'active' &&
+          paymentSession
+        ) {
+          const expired =
+            new Date(paymentSession.expiresAt).getTime() <= Date.now();
+          if (expired) {
+            handlePaymentTimeout();
+          }
+        }
+        appStateRef.current = nextState;
+      }
+    );
+
+    return () => subscription.remove();
+  }, [paymentSession, handlePaymentTimeout]);
 
   // Sync local seats with store
   useEffect(() => {
@@ -489,6 +895,18 @@ export default function BookScreen() {
 
           setCurrentBookingId(bookingResult.bookingId);
           setMibBookingDetails(bookingDetails);
+          setMibSessionData(null);
+          const tripInfoDetails = currentBooking.trip
+            ? {
+                travelDate: currentBooking.trip.travel_date,
+                departureTime: currentBooking.trip.departure_time,
+              }
+            : undefined;
+          startPaymentSessionTracking(
+            bookingResult.bookingId,
+            bookingDetails,
+            tripInfoDetails
+          );
           setShowMibPayment(true);
         } else {
           resetCurrentBooking();
@@ -591,6 +1009,42 @@ export default function BookScreen() {
           ))}
           <View style={styles.progressLine} />
         </View>
+
+        {shouldShowResumeBanner && paymentSession && (
+          <Card variant='elevated' style={styles.paymentReminderCard}>
+            <Text style={styles.paymentReminderTitle}>
+              Complete Payment for Booking #
+              {paymentSession.bookingDetails.bookingNumber}
+            </Text>
+            <Text style={styles.paymentReminderText}>
+              Seats are reserved for{' '}
+              <Text style={styles.paymentReminderTime}>
+                {formatResumeCountdown()}
+              </Text>
+              {resumeBannerExpiry?.reason === 'departure_time' && (
+                <Text style={styles.paymentReminderNote}>
+                  {' '}
+                  (until departure time)
+                </Text>
+              )}
+              . Resume payment now or cancel the booking to release the seats.
+            </Text>
+            <View style={styles.paymentReminderActions}>
+              <Button
+                title='Continue Payment'
+                onPress={handleResumePayment}
+                style={styles.paymentReminderButton}
+              />
+              <Button
+                title='Cancel Booking'
+                onPress={handlePendingPaymentCancel}
+                variant='outline'
+                style={styles.paymentReminderButton}
+                textStyle={styles.cancelButtonText}
+              />
+            </View>
+          </Card>
+        )}
 
         <Card variant='elevated' style={styles.bookingCard}>
           {/* Step 1: Island & Date Selection */}
@@ -953,10 +1407,23 @@ export default function BookScreen() {
 
             {currentStep === BOOKING_STEPS.TRIP_SELECTION && (
               <Button
-                title='Next'
-                onPress={handleNext}
+                title={
+                  hasBlockingPendingPayment
+                    ? 'Complete Pending Payment'
+                    : 'Next'
+                }
+                onPress={
+                  hasBlockingPendingPayment
+                    ? () =>
+                        showInfo(
+                          'Pending Payment',
+                          'Please complete or cancel the pending modification payment before creating a new booking.'
+                        )
+                    : handleNext
+                }
                 style={styles.navigationButton}
                 disabled={
+                  hasBlockingPendingPayment ||
                   !currentBooking.trip ||
                   (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
                     !currentBooking.returnTrip)
@@ -967,18 +1434,43 @@ export default function BookScreen() {
             {currentStep > BOOKING_STEPS.TRIP_SELECTION &&
               currentStep < BOOKING_STEPS.PAYMENT && (
                 <Button
-                  title='Next'
-                  onPress={handleNext}
+                  title={
+                    hasBlockingPendingPayment
+                      ? 'Complete Pending Payment'
+                      : 'Next'
+                  }
+                  onPress={
+                    hasBlockingPendingPayment
+                      ? () =>
+                          showInfo(
+                            'Pending Payment',
+                            'Please complete or cancel the pending modification payment before creating a new booking.'
+                          )
+                      : handleNext
+                  }
                   style={styles.navigationButton}
+                  disabled={hasBlockingPendingPayment}
                 />
               )}
 
             {currentStep === BOOKING_STEPS.PAYMENT && (
               <Button
-                title='Confirm Booking'
-                onPress={handleConfirmBooking}
-                loading={isLoading}
-                disabled={isLoading}
+                title={
+                  hasBlockingPendingPayment
+                    ? 'Complete Pending Payment'
+                    : 'Confirm Booking'
+                }
+                onPress={
+                  hasBlockingPendingPayment
+                    ? () =>
+                        showInfo(
+                          'Pending Payment',
+                          'Please complete or cancel the pending modification payment before creating a new booking.'
+                        )
+                    : handleConfirmBooking
+                }
+                loading={isLoading && !hasBlockingPendingPayment}
+                disabled={isLoading || hasBlockingPendingPayment}
                 style={styles.navigationButton}
               />
             )}
@@ -997,63 +1489,85 @@ export default function BookScreen() {
                     travelDate: currentBooking.trip.travel_date,
                     departureTime: currentBooking.trip.departure_time,
                   }
-                : undefined
+                : paymentSession?.tripInfo
             }
-            sessionData={mibSessionData}
+            sessionData={
+              mibSessionData || paymentSession?.sessionData || undefined
+            }
             onClose={() => {
               setShowMibPayment(false);
               setCurrentBookingId('');
               setMibSessionData(null);
               setMibBookingDetails(null);
+              clearPaymentSession();
             }}
             onSuccess={result => {
-              const bookingIdForResult = currentBookingId;
-              setShowMibPayment(false);
-              setCurrentBookingId('');
-              setMibSessionData(null);
-              setMibBookingDetails(null);
-
-              router.replace({
-                pathname: '/(app)/(customer)/payment-success',
-                params: {
-                  bookingId: bookingIdForResult,
-                  result: 'SUCCESS',
-                  sessionId: result.sessionId,
-                  resetBooking: 'true',
-                },
+              const bookingIdForResult = getActiveBookingId();
+              if (!bookingIdForResult) {
+                showError(
+                  'Payment Error',
+                  'Unable to verify booking reference after payment.'
+                );
+                return;
+              }
+              finalizePaymentFlow(bookingIdForResult, 'SUCCESS', {
+                sessionId: result.sessionId,
               });
             }}
             onFailure={error => {
-              const bookingIdForResult = currentBookingId;
-              setShowMibPayment(false);
-              setCurrentBookingId('');
-              setMibSessionData(null);
-              setMibBookingDetails(null);
-
-              router.replace({
-                pathname: '/(app)/(customer)/payment-success',
-                params: {
-                  bookingId: bookingIdForResult,
-                  result: 'FAILURE',
-                  resetBooking: 'true',
-                },
-              });
+              const bookingIdForResult = getActiveBookingId();
+              if (!bookingIdForResult) {
+                showError(
+                  'Payment Error',
+                  error || 'Unable to continue payment.'
+                );
+                return;
+              }
+              finalizePaymentFlow(bookingIdForResult, 'FAILURE');
             }}
             onCancel={() => {
-              const bookingIdForResult = currentBookingId;
-              setShowMibPayment(false);
-              setCurrentBookingId('');
-              setMibSessionData(null);
-              setMibBookingDetails(null);
+              if (timerExpiredRef.current) {
+                timerExpiredRef.current = false;
+                return;
+              }
+              const bookingIdForResult = getActiveBookingId();
+              if (!bookingIdForResult) {
+                showError(
+                  'Payment Cancelled',
+                  'Booking reference missing while cancelling payment.'
+                );
+                return;
+              }
+              finalizePaymentFlow(bookingIdForResult, 'CANCELLED');
+            }}
+            onSessionCreated={session => {
+              setMibSessionData(session);
+              updatePaymentSession({ sessionData: session });
+            }}
+            onTimerExpired={async () => {
+              timerExpiredRef.current = true;
+              resetLocalFormState();
+              const bookingIdForResult = getActiveBookingId();
+              if (!bookingIdForResult) {
+                handlePaymentTimeout();
+                return;
+              }
 
-              router.replace({
-                pathname: '/(app)/(customer)/payment-success',
-                params: {
-                  bookingId: bookingIdForResult,
-                  result: 'CANCELLED',
-                  resetBooking: 'true',
-                },
-              });
+              // Check booking status before calling handlePaymentTimeout
+              const status = await checkBookingStatus(bookingIdForResult);
+
+              if (status === 'cancelled') {
+                // Already cancelled, just clear session and show message
+                clearPaymentSession();
+                showInfo(
+                  'Payment Session Expired',
+                  'The payment window expired and your booking was automatically cancelled.'
+                );
+                router.replace('/(app)/(customer)/(tabs)/bookings');
+              } else {
+                // Call timeout handler
+                handlePaymentTimeout();
+              }
             }}
           />
         )}
@@ -1260,6 +1774,42 @@ const styles = StyleSheet.create({
   hotlineNumber: {
     fontWeight: '700',
     color: Colors.primary,
+  },
+  paymentReminderCard: {
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+    padding: 16,
+    gap: 12,
+  },
+  paymentReminderTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  paymentReminderText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  paymentReminderTime: {
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  paymentReminderNote: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  paymentReminderActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  paymentReminderButton: {
+    flex: 1,
+  },
+  cancelButtonText: {
+    color: Colors.error,
   },
   buttonContainer: {
     flexDirection: 'row',

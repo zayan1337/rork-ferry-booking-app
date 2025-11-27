@@ -29,6 +29,7 @@ import {
   completeModificationAfterPayment,
 } from '@/utils/paymentUtils';
 import { useBookingStore } from '@/store';
+import { usePaymentSessionStore } from '@/store/paymentSessionStore';
 import { useAgentBookingFormStore } from '@/store/agent/agentBookingFormStore';
 import { useAgentStore } from '@/store/agent/agentStore';
 import { BOOKING_STEPS } from '@/constants/customer';
@@ -108,6 +109,14 @@ export default function PaymentSuccessScreen() {
     [shouldResetBooking, status]
   );
 
+  const clearPaymentSession = usePaymentSessionStore(
+    state => state.clearSession
+  );
+
+  useEffect(() => {
+    clearPaymentSession();
+  }, [clearPaymentSession]);
+
   useEffect(() => {
     const resultParam = (params.result as string) || '';
     const shouldReset = shouldResetBooking;
@@ -126,6 +135,61 @@ export default function PaymentSuccessScreen() {
       if (!bookingId) {
         setError('Booking ID not found');
         setStatus('failed');
+        return;
+      }
+
+      // First, check if booking is already cancelled (auto-cancelled)
+      // If so, don't process payment result - redirect to bookings list instead
+      const { data: bookingCheck } = await supabase
+        .from('bookings')
+        .select('status')
+        .eq('id', bookingId)
+        .single();
+
+      // If booking is cancelled and result is CANCELLED, it's likely auto-cancelled
+      // Redirect to bookings list instead of showing this page
+      if (bookingCheck?.status === 'cancelled' && result === 'CANCELLED') {
+        // Check if there's a cancellation record to determine if it was auto-cancelled
+        const { data: cancellation } = await supabase
+          .from('cancellations')
+          .select('cancellation_reason')
+          .eq('booking_id', bookingId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const isAutoCancellation =
+          cancellation?.cancellation_reason?.includes('expired') ||
+          cancellation?.cancellation_reason?.includes('timeout') ||
+          cancellation?.cancellation_reason?.includes('Payment window') ||
+          cancellation?.cancellation_reason?.includes('automatically');
+
+        if (isAutoCancellation && isModification) {
+          setLoading(false);
+          router.replace('/(app)/(customer)/(tabs)/bookings');
+          return;
+        }
+
+        if (isAutoCancellation) {
+          setLoading(false);
+          router.replace('/(app)/(customer)/(tabs)/bookings');
+          return;
+        }
+      }
+
+      // If booking is cancelled but not auto-cancelled (user-initiated), show cancelled status
+      if (bookingCheck?.status === 'cancelled') {
+        setPaymentResult({
+          success: false,
+          status: 'CANCELLED',
+          message: 'Booking was cancelled',
+          bookingId: bookingId,
+          sessionId: sessionId,
+          paymentStatus: 'cancelled',
+          bookingStatus: 'cancelled',
+        });
+        setStatus('cancelled');
+        setLoading(false);
         return;
       }
 

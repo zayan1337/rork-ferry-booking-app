@@ -298,23 +298,23 @@ export default function TripForm({
         .from('bookings')
         .select(
           `
-          id,
-          booking_number,
-          status,
-          total_fare,
-          passengers (
-            id,
-            passenger_name,
-            seat_id,
-            seats (
               id,
-              seat_number,
-              row_number,
-              is_window,
-              is_aisle
-            )
-          )
-        `
+              booking_number,
+              status,
+              total_fare,
+              passengers (
+                id,
+                passenger_name,
+                seat_id,
+                seats (
+                  id,
+                  seat_number,
+                  row_number,
+                  is_window,
+                  is_aisle
+                )
+              )
+            `
         )
         .eq('trip_id', tripId)
         .in('status', ['confirmed', 'checked_in', 'completed']);

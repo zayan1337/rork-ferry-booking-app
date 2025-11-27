@@ -1134,3 +1134,95 @@ export const cancelBookingOnPaymentCancellation = async (
     throw error;
   }
 };
+
+/**
+ * Cancel a pending payment booking directly via database updates
+ * This is faster than calling the Edge Function for user-initiated cancellations
+ *
+ * @param bookingId - The booking ID to cancel
+ * @param reason - Reason for cancellation (default: Cancelled by user)
+ * @returns Promise<void>
+ */
+export const cancelPendingBookingDirectly = async (
+  bookingId: string,
+  reason: string = 'Cancelled by user'
+): Promise<void> => {
+  try {
+    // 1. Update booking status to cancelled (only if it's pending_payment)
+    const { error: bookingUpdateError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', bookingId)
+      .eq('status', 'pending_payment'); // Only cancel pending bookings
+
+    if (bookingUpdateError) {
+      console.error('Error updating booking status:', bookingUpdateError);
+      throw new Error(
+        `Failed to update booking status: ${bookingUpdateError.message}`
+      );
+    }
+
+    // 2. Release seat reservations (regular and segment)
+    await releaseSeatReservations(bookingId);
+
+    // 3. Release segment reservations for multi-stop trips
+    const { error: segmentError } = await supabase
+      .from('seat_segment_reservations')
+      .delete()
+      .eq('booking_id', bookingId);
+
+    if (segmentError) {
+      console.warn(
+        'Error releasing segment reservations (non-critical):',
+        segmentError
+      );
+      // Don't throw - segment reservations are optional
+    }
+
+    // 4. Update payment status to cancelled (if payment exists)
+    const { error: paymentUpdateError } = await supabase
+      .from('payments')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('booking_id', bookingId)
+      .eq('status', 'pending'); // Only update pending payments
+
+    if (paymentUpdateError) {
+      console.warn(
+        'Error updating payment status (non-critical):',
+        paymentUpdateError
+      );
+    }
+
+    // 5. Create cancellation record
+    const cancellationNumber =
+      Math.floor(Math.random() * 9000000000) + 1000000000; // 10-digit number
+
+    const { error: cancellationError } = await supabase
+      .from('cancellations')
+      .insert({
+        booking_id: bookingId,
+        cancellation_number: cancellationNumber.toString(),
+        cancellation_reason: reason,
+        cancellation_fee: 0,
+        refund_amount: 0,
+        status: 'completed',
+      });
+
+    if (cancellationError) {
+      console.warn(
+        'Error creating cancellation record (non-critical):',
+        cancellationError
+      );
+      // Don't throw - cancellation record is for tracking only
+    }
+  } catch (error) {
+    console.error('Error in cancelPendingBookingDirectly:', error);
+    throw error;
+  }
+};

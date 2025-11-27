@@ -44,6 +44,12 @@ interface MibPaymentWebViewProps {
   onSuccess: (result: any) => void;
   onFailure: (error: string) => void;
   onCancel: () => void;
+  onSessionCreated?: (session: {
+    sessionId: string;
+    sessionUrl: string;
+    redirectUrl: string;
+  }) => void;
+  onTimerExpired?: () => void;
 }
 
 export default function MibPaymentWebView({
@@ -56,6 +62,8 @@ export default function MibPaymentWebView({
   onSuccess,
   onFailure,
   onCancel,
+  onSessionCreated,
+  onTimerExpired,
 }: MibPaymentWebViewProps) {
   const { showConfirmation } = useAlertContext();
   const [isLoading, setIsLoading] = useState(false);
@@ -187,6 +195,7 @@ export default function MibPaymentWebView({
           countdownIntervalRef.current = null;
         }
         // Cancel booking and close modal
+        onTimerExpired?.();
         onCancel();
       }, maxTimerSeconds * 1000);
 
@@ -776,6 +785,11 @@ export default function MibPaymentWebView({
 
       // Update current session data
       setCurrentSessionData({
+        sessionId: sessionData.sessionId,
+        sessionUrl: sessionData.sessionUrl,
+        redirectUrl: sessionData.redirectUrl,
+      });
+      onSessionCreated?.({
         sessionId: sessionData.sessionId,
         sessionUrl: sessionData.sessionUrl,
         redirectUrl: sessionData.redirectUrl,

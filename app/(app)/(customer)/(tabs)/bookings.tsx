@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react';
 import {
   View,
   Text,
@@ -6,6 +12,8 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Search } from 'lucide-react-native';
@@ -20,11 +28,19 @@ import { useAlertContext } from '@/components/AlertProvider';
 export default function BookingsScreen() {
   const { isAuthenticated, isGuestMode } = useAuthStore();
   const { showError } = useAlertContext();
-  const { bookings, fetchUserBookings, isLoading } = useUserBookingsStore();
+  const {
+    bookings,
+    fetchUserBookings,
+    isLoading,
+    subscribeToBookingUpdates,
+    unsubscribeFromBookingUpdates,
+  } = useUserBookingsStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>(
     'all'
   );
+
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
     if (isGuestMode || !isAuthenticated) {
@@ -36,7 +52,37 @@ export default function BookingsScreen() {
       return;
     }
     fetchUserBookings();
-  }, [fetchUserBookings, isGuestMode, isAuthenticated, showError, router]);
+
+    // Subscribe to real-time booking updates
+    const unsubscribe = subscribeToBookingUpdates();
+
+    // Listen for app state changes to refresh bookings when app comes to foreground
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        // App has come to the foreground, refresh bookings
+        fetchUserBookings();
+      }
+      appStateRef.current = nextAppState;
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      unsubscribe();
+      unsubscribeFromBookingUpdates();
+      subscription.remove();
+    };
+  }, [
+    fetchUserBookings,
+    isGuestMode,
+    isAuthenticated,
+    showError,
+    router,
+    subscribeToBookingUpdates,
+    unsubscribeFromBookingUpdates,
+  ]);
 
   const handleRefresh = useCallback(() => {
     fetchUserBookings();

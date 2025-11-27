@@ -131,6 +131,8 @@ export type Booking = {
   agentId?: string | null;
   isAgentBooking?: boolean;
   tripId?: string | null;
+  isModification?: boolean;
+  originalBookingId?: string | null;
 };
 
 // Base exports without conflicts

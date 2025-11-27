@@ -21,10 +21,12 @@ export interface PassengerFormData {
 }
 
 export interface BookingFormErrors {
+  [key: string]: string | undefined;
   date?: string;
   trip?: string;
   seats?: string;
   reason?: string;
+  paymentMethod?: string;
   payment?: string;
   accountNumber?: string;
   accountName?: string;
@@ -59,6 +61,11 @@ export interface ModifyBookingData {
   fareDifference: number;
   paymentMethod: PaymentMethod;
   bankAccountDetails: BankDetails | null;
+  boardingStopId?: string;
+  destinationStopId?: string;
+  boardingStopSequence?: number;
+  destinationStopSequence?: number;
+  segmentFare?: number;
 }
 
 export interface CancelBookingData {

@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from 'react';
 import {
   View,
   Text,
@@ -7,7 +13,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  Pressable,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useUserBookingsStore, useTripStore, useSeatStore } from '@/store';
@@ -24,6 +31,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
+import Dropdown from '@/components/Dropdown';
 import CalendarDatePicker from '@/components/CalendarDatePicker';
 import SeatSelector from '@/components/SeatSelector';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
@@ -42,13 +50,20 @@ import SegmentTripCard from '@/components/booking/SegmentTripCard';
 import {
   isTripBookable,
   getTripUnavailableMessage,
+  getMinutesUntilDeparture,
 } from '@/utils/bookingUtils';
 import { ActivityIndicator } from 'react-native';
+import { usePaymentSessionStore } from '@/store/paymentSessionStore';
+import {
+  BUFFER_MINUTES_PAYMENT_WINDOW,
+  PAYMENT_OPTIONS,
+} from '@/constants/customer';
+import { usePendingBookingWatcher } from '@/hooks/usePendingBookingWatcher';
 
 export default function ModifyBookingScreen() {
   const { id } = useLocalSearchParams();
   const scrollViewRef = useRef<ScrollView>(null);
-  const { showError, showSuccess, showWarning, showConfirmation } =
+  const { showError, showSuccess, showWarning, showConfirmation, showInfo } =
     useAlertContext();
 
   // Store hooks
@@ -105,6 +120,143 @@ export default function ModifyBookingScreen() {
   const [currentModificationId, setCurrentModificationId] = useState('');
   const [mibSessionData, setMibSessionData] = useState<any>(null);
   const [mibBookingDetails, setMibBookingDetails] = useState<any>(null);
+  const [autoCancelTriggered, setAutoCancelTriggered] = useState(false);
+  const paymentSession = usePaymentSessionStore(state => state.session);
+  const setPaymentSession = usePaymentSessionStore(state => state.setSession);
+  const updatePaymentSession = usePaymentSessionStore(
+    state => state.updateSession
+  );
+  const clearPaymentSession = usePaymentSessionStore(
+    state => state.clearSession
+  );
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const timerExpiredRef = useRef(false);
+  const manualNavigationRef = useRef(false);
+  const resetPaymentFlowState = useCallback(() => {
+    setShowMibPayment(false);
+    setCurrentModificationId('');
+    setMibSessionData(null);
+    setMibBookingDetails(null);
+  }, []);
+
+  const calculatePaymentWindowSeconds = useCallback(
+    (tripInfo?: { travelDate: string; departureTime: string }) => {
+      if (tripInfo?.travelDate && tripInfo?.departureTime) {
+        const minutesUntilDeparture = getMinutesUntilDeparture(
+          tripInfo.travelDate,
+          tripInfo.departureTime
+        );
+        if (minutesUntilDeparture > 0) {
+          return Math.max(
+            30,
+            Math.min(
+              BUFFER_MINUTES_PAYMENT_WINDOW * 60,
+              minutesUntilDeparture * 60
+            )
+          );
+        }
+        return 0;
+      }
+      return BUFFER_MINUTES_PAYMENT_WINDOW * 60;
+    },
+    []
+  );
+
+  const startPaymentSessionTracking = useCallback(
+    (
+      bookingId: string,
+      details: {
+        bookingNumber: string;
+        route: string;
+        travelDate: string;
+        amount: number;
+        currency: string;
+        passengerCount: number;
+      },
+      tripInfo?: { travelDate: string; departureTime: string },
+      originalBookingId?: string
+    ) => {
+      const seconds = calculatePaymentWindowSeconds(tripInfo);
+      const expiresAt =
+        seconds > 0
+          ? new Date(Date.now() + seconds * 1000).toISOString()
+          : new Date().toISOString();
+
+      setPaymentSession({
+        bookingId,
+        bookingDetails: details,
+        context: 'modification',
+        originalBookingId,
+        tripInfo,
+        sessionData: null,
+        startedAt: new Date().toISOString(),
+        expiresAt,
+      });
+    },
+    [calculatePaymentWindowSeconds, setPaymentSession]
+  );
+
+  const activeModificationBookingId = useMemo(
+    () => currentModificationId || paymentSession?.bookingId || null,
+    [currentModificationId, paymentSession?.bookingId]
+  );
+
+  const { status: pendingBookingStatus, isLoading: pendingStatusLoading } =
+    usePendingBookingWatcher({
+      bookingId: activeModificationBookingId ?? undefined,
+      enabled: !!activeModificationBookingId,
+    });
+
+  const handlePaymentTimeout = useCallback(async () => {
+    const targetBookingId = activeModificationBookingId;
+    if (!targetBookingId || autoCancelTriggered) {
+      return;
+    }
+
+    setAutoCancelTriggered(true);
+
+    try {
+      await supabase.functions.invoke('auto-cancel-pending', {
+        body: { bookingId: targetBookingId },
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const { data: bookingStatus } = await supabase
+        .from('bookings')
+        .select('status')
+        .eq('id', targetBookingId)
+        .single();
+
+      if (bookingStatus?.status === 'cancelled') {
+        clearPaymentSession();
+        resetPaymentFlowState();
+        showInfo(
+          'Modification Cancelled',
+          'The payment window expired and the modification booking was automatically cancelled. Your original booking remains unchanged.'
+        );
+        router.replace('/(app)/(customer)/(tabs)/bookings');
+        return;
+      }
+    } catch (error) {
+      console.warn('[MODIFY] Auto cancellation failed:', error);
+    }
+
+    clearPaymentSession();
+    resetPaymentFlowState();
+    showInfo(
+      'Payment Session Expired',
+      'The payment window has expired. Please check your bookings for the current status.'
+    );
+    router.replace('/(app)/(customer)/(tabs)/bookings');
+  }, [
+    activeModificationBookingId,
+    autoCancelTriggered,
+    clearPaymentSession,
+    resetPaymentFlowState,
+    showInfo,
+    router,
+  ]);
 
   // Enhanced keyboard handling
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -115,12 +267,15 @@ export default function ModifyBookingScreen() {
     accountName: null as any,
     bankName: null as any,
   });
-
   const isLoading = bookingsLoading || localTripsLoading || seatLoading;
 
   // Find the specific booking
   const booking =
     bookings.find((b: any) => String(b.id) === String(id)) || null;
+  const passengerLimit = useMemo(
+    () => booking?.passengers?.length || 0,
+    [booking?.passengers?.length]
+  );
 
   // Use booking eligibility hook
   const { isModifiable, message } = useBookingEligibility({ booking });
@@ -160,8 +315,9 @@ export default function ModifyBookingScreen() {
           // Silently handle cleanup errors
         });
       }
+      clearPaymentSession();
     };
-  }, []);
+  }, [selectedTrip?.trip_id, cleanupAllSeatSubscriptions, clearPaymentSession]);
 
   // Periodic seat refresh as fallback for real-time updates
   useEffect(() => {
@@ -259,6 +415,85 @@ export default function ModifyBookingScreen() {
       fetchUserBookings();
     }
   }, [fetchUserBookings, bookings.length]);
+
+  useEffect(() => {
+    if (!activeModificationBookingId) {
+      setAutoCancelTriggered(false);
+      timerExpiredRef.current = false;
+      manualNavigationRef.current = false;
+    }
+  }, [activeModificationBookingId]);
+
+  useEffect(() => {
+    if (
+      manualNavigationRef.current ||
+      !activeModificationBookingId ||
+      pendingStatusLoading ||
+      !pendingBookingStatus ||
+      pendingBookingStatus === 'pending_payment'
+    ) {
+      return;
+    }
+
+    clearPaymentSession();
+    resetPaymentFlowState();
+    if (pendingBookingStatus === 'cancelled') {
+      showInfo(
+        'Modification Cancelled',
+        'The modification booking was cancelled. Your original booking remains unchanged.'
+      );
+    }
+    router.replace('/(app)/(customer)/(tabs)/bookings');
+  }, [
+    pendingBookingStatus,
+    pendingStatusLoading,
+    activeModificationBookingId,
+    clearPaymentSession,
+    resetPaymentFlowState,
+    showInfo,
+    router,
+  ]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextState: AppStateStatus) => {
+        if (
+          appStateRef.current.match(/inactive|background/) &&
+          nextState === 'active' &&
+          paymentSession &&
+          paymentSession.bookingId === activeModificationBookingId
+        ) {
+          const expired =
+            new Date(paymentSession.expiresAt).getTime() <= Date.now();
+          if (expired) {
+            handlePaymentTimeout();
+          }
+        }
+        appStateRef.current = nextState;
+      }
+    );
+
+    return () => subscription.remove();
+  }, [paymentSession, activeModificationBookingId, handlePaymentTimeout]);
+
+  useEffect(() => {
+    if (
+      paymentSession &&
+      paymentSession.bookingId === activeModificationBookingId
+    ) {
+      const expired =
+        new Date(paymentSession.expiresAt).getTime() <= Date.now();
+      if (expired) {
+        handlePaymentTimeout();
+      }
+    }
+  }, [
+    paymentSession?.expiresAt,
+    paymentSession?.bookingId,
+    activeModificationBookingId,
+    handlePaymentTimeout,
+  ]);
 
   // Initialize form data when booking is loaded
   useEffect(() => {
@@ -558,6 +793,15 @@ export default function ModifyBookingScreen() {
           );
         }
       } else {
+        if (passengerLimit && selectedSeats.length >= passengerLimit) {
+          showWarning(
+            'Seat Limit Reached',
+            `This booking has ${passengerLimit} passenger${
+              passengerLimit === 1 ? '' : 's'
+            }. Please deselect a seat before choosing another one.`
+          );
+          return;
+        }
         // Double-check availability at selection time
         if (!seat.isAvailable && !seat.isCurrentUserReservation) {
           throw new Error('This seat is no longer available');
@@ -631,6 +875,11 @@ export default function ModifyBookingScreen() {
       isValid = false;
     }
 
+    if (fareDifference !== 0 && !selectedPaymentMethod) {
+      newErrors.paymentMethod = 'Please select a payment method';
+      isValid = false;
+    }
+
     // Validate payment details for refunds
     if (fareDifference < 0 && selectedPaymentMethod === 'bank_transfer') {
       const accountNumberError = validateRequired(
@@ -691,6 +940,11 @@ export default function ModifyBookingScreen() {
         fareDifference,
         paymentMethod: selectedPaymentMethod,
         bankAccountDetails: fareDifference < 0 ? bankAccountDetails : null,
+        boardingStopId: selectedTrip.boarding_stop_id,
+        destinationStopId: selectedTrip.destination_stop_id,
+        boardingStopSequence: selectedTrip.boarding_stop_sequence,
+        destinationStopSequence: selectedTrip.destination_stop_sequence,
+        segmentFare: selectedTrip.segment_fare,
       };
 
       const modificationResult = await modifyBooking(
@@ -721,9 +975,31 @@ export default function ModifyBookingScreen() {
             passengerCount: booking.passengers.length,
           };
 
+          const tripInfo = selectedTrip
+            ? {
+                travelDate:
+                  selectedTrip.travel_date ||
+                  selectedDate ||
+                  booking.departureDate,
+                departureTime:
+                  selectedTrip.departure_time || booking.departureTime,
+              }
+            : undefined;
+
+          startPaymentSessionTracking(
+            modificationResult.newBookingId,
+            bookingDetails,
+            tripInfo,
+            booking.id
+          );
+          timerExpiredRef.current = false;
+          manualNavigationRef.current = false;
+          setAutoCancelTriggered(false);
+
           // Show modal immediately with booking details
           setCurrentModificationId(modificationResult.newBookingId);
           setMibBookingDetails(bookingDetails);
+          setMibSessionData(null);
           setShowMibPayment(true);
         } else {
           // For other payment methods, show the existing alert
@@ -1049,72 +1325,22 @@ export default function ModifyBookingScreen() {
             {/* Payment Method Selection */}
             {fareDifference !== 0 && (
               <View style={styles.paymentMethodContainer}>
-                <Text style={styles.paymentMethodTitle}>
-                  {fareDifference > 0 ? 'Payment Method' : 'Refund Method'}
-                </Text>
-
-                <View style={styles.paymentOptions}>
-                  {fareDifference > 0 && (
-                    <Pressable
-                      style={[
-                        styles.paymentOption,
-                        selectedPaymentMethod === 'mib' &&
-                          styles.paymentOptionSelected,
-                      ]}
-                      onPress={() => setSelectedPaymentMethod('mib')}
-                    >
-                      <Text
-                        style={[
-                          styles.paymentOptionText,
-                          selectedPaymentMethod === 'mib' &&
-                            styles.paymentOptionTextSelected,
-                        ]}
-                      >
-                        MIB Payment
-                      </Text>
-                    </Pressable>
-                  )}
-
-                  {/* <Pressable
-                    style={[
-                      styles.paymentOption,
-                      selectedPaymentMethod === 'wallet' &&
-                        styles.paymentOptionSelected,
-                    ]}
-                    onPress={() => setSelectedPaymentMethod('wallet')}
-                  >
-                    <Text
-                      style={[
-                        styles.paymentOptionText,
-                        selectedPaymentMethod === 'wallet' &&
-                          styles.paymentOptionTextSelected,
-                      ]}
-                    >
-                      {fareDifference > 0
-                        ? 'Online Payment'
-                        : 'Original Method'}
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={[
-                      styles.paymentOption,
-                      selectedPaymentMethod === 'bank_transfer' &&
-                        styles.paymentOptionSelected,
-                    ]}
-                    onPress={() => setSelectedPaymentMethod('bank_transfer')}
-                  >
-                    <Text
-                      style={[
-                        styles.paymentOptionText,
-                        selectedPaymentMethod === 'bank_transfer' &&
-                          styles.paymentOptionTextSelected,
-                      ]}
-                    >
-                      Bank Transfer
-                    </Text>
-                  </Pressable> */}
-                </View>
+                <Dropdown
+                  label={
+                    fareDifference > 0 ? 'Payment Method' : 'Refund Method'
+                  }
+                  items={[...PAYMENT_OPTIONS]}
+                  value={selectedPaymentMethod}
+                  onChange={value => {
+                    setSelectedPaymentMethod(value as PaymentMethod);
+                    if (errors.paymentMethod) {
+                      setErrors(prev => ({ ...prev, paymentMethod: '' }));
+                    }
+                  }}
+                  placeholder='Select payment method'
+                  error={errors.paymentMethod}
+                  required
+                />
               </View>
             )}
 
@@ -1241,19 +1467,35 @@ export default function ModifyBookingScreen() {
           visible={showMibPayment}
           bookingDetails={mibBookingDetails}
           bookingId={currentModificationId}
-          sessionData={mibSessionData}
+          tripInfo={
+            selectedTrip
+              ? {
+                  travelDate:
+                    selectedTrip.travel_date ||
+                    selectedDate ||
+                    booking.departureDate,
+                  departureTime:
+                    selectedTrip.departure_time || booking.departureTime,
+                }
+              : paymentSession?.tripInfo
+          }
+          sessionData={
+            mibSessionData ||
+            (paymentSession?.bookingId === currentModificationId
+              ? paymentSession.sessionData || undefined
+              : undefined)
+          }
           onClose={() => {
-            setShowMibPayment(false);
-            setCurrentModificationId('');
-            setMibSessionData(null);
-            setMibBookingDetails(null);
+            resetPaymentFlowState();
+            clearPaymentSession();
+            setAutoCancelTriggered(false);
+            timerExpiredRef.current = false;
           }}
           onSuccess={result => {
+            manualNavigationRef.current = true;
             // Close the modal first
-            setShowMibPayment(false);
-            setCurrentModificationId('');
-            setMibSessionData(null);
-            setMibBookingDetails(null);
+            resetPaymentFlowState();
+            clearPaymentSession();
 
             // Navigate to payment success page with modification success
             router.push({
@@ -1268,11 +1510,10 @@ export default function ModifyBookingScreen() {
             });
           }}
           onFailure={error => {
+            manualNavigationRef.current = true;
             // Close the modal first
-            setShowMibPayment(false);
-            setCurrentModificationId('');
-            setMibSessionData(null);
-            setMibBookingDetails(null);
+            resetPaymentFlowState();
+            clearPaymentSession();
 
             // Navigate to payment success page with failure status
             // The new booking will be cancelled, old booking remains unchanged
@@ -1287,11 +1528,14 @@ export default function ModifyBookingScreen() {
             });
           }}
           onCancel={() => {
+            if (timerExpiredRef.current) {
+              timerExpiredRef.current = false;
+              return;
+            }
+            manualNavigationRef.current = true;
             // Close the modal first
-            setShowMibPayment(false);
-            setCurrentModificationId('');
-            setMibSessionData(null);
-            setMibBookingDetails(null);
+            resetPaymentFlowState();
+            clearPaymentSession();
 
             // Navigate to payment success page with cancelled status
             // The new booking will be cancelled, old booking remains unchanged
@@ -1304,6 +1548,14 @@ export default function ModifyBookingScreen() {
                 isModification: 'true',
               },
             });
+          }}
+          onSessionCreated={session => {
+            setMibSessionData(session);
+            updatePaymentSession({ sessionData: session });
+          }}
+          onTimerExpired={() => {
+            timerExpiredRef.current = true;
+            handlePaymentTimeout();
           }}
         />
       )}
@@ -1458,37 +1710,6 @@ const styles = StyleSheet.create({
   },
   paymentMethodContainer: {
     marginBottom: 16,
-  },
-  paymentMethodTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  paymentOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  paymentOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.background,
-  },
-  paymentOptionSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  paymentOptionText: {
-    fontSize: 14,
-    color: Colors.text,
-    fontWeight: '500',
-  },
-  paymentOptionTextSelected: {
-    color: '#fff',
   },
   bankDetailsContainer: {
     marginBottom: 16,

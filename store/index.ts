@@ -12,6 +12,7 @@ import { useTicketStore } from './ticketStore';
 
 // Core booking state management
 export { useBookingStore } from './bookingStore';
+export { usePaymentSessionStore } from './paymentSessionStore';
 
 // Route and trip management
 export { useRouteStore, useTripStore } from './routeStore';

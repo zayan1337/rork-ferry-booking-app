@@ -116,6 +116,8 @@ export const VALIDATION_RULES = {
 } as const;
 
 // Booking restrictions
+// BOOKING_BUFFER_MINUTES: total time a trip remains bookable before departure
+// BUFFER_MINUTES_PAYMENT_WINDOW: shorter window for the WebView/payment session itself
 export const BOOKING_BUFFER_MINUTES = 10;
 export const BUFFER_MINUTES_PAYMENT_WINDOW = 4;
 export const ALLOWED_TRIP_STATUSES = ['scheduled', 'delayed'] as const;
