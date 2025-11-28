@@ -1055,24 +1055,117 @@ DECLARE
   date_str VARCHAR(8);
   random_part VARCHAR(6);
   exists_check VARCHAR(20);
+  primary_booking_id UUID;
+  return_booking_id UUID;
+  round_trip_group_id UUID;
+  existing_receipt VARCHAR(20);
 BEGIN
   -- Only generate if receipt_number is not already set
   IF NEW.receipt_number IS NULL OR NEW.receipt_number = '' THEN
+
+    -- ============================================
+    -- CASE 1: Round Trip - Share Receipt Number
+    -- ============================================
+    -- Check if this booking is part of a round trip
+    SELECT
+      b.id,
+      b.return_booking_id,
+      b.round_trip_group_id
+    INTO
+      primary_booking_id,
+      return_booking_id,
+      round_trip_group_id
+    FROM bookings b
+    WHERE b.id = NEW.booking_id;
+
+    -- If this booking has a return_booking_id, it's the primary booking
+    -- Check if return booking's payment already has a receipt_number
+    IF return_booking_id IS NOT NULL THEN
+      SELECT receipt_number INTO existing_receipt
+      FROM payments
+      WHERE booking_id = return_booking_id
+        AND payment_method = NEW.payment_method
+      ORDER BY created_at DESC
+      LIMIT 1;
+
+      IF existing_receipt IS NOT NULL THEN
+        -- Return booking already has receipt_number, use it
+        NEW.receipt_number := existing_receipt;
+        RETURN NEW;
+      END IF;
+    END IF;
+
+    -- If this booking's ID matches another booking's return_booking_id, it's the return booking
+    -- Check if primary booking's payment already has a receipt_number
+    SELECT
+      b.id,
+      b.round_trip_group_id
+    INTO
+      primary_booking_id,
+      round_trip_group_id
+    FROM bookings b
+    WHERE b.return_booking_id = NEW.booking_id;
+
+    IF primary_booking_id IS NOT NULL THEN
+      SELECT receipt_number INTO existing_receipt
+      FROM payments
+      WHERE booking_id = primary_booking_id
+        AND payment_method = NEW.payment_method
+      ORDER BY created_at DESC
+      LIMIT 1;
+
+      IF existing_receipt IS NOT NULL THEN
+        -- Primary booking already has receipt_number, use it
+        NEW.receipt_number := existing_receipt;
+        RETURN NEW;
+      END IF;
+    END IF;
+
+    -- Also check by round_trip_group_id as fallback
+    IF round_trip_group_id IS NOT NULL THEN
+      SELECT receipt_number INTO existing_receipt
+      FROM payments p
+      JOIN bookings b ON p.booking_id = b.id
+      WHERE b.round_trip_group_id = round_trip_group_id
+        AND p.payment_method = NEW.payment_method
+        AND p.receipt_number IS NOT NULL
+      ORDER BY p.created_at ASC
+      LIMIT 1;
+
+      IF existing_receipt IS NOT NULL THEN
+        -- Another booking in the same round trip group has receipt_number, use it
+        NEW.receipt_number := existing_receipt;
+        RETURN NEW;
+      END IF;
+    END IF;
+
+    -- ============================================
+    -- CASE 2: Modified Booking - Generate Unique Receipt Number
+    -- ============================================
+    -- NOTE: Modified bookings get their own unique receipt_number
+    -- because MIB payment gateway requires unique order IDs for each transaction.
+    -- The booking_number is used as order reference to link them for refund purposes.
+    -- No special handling needed here - will fall through to generate new receipt_number
+
+    -- ============================================
+    -- CASE 3: Generate New Receipt Number
+    -- ============================================
+    -- No existing receipt_number found, generate a new one
     -- Generate date string (YYYYMMDD)
     date_str := TO_CHAR(NOW(), 'YYYYMMDD');
-    
+
     -- Generate random 6-digit number
     random_part := LPAD(FLOOR(RANDOM() * 1000000)::TEXT, 6, '0');
-    
+
     -- Combine: RCP + date + random
     receipt_num := 'RCP' || date_str || random_part;
-    
+
     -- Check for uniqueness (retry if exists, max 10 attempts)
     FOR i IN 1..10 LOOP
       SELECT receipt_number INTO exists_check
       FROM payments
       WHERE receipt_number = receipt_num;
-      
+
       IF exists_check IS NULL THEN
         -- Unique, use it
         EXIT;
@@ -1082,10 +1175,10 @@ BEGIN
         receipt_num := 'RCP' || date_str || random_part;
       END IF;
     END LOOP;
-    
+
     NEW.receipt_number := receipt_num;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -2594,7 +2687,6 @@ create table public.payments (
   updated_at timestamp with time zone not null default CURRENT_TIMESTAMP,
   session_id character varying(100) null,
   constraint payments_pkey primary key (id),
-  constraint payments_receipt_number_key unique (receipt_number),
   constraint payments_booking_id_fkey foreign KEY (booking_id) references bookings (id)
 ) TABLESPACE pg_default;
 
@@ -2603,6 +2695,12 @@ create index IF not exists idx_payments_booking_id on public.payments using btre
 create index IF not exists idx_payments_booking_status_date on public.payments using btree (booking_id, status, created_at) TABLESPACE pg_default;
 
 create index IF not exists idx_payments_status_created_at on public.payments using btree (status, created_at) TABLESPACE pg_default;
+
+-- Unique index for receipt_number (allows NULL, enforces uniqueness for non-NULL values)
+-- This enables sharing receipt numbers for round trips while maintaining data integrity
+CREATE UNIQUE INDEX IF NOT EXISTS payments_receipt_number_key
+ON payments (receipt_number)
+WHERE receipt_number IS NOT NULL;
 
 create table public.permission_audit_logs (
   id uuid not null default gen_random_uuid (),

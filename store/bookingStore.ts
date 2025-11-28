@@ -1500,13 +1500,19 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         // This ensures consistency with agent booking flow and proper payment tracking
         const paymentAmount = outboundLegFare; // Use individual leg fare, not combined total
 
-        const { error: paymentError } = await supabase.from('payments').insert({
-          booking_id: booking.id,
-          payment_method: paymentMethod as PaymentMethod,
-          amount: paymentAmount,
-          currency: 'MVR',
-          status: 'pending',
-        });
+        // For round trips, create departure payment first
+        // The trigger will generate receipt_number for the first payment
+        const { data: paymentRecord, error: paymentError } = await supabase
+          .from('payments')
+          .insert({
+            booking_id: booking.id,
+            payment_method: paymentMethod as PaymentMethod,
+            amount: paymentAmount,
+            currency: 'MVR',
+            status: 'pending',
+          })
+          .select('receipt_number')
+          .single();
 
         if (paymentError) {
           // Execute rollback if payment creation fails
@@ -1520,8 +1526,11 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         // Add payment rollback to stack
         rollbackStack.push(createPaymentRollback(booking.id));
 
-        // For round trips, create a separate payment record for the return booking
-        // This ensures consistency with agent booking flow and proper payment tracking
+        // For round trips, create return payment
+        // IMPORTANT: The trigger will automatically share the receipt_number from the departure payment
+        // DO NOT explicitly set receipt_number - let the trigger handle it to avoid duplicate key violations
+        // The trigger checks round_trip_group_id to find the related payment and share the receipt_number
+        // Bookings are already linked above (lines 1380-1394), so the trigger can find the departure payment
         if (returnBookingId && returnLegTotalFare > 0) {
           const { error: returnPaymentError } = await supabase
             .from('payments')
@@ -1531,6 +1540,8 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
               amount: returnLegTotalFare,
               currency: 'MVR',
               status: 'pending',
+              // receipt_number will be automatically set by trigger to match departure payment
+              // The trigger checks round_trip_group_id to find the departure payment's receipt_number
             });
 
           if (returnPaymentError) {

@@ -137,6 +137,7 @@ export type Booking = {
   returnBookingId?: string | null;
   roundTripGroupId?: string | null;
   displayFare?: number;
+  isFromModification?: boolean; // Indicates if booking was created from a modification
 };
 
 // Base exports without conflicts

@@ -234,7 +234,8 @@ export const validateAgentCredit = (
   if (!agent.creditCeiling || agent.creditCeiling <= 0) {
     return {
       isValid: false,
-      error: 'No credit limit assigned. Please contact administrator to set up your credit limit before using credit payment.',
+      error:
+        'No credit limit assigned. Please contact administrator to set up your credit limit before using credit payment.',
     };
   }
 
@@ -242,7 +243,8 @@ export const validateAgentCredit = (
   if (agent.creditBalance <= 0) {
     return {
       isValid: false,
-      error: 'Credit balance is zero. Please top up your credit balance before making a booking with credit payment.',
+      error:
+        'Credit balance is zero. Please top up your credit balance before making a booking with credit payment.',
     };
   }
 
@@ -278,7 +280,8 @@ export const validateAgentFreeTickets = (
   ) {
     return {
       isValid: false,
-      error: 'No free tickets allocated. Please contact administrator to allocate free tickets before using free ticket payment.',
+      error:
+        'No free tickets allocated. Please contact administrator to allocate free tickets before using free ticket payment.',
     };
   }
 
@@ -290,7 +293,8 @@ export const validateAgentFreeTickets = (
   ) {
     return {
       isValid: false,
-      error: 'No free tickets available. All allocated free tickets have been used. Please use a different payment method.',
+      error:
+        'No free tickets available. All allocated free tickets have been used. Please use a different payment method.',
     };
   }
 

@@ -123,6 +123,7 @@ export default function BookingDetailsScreen() {
   // Use booking eligibility hook
   const { isModifiable, isCancellable, message } = useBookingEligibility({
     booking,
+    isFromModification: booking?.isFromModification || false,
   });
 
   const isPaymentPending = booking?.status === 'pending_payment';

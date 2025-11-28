@@ -231,6 +231,9 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                                 zone
                             )
                         )
+                    ),
+                    modifications:modifications!modifications_new_booking_id_fkey (
+                        old_booking_id
                     )
                 `
         )
@@ -541,6 +544,12 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
         const commission =
           originalFare > discountedFare ? originalFare - discountedFare : 0;
 
+        // Check if this booking is from a modification
+        const modificationRecord = Array.isArray(booking.modifications)
+          ? booking.modifications[0]
+          : booking.modifications;
+        const isFromModification = Boolean(modificationRecord); // This booking is a NEW booking created from modification
+
         // Build the comprehensive booking object
         return {
           id: booking.id,
@@ -582,6 +591,7 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
           tripType: booking.is_round_trip
             ? ('round_trip' as const)
             : ('one_way' as const),
+          isFromModification, // Add explicit flag for eligibility checks
         };
       });
 

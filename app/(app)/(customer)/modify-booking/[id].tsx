@@ -59,6 +59,7 @@ import {
   PAYMENT_OPTIONS,
 } from '@/constants/customer';
 import { usePendingBookingWatcher } from '@/hooks/usePendingBookingWatcher';
+import { AlertCircle } from 'lucide-react-native';
 
 export default function ModifyBookingScreen() {
   const { id } = useLocalSearchParams();
@@ -1148,6 +1149,21 @@ export default function ModifyBookingScreen() {
           </View>
         </Card>
 
+        {/* Warning Card */}
+        <Card variant='elevated' style={styles.warningCard}>
+          <View style={styles.warningContent}>
+            <AlertCircle size={24} color={Colors.warning} />
+            <View style={styles.warningTextContainer}>
+              <Text style={styles.warningTitle}>Important Notice</Text>
+              <Text style={styles.warningText}>
+                Once you modify this booking, you will not be able to cancel or
+                modify it again. Please ensure all details are correct before
+                proceeding.
+              </Text>
+            </View>
+          </View>
+        </Card>
+
         {/* Modification Form */}
         <Card variant='elevated' style={styles.modifyCard}>
           <Text style={styles.cardTitle}>Modify Booking</Text>
@@ -1766,5 +1782,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 20,
     fontStyle: 'italic',
+  },
+  warningCard: {
+    marginBottom: 16,
+    backgroundColor: '#fff7ed',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.warning,
+  },
+  warningContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  warningTextContainer: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  warningText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
   },
 });

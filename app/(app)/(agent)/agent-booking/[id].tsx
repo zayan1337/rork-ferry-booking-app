@@ -125,6 +125,7 @@ export default function BookingDetailsScreen() {
 
   const { isModifiable, isCancellable, message } = useBookingEligibility({
     booking: convertedBooking as any,
+    isFromModification: (booking as any)?.isFromModification || false,
   });
 
   // Re-check booking status to ensure it's still pending (handles auto-cancellation)

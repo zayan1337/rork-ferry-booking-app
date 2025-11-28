@@ -170,7 +170,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
           const modificationRecord = Array.isArray(booking.modifications)
             ? booking.modifications[0]
             : booking.modifications;
-          const isModificationBooking = Boolean(modificationRecord);
+          const isFromModification = Boolean(modificationRecord); // This booking is a NEW booking created from modification
           const originalBookingId = modificationRecord?.old_booking_id || null;
 
           // Determine if this is a multi-stop booking (has booking_segments)
@@ -330,10 +330,11 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
                 booking?.trip?.vessel?.registration_number || '',
             },
             payment,
-            isModification: isModificationBooking,
+            isModification: isFromModification,
             originalBookingId,
             returnBookingId: booking?.return_booking_id || null,
             roundTripGroupId: booking?.round_trip_group_id || null,
+            isFromModification, // Add explicit flag for eligibility checks
           };
         });
 

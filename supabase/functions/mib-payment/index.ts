@@ -741,33 +741,47 @@ async function processPaymentResult(supabase, resultData) {
             ? 'cancelled'
             : 'pending';
 
-    // Update primary booking's payment record
-    const { data: paymentUpdateData, error: paymentUpdateError } =
-      await supabase
-        .from('payments')
-        .update({
-          status: paymentStatus,
-          transaction_date: new Date().toISOString(),
-          // Store transaction ID in receipt_number if available, keep session_id as is
-          ...(transactionId &&
-            transactionId.length <= 20 && {
-              receipt_number: transactionId,
-            }),
-        })
-        .eq('id', payment.id)
-        .select('*');
-    if (paymentUpdateError) {
-      // Payment update failed
-    }
-
-    // For round trips, also update the return booking's payment record
-    // Check if this booking has a return booking
+    // For round trips, check if this booking has a return booking BEFORE updating
+    // This ensures we can update both payments with the same transactionId
     const { data: bookingLink } = await supabase
       .from('bookings')
       .select('return_booking_id')
       .eq('id', payment.booking_id)
       .maybeSingle();
 
+    // Prepare receipt_number update - use transactionId if available and valid
+    // For round trips, both payments should share the same receipt_number (transactionId)
+    const receiptNumberUpdate =
+      transactionId && transactionId.length <= 20
+        ? { receipt_number: transactionId }
+        : {};
+
+    // Update primary booking's payment record
+    // IMPORTANT: For round trips, receipt_number is already shared by the database trigger
+    // When we update with transactionId, we update BOTH payments to maintain consistency
+    const { data: paymentUpdateData, error: paymentUpdateError } =
+      await supabase
+        .from('payments')
+        .update({
+          status: paymentStatus,
+          transaction_date: new Date().toISOString(),
+          // Store transaction ID in receipt_number if available
+          // This ensures receipt_number matches the actual MIB transaction ID
+          // For round trips, both payments will have the same transactionId (receipt_number)
+          ...receiptNumberUpdate,
+        })
+        .eq('id', payment.id)
+        .select('*');
+    if (paymentUpdateError) {
+      console.warn(
+        '[MIB] Failed to update primary payment record:',
+        paymentUpdateError
+      );
+    }
+
+    // For round trips, also update the return booking's payment record
+    // IMPORTANT: Use the SAME transactionId (receipt_number) for both payments
+    // This maintains consistency and allows proper refund processing
     if (bookingLink?.return_booking_id) {
       // Find and update the return booking's payment record
       const { data: returnPayment } = await supabase
@@ -780,18 +794,23 @@ async function processPaymentResult(supabase, resultData) {
         .maybeSingle();
 
       if (returnPayment) {
-        await supabase
+        const { error: returnPaymentUpdateError } = await supabase
           .from('payments')
           .update({
             status: paymentStatus,
             transaction_date: new Date().toISOString(),
-            // Use the same transaction ID for consistency
-            ...(transactionId &&
-              transactionId.length <= 20 && {
-                receipt_number: transactionId,
-              }),
+            // Use the SAME transaction ID (receipt_number) for consistency
+            // Both payments in a round trip must share the same receipt_number
+            ...receiptNumberUpdate,
           })
           .eq('id', returnPayment.id);
+
+        if (returnPaymentUpdateError) {
+          console.warn(
+            '[MIB] Failed to update return payment record:',
+            returnPaymentUpdateError
+          );
+        }
       }
     }
     // Update booking status based on gateway response

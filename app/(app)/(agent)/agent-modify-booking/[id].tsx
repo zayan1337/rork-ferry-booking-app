@@ -44,6 +44,7 @@ import { useBookingEligibility } from '@/hooks/useBookingEligibility';
 import { getTripsForSegment } from '@/utils/segmentBookingUtils';
 import SegmentTripCard from '@/components/booking/SegmentTripCard';
 import { supabase } from '@/utils/supabase';
+import { AlertCircle } from 'lucide-react-native';
 
 type PaymentMethod = 'agent_credit' | 'mib';
 
@@ -798,6 +799,21 @@ export default function AgentModifyBookingScreen() {
             ticketLabel={ticketLabel}
           />
 
+          {/* Warning Card */}
+          <Card variant='elevated' style={styles.warningCard}>
+            <View style={styles.warningContent}>
+              <AlertCircle size={24} color={Colors.warning} />
+              <View style={styles.warningTextContainer}>
+                <Text style={styles.warningTitle}>Important Notice</Text>
+                <Text style={styles.warningText}>
+                  Once you modify this booking, you will not be able to cancel
+                  or modify it again. Please ensure all details are correct
+                  before proceeding.
+                </Text>
+              </View>
+            </View>
+          </Card>
+
           {booking?.tripType === 'round_trip' && (
             <View style={styles.segmentToggle}>
               {[
@@ -1058,7 +1074,8 @@ export default function AgentModifyBookingScreen() {
                 }
               : booking
                 ? {
-                    travelDate: booking.departureDate || new Date().toISOString(),
+                    travelDate:
+                      booking.departureDate || new Date().toISOString(),
                     departureTime: booking.departureTime || '00:00',
                   }
                 : undefined
@@ -1249,6 +1266,31 @@ const styles = StyleSheet.create({
   discountInfoText: {
     fontSize: 14,
     color: Colors.text,
+    lineHeight: 20,
+  },
+  warningCard: {
+    marginBottom: 16,
+    backgroundColor: '#fff7ed',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.warning,
+  },
+  warningContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  warningTextContainer: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  warningText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
 });

@@ -17,12 +17,7 @@ export default function PaymentCountdown({
   const formatted = `${pad(minutes)}:${pad(seconds)}`;
 
   return (
-    <Text
-      style={[
-        styles.countdown,
-        isExpiring && styles.countdownExpiring,
-      ]}
-    >
+    <Text style={[styles.countdown, isExpiring && styles.countdownExpiring]}>
       {formatted}
     </Text>
   );
@@ -39,4 +34,3 @@ const styles = StyleSheet.create({
     color: Colors.error,
   },
 });
-

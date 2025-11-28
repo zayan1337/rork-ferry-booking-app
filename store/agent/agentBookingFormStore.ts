@@ -1939,6 +1939,9 @@ export const useAgentBookingFormStore = create<
         // Create payment record for return trip based on payment method
         if (currentBooking.paymentMethod === 'mib') {
           // For MIB, create pending payment record for return trip
+          // IMPORTANT: The trigger will automatically share the receipt_number from the departure payment
+          // DO NOT explicitly set receipt_number - let the trigger handle it to avoid duplicate key violations
+          // The trigger checks round_trip_group_id to find the related payment and share the receipt_number
           const { error: returnPaymentError } = await supabase
             .from('payments')
             .insert({
@@ -1947,6 +1950,7 @@ export const useAgentBookingFormStore = create<
               amount: returnDiscountedFare,
               currency: 'MVR',
               status: 'pending', // Start with pending for MIB
+              // receipt_number will be automatically set by trigger to match departure payment
             });
 
           if (returnPaymentError) {

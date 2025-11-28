@@ -137,7 +137,10 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
     return (
       <Card
         variant='outlined'
-        style={[styles.card, { borderLeftColor: statusColor }]}
+        style={StyleSheet.flatten([
+          styles.card,
+          { borderLeftColor: statusColor },
+        ])}
       >
         <View style={styles.header}>
           <View
