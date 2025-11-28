@@ -8,6 +8,7 @@ import {
   FlatList,
   RefreshControl,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Plus, Search, SortAsc, Calendar } from 'lucide-react-native';
@@ -16,7 +17,6 @@ import Colors from '@/constants/colors';
 import AgentBookingCard from '@/components/AgentBookingCard';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
-import { SkeletonBookingsList } from '@/components/skeleton';
 
 import type { Booking } from '@/types/agent';
 import { useAgentData } from '@/hooks/useAgentData';
@@ -325,7 +325,9 @@ export default function AgentBookingsScreen() {
 
       {/* Enhanced Bookings List */}
       {isLoadingBookings && (!bookings || bookings.length === 0) ? (
-        <SkeletonBookingsList count={6} delay={0} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size='large' color={Colors.primary} />
+        </View>
       ) : filteredAndSortedBookings.length > 0 ? (
         <FlatList
           data={filteredAndSortedBookings}
@@ -552,7 +554,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.background,
-    padding: 24,
+    padding: 32,
+    minHeight: 200,
   },
   errorText: {
     fontSize: 16,

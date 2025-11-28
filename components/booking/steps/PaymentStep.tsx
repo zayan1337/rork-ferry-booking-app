@@ -6,6 +6,7 @@ import { AGENT_PAYMENT_OPTIONS } from '@/utils/bookingFormUtils';
 import Colors from '@/constants/colors';
 import type { AgentClient, Route } from '@/types/agent';
 import type { Seat, Passenger } from '@/types';
+import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 
 interface PaymentStepProps {
   // Booking data for summary
@@ -15,6 +16,8 @@ interface PaymentStepProps {
   returnRoute: Route | null;
   departureDate: string | null;
   returnDate: string | null;
+  departureTime?: string | null;
+  returnTime?: string | null;
   selectedSeats: Seat[];
   selectedReturnSeats: Seat[];
   passengers: Passenger[];
@@ -53,6 +56,8 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   returnRoute,
   departureDate,
   returnDate,
+  departureTime,
+  returnTime,
   selectedSeats,
   selectedReturnSeats,
   passengers,
@@ -108,10 +113,10 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
     tripType: tripType === 'one_way' ? 'One Way' : 'Round Trip',
     routeDisplay: getRouteDisplay(),
     returnRouteDisplay: getReturnRouteDisplay(),
-    departureDate: departureDate
-      ? new Date(departureDate).toLocaleDateString()
-      : 'N/A',
-    returnDate: returnDate ? new Date(returnDate).toLocaleDateString() : null,
+    departureDate: departureDate ? formatBookingDate(departureDate) : 'N/A',
+    returnDate: returnDate ? formatBookingDate(returnDate) : null,
+    departureTime: departureTime ? formatTimeAMPM(departureTime) : null,
+    returnTime: returnTime ? formatTimeAMPM(returnTime) : null,
     passengerCount: String(passengers?.length || 0),
     seatNumbers: selectedSeats?.map(seat => seat.number).join(', ') || 'None',
     returnSeatNumbers:
@@ -169,10 +174,24 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           <Text style={styles.summaryValue}>{summaryData.departureDate}</Text>
         </View>
 
+        {summaryData.departureTime && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Departure Time:</Text>
+            <Text style={styles.summaryValue}>{summaryData.departureTime}</Text>
+          </View>
+        )}
+
         {summaryData.returnDate && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Return Date:</Text>
             <Text style={styles.summaryValue}>{summaryData.returnDate}</Text>
+          </View>
+        )}
+
+        {summaryData.returnTime && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Return Time:</Text>
+            <Text style={styles.summaryValue}>{summaryData.returnTime}</Text>
           </View>
         )}
 

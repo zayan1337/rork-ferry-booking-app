@@ -200,7 +200,8 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
                     ),
                     payments(
                         payment_method,
-                        status
+                        status,
+                        receipt_number
                     ),
                     agent_clients(
                         id,
@@ -414,6 +415,7 @@ export const useAgentBookingsStore = create<AgentBookingsState>((set, get) => ({
           ? {
               method: booking.payments[0].payment_method,
               status: booking.payments[0].status,
+              receipt_number: booking.payments[0].receipt_number,
             }
           : null;
 

@@ -27,6 +27,13 @@ import {
 import MibPaymentWebView from '@/components/MibPaymentWebView';
 import { useAlertContext } from '@/components/AlertProvider';
 import { AGENT_BOOKING_STEPS, AGENT_STEP_LABELS } from '@/constants/agent';
+import { usePaymentSessionStore } from '@/store/paymentSessionStore';
+import { BUFFER_MINUTES_PAYMENT_WINDOW } from '@/constants/customer';
+import { getMinutesUntilDeparture } from '@/utils/bookingUtils';
+import {
+  calculateBookingExpiry,
+  combineTripDateTime,
+} from '@/utils/bookingExpiryUtils';
 
 const BOOKING_STEPS = [
   {
@@ -149,6 +156,15 @@ export default function AgentNewBookingScreen() {
   const [currentBookingId, setCurrentBookingId] = useState('');
   const [mibSessionData, setMibSessionData] = useState<any>(null);
   const [mibBookingDetails, setMibBookingDetails] = useState<any>(null);
+
+  // Payment session management
+  const setPaymentSession = usePaymentSessionStore(state => state.setSession);
+  const clearPaymentSession = usePaymentSessionStore(
+    state => state.clearSession
+  );
+  const updatePaymentSession = usePaymentSessionStore(
+    state => state.updateSession
+  );
   const [errors, setErrors] = useState({
     tripType: '',
     departureDate: '',
@@ -477,36 +493,228 @@ export default function AgentNewBookingScreen() {
   };
 
   const handleCreateBooking = async () => {
-    if (validateStep(5)) {
+    // Validate Payment step (step 6) which includes terms acceptance
+    if (validateStep(AGENT_BOOKING_STEPS.PAYMENT)) {
+      // Additional explicit check for terms acceptance as safety measure
+      if (!termsAccepted) {
+        setError('You must accept the terms and conditions to proceed');
+        showError(
+          'Terms and Conditions Required',
+          'Please accept the terms and conditions before confirming your booking.'
+        );
+        return;
+      }
+
       try {
+        // Validate payment method BEFORE creating booking
+        if (currentBooking.paymentMethod === 'credit') {
+          // Calculate required amount
+          const routeBaseFare = Number(currentBooking.route?.baseFare || 0);
+          const fareMultiplier = Number(
+            currentBooking.trip?.fare_multiplier || 1.0
+          );
+          const tripFare = routeBaseFare * fareMultiplier;
+          const originalFare = currentBooking.selectedSeats.length * tripFare;
+          const discountedFare =
+            originalFare * (1 - (storeAgent?.discountRate || 0) / 100);
+
+          let returnDiscountedFare = 0;
+          if (
+            currentBooking.tripType === 'round_trip' &&
+            currentBooking.returnTrip &&
+            currentBooking.returnRoute
+          ) {
+            const returnRouteBaseFare = Number(
+              currentBooking.returnRoute?.baseFare || 0
+            );
+            const returnFareMultiplier = Number(
+              currentBooking.returnTrip?.fare_multiplier || 1.0
+            );
+            const returnTripFare = returnRouteBaseFare * returnFareMultiplier;
+            const returnOriginalFare =
+              currentBooking.returnSelectedSeats.length * returnTripFare;
+            returnDiscountedFare =
+              returnOriginalFare * (1 - (storeAgent?.discountRate || 0) / 100);
+          }
+
+          const totalRequiredAmount = discountedFare + returnDiscountedFare;
+
+          // Validate credit balance
+          const { validateAgentCredit } = await import('@/utils/agentUtils');
+          const creditValidation = validateAgentCredit(
+            storeAgent,
+            totalRequiredAmount
+          );
+          if (!creditValidation.isValid) {
+            showError(
+              'Credit Payment Not Available',
+              creditValidation.error ||
+                'Cannot proceed with credit payment. Please use a different payment method.'
+            );
+            return;
+          }
+        }
+
+        // Validate free ticket payment BEFORE creating booking
+        if (currentBooking.paymentMethod === 'free') {
+          const totalTicketsNeeded =
+            currentBooking.selectedSeats.length +
+            currentBooking.returnSelectedSeats.length;
+
+          // Validate free tickets
+          const { validateAgentFreeTickets } = await import(
+            '@/utils/agentUtils'
+          );
+          const freeTicketValidation = validateAgentFreeTickets(
+            storeAgent,
+            totalTicketsNeeded
+          );
+          if (!freeTicketValidation.isValid) {
+            showError(
+              'Free Ticket Payment Not Available',
+              freeTicketValidation.error ||
+                'Cannot proceed with free ticket payment. Please use a different payment method.'
+            );
+            return;
+          }
+        }
+
         const result = await createBooking();
+        const resultObject =
+          result && typeof result === 'object'
+            ? (result as {
+                bookingId: string;
+                bookingNumber?: string;
+                returnBookingId?: string | null;
+                returnBookingNumber?: string | null;
+                receiptNumber?: string | null;
+              })
+            : null;
+
+        const bookingId =
+          typeof result === 'string' ? result : resultObject?.bookingId || '';
+        const primaryBookingNumber =
+          resultObject?.bookingNumber ||
+          (typeof result === 'string' ? result : bookingId);
+        const linkedReturnBookingId = resultObject?.returnBookingId || null;
+        const linkedReturnBookingNumber =
+          resultObject?.returnBookingNumber || null;
+        const bookingReceiptNumber = resultObject?.receiptNumber || null;
 
         // Handle MIB payment differently
         if (currentBooking.paymentMethod === 'mib') {
+          const isRoundTrip = currentBooking.tripType === 'round_trip';
+          const outboundRoute = `${
+            currentBooking.route?.fromIsland?.name ||
+            currentBooking.boardingIslandName ||
+            'N/A'
+          } → ${
+            currentBooking.route?.toIsland?.name ||
+            currentBooking.destinationIslandName ||
+            'N/A'
+          }`;
+          const returnRoute =
+            isRoundTrip &&
+            (currentBooking.returnRoute?.fromIsland?.name ||
+              currentBooking.returnBoardingIslandName)
+              ? `${
+                  currentBooking.returnRoute?.fromIsland?.name ||
+                  currentBooking.returnBoardingIslandName ||
+                  'N/A'
+                } → ${
+                  currentBooking.returnRoute?.toIsland?.name ||
+                  currentBooking.returnDestinationIslandName ||
+                  'N/A'
+                }`
+              : null;
+          const bookingNumbersSummary =
+            isRoundTrip && linkedReturnBookingNumber
+              ? `${primaryBookingNumber} / ${linkedReturnBookingNumber}`
+              : primaryBookingNumber;
+          const routeSummary =
+            isRoundTrip && returnRoute
+              ? `${outboundRoute} / ${returnRoute}`
+              : outboundRoute;
+
           // Prepare booking details for the payment modal
           const bookingDetails = {
-            bookingNumber: result.bookingId,
-            route: `${
-              currentBooking.route?.fromIsland?.name || 'N/A'
-            } → ${currentBooking.route?.toIsland?.name || 'N/A'}`,
+            bookingNumber: bookingNumbersSummary,
+            route: routeSummary,
             travelDate:
               currentBooking.departureDate || new Date().toISOString(),
+            returnDate:
+              isRoundTrip && currentBooking.returnDate
+                ? currentBooking.returnDate
+                : null,
             amount:
               currentBooking.discountedFare || currentBooking.totalFare || 0,
             currency: 'MVR',
             passengerCount: currentBooking.selectedSeats.length,
+            receiptNumber: bookingReceiptNumber || undefined,
+            isRoundTrip,
           };
 
+          // Calculate payment window expiry
+          const tripInfo = {
+            travelDate:
+              currentBooking.departureDate || new Date().toISOString(),
+            departureTime:
+              currentBooking.trip?.departure_time ||
+              currentBooking.trip?.departureTime ||
+              '00:00',
+          };
+
+          // Calculate smart expiry time
+          const bookingCreatedAt = new Date();
+          const tripDeparture = combineTripDateTime(
+            tripInfo.travelDate,
+            tripInfo.departureTime
+          );
+          const expiryCalculation = calculateBookingExpiry(
+            bookingCreatedAt,
+            tripDeparture
+          );
+
+          // Calculate payment window seconds
+          const calculatePaymentWindowSeconds = () => {
+            let maxTimerSeconds = BUFFER_MINUTES_PAYMENT_WINDOW * 60;
+            const minutesUntilDeparture = getMinutesUntilDeparture(
+              tripInfo.travelDate,
+              tripInfo.departureTime
+            );
+            if (minutesUntilDeparture > 0) {
+              maxTimerSeconds = Math.max(
+                30,
+                Math.min(maxTimerSeconds, minutesUntilDeparture * 60)
+              );
+            } else {
+              maxTimerSeconds = 0;
+            }
+            return maxTimerSeconds;
+          };
+
+          const seconds = calculatePaymentWindowSeconds();
+          const timerExpiry = new Date(Date.now() + seconds * 1000);
+          const expiresAtDate = new Date(
+            Math.min(
+              timerExpiry.getTime(),
+              expiryCalculation.expiresAt.getTime()
+            )
+          );
+
+          // Set payment session
+          setPaymentSession({
+            bookingId: bookingId,
+            bookingDetails: bookingDetails,
+            context: 'booking',
+            tripInfo,
+            sessionData: null,
+            startedAt: new Date().toISOString(),
+            expiresAt: expiresAtDate.toISOString(),
+          });
+
           // Show modal immediately with booking details
-          if (typeof result === 'string') {
-            setCurrentBookingId(result);
-          } else if (result && typeof result === 'object') {
-            const bookingResult = result as {
-              bookingId: string;
-              returnBookingId?: string;
-            };
-            setCurrentBookingId(bookingResult.bookingId);
-          }
+          setCurrentBookingId(bookingId);
           setMibBookingDetails(bookingDetails);
           setShowMibPayment(true);
 
@@ -542,13 +750,9 @@ export default function AgentNewBookingScreen() {
             successMessage += `\n\nBooking ID: ${result}`;
           } else if (result && typeof result === 'object') {
             // New format with departure and return booking IDs
-            const bookingResult = result as {
-              bookingId: string;
-              returnBookingId?: string;
-            };
-            successMessage += `\n\nDeparture Booking ID: ${bookingResult.bookingId}`;
-            if (bookingResult.returnBookingId) {
-              successMessage += `\nReturn Booking ID: ${bookingResult.returnBookingId}`;
+            successMessage += `\n\nDeparture Booking ID: ${bookingId}`;
+            if (linkedReturnBookingId) {
+              successMessage += `\nReturn Booking ID: ${linkedReturnBookingId}`;
             }
           }
 
@@ -669,6 +873,16 @@ export default function AgentNewBookingScreen() {
             returnRoute={currentBooking.returnRoute}
             departureDate={currentBooking.departureDate}
             returnDate={currentBooking.returnDate}
+            departureTime={
+              currentBooking.trip?.departure_time ||
+              currentBooking.trip?.departureTime ||
+              null
+            }
+            returnTime={
+              currentBooking.returnTrip?.departure_time ||
+              currentBooking.returnTrip?.departureTime ||
+              null
+            }
             selectedSeats={currentBooking.selectedSeats}
             selectedReturnSeats={currentBooking.returnSelectedSeats}
             passengers={currentBooking.passengers}
@@ -791,6 +1005,34 @@ export default function AgentNewBookingScreen() {
             setCurrentBookingId('');
             setMibSessionData(null);
             setMibBookingDetails(null);
+            clearPaymentSession();
+          }}
+          onSessionCreated={session => {
+            setMibSessionData(session);
+            updatePaymentSession({ sessionData: session });
+          }}
+          tripInfo={
+            currentBooking.departureDate && currentBooking.trip
+              ? {
+                  travelDate: currentBooking.departureDate,
+                  departureTime:
+                    currentBooking.trip.departure_time ||
+                    currentBooking.trip.departureTime ||
+                    '00:00',
+                }
+              : undefined
+          }
+          onTimerExpired={async () => {
+            // Clear session and show message
+            clearPaymentSession();
+            setShowMibPayment(false);
+            setCurrentBookingId('');
+            setMibSessionData(null);
+            setMibBookingDetails(null);
+            showError(
+              'Payment Session Expired',
+              'The payment window has expired. The booking may have been automatically cancelled.'
+            );
           }}
           onSuccess={result => {
             // Close the modal first
@@ -798,6 +1040,7 @@ export default function AgentNewBookingScreen() {
             setCurrentBookingId('');
             setMibSessionData(null);
             setMibBookingDetails(null);
+            clearPaymentSession();
 
             // Navigate to agent payment success page immediately without resetting booking state
             // The payment success page will handle the booking state reset
@@ -817,6 +1060,7 @@ export default function AgentNewBookingScreen() {
             setCurrentBookingId('');
             setMibSessionData(null);
             setMibBookingDetails(null);
+            clearPaymentSession();
 
             // Navigate to agent payment success page with failure status
             // Reset booking state on failure
@@ -835,6 +1079,7 @@ export default function AgentNewBookingScreen() {
             setCurrentBookingId('');
             setMibSessionData(null);
             setMibBookingDetails(null);
+            clearPaymentSession();
 
             // Navigate to agent payment success page with cancelled status
             // Reset booking state on cancellation

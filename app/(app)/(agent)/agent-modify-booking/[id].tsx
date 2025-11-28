@@ -29,6 +29,13 @@ import {
   isTripBookable,
   getTripUnavailableMessage,
 } from '@/utils/bookingUtils';
+import { usePaymentSessionStore } from '@/store/paymentSessionStore';
+import { BUFFER_MINUTES_PAYMENT_WINDOW } from '@/constants/customer';
+import { getMinutesUntilDeparture } from '@/utils/bookingUtils';
+import {
+  calculateBookingExpiry,
+  combineTripDateTime,
+} from '@/utils/bookingExpiryUtils';
 import { formatCurrency } from '@/utils/agentFormatters';
 import Colors from '@/constants/colors';
 import { Seat } from '@/types';
@@ -118,6 +125,15 @@ export default function AgentModifyBookingScreen() {
   const [mibBookingDetails, setMibBookingDetails] = useState<any>(null);
   const [modifiedBookingId, setModifiedBookingId] = useState<string | null>(
     null
+  );
+
+  // Payment session management
+  const setPaymentSession = usePaymentSessionStore(state => state.setSession);
+  const clearPaymentSession = usePaymentSessionStore(
+    state => state.clearSession
+  );
+  const updatePaymentSession = usePaymentSessionStore(
+    state => state.updateSession
   );
 
   // Find the booking by id
@@ -673,6 +689,7 @@ export default function AgentModifyBookingScreen() {
   // MIB payment handlers
   const handleMibPaymentSuccess = (result: any) => {
     setShowMibPayment(false);
+    clearPaymentSession();
 
     let successMessage = `The ${ticketLabel.toLowerCase()} ticket has been modified successfully and payment of ${formatCurrency(fareDifference)} has been processed through MIB Gateway.`;
 
@@ -687,6 +704,7 @@ export default function AgentModifyBookingScreen() {
 
   const handleMibPaymentFailure = (error: string) => {
     setShowMibPayment(false);
+    clearPaymentSession();
     showError(
       'Payment Failed',
       `The booking was modified but payment failed: ${error}. Please contact support to complete the payment of ${formatCurrency(fareDifference)}.`,
@@ -698,6 +716,7 @@ export default function AgentModifyBookingScreen() {
 
   const handleMibPaymentCancel = () => {
     setShowMibPayment(false);
+    clearPaymentSession();
     showInfo(
       'Payment Cancelled',
       `The modification was saved but payment of ${formatCurrency(fareDifference)} was not completed. You can retry the payment later.`,
@@ -1028,10 +1047,41 @@ export default function AgentModifyBookingScreen() {
           visible={showMibPayment}
           bookingDetails={mibBookingDetails}
           bookingId={modifiedBookingId}
-          onClose={() => setShowMibPayment(false)}
+          tripInfo={
+            newDate && selectedTrip
+              ? {
+                  travelDate: newDate,
+                  departureTime:
+                    selectedTrip.departure_time ||
+                    selectedTrip.departureTime ||
+                    '00:00',
+                }
+              : booking
+                ? {
+                    travelDate: booking.departureDate || new Date().toISOString(),
+                    departureTime: booking.departureTime || '00:00',
+                  }
+                : undefined
+          }
+          onClose={() => {
+            setShowMibPayment(false);
+            clearPaymentSession();
+          }}
           onSuccess={handleMibPaymentSuccess}
           onFailure={handleMibPaymentFailure}
           onCancel={handleMibPaymentCancel}
+          onSessionCreated={session => {
+            updatePaymentSession({ sessionData: session });
+          }}
+          onTimerExpired={async () => {
+            // Clear session and show message
+            clearPaymentSession();
+            setShowMibPayment(false);
+            showError(
+              'Payment Session Expired',
+              'The payment window has expired. The modification payment may have been cancelled.'
+            );
+          }}
         />
       )}
     </>

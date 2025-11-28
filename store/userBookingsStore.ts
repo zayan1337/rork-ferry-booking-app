@@ -436,6 +436,49 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
         const booking = bookings.find(b => b.id === bookingId);
         if (!booking) throw new Error('Booking not found');
 
+        // Fetch payment record directly from database to ensure we have accurate data
+        // This is important because booking.payment might not be loaded or might be stale
+        const { data: paymentRecord, error: paymentFetchError } = await supabase
+          .from('payments')
+          .select(
+            'id, payment_method, status, receipt_number, session_id, booking_id'
+          )
+          .eq('booking_id', bookingId)
+          .eq('status', 'completed')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        // If no payment found for this booking, check if it's a return booking in a round trip
+        let actualPaymentRecord = paymentRecord;
+        let primaryBookingId = bookingId;
+
+        if (!paymentRecord && !paymentFetchError) {
+          // Check if this is a return booking - find the primary booking
+          const { data: primaryBooking } = await supabase
+            .from('bookings')
+            .select('id')
+            .eq('return_booking_id', bookingId)
+            .maybeSingle();
+
+          if (primaryBooking) {
+            primaryBookingId = primaryBooking.id;
+            // Fetch payment from primary booking
+            const { data: primaryPayment } = await supabase
+              .from('payments')
+              .select(
+                'id, payment_method, status, receipt_number, session_id, booking_id'
+              )
+              .eq('booking_id', primaryBooking.id)
+              .eq('status', 'completed')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            actualPaymentRecord = primaryPayment;
+          }
+        }
+
         // Calculate refund amount and cancellation fee (50% refund policy)
         const refundAmount = booking.totalFare * 0.5;
         const cancellationFee = booking.totalFare - refundAmount;
@@ -477,32 +520,47 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
 
         // 4. Process refund through MIB if payment was made via MIB
         if (
-          booking.payment?.status === 'completed' &&
-          booking.payment?.method === 'mib'
+          actualPaymentRecord?.payment_method === 'mib' &&
+          actualPaymentRecord?.status === 'completed'
         ) {
           try {
             // Call MIB refund API through edge function
+            // Use primary booking ID to ensure we use the correct payment record
             const { data: refundData, error: refundError } =
               await supabase.functions.invoke('mib-payment', {
                 body: {
                   action: 'process-refund',
-                  bookingId,
+                  bookingId: primaryBookingId, // Use primary booking ID for round trips
                   refundAmount,
                   currency: 'MVR',
                 },
               });
 
             if (refundError) {
-              // Don't throw - continue with cancellation even if refund fails
-              // Admin can manually process refund later
-            }
-
-            if (!refundData?.success) {
+              console.error('[CANCEL] MIB refund error:', refundError);
               // Update cancellation status to indicate refund failure
               await supabase
                 .from('cancellations')
                 .update({
                   status: 'refund_failed',
+                })
+                .eq('booking_id', bookingId);
+              // Don't throw - continue with cancellation even if refund fails
+              // Admin can manually process refund later
+            } else if (!refundData?.success) {
+              // Update cancellation status to indicate refund failure
+              await supabase
+                .from('cancellations')
+                .update({
+                  status: 'refund_failed',
+                })
+                .eq('booking_id', bookingId);
+            } else {
+              // Refund successful - update cancellation status
+              await supabase
+                .from('cancellations')
+                .update({
+                  status: 'completed',
                 })
                 .eq('booking_id', bookingId);
             }
@@ -511,15 +569,48 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
               '[CANCEL] Exception during refund processing:',
               refundException
             );
+            // Update cancellation status to indicate refund failure
+            await supabase
+              .from('cancellations')
+              .update({
+                status: 'refund_failed',
+              })
+              .eq('booking_id', bookingId);
             // Continue - cancellation is complete, refund can be handled manually
           }
-        } else if (booking.payment?.status === 'completed') {
+        } else if (actualPaymentRecord?.status === 'completed') {
           // For non-MIB payments, just update payment status
           await supabase
             .from('payments')
             .update({
               status: 'partially_refunded',
               updated_at: new Date().toISOString(),
+            })
+            .eq('booking_id', bookingId);
+
+          // For round trips, also update return booking's payment if it exists
+          const { data: bookingLink } = await supabase
+            .from('bookings')
+            .select('return_booking_id')
+            .eq('id', bookingId)
+            .maybeSingle();
+
+          if (bookingLink?.return_booking_id) {
+            await supabase
+              .from('payments')
+              .update({
+                status: 'partially_refunded',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('booking_id', bookingLink.return_booking_id)
+              .eq('payment_method', actualPaymentRecord.payment_method);
+          }
+        } else {
+          // No completed payment found - update cancellation status
+          await supabase
+            .from('cancellations')
+            .update({
+              status: 'no_payment',
             })
             .eq('booking_id', bookingId);
         }

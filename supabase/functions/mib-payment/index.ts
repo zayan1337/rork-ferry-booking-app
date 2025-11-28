@@ -355,6 +355,35 @@ async function createMibSession(
           onConflict: 'booking_id,payment_method',
         }
       );
+
+      // For round trips, also update the return booking's payment record with the same session_id
+      // This ensures both payment records are linked to the same MIB transaction
+      const { data: bookingLink } = await supabase
+        .from('bookings')
+        .select('return_booking_id')
+        .eq('id', bookingId)
+        .maybeSingle();
+
+      if (bookingLink?.return_booking_id) {
+        // Find and update the return booking's payment record
+        const { data: returnPayment } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('booking_id', bookingLink.return_booking_id)
+          .eq('payment_method', 'mib')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (returnPayment) {
+          await supabase
+            .from('payments')
+            .update({
+              session_id: sessionId, // Use the same session_id for both payment records
+            })
+            .eq('id', returnPayment.id);
+        }
+      }
     } else if (paymentType === 'credit') {
       // Update credit transaction with session ID in description
       await supabase
@@ -711,6 +740,8 @@ async function processPaymentResult(supabase, resultData) {
           : result === 'CANCELLED'
             ? 'cancelled'
             : 'pending';
+
+    // Update primary booking's payment record
     const { data: paymentUpdateData, error: paymentUpdateError } =
       await supabase
         .from('payments')
@@ -727,6 +758,41 @@ async function processPaymentResult(supabase, resultData) {
         .select('*');
     if (paymentUpdateError) {
       // Payment update failed
+    }
+
+    // For round trips, also update the return booking's payment record
+    // Check if this booking has a return booking
+    const { data: bookingLink } = await supabase
+      .from('bookings')
+      .select('return_booking_id')
+      .eq('id', payment.booking_id)
+      .maybeSingle();
+
+    if (bookingLink?.return_booking_id) {
+      // Find and update the return booking's payment record
+      const { data: returnPayment } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('booking_id', bookingLink.return_booking_id)
+        .eq('payment_method', 'mib')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (returnPayment) {
+        await supabase
+          .from('payments')
+          .update({
+            status: paymentStatus,
+            transaction_date: new Date().toISOString(),
+            // Use the same transaction ID for consistency
+            ...(transactionId &&
+              transactionId.length <= 20 && {
+                receipt_number: transactionId,
+              }),
+          })
+          .eq('id', returnPayment.id);
+      }
     }
     // Update booking status based on gateway response
     let bookingStatus = 'pending_payment';
@@ -827,32 +893,45 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
       throw new Error(`Booking with ID ${bookingId} not found`);
     }
 
-    console.log(
-      `[REFUND] Booking found - Status: ${booking.status}, Number: ${booking.booking_number}`
-    );
-
     // Get the original payment record - check all MIB payments first
-    console.log('[REFUND] Looking for payment records...');
+    // IMPORTANT: For round trips, always use the PRIMARY booking's payment record
+    // The return booking's payment record has the same receipt_number/session_id,
+    // but we should use the primary booking's record for refund to ensure consistency
+
+    // Check if this is a return booking - if so, find the primary booking
+    const { data: primaryBookingCheck } = await supabase
+      .from('bookings')
+      .select('id, return_booking_id')
+      .eq('id', bookingId)
+      .maybeSingle();
+
+    // Determine primary booking ID
+    // If this booking has a return_booking_id, it's the primary booking
+    // If this booking's ID matches another booking's return_booking_id, it's the return booking
+    let primaryBookingId = bookingId;
+    if (primaryBookingCheck && !primaryBookingCheck.return_booking_id) {
+      // This might be a return booking - check if any other booking has this as return_booking_id
+      const { data: primaryBooking } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('return_booking_id', bookingId)
+        .maybeSingle();
+
+      if (primaryBooking) {
+        primaryBookingId = primaryBooking.id;
+      }
+    }
+
     const { data: allPayments, error: allPaymentsError } = await supabase
       .from('payments')
       .select('*')
-      .eq('booking_id', bookingId)
+      .eq('booking_id', primaryBookingId) // Always use primary booking's payment for refund
       .eq('payment_method', 'mib')
       .order('created_at', { ascending: false });
 
     if (allPaymentsError) {
       console.error('[REFUND] Payment lookup error:', allPaymentsError);
       throw new Error(`Payment lookup error: ${allPaymentsError.message}`);
-    }
-
-    console.log(
-      `[REFUND] Found ${allPayments?.length || 0} MIB payment(s) for this booking`
-    );
-    if (allPayments && allPayments.length > 0) {
-      console.log(
-        '[REFUND] Payment statuses:',
-        allPayments.map(p => p.status)
-      );
     }
 
     // Try to find completed payment first, then fall back to other statuses
@@ -873,25 +952,47 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
       );
     }
 
-    console.log(
-      `[REFUND] Using payment - ID: ${payment.id}, Status: ${payment.status}, Session: ${payment.session_id}, Receipt: ${payment.receipt_number}`
-    );
-
-    // Get transaction ID (either from receipt_number or session_id)
+    // Get transaction ID for refund
+    // IMPORTANT: For refunds, we MUST use the transaction ID (receipt_number) from MIB gateway
+    // The receipt_number contains the actual transaction ID returned by MIB after payment
+    // session_id is only used for creating payment sessions, not for refunds
+    // The bank requires the actual transaction ID (receipt_number) to process refunds
     const transactionId = payment.receipt_number || payment.session_id;
-    if (!transactionId) {
-      console.error('[REFUND] No transaction ID found in payment record');
-      throw new Error(
-        'No transaction ID found in payment record. Receipt number and session ID are both missing.'
+
+    if (!payment.receipt_number) {
+      console.error(
+        `[REFUND] CRITICAL: receipt_number (transaction ID) is missing for payment ID: ${payment.id}`
       );
+      console.error(
+        `[REFUND] Payment record - Session ID: ${payment.session_id}, Status: ${payment.status}`
+      );
+
+      // If we don't have receipt_number, we cannot reliably process refund
+      // The bank requires the actual transaction ID, not the session ID
+      if (!payment.session_id) {
+        throw new Error(
+          'Cannot process refund: Transaction ID (receipt_number) is missing. The payment record does not have the required transaction ID from MIB gateway.'
+        );
+      } else {
+        console.warn(
+          `[REFUND] WARNING: Using session_id as fallback. This may not work if the bank requires the actual transaction ID.`
+        );
+      }
     }
 
-    // Prepare the order ID
-    const orderId = booking.booking_number || `order-${bookingId}`;
+    // Prepare the order ID - use receipt_number as orderId for refund
+    // The receipt_number was used as orderId during payment creation, so we must use it for refund
+    const orderId =
+      payment.receipt_number ||
+      payment.session_id ||
+      booking.booking_number ||
+      `order-${bookingId}`;
 
-    console.log(
-      `[REFUND] Preparing MIB API call - Order: ${orderId}, Transaction: ${transactionId}`
-    );
+    if (!payment.receipt_number) {
+      console.warn(
+        `[REFUND] WARNING: receipt_number not found, using booking_number as orderId fallback: ${orderId}`
+      );
+    }
 
     // Generate a unique refund transaction ID (use timestamp to make it unique)
     const refundTransactionId = `refund-${Date.now()}`;
@@ -905,9 +1006,6 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
       },
     };
 
-    console.log('[REFUND] Calling MIB Refund API...');
-    console.log('[REFUND] Request:', JSON.stringify(refundRequest, null, 2));
-
     const refundResponse = await fetch(
       `${MIB_BASE_URL}/api/rest/version/${API_VERSION}/merchant/${MERCHANT_ID}/order/${orderId}/transaction/${transactionId}`,
       {
@@ -920,8 +1018,6 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
       }
     );
 
-    console.log(`[REFUND] MIB API Response Status: ${refundResponse.status}`);
-
     if (!refundResponse.ok) {
       const errorText = await refundResponse.text();
       console.error('[REFUND] MIB API Error Response:', errorText);
@@ -931,10 +1027,6 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
     }
 
     const refundData = await refundResponse.json();
-    console.log(
-      '[REFUND] MIB API Success Response:',
-      JSON.stringify(refundData, null, 2)
-    );
 
     // Check if refund was successful
     const refundResult = refundData.result || refundData.response?.gatewayCode;
@@ -943,16 +1035,12 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
       refundData.transaction?.result === 'SUCCESS' ||
       refundData.result === 'SUCCESS';
 
-    console.log(
-      `[REFUND] Refund result: ${refundSuccessful ? 'SUCCESS' : 'FAILED'} (${refundResult})`
-    );
-
     // Update payment status to reflect refund
     const newPaymentStatus = refundSuccessful
       ? 'partially_refunded'
       : 'refund_failed';
 
-    console.log(`[REFUND] Updating payment status to: ${newPaymentStatus}`);
+    // Update primary booking's payment record
     const { error: paymentUpdateError } = await supabase
       .from('payments')
       .update({
@@ -969,8 +1057,38 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
       // Non-critical - continue processing
     }
 
+    // For round trips, also update the return booking's payment record
+    // This ensures both payment records reflect the refund status
+    // Use primaryBookingId to find the return booking (primary booking has return_booking_id)
+    const { data: bookingLink } = await supabase
+      .from('bookings')
+      .select('return_booking_id')
+      .eq('id', primaryBookingId) // Use primaryBookingId to find return booking
+      .maybeSingle();
+
+    if (bookingLink?.return_booking_id) {
+      // Find and update the return booking's payment record
+      const { data: returnPayment } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('booking_id', bookingLink.return_booking_id)
+        .eq('payment_method', 'mib')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (returnPayment) {
+        await supabase
+          .from('payments')
+          .update({
+            status: newPaymentStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', returnPayment.id);
+      }
+    }
+
     // Update cancellation record with refund status
-    console.log('[REFUND] Updating cancellation record...');
     const { error: cancellationUpdateError } = await supabase
       .from('cancellations')
       .update({
@@ -1006,7 +1124,6 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
       },
     };
 
-    console.log('[REFUND] Process completed successfully');
     return new Response(JSON.stringify(responseData), {
       status: refundSuccessful ? 200 : 400,
       headers: {

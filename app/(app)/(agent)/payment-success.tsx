@@ -18,6 +18,7 @@ import {
 } from '@/utils/paymentUtils';
 import { useAgentBookingFormStore } from '@/store/agent/agentBookingFormStore';
 import { useAgentStore } from '@/store/agent/agentStore';
+import { usePaymentSessionStore } from '@/store/paymentSessionStore';
 
 type PaymentStatus =
   | 'success'
@@ -49,6 +50,16 @@ export default function AgentPaymentSuccessScreen() {
   const { reset: resetAgentBooking, setCurrentStep: setAgentCurrentStep } =
     useAgentBookingFormStore();
   const { refreshBookingsData: refreshAgentBookingsData } = useAgentStore();
+
+  // Payment session management - clear session on mount
+  const clearPaymentSession = usePaymentSessionStore(
+    state => state.clearSession
+  );
+
+  // Clear payment session when component mounts
+  useEffect(() => {
+    clearPaymentSession();
+  }, [clearPaymentSession]);
 
   const bookingId = params.bookingId as string;
   const result = params.result as string;

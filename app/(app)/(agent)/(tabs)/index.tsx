@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -35,11 +36,6 @@ import StatCard from '@/components/StatCard';
 import AgentBookingCard from '@/components/AgentBookingCard';
 import Button from '@/components/Button';
 import { AgentInfoCard } from '@/components/agent';
-import {
-  SkeletonAgentInfoSection,
-  SkeletonStatsSection,
-  SkeletonRecentBookingsList,
-} from '@/components/skeleton';
 
 import { useAgentData } from '@/hooks/useAgentData';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
@@ -567,7 +563,9 @@ export default function AgentDashboardScreen() {
       {/* Agent Information Card - Quick Stats */}
       <View style={styles.agentInfoCard}>
         {isInitializing || !agent ? (
-          <SkeletonAgentInfoSection delay={0} />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size='large' color={Colors.primary} />
+          </View>
         ) : (
           <AgentInfoCard agent={agent} variant='dashboard' />
         )}
@@ -613,7 +611,9 @@ export default function AgentDashboardScreen() {
         Performance Overview
       </Text>
       {isLoadingStats || isInitializing ? (
-        <SkeletonStatsSection delay={0} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size='large' color={Colors.primary} />
+        </View>
       ) : (
         <>
           <ScrollView
@@ -704,7 +704,9 @@ export default function AgentDashboardScreen() {
       </View>
 
       {isLoadingBookings || isInitializing ? (
-        <SkeletonRecentBookingsList count={3} delay={0} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size='large' color={Colors.primary} />
+        </View>
       ) : recentBookings.length > 0 ? (
         recentBookings.map((booking: any) =>
           booking && booking.id ? (
@@ -757,7 +759,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    padding: 32,
+    minHeight: 200,
   },
   errorText: {
     fontSize: 16,

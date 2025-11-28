@@ -207,6 +207,7 @@ export interface Booking {
   payment?: {
     method: string;
     status: string;
+    receipt_number?: string | null;
   } | null;
   commission: number;
   userId?: string; // user_profiles.id for clients with accounts

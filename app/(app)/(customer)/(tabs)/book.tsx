@@ -834,6 +834,19 @@ export default function BookScreen() {
     }
 
     if (validateStep(BOOKING_STEPS.PAYMENT)) {
+      // Additional explicit check for terms acceptance as safety measure
+      if (!termsAccepted) {
+        setErrors(prev => ({
+          ...prev,
+          terms: 'Please accept terms and conditions',
+        }));
+        showError(
+          'Terms and Conditions Required',
+          'Please accept the terms and conditions before confirming your booking.'
+        );
+        return;
+      }
+
       try {
         // Final validation before booking - check trip status and time
         if (currentBooking.trip) {

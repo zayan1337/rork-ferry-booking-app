@@ -1,4 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+} from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,9 +12,12 @@ import {
   ScrollView,
   Pressable,
   Modal,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   Clock,
   Share2,
@@ -37,15 +46,29 @@ import {
 import TicketCard from '@/components/TicketCard';
 import TicketDesign from '@/components/TicketDesign';
 import Button from '@/components/Button';
+import Card from '@/components/Card';
 import { shareBookingTicket } from '@/utils/shareUtils';
 import Colors from '@/constants/colors';
 import { useAlertContext } from '@/components/AlertProvider';
+import { usePaymentSessionStore } from '@/store/paymentSessionStore';
+import { usePaymentSessionValidator } from '@/hooks/usePaymentSessionValidator';
+import { usePendingBookingWatcher } from '@/hooks/usePendingBookingWatcher';
+import { supabase } from '@/utils/supabase';
+import { BUFFER_MINUTES_PAYMENT_WINDOW } from '@/constants/customer';
+import { getMinutesUntilDeparture } from '@/utils/bookingUtils';
+import {
+  calculateBookingExpiry,
+  combineTripDateTime,
+} from '@/utils/bookingExpiryUtils';
+import { cancelPendingBookingDirectly } from '@/utils/paymentUtils';
+import MibPaymentWebView from '@/components/MibPaymentWebView';
+import ResumePaymentBanner from '@/components/agent/ResumePaymentBanner';
 
 export default function BookingDetailsScreen() {
-  const { showError, showSuccess } = useAlertContext();
+  const { showError, showSuccess, showInfo } = useAlertContext();
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { bookings, clients } = useAgentStore();
+  const { bookings, clients, refreshBookingsData } = useAgentStore();
   const ticketDesignRef = useRef<any>(null);
   const imageGenerationTicketRef = useRef<any>(null);
   const [showTicketPopup, setShowTicketPopup] = useState(false);
@@ -64,6 +87,29 @@ export default function BookingDetailsScreen() {
     conditions: false,
   });
 
+  // Payment session management
+  const paymentSession = usePaymentSessionStore(state => state.session);
+  const setPaymentSession = usePaymentSessionStore(state => state.setSession);
+  const updatePaymentSession = usePaymentSessionStore(
+    state => state.updateSession
+  );
+  const clearPaymentSession = usePaymentSessionStore(
+    state => state.clearSession
+  );
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentBookingDetails, setPaymentBookingDetails] = useState<any>(null);
+  const [paymentSessionData, setPaymentSessionData] = useState<any>(null);
+  const [activePaymentBookingId, setActivePaymentBookingId] = useState('');
+  const [autoCancelTriggered, setAutoCancelTriggered] = useState(false);
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  // Validate payment session on app resume and clear expired sessions
+  usePaymentSessionValidator();
+
   // Find the booking by id
   const booking = bookings.find(b => b.id === id);
 
@@ -80,6 +126,669 @@ export default function BookingDetailsScreen() {
   const { isModifiable, isCancellable, message } = useBookingEligibility({
     booking: convertedBooking as any,
   });
+
+  // Re-check booking status to ensure it's still pending (handles auto-cancellation)
+  const [actualBookingStatus, setActualBookingStatus] = useState<string | null>(
+    booking?.status ?? null
+  );
+  const [statusCheckReady, setStatusCheckReady] = useState(false);
+
+  // Payment pending state - check if booking status is pending_payment (from database)
+  const isPaymentPending = useMemo(() => {
+    if (!booking) return false;
+    // Check both the booking object status and actualBookingStatus
+    // Note: booking.status may be 'pending' but actualBookingStatus from DB is 'pending_payment'
+    return (
+      booking.status === 'pending' ||
+      actualBookingStatus === 'pending_payment' ||
+      (booking.status as string) === 'pending_payment'
+    );
+  }, [booking, actualBookingStatus]);
+
+  const bookingCreatedAt = useMemo(
+    () =>
+      booking
+        ? new Date(booking.bookingDate || new Date().toISOString())
+        : new Date(0),
+    [booking]
+  );
+
+  // Calculate smart expiry time based on booking creation and trip departure
+  const expiryCalculation = useMemo(() => {
+    if (
+      !booking ||
+      !isPaymentPending ||
+      !booking.departureDate ||
+      !booking.departureTime
+    ) {
+      return null;
+    }
+
+    try {
+      const tripDeparture = combineTripDateTime(
+        booking.departureDate,
+        booking.departureTime
+      );
+      return calculateBookingExpiry(bookingCreatedAt, tripDeparture);
+    } catch (error) {
+      console.error('Error calculating booking expiry:', error);
+      return null;
+    }
+  }, [booking, isPaymentPending, bookingCreatedAt]);
+
+  const paymentWindowExpiresAt = useMemo(() => {
+    return expiryCalculation?.expiresAt || new Date(0);
+  }, [expiryCalculation]);
+
+  // Countdown timer state
+  const [countdown, setCountdown] = useState<{
+    minutes: number;
+    seconds: number;
+    totalSeconds: number;
+  } | null>(null);
+
+  // Real-time booking status monitoring
+  const { status: pendingBookingStatus, isLoading: pendingStatusLoading } =
+    usePendingBookingWatcher({
+      bookingId: paymentSession?.bookingId || booking?.id,
+      enabled: !!isPaymentPending && (!!paymentSession || !!booking),
+    });
+
+  // Calculate initial countdown with booking status check
+  useEffect(() => {
+    if (
+      !booking ||
+      !isPaymentPending ||
+      !expiryCalculation ||
+      expiryCalculation.isExpired
+    ) {
+      setCountdown(null);
+      return;
+    }
+
+    const updateCountdown = async () => {
+      // Check booking status from database to detect auto-cancellation
+      try {
+        const { data: currentBooking, error } = await supabase
+          .from('bookings')
+          .select('status')
+          .eq('id', booking.id)
+          .single();
+
+        // If booking is no longer pending, stop countdown and refresh
+        if (!error && currentBooking) {
+          if (currentBooking.status !== 'pending_payment') {
+            // Booking was cancelled or confirmed - stop countdown and refresh
+            setCountdown(null);
+            await refreshBookingsData();
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking booking status in countdown:', error);
+      }
+
+      // Calculate countdown time
+      const now = new Date();
+      const expiresAt = expiryCalculation.expiresAt;
+      const diff = Math.max(0, expiresAt.getTime() - now.getTime());
+      const totalSeconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+
+      setCountdown({ minutes, seconds, totalSeconds });
+
+      // If countdown reached zero, check booking status one more time
+      if (totalSeconds === 0) {
+        // Give backend a moment to process cancellation
+        setTimeout(async () => {
+          await refreshBookingsData();
+        }, 1000);
+      }
+    };
+
+    // Update immediately
+    updateCountdown();
+
+    // Update every second, but check booking status every 5 seconds to avoid too many DB calls
+    let checkCounter = 0;
+    const interval = setInterval(() => {
+      checkCounter++;
+      // Check booking status every 5 seconds
+      if (checkCounter % 5 === 0) {
+        updateCountdown();
+      } else {
+        // Just update countdown display
+        const now = new Date();
+        const expiresAt = expiryCalculation.expiresAt;
+        const diff = Math.max(0, expiresAt.getTime() - now.getTime());
+        const totalSeconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        setCountdown({ minutes, seconds, totalSeconds });
+
+        // If countdown reached zero, check booking status
+        if (totalSeconds === 0) {
+          setTimeout(async () => {
+            await refreshBookingsData();
+          }, 1000);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [booking, isPaymentPending, expiryCalculation, refreshBookingsData]);
+
+  const paymentMinutesRemaining = countdown?.minutes || 0;
+  const paymentSecondsRemaining = countdown?.seconds || 0;
+
+  // Periodically check booking status to detect auto-cancellation
+  useEffect(() => {
+    if (!booking || !isPaymentPending) {
+      setActualBookingStatus(booking?.status ?? null);
+      setStatusCheckReady(true);
+      return;
+    }
+
+    let isMounted = true;
+
+    const checkBookingStatus = async () => {
+      try {
+        const { data: currentBooking, error } = await supabase
+          .from('bookings')
+          .select('status')
+          .eq('id', booking.id)
+          .single();
+
+        if (!error && currentBooking && isMounted) {
+          setActualBookingStatus(currentBooking.status);
+
+          // If booking is no longer pending, refresh bookings list
+          if (currentBooking.status !== 'pending_payment') {
+            await refreshBookingsData();
+          }
+        }
+      } catch (error) {
+        console.error('Error checking booking status:', error);
+      } finally {
+        if (isMounted) {
+          setStatusCheckReady(true);
+        }
+      }
+    };
+
+    // Check immediately
+    checkBookingStatus();
+
+    // Check every 3 seconds to catch auto-cancellations quickly
+    const statusInterval = setInterval(checkBookingStatus, 3000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(statusInterval);
+    };
+  }, [booking?.id, booking?.status, isPaymentPending, refreshBookingsData]);
+
+  const isWithinPaymentWindow =
+    !!booking &&
+    isPaymentPending &&
+    actualBookingStatus === 'pending_payment' && // Check actual status from DB
+    expiryCalculation !== null &&
+    !expiryCalculation.isExpired &&
+    countdown !== null &&
+    countdown.totalSeconds > 0;
+
+  // Refresh booking when screen comes into focus (handles auto-cancellation updates)
+  useFocusEffect(
+    useCallback(() => {
+      refreshBookingsData();
+    }, [refreshBookingsData])
+  );
+
+  // Payment window calculation
+  const calculatePaymentWindowSeconds = useCallback(
+    (tripInfo?: { travelDate: string; departureTime: string }) => {
+      let maxTimerSeconds = BUFFER_MINUTES_PAYMENT_WINDOW * 60;
+      if (tripInfo?.travelDate && tripInfo?.departureTime) {
+        const minutesUntilDeparture = getMinutesUntilDeparture(
+          tripInfo.travelDate,
+          tripInfo.departureTime
+        );
+        if (minutesUntilDeparture > 0) {
+          maxTimerSeconds = Math.max(
+            30,
+            Math.min(maxTimerSeconds, minutesUntilDeparture * 60)
+          );
+        } else {
+          maxTimerSeconds = 0;
+        }
+      }
+      return maxTimerSeconds;
+    },
+    []
+  );
+
+  const computeSessionExpiry = useCallback(
+    (tripInfo?: { travelDate: string; departureTime: string }) => {
+      const seconds = calculatePaymentWindowSeconds(tripInfo);
+      const timerExpiry = new Date(Date.now() + seconds * 1000);
+      return new Date(
+        Math.min(timerExpiry.getTime(), paymentWindowExpiresAt.getTime())
+      );
+    },
+    [calculatePaymentWindowSeconds, paymentWindowExpiresAt]
+  );
+
+  const getActivePaymentBookingId = useCallback(
+    () =>
+      activePaymentBookingId || paymentSession?.bookingId || booking?.id || '',
+    [activePaymentBookingId, paymentSession?.bookingId, booking?.id]
+  );
+
+  // Helper function to check booking status
+  const checkBookingStatus = useCallback(
+    async (
+      bookingId: string
+    ): Promise<'cancelled' | 'confirmed' | 'pending_payment' | 'unknown'> => {
+      try {
+        const { data: booking, error } = await supabase
+          .from('bookings')
+          .select('status')
+          .eq('id', bookingId)
+          .single();
+
+        if (error || !booking) return 'unknown';
+        return booking.status as 'cancelled' | 'confirmed' | 'pending_payment';
+      } catch (error) {
+        console.error('Error checking booking status:', error);
+        return 'unknown';
+      }
+    },
+    []
+  );
+
+  // Auto-cancellation handler
+  const handlePaymentTimeout = useCallback(async () => {
+    const targetBookingId = getActivePaymentBookingId();
+    if (!targetBookingId || autoCancelTriggered) {
+      return;
+    }
+
+    setAutoCancelTriggered(true);
+
+    try {
+      await supabase.functions.invoke('auto-cancel-pending', {
+        body: { bookingId: targetBookingId },
+      });
+
+      // Wait a moment for database update
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Check if booking was actually cancelled
+      const status = await checkBookingStatus(targetBookingId);
+
+      if (status === 'cancelled') {
+        // Booking was auto-cancelled
+        clearPaymentSession();
+        showInfo(
+          'Payment Expired',
+          'The payment window expired and the booking was automatically cancelled.'
+        );
+        await refreshBookingsData();
+        return;
+      }
+    } catch (error) {
+      console.warn('Auto cancellation function failed:', error);
+    }
+
+    // Fallback: if status check fails, still show info but refresh
+    clearPaymentSession();
+    showInfo(
+      'Payment Session Expired',
+      'The payment window has expired. Please check your bookings for the current status.'
+    );
+    await refreshBookingsData();
+  }, [
+    getActivePaymentBookingId,
+    autoCancelTriggered,
+    clearPaymentSession,
+    showInfo,
+    refreshBookingsData,
+    checkBookingStatus,
+  ]);
+
+  // Cancel pending booking handler
+  const handleCancelPendingBooking = useCallback(() => {
+    if (!booking || !isPaymentPending) {
+      return;
+    }
+    setShowCancelConfirmModal(true);
+  }, [booking, isPaymentPending]);
+
+  const confirmCancelPendingBooking = useCallback(async () => {
+    if (!booking || !isPaymentPending || isCancelling) {
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      // Use direct database update for instant cancellation
+      await cancelPendingBookingDirectly(booking.id, 'Cancelled by agent');
+      setShowCancelConfirmModal(false);
+      showInfo(
+        'Booking Cancelled',
+        'The pending booking has been cancelled and seats have been released.'
+      );
+      await refreshBookingsData();
+    } catch (error: any) {
+      showError(
+        'Cancellation Failed',
+        error?.message || 'Failed to cancel booking. Please try again.'
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  }, [
+    booking,
+    isPaymentPending,
+    isCancelling,
+    showInfo,
+    showError,
+    refreshBookingsData,
+  ]);
+
+  // Continue payment handler
+  const handleContinuePayment = useCallback(() => {
+    if (!booking) {
+      return;
+    }
+    if (!isPaymentPending || !isWithinPaymentWindow) {
+      showInfo(
+        'Payment Window Expired',
+        'This booking can no longer be paid because the payment window passed.'
+      );
+      return;
+    }
+
+    const routeLabel = booking.route
+      ? `${booking.route.fromIsland?.name || booking.origin || 'N/A'} → ${booking.route.toIsland?.name || booking.destination || 'N/A'}`
+      : `${booking.origin || 'N/A'} → ${booking.destination || 'N/A'}`;
+
+    const details = {
+      bookingNumber: booking.bookingNumber || booking.id || 'N/A',
+      route: routeLabel,
+      travelDate: booking.departureDate || new Date().toISOString(),
+      amount: Number(booking.totalAmount) || 0,
+      currency: 'MVR',
+      passengerCount: booking.passengers?.length || booking.passengerCount || 0,
+    };
+
+    const tripInfo = {
+      travelDate: booking.departureDate || new Date().toISOString(),
+      departureTime: booking.departureTime || '00:00',
+    };
+
+    const expiresAtDate = computeSessionExpiry(tripInfo);
+
+    setActivePaymentBookingId(booking.id);
+    setPaymentBookingDetails(details);
+    setPaymentSessionData(
+      paymentSession && paymentSession.bookingId === booking.id
+        ? paymentSession.sessionData
+        : null
+    );
+    setPaymentSession({
+      bookingId: booking.id,
+      bookingDetails: details,
+      context: 'booking',
+      tripInfo,
+      sessionData:
+        paymentSession && paymentSession.bookingId === booking.id
+          ? paymentSession.sessionData
+          : null,
+      startedAt: new Date().toISOString(),
+      expiresAt: expiresAtDate.toISOString(),
+    });
+    setShowPaymentModal(true);
+  }, [
+    booking,
+    computeSessionExpiry,
+    isPaymentPending,
+    isWithinPaymentWindow,
+    paymentSession,
+    setPaymentSession,
+    showInfo,
+  ]);
+
+  // Resume payment handler
+  const handleResumePayment = useCallback(() => {
+    if (!paymentSession) return;
+    setPaymentBookingDetails(paymentSession.bookingDetails);
+    setActivePaymentBookingId(paymentSession.bookingId);
+    setPaymentSessionData(paymentSession.sessionData || null);
+    setShowPaymentModal(true);
+  }, [paymentSession]);
+
+  // Auto-cancel pending booking when timeout
+  const autoCancelPendingBooking = useCallback(async () => {
+    if (
+      !booking ||
+      !isPaymentPending ||
+      countdown === null ||
+      isWithinPaymentWindow ||
+      autoCancelTriggered ||
+      !statusCheckReady ||
+      actualBookingStatus !== 'pending_payment'
+    ) {
+      return;
+    }
+    setAutoCancelTriggered(true);
+    try {
+      await supabase.functions.invoke('auto-cancel-pending', {
+        body: { bookingId: booking.id },
+      });
+      showInfo(
+        'Booking Cancelled',
+        'The payment window expired and the booking was automatically cancelled.'
+      );
+      await refreshBookingsData();
+    } catch (error: any) {
+      showError(
+        'Auto cancellation failed',
+        error?.message || 'Failed to cancel booking automatically.'
+      );
+    }
+  }, [
+    booking,
+    isPaymentPending,
+    isWithinPaymentWindow,
+    countdown,
+    autoCancelTriggered,
+    statusCheckReady,
+    actualBookingStatus,
+    showInfo,
+    showError,
+    refreshBookingsData,
+  ]);
+
+  // Calculate smart expiry for resume banner
+  const resumeBannerExpiry = useMemo(() => {
+    if (!paymentSession || !paymentSession.tripInfo) {
+      return null;
+    }
+
+    try {
+      const bookingCreatedAt = new Date(paymentSession.startedAt);
+      const tripDeparture = combineTripDateTime(
+        paymentSession.tripInfo.travelDate,
+        paymentSession.tripInfo.departureTime
+      );
+      return calculateBookingExpiry(bookingCreatedAt, tripDeparture);
+    } catch (error) {
+      console.error('Error calculating resume banner expiry:', error);
+      return null;
+    }
+  }, [paymentSession]);
+
+  const [resumeCountdown, setResumeCountdown] = useState<{
+    minutes: number;
+    seconds: number;
+    totalSeconds: number;
+  } | null>(null);
+
+  useEffect(() => {
+    autoCancelPendingBooking();
+  }, [autoCancelPendingBooking]);
+
+  useEffect(() => {
+    if (
+      !paymentSession ||
+      showPaymentModal ||
+      !resumeBannerExpiry?.expiresAt ||
+      resumeBannerExpiry.isExpired ||
+      pendingBookingStatus !== 'pending_payment'
+    ) {
+      setResumeCountdown(null);
+      return;
+    }
+
+    let timeoutTriggered = false;
+
+    const updateCountdown = () => {
+      const expiresAt =
+        resumeBannerExpiry.expiresAt instanceof Date
+          ? resumeBannerExpiry.expiresAt
+          : new Date(resumeBannerExpiry.expiresAt);
+      const diff = Math.max(0, expiresAt.getTime() - new Date().getTime());
+      const totalSeconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+
+      setResumeCountdown({ minutes, seconds, totalSeconds });
+
+      if (totalSeconds === 0 && !timeoutTriggered) {
+        timeoutTriggered = true;
+        handlePaymentTimeout();
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [
+    paymentSession,
+    showPaymentModal,
+    resumeBannerExpiry?.expiresAt,
+    resumeBannerExpiry?.isExpired,
+    pendingBookingStatus,
+    handlePaymentTimeout,
+  ]);
+
+  const shouldShowResumeBanner =
+    !!paymentSession &&
+    !showPaymentModal &&
+    resumeBannerExpiry !== null &&
+    !resumeBannerExpiry.isExpired &&
+    pendingBookingStatus === 'pending_payment' &&
+    !pendingStatusLoading;
+
+  // Monitor payment session expiry
+  useEffect(() => {
+    if (
+      !booking ||
+      !paymentSession ||
+      paymentSession.bookingId !== booking.id ||
+      showPaymentModal
+    ) {
+      return;
+    }
+    if (new Date(paymentSession.expiresAt).getTime() <= Date.now()) {
+      handlePaymentTimeout();
+    }
+  }, [booking, paymentSession, showPaymentModal, handlePaymentTimeout]);
+
+  // Handle app state changes
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextState: AppStateStatus) => {
+        if (
+          appStateRef.current.match(/inactive|background/) &&
+          nextState === 'active'
+        ) {
+          // Refresh bookings when app comes to foreground (handles auto-cancellation)
+          refreshBookingsData();
+
+          // Check if payment session expired while app was in background
+          if (
+            booking &&
+            paymentSession &&
+            paymentSession.bookingId === booking.id
+          ) {
+            if (new Date(paymentSession.expiresAt).getTime() <= Date.now()) {
+              handlePaymentTimeout();
+            }
+          }
+        }
+        appStateRef.current = nextState;
+      }
+    );
+
+    return () => subscription.remove();
+  }, [booking, paymentSession, handlePaymentTimeout, refreshBookingsData]);
+
+  // Monitor pending booking status changes
+  useEffect(() => {
+    if (
+      !paymentSession?.bookingId ||
+      pendingStatusLoading ||
+      !pendingBookingStatus ||
+      pendingBookingStatus === 'pending_payment'
+    ) {
+      return;
+    }
+
+    clearPaymentSession();
+    if (pendingBookingStatus === 'cancelled') {
+      showInfo(
+        'Booking Cancelled',
+        'The payment window expired and your booking was automatically cancelled.'
+      );
+    }
+    refreshBookingsData();
+  }, [
+    pendingBookingStatus,
+    pendingStatusLoading,
+    paymentSession?.bookingId,
+    clearPaymentSession,
+    showInfo,
+    refreshBookingsData,
+  ]);
+
+  const finalizePaymentFlow = useCallback(
+    (
+      targetBookingId: string,
+      result: 'SUCCESS' | 'FAILURE' | 'CANCELLED',
+      extraParams: Record<string, string> = {}
+    ) => {
+      setShowPaymentModal(false);
+      setActivePaymentBookingId('');
+      setPaymentBookingDetails(null);
+      setPaymentSessionData(null);
+      clearPaymentSession();
+      router.replace({
+        pathname: '/(app)/(agent)/payment-success',
+        params: {
+          bookingId: targetBookingId,
+          result,
+          resetBooking: 'false',
+          ...extraParams,
+        },
+      });
+    },
+    [clearPaymentSession, router]
+  );
 
   if (!booking) {
     return (
@@ -451,6 +1160,65 @@ export default function BookingDetailsScreen() {
           onShare={handleShareTicket}
         />
 
+        {/* Resume Payment Banner */}
+        {shouldShowResumeBanner && paymentSession && (
+          <ResumePaymentBanner
+            bookingNumber={paymentSession.bookingDetails.bookingNumber}
+            countdown={resumeCountdown}
+            expiryReason={resumeBannerExpiry?.reason}
+            onResume={handleResumePayment}
+            onCancel={handleCancelPendingBooking}
+          />
+        )}
+
+        {/* Payment Pending Card */}
+        {isPaymentPending && (
+          <Card variant='elevated' style={styles.paymentPendingCard}>
+            <View style={styles.paymentPendingHeader}>
+              <Clock size={20} color={Colors.primary} />
+              <Text style={styles.paymentPendingTitle}>Payment Pending</Text>
+            </View>
+            <Text style={styles.paymentPendingText}>
+              {actualBookingStatus === 'cancelled' ? (
+                'This booking has been automatically cancelled. The payment window expired.'
+              ) : isWithinPaymentWindow ? (
+                <>
+                  This booking is awaiting payment. Seats are reserved for{' '}
+                  <Text style={styles.paymentPendingTime}>
+                    {paymentMinutesRemaining.toString().padStart(2, '0')}:
+                    {paymentSecondsRemaining.toString().padStart(2, '0')}
+                  </Text>
+                  {expiryCalculation?.reason === 'departure_time' && (
+                    <Text style={styles.paymentPendingNote}>
+                      {' '}
+                      (until departure time)
+                    </Text>
+                  )}
+                  .
+                </>
+              ) : (
+                'The payment window expired. This booking will be cancelled automatically.'
+              )}
+            </Text>
+            {isWithinPaymentWindow && (
+              <View style={styles.paymentPendingActions}>
+                <Button
+                  title='Continue Payment'
+                  onPress={handleContinuePayment}
+                  style={styles.paymentPendingButton}
+                />
+                <Button
+                  title='Cancel Booking'
+                  onPress={handleCancelPendingBooking}
+                  variant='outline'
+                  style={styles.paymentPendingButton}
+                  textStyle={styles.cancelButtonText}
+                />
+              </View>
+            )}
+          </Card>
+        )}
+
         {/* Ticket Card with QR Code */}
         <TicketCard booking={ticketBookingData as any} />
 
@@ -626,6 +1394,146 @@ export default function BookingDetailsScreen() {
           />
         </View>
       </ScrollView>
+
+      {/* MIB Payment WebView */}
+      {showPaymentModal && paymentBookingDetails && activePaymentBookingId && (
+        <MibPaymentWebView
+          visible={showPaymentModal}
+          bookingDetails={paymentBookingDetails}
+          bookingId={activePaymentBookingId}
+          tripInfo={
+            booking
+              ? {
+                  travelDate: booking.departureDate || new Date().toISOString(),
+                  departureTime: booking.departureTime || '00:00',
+                }
+              : paymentSession?.tripInfo
+          }
+          sessionData={
+            paymentSessionData ||
+            (paymentSession?.bookingId === booking?.id
+              ? paymentSession.sessionData || undefined
+              : undefined)
+          }
+          onClose={() => {
+            setShowPaymentModal(false);
+            setPaymentBookingDetails(null);
+            setPaymentSessionData(null);
+            setActivePaymentBookingId('');
+            clearPaymentSession();
+          }}
+          onSuccess={result => {
+            const bookingIdForResult = getActivePaymentBookingId();
+            if (!bookingIdForResult) {
+              showError(
+                'Payment Error',
+                'Unable to verify booking reference after payment.'
+              );
+              return;
+            }
+            finalizePaymentFlow(bookingIdForResult, 'SUCCESS', {
+              sessionId: result.sessionId,
+            });
+          }}
+          onFailure={error => {
+            const bookingIdForResult = getActivePaymentBookingId();
+            if (!bookingIdForResult) {
+              showError(
+                'Payment Error',
+                error || 'Unable to continue payment.'
+              );
+              return;
+            }
+            finalizePaymentFlow(bookingIdForResult, 'FAILURE');
+          }}
+          onCancel={() => {
+            const bookingIdForResult = getActivePaymentBookingId();
+            if (!bookingIdForResult) {
+              showError(
+                'Payment Cancelled',
+                'Booking reference missing while cancelling payment.'
+              );
+              return;
+            }
+            finalizePaymentFlow(bookingIdForResult, 'CANCELLED');
+          }}
+          onSessionCreated={session => {
+            setPaymentSessionData(session);
+            updatePaymentSession({ sessionData: session });
+          }}
+          onTimerExpired={async () => {
+            const bookingIdForResult = getActivePaymentBookingId();
+            if (!bookingIdForResult) {
+              handlePaymentTimeout();
+              return;
+            }
+
+            // Check booking status before calling handlePaymentTimeout
+            const status = await checkBookingStatus(bookingIdForResult);
+
+            if (status === 'cancelled') {
+              // Already cancelled, just clear session and show message
+              clearPaymentSession();
+              showInfo(
+                'Payment Session Expired',
+                'The payment window expired and your booking was automatically cancelled.'
+              );
+              await refreshBookingsData();
+            } else {
+              // Call timeout handler
+              handlePaymentTimeout();
+            }
+          }}
+        />
+      )}
+
+      {/* Cancel Booking Confirmation Modal */}
+      <Modal
+        visible={showCancelConfirmModal}
+        transparent={true}
+        animationType='fade'
+        onRequestClose={() => !isCancelling && setShowCancelConfirmModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Card variant='elevated' style={styles.confirmModalCard}>
+            <View style={styles.confirmModalHeader}>
+              <AlertCircle size={24} color={Colors.warning} />
+              <Text style={styles.confirmModalTitle}>Cancel Booking</Text>
+            </View>
+            <Text style={styles.confirmModalText}>
+              Are you sure you want to cancel this pending booking? This action
+              will release the reserved seats and cannot be undone.
+            </Text>
+            {booking && (
+              <View style={styles.confirmModalBookingInfo}>
+                <Text style={styles.confirmModalBookingLabel}>
+                  Booking Number:
+                </Text>
+                <Text style={styles.confirmModalBookingValue}>
+                  {booking.bookingNumber || booking.id}
+                </Text>
+              </View>
+            )}
+            <View style={styles.confirmModalActions}>
+              <Button
+                title='No, Keep Booking'
+                onPress={() => setShowCancelConfirmModal(false)}
+                variant='outline'
+                style={styles.confirmModalButton}
+                disabled={isCancelling}
+                textStyle={styles.confirmModalCancelText}
+              />
+              <Button
+                title={isCancelling ? 'Cancelling...' : 'Yes, Cancel Booking'}
+                onPress={confirmCancelPendingBooking}
+                style={styles.confirmModalButton}
+                disabled={isCancelling}
+                textStyle={styles.confirmModalConfirmText}
+              />
+            </View>
+          </Card>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -859,5 +1767,107 @@ const styles = StyleSheet.create({
     top: -10000,
     opacity: 0,
     pointerEvents: 'none',
+  },
+  // Payment Pending Styles
+  paymentPendingCard: {
+    marginBottom: 16,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+  },
+  paymentPendingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  paymentPendingTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  paymentPendingText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  paymentPendingTime: {
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  paymentPendingNote: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  paymentPendingActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  paymentPendingButton: {
+    flex: 1,
+  },
+  cancelButtonText: {
+    color: Colors.error,
+  },
+  // Cancel Confirmation Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmModalCard: {
+    width: '100%',
+    maxWidth: 400,
+    padding: 20,
+  },
+  confirmModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  confirmModalText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  confirmModalBookingInfo: {
+    backgroundColor: Colors.highlight,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  confirmModalBookingLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  confirmModalBookingValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  confirmModalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  confirmModalButton: {
+    flex: 1,
+  },
+  confirmModalCancelText: {
+    color: Colors.textSecondary,
+  },
+  confirmModalConfirmText: {
+    color: Colors.error,
   },
 });

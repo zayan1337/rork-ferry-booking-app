@@ -1495,10 +1495,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
 
       // Handle payment records and status updates for main (and return) bookings
       if (paymentMethod === 'mib') {
-        // Use the exact calculated total fare from the store (no recalculation)
-        // For round trips, this is the combined total (outbound + return)
-        // For one-way trips, this is just the outbound fare
-        const paymentAmount = currentBooking.totalFare;
+        // For MIB payments, create payment record for departure booking with individual leg fare
+        // For round trips, we'll create a separate payment for the return booking as well
+        // This ensures consistency with agent booking flow and proper payment tracking
+        const paymentAmount = outboundLegFare; // Use individual leg fare, not combined total
 
         const { error: paymentError } = await supabase.from('payments').insert({
           booking_id: booking.id,
@@ -1520,9 +1520,31 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         // Add payment rollback to stack
         rollbackStack.push(createPaymentRollback(booking.id));
 
-        // For round trips, we don't create a separate payment for the return booking
-        // The combined amount is already stored in the main booking's payment record
-        // The return booking is linked via round_trip_group_id and return_booking_id
+        // For round trips, create a separate payment record for the return booking
+        // This ensures consistency with agent booking flow and proper payment tracking
+        if (returnBookingId && returnLegTotalFare > 0) {
+          const { error: returnPaymentError } = await supabase
+            .from('payments')
+            .insert({
+              booking_id: returnBookingId,
+              payment_method: paymentMethod as PaymentMethod,
+              amount: returnLegTotalFare,
+              currency: 'MVR',
+              status: 'pending',
+            });
+
+          if (returnPaymentError) {
+            // Execute rollback if return payment creation fails
+            const { executeRollback } = await import('@/utils/bookingCleanup');
+            await executeRollback(rollbackStack);
+            throw new Error(
+              `Failed to create return payment record: ${returnPaymentError.message}`
+            );
+          }
+
+          // Add return payment rollback to stack
+          rollbackStack.push(createPaymentRollback(returnBookingId));
+        }
 
         const { error: statusUpdateError } = await supabase
           .from('bookings')

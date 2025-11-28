@@ -31,7 +31,6 @@ import {
 import Colors from '@/constants/colors';
 import CreditTransactionCard from '@/components/CreditTransactionCard';
 import { CreditSummaryCard } from '@/components/agent';
-import { SkeletonCreditTransactionsList } from '@/components/skeleton';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
 import { useAlertContext } from '@/components/AlertProvider';
 
@@ -408,8 +407,8 @@ const CreditPaymentModal = React.memo(
       >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
           <View
@@ -423,7 +422,12 @@ const CreditPaymentModal = React.memo(
               </Pressable>
             </View>
 
-            <View style={styles.modalBody}>
+            <ScrollView
+              style={styles.modalBodyScroll}
+              contentContainerStyle={styles.modalBody}
+              keyboardShouldPersistTaps='handled'
+              showsVerticalScrollIndicator={false}
+            >
               <Text style={styles.modalLabel}>
                 Select or enter payment amount (MVR)
               </Text>
@@ -462,6 +466,7 @@ const CreditPaymentModal = React.memo(
                   value={amount}
                   onChangeText={setAmount}
                   placeholderTextColor={Colors.subtext}
+                  returnKeyType='done'
                 />
               </View>
 
@@ -501,7 +506,7 @@ const CreditPaymentModal = React.memo(
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
-            </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -1071,7 +1076,9 @@ export default function AgentCreditScreen() {
                 />
               </View>
             </View>
-            <SkeletonCreditTransactionsList count={8} delay={0} />
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size='large' color={Colors.primary} />
+            </View>
           </ScrollView>
         ) : (
           <FlatList
@@ -1679,8 +1686,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
   },
+  modalBodyScroll: {
+    flex: 1,
+  },
   modalBody: {
     padding: 20,
+    paddingBottom: 40,
   },
   modalLabel: {
     fontSize: 14,
@@ -1772,5 +1783,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.subtext,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    minHeight: 200,
   },
 });

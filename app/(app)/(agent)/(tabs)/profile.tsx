@@ -9,6 +9,7 @@ import {
   Dimensions,
   Modal,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -39,7 +40,6 @@ import { useAlertContext } from '@/components/AlertProvider';
 import CalendarDatePicker from '@/components/CalendarDatePicker';
 import StatCard from '@/components/StatCard';
 import { CreditSummaryCard } from '@/components/agent';
-import { SkeletonAgentInfoSection } from '@/components/skeleton';
 
 import { useAgentData } from '@/hooks/useAgentData';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
@@ -547,12 +547,9 @@ export default function AgentProfileScreen() {
 
   if ((isInitializing || isLoadingProfile) && !agent) {
     return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-      >
-        <SkeletonAgentInfoSection delay={0} />
-      </ScrollView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size='large' color={Colors.primary} />
+      </View>
     );
   }
 
@@ -1036,5 +1033,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 12,
     lineHeight: 18,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    padding: 32,
   },
 });

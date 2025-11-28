@@ -230,10 +230,26 @@ export const validateAgentCredit = (
     return { isValid: false, error: 'Agent information not available' };
   }
 
+  // Check if credit limit is assigned (creditCeiling should be > 0)
+  if (!agent.creditCeiling || agent.creditCeiling <= 0) {
+    return {
+      isValid: false,
+      error: 'No credit limit assigned. Please contact administrator to set up your credit limit before using credit payment.',
+    };
+  }
+
+  // Check if credit balance is zero or insufficient
+  if (agent.creditBalance <= 0) {
+    return {
+      isValid: false,
+      error: 'Credit balance is zero. Please top up your credit balance before making a booking with credit payment.',
+    };
+  }
+
   if (agent.creditBalance < requiredAmount) {
     return {
       isValid: false,
-      error: `Insufficient credit balance. Required: MVR ${requiredAmount.toFixed(2)}, Available: MVR ${agent.creditBalance.toFixed(2)}`,
+      error: `Insufficient credit balance. Required: MVR ${requiredAmount.toFixed(2)}, Available: MVR ${agent.creditBalance.toFixed(2)}. Please top up your credit balance.`,
     };
   }
 
@@ -254,10 +270,34 @@ export const validateAgentFreeTickets = (
     return { isValid: false, error: 'Agent information not available' };
   }
 
+  // Check if free tickets are allocated
+  if (
+    agent.freeTicketsAllocation === undefined ||
+    agent.freeTicketsAllocation === null ||
+    agent.freeTicketsAllocation <= 0
+  ) {
+    return {
+      isValid: false,
+      error: 'No free tickets allocated. Please contact administrator to allocate free tickets before using free ticket payment.',
+    };
+  }
+
+  // Check if free tickets remaining is zero
+  if (
+    agent.freeTicketsRemaining === undefined ||
+    agent.freeTicketsRemaining === null ||
+    agent.freeTicketsRemaining <= 0
+  ) {
+    return {
+      isValid: false,
+      error: 'No free tickets available. All allocated free tickets have been used. Please use a different payment method.',
+    };
+  }
+
   if (agent.freeTicketsRemaining < requiredTickets) {
     return {
       isValid: false,
-      error: `Insufficient free tickets. Required: ${requiredTickets}, Available: ${agent.freeTicketsRemaining}`,
+      error: `Insufficient free tickets. Required: ${requiredTickets}, Available: ${agent.freeTicketsRemaining}. Please use a different payment method or contact administrator for more free tickets.`,
     };
   }
 

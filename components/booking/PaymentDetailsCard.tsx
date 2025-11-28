@@ -8,6 +8,7 @@ interface Payment {
   status?: string;
   method?: string;
   payment_method?: string;
+  receipt_number?: string | null;
 }
 
 interface PaymentDetailsCardProps {
@@ -156,14 +157,25 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
       </View>
 
       {payment && (
-        <View style={styles.paymentRow}>
-          <Text style={styles.paymentLabel}>Payment Status</Text>
-          <Text
-            style={[styles.paymentValue, getPaymentStatusStyle(payment.status)]}
-          >
-            {(payment.status || 'UNKNOWN').toUpperCase()}
-          </Text>
-        </View>
+        <>
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Payment Status</Text>
+            <Text
+              style={[
+                styles.paymentValue,
+                getPaymentStatusStyle(payment.status),
+              ]}
+            >
+              {(payment.status || 'UNKNOWN').toUpperCase()}
+            </Text>
+          </View>
+          {payment.receipt_number && (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Receipt Number</Text>
+              <Text style={styles.paymentValue}>{payment.receipt_number}</Text>
+            </View>
+          )}
+        </>
       )}
 
       {commission && commission > 0 && (

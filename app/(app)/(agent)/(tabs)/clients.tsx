@@ -6,6 +6,7 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Search, UserPlus } from 'lucide-react-native';
@@ -14,7 +15,6 @@ import Colors from '@/constants/colors';
 import ClientCard from '@/components/ClientCard';
 import Input from '@/components/Input';
 import { AgentStatsCard } from '@/components/agent';
-import { SkeletonClientsList } from '@/components/skeleton';
 
 import type { Client } from '@/types/agent';
 import { useAgentData } from '@/hooks/useAgentData';
@@ -222,7 +222,9 @@ export default function AgentClientsScreen() {
 
       {/* Client List */}
       {isLoadingClients && (!clients || clients.length === 0) ? (
-        <SkeletonClientsList count={6} delay={0} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size='large' color={Colors.primary} />
+        </View>
       ) : filteredClients.length > 0 ? (
         <FlatList
           data={filteredClients}
@@ -315,5 +317,12 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     color: '#d32f2f',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    minHeight: 200,
   },
 });

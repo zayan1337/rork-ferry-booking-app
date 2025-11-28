@@ -563,40 +563,41 @@ export const useAgentBookingFormStore = create<
 
       const searchResults: AgentClient[] = [];
 
-      // Search existing agent clients - try both the view and direct table
+      // Search existing agent clients - only include customers (exclude agents, admins, captains)
       let agentClients: any[] = [];
 
-      // First try the view
-      const { data: viewData, error: viewError } = await supabase
-        .from('agent_clients_with_details')
-        .select('*')
+      // Query agent_clients table with join to user_profiles to filter by role
+      // This ensures we only get clients with role = 'customer'
+      const { data: directData, error: directError } = await supabase
+        .from('agent_clients')
+        .select(
+          `
+          *,
+          user_profile:client_id (
+            id,
+            role
+          )
+        `
+        )
         .eq('agent_id', agent.id)
         .or(
           `email.ilike.%${query}%,mobile_number.ilike.%${query}%,full_name.ilike.%${query}%`
         );
 
-      if (viewError) {
-        console.warn('Error with agent_clients_with_details view:', viewError);
-
-        // Fallback to direct table query
-        const { data: directData, error: directError } = await supabase
-          .from('agent_clients')
-          .select('*')
-          .eq('agent_id', agent.id)
-          .or(
-            `email.ilike.%${query}%,mobile_number.ilike.%${query}%,full_name.ilike.%${query}%`
-          );
-
-        if (directError) {
-          console.warn('Error searching agent_clients table:', directError);
-        } else {
-          agentClients = directData || [];
-        }
+      if (directError) {
+        console.warn('Error searching agent_clients table:', directError);
       } else {
-        agentClients = viewData || [];
+        // Filter to only include customers
+        // Include clients without user profile (no account) OR clients with role = 'customer'
+        agentClients =
+          directData?.filter(
+            client =>
+              !client.client_id || // Include clients without user profile (no account)
+              (client.user_profile && client.user_profile.role === 'customer')
+          ) || [];
       }
 
-      // Add existing agent clients to results
+      // Add existing agent clients to results (already filtered to customers only)
       agentClients.forEach(client => {
         searchResults.push({
           id: client.id,
@@ -1394,6 +1395,69 @@ export const useAgentBookingFormStore = create<
       // TypeScript assertion: agent is guaranteed to be non-null after validation
       if (!agent) throw new Error('Agent validation failed');
       const validAgent = agent;
+      let bookingReceiptNumber: string | null = null;
+
+      // Validate payment method BEFORE creating booking
+      // Calculate required amounts/tickets
+      const routeBaseFare = Number(currentBooking.route?.baseFare || 0);
+      const fareMultiplier = Number(
+        currentBooking.trip?.fare_multiplier || 1.0
+      );
+      const tripFare = routeBaseFare * fareMultiplier;
+      const originalFare = currentBooking.selectedSeats.length * tripFare;
+      const discountedFare =
+        originalFare * (1 - (validAgent.discountRate || 0) / 100);
+
+      // For round trips, calculate return fare too
+      let returnDiscountedFare = 0;
+      if (
+        currentBooking.tripType === 'round_trip' &&
+        currentBooking.returnTrip &&
+        currentBooking.returnRoute
+      ) {
+        const returnRouteBaseFare = Number(
+          currentBooking.returnRoute?.baseFare || 0
+        );
+        const returnFareMultiplier = Number(
+          currentBooking.returnTrip?.fare_multiplier || 1.0
+        );
+        const returnTripFare = returnRouteBaseFare * returnFareMultiplier;
+        const returnOriginalFare =
+          currentBooking.returnSelectedSeats.length * returnTripFare;
+        returnDiscountedFare =
+          returnOriginalFare * (1 - (validAgent.discountRate || 0) / 100);
+      }
+
+      const totalRequiredAmount = discountedFare + returnDiscountedFare;
+      const totalTicketsNeeded =
+        currentBooking.selectedSeats.length +
+        currentBooking.returnSelectedSeats.length;
+
+      // Validate credit payment BEFORE creating booking
+      if (currentBooking.paymentMethod === 'credit') {
+        const { validateAgentCredit } = await import('@/utils/agentUtils');
+        const creditValidation = validateAgentCredit(
+          validAgent,
+          totalRequiredAmount
+        );
+        if (!creditValidation.isValid) {
+          throw new Error(creditValidation.error || 'Credit validation failed');
+        }
+      }
+
+      // Validate free ticket payment BEFORE creating booking
+      if (currentBooking.paymentMethod === 'free') {
+        const { validateAgentFreeTickets } = await import('@/utils/agentUtils');
+        const freeTicketValidation = validateAgentFreeTickets(
+          validAgent,
+          totalTicketsNeeded
+        );
+        if (!freeTicketValidation.isValid) {
+          throw new Error(
+            freeTicketValidation.error || 'Free ticket validation failed'
+          );
+        }
+      }
 
       // Use the database function to create/get agent client
       const { data: agentClientData, error: clientError } = await supabase.rpc(
@@ -1419,16 +1483,7 @@ export const useAgentBookingFormStore = create<
       // Store client's user ID separately if they have an account
       const bookingUserId = validAgent.id; // Always use agent ID for agent bookings
 
-      // Calculate fares for commission tracking using route's base_fare × trip's fare_multiplier
-      const routeBaseFare = Number(currentBooking.route?.baseFare || 0);
-      const fareMultiplier = Number(
-        currentBooking.trip?.fare_multiplier || 1.0
-      );
-      const tripFare = routeBaseFare * fareMultiplier;
-
-      const originalFare = currentBooking.selectedSeats.length * tripFare;
-      const discountedFare =
-        originalFare * (1 - (validAgent.discountRate || 0) / 100);
+      // Calculate commission amount (fares already calculated above for validation)
       const commissionAmount = originalFare - discountedFare;
 
       // Create the booking WITHOUT QR code data first
@@ -1561,13 +1616,21 @@ export const useAgentBookingFormStore = create<
       // Create payment record based on payment method
       if (currentBooking.paymentMethod === 'mib') {
         // For MIB, create pending payment record
-        const { error: paymentError } = await supabase.from('payments').insert({
-          booking_id: booking.id,
-          payment_method: 'mib',
-          amount: discountedFare,
-          currency: 'MVR',
-          status: 'pending', // Start with pending for MIB
-        });
+        const { data: paymentRecord, error: paymentError } = await supabase
+          .from('payments')
+          .insert({
+            booking_id: booking.id,
+            payment_method: 'mib',
+            amount: discountedFare,
+            currency: 'MVR',
+            status: 'pending', // Start with pending for MIB
+          })
+          .select('receipt_number')
+          .single();
+
+        if (paymentRecord?.receipt_number) {
+          bookingReceiptNumber = paymentRecord.receipt_number;
+        }
 
         if (paymentError) {
           console.error('Failed to create MIB payment record:', paymentError);
@@ -1729,6 +1792,7 @@ export const useAgentBookingFormStore = create<
 
       // Handle return trip for round-trip bookings
       let returnBookingId = null;
+      let returnBookingNumber: string | null = null;
       if (
         currentBooking.tripType === 'round_trip' &&
         currentBooking.returnTrip
@@ -1779,6 +1843,7 @@ export const useAgentBookingFormStore = create<
         }
 
         returnBookingId = returnBooking.id;
+        returnBookingNumber = returnBooking.booking_number;
 
         // Record commission transaction for return trip if commission exists
         if (returnCommissionAmount > 0) {
@@ -1798,6 +1863,26 @@ export const useAgentBookingFormStore = create<
             );
             // Don't throw error - booking was created successfully
           }
+        }
+
+        // Link departure and return bookings for round-trip management
+        try {
+          await supabase
+            .from('bookings')
+            .update({
+              return_booking_id: returnBooking.id,
+              round_trip_group_id: booking.id,
+            })
+            .eq('id', booking.id);
+
+          await supabase
+            .from('bookings')
+            .update({
+              round_trip_group_id: booking.id,
+            })
+            .eq('id', returnBooking.id);
+        } catch (linkError) {
+          console.error('Failed to link round-trip bookings:', linkError);
         }
 
         // Generate return QR code URL using the auto-generated booking number
@@ -1983,8 +2068,10 @@ export const useAgentBookingFormStore = create<
       if (currentBooking.paymentMethod === 'mib') {
         return {
           bookingId: booking.id,
+          bookingNumber: booking.booking_number,
           returnBookingId,
-          booking_number: booking.booking_number,
+          returnBookingNumber,
+          receiptNumber: bookingReceiptNumber,
         };
       }
 
