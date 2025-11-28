@@ -123,6 +123,7 @@ export type Booking = {
   payment?: {
     method: PaymentMethod;
     status: PaymentStatus;
+    receiptNumber?: string | null;
   };
   bookingType?: 'customer' | 'agent';
   clientName?: string;

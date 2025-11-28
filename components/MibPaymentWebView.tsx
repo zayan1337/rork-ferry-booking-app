@@ -26,9 +26,12 @@ interface MibPaymentWebViewProps {
     bookingNumber: string;
     route: string;
     travelDate: string;
+    returnDate?: string | null;
     amount: number;
     currency: string;
     passengerCount: number;
+    receiptNumber?: string | null;
+    isRoundTrip?: boolean;
   };
   bookingId: string;
   tripInfo?: {
@@ -475,20 +478,34 @@ export default function MibPaymentWebView({
             <div class="booking-summary">
               <div class="summary-title">Booking Summary</div>
               
+              ${bookingDetails.receiptNumber ? `
               <div class="summary-row">
-                <span class="summary-label">Booking Number:</span>
+                <span class="summary-label">Receipt Number:</span>
+                <span class="summary-value">${bookingDetails.receiptNumber}</span>
+              </div>
+              ` : ''}
+              
+              <div class="summary-row">
+                <span class="summary-label">${bookingDetails.isRoundTrip ? 'Booking Numbers:' : 'Booking Number:'}</span>
                 <span class="summary-value">${bookingDetails.bookingNumber}</span>
               </div>
               
               <div class="summary-row">
-                <span class="summary-label">Route:</span>
+                <span class="summary-label">${bookingDetails.isRoundTrip ? 'Routes:' : 'Route:'}</span>
                 <span class="summary-value">${bookingDetails.route}</span>
               </div>
               
               <div class="summary-row">
-                <span class="summary-label">Travel Date:</span>
+                <span class="summary-label">${bookingDetails.isRoundTrip ? 'Departure Date:' : 'Travel Date:'}</span>
                 <span class="summary-value">${formatDate(bookingDetails.travelDate)}</span>
               </div>
+              
+              ${bookingDetails.isRoundTrip && bookingDetails.returnDate ? `
+              <div class="summary-row">
+                <span class="summary-label">Return Date:</span>
+                <span class="summary-value">${formatDate(bookingDetails.returnDate)}</span>
+              </div>
+              ` : ''}
               
               <div class="summary-row">
                 <span class="summary-label">Passengers:</span>

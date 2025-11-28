@@ -1051,7 +1051,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
 
       // If fare is 0, there might be an issue - recalculate as fallback
       if (outboundLegFare === 0 && selectedSeats.length > 0) {
-        console.warn('[Booking Creation] Outbound fare is 0, recalculating...');
         // Recalculate outbound fare as fallback
         const useSegments =
           currentBooking.boardingStop && currentBooking.destinationStop;
@@ -1084,9 +1083,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         returnLegFareFromStore > 0 &&
         Math.abs(outboundLegFare - combinedTotalFare) < 0.01
       ) {
-        console.warn(
-          '[Booking Creation] Outbound fare appears to be combined total, recalculating...'
-        );
         outboundLegFare = combinedTotalFare - returnLegFareFromStore;
       }
 
@@ -1120,20 +1116,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
 
       // The departure booking should store ONLY the outbound leg fare
       const totalFare = outboundLegFare;
-
-      // Debug logging to verify fare values
-      console.log('[Booking Creation] Fare values:', {
-        outboundLegFare,
-        returnLegFare: currentBooking.returnLegFare || 0,
-        totalFare: currentBooking.totalFare || 0,
-        tripType,
-        selectedSeatsCount: selectedSeats.length,
-        returnSelectedSeatsCount: returnSelectedSeats.length,
-        segmentFare: currentBooking.segmentFare,
-        returnSegmentFare: currentBooking.returnSegmentFare,
-        tripBaseFare: trip.base_fare,
-        tripFareMultiplier: trip.fare_multiplier,
-      });
 
       // Create the main booking first with user_id for RLS policy
       const bookingData = {
@@ -1266,7 +1248,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
 
         // If fare is 0, there might be an issue - recalculate as fallback
         if (returnLegTotalFare === 0 && returnSelectedSeats.length > 0) {
-          console.warn('[Booking Creation] Return fare is 0, recalculating...');
           // Recalculate return fare as fallback
           const useReturnSegments =
             currentBooking.returnBoardingStop !== null &&
@@ -1289,15 +1270,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             }, 0);
           }
         }
-
-        // Debug logging to verify return fare
-        console.log('[Booking Creation] Return booking fare:', {
-          returnLegTotalFare,
-          returnSelectedSeatsCount: returnSelectedSeats.length,
-          returnSegmentFare: currentBooking.returnSegmentFare,
-          returnTripBaseFare: returnTrip.base_fare,
-          returnTripFareMultiplier: returnTrip.fare_multiplier,
-        });
 
         const returnBookingData = {
           user_id: user.id, // Required for RLS policy
@@ -1337,13 +1309,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
               Math.abs(departureBookingCheck.total_fare - outboundLegFare) >
                 0.01
             ) {
-              console.warn(
-                '[Booking Creation] Departure booking fare mismatch, correcting...',
-                {
-                  stored: departureBookingCheck.total_fare,
-                  expected: outboundLegFare,
-                }
-              );
               await supabase
                 .from('bookings')
                 .update({ total_fare: outboundLegFare })
@@ -1362,13 +1327,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
               Math.abs(returnBookingCheck.total_fare - returnLegTotalFare) >
                 0.01
             ) {
-              console.warn(
-                '[Booking Creation] Return booking fare mismatch, correcting...',
-                {
-                  stored: returnBookingCheck.total_fare,
-                  expected: returnLegTotalFare,
-                }
-              );
               await supabase
                 .from('bookings')
                 .update({ total_fare: returnLegTotalFare })

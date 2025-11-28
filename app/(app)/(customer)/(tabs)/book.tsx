@@ -883,14 +883,55 @@ export default function BookScreen() {
         const bookingResult = await createCustomerBooking(paymentMethod);
 
         if (paymentMethod === 'mib') {
+          // Fetch receipt_number from payment record
+          let receiptNumber = null;
+          try {
+            const { data: payment } = await supabase
+              .from('payments')
+              .select('receipt_number')
+              .eq('booking_id', bookingResult.bookingId)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (payment?.receipt_number) {
+              receiptNumber = payment.receipt_number;
+            }
+          } catch (error) {
+            // Silently handle error - receipt_number is optional for display
+          }
+
+          // Build route string - include return route for round trips
+          let routeString = `${currentBooking.boardingIslandName} → ${currentBooking.destinationIslandName}`;
+          if (
+            currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+            currentBooking.returnBoardingIslandName &&
+            currentBooking.returnDestinationIslandName
+          ) {
+            routeString += ` / ${currentBooking.returnBoardingIslandName} → ${currentBooking.returnDestinationIslandName}`;
+          }
+
+          // Build booking numbers string - include return booking number for round trips
+          let bookingNumbersString = bookingResult.booking_number;
+          if (bookingResult.return_booking_number) {
+            bookingNumbersString += ` / ${bookingResult.return_booking_number}`;
+          }
+
           const bookingDetails = {
-            bookingNumber: bookingResult.booking_number,
-            route: `${currentBooking.boardingIslandName} → ${currentBooking.destinationIslandName}`,
+            bookingNumber: bookingNumbersString,
+            route: routeString,
             travelDate:
               currentBooking.departureDate || new Date().toISOString(),
+            returnDate:
+              currentBooking.tripType === TRIP_TYPES.ROUND_TRIP &&
+              currentBooking.returnDate
+                ? currentBooking.returnDate
+                : null,
             amount: currentBooking.totalFare,
             currency: 'MVR',
             passengerCount: localSelectedSeats.length,
+            receiptNumber: receiptNumber,
+            isRoundTrip: currentBooking.tripType === TRIP_TYPES.ROUND_TRIP,
           };
 
           setCurrentBookingId(bookingResult.bookingId);

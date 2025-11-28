@@ -14,6 +14,7 @@ import {
   Image,
   RefreshControl,
   Modal,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -112,6 +113,30 @@ export default function HomeScreen() {
       // This ensures form is cleared when returning to the home screen
       // resetForm();
     }, [])
+  );
+
+  // Handle back button press to close modals
+  useFocusEffect(
+    React.useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        // Check if any modal is open
+        if (modalStates.showFromModal) {
+          closeModal('showFromModal');
+          return true; // Prevent default back behavior
+        }
+        if (modalStates.showToModal) {
+          closeModal('showToModal');
+          return true; // Prevent default back behavior
+        }
+        if (modalStates.showDateModal) {
+          closeModal('showDateModal');
+          return true; // Prevent default back behavior
+        }
+        return false; // Allow default back behavior
+      });
+
+      return () => backHandler.remove();
+    }, [modalStates.showFromModal, modalStates.showToModal, modalStates.showDateModal, closeModal])
   );
 
   const handleRefresh = () => {
@@ -390,6 +415,7 @@ export default function HomeScreen() {
         visible={modalStates.showFromModal}
         animationType='slide'
         presentationStyle='pageSheet'
+        onRequestClose={() => closeModal('showFromModal')}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -451,6 +477,7 @@ export default function HomeScreen() {
         visible={modalStates.showToModal}
         animationType='slide'
         presentationStyle='pageSheet'
+        onRequestClose={() => closeModal('showToModal')}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>

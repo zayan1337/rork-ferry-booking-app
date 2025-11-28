@@ -141,7 +141,8 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
           ),
           payments(
             payment_method,
-            status
+            status,
+            receipt_number
           ),
           created_at,
           updated_at,
@@ -157,19 +158,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
 
         const rawBookings = bookingsData || [];
 
-        // Debug: Log all bookings and their relationships
-        console.log(
-          '[fetchUserBookings] All bookings:',
-          rawBookings.map(b => ({
-            id: b.id,
-            bookingNumber: b.booking_number,
-            isRoundTrip: b.is_round_trip,
-            returnBookingId: b.return_booking_id,
-            roundTripGroupId: b.round_trip_group_id,
-            totalFare: b.total_fare,
-          }))
-        );
-
+        // First pass: format all bookings
         const formattedBookings: Booking[] = rawBookings.map((booking: any) => {
           // Validate required booking data
           if (!booking?.trip?.route && !booking?.booking_segments) {
@@ -284,12 +273,35 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
             }));
 
           // Get payment information
-          const payment = booking.payments?.[0]
+          // For round trips, payment is only stored against the primary booking
+          // If this booking has no payment but is part of a round trip, we need to find the linked booking's payment
+          let payment = booking.payments?.[0]
             ? {
                 method: booking.payments[0].payment_method,
                 status: booking.payments[0].status,
+                receiptNumber: booking.payments[0].receipt_number || null,
               }
             : undefined;
+
+          // If no payment found and this is part of a round trip, try to find payment from linked booking
+          if (!payment && booking.round_trip_group_id) {
+            // Find the primary booking in the same round trip group that has the payment
+            const primaryBooking = rawBookings.find(
+              (b: any) =>
+                b.round_trip_group_id === booking.round_trip_group_id &&
+                b.id !== booking.id &&
+                b.payments?.[0]
+            );
+
+            if (primaryBooking?.payments?.[0]) {
+              payment = {
+                method: primaryBooking.payments[0].payment_method,
+                status: primaryBooking.payments[0].status,
+                receiptNumber:
+                  primaryBooking.payments[0].receipt_number || null,
+              };
+            }
+          }
 
           // Format the booking (with null checks)
           // Use the stored total_fare directly from database - no calculations
@@ -409,39 +421,11 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
               });
 
             if (refundError) {
-              console.error('[CANCEL] Refund API error:', refundError);
-              console.error(
-                '[CANCEL] Error status:',
-                refundError.context?.status
-              );
-              console.error(
-                '[CANCEL] Error statusText:',
-                refundError.context?.statusText
-              );
-
-              // The actual error message is likely in the response body
-              // Since we got a 500 error, the edge function should have returned error details
-              console.error(
-                '[CANCEL] Check Supabase Edge Function logs for detailed error'
-              );
-              console.error(
-                '[CANCEL] Project ref:',
-                refundError.context?.headers?.map?.['sb-project-ref']
-              );
-              console.error(
-                '[CANCEL] Request ID:',
-                refundError.context?.headers?.map?.['sb-request-id']
-              );
-
               // Don't throw - continue with cancellation even if refund fails
               // Admin can manually process refund later
             }
 
             if (!refundData?.success) {
-              console.warn(
-                '[CANCEL] Refund processing failed:',
-                refundData?.error || 'Unknown error'
-              );
               // Update cancellation status to indicate refund failure
               await supabase
                 .from('cancellations')
@@ -574,10 +558,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
                 )
             );
           } catch (segmentError) {
-            console.warn(
-              '[MODIFY] Failed to create booking segment:',
-              segmentError
-            );
+            // Failed to create booking segment - continue without it
           }
         }
 
@@ -685,9 +666,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
               }
 
               if (!paymentRecord) {
-                console.warn(
-                  '[MODIFY] No completed MIB payment found for this booking'
-                );
                 refundStatus = 'pending_manual';
                 // Update modification record to indicate manual refund needed
                 await supabase
@@ -737,11 +715,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
                   });
 
                 if (refundError) {
-                  console.error('[MODIFY] Refund API error:', refundError);
-                  console.error(
-                    '[MODIFY] Error details:',
-                    JSON.stringify(refundError, null, 2)
-                  );
                   refundStatus = 'failed';
                   // Update modification record to indicate refund failure
                   await supabase
@@ -760,10 +733,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
                   // Admin can manually process refund later
                 } else {
                   if (!refundData?.success) {
-                    console.warn(
-                      '[MODIFY] Refund processing failed:',
-                      refundData?.error || 'Unknown error'
-                    );
                     refundStatus = 'failed';
                     // Update modification record to indicate refund failure
                     await supabase
@@ -985,7 +954,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
                 filter: `user_id=eq.${user.id}`,
               },
               async payload => {
-                console.log('Booking status updated:', payload);
                 // Refresh bookings when status changes
                 await fetchUserBookings();
               }
@@ -999,7 +967,6 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
                 filter: `user_id=eq.${user.id}`,
               },
               async payload => {
-                console.log('New booking created:', payload);
                 // Refresh bookings when new booking is created
                 await fetchUserBookings();
               }

@@ -207,7 +207,28 @@ async function createMibSession(
     if (booking) {
       // This is a regular ferry booking
       paymentType = 'booking';
-      orderId = booking.booking_number || `order-${bookingId}-${Date.now()}`;
+      
+      // Try to get receipt_number from payment record (preferred for order ID)
+      // Fallback to booking_number if payment not found
+      try {
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .select('receipt_number')
+          .eq('booking_id', bookingId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!paymentError && payment?.receipt_number) {
+          orderId = payment.receipt_number;
+        } else {
+          // Fallback to booking_number if receipt_number not available
+          orderId = booking.booking_number || `order-${bookingId}-${Date.now()}`;
+        }
+      } catch (paymentQueryError) {
+        // Fallback to booking_number if query fails
+        orderId = booking.booking_number || `order-${bookingId}-${Date.now()}`;
+      }
 
       // Try to get route description
       try {

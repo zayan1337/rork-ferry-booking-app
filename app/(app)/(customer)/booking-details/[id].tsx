@@ -845,6 +845,15 @@ export default function BookingDetailsScreen() {
 
       {booking.payment ? (
         <>
+          {booking.payment.receiptNumber && (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Receipt Number</Text>
+              <Text style={styles.paymentValue}>
+                {booking.payment.receiptNumber}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.paymentRow}>
             <Text style={styles.paymentLabel}>Payment Method</Text>
             <Text style={styles.paymentValue}>
