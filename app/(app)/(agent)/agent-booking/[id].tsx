@@ -475,20 +475,24 @@ export default function BookingDetailsScreen() {
               {/* Title */}
               <Text style={styles.modalTitle}>Ticket Details</Text>
 
-              {/* Share Button */}
-              <Pressable
-                style={[
-                  styles.modalShareButton,
-                  isSharing && styles.shareIconButtonDisabled,
-                ]}
-                onPress={handleShareIconPress}
-                disabled={isSharing}
-              >
-                <Share2
-                  size={24}
-                  color={isSharing ? Colors.textSecondary : Colors.primary}
-                />
-              </Pressable>
+              {/* Share Button - Only show for confirmed, completed, and checked_in bookings */}
+              {(booking.status === 'confirmed' ||
+                booking.status === 'completed' ||
+                booking.status === 'checked_in') && (
+                <Pressable
+                  style={[
+                    styles.modalShareButton,
+                    isSharing && styles.shareIconButtonDisabled,
+                  ]}
+                  onPress={handleShareIconPress}
+                  disabled={isSharing}
+                >
+                  <Share2
+                    size={24}
+                    color={isSharing ? Colors.textSecondary : Colors.primary}
+                  />
+                </Pressable>
+              )}
             </View>
 
             {/* Ticket Content */}

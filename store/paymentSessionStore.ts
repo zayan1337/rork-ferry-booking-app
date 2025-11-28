@@ -38,11 +38,13 @@ interface PaymentSessionStore {
     >
   ) => void;
   clearSession: () => void;
+  validateSession: () => boolean;
+  isSessionExpired: () => boolean;
 }
 
 export const usePaymentSessionStore = create<PaymentSessionStore>()(
   persist(
-    set => ({
+    (set, get) => ({
       session: null,
       setSession: session => set({ session }),
       updateSession: updates =>
@@ -57,10 +59,47 @@ export const usePaymentSessionStore = create<PaymentSessionStore>()(
             : state
         ),
       clearSession: () => set({ session: null }),
+      validateSession: () => {
+        const { session } = get();
+        if (!session) return false;
+
+        // Check if session is expired
+        const expiresAt = new Date(session.expiresAt);
+        const now = new Date();
+
+        if (now >= expiresAt) {
+          // Session expired, clear it
+          set({ session: null });
+          return false;
+        }
+
+        return true;
+      },
+      isSessionExpired: () => {
+        const { session } = get();
+        if (!session) return true;
+
+        const expiresAt = new Date(session.expiresAt);
+        const now = new Date();
+
+        return now >= expiresAt;
+      },
     }),
     {
       name: 'payment-session',
       storage: createJSONStorage(() => AsyncStorage),
+      // Validate session on rehydration
+      onRehydrateStorage: () => state => {
+        if (state?.session) {
+          const expiresAt = new Date(state.session.expiresAt);
+          const now = new Date();
+
+          if (now >= expiresAt) {
+            // Session expired, clear it
+            state.clearSession();
+          }
+        }
+      },
     }
   )
 );

@@ -26,6 +26,28 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
   ({ transaction }) => {
     const isCredit = transaction.type === 'refill';
 
+    // Check if transaction is failed or cancelled
+    const description = transaction.description || '';
+    const isFailed =
+      description.toLowerCase().includes('failed') ||
+      description.toLowerCase().includes('cancelled');
+    const isPending = description.toLowerCase().includes('pending');
+
+    // Determine transaction status color
+    const getStatusColor = () => {
+      if (isFailed) {
+        return Colors.error; // Red for failed/cancelled
+      } else if (isPending) {
+        return '#FF9800'; // Orange for pending
+      } else if (isCredit) {
+        return Colors.success; // Green for successful credit
+      } else {
+        return Colors.error; // Red for deduction
+      }
+    };
+
+    const statusColor = getStatusColor();
+
     const formatDate = (dateString: string | null | undefined) => {
       if (!dateString) return 'N/A';
 
@@ -89,7 +111,11 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
     };
 
     const getTransactionIcon = () => {
-      if (isCredit) {
+      if (isFailed) {
+        return <TrendingDown size={18} color={Colors.error} />;
+      } else if (isPending) {
+        return <Clock size={18} color='#FF9800' />;
+      } else if (isCredit) {
         return <TrendingUp size={18} color={Colors.success} />;
       } else {
         return transaction.bookingId ? (
@@ -100,19 +126,26 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
       }
     };
 
+    // Format transaction ID for display (show last 8 characters)
+    const getTransactionNumber = () => {
+      if (transaction.id) {
+        return transaction.id.slice(-8).toUpperCase();
+      }
+      return null;
+    };
+
     return (
-      <Card variant='outlined' style={styles.card}>
+      <Card
+        variant='outlined'
+        style={[styles.card, { borderLeftColor: statusColor }]}
+      >
         <View style={styles.header}>
           <View
             style={[
               styles.iconContainer,
               {
-                backgroundColor: isCredit
-                  ? `${Colors.success}15`
-                  : `${Colors.error}15`,
-                borderColor: isCredit
-                  ? `${Colors.success}30`
-                  : `${Colors.error}30`,
+                backgroundColor: `${statusColor}15`,
+                borderColor: `${statusColor}30`,
               },
             ]}
           >
@@ -131,13 +164,8 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
               </View>
 
               <View style={styles.amountSection}>
-                <Text
-                  style={[
-                    styles.amount,
-                    { color: isCredit ? Colors.success : Colors.error },
-                  ]}
-                >
-                  {isCredit ? '+' : '-'}
+                <Text style={[styles.amount, { color: statusColor }]}>
+                  {isCredit && !isFailed ? '+' : '-'}
                   {formatCurrency(transaction.amount)}
                 </Text>
                 <View style={styles.balanceContainer}>
@@ -166,6 +194,14 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
                   </Text>
                 </View>
 
+                {getTransactionNumber() && (
+                  <View style={styles.bookingContainer}>
+                    <FileText size={12} color={Colors.subtext} />
+                    <Text style={styles.bookingNumber}>
+                      TXN: {getTransactionNumber()}
+                    </Text>
+                  </View>
+                )}
                 {transaction.bookingNumber && (
                   <View style={styles.bookingContainer}>
                     <FileText size={12} color={Colors.subtext} />
@@ -181,20 +217,19 @@ const CreditTransactionCard = React.memo<CreditTransactionCardProps>(
                   style={[
                     styles.statusBadge,
                     {
-                      backgroundColor: isCredit
-                        ? `${Colors.success}20`
-                        : `${Colors.error}20`,
-                      borderColor: isCredit ? Colors.success : Colors.error,
+                      backgroundColor: `${statusColor}20`,
+                      borderColor: statusColor,
                     },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      { color: isCredit ? Colors.success : Colors.error },
-                    ]}
-                  >
-                    {isCredit ? 'Credit' : 'Debit'}
+                  <Text style={[styles.statusText, { color: statusColor }]}>
+                    {isFailed
+                      ? 'Failed'
+                      : isPending
+                        ? 'Pending'
+                        : isCredit
+                          ? 'Credit'
+                          : 'Debit'}
                   </Text>
                 </View>
               </View>

@@ -99,7 +99,6 @@ export const calculateCreditSummary = (
     agent.creditCeiling
   );
   const isLowCredit = isAgentCreditLow(agent);
-  console.log('creditUtilization', agent.creditBalance, agent.creditCeiling);
   return {
     creditBalance: agent.creditBalance,
     creditCeiling: agent.creditCeiling,

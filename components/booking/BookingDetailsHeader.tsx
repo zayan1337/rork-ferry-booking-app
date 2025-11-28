@@ -32,6 +32,8 @@ const BookingDetailsHeader: React.FC<BookingDetailsHeaderProps> = ({
         return styles.statusModified;
       case 'pending':
         return styles.statusPending;
+      case 'checked_in':
+        return styles.statusCompleted;
       default:
         return {};
     }
@@ -49,10 +51,16 @@ const BookingDetailsHeader: React.FC<BookingDetailsHeaderProps> = ({
         return styles.statusTextModified;
       case 'pending':
         return styles.statusTextPending;
+      case 'checked_in':
+        return styles.statusTextCompleted;
       default:
         return {};
     }
   };
+
+  // Only show share button for confirmed, completed, and checked_in bookings
+  const canShare =
+    status === 'confirmed' || status === 'completed' || status === 'checked_in';
 
   return (
     <View style={styles.header}>
@@ -63,9 +71,11 @@ const BookingDetailsHeader: React.FC<BookingDetailsHeaderProps> = ({
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </Text>
         </View>
-        <Pressable style={styles.shareButton} onPress={onShare}>
-          <Share2 size={20} color={Colors.primary} />
-        </Pressable>
+        {canShare && (
+          <Pressable style={styles.shareButton} onPress={onShare}>
+            <Share2 size={20} color={Colors.primary} />
+          </Pressable>
+        )}
       </View>
     </View>
   );

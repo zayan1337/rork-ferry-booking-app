@@ -56,6 +56,7 @@ import { useAlertContext } from '@/components/AlertProvider';
 import { useAuthStore } from '@/store/authStore';
 import { usePaymentSessionStore } from '@/store/paymentSessionStore';
 import { usePendingBookingWatcher } from '@/hooks/usePendingBookingWatcher';
+import { usePaymentSessionValidator } from '@/hooks/usePaymentSessionValidator';
 import { supabase } from '@/utils/supabase';
 
 // Import new step components
@@ -512,6 +513,9 @@ export default function BookScreen() {
       setErrors({ ...errors, returnTrip: '' });
     }
   }, [currentBooking.returnTrip]);
+
+  // Validate payment session on app resume and clear expired sessions
+  usePaymentSessionValidator();
 
   // Intercept system back button for step navigation
   useFocusEffect(
@@ -1000,11 +1004,72 @@ export default function BookScreen() {
     setSeatErrors(prev => ({ ...prev, [seat.id]: '' }));
 
     try {
+      // Validate seat is still available before selection (race condition check)
+      const currentAvailableSeats = isReturn
+        ? availableReturnSeats
+        : availableSeats;
+      const currentSeat = currentAvailableSeats.find(
+        (s: Seat) => s.id === seat.id
+      );
+
+      if (!currentSeat) {
+        throw new Error(
+          'Seat information not found. Please refresh and try again.'
+        );
+      }
+
+      const isSelected = isReturn
+        ? localReturnSelectedSeats.some(s => s.id === seat.id)
+        : localSelectedSeats.some(s => s.id === seat.id);
+
+      // If selecting (not deselecting), check availability
+      if (!isSelected) {
+        // Check if seat is available or already reserved by current user
+        if (
+          !currentSeat.isAvailable &&
+          !currentSeat.isCurrentUserReservation &&
+          !currentSeat.isTempReserved
+        ) {
+          throw new Error(
+            `Seat ${seat.number} is no longer available. It may have been selected by another user.`
+          );
+        }
+
+        // Check if seat is temporarily reserved by another user
+        if (
+          currentSeat.isTempReserved &&
+          !currentSeat.isCurrentUserReservation
+        ) {
+          throw new Error(
+            `Seat ${seat.number} is temporarily reserved by another user. Please select a different seat.`
+          );
+        }
+      }
+
       await useSeatStore.getState().toggleSeatSelection(seat, isReturn);
       if (errors.seats) setErrors({ ...errors, seats: '' });
+
+      // Refresh seat availability after successful selection to get latest status
+      if (currentBooking.trip?.id && !isReturn) {
+        refreshAvailableSeatsSilently(currentBooking.trip.id, false);
+      }
+      if (currentBooking.returnTrip?.id && isReturn) {
+        refreshAvailableSeatsSilently(currentBooking.returnTrip.id, true);
+      }
     } catch (error: any) {
-      setSeatErrors(prev => ({ ...prev, [seat.id]: error.message }));
-      showError('Seat Selection Error', error.message);
+      const errorMessage =
+        error.message ||
+        'Failed to select seat. Please try again or select a different seat.';
+      setSeatErrors(prev => ({ ...prev, [seat.id]: errorMessage }));
+      showError('Seat Selection Error', errorMessage);
+
+      // Refresh seat availability on error to show current status
+      if (currentBooking.trip?.id && !isReturn) {
+        refreshAvailableSeatsSilently(currentBooking.trip.id, false);
+      }
+      if (currentBooking.returnTrip?.id && isReturn) {
+        refreshAvailableSeatsSilently(currentBooking.returnTrip.id, true);
+      }
     } finally {
       setLoadingSeats(prev => {
         const newSet = new Set(prev);

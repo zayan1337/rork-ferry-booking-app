@@ -19,6 +19,14 @@ import {
 } from '@/utils/segmentBookingUtils';
 import { validateTripForBooking } from '@/utils/bookingUtils';
 import { BOOKING_BUFFER_MINUTES } from '@/constants/customer';
+import {
+  createBookingRollback,
+  createPassengersRollback,
+  createSeatReservationsRollback,
+  createPaymentRollback,
+  createBookingSegmentRollback,
+  type RollbackOperation,
+} from '@/utils/bookingCleanup';
 
 const initialCurrentBooking: CurrentBooking = {
   tripType: 'one_way',
@@ -1114,6 +1122,20 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         }
       }
 
+      // Validate fare calculation result
+      const MINIMUM_FARE = 0.01; // Minimum fare threshold
+      if (outboundLegFare <= 0) {
+        throw new Error(
+          'Fare calculation resulted in invalid amount. Please try again or contact support.'
+        );
+      }
+      if (outboundLegFare < MINIMUM_FARE) {
+        console.warn(
+          '[Fare Validation] Fare below minimum threshold:',
+          outboundLegFare
+        );
+      }
+
       // The departure booking should store ONLY the outbound leg fare
       const totalFare = outboundLegFare;
 
@@ -1137,6 +1159,10 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       if (bookingError) {
         throw new Error(`Failed to create booking: ${bookingError.message}`);
       }
+
+      // Initialize rollback stack for error recovery
+      const rollbackStack: RollbackOperation[] = [];
+      rollbackStack.push(createBookingRollback(booking.id));
 
       // Generate QR code URL for customer booking
       const qrCodeUrl = generateBookingQrCodeUrl(booking);
@@ -1162,6 +1188,8 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             currentBooking.destinationStop.stop_sequence,
             currentBooking.segmentFare
           );
+          // Add segment rollback to stack
+          rollbackStack.push(createBookingSegmentRollback(booking.id));
         } catch (segmentError) {
           console.error('Failed to create booking segment:', segmentError);
           // Non-critical - continue with booking
@@ -1198,12 +1226,16 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         .insert(passengerInserts);
 
       if (passengersError) {
-        // Clean up booking if passenger creation fails
-        await supabase.from('bookings').delete().eq('id', booking.id);
+        // Execute rollback to clean up booking
+        const { executeRollback } = await import('@/utils/bookingCleanup');
+        await executeRollback(rollbackStack);
         throw new Error(
           `Failed to create passengers: ${passengersError.message}`
         );
       }
+
+      // Add passengers rollback to stack
+      rollbackStack.push(createPassengersRollback(booking.id));
 
       // Confirm seat reservations using the new real-time system
       const seatIds = selectedSeats.map(seat => seat.id);
@@ -1217,9 +1249,9 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         !seatConfirmation.success ||
         seatConfirmation.failed_seats.length > 0
       ) {
-        // Clean up booking and passengers if seat confirmation fails
-        await supabase.from('passengers').delete().eq('booking_id', booking.id);
-        await supabase.from('bookings').delete().eq('id', booking.id);
+        // Execute rollback to clean up booking and passengers
+        const { executeRollback } = await import('@/utils/bookingCleanup');
+        await executeRollback(rollbackStack);
 
         const failedSeatNumbers = selectedSeats
           .filter(seat => seatConfirmation.failed_seats.includes(seat.id))
@@ -1230,6 +1262,9 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           `Failed to confirm seat reservations. Seats ${failedSeatNumbers} are no longer available. Please select different seats.`
         );
       }
+
+      // Add seat reservations rollback to stack (in case return trip fails)
+      rollbackStack.push(createSeatReservationsRollback(trip.id, seatIds));
 
       let returnBookingId = null;
       let returnBookingNumber = null;
@@ -1290,9 +1325,18 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
 
         if (returnBookingError) {
           // Don't fail the main booking for return trip issues
+          // But log the error for monitoring
+          console.error(
+            'Failed to create return booking (non-critical):',
+            returnBookingError
+          );
         } else {
           returnBookingId = returnBooking.id;
           returnBookingNumber = returnBooking.booking_number;
+
+          // Add return booking rollback to stack
+          const returnRollbackStack: RollbackOperation[] = [];
+          returnRollbackStack.push(createBookingRollback(returnBooking.id));
 
           // Link departure and return bookings for round-trip management
           try {
@@ -1405,26 +1449,44 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
             .insert(returnPassengerInserts);
 
           if (returnPassengersError) {
-            // Return passenger creation failed - non-critical
-          }
-
-          // Confirm return seat reservations using the new real-time system
-          const returnSeatIds = returnSelectedSeats.map(seat => seat.id);
-          const returnSeatConfirmation = await confirmSeatReservations(
-            returnTrip.id,
-            returnSeatIds,
-            returnBooking.id
-          );
-
-          if (
-            !returnSeatConfirmation.success ||
-            returnSeatConfirmation.failed_seats.length > 0
-          ) {
-            // Return seat confirmation failed - log warning but don't fail the main booking
+            // Return passenger creation failed - execute rollback for return booking
+            const { executeRollback } = await import('@/utils/bookingCleanup');
+            await executeRollback(returnRollbackStack);
             console.error(
-              'Failed to confirm return seat reservations:',
-              returnSeatConfirmation
+              'Failed to create return passengers (non-critical):',
+              returnPassengersError
             );
+          } else {
+            // Add return passengers rollback to stack
+            returnRollbackStack.push(
+              createPassengersRollback(returnBooking.id)
+            );
+
+            // Confirm return seat reservations using the new real-time system
+            const returnSeatIds = returnSelectedSeats.map(seat => seat.id);
+            const returnSeatConfirmation = await confirmSeatReservations(
+              returnTrip.id,
+              returnSeatIds,
+              returnBooking.id
+            );
+
+            if (
+              !returnSeatConfirmation.success ||
+              returnSeatConfirmation.failed_seats.length > 0
+            ) {
+              // Return seat confirmation failed - execute rollback
+              const { executeRollback } = await import(
+                '@/utils/bookingCleanup'
+              );
+              await executeRollback(returnRollbackStack);
+              console.error(
+                'Failed to confirm return seat reservations:',
+                returnSeatConfirmation
+              );
+            } else {
+              // Success - clear return rollback stack
+              returnRollbackStack.length = 0;
+            }
           }
 
           // Return payment and status updates are handled after main payment logic
@@ -1447,8 +1509,16 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         });
 
         if (paymentError) {
-          console.error('Failed to create payment record:', paymentError);
+          // Execute rollback if payment creation fails
+          const { executeRollback } = await import('@/utils/bookingCleanup');
+          await executeRollback(rollbackStack);
+          throw new Error(
+            `Failed to create payment record: ${paymentError.message}`
+          );
         }
+
+        // Add payment rollback to stack
+        rollbackStack.push(createPaymentRollback(booking.id));
 
         // For round trips, we don't create a separate payment for the return booking
         // The combined amount is already stored in the main booking's payment record
@@ -1497,8 +1567,16 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         });
 
         if (paymentError) {
-          console.error('Failed to create payment record:', paymentError);
+          // Execute rollback if payment creation fails
+          const { executeRollback } = await import('@/utils/bookingCleanup');
+          await executeRollback(rollbackStack);
+          throw new Error(
+            `Failed to create payment record: ${paymentError.message}`
+          );
         }
+
+        // Add payment rollback to stack (for non-MIB payments)
+        rollbackStack.push(createPaymentRollback(booking.id));
 
         const { error: statusUpdateError } = await supabase
           .from('bookings')
@@ -1535,6 +1613,9 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         }
       }
 
+      // Success - clear rollback stack (all operations succeeded)
+      rollbackStack.length = 0;
+
       set({ isLoading: false });
       return {
         bookingId: booking.id,
@@ -1558,6 +1639,9 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           cleanupError
         );
       }
+
+      // Note: Rollback stack is already executed in the catch blocks above
+      // This is a fallback for any unhandled errors
 
       set({
         error: error.message || 'Failed to create booking',

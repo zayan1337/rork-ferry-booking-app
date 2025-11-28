@@ -1,12 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import {
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
-  CheckCircle,
-} from 'lucide-react-native';
+import { Calendar, Clock, Users, Ship } from 'lucide-react-native';
 import Card from '@/components/Card';
 import Colors from '@/constants/colors';
 import { formatTimeAMPM } from '@/utils/dateUtils';
@@ -151,56 +145,6 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
         </View>
       </View>
 
-      {tripType === 'round_trip' && returnDate && (
-        <View style={styles.detailRow}>
-          <View style={styles.detailIcon}>
-            <Calendar size={20} color={Colors.primary} />
-          </View>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Return Date</Text>
-            <Text style={styles.detailValue}>{formatDate(returnDate)}</Text>
-          </View>
-        </View>
-      )}
-
-      {tripType === 'round_trip' && returnFromDisplay && returnToDisplay && (
-        <View style={styles.detailRow}>
-          <View style={styles.detailIcon}>
-            <MapPin size={20} color={Colors.primary} />
-          </View>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Return Route</Text>
-            <Text style={styles.detailValue}>
-              {returnFromDisplay} → {returnToDisplay}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.detailRow}>
-        <View style={styles.detailIcon}>
-          <MapPin size={20} color={Colors.primary} />
-        </View>
-        <View style={styles.detailContent}>
-          <Text style={styles.detailLabel}>Route</Text>
-          <Text style={styles.detailValue}>
-            {fromDisplay} → {toDisplay}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.detailRow}>
-        <View style={styles.detailIcon}>
-          <MapPin size={20} color={Colors.primary} />
-        </View>
-        <View style={styles.detailContent}>
-          <Text style={styles.detailLabel}>Zone</Text>
-          <Text style={styles.detailValue}>
-            {route?.fromIsland?.zone || 'N/A'}
-          </Text>
-        </View>
-      </View>
-
       <View style={styles.detailRow}>
         <View style={styles.detailIcon}>
           <Users size={20} color={Colors.primary} />
@@ -214,27 +158,11 @@ const TripDetailsCard: React.FC<TripDetailsCardProps> = ({
       {vessel && (
         <View style={styles.detailRow}>
           <View style={styles.detailIcon}>
-            <MapPin size={20} color={Colors.primary} />
+            <Ship size={20} color={Colors.primary} />
           </View>
           <View style={styles.detailContent}>
             <Text style={styles.detailLabel}>Vessel</Text>
             <Text style={styles.detailValue}>{vessel.name || 'N/A'}</Text>
-          </View>
-        </View>
-      )}
-
-      {status && (
-        <View style={styles.detailRow}>
-          <View style={styles.detailIcon}>
-            <CheckCircle size={20} color={statusColorFn(status)} />
-          </View>
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Current Status</Text>
-            <View style={[styles.inlineStatusBadge, statusBadgeFn(status)]}>
-              <Text style={[styles.inlineStatusText, statusTextFn(status)]}>
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </Text>
-            </View>
           </View>
         </View>
       )}
@@ -272,13 +200,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
   },
-  inlineStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: Colors.inactive,
-    alignSelf: 'flex-start',
-  },
+  // inlineStatusBadge: {
+  //   paddingHorizontal: 8,
+  //   paddingVertical: 4,
+  //   borderRadius: 12,
+  //   backgroundColor: Colors.inactive,
+  //   alignSelf: 'flex-start',
+  // },
   statusConfirmed: {
     backgroundColor: '#e8f5e9',
   },
@@ -294,11 +222,11 @@ const styles = StyleSheet.create({
   statusPending: {
     backgroundColor: '#f3e5f5',
   },
-  inlineStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
+  // inlineStatusText: {
+  //   fontSize: 12,
+  //   fontWeight: '600',
+  //   color: Colors.textSecondary,
+  // },
   statusTextConfirmed: {
     color: Colors.success,
   },

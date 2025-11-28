@@ -1145,67 +1145,122 @@ export default function AgentCreditScreen() {
               }}
               onSuccess={async (result: any) => {
                 try {
+                  // The MIB edge function should have already updated the balance
+                  // But we'll verify and refresh the data
                   // Get current agent data including credit ceiling
-                  const { data: agentData } = await supabase
-                    .from('user_profiles')
-                    .select('credit_balance, credit_ceiling')
-                    .eq('id', agent!.id)
-                    .single();
+                  const { data: agentData, error: agentDataError } =
+                    await supabase
+                      .from('user_profiles')
+                      .select('credit_balance, credit_ceiling')
+                      .eq('id', agent!.id)
+                      .single();
+
+                  if (agentDataError) {
+                    console.error(
+                      '[SCREEN] Error fetching agent data after payment:',
+                      agentDataError
+                    );
+                  }
 
                   const currentBalance = agentData?.credit_balance || 0;
                   const creditCeiling = agentData?.credit_ceiling || 0;
-                  const newBalance = currentBalance + topupAmount;
 
-                  // Calculate credit metrics
-                  const oldUsedCredit = creditCeiling - currentBalance;
-                  const newUsedCredit = creditCeiling - newBalance;
-                  const usedCreditReduction = oldUsedCredit - newUsedCredit;
-
-                  // Update transaction to completed
-                  await supabase
+                  // Verify the transaction was updated by edge function
+                  // If not, update it here as fallback
+                  const { data: transactionData } = await supabase
                     .from('agent_credit_transactions')
-                    .update({
-                      description: `Balance payment via MIB Payment (Completed) - Session: ${result.sessionId || 'N/A'}`,
-                      balance_after: newBalance,
-                    })
-                    .eq('id', creditTopupId);
+                    .select('balance_after, description')
+                    .eq('id', creditTopupId)
+                    .single();
 
-                  // Update agent credit balance (this reduces the owed amount)
-                  await supabase
-                    .from('user_profiles')
-                    .update({
-                      credit_balance: newBalance,
-                      updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', agent!.id);
+                  // If edge function didn't update, do it here
+                  if (
+                    !transactionData?.description?.includes('Completed') ||
+                    transactionData.balance_after !== currentBalance
+                  ) {
+                    const newBalance = currentBalance + topupAmount;
+
+                    // Update transaction to completed
+                    const { error: transactionUpdateError } = await supabase
+                      .from('agent_credit_transactions')
+                      .update({
+                        description: `Balance payment via MIB Payment (Completed) - Session: ${result.sessionId || 'N/A'}`,
+                        balance_after: newBalance,
+                      })
+                      .eq('id', creditTopupId);
+
+                    if (transactionUpdateError) {
+                      console.error(
+                        '[SCREEN] Error updating transaction:',
+                        transactionUpdateError
+                      );
+                    }
+
+                    // Update agent credit balance (this reduces the owed amount)
+                    const { error: balanceUpdateError } = await supabase
+                      .from('user_profiles')
+                      .update({
+                        credit_balance: newBalance,
+                        updated_at: new Date().toISOString(),
+                      })
+                      .eq('id', agent!.id);
+
+                    if (balanceUpdateError) {
+                      console.error(
+                        '[SCREEN] Error updating credit balance:',
+                        balanceUpdateError
+                      );
+                      throw new Error(
+                        `Failed to update credit balance: ${balanceUpdateError.message}`
+                      );
+                    }
+                  }
 
                   setShowMibPayment(false);
                   setCreditTopupId(null);
                   setMibSessionData(null);
 
-                  const oldBalanceToPay = creditCeiling - currentBalance;
+                  // Calculate old balance before refresh
+                  const oldBalance = currentBalance;
+                  const oldBalanceToPay = creditCeiling - oldBalance;
+
+                  // Refresh data to get latest balance
+                  await handlePaymentSuccess();
+
+                  // Fetch updated agent data after refresh
+                  const { data: updatedAgentData } = await supabase
+                    .from('user_profiles')
+                    .select('credit_balance, credit_ceiling')
+                    .eq('id', agent!.id)
+                    .single();
+
+                  const newBalance =
+                    updatedAgentData?.credit_balance || oldBalance;
                   const newBalanceToPay = creditCeiling - newBalance;
+                  const actualPaymentAmount = newBalance - oldBalance;
 
                   showSuccess(
                     'Payment Successful! 🎉',
                     `Payment Amount: ${formatCurrency(topupAmount)}\n\n` +
                       `Previous Balance Owed: ${formatCurrency(oldBalanceToPay)}\n` +
                       `New Balance Owed: ${formatCurrency(newBalanceToPay)}\n\n` +
-                      `Available Credit: ↑ ${formatCurrency(topupAmount)}\n` +
-                      `Balance Paid: ↓ ${formatCurrency(topupAmount)}`,
-                    () => {
-                      handlePaymentSuccess();
-                    }
+                      `Available Credit: ↑ ${formatCurrency(actualPaymentAmount)}\n` +
+                      `Balance Paid: ↓ ${formatCurrency(actualPaymentAmount)}`
                   );
                 } catch (error: any) {
                   console.error(
                     '[SCREEN] ❌ Payment success handling error:',
                     error
                   );
+                  setShowMibPayment(false);
+                  setCreditTopupId(null);
+                  setMibSessionData(null);
                   showError(
                     'Error',
-                    'Payment successful but failed to update balance. Please contact support.'
+                    `Payment successful but failed to update balance: ${error.message}. Please refresh the page or contact support.`
                   );
+                  // Still refresh to show updated data if edge function updated it
+                  await handlePaymentSuccess();
                 }
               }}
               onFailure={async (error: string) => {
@@ -1365,8 +1420,10 @@ const styles = StyleSheet.create({
   searchAndFiltersContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    // paddingHorizontal: 16,
+    paddingVertical: 12,
     width: '100%',
+    gap: 8,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -1375,11 +1432,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     flex: 1,
-    marginRight: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     minHeight: 44,
-    maxWidth: '100%',
+    maxHeight: 44,
   },
   searchContainerActive: {
     borderColor: Colors.primary,
@@ -1395,11 +1451,13 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    padding: 8,
+    padding: 0,
+    paddingLeft: 8,
     fontSize: 14,
     color: Colors.text,
-    minHeight: 40,
-    paddingVertical: 10,
+    height: 44,
+    lineHeight: 20,
+    textAlignVertical: 'center',
   },
   clearSearchButton: {
     width: 24,
@@ -1422,8 +1480,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
-    minWidth: 44,
-    minHeight: 44,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

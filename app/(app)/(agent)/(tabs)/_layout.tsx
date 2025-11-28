@@ -1,15 +1,19 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
+import { Pressable } from 'react-native';
 import {
   Home,
   Users,
   CreditCard,
   BarChart,
   Settings,
+  Plus,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
 export default function AgentTabLayout() {
+  const router = useRouter();
+
   return (
     <Tabs
       screenOptions={{
@@ -34,6 +38,22 @@ export default function AgentTabLayout() {
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          headerRight: () => (
+            <Pressable
+              style={{
+                marginRight: 16,
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: Colors.primary,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              onPress={() => router.push('../agent-booking/new' as any)}
+            >
+              <Plus size={20} color='white' />
+            </Pressable>
+          ),
         }}
       />
       <Tabs.Screen

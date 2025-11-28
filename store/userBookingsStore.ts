@@ -158,7 +158,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
 
         const rawBookings = bookingsData || [];
 
-        // First pass: format all bookings
+        // First pass: format all bookings (without async payment lookup)
         const formattedBookings: Booking[] = rawBookings.map((booking: any) => {
           // Validate required booking data
           if (!booking?.trip?.route && !booking?.booking_segments) {
@@ -337,7 +337,79 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
           };
         });
 
-        set({ bookings: formattedBookings });
+        // Second pass: Enhanced payment lookup for bookings without payment (async)
+        const bookingsWithEnhancedPayments = await Promise.all(
+          formattedBookings.map(async (booking: Booking) => {
+            // If payment already found, return as is
+            if (booking.payment) {
+              return booking;
+            }
+
+            // Try to find payment from database for round trips
+            if (booking.roundTripGroupId) {
+              try {
+                // First try: Query payment table directly for this booking
+                const { data: paymentData, error: paymentError } =
+                  await supabase
+                    .from('payments')
+                    .select('payment_method, status, receipt_number')
+                    .eq('booking_id', booking.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (!paymentError && paymentData) {
+                  return {
+                    ...booking,
+                    payment: {
+                      method: paymentData.payment_method,
+                      status: paymentData.status,
+                      receiptNumber: paymentData.receipt_number || null,
+                    },
+                  };
+                }
+
+                // Second try: Query payment for primary booking in round trip group
+                const { data: primaryBookingData } = await supabase
+                  .from('bookings')
+                  .select('id')
+                  .eq('round_trip_group_id', booking.roundTripGroupId)
+                  .not('return_booking_id', 'is', null)
+                  .limit(1)
+                  .maybeSingle();
+
+                if (primaryBookingData?.id) {
+                  const { data: primaryPaymentData } = await supabase
+                    .from('payments')
+                    .select('payment_method, status, receipt_number')
+                    .eq('booking_id', primaryBookingData.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                  if (primaryPaymentData) {
+                    return {
+                      ...booking,
+                      payment: {
+                        method: primaryPaymentData.payment_method,
+                        status: primaryPaymentData.status,
+                        receiptNumber:
+                          primaryPaymentData.receipt_number || null,
+                      },
+                    };
+                  }
+                }
+              } catch (error) {
+                // Silently handle payment lookup errors - payment is optional for display
+                console.warn('[Payment Lookup] Error fetching payment:', error);
+              }
+            }
+
+            return booking;
+          })
+        );
+
+        set({ bookings: bookingsWithEnhancedPayments });
       } catch (error) {
         console.error('Error fetching user bookings:', error);
         setError('Failed to fetch bookings');
@@ -479,6 +551,36 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
           error: userError,
         } = await supabase.auth.getUser();
         if (userError || !user) throw new Error('User not authenticated');
+
+        // Check for concurrent modifications by fetching current booking state
+        const { data: currentBooking, error: bookingCheckError } =
+          await supabase
+            .from('bookings')
+            .select('id, updated_at, status')
+            .eq('id', bookingId)
+            .single();
+
+        if (bookingCheckError || !currentBooking) {
+          throw new Error('Booking not found or has been deleted');
+        }
+
+        // Check if booking was modified by comparing updated_at
+        // If updated_at is significantly different, booking was likely modified
+        const originalUpdatedAt = new Date(originalBooking.updatedAt);
+        const currentUpdatedAt = new Date(currentBooking.updated_at);
+        const timeDiff = Math.abs(
+          currentUpdatedAt.getTime() - originalUpdatedAt.getTime()
+        );
+
+        // If booking was updated more than 5 seconds after we fetched it, warn user
+        if (timeDiff > 5000) {
+          // Check if status changed (more critical)
+          if (currentBooking.status !== originalBooking.status) {
+            throw new Error(
+              'This booking was modified by another process. Please refresh and try again.'
+            );
+          }
+        }
 
         // 1. Create new booking with modified details (let DB auto-generate booking_number)
         const { data: newBookingData, error: newBookingError } = await supabase

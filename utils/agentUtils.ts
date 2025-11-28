@@ -288,9 +288,10 @@ export const isAgentCreditLow = (agent: Agent | null): boolean => {
 
 /**
  * Get inactive bookings count for a specific client
+ * Only counts cancelled and modified bookings, NOT expired bookings
  * @param bookings - All bookings
  * @param clientId - Client ID
- * @returns Number of inactive bookings for the client
+ * @returns Number of cancelled/modified bookings for the client
  */
 export const getClientInactiveBookingsCount = (
   bookings: Booking[],
@@ -305,7 +306,10 @@ export const getClientInactiveBookingsCount = (
     );
   });
 
-  return getInactiveBookings(clientBookings).length;
+  // Only count cancelled and modified bookings, exclude expired bookings
+  return clientBookings.filter(
+    booking => booking.status === 'cancelled' || booking.status === 'modified'
+  ).length;
 };
 
 /**

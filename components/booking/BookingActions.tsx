@@ -84,19 +84,25 @@ const BookingActions: React.FC<BookingActionsProps> = ({
     router.push(`/(agent)/agent-cancel-booking/${bookingId}` as any);
   };
 
+  // Only show share button for confirmed, completed, and checked_in bookings
+  const canShare =
+    (status === 'confirmed' ||
+      status === 'completed' ||
+      status === 'checked_in') &&
+    paymentStatus === 'completed';
+
   return (
     <View style={styles.actionButtons}>
-      {/* Show share option when ticket is paid */}
-      {(status === 'confirmed' || status === 'completed') &&
-        paymentStatus === 'completed' && (
-          <Button
-            title='Share Ticket'
-            onPress={onShare}
-            variant='outline'
-            style={styles.actionButton}
-            textStyle={styles.actionButtonText}
-          />
-        )}
+      {/* Show share option when ticket is paid and status allows sharing */}
+      {canShare && (
+        <Button
+          title='Share Ticket'
+          onPress={onShare}
+          variant='outline'
+          style={styles.actionButton}
+          textStyle={styles.actionButtonText}
+        />
+      )}
 
       {isModifiable && (
         <Button

@@ -145,7 +145,9 @@ const CreditMetricItem = ({
   valueColor?: string;
 }) => (
   <View style={styles.creditMetric}>
-    <Text style={styles.creditLabel}>{label}</Text>
+    <Text style={styles.creditLabel} numberOfLines={2}>
+      {label}
+    </Text>
     <Text style={[styles.creditValue, valueColor && { color: valueColor }]}>
       {value}
     </Text>
@@ -242,9 +244,12 @@ const PerformanceMetricItem = ({
   valueColor?: string;
 }) => (
   <View style={styles.performanceMetric}>
-    <Text style={styles.performanceLabel}>{label}</Text>
+    <Text style={styles.performanceLabel} numberOfLines={2}>
+      {label}
+    </Text>
     <Text
       style={[styles.performanceValue, valueColor && { color: valueColor }]}
+      numberOfLines={1}
     >
       {value}
     </Text>
@@ -557,10 +562,6 @@ export default function AgentDashboardScreen() {
             <Text style={styles.headerBadgeText}>Agent Portal</Text>
           </View>
         </View>
-        <Pressable style={styles.newBookingButton} onPress={handleNewBooking}>
-          <Plus size={20} color='white' />
-          <Text style={styles.newBookingText}>New Booking</Text>
-        </Pressable>
       </View>
 
       {/* Agent Information Card - Quick Stats */}
@@ -578,7 +579,7 @@ export default function AgentDashboardScreen() {
       )}
 
       {/* Quick Actions */}
-      <Text
+      {/* <Text
         style={[
           styles.sectionTitle,
           { fontSize: responsiveConfig.fontSize.title },
@@ -600,7 +601,7 @@ export default function AgentDashboardScreen() {
             onPress={action.onPress}
           />
         ))}
-      </View>
+      </View> */}
 
       {/* Performance Overview Section */}
       <Text
@@ -797,27 +798,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 4,
   },
-  newBookingButton: {
-    backgroundColor: Colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    // alignSelf: 'flex-end',
-    // marginRight: 20,
-  },
-  newBookingText: {
-    color: 'white',
-    fontWeight: '600',
-    marginLeft: 6,
-    fontSize: 16,
-  },
   agentInfoCard: {
     marginBottom: 24,
   },
@@ -828,13 +808,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 24,
   },
-  quickActionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 32,
-    gap: 12,
-  },
+  // quickActionsContainer: {
+  //   flexDirection: 'row',
+  //   flexWrap: 'wrap',
+  //   justifyContent: 'space-between',
+  //   marginBottom: 32,
+  //   gap: 12,
+  // },
   quickActionCard: {
     width: responsiveConfig.isTablet
       ? (screenWidth - 64) / 4
@@ -942,21 +922,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
+    gap: 8,
   },
   performanceMetric: {
     flex: 1,
     alignItems: 'center',
+    minWidth: 0,
+    paddingHorizontal: 4,
   },
   performanceLabel: {
     fontSize: 12,
     color: Colors.subtext,
     marginBottom: 4,
     textAlign: 'center',
+    lineHeight: 16,
   },
   performanceValue: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
+    textAlign: 'center',
   },
   trendsSection: {
     flexDirection: 'row',

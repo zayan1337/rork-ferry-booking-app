@@ -153,15 +153,12 @@ async function syncReturnBookingStatus(
       const paymentUpdatePayload: Record<string, any> = {
         status: paymentStatus,
         updated_at: new Date().toISOString(),
-      };
-
-      if (
-        paymentStatus === 'completed' ||
+        ...(paymentStatus === 'completed' ||
         paymentStatus === 'failed' ||
         paymentStatus === 'cancelled'
-      ) {
-        paymentUpdatePayload.transaction_date = new Date().toISOString();
-      }
+          ? { transaction_date: new Date().toISOString() }
+          : {}),
+      };
 
       const { error: returnPaymentUpdateError } = await supabase
         .from('payments')
@@ -582,11 +579,86 @@ async function processPaymentResult(supabase, resultData) {
       }
     }
     if (!payment) {
-      // If we have a booking ID but no payment record, we can still update the booking
+      // If we have a booking ID but no payment record, check if it's a credit transaction
       if (
         bookingId &&
         (result === 'SUCCESS' || result === 'FAILURE' || result === 'CANCELLED')
       ) {
+        // Check if this is a credit transaction
+        const { data: creditTransaction } = await supabase
+          .from('agent_credit_transactions')
+          .select('id, agent_id, amount, balance_after')
+          .eq('id', bookingId)
+          .maybeSingle();
+
+        if (creditTransaction) {
+          // This is a credit transaction
+          const paymentStatus =
+            result === 'SUCCESS'
+              ? 'completed'
+              : result === 'FAILURE'
+                ? 'failed'
+                : result === 'CANCELLED'
+                  ? 'cancelled'
+                  : 'pending';
+
+          if (result === 'SUCCESS') {
+            // Update credit transaction
+            const { data: agentData } = await supabase
+              .from('user_profiles')
+              .select('credit_balance, credit_ceiling')
+              .eq('id', creditTransaction.agent_id)
+              .single();
+
+            const currentBalance = agentData?.credit_balance || 0;
+            const newBalance = currentBalance + creditTransaction.amount;
+
+            // Update credit transaction description
+            await supabase
+              .from('agent_credit_transactions')
+              .update({
+                description: `Balance payment via MIB Payment (Completed) - Session: ${sessionId || 'N/A'}`,
+                balance_after: newBalance,
+              })
+              .eq('id', bookingId);
+
+            // Update agent credit balance
+            await supabase
+              .from('user_profiles')
+              .update({
+                credit_balance: newBalance,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', creditTransaction.agent_id);
+          } else {
+            // Payment failed or cancelled
+            await supabase
+              .from('agent_credit_transactions')
+              .update({
+                description: `Balance payment via MIB Payment (${result === 'CANCELLED' ? 'Cancelled' : 'Failed'})`,
+              })
+              .eq('id', bookingId);
+          }
+
+          return new Response(
+            JSON.stringify({
+              success: result === 'SUCCESS',
+              paymentStatus: paymentStatus,
+              bookingId: bookingId,
+              sessionId: sessionId,
+              type: 'credit',
+              note: 'Credit transaction processed',
+            }),
+            {
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+        }
+
+        // Not a credit transaction, try to update as booking
         let bookingStatus = 'pending_payment';
         let paymentStatus = 'pending';
         if (result === 'SUCCESS') {
@@ -806,7 +878,7 @@ async function processRefund(supabase, bookingId, refundAmount, currency) {
     );
 
     // Get transaction ID (either from receipt_number or session_id)
-    const transactionId = payment.receipt_number || 28 + i;
+    const transactionId = payment.receipt_number || payment.session_id;
     if (!transactionId) {
       console.error('[REFUND] No transaction ID found in payment record');
       throw new Error(

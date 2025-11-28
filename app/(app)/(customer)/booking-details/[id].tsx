@@ -53,6 +53,7 @@ import {
 import { useAlertContext } from '@/components/AlertProvider';
 import MibPaymentWebView from '@/components/MibPaymentWebView';
 import { usePaymentSessionStore } from '@/store/paymentSessionStore';
+import { usePaymentSessionValidator } from '@/hooks/usePaymentSessionValidator';
 import { supabase } from '@/utils/supabase';
 import { BUFFER_MINUTES_PAYMENT_WINDOW } from '@/constants/customer';
 import { getMinutesUntilDeparture } from '@/utils/bookingUtils';
@@ -98,6 +99,9 @@ export default function BookingDetailsScreen() {
     state => state.clearSession
   );
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  // Validate payment session on app resume and clear expired sessions
+  usePaymentSessionValidator();
 
   // Ensure bookings are loaded when component mounts
   useEffect(() => {

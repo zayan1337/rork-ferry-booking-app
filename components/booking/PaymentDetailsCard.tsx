@@ -73,9 +73,14 @@ const PaymentDetailsCard: React.FC<PaymentDetailsCardProps> = ({
   };
 
   // Determine the actual payment method used
-  // Priority: 1) payment.method or payment.payment_method (actual payment record), 2) paymentMethod prop (booking's intended method)
+  // Priority: 1) paymentMethod prop (booking's payment_method_type - most accurate for agent credit),
+  //           2) payment.method or payment.payment_method (actual payment record)
+  // For agent credit bookings, payment record may show 'wallet' but booking's payment_method_type is 'credit'
+  // So we prioritize booking's payment_method_type, especially for 'credit'
   const actualPaymentMethod =
-    payment?.method || payment?.payment_method || paymentMethod;
+    paymentMethod === 'credit'
+      ? 'credit' // Always use 'credit' if booking's payment_method_type is 'credit'
+      : paymentMethod || payment?.method || payment?.payment_method;
 
   const getPaymentStatusStyle = (status?: string) => {
     switch (status) {

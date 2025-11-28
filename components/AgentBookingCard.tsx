@@ -14,7 +14,7 @@ import {
 import { Booking } from '@/types/agent';
 import Colors from '@/constants/colors';
 import Card from './Card';
-import { isBookingExpired, isBookingInactive } from '@/utils/bookingUtils';
+import { isBookingExpired } from '@/utils/bookingUtils';
 import { getClientDisplayName } from '@/utils/clientUtils';
 import { formatCurrency } from '@/utils/agentFormatters';
 import { formatTimeAMPM, formatBookingDate } from '@/utils/dateUtils';
@@ -87,7 +87,9 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
     };
 
     const bookingExpired = isBookingExpired(booking);
-    const bookingInactive = isBookingInactive(booking);
+    // Only apply inactive styling for cancelled/modified, not for expired
+    const bookingInactive =
+      booking.status === 'cancelled' || booking.status === 'modified';
     const isRoundTrip =
       booking.tripType === 'round_trip' || booking.isRoundTrip;
 
@@ -121,13 +123,7 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
 
     return (
       <Pressable onPress={handlePress}>
-        <Card
-          variant='elevated'
-          style={StyleSheet.flatten([
-            styles.card,
-            bookingInactive && styles.inactiveCard,
-          ])}
-        >
+        <Card variant='elevated' style={StyleSheet.flatten([styles.card])}>
           {/* Header Section */}
           <View style={styles.header}>
             <View style={styles.routeContainer}>
@@ -157,10 +153,7 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
               style={[
                 styles.statusBadge,
                 {
-                  backgroundColor: getStatusColor(
-                    booking.status,
-                    bookingExpired
-                  ),
+                  backgroundColor: getStatusColor(booking.status, false),
                 },
               ]}
             >
@@ -175,12 +168,7 @@ const AgentBookingCard = React.memo<AgentBookingCardProps>(
             <View style={styles.dateTimeRow}>
               <View style={styles.dateTimeItem}>
                 <Calendar size={14} color={Colors.subtext} />
-                <Text
-                  style={[
-                    styles.dateTimeText,
-                    bookingExpired && styles.expiredText,
-                  ]}
-                >
+                <Text style={styles.dateTimeText}>
                   {formatBookingDate(booking.departureDate)}
                   {bookingExpired && ' (Expired)'}
                 </Text>
