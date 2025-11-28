@@ -30,6 +30,8 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
     }
   };
 
+  const displayFare = booking.displayFare ?? booking.totalFare;
+
   return (
     <Pressable onPress={() => onPress(booking)}>
       <Card variant='elevated' style={styles.card}>
@@ -103,9 +105,7 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
 
         <View style={styles.footer}>
           <Text style={styles.priceLabel}>Total:</Text>
-          <Text style={styles.priceValue}>
-            MVR {booking.totalFare.toFixed(2)}
-          </Text>
+          <Text style={styles.priceValue}>MVR {displayFare.toFixed(2)}</Text>
         </View>
       </Card>
     </Pressable>

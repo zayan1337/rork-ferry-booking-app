@@ -615,6 +615,8 @@ export default function BookingDetailsScreen() {
     );
   }
 
+  const displayFare = booking.displayFare ?? booking.totalFare;
+
   const handleShareTicket = () => {
     setShowTicketPopup(true);
   };
@@ -872,9 +874,7 @@ export default function BookingDetailsScreen() {
 
       <View style={styles.paymentRow}>
         <Text style={styles.paymentLabel}>Total Amount</Text>
-        <Text style={styles.totalAmount}>
-          MVR {booking.totalFare.toFixed(2)}
-        </Text>
+        <Text style={styles.totalAmount}>MVR {displayFare.toFixed(2)}</Text>
       </View>
     </Card>
   );

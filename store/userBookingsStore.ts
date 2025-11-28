@@ -120,6 +120,7 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
           ),
           is_round_trip,
           return_booking_id,
+          round_trip_group_id,
           status,
           total_fare,
           qr_code_url,
@@ -154,158 +155,175 @@ export const useUserBookingsStore = create<UserBookingsStore>((set, get) => {
 
         if (bookingsError) throw bookingsError;
 
-        const formattedBookings: Booking[] = (bookingsData || []).map(
-          (booking: any) => {
-            // Validate required booking data
-            if (!booking?.trip?.route && !booking?.booking_segments) {
-              throw new Error(
-                'Invalid booking data: missing trip/route or booking segments'
-              );
-            }
+        const rawBookings = bookingsData || [];
 
-            const modificationRecord = Array.isArray(booking.modifications)
-              ? booking.modifications[0]
-              : booking.modifications;
-            const isModificationBooking = Boolean(modificationRecord);
-            const originalBookingId =
-              modificationRecord?.old_booking_id || null;
+        // Debug: Log all bookings and their relationships
+        console.log(
+          '[fetchUserBookings] All bookings:',
+          rawBookings.map(b => ({
+            id: b.id,
+            bookingNumber: b.booking_number,
+            isRoundTrip: b.is_round_trip,
+            returnBookingId: b.return_booking_id,
+            roundTripGroupId: b.round_trip_group_id,
+            totalFare: b.total_fare,
+          }))
+        );
 
-            // Determine if this is a multi-stop booking (has booking_segments)
-            // Note: booking_segments is returned as an OBJECT (single segment per booking)
-            const hasSegments =
-              booking.booking_segments &&
-              typeof booking.booking_segments === 'object';
+        const formattedBookings: Booking[] = rawBookings.map((booking: any) => {
+          // Validate required booking data
+          if (!booking?.trip?.route && !booking?.booking_segments) {
+            throw new Error(
+              'Invalid booking data: missing trip/route or booking segments'
+            );
+          }
 
-            // Get island data from booking_segments if available, otherwise from route
-            let fromIsland, toIsland;
+          const modificationRecord = Array.isArray(booking.modifications)
+            ? booking.modifications[0]
+            : booking.modifications;
+          const isModificationBooking = Boolean(modificationRecord);
+          const originalBookingId = modificationRecord?.old_booking_id || null;
 
-            if (hasSegments) {
-              // Multi-stop booking - booking_segments is a single object
-              const segment = booking.booking_segments;
+          // Determine if this is a multi-stop booking (has booking_segments)
+          // Note: booking_segments is returned as an OBJECT (single segment per booking)
+          const hasSegments =
+            booking.booking_segments &&
+            typeof booking.booking_segments === 'object';
 
-              // Get boarding stop island
-              const boardingStop = segment.boarding_stop;
-              const boardingIsland = boardingStop?.islands;
-              const boardingIslandData = Array.isArray(boardingIsland)
-                ? boardingIsland[0]
-                : boardingIsland;
+          // Get island data from booking_segments if available, otherwise from route
+          let fromIsland, toIsland;
 
-              // Get destination stop island
-              const destinationStop = segment.destination_stop;
-              const destinationIsland = destinationStop?.islands;
-              const destinationIslandData = Array.isArray(destinationIsland)
-                ? destinationIsland[0]
-                : destinationIsland;
+          if (hasSegments) {
+            // Multi-stop booking - booking_segments is a single object
+            const segment = booking.booking_segments;
 
-              fromIsland = {
-                id: boardingIslandData?.id || '',
-                name: boardingIslandData?.name || 'Unknown',
-                zone: boardingIslandData?.zone || '',
-              };
+            // Get boarding stop island
+            const boardingStop = segment.boarding_stop;
+            const boardingIsland = boardingStop?.islands;
+            const boardingIslandData = Array.isArray(boardingIsland)
+              ? boardingIsland[0]
+              : boardingIsland;
 
-              toIsland = {
-                id: destinationIslandData?.id || '',
-                name: destinationIslandData?.name || 'Unknown',
-                zone: destinationIslandData?.zone || '',
-              };
-            } else {
-              // Regular booking - use route data
-              fromIsland = {
-                id: booking.trip?.route?.from_island?.id || '',
-                name: booking.trip?.route?.from_island?.name || 'Unknown',
-                zone: booking.trip?.route?.from_island?.zone || '',
-              };
+            // Get destination stop island
+            const destinationStop = segment.destination_stop;
+            const destinationIsland = destinationStop?.islands;
+            const destinationIslandData = Array.isArray(destinationIsland)
+              ? destinationIsland[0]
+              : destinationIsland;
 
-              toIsland = {
-                id: booking.trip?.route?.to_island?.id || '',
-                name: booking.trip?.route?.to_island?.name || 'Unknown',
-                zone: booking.trip?.route?.to_island?.zone || '',
-              };
-            }
-
-            // Format route data with null checks
-            const route: Route = {
-              id: booking.trip?.route?.id || '',
-              fromIsland,
-              toIsland,
-              baseFare: booking.trip?.route?.base_fare || 0,
-              duration: '2h', // Default duration since it's not in the database
-              routeStops: booking.trip?.route?.route_stops
-                ? booking.trip.route.route_stops
-                    .sort((a: any, b: any) => a.stop_sequence - b.stop_sequence)
-                    .map((stop: any) => ({
-                      id: stop.id,
-                      stopSequence: stop.stop_sequence,
-                      island: {
-                        id: stop.island?.id || '',
-                        name: stop.island?.name || 'Unknown',
-                        zone: stop.island?.zone || 'A',
-                      },
-                    }))
-                : undefined,
+            fromIsland = {
+              id: boardingIslandData?.id || '',
+              name: boardingIslandData?.name || 'Unknown',
+              zone: boardingIslandData?.zone || '',
             };
 
-            // Format passengers data with their seats (with null checks)
-            const passengers: Passenger[] = (booking.passengers || []).map(
-              (p: any) => ({
-                id: p?.id || '',
-                fullName: p?.passenger_name || '',
-                idNumber: p?.passenger_id_proof || '',
-                phoneNumber: p?.passenger_contact_number || '',
-                specialAssistance: p?.special_assistance_request || '',
-              })
-            );
+            toIsland = {
+              id: destinationIslandData?.id || '',
+              name: destinationIslandData?.name || 'Unknown',
+              zone: destinationIslandData?.zone || '',
+            };
+          } else {
+            // Regular booking - use route data
+            fromIsland = {
+              id: booking.trip?.route?.from_island?.id || '',
+              name: booking.trip?.route?.from_island?.name || 'Unknown',
+              zone: booking.trip?.route?.from_island?.zone || '',
+            };
 
-            // Format seats data (with null checks)
-            const seats: Seat[] = (booking.passengers || [])
-              .filter((p: any) => p?.seat) // Only include passengers with valid seat data
-              .map((p: any) => ({
-                id: p.seat?.id || '',
-                number: p.seat?.seat_number || '',
-                rowNumber: p.seat?.row_number || 0,
-                isWindow: p.seat?.is_window || false,
-                isAisle: p.seat?.is_aisle || false,
-                isAvailable: false,
-                isSelected: true,
-              }));
-
-            // Get payment information
-            const payment = booking.payments?.[0]
-              ? {
-                  method: booking.payments[0].payment_method,
-                  status: booking.payments[0].status,
-                }
-              : undefined;
-
-            // Format the booking (with null checks)
-            return {
-              id: booking?.id || '',
-              bookingNumber: booking?.booking_number || '',
-              tripType: booking?.is_round_trip ? 'round_trip' : 'one_way',
-              departureDate: booking?.trip?.travel_date || '',
-              departureTime: booking?.trip?.departure_time || '',
-              route,
-              seats,
-              passengers,
-              totalFare: booking?.total_fare || 0,
-              status: booking?.status || 'pending',
-              qrCodeUrl: booking?.qr_code_url || '',
-              checkInStatus: booking?.check_in_status || false,
-              createdAt: booking?.created_at || '',
-              updatedAt: booking?.updated_at || '',
-              vessel: {
-                id: booking?.trip?.vessel?.id || '',
-                name: booking?.trip?.vessel?.name || 'Unknown Vessel',
-                model: booking?.trip?.vessel?.model || '',
-                registrationNumber:
-                  booking?.trip?.vessel?.registration_number || '',
-              },
-              payment,
-              isModification: isModificationBooking,
-              originalBookingId,
+            toIsland = {
+              id: booking.trip?.route?.to_island?.id || '',
+              name: booking.trip?.route?.to_island?.name || 'Unknown',
+              zone: booking.trip?.route?.to_island?.zone || '',
             };
           }
-        );
+
+          // Format route data with null checks
+          const route: Route = {
+            id: booking.trip?.route?.id || '',
+            fromIsland,
+            toIsland,
+            baseFare: booking.trip?.route?.base_fare || 0,
+            duration: '2h', // Default duration since it's not in the database
+            routeStops: booking.trip?.route?.route_stops
+              ? booking.trip.route.route_stops
+                  .sort((a: any, b: any) => a.stop_sequence - b.stop_sequence)
+                  .map((stop: any) => ({
+                    id: stop.id,
+                    stopSequence: stop.stop_sequence,
+                    island: {
+                      id: stop.island?.id || '',
+                      name: stop.island?.name || 'Unknown',
+                      zone: stop.island?.zone || 'A',
+                    },
+                  }))
+              : undefined,
+          };
+
+          // Format passengers data with their seats (with null checks)
+          const passengers: Passenger[] = (booking.passengers || []).map(
+            (p: any) => ({
+              id: p?.id || '',
+              fullName: p?.passenger_name || '',
+              idNumber: p?.passenger_id_proof || '',
+              phoneNumber: p?.passenger_contact_number || '',
+              specialAssistance: p?.special_assistance_request || '',
+            })
+          );
+
+          // Format seats data (with null checks)
+          const seats: Seat[] = (booking.passengers || [])
+            .filter((p: any) => p?.seat) // Only include passengers with valid seat data
+            .map((p: any) => ({
+              id: p.seat?.id || '',
+              number: p.seat?.seat_number || '',
+              rowNumber: p.seat?.row_number || 0,
+              isWindow: p.seat?.is_window || false,
+              isAisle: p.seat?.is_aisle || false,
+              isAvailable: false,
+              isSelected: true,
+            }));
+
+          // Get payment information
+          const payment = booking.payments?.[0]
+            ? {
+                method: booking.payments[0].payment_method,
+                status: booking.payments[0].status,
+              }
+            : undefined;
+
+          // Format the booking (with null checks)
+          // Use the stored total_fare directly from database - no calculations
+          const totalFare = Number(booking?.total_fare) || 0;
+
+          return {
+            id: booking?.id || '',
+            bookingNumber: booking?.booking_number || '',
+            tripType: booking?.is_round_trip ? 'round_trip' : 'one_way',
+            departureDate: booking?.trip?.travel_date || '',
+            departureTime: booking?.trip?.departure_time || '',
+            route,
+            seats,
+            passengers,
+            totalFare,
+            status: booking?.status || 'pending',
+            qrCodeUrl: booking?.qr_code_url || '',
+            checkInStatus: booking?.check_in_status || false,
+            createdAt: booking?.created_at || '',
+            updatedAt: booking?.updated_at || '',
+            vessel: {
+              id: booking?.trip?.vessel?.id || '',
+              name: booking?.trip?.vessel?.name || 'Unknown Vessel',
+              model: booking?.trip?.vessel?.model || '',
+              registrationNumber:
+                booking?.trip?.vessel?.registration_number || '',
+            },
+            payment,
+            isModification: isModificationBooking,
+            originalBookingId,
+            returnBookingId: booking?.return_booking_id || null,
+            roundTripGroupId: booking?.round_trip_group_id || null,
+          };
+        });
 
         set({ bookings: formattedBookings });
       } catch (error) {

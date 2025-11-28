@@ -61,6 +61,8 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
 
     const dynamicStyles = getDynamicStyles();
 
+    const displayFare = booking.displayFare ?? booking.totalFare;
+
     return (
       <ViewShot ref={ref}>
         <View
@@ -124,7 +126,7 @@ export const TicketDesign = forwardRef<ViewShot, TicketDesignProps>(
 
               <View style={styles.priceSection}>
                 <Text style={styles.priceLabel}>Total Fare (MVR)</Text>
-                <Text style={styles.priceValue}>{booking.totalFare}</Text>
+                <Text style={styles.priceValue}>{displayFare}</Text>
               </View>
             </View>
 

@@ -48,6 +48,8 @@ const initialCurrentBooking: CurrentBooking = {
   returnDestinationStop: null,
   segmentFare: null,
   returnSegmentFare: null,
+  outboundLegFare: 0,
+  returnLegFare: 0,
 };
 
 interface BookingStoreActions {
@@ -324,23 +326,28 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     const useReturnSegments =
       currentBooking.returnBoardingStop && currentBooking.returnDestinationStop;
 
-    let totalFare = 0;
+    let outboundLegFare = 0;
+    let returnLegFare = 0;
 
     // Calculate departure fare
     if (currentBooking.trip && currentBooking.selectedSeats.length > 0) {
       if (useSegments && currentBooking.segmentFare !== null) {
         // Use segment-based fare
-        totalFare += calculateSegmentFareWithSeats(
+        outboundLegFare = calculateSegmentFareWithSeats(
           currentBooking.segmentFare,
           currentBooking.selectedSeats,
           1.0 // Segment fare already includes trip multiplier
         );
       } else {
         // Fall back to legacy route-based fare
+        // Use route.base_fare if available, otherwise fall back to trip.base_fare
+        const baseFare =
+          currentBooking.trip.route?.base_fare ||
+          currentBooking.trip.base_fare ||
+          0;
         const tripFare =
-          (currentBooking.trip.base_fare || 0) *
-          (currentBooking.trip.fare_multiplier || 1.0);
-        totalFare += currentBooking.selectedSeats.reduce((sum, seat) => {
+          baseFare * (currentBooking.trip.fare_multiplier || 1.0);
+        outboundLegFare = currentBooking.selectedSeats.reduce((sum, seat) => {
           const seatMultiplier = seat.priceMultiplier || 1.0;
           return sum + tripFare * seatMultiplier;
         }, 0);
@@ -355,27 +362,38 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     ) {
       if (useReturnSegments && currentBooking.returnSegmentFare !== null) {
         // Use segment-based fare for return trip
-        totalFare += calculateSegmentFareWithSeats(
+        returnLegFare = calculateSegmentFareWithSeats(
           currentBooking.returnSegmentFare,
           currentBooking.returnSelectedSeats,
           1.0 // Segment fare already includes trip multiplier
         );
       } else {
         // Fall back to legacy route-based fare for return trip
+        // Use route.base_fare if available, otherwise fall back to trip.base_fare
+        const returnBaseFare =
+          currentBooking.returnTrip.route?.base_fare ||
+          currentBooking.returnTrip.base_fare ||
+          0;
         const returnTripFare =
-          (currentBooking.returnTrip.base_fare || 0) *
-          (currentBooking.returnTrip.fare_multiplier || 1.0);
-        totalFare += currentBooking.returnSelectedSeats.reduce((sum, seat) => {
-          const seatMultiplier = seat.priceMultiplier || 1.0;
-          return sum + returnTripFare * seatMultiplier;
-        }, 0);
+          returnBaseFare * (currentBooking.returnTrip.fare_multiplier || 1.0);
+        returnLegFare = currentBooking.returnSelectedSeats.reduce(
+          (sum, seat) => {
+            const seatMultiplier = seat.priceMultiplier || 1.0;
+            return sum + returnTripFare * seatMultiplier;
+          },
+          0
+        );
       }
     }
+
+    const totalFare = outboundLegFare + returnLegFare;
 
     set(state => ({
       currentBooking: {
         ...state.currentBooking,
         totalFare,
+        outboundLegFare,
+        returnLegFare,
       },
     }));
   },
@@ -954,6 +972,9 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
+      // Ensure fare calculation is up-to-date before creating booking
+      get().calculateTotalFare();
+
       const { currentBooking } = get();
       const {
         route,
@@ -1024,26 +1045,95 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         throw new Error('User must be authenticated to create booking');
       }
 
-      // Calculate total fare (use segment fare if available, otherwise use trip base fare)
-      const useSegments =
-        currentBooking.boardingStop && currentBooking.destinationStop;
-      let totalFare = 0;
+      // Use the exact calculated fare from the store
+      // calculateTotalFare() was called at the start to ensure fresh values
+      let outboundLegFare = currentBooking.outboundLegFare || 0;
 
-      if (useSegments && currentBooking.segmentFare !== null) {
-        // Use segment-based fare
-        totalFare = calculateSegmentFareWithSeats(
-          currentBooking.segmentFare,
-          selectedSeats,
-          1.0
-        );
-      } else {
-        // Fall back to legacy route-based fare
-        const tripFare = (trip.base_fare || 0) * (trip.fare_multiplier || 1.0);
-        totalFare = selectedSeats.reduce((sum, seat) => {
-          const seatMultiplier = seat.priceMultiplier || 1.0;
-          return sum + tripFare * seatMultiplier;
-        }, 0);
+      // If fare is 0, there might be an issue - recalculate as fallback
+      if (outboundLegFare === 0 && selectedSeats.length > 0) {
+        console.warn('[Booking Creation] Outbound fare is 0, recalculating...');
+        // Recalculate outbound fare as fallback
+        const useSegments =
+          currentBooking.boardingStop && currentBooking.destinationStop;
+        if (useSegments && currentBooking.segmentFare !== null) {
+          outboundLegFare = calculateSegmentFareWithSeats(
+            currentBooking.segmentFare,
+            selectedSeats,
+            1.0
+          );
+        } else {
+          // Use route.base_fare if available, otherwise fall back to trip.base_fare
+          const baseFare = trip.route?.base_fare || trip.base_fare || 0;
+          const tripFare = baseFare * (trip.fare_multiplier || 1.0);
+          outboundLegFare = selectedSeats.reduce((sum, seat) => {
+            const seatMultiplier = seat.priceMultiplier || 1.0;
+            return sum + tripFare * seatMultiplier;
+          }, 0);
+        }
       }
+
+      // CRITICAL: For round trips, ensure outboundLegFare is NOT the combined total
+      // The outbound booking should only store its own leg fare, not the combined total
+      const combinedTotalFare = currentBooking.totalFare || 0;
+      const returnLegFareFromStore = currentBooking.returnLegFare || 0;
+
+      // Safety check: If outboundLegFare equals the combined total, it's wrong
+      // Recalculate it by subtracting the return leg fare
+      if (
+        tripType === 'round_trip' &&
+        returnLegFareFromStore > 0 &&
+        Math.abs(outboundLegFare - combinedTotalFare) < 0.01
+      ) {
+        console.warn(
+          '[Booking Creation] Outbound fare appears to be combined total, recalculating...'
+        );
+        outboundLegFare = combinedTotalFare - returnLegFareFromStore;
+      }
+
+      // Final validation: Outbound fare should never exceed combined total for round trips
+      if (
+        tripType === 'round_trip' &&
+        combinedTotalFare > 0 &&
+        outboundLegFare > combinedTotalFare
+      ) {
+        console.error(
+          '[Booking Creation] Outbound fare exceeds combined total, using fallback calculation'
+        );
+        // Recalculate from scratch
+        const useSegments =
+          currentBooking.boardingStop && currentBooking.destinationStop;
+        if (useSegments && currentBooking.segmentFare !== null) {
+          outboundLegFare = calculateSegmentFareWithSeats(
+            currentBooking.segmentFare,
+            selectedSeats,
+            1.0
+          );
+        } else {
+          const baseFare = trip.route?.base_fare || trip.base_fare || 0;
+          const tripFare = baseFare * (trip.fare_multiplier || 1.0);
+          outboundLegFare = selectedSeats.reduce((sum, seat) => {
+            const seatMultiplier = seat.priceMultiplier || 1.0;
+            return sum + tripFare * seatMultiplier;
+          }, 0);
+        }
+      }
+
+      // The departure booking should store ONLY the outbound leg fare
+      const totalFare = outboundLegFare;
+
+      // Debug logging to verify fare values
+      console.log('[Booking Creation] Fare values:', {
+        outboundLegFare,
+        returnLegFare: currentBooking.returnLegFare || 0,
+        totalFare: currentBooking.totalFare || 0,
+        tripType,
+        selectedSeatsCount: selectedSeats.length,
+        returnSelectedSeatsCount: returnSelectedSeats.length,
+        segmentFare: currentBooking.segmentFare,
+        returnSegmentFare: currentBooking.returnSegmentFare,
+        tripBaseFare: trip.base_fare,
+        tripFareMultiplier: trip.fare_multiplier,
+      });
 
       // Create the main booking first with user_id for RLS policy
       const bookingData = {
@@ -1073,6 +1163,8 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       await updateBookingWithQrCode(booking.id, qrCodeUrl);
 
       // Create booking segment if using multi-stop
+      const useSegments =
+        currentBooking.boardingStop && currentBooking.destinationStop;
       if (
         useSegments &&
         currentBooking.boardingStop &&
@@ -1168,28 +1260,44 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         returnRoute &&
         returnSelectedSeats.length > 0
       ) {
-        // Calculate return trip fare (use segment fare if available)
-        const useReturnSegments =
-          currentBooking.returnBoardingStop &&
-          currentBooking.returnDestinationStop &&
-          currentBooking.returnSegmentFare !== null;
+        // Use the exact calculated return leg fare from the store
+        // calculateTotalFare() was called at the start to ensure fresh values
+        returnLegTotalFare = currentBooking.returnLegFare || 0;
 
-        if (useReturnSegments && currentBooking.returnSegmentFare !== null) {
-          // Use segment-based fare for return trip
-          returnLegTotalFare = calculateSegmentFareWithSeats(
-            currentBooking.returnSegmentFare,
-            returnSelectedSeats,
-            1.0
-          );
-        } else {
-          // Fall back to legacy route-based fare for return trip
-          const returnTripFare =
-            (returnTrip.base_fare || 0) * (returnTrip.fare_multiplier || 1.0);
-          returnLegTotalFare = returnSelectedSeats.reduce((sum, seat) => {
-            const seatMultiplier = seat.priceMultiplier || 1.0;
-            return sum + returnTripFare * seatMultiplier;
-          }, 0);
+        // If fare is 0, there might be an issue - recalculate as fallback
+        if (returnLegTotalFare === 0 && returnSelectedSeats.length > 0) {
+          console.warn('[Booking Creation] Return fare is 0, recalculating...');
+          // Recalculate return fare as fallback
+          const useReturnSegments =
+            currentBooking.returnBoardingStop !== null &&
+            currentBooking.returnDestinationStop !== null;
+          if (useReturnSegments && currentBooking.returnSegmentFare !== null) {
+            returnLegTotalFare = calculateSegmentFareWithSeats(
+              currentBooking.returnSegmentFare,
+              returnSelectedSeats,
+              1.0
+            );
+          } else {
+            // Use route.base_fare if available, otherwise fall back to trip.base_fare
+            const returnBaseFare =
+              returnTrip.route?.base_fare || returnTrip.base_fare || 0;
+            const returnTripFare =
+              returnBaseFare * (returnTrip.fare_multiplier || 1.0);
+            returnLegTotalFare = returnSelectedSeats.reduce((sum, seat) => {
+              const seatMultiplier = seat.priceMultiplier || 1.0;
+              return sum + returnTripFare * seatMultiplier;
+            }, 0);
+          }
         }
+
+        // Debug logging to verify return fare
+        console.log('[Booking Creation] Return booking fare:', {
+          returnLegTotalFare,
+          returnSelectedSeatsCount: returnSelectedSeats.length,
+          returnSegmentFare: currentBooking.returnSegmentFare,
+          returnTripBaseFare: returnTrip.base_fare,
+          returnTripFareMultiplier: returnTrip.fare_multiplier,
+        });
 
         const returnBookingData = {
           user_id: user.id, // Required for RLS policy
@@ -1216,6 +1324,58 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
 
           // Link departure and return bookings for round-trip management
           try {
+            // Verify both bookings have correct individual fares before linking
+            const { data: departureBookingCheck } = await supabase
+              .from('bookings')
+              .select('total_fare')
+              .eq('id', booking.id)
+              .single();
+
+            // If departure booking fare is incorrect, fix it before linking
+            if (
+              departureBookingCheck &&
+              Math.abs(departureBookingCheck.total_fare - outboundLegFare) >
+                0.01
+            ) {
+              console.warn(
+                '[Booking Creation] Departure booking fare mismatch, correcting...',
+                {
+                  stored: departureBookingCheck.total_fare,
+                  expected: outboundLegFare,
+                }
+              );
+              await supabase
+                .from('bookings')
+                .update({ total_fare: outboundLegFare })
+                .eq('id', booking.id);
+            }
+
+            // Verify return booking fare is correct
+            const { data: returnBookingCheck } = await supabase
+              .from('bookings')
+              .select('total_fare')
+              .eq('id', returnBooking.id)
+              .single();
+
+            if (
+              returnBookingCheck &&
+              Math.abs(returnBookingCheck.total_fare - returnLegTotalFare) >
+                0.01
+            ) {
+              console.warn(
+                '[Booking Creation] Return booking fare mismatch, correcting...',
+                {
+                  stored: returnBookingCheck.total_fare,
+                  expected: returnLegTotalFare,
+                }
+              );
+              await supabase
+                .from('bookings')
+                .update({ total_fare: returnLegTotalFare })
+                .eq('id', returnBooking.id);
+            }
+
+            // Link the bookings - no trigger will modify fares since we removed it
             await supabase
               .from('bookings')
               .update({
@@ -1241,6 +1401,9 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           await updateBookingWithQrCode(returnBooking.id, returnQrCodeUrl);
 
           // Create return booking segment if using multi-stop
+          const useReturnSegments =
+            currentBooking.returnBoardingStop &&
+            currentBooking.returnDestinationStop;
           if (
             useReturnSegments &&
             currentBooking.returnBoardingStop &&
@@ -1312,10 +1475,15 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
 
       // Handle payment records and status updates for main (and return) bookings
       if (paymentMethod === 'mib') {
+        // Use the exact calculated total fare from the store (no recalculation)
+        // For round trips, this is the combined total (outbound + return)
+        // For one-way trips, this is just the outbound fare
+        const paymentAmount = currentBooking.totalFare;
+
         const { error: paymentError } = await supabase.from('payments').insert({
           booking_id: booking.id,
           payment_method: paymentMethod as PaymentMethod,
-          amount: totalFare,
+          amount: paymentAmount,
           currency: 'MVR',
           status: 'pending',
         });
@@ -1324,24 +1492,9 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           console.error('Failed to create payment record:', paymentError);
         }
 
-        if (returnBookingId) {
-          const { error: returnPaymentError } = await supabase
-            .from('payments')
-            .insert({
-              booking_id: returnBookingId,
-              payment_method: paymentMethod as PaymentMethod,
-              amount: returnLegTotalFare,
-              currency: 'MVR',
-              status: 'pending',
-            });
-
-          if (returnPaymentError) {
-            console.error(
-              'Failed to create return payment record:',
-              returnPaymentError
-            );
-          }
-        }
+        // For round trips, we don't create a separate payment for the return booking
+        // The combined amount is already stored in the main booking's payment record
+        // The return booking is linked via round_trip_group_id and return_booking_id
 
         const { error: statusUpdateError } = await supabase
           .from('bookings')

@@ -1043,15 +1043,55 @@ execute FUNCTION prevent_checkin_after_closure ();
 create trigger trg_set_booking_number BEFORE INSERT on bookings for EACH row
 execute FUNCTION set_booking_number ();
 
-create trigger trg_split_round_trip_fare
-after
-update OF return_booking_id on bookings for EACH row
-execute FUNCTION split_round_trip_fare ();
-
 create trigger trg_update_available_seats
 after
 update OF status on bookings for EACH row
 execute FUNCTION update_available_seats ();
+
+create or replace FUNCTION generate_receipt_number ()
+RETURNS TRIGGER AS $$
+DECLARE
+  receipt_num VARCHAR(20);
+  date_str VARCHAR(8);
+  random_part VARCHAR(6);
+  exists_check VARCHAR(20);
+BEGIN
+  -- Only generate if receipt_number is not already set
+  IF NEW.receipt_number IS NULL OR NEW.receipt_number = '' THEN
+    -- Generate date string (YYYYMMDD)
+    date_str := TO_CHAR(NOW(), 'YYYYMMDD');
+    
+    -- Generate random 6-digit number
+    random_part := LPAD(FLOOR(RANDOM() * 1000000)::TEXT, 6, '0');
+    
+    -- Combine: RCP + date + random
+    receipt_num := 'RCP' || date_str || random_part;
+    
+    -- Check for uniqueness (retry if exists, max 10 attempts)
+    FOR i IN 1..10 LOOP
+      SELECT receipt_number INTO exists_check
+      FROM payments
+      WHERE receipt_number = receipt_num;
+      
+      IF exists_check IS NULL THEN
+        -- Unique, use it
+        EXIT;
+      ELSE
+        -- Collision, generate new random part
+        random_part := LPAD(FLOOR(RANDOM() * 1000000)::TEXT, 6, '0');
+        receipt_num := 'RCP' || date_str || random_part;
+      END IF;
+    END LOOP;
+    
+    NEW.receipt_number := receipt_num;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+create trigger trg_generate_receipt_number BEFORE INSERT on payments for EACH row
+execute FUNCTION generate_receipt_number ();
 
 create view public.bookings_with_segments_view as
 select

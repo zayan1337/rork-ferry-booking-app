@@ -79,27 +79,83 @@ export default function TripSelectionStep() {
         currentBooking.returnDestinationIslandId &&
         currentBooking.returnDate
       ) {
-        const returnTrips = await getTripsForSegment(
-          currentBooking.returnBoardingIslandId,
-          currentBooking.returnDestinationIslandId,
-          currentBooking.returnDate
-        );
-        // Filter return trips: must be scheduled status and bookable (5 min buffer)
-        const bookableReturnTrips = returnTrips.filter((trip: any) => {
-          // Check status first
-          if (!isTripStatusBookable(trip.status)) {
-            return false;
-          }
-          // Check if trip is bookable based on time (5 minute buffer)
-          return isTripBookable(
-            trip.travel_date,
-            trip.departure_time,
-            BOOKING_BUFFER_MINUTES
+        try {
+          console.log('[TripSelectionStep] Loading return trips:', {
+            returnBoardingIslandId: currentBooking.returnBoardingIslandId,
+            returnDestinationIslandId: currentBooking.returnDestinationIslandId,
+            returnDate: currentBooking.returnDate,
+          });
+
+          const returnTrips = await getTripsForSegment(
+            currentBooking.returnBoardingIslandId,
+            currentBooking.returnDestinationIslandId,
+            currentBooking.returnDate
           );
-        });
-        setReturnAvailableTrips(bookableReturnTrips);
+
+          console.log(
+            '[TripSelectionStep] Return trips found:',
+            returnTrips.length
+          );
+
+          // Filter return trips: must be scheduled status and bookable (5 min buffer)
+          const bookableReturnTrips = returnTrips.filter((trip: any) => {
+            // Check status first
+            if (!isTripStatusBookable(trip.status)) {
+              console.log(
+                '[TripSelectionStep] Return trip filtered out (status):',
+                {
+                  trip_id: trip.trip_id,
+                  status: trip.status,
+                }
+              );
+              return false;
+            }
+            // Check if trip is bookable based on time (5 minute buffer)
+            const isBookable = isTripBookable(
+              trip.travel_date,
+              trip.departure_time,
+              BOOKING_BUFFER_MINUTES
+            );
+            if (!isBookable) {
+              console.log(
+                '[TripSelectionStep] Return trip filtered out (time):',
+                {
+                  trip_id: trip.trip_id,
+                  travel_date: trip.travel_date,
+                  departure_time: trip.departure_time,
+                }
+              );
+            }
+            return isBookable;
+          });
+
+          console.log(
+            '[TripSelectionStep] Bookable return trips:',
+            bookableReturnTrips.length
+          );
+          setReturnAvailableTrips(bookableReturnTrips);
+        } catch (returnError) {
+          console.error(
+            '[TripSelectionStep] Error loading return trips:',
+            returnError
+          );
+          showError('Error', 'Failed to load return trips. Please try again.');
+          setReturnAvailableTrips([]);
+        }
       } else {
         // Clear return trips if not round trip or data is missing
+        if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP) {
+          console.log(
+            '[TripSelectionStep] Return trips not loaded - missing data:',
+            {
+              hasReturnBoardingIslandId:
+                !!currentBooking.returnBoardingIslandId,
+              hasReturnDestinationIslandId:
+                !!currentBooking.returnDestinationIslandId,
+              hasReturnDate: !!currentBooking.returnDate,
+            }
+          );
+        }
         setReturnAvailableTrips([]);
       }
     } catch (error) {
@@ -347,14 +403,29 @@ export default function TripSelectionStep() {
                 />
               ))}
             </View>
+          ) : loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size='small' color={Colors.primary} />
+              <Text style={styles.loadingText}>Loading return trips...</Text>
+            </View>
           ) : (
             <View style={styles.noTripsContainer}>
               <Text style={styles.noTripsTitle}>No Return Trips Available</Text>
               <Text style={styles.noTripsText}>
-                No return trips available for this route on{' '}
-                {currentBooking.returnDate &&
-                  new Date(currentBooking.returnDate).toLocaleDateString()}
+                No return trips available for{' '}
+                {currentBooking.returnBoardingIslandName || 'selected island'} →{' '}
+                {currentBooking.returnDestinationIslandName ||
+                  'selected island'}{' '}
+                on{' '}
+                {currentBooking.returnDate
+                  ? new Date(currentBooking.returnDate).toLocaleDateString()
+                  : 'selected date'}
                 .{'\n\n'}
+                This could mean:
+                {'\n'}• No routes serve this segment
+                {'\n'}• No trips are scheduled for this date
+                {'\n'}• All trips are fully booked or unavailable
+                {'\n\n'}
                 Please try selecting a different date or route.
               </Text>
             </View>

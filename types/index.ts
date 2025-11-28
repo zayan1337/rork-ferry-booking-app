@@ -133,6 +133,9 @@ export type Booking = {
   tripId?: string | null;
   isModification?: boolean;
   originalBookingId?: string | null;
+  returnBookingId?: string | null;
+  roundTripGroupId?: string | null;
+  displayFare?: number;
 };
 
 // Base exports without conflicts

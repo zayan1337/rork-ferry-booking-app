@@ -84,6 +84,9 @@ export interface CurrentBooking extends BookingData {
   returnDestinationStop: RouteStop | null;
   segmentFare: number | null;
   returnSegmentFare: number | null;
+  // Individual leg fares (calculated and stored for exact booking creation)
+  outboundLegFare: number;
+  returnLegFare: number;
 }
 
 // Store interfaces

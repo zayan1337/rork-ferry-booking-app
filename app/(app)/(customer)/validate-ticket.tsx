@@ -209,6 +209,7 @@ export default function ValidateTicketScreen() {
     if (!validationResult?.booking) return null;
 
     const { booking, isOwnBooking } = validationResult;
+    const displayFare = booking.displayFare ?? booking.totalFare;
 
     return (
       <View style={styles.bookingSummary}>
@@ -305,7 +306,7 @@ export default function ValidateTicketScreen() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Fare:</Text>
             <Text style={styles.summaryValue}>
-              MVR {booking.totalFare.toFixed(2)}
+              MVR {displayFare.toFixed(2)}
             </Text>
           </View>
         )}
