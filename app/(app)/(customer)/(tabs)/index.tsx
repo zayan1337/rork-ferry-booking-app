@@ -118,25 +118,33 @@ export default function HomeScreen() {
   // Handle back button press to close modals
   useFocusEffect(
     React.useCallback(() => {
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        // Check if any modal is open
-        if (modalStates.showFromModal) {
-          closeModal('showFromModal');
-          return true; // Prevent default back behavior
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          // Check if any modal is open
+          if (modalStates.showFromModal) {
+            closeModal('showFromModal');
+            return true; // Prevent default back behavior
+          }
+          if (modalStates.showToModal) {
+            closeModal('showToModal');
+            return true; // Prevent default back behavior
+          }
+          if (modalStates.showDateModal) {
+            closeModal('showDateModal');
+            return true; // Prevent default back behavior
+          }
+          return false; // Allow default back behavior
         }
-        if (modalStates.showToModal) {
-          closeModal('showToModal');
-          return true; // Prevent default back behavior
-        }
-        if (modalStates.showDateModal) {
-          closeModal('showDateModal');
-          return true; // Prevent default back behavior
-        }
-        return false; // Allow default back behavior
-      });
+      );
 
       return () => backHandler.remove();
-    }, [modalStates.showFromModal, modalStates.showToModal, modalStates.showDateModal, closeModal])
+    }, [
+      modalStates.showFromModal,
+      modalStates.showToModal,
+      modalStates.showDateModal,
+      closeModal,
+    ])
   );
 
   const handleRefresh = () => {

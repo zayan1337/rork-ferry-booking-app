@@ -50,7 +50,6 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
 
     if (canViewWallets() && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      console.log('🔄 [WalletsTab] Tab active, fetching wallets...');
       fetchWallets(true).catch(err => {
         console.error('❌ [WalletsTab] Error fetching wallets:', err);
         hasFetchedRef.current = false; // Reset on error so we can retry
@@ -108,7 +107,6 @@ function WalletsTab({ isActive, searchQuery = '' }: WalletsTabProps) {
   const handleCreateWalletsForAllUsers = async () => {
     try {
       const result = await createWalletsForAllUsers();
-      console.log('✅ Created wallets:', result);
       // Wallets will be automatically refreshed by the store
     } catch (error: any) {
       console.error('❌ Error creating wallets:', error);

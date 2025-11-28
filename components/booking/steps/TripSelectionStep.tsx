@@ -80,34 +80,16 @@ export default function TripSelectionStep() {
         currentBooking.returnDate
       ) {
         try {
-          console.log('[TripSelectionStep] Loading return trips:', {
-            returnBoardingIslandId: currentBooking.returnBoardingIslandId,
-            returnDestinationIslandId: currentBooking.returnDestinationIslandId,
-            returnDate: currentBooking.returnDate,
-          });
-
           const returnTrips = await getTripsForSegment(
             currentBooking.returnBoardingIslandId,
             currentBooking.returnDestinationIslandId,
             currentBooking.returnDate
           );
 
-          console.log(
-            '[TripSelectionStep] Return trips found:',
-            returnTrips.length
-          );
-
           // Filter return trips: must be scheduled status and bookable (5 min buffer)
           const bookableReturnTrips = returnTrips.filter((trip: any) => {
             // Check status first
             if (!isTripStatusBookable(trip.status)) {
-              console.log(
-                '[TripSelectionStep] Return trip filtered out (status):',
-                {
-                  trip_id: trip.trip_id,
-                  status: trip.status,
-                }
-              );
               return false;
             }
             // Check if trip is bookable based on time (5 minute buffer)
@@ -117,22 +99,10 @@ export default function TripSelectionStep() {
               BOOKING_BUFFER_MINUTES
             );
             if (!isBookable) {
-              console.log(
-                '[TripSelectionStep] Return trip filtered out (time):',
-                {
-                  trip_id: trip.trip_id,
-                  travel_date: trip.travel_date,
-                  departure_time: trip.departure_time,
-                }
-              );
             }
             return isBookable;
           });
 
-          console.log(
-            '[TripSelectionStep] Bookable return trips:',
-            bookableReturnTrips.length
-          );
           setReturnAvailableTrips(bookableReturnTrips);
         } catch (returnError) {
           console.error(
@@ -145,16 +115,6 @@ export default function TripSelectionStep() {
       } else {
         // Clear return trips if not round trip or data is missing
         if (currentBooking.tripType === TRIP_TYPES.ROUND_TRIP) {
-          console.log(
-            '[TripSelectionStep] Return trips not loaded - missing data:',
-            {
-              hasReturnBoardingIslandId:
-                !!currentBooking.returnBoardingIslandId,
-              hasReturnDestinationIslandId:
-                !!currentBooking.returnDestinationIslandId,
-              hasReturnDate: !!currentBooking.returnDate,
-            }
-          );
         }
         setReturnAvailableTrips([]);
       }

@@ -207,7 +207,7 @@ async function createMibSession(
     if (booking) {
       // This is a regular ferry booking
       paymentType = 'booking';
-      
+
       // Try to get receipt_number from payment record (preferred for order ID)
       // Fallback to booking_number if payment not found
       try {
@@ -223,7 +223,8 @@ async function createMibSession(
           orderId = payment.receipt_number;
         } else {
           // Fallback to booking_number if receipt_number not available
-          orderId = booking.booking_number || `order-${bookingId}-${Date.now()}`;
+          orderId =
+            booking.booking_number || `order-${bookingId}-${Date.now()}`;
         }
       } catch (paymentQueryError) {
         // Fallback to booking_number if query fails

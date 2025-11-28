@@ -478,12 +478,16 @@ export default function MibPaymentWebView({
             <div class="booking-summary">
               <div class="summary-title">Booking Summary</div>
               
-              ${bookingDetails.receiptNumber ? `
+              ${
+                bookingDetails.receiptNumber
+                  ? `
               <div class="summary-row">
                 <span class="summary-label">Receipt Number:</span>
                 <span class="summary-value">${bookingDetails.receiptNumber}</span>
               </div>
-              ` : ''}
+              `
+                  : ''
+              }
               
               <div class="summary-row">
                 <span class="summary-label">${bookingDetails.isRoundTrip ? 'Booking Numbers:' : 'Booking Number:'}</span>
@@ -500,12 +504,16 @@ export default function MibPaymentWebView({
                 <span class="summary-value">${formatDate(bookingDetails.travelDate)}</span>
               </div>
               
-              ${bookingDetails.isRoundTrip && bookingDetails.returnDate ? `
+              ${
+                bookingDetails.isRoundTrip && bookingDetails.returnDate
+                  ? `
               <div class="summary-row">
                 <span class="summary-label">Return Date:</span>
                 <span class="summary-value">${formatDate(bookingDetails.returnDate)}</span>
               </div>
-              ` : ''}
+              `
+                  : ''
+              }
               
               <div class="summary-row">
                 <span class="summary-label">Passengers:</span>
