@@ -261,7 +261,12 @@ export default function BookScreen() {
         expiresAt,
       });
     },
-    [calculatePaymentWindowSeconds, setPaymentSession, user?.id, user?.profile?.role]
+    [
+      calculatePaymentWindowSeconds,
+      setPaymentSession,
+      user?.id,
+      user?.profile?.role,
+    ]
   );
 
   const handleResumePayment = useCallback(() => {

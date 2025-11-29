@@ -119,6 +119,9 @@ export default function BookingDetailsScreen() {
     }
   }, [fetchUserBookings, bookings.length]);
 
+  // Find the booking by id with proper type handling
+  const booking = bookings.find(b => String(b.id) === String(id)) ?? null;
+
   // Load cancellation / refund info when booking is cancelled
   useEffect(() => {
     const loadCancellationInfo = async () => {
@@ -164,9 +167,6 @@ export default function BookingDetailsScreen() {
       fetchUserBookings();
     }, [fetchUserBookings])
   );
-
-  // Find the booking by id with proper type handling
-  const booking = bookings.find(b => String(b.id) === String(id)) ?? null;
 
   // Use booking eligibility hook
   const { isModifiable, isCancellable, message } = useBookingEligibility({
@@ -547,6 +547,7 @@ export default function BookingDetailsScreen() {
         : undefined;
     setPaymentSession({
       bookingId: booking.id,
+      userId: user?.id || '',
       bookingDetails: details,
       context: sessionContext,
       originalBookingId,
@@ -568,6 +569,7 @@ export default function BookingDetailsScreen() {
     paymentSession,
     setPaymentSession,
     showInfo,
+    user?.id,
   ]);
 
   const autoCancelPendingBooking = useCallback(async () => {

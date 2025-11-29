@@ -220,42 +220,170 @@ export const fetchDashboardStats = async (): Promise<DashboardStats> => {
       walletCount += agentProfiles.length;
     }
 
-    // Calculate yesterday's data for comparison (simplified)
-    const yesterdayBookings = Math.max(
-      0,
-      (dashboardData?.today_bookings || 0) - Math.floor(Math.random() * 5)
-    );
-    const yesterdayRevenue = Math.max(
-      0,
-      (dashboardData?.today_revenue || 0) - Math.floor(Math.random() * 500)
-    );
+    // Fetch yesterday's bookings data for comparison
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayDate = yesterday.toISOString().split('T')[0];
+    const yesterdayStart = `${yesterdayDate}T00:00:00`;
+    const yesterdayEnd = `${yesterdayDate}T23:59:59`;
 
+    // Revenue should include confirmed, checked_in, and completed bookings
+    const revenueStatuses = ['confirmed', 'checked_in', 'completed'];
+
+    // Fetch today's bookings for accurate revenue calculation
+    const todayStart = new Date().toISOString().split('T')[0] + 'T00:00:00';
+    const todayEnd = new Date().toISOString().split('T')[0] + 'T23:59:59';
+
+    const { data: todayBookingsData, error: todayError } = await supabase
+      .from('bookings')
+      .select('id, total_fare, status, created_at')
+      .gte('created_at', todayStart)
+      .lte('created_at', todayEnd);
+
+    const { data: yesterdayBookingsData, error: yesterdayError } =
+      await supabase
+        .from('bookings')
+        .select('id, total_fare, status, created_at')
+        .gte('created_at', yesterdayStart)
+        .lte('created_at', yesterdayEnd);
+
+    // Fetch all bookings for total revenue calculation
+    const { data: allBookingsData, error: allBookingsError } = await supabase
+      .from('bookings')
+      .select('id, total_fare, status');
+
+    // Fetch cancellations data for partial refund calculation (include status)
+    const { data: allCancellations, error: cancellationsError } = await supabase
+      .from('cancellations')
+      .select('booking_id, refund_amount, status');
+
+    // Create a map with full cancellation details for proper filtering
+    const cancellationDetailsMap = new Map<
+      string,
+      {
+        refund_amount: number;
+        status: string;
+      }
+    >();
+
+    if (!cancellationsError && allCancellations) {
+      allCancellations.forEach(cancellation => {
+        cancellationDetailsMap.set(cancellation.booking_id, {
+          refund_amount: Number(cancellation.refund_amount || 0),
+          status: cancellation.status,
+        });
+      });
+    }
+
+    // Create refund map for revenue calculation (only include cancellations with actual refund amounts)
+    const refundMap = new Map<string, number>();
+    cancellationDetailsMap.forEach((details, bookingId) => {
+      // Only include refunds where refund_amount > 0 (actual refunds, not zero refunds)
+      if (details.refund_amount > 0) {
+        refundMap.set(bookingId, details.refund_amount);
+      }
+    });
+
+    // Helper function to calculate net revenue accounting for refunds
+    // Business Logic:
+    // - Confirmed/checked_in/completed bookings: Full total_fare as revenue
+    // - Cancelled bookings with refund: Net revenue = total_fare - refund_amount (remaining amount kept)
+    // - Cancelled bookings without payment: 0 revenue (no payment was made)
+    // - Other statuses (reserved, pending_payment): 0 revenue (payment not completed)
+    const calculateNetRevenue = (booking: any): number => {
+      const totalFare = Number(booking.total_fare || 0);
+
+      if (booking.status === 'cancelled') {
+        const cancellation = cancellationDetailsMap.get(booking.id);
+        if (!cancellation) {
+          // No cancellation record - no payment was made, no revenue
+          return 0;
+        }
+
+        // If refund_amount is 0, no refund was given (no payment was made), so no revenue
+        if (cancellation.refund_amount === 0) {
+          return 0;
+        }
+
+        // Calculate net revenue = total_fare - refund_amount (amount kept after partial refund)
+        // Example: Booking MVR 1000, refund MVR 500 → Revenue = MVR 500 (amount kept)
+        return Math.max(0, totalFare - cancellation.refund_amount);
+      } else if (revenueStatuses.includes(booking.status)) {
+        // For confirmed/checked_in/completed: full revenue
+        return totalFare;
+      }
+      // For other statuses (reserved, pending_payment): no revenue
+      return 0;
+    };
+
+    let yesterdayBookings = 0;
+    let yesterdayRevenue = 0;
+    let actualTodayRevenue = 0;
+    let actualTotalRevenue = 0;
+
+    if (!yesterdayError && yesterdayBookingsData) {
+      yesterdayBookings = yesterdayBookingsData.length;
+      yesterdayRevenue = yesterdayBookingsData.reduce(
+        (sum, b) => sum + calculateNetRevenue(b),
+        0
+      );
+    }
+
+    // Calculate actual today revenue (including checked_in, completed, and cancelled with partial refunds)
+    if (!todayError && todayBookingsData) {
+      actualTodayRevenue = todayBookingsData.reduce(
+        (sum, b) => sum + calculateNetRevenue(b),
+        0
+      );
+    } else {
+      // Fallback to view data if query fails
+      actualTodayRevenue = dashboardData?.today_revenue || 0;
+    }
+
+    // Calculate actual total revenue (including checked_in, completed, and cancelled with partial refunds)
+    if (!allBookingsError && allBookingsData) {
+      actualTotalRevenue = allBookingsData.reduce(
+        (sum, b) => sum + calculateNetRevenue(b),
+        0
+      );
+    } else {
+      // Fallback to view data if query fails
+      actualTotalRevenue = dashboardData?.total_revenue || 0;
+    }
+
+    // Calculate booking change percentage
     const bookingChangePercentage =
       yesterdayBookings > 0
         ? (((dashboardData?.today_bookings || 0) - yesterdayBookings) /
             yesterdayBookings) *
           100
-        : 0;
+        : dashboardData?.today_bookings > 0
+          ? 100 // If today has bookings but yesterday didn't, it's 100% increase
+          : 0;
 
+    // Calculate revenue change percentage using actual today revenue
     const revenueChangePercentage =
       yesterdayRevenue > 0
-        ? (((dashboardData?.today_revenue || 0) - yesterdayRevenue) /
-            yesterdayRevenue) *
-          100
-        : 0;
+        ? ((actualTodayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100
+        : actualTodayRevenue > 0
+          ? 100 // If today has revenue but yesterday didn't, it's 100% increase
+          : 0;
 
     return {
       dailyBookings: {
         count: dashboardData?.today_bookings || 0,
-        revenue: dashboardData?.today_revenue || 0,
-        change_percentage: Math.round(bookingChangePercentage * 100) / 100,
+        revenue: actualTodayRevenue, // Use calculated revenue including all valid statuses
+        change_percentage: Math.round(bookingChangePercentage * 10) / 10,
       },
+      totalRevenue: actualTotalRevenue, // Use calculated total revenue including all valid statuses
+      revenueChangePercentage: Math.round(revenueChangePercentage * 10) / 10,
       activeTrips: {
         count: operationsData?.today_trips || 0,
         in_progress:
           (operationsData?.today_trips || 0) -
             (operationsData?.completed_trips_today || 0) || 0,
         completed_today: operationsData?.completed_trips_today || 0,
+        cancelled_bookings: dashboardData?.cancelled_count || 0,
       },
       activeUsers: {
         total: dashboardData?.active_users_30d || 0,
@@ -283,7 +411,14 @@ export const fetchDashboardStats = async (): Promise<DashboardStats> => {
     // Return default values on error
     return {
       dailyBookings: { count: 0, revenue: 0, change_percentage: 0 },
-      activeTrips: { count: 0, in_progress: 0, completed_today: 0 },
+      totalRevenue: 0,
+      revenueChangePercentage: 0,
+      activeTrips: {
+        count: 0,
+        in_progress: 0,
+        completed_today: 0,
+        cancelled_bookings: 0,
+      },
       activeUsers: { total: 0, customers: 0, agents: 0, online_now: 0 },
       paymentStatus: { completed: 0, pending: 0, failed: 0, total_value: 0 },
       walletStats: {

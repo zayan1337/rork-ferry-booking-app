@@ -1,8 +1,9 @@
 import React from 'react';
 import { colors } from '@/constants/adminColors';
-import { CreditCard, Ship, Users, Wallet } from 'lucide-react-native';
+import { CreditCard, Ship, Users, DollarSign } from 'lucide-react-native';
 import { StatsSection } from '@/components/admin/common';
 import { DashboardStatsData } from '@/types/admin/dashboard';
+import { formatCurrency } from '@/utils/currencyUtils';
 
 interface DashboardStatsProps {
   stats: DashboardStatsData;
@@ -11,6 +12,7 @@ interface DashboardStatsProps {
   canViewTrips: boolean;
   canViewUsers: boolean;
   canViewWallets: boolean;
+  canViewFinance?: boolean;
 }
 
 export default function DashboardStats({
@@ -20,6 +22,7 @@ export default function DashboardStats({
   canViewTrips,
   canViewUsers,
   canViewWallets,
+  canViewFinance = true,
 }: DashboardStatsProps) {
   const statItems = [];
 
@@ -30,8 +33,15 @@ export default function DashboardStats({
       subtitle: `MVR ${stats.dailyBookingsRevenue.toFixed(2)} Revenue`,
       icon: <CreditCard size={isTablet ? 20 : 18} color={colors.primary} />,
       trend:
-        stats.dailyBookingsChange > 0 ? ('up' as const) : ('down' as const),
-      trendValue: `${Math.abs(stats.dailyBookingsChange)}%`,
+        stats.dailyBookingsChange !== 0
+          ? stats.dailyBookingsChange > 0
+            ? ('up' as const)
+            : ('down' as const)
+          : undefined,
+      trendValue:
+        stats.dailyBookingsChange !== 0
+          ? `${Math.abs(stats.dailyBookingsChange).toFixed(1)}%`
+          : undefined,
     });
   }
 
@@ -39,7 +49,7 @@ export default function DashboardStats({
     statItems.push({
       title: 'Active Trips',
       value: stats.activeTripsCount.toString(),
-      subtitle: `${stats.activeTripsCount} in progress`,
+      subtitle: `${stats.cancelledBookingsCount} cancelled bookings`,
       icon: <Ship size={isTablet ? 20 : 18} color={colors.secondary} />,
       color: colors.secondary,
     });
@@ -55,13 +65,23 @@ export default function DashboardStats({
     });
   }
 
-  if (canViewWallets) {
+  if (canViewFinance || canViewWallets) {
     statItems.push({
-      title: 'Wallet Balance',
-      value: `MVR ${stats.totalWalletBalance.toFixed(2)}`,
-      subtitle: `${stats.walletCount} wallets`,
-      icon: <Wallet size={isTablet ? 20 : 18} color='#FF9500' />,
+      title: 'Total Revenue',
+      value: formatCurrency(stats.totalRevenue || 0, 'MVR'),
+      subtitle: `MVR ${stats.dailyBookingsRevenue.toFixed(2)} today`,
+      icon: <DollarSign size={isTablet ? 20 : 18} color='#FF9500' />,
       color: '#FF9500',
+      trend:
+        stats.dailyRevenueChange !== 0
+          ? stats.dailyRevenueChange > 0
+            ? ('up' as const)
+            : ('down' as const)
+          : undefined,
+      trendValue:
+        stats.dailyRevenueChange !== 0
+          ? `${Math.abs(stats.dailyRevenueChange).toFixed(1)}%`
+          : undefined,
     });
   }
 

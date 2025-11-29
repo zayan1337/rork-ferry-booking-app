@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -84,9 +84,20 @@ export default function AgentProfileScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [deleteEmailInput, setDeleteEmailInput] = useState('');
   const [, forceUpdate] = useState({});
+  const [displayStats, setDisplayStats] = useState<any>(null);
 
-  // Use utility function for processing stats (same as dashboard)
-  const displayStats = getDashboardStats(stats, localStats, bookings);
+  // Calculate display stats asynchronously (includes partial refunds)
+  useEffect(() => {
+    const calculateStats = async () => {
+      const calculatedStats = await getDashboardStats(
+        stats,
+        localStats,
+        bookings
+      );
+      setDisplayStats(calculatedStats);
+    };
+    calculateStats();
+  }, [stats, localStats, bookings]);
 
   const handleSignOut = async () => {
     try {
@@ -329,40 +340,40 @@ export default function AgentProfileScreen() {
       >
         <StatCard
           title='Total Bookings'
-          value={displayStats.totalBookings}
+          value={displayStats?.totalBookings || 0}
           icon={<Calendar size={20} color={Colors.primary} />}
         />
         <StatCard
           title='Active Bookings'
-          value={displayStats.activeBookings}
+          value={displayStats?.activeBookings || 0}
           icon={<Clock size={20} color={Colors.warning} />}
           color={Colors.warning}
         />
         <StatCard
           title='Completed'
-          value={displayStats.completedBookings}
+          value={displayStats?.completedBookings || 0}
           icon={<CheckCircle size={20} color={Colors.success} />}
           color={Colors.success}
         />
         <StatCard
           title='Cancelled'
-          value={displayStats.cancelledBookings}
+          value={displayStats?.cancelledBookings || 0}
           icon={<X size={20} color={Colors.error} />}
           color={Colors.error}
         />
         <StatCard
-          title='Total Clients'
-          value={displayStats.uniqueClients}
+          title='Unique Clients'
+          value={displayStats?.uniqueClients || 0}
           icon={<Users size={20} color={Colors.primary} />}
         />
         <StatCard
           title='Revenue'
-          value={formatCurrency(displayStats.totalRevenue)}
+          value={formatCurrency(displayStats?.totalRevenue || 0)}
           icon={<TrendingUp size={20} color={Colors.primary} />}
         />
         <StatCard
           title='Commission'
-          value={formatCurrency(displayStats.totalCommission)}
+          value={formatCurrency(displayStats?.totalCommission || 0)}
           icon={<Award size={20} color={Colors.primary} />}
         />
       </ScrollView>

@@ -190,6 +190,7 @@ export default function DashboardScreen() {
         canViewTrips={canViewTrips()}
         canViewUsers={canViewUsers()}
         canViewWallets={canViewWallets()}
+        canViewFinance={canViewWallets()}
       />
 
       {/* System Health Dashboard */}

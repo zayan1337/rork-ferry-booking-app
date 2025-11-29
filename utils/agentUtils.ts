@@ -1,6 +1,10 @@
 import type { Agent, AgentStats, Booking, Client } from '@/types/agent';
 import { getActiveBookings, getInactiveBookings } from './bookingUtils';
 import { supabase } from './supabase';
+import {
+  calculateTotalRevenueAsync,
+  type BookingForRevenue,
+} from './revenueCalculation';
 
 /**
  * Agent profile data structure from database RPC calls
@@ -169,18 +173,30 @@ export const fetchAgentProfileWithStats = async (
 
 /**
  * Calculate local agent statistics from bookings data
+ * Now includes partial refunds from cancelled bookings in revenue calculation
  * @param bookings - Array of bookings
  * @param clients - Array of clients
  * @returns Calculated agent statistics
  */
-export const calculateLocalAgentStats = (
+export const calculateLocalAgentStats = async (
   bookings: Booking[],
   clients: Client[]
-): AgentStats => {
+): Promise<AgentStats> => {
   const activeBookings = getActiveBookings(bookings);
   const inactiveBookings = getInactiveBookings(bookings);
 
-  // Only count revenue from confirmed, checked_in, or completed bookings (exclude cancelled)
+  // Prepare bookings for revenue calculation (including cancelled with partial refunds)
+  const bookingsForRevenue: BookingForRevenue[] = bookings.map(booking => ({
+    id: booking.id,
+    status: booking.status,
+    total_fare: booking.totalAmount || booking.discountedAmount || 0,
+  }));
+
+  // Calculate net revenue accounting for partial refunds
+  const totalRevenue = await calculateTotalRevenueAsync(bookingsForRevenue);
+
+  // Commission calculation - only from valid revenue bookings (confirmed, checked_in, completed)
+  // Note: Commission is typically only calculated for successful bookings, not cancelled ones
   const validRevenueBookings = bookings.filter(
     b =>
       b.status === 'confirmed' ||
@@ -193,11 +209,7 @@ export const calculateLocalAgentStats = (
     activeBookings: activeBookings.length,
     completedBookings: bookings.filter(b => b.status === 'completed').length,
     cancelledBookings: bookings.filter(b => b.status === 'cancelled').length,
-    totalRevenue: validRevenueBookings.reduce(
-      (sum, booking) =>
-        sum + (booking.totalAmount || booking.discountedAmount || 0),
-      0
-    ),
+    totalRevenue,
     totalCommission: validRevenueBookings.reduce(
       (sum, booking) => sum + (booking.commission || 0),
       0

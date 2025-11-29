@@ -40,9 +40,11 @@ export interface BookingsFilterState {
 export interface DashboardStatsData {
   todayBookings: number;
   activeTripsCount: number;
+  cancelledBookingsCount: number;
   totalWalletBalance: number;
   unreadNotifications: number;
   dailyBookingsRevenue: number;
+  totalRevenue: number;
   activeUsersTotal: number;
   onlineUsers: number;
   walletCount: number;

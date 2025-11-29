@@ -314,10 +314,13 @@ export type DashboardStats = {
     revenue: number;
     change_percentage: number;
   };
+  totalRevenue: number;
+  revenueChangePercentage: number;
   activeTrips: {
     count: number;
     in_progress: number;
     completed_today: number;
+    cancelled_bookings: number;
   };
   activeUsers: {
     total: number;

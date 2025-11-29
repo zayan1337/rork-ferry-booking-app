@@ -44,6 +44,10 @@ export interface UseAdminBookingManagementReturn {
     reservedCount: number;
     cancelledCount: number;
     completedCount: number;
+    totalRefundedAmount?: number;
+    todayRefundedAmount?: number;
+    todayTripBookings?: number;
+    todayCancelledCount?: number;
   };
   filters: AdminBookingFilters;
 
@@ -375,6 +379,10 @@ export const useAdminBookingManagement = (
       reservedCount: stats.reserved_count || 0,
       cancelledCount: stats.cancelled_count || 0,
       completedCount: stats.completed_count || 0,
+      totalRefundedAmount: stats.total_refunded_amount || 0,
+      todayRefundedAmount: stats.today_refunded_amount || 0,
+      todayTripBookings: stats.today_trip_bookings || 0,
+      todayCancelledCount: stats.today_cancelled_count || 0,
     };
   }, [stats]);
 

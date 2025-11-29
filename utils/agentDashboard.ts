@@ -1,34 +1,42 @@
 import { AgentDashboardStats } from '@/types/agent';
 import { getInactiveBookings } from './bookingUtils';
+import {
+  calculateTotalRevenueAsync,
+  type BookingForRevenue,
+} from './revenueCalculation';
 
 /**
  * Process and combine dashboard stats from different sources
- * Recalculates revenue and commission from bookings to exclude cancelled bookings
+ * Recalculates revenue from bookings to include partial refunds from cancelled bookings
  */
-export const getDashboardStats = (
+export const getDashboardStats = async (
   stats: AgentDashboardStats | null,
   localStats: AgentDashboardStats | null,
   bookings?: any[] | null
-): AgentDashboardStats => {
-  // Recalculate revenue and commission from bookings if available
-  // This ensures cancelled bookings are excluded
+): Promise<AgentDashboardStats> => {
+  // Recalculate revenue from bookings if available
+  // This includes partial refunds from cancelled bookings
   let calculatedRevenue = stats?.totalRevenue || localStats?.totalRevenue || 0;
   let calculatedCommission =
     stats?.totalCommission || localStats?.totalCommission || 0;
 
   if (bookings && bookings.length > 0) {
-    // Only count revenue from confirmed, checked_in, or completed bookings (exclude cancelled)
+    // Prepare bookings for revenue calculation (including cancelled with partial refunds)
+    const bookingsForRevenue: BookingForRevenue[] = bookings.map(booking => ({
+      id: booking.id,
+      status: booking.status,
+      total_fare: booking.totalAmount || booking.discountedAmount || 0,
+    }));
+
+    // Calculate net revenue accounting for partial refunds
+    calculatedRevenue = await calculateTotalRevenueAsync(bookingsForRevenue);
+
+    // Commission calculation - only from valid revenue bookings (confirmed, checked_in, completed)
     const validRevenueBookings = bookings.filter(
       b =>
         b.status === 'confirmed' ||
         b.status === 'checked_in' ||
         b.status === 'completed'
-    );
-
-    calculatedRevenue = validRevenueBookings.reduce(
-      (sum, booking) =>
-        sum + (booking.totalAmount || booking.discountedAmount || 0),
-      0
     );
 
     calculatedCommission = validRevenueBookings.reduce(
@@ -86,11 +94,11 @@ export interface PerformanceMetrics {
   revenueGrowthRate: number;
 }
 
-export const calculatePerformanceMetrics = (
+export const calculatePerformanceMetrics = async (
   bookings: any[] | null,
   clients: any[] | null,
   previousPeriodBookings?: any[] | null
-): PerformanceMetrics => {
+): Promise<PerformanceMetrics> => {
   if (!bookings || bookings.length === 0) {
     return {
       completionRate: 0,
@@ -108,17 +116,23 @@ export const calculatePerformanceMetrics = (
   const cancelledBookings = bookings.filter(
     b => b.status === 'cancelled'
   ).length;
-  // Only count revenue from confirmed, checked_in, or completed bookings (exclude cancelled)
+
+  // Prepare bookings for revenue calculation (including cancelled with partial refunds)
+  const bookingsForRevenue: BookingForRevenue[] = bookings.map(booking => ({
+    id: booking.id,
+    status: booking.status,
+    total_fare: booking.totalAmount || booking.discountedAmount || 0,
+  }));
+
+  // Calculate net revenue accounting for partial refunds
+  const totalRevenue = await calculateTotalRevenueAsync(bookingsForRevenue);
+
+  // Commission calculation - only from valid revenue bookings (confirmed, checked_in, completed)
   const validRevenueBookings = bookings.filter(
     b =>
       b.status === 'confirmed' ||
       b.status === 'checked_in' ||
       b.status === 'completed'
-  );
-  const totalRevenue = validRevenueBookings.reduce(
-    (sum, booking) =>
-      sum + (booking.totalAmount || booking.discountedAmount || 0),
-    0
   );
   const totalCommission = validRevenueBookings.reduce(
     (sum, booking) => sum + (booking.commission || 0),
@@ -142,16 +156,14 @@ export const calculatePerformanceMetrics = (
   // Calculate revenue growth rate if previous period data is available
   let revenueGrowthRate = 0;
   if (previousPeriodBookings && previousPeriodBookings.length > 0) {
-    const previousValidBookings = previousPeriodBookings.filter(
-      b =>
-        b.status === 'confirmed' ||
-        b.status === 'checked_in' ||
-        b.status === 'completed'
-    );
-    const previousRevenue = previousValidBookings.reduce(
-      (sum, booking) =>
-        sum + (booking.totalAmount || booking.discountedAmount || 0),
-      0
+    const previousBookingsForRevenue: BookingForRevenue[] =
+      previousPeriodBookings.map(booking => ({
+        id: booking.id,
+        status: booking.status,
+        total_fare: booking.totalAmount || booking.discountedAmount || 0,
+      }));
+    const previousRevenue = await calculateTotalRevenueAsync(
+      previousBookingsForRevenue
     );
     if (previousRevenue > 0) {
       revenueGrowthRate =

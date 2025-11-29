@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -276,13 +276,30 @@ const PerformanceInsightsCard = ({
   stats,
   bookings,
   clients,
+  metrics,
 }: {
   stats: any;
   bookings: any[];
   clients: any[];
+  metrics: any | null;
 }) => {
-  const metrics = calculatePerformanceMetrics(bookings, clients);
   const trends = getBookingTrends(bookings);
+
+  if (!metrics) {
+    return (
+      <Card style={styles.performanceCard}>
+        <View style={styles.performanceHeader}>
+          <TrendingUp size={20} color={Colors.primary} />
+          <Text style={styles.performanceTitle}>Performance Insights</Text>
+        </View>
+        <ActivityIndicator
+          size='small'
+          color={Colors.primary}
+          style={{ padding: 20 }}
+        />
+      </Card>
+    );
+  }
 
   return (
     <Card style={styles.performanceCard}>
@@ -450,9 +467,31 @@ export default function AgentDashboardScreen() {
     onRefresh: refreshAgentData,
   });
 
-  // Use utility functions for processing data
-  // Pass bookings to recalculate revenue/commission excluding cancelled bookings
-  const displayStats = getDashboardStats(stats, localStats, bookings);
+  const [displayStats, setDisplayStats] = useState<any>(null);
+  const [performanceMetrics, setPerformanceMetrics] = useState<any>(null);
+
+  // Calculate display stats asynchronously (includes partial refunds)
+  useEffect(() => {
+    const calculateStats = async () => {
+      const calculatedStats = await getDashboardStats(
+        stats,
+        localStats,
+        bookings
+      );
+      setDisplayStats(calculatedStats);
+    };
+    calculateStats();
+  }, [stats, localStats, bookings]);
+
+  // Calculate performance metrics asynchronously
+  useEffect(() => {
+    const calculateMetrics = async () => {
+      const metrics = await calculatePerformanceMetrics(bookings, clients);
+      setPerformanceMetrics(metrics);
+    };
+    calculateMetrics();
+  }, [bookings, clients]);
+
   const recentBookings = getDashboardBookings(bookings);
   const agentFirstName = formatAgentDisplayName(agent);
 
@@ -614,7 +653,7 @@ export default function AgentDashboardScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size='large' color={Colors.primary} />
         </View>
-      ) : (
+      ) : displayStats ? (
         <>
           <ScrollView
             horizontal
@@ -676,8 +715,13 @@ export default function AgentDashboardScreen() {
             stats={displayStats}
             bookings={bookings || []}
             clients={clients || []}
+            metrics={performanceMetrics}
           />
         </>
+      ) : (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size='large' color={Colors.primary} />
+        </View>
       )}
 
       {/* Upcoming Departures */}

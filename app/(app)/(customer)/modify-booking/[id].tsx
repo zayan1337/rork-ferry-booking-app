@@ -205,7 +205,12 @@ export default function ModifyBookingScreen() {
         expiresAt,
       });
     },
-    [calculatePaymentWindowSeconds, setPaymentSession, user?.id, user?.profile?.role]
+    [
+      calculatePaymentWindowSeconds,
+      setPaymentSession,
+      user?.id,
+      user?.profile?.role,
+    ]
   );
 
   const activeModificationBookingId = useMemo(

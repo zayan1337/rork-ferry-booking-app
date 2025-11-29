@@ -309,34 +309,209 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
     set({ statsLoading: true });
 
     try {
-      // Get all bookings to calculate stats
+      // Get all bookings to calculate stats (include trip_id for today's trip bookings)
       const { data: allBookings, error: bookingsError } = await supabase
         .from('bookings')
-        .select('status, total_fare, created_at')
+        .select(
+          'id, status, total_fare, created_at, trip_id, trip:trip_id(id, travel_date)'
+        )
         .order('created_at', { ascending: false });
 
+      // Fetch cancellations data for partial refund calculation (include status and created_at)
+      const { data: allCancellations, error: cancellationsError } =
+        await supabase
+          .from('cancellations')
+          .select(
+            'booking_id, refund_amount, cancellation_fee, status, created_at'
+          );
+
+      // Create a map with full cancellation details for proper filtering
+      const cancellationDetailsMap = new Map<
+        string,
+        {
+          refund_amount: number;
+          status: string;
+          created_at: string;
+        }
+      >();
+
+      if (
+        !cancellationsError &&
+        allCancellations &&
+        allCancellations.length > 0
+      ) {
+        allCancellations.forEach(cancellation => {
+          cancellationDetailsMap.set(cancellation.booking_id, {
+            refund_amount: Number(cancellation.refund_amount || 0),
+            status: cancellation.status || 'pending',
+            created_at: cancellation.created_at || new Date().toISOString(),
+          });
+        });
+      } else {
+        // Fallback: Calculate refund amounts from cancelled bookings
+        // For cancelled bookings, calculate refund as 50% of total_fare if payment was made
+        const cancelledBookings = (allBookings || []).filter(
+          b => b.status === 'cancelled'
+        );
+
+        // Fetch payments for cancelled bookings to check if payment was made
+        if (cancelledBookings.length > 0) {
+          const cancelledBookingIds = cancelledBookings.map(b => b.id);
+          const { data: cancelledPayments, error: paymentsError } =
+            await supabase
+              .from('payments')
+              .select('booking_id, amount, status, created_at')
+              .in('booking_id', cancelledBookingIds)
+              .eq('status', 'completed');
+
+          if (!paymentsError && cancelledPayments) {
+            // Create a map of booking_id to payment amount
+            const paymentMap = new Map<string, number>();
+            cancelledPayments.forEach(payment => {
+              const current = paymentMap.get(payment.booking_id) || 0;
+              paymentMap.set(
+                payment.booking_id,
+                current + Number(payment.amount || 0)
+              );
+            });
+
+            // For each cancelled booking with payment, calculate 50% refund
+            cancelledBookings.forEach(booking => {
+              const paidAmount = paymentMap.get(booking.id);
+              if (paidAmount && paidAmount > 0) {
+                const refundAmount = booking.total_fare * 0.5; // 50% refund policy
+                cancellationDetailsMap.set(booking.id, {
+                  refund_amount: refundAmount,
+                  status: 'pending', // Assume pending if no cancellation record exists
+                  created_at: booking.created_at || new Date().toISOString(),
+                });
+              }
+            });
+          }
+        }
+      }
+
+      // Create refund map for revenue calculation (only include cancellations with actual refund amounts)
+      const refundMap = new Map<string, number>();
+      cancellationDetailsMap.forEach((details, bookingId) => {
+        // Only include refunds where refund_amount > 0 (actual refunds, not zero refunds)
+        if (details.refund_amount > 0) {
+          refundMap.set(bookingId, details.refund_amount);
+        }
+      });
+
       if (bookingsError) {
-        console.error('Error fetching bookings for stats:', bookingsError);
         throw bookingsError;
       }
 
       const bookings = allBookings || [];
 
-      // Calculate today's date
+      // Calculate today's and yesterday's dates with time ranges
       const today = new Date().toISOString().split('T')[0];
+      const todayStart = `${today}T00:00:00`;
+      const todayEnd = `${today}T23:59:59`;
+
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayDate = yesterday.toISOString().split('T')[0];
+      const yesterdayStart = `${yesterdayDate}T00:00:00`;
+      const yesterdayEnd = `${yesterdayDate}T23:59:59`;
+
+      // Filter bookings by date and status (more precise date comparison)
+      const todayBookingsList = bookings.filter(b => {
+        if (!b.created_at) return false;
+        const bookingDate = new Date(b.created_at).toISOString();
+        return bookingDate >= todayStart && bookingDate <= todayEnd;
+      });
+      const yesterdayBookingsList = bookings.filter(b => {
+        if (!b.created_at) return false;
+        const bookingDate = new Date(b.created_at).toISOString();
+        return bookingDate >= yesterdayStart && bookingDate <= yesterdayEnd;
+      });
+
+      // Revenue statuses and helper function for net revenue calculation
+      const confirmedStatuses = ['confirmed', 'checked_in', 'completed'];
+
+      // Helper function to calculate net revenue accounting for refunds
+      // Business Logic:
+      // - Confirmed/checked_in/completed bookings: Full total_fare as revenue
+      // - Cancelled bookings with refund: Net revenue = total_fare - refund_amount (remaining amount kept)
+      // - Cancelled bookings without payment: 0 revenue (no payment was made)
+      // - Other statuses (reserved, pending_payment): 0 revenue (payment not completed)
+      const calculateNetRevenue = (booking: any): number => {
+        const totalFare = Number(booking.total_fare || 0);
+
+        if (booking.status === 'cancelled') {
+          const cancellation = cancellationDetailsMap.get(booking.id);
+          if (!cancellation) {
+            // No cancellation record - no payment was made, no revenue
+            return 0;
+          }
+
+          // If refund_amount is 0, no refund was given (no payment was made), so no revenue
+          if (cancellation.refund_amount === 0) {
+            return 0;
+          }
+
+          // Calculate net revenue = total_fare - refund_amount (amount kept after partial refund)
+          // Example: Booking MVR 1000, refund MVR 500 → Revenue = MVR 500 (amount kept)
+          return Math.max(0, totalFare - cancellation.refund_amount);
+        } else if (confirmedStatuses.includes(booking.status)) {
+          // For confirmed/checked_in/completed: full revenue
+          return totalFare;
+        }
+        // For other statuses (reserved, pending_payment): no revenue
+        return 0;
+      };
 
       // Calculate statistics
       const totalBookings = bookings.length;
-      const todayBookings = bookings.filter(b =>
-        b.created_at?.startsWith(today)
-      ).length;
+      const todayBookings = todayBookingsList.length;
+
+      // Calculate total refunded amount - count all cancellations with refund_amount > 0
+      const totalRefundedAmount = Array.from(cancellationDetailsMap.values())
+        .filter(c => c.refund_amount > 0)
+        .reduce((sum, c) => sum + c.refund_amount, 0);
+
+      // Calculate today's refunded amount - filter by cancellation created_at date
+      const todayRefundedAmount = Array.from(cancellationDetailsMap.entries())
+        .filter(([bookingId, cancellation]) => {
+          // Check if cancellation was created today and has refund_amount > 0
+          const cancellationDate = new Date(cancellation.created_at)
+            .toISOString()
+            .split('T')[0];
+          return cancellationDate === today && cancellation.refund_amount > 0;
+        })
+        .reduce((sum, [, cancellation]) => sum + cancellation.refund_amount, 0);
+
+      // Calculate today's trip bookings (bookings for trips happening today)
+      const todayTripDate = today; // Already calculated above
+      const todayTripBookings = bookings.filter(b => {
+        // Handle both array and object format from Supabase
+        const trip = Array.isArray(b.trip) ? b.trip[0] : b.trip;
+        if (!trip || !trip.travel_date) return false;
+        const tripDate = new Date(trip.travel_date).toISOString().split('T')[0];
+        return tripDate === todayTripDate;
+      });
+      const todayTripBookingsCount = todayTripBookings.length;
+
+      // Total revenue accounting for partial refunds on cancelled bookings
       const totalRevenue = bookings.reduce(
-        (sum, b) => sum + (b.total_fare || 0),
+        (sum, b) => sum + calculateNetRevenue(b),
         0
       );
-      const todayRevenue = bookings
-        .filter(b => b.created_at?.startsWith(today))
-        .reduce((sum, b) => sum + (b.total_fare || 0), 0);
+
+      // Today's revenue accounting for partial refunds
+      const todayRevenue = todayBookingsList.reduce(
+        (sum, b) => sum + calculateNetRevenue(b),
+        0
+      );
+
+      // Yesterday's revenue accounting for partial refunds
+      const yesterdayRevenue = yesterdayBookingsList.reduce(
+        (sum, b) => sum + calculateNetRevenue(b),
+        0
+      );
 
       // Count by status
       const statusCounts = {
@@ -357,15 +532,38 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
         }
       });
 
+      // Calculate today's cancelled bookings count
+      const todayCancelledCount = todayBookingsList.filter(
+        b => b.status === 'cancelled'
+      ).length;
+
       const confirmedCount = statusCounts.confirmed;
       const confirmedRate =
         totalBookings > 0
           ? ((confirmedCount / totalBookings) * 100).toFixed(1)
           : '0';
 
-      // Calculate change percentages (simplified - you can enhance this)
-      const todayBookingsChange = '0'; // TODO: Calculate actual change
-      const todayRevenueChange = '0'; // TODO: Calculate actual change
+      // Calculate change percentages
+      const yesterdayBookings = yesterdayBookingsList.length;
+      const todayBookingsChange =
+        yesterdayBookings > 0
+          ? (
+              ((todayBookings - yesterdayBookings) / yesterdayBookings) *
+              100
+            ).toFixed(1)
+          : todayBookings > 0
+            ? '100'
+            : '0';
+
+      const todayRevenueChange =
+        yesterdayRevenue > 0
+          ? (
+              ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) *
+              100
+            ).toFixed(1)
+          : todayRevenue > 0
+            ? '100'
+            : '0';
 
       const stats: AdminBookingStats = {
         total_bookings: totalBookings,
@@ -381,6 +579,10 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
         completed_count: statusCounts.completed,
         pending_payment_count: statusCounts.pending_payment,
         checked_in_count: statusCounts.checked_in,
+        total_refunded_amount: totalRefundedAmount,
+        today_refunded_amount: todayRefundedAmount,
+        today_trip_bookings: todayTripBookingsCount,
+        today_cancelled_count: todayCancelledCount,
       };
 
       set({ stats, statsLoading: false });

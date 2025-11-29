@@ -301,7 +301,14 @@ export const useAdminStore = create<AdminState>()(
       trips: [],
       dashboardStats: {
         dailyBookings: { count: 0, revenue: 0, change_percentage: 0 },
-        activeTrips: { count: 0, in_progress: 0, completed_today: 0 },
+        totalRevenue: 0,
+        revenueChangePercentage: 0,
+        activeTrips: {
+          count: 0,
+          in_progress: 0,
+          completed_today: 0,
+          cancelled_bookings: 0,
+        },
         activeUsers: { total: 0, customers: 0, agents: 0, online_now: 0 },
         paymentStatus: { completed: 0, pending: 0, failed: 0, total_value: 0 },
         walletStats: {

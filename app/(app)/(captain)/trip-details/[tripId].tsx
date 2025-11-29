@@ -1772,6 +1772,9 @@ export default function CaptainTripDetailsScreen() {
   const checkInProgress =
     totalPassengers > 0 ? (checkedInCount / totalPassengers) * 100 : 0;
 
+  // Calculate available seats dynamically: capacity - active passengers only (excludes cancelled)
+  const availableSeats = Math.max(0, (trip?.capacity || 0) - totalPassengers);
+
   // Resolve passenger contact number (passenger first, then booking owner)
   const getPassengerContact = (p: any): string => {
     const contact = (p?.passenger_contact_number || '').trim();
@@ -2294,56 +2297,6 @@ export default function CaptainTripDetailsScreen() {
         </Card>
       )}
 
-      {/* Passenger Summary */}
-      <Card style={styles.summaryCard}>
-        <View style={styles.summaryHeader}>
-          <View style={styles.summaryIcon}>
-            <Users size={20} color={Colors.primary} />
-          </View>
-          <Text style={styles.summaryTitle}>Passenger Summary</Text>
-        </View>
-
-        <View style={styles.summaryStats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{totalPassengers}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: Colors.success }]}>
-              {checkedInCount}
-            </Text>
-            <Text style={styles.statLabel}>Checked In</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: Colors.warning }]}>
-              {remainingToCheckIn}
-            </Text>
-            <Text style={styles.statLabel}>Pending</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{trip.available_seats}</Text>
-            <Text style={styles.statLabel}>Available</Text>
-          </View>
-        </View>
-
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${checkInProgress}%`,
-                  backgroundColor: Colors.success,
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.progressText}>
-            {Math.round(checkInProgress)}% Checked In
-          </Text>
-        </View>
-      </Card>
-
       {/* Seat Availability Overview */}
       <Card style={styles.seatCard}>
         <View style={styles.seatHeader}>
@@ -2354,43 +2307,44 @@ export default function CaptainTripDetailsScreen() {
         </View>
 
         <View style={styles.seatOverview}>
-          <View style={styles.seatSummaryGrid}>
-            <View style={styles.seatSummaryItem}>
-              <View
-                style={[
-                  styles.seatIndicator,
-                  { backgroundColor: Colors.success },
-                ]}
-              />
-              <Text style={styles.seatSummaryLabel}>Booked & Checked In</Text>
-              <Text style={styles.seatSummaryValue}>{checkedInCount}</Text>
+          <View style={styles.summaryStats}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{totalPassengers}</Text>
+              <Text style={styles.statLabel}>Total</Text>
             </View>
-            <View style={styles.seatSummaryItem}>
-              <View
-                style={[
-                  styles.seatIndicator,
-                  { backgroundColor: Colors.warning },
-                ]}
-              />
-              <Text style={styles.seatSummaryLabel}>
-                Booked (Not Checked In)
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: Colors.success }]}>
+                {checkedInCount}
               </Text>
-              <Text style={styles.seatSummaryValue}>{remainingToCheckIn}</Text>
+              <Text style={styles.statLabel}>Checked In</Text>
             </View>
-            <View style={styles.seatSummaryItem}>
-              <View
-                style={[
-                  styles.seatIndicator,
-                  { backgroundColor: Colors.border },
-                ]}
-              />
-              <Text style={styles.seatSummaryLabel}>Available</Text>
-              <Text style={styles.seatSummaryValue}>
-                {trip.available_seats}
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: Colors.warning }]}>
+                {remainingToCheckIn}
               </Text>
+              <Text style={styles.statLabel}>Pending</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{availableSeats}</Text>
+              <Text style={styles.statLabel}>Available</Text>
             </View>
           </View>
-
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${checkInProgress}%`,
+                    backgroundColor: Colors.success,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {Math.round(checkInProgress)}% Checked In
+            </Text>
+          </View>
           <View style={styles.capacityInfo}>
             <View style={styles.capacityRow}>
               <Text style={styles.capacityLabel}>Total Capacity:</Text>
@@ -2949,28 +2903,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
   },
-  summaryCard: {
-    marginBottom: 16,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  summaryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: `${Colors.primary}20`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-  },
   summaryStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -3244,37 +3176,6 @@ const styles = StyleSheet.create({
   },
   seatOverview: {
     marginBottom: 20,
-  },
-  seatSummaryGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  seatSummaryItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    marginHorizontal: 4,
-  },
-  seatIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  seatSummaryLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  seatSummaryValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
   },
   capacityInfo: {
     backgroundColor: Colors.surface,

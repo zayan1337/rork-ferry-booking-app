@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
+  calculateTotalRevenueAsync,
+  type BookingForRevenue,
+} from '@/utils/revenueCalculation';
+import {
   StyleSheet,
   Text,
   View,
@@ -111,42 +115,65 @@ export default function AgentBookingsScreen() {
     return filtered;
   }, [bookings, activeTab, searchQuery, sortBy]);
 
-  // Calculate summary statistics
-  const bookingStats = useMemo(() => {
-    if (!bookings) return { total: 0, revenue: 0, commission: 0 };
+  // Calculate summary statistics (with partial refunds)
+  const [bookingStats, setBookingStats] = useState({
+    total: 0,
+    revenue: 0,
+    commission: 0,
+  });
 
-    const filteredBookings = bookings.filter(booking => {
-      if (activeTab === 'upcoming') {
-        const departureDate = new Date(booking.departureDate);
-        const now = new Date();
-        return (
-          departureDate > now &&
-          (booking.status === 'confirmed' || booking.status === 'pending')
-        );
+  useEffect(() => {
+    const calculateStats = async () => {
+      if (!bookings) {
+        setBookingStats({ total: 0, revenue: 0, commission: 0 });
+        return;
       }
-      return activeTab === 'all' || booking.status === activeTab;
-    });
 
-    // Only count revenue from confirmed, checked_in, or completed bookings (exclude cancelled)
-    const validRevenueBookings = filteredBookings.filter(
-      booking =>
-        booking.status === 'confirmed' ||
-        booking.status === 'checked_in' ||
-        booking.status === 'completed'
-    );
+      const filteredBookings = bookings.filter(booking => {
+        if (activeTab === 'upcoming') {
+          const departureDate = new Date(booking.departureDate);
+          const now = new Date();
+          return (
+            departureDate > now &&
+            (booking.status === 'confirmed' || booking.status === 'pending')
+          );
+        }
+        return activeTab === 'all' || booking.status === activeTab;
+      });
 
-    return {
-      total: filteredBookings.length,
-      revenue: validRevenueBookings.reduce(
-        (sum, booking) =>
-          sum + (booking.discountedAmount || booking.totalAmount || 0),
-        0
-      ),
-      commission: validRevenueBookings.reduce(
+      // Prepare bookings for revenue calculation (including cancelled with partial refunds)
+      const bookingsForRevenue: BookingForRevenue[] = filteredBookings.map(
+        booking => ({
+          id: booking.id,
+          status: booking.status,
+          total_fare: booking.discountedAmount || booking.totalAmount || 0,
+        })
+      );
+
+      // Calculate net revenue accounting for partial refunds
+      const revenue = await calculateTotalRevenueAsync(bookingsForRevenue);
+
+      // Commission calculation - only from valid revenue bookings (confirmed, checked_in, completed)
+      const validRevenueBookings = filteredBookings.filter(
+        booking =>
+          booking.status === 'confirmed' ||
+          booking.status === 'checked_in' ||
+          booking.status === 'completed'
+      );
+
+      const commission = validRevenueBookings.reduce(
         (sum, booking) => sum + (booking.commission || 0),
         0
-      ),
+      );
+
+      setBookingStats({
+        total: filteredBookings.length,
+        revenue,
+        commission,
+      });
     };
+
+    calculateStats();
   }, [bookings, activeTab]);
 
   const handleBookingPress = (booking: Booking) => {

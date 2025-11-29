@@ -17,7 +17,7 @@ import Colors from '@/constants/colors';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
-import { formatSimpleDate } from '@/utils/dateUtils';
+import { formatBookingDate } from '@/utils/dateUtils';
 import { calculateRefundAmount } from '@/utils/paymentUtils';
 import type { BankDetails } from '@/types/pages/booking';
 import { useAlertContext } from '@/components/AlertProvider';
@@ -139,7 +139,7 @@ export default function CancelBookingScreen() {
       <View style={styles.detailRow}>
         <Text style={styles.detailLabel}>Date:</Text>
         <Text style={styles.detailValue}>
-          {formatSimpleDate(booking.departureDate)}
+          {formatBookingDate(booking.departureDate)}
         </Text>
       </View>
 

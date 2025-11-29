@@ -1727,6 +1727,10 @@ export interface AdminBookingStats {
   completed_count: number;
   pending_payment_count: number;
   checked_in_count: number;
+  total_refunded_amount?: number;
+  today_refunded_amount?: number;
+  today_trip_bookings?: number;
+  today_cancelled_count?: number;
 }
 
 export interface AdminBookingFilters {

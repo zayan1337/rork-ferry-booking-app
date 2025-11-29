@@ -16,6 +16,11 @@ import {
   completeStopBoarding,
   processMultiStopCheckIn,
 } from '@/utils/captain/multiStopCaptainUtils';
+import {
+  fetchCancellationDetails,
+  calculateTotalRevenue,
+  type BookingForRevenue,
+} from '@/utils/revenueCalculation';
 
 // Helper function to get total stops for a trip
 async function getTotalStopsForTrip(tripId: string): Promise<number> {
@@ -261,13 +266,31 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         }
       }
 
-      // Fetch booking counts and checked-in passenger counts for each trip
+      // Fetch booking counts, checked-in passenger counts, and revenue for each trip
       for (const trip of trips) {
-        // Count total active bookings (booked_seats)
-        const { data: allPassengers, error: allError } = await supabase
-          .from('captain_passengers_view')
-          .select('id', { count: 'exact', head: false })
-          .eq('trip_id', trip.id);
+        // Run all queries in parallel for this trip
+        const [
+          { data: allPassengers, error: allError },
+          { data: checkedInData, error: checkedInError },
+          { data: bookingsData, error: bookingsError },
+        ] = await Promise.all([
+          // Count total active bookings (already filtered by view)
+          supabase
+            .from('captain_passengers_view')
+            .select('id', { count: 'exact', head: false })
+            .eq('trip_id', trip.id),
+          // Count checked-in passengers
+          supabase
+            .from('captain_passengers_view')
+            .select('id', { count: 'exact', head: false })
+            .eq('trip_id', trip.id)
+            .eq('check_in_status', true),
+          // Fetch all bookings for revenue calculation (including cancelled with partial refunds)
+          supabase
+            .from('bookings')
+            .select('id, total_fare, status')
+            .eq('trip_id', trip.id),
+        ]);
 
         if (allError) {
           console.error('Error fetching all passengers count:', allError);
@@ -276,18 +299,34 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
           trip.booked_seats = allPassengers?.length || 0;
         }
 
-        // Count checked-in passengers
-        const { data: checkedInData, error: checkedInError } = await supabase
-          .from('captain_passengers_view')
-          .select('id', { count: 'exact', head: false })
-          .eq('trip_id', trip.id)
-          .eq('check_in_status', true);
-
         if (checkedInError) {
           console.error('Error fetching checked-in count:', checkedInError);
           trip.checked_in_passengers = 0;
         } else {
           trip.checked_in_passengers = checkedInData?.length || 0;
+        }
+
+        // Calculate revenue from all bookings (including cancelled with partial refunds)
+        if (bookingsError) {
+          console.error('Error fetching bookings for revenue:', bookingsError);
+          trip.revenue = 0;
+        } else {
+          // Fetch cancellation details for all bookings
+          const bookingIds = bookingsData?.map(b => b.id) || [];
+          const cancellationMap = await fetchCancellationDetails(bookingIds);
+
+          // Calculate net revenue accounting for partial refunds
+          const bookingsForRevenue: BookingForRevenue[] =
+            bookingsData?.map(booking => ({
+              id: booking.id,
+              status: booking.status,
+              total_fare: booking.total_fare || 0,
+            })) || [];
+
+          trip.revenue = calculateTotalRevenue(
+            bookingsForRevenue,
+            cancellationMap
+          );
         }
 
         // Recalculate occupancy rate with actual booked_seats
@@ -424,15 +463,16 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
         })
       );
 
-      // Fetch booking counts and checked-in passenger counts for all trips in parallel
+      // Fetch booking counts, checked-in passenger counts, and revenue for all trips in parallel
       await Promise.all(
         trips.map(async trip => {
-          // Run both passenger queries in parallel for this trip
+          // Run all queries in parallel for this trip
           const [
             { data: allPassengers, error: allError },
             { data: checkedInData, error: checkedInError },
+            { data: allBookings, error: bookingsError },
           ] = await Promise.all([
-            // Count total active bookings
+            // Count total active bookings (already filtered by view)
             supabase
               .from('captain_passengers_view')
               .select('id', { count: 'exact', head: false })
@@ -443,6 +483,11 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
               .select('id', { count: 'exact', head: false })
               .eq('trip_id', trip.id)
               .eq('check_in_status', true),
+            // Fetch all bookings for revenue calculation (including cancelled with partial refunds)
+            supabase
+              .from('bookings')
+              .select('id, total_fare, status')
+              .eq('trip_id', trip.id),
           ]);
 
           if (allError) {
@@ -457,6 +502,32 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
             trip.checked_in_passengers = 0;
           } else {
             trip.checked_in_passengers = checkedInData?.length || 0;
+          }
+
+          // Calculate revenue from all bookings (including cancelled with partial refunds)
+          if (bookingsError) {
+            console.error(
+              'Error fetching bookings for revenue:',
+              bookingsError
+            );
+            trip.revenue = 0;
+          } else {
+            // Fetch cancellation details for all bookings
+            const bookingIds = allBookings?.map(b => b.id) || [];
+            const cancellationMap = await fetchCancellationDetails(bookingIds);
+
+            // Calculate net revenue accounting for partial refunds
+            const bookingsForRevenue: BookingForRevenue[] =
+              allBookings?.map(booking => ({
+                id: booking.id,
+                status: booking.status,
+                total_fare: booking.total_fare || 0,
+              })) || [];
+
+            trip.revenue = calculateTotalRevenue(
+              bookingsForRevenue,
+              cancellationMap
+            );
           }
 
           // Recalculate occupancy rate with actual booked_seats
@@ -921,52 +992,157 @@ export const useCaptainStore = create<CaptainStore>((set, get) => ({
 
       const today = new Date().toISOString().split('T')[0];
 
-      // Fetch today's trip stats
-      const { data: tripStats, error: tripError } = await supabase
-        .from('operations_trips_view')
-        .select('id, status, booked_seats, total_revenue, capacity')
+      // Fetch today's active trips for the captain with vessel capacity
+      const { data: tripsData, error: tripsError } = await supabase
+        .from('trips')
+        .select('id, status, is_active, vessel:vessel_id(seating_capacity)')
         .eq('captain_id', user.id)
         .eq('travel_date', today)
         .eq('is_active', true);
 
-      if (tripError) throw tripError;
+      if (tripsError) throw tripsError;
 
-      // Fetch checked-in passengers count using captain_passengers_view
-      const { data: checkedInData, error: checkedInError } = await supabase
-        .from('captain_passengers_view')
-        .select('id', { count: 'exact', head: false })
-        .in(
-          'trip_id',
-          (tripStats || []).map(t => t.id)
-        )
-        .eq('check_in_status', true);
+      // Map trips with capacity
+      const tripsWithCapacity = (tripsData || []).map(trip => {
+        const vessel = Array.isArray(trip.vessel)
+          ? trip.vessel[0]
+          : trip.vessel;
+        return {
+          id: trip.id,
+          status: trip.status,
+          is_active: trip.is_active,
+          capacity: vessel?.seating_capacity || 0,
+        };
+      });
 
-      if (checkedInError) {
-        console.error('Error fetching checked-in passengers:', checkedInError);
+      const tripIds = tripsWithCapacity.map(t => t.id);
+
+      if (tripIds.length === 0) {
+        // No trips today, return empty stats
+        const stats: CaptainDashboardStats = {
+          todayTrips: 0,
+          totalPassengers: 0,
+          checkedInPassengers: 0,
+          completedTrips: 0,
+          onTimePercentage: 100,
+          totalRevenue: 0,
+          averageOccupancy: 0,
+        };
+        set(state => ({
+          ...state,
+          dashboardStats: stats,
+          loading: { ...state.loading, stats: false },
+        }));
+        return;
       }
 
+      // Fetch ALL active passengers (confirmed, checked_in, completed only - view already filters)
+      // This excludes cancelled and pending bookings
+      const { data: allPassengers, error: allPassengersError } = await supabase
+        .from('captain_passengers_view')
+        .select('id, trip_id, booking_id, check_in_status')
+        .in('trip_id', tripIds);
+
+      if (allPassengersError) {
+        console.error('Error fetching all passengers:', allPassengersError);
+      }
+
+      // Fetch checked-in passengers count
+      const checkedInCount =
+        allPassengers?.filter(p => p.check_in_status === true).length || 0;
+
+      // Total passengers = all passengers in the view (already filtered to active bookings)
+      const totalPassengers = allPassengers?.length || 0;
+
+      // Fetch all bookings for revenue calculation (including cancelled with partial refunds)
+      const { data: allBookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('id, total_fare, status')
+        .in('trip_id', tripIds);
+
+      if (bookingsError) {
+        console.error('Error fetching bookings for revenue:', bookingsError);
+      }
+
+      // Calculate total revenue accounting for partial refunds from cancelled bookings
+      let totalRevenue = 0;
+      if (allBookingsData && allBookingsData.length > 0) {
+        // Fetch cancellation details for all bookings
+        const bookingIds = allBookingsData.map(b => b.id);
+        const cancellationMap = await fetchCancellationDetails(bookingIds);
+
+        // Calculate net revenue accounting for partial refunds
+        const bookingsForRevenue: BookingForRevenue[] = allBookingsData.map(
+          booking => ({
+            id: booking.id,
+            status: booking.status,
+            total_fare: booking.total_fare || 0,
+          })
+        );
+
+        totalRevenue = calculateTotalRevenue(
+          bookingsForRevenue,
+          cancellationMap
+        );
+      }
+
+      // Calculate average occupancy by grouping passengers by trip
+      const validTripsWithCapacity = tripsWithCapacity.filter(
+        t => t.capacity && t.capacity > 0
+      );
+      let averageOccupancy = 0;
+
+      if (
+        validTripsWithCapacity.length > 0 &&
+        allPassengers &&
+        allPassengers.length > 0
+      ) {
+        // Group passengers by trip_id
+        const passengersByTrip = new Map<string, number>();
+        allPassengers.forEach(p => {
+          const tripId = p.trip_id;
+          const current = passengersByTrip.get(tripId) || 0;
+          passengersByTrip.set(tripId, current + 1);
+        });
+
+        // Calculate occupancy for each trip and average them
+        const occupancies: number[] = [];
+        validTripsWithCapacity.forEach(trip => {
+          const passengersOnTrip = passengersByTrip.get(trip.id) || 0;
+          const capacity = trip.capacity || 1;
+          const occupancy = (passengersOnTrip / capacity) * 100;
+          occupancies.push(occupancy);
+        });
+
+        if (occupancies.length > 0) {
+          averageOccupancy =
+            occupancies.reduce((sum, occ) => sum + occ, 0) / occupancies.length;
+        }
+      } else if (validTripsWithCapacity.length > 0 && totalPassengers > 0) {
+        // Fallback: calculate overall occupancy if grouping fails
+        const totalCapacity = validTripsWithCapacity.reduce(
+          (sum, trip) => sum + (trip.capacity || 0),
+          0
+        );
+
+        if (totalCapacity > 0) {
+          averageOccupancy = (totalPassengers / totalCapacity) * 100;
+        }
+      }
+
+      // Count completed trips
+      const completedTrips =
+        tripsWithCapacity.filter(trip => trip.status === 'completed').length ||
+        0;
+
       const stats: CaptainDashboardStats = {
-        todayTrips: tripStats?.length || 0,
-        totalPassengers: (tripStats || []).reduce(
-          (sum, trip) => sum + (trip.booked_seats || 0),
-          0
-        ),
-        checkedInPassengers: checkedInData?.length || 0,
-        completedTrips: (tripStats || []).filter(
-          trip => trip.status === 'completed'
-        ).length,
+        todayTrips: tripsWithCapacity.length || 0,
+        totalPassengers,
+        checkedInPassengers: checkedInCount,
+        completedTrips,
         onTimePercentage: 100, // TODO: Calculate based on actual vs scheduled departure times
-        totalRevenue: (tripStats || []).reduce(
-          (sum, trip) => sum + (trip.total_revenue || 0),
-          0
-        ),
-        averageOccupancy: tripStats?.length
-          ? tripStats.reduce(
-              (sum, trip) =>
-                sum + ((trip.booked_seats || 0) / (trip.capacity || 1)) * 100,
-              0
-            ) / tripStats.length
-          : 0,
+        totalRevenue,
+        averageOccupancy,
       };
 
       set(state => ({

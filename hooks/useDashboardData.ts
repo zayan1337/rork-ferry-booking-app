@@ -31,14 +31,17 @@ export const useDashboardData = () => {
     return {
       todayBookings: dashboardStats.dailyBookings?.count || 0,
       activeTripsCount: dashboardStats.activeTrips?.count || 0,
+      cancelledBookingsCount:
+        dashboardStats.activeTrips?.cancelled_bookings || 0,
       totalWalletBalance: dashboardStats.walletStats?.total_balance || 0,
       unreadNotifications: alerts.filter(a => !a.read).length,
       dailyBookingsRevenue: dashboardStats.dailyBookings?.revenue || 0,
+      totalRevenue: dashboardStats.totalRevenue || 0,
       activeUsersTotal: dashboardStats.activeUsers?.total || 0,
       onlineUsers: dashboardStats.activeUsers?.online_now || 0,
       walletCount: dashboardStats.walletStats?.active_wallets || 0,
       dailyBookingsChange: dashboardStats.dailyBookings?.change_percentage || 0,
-      dailyRevenueChange: 0, // Could be calculated from historical data if needed
+      dailyRevenueChange: dashboardStats.revenueChangePercentage || 0,
     };
   }, [dashboardStats, alerts]);
 

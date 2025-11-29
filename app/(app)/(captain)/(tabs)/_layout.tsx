@@ -8,6 +8,8 @@ import {
   Text,
   StyleSheet,
   Animated,
+  BackHandler,
+  Platform,
 } from 'react-native';
 import {
   UserCheck,
@@ -145,6 +147,24 @@ export default function CaptainTabLayout() {
     }
   }, [showNotifications]);
 
+  // Handle Android back button to close notification modal
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (showNotifications) {
+            setShowNotifications(false);
+            return true; // Prevent default behavior
+          }
+          return false; // Allow default behavior
+        }
+      );
+
+      return () => backHandler.remove();
+    }
+  }, [showNotifications]);
+
   // Handle trip navigation
   const handleTripPress = (tripId: string) => {
     setShowNotifications(false);
@@ -272,6 +292,7 @@ export default function CaptainTabLayout() {
         visible={showNotifications}
         animationType='slide'
         presentationStyle='pageSheet'
+        onRequestClose={() => setShowNotifications(false)}
       >
         <SafeView edges={['top', 'bottom']} backgroundColor={Colors.background}>
           <View style={styles.modalContainer}>

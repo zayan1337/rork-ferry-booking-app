@@ -30,12 +30,6 @@ import {
   getTripUnavailableMessage,
 } from '@/utils/bookingUtils';
 import { usePaymentSessionStore } from '@/store/paymentSessionStore';
-import { BUFFER_MINUTES_PAYMENT_WINDOW } from '@/constants/customer';
-import { getMinutesUntilDeparture } from '@/utils/bookingUtils';
-import {
-  calculateBookingExpiry,
-  combineTripDateTime,
-} from '@/utils/bookingExpiryUtils';
 import { formatCurrency } from '@/utils/agentFormatters';
 import Colors from '@/constants/colors';
 import { Seat } from '@/types';

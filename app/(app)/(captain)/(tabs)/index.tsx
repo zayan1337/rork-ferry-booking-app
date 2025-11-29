@@ -256,7 +256,12 @@ export default function CaptainDashboardScreen() {
       <View style={styles.tripsSummaryGrid}>
         <Pressable
           style={[styles.summaryCard, styles.upcomingCard]}
-          onPress={() => router.push('/(captain)/(tabs)/trips' as any)}
+          onPress={() =>
+            router.push({
+              pathname: '/(captain)/(tabs)/trips',
+              params: { status: 'scheduled' },
+            } as any)
+          }
         >
           <View style={styles.summaryIconContainer}>
             <Calendar size={20} color={Colors.primary} />
@@ -275,7 +280,10 @@ export default function CaptainDashboardScreen() {
                 `/(captain)/trip-details/${tripsSummary.boarding[0].id}` as any
               );
             } else {
-              router.push('/(captain)/(tabs)/trips' as any);
+              router.push({
+                pathname: '/(captain)/(tabs)/trips',
+                params: { status: 'boarding' },
+              } as any);
             }
           }}
         >
@@ -290,7 +298,12 @@ export default function CaptainDashboardScreen() {
 
         <Pressable
           style={[styles.summaryCard, styles.departedCard]}
-          onPress={() => router.push('/(captain)/(tabs)/trips' as any)}
+          onPress={() =>
+            router.push({
+              pathname: '/(captain)/(tabs)/trips',
+              params: { status: 'departed' },
+            } as any)
+          }
         >
           <View style={styles.summaryIconContainer}>
             <Ship size={20} color={Colors.primary} />
@@ -303,7 +316,12 @@ export default function CaptainDashboardScreen() {
 
         <Pressable
           style={[styles.summaryCard, styles.completedCard]}
-          onPress={() => router.push('/(captain)/(tabs)/trips' as any)}
+          onPress={() =>
+            router.push({
+              pathname: '/(captain)/(tabs)/trips',
+              params: { status: 'completed' },
+            } as any)
+          }
         >
           <View style={styles.summaryIconContainer}>
             <CheckCircle size={20} color={Colors.success} />

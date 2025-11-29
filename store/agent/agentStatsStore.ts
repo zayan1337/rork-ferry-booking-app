@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { AgentStats, Booking } from '@/types/agent';
 import { getActiveBookings, getInactiveBookings } from '@/utils/bookingUtils';
 import { fetchAgentProfileWithStats } from '@/utils/agentUtils';
+import {
+  calculateTotalRevenueAsync,
+  type BookingForRevenue,
+} from '@/utils/revenueCalculation';
 
 /**
  * Standardized error handling for stats operations
@@ -27,7 +31,7 @@ interface AgentStatsState {
 
   // Actions
   updateStats: (agentId: string) => Promise<void>;
-  getLocalStats: (bookings: Booking[], clients: any[]) => AgentStats;
+  getLocalStats: (bookings: Booking[], clients: any[]) => Promise<AgentStats>;
   clearError: () => void;
   reset: () => void;
 
@@ -87,15 +91,30 @@ export const useAgentStatsStore = create<AgentStatsState>((set, get) => ({
 
   /**
    * Calculate local statistics from current data
+   * Now includes partial refunds from cancelled bookings in revenue calculation
    * @param bookings - Array of bookings to calculate stats from
    * @param clients - Array of clients (for additional stats if needed)
    * @returns Calculated agent statistics
    */
-  getLocalStats: (bookings: Booking[], clients: any[]): AgentStats => {
+  getLocalStats: async (
+    bookings: Booking[],
+    clients: any[]
+  ): Promise<AgentStats> => {
     const activeBookings = getActiveBookings(bookings);
     const inactiveBookings = getInactiveBookings(bookings);
 
-    // Only count revenue from confirmed, checked_in, or completed bookings (exclude cancelled)
+    // Prepare bookings for revenue calculation (including cancelled with partial refunds)
+    const bookingsForRevenue: BookingForRevenue[] = bookings.map(booking => ({
+      id: booking.id,
+      status: booking.status,
+      total_fare: booking.totalAmount || booking.discountedAmount || 0,
+    }));
+
+    // Calculate net revenue accounting for partial refunds
+    const totalRevenue = await calculateTotalRevenueAsync(bookingsForRevenue);
+
+    // Commission calculation - only from valid revenue bookings (confirmed, checked_in, completed)
+    // Note: Commission is typically only calculated for successful bookings, not cancelled ones
     const validRevenueBookings = bookings.filter(
       b =>
         b.status === 'confirmed' ||
@@ -108,11 +127,7 @@ export const useAgentStatsStore = create<AgentStatsState>((set, get) => ({
       activeBookings: activeBookings.length,
       completedBookings: bookings.filter(b => b.status === 'completed').length,
       cancelledBookings: bookings.filter(b => b.status === 'cancelled').length,
-      totalRevenue: validRevenueBookings.reduce(
-        (sum, booking) =>
-          sum + (booking.totalAmount || booking.discountedAmount || 0),
-        0
-      ),
+      totalRevenue,
       totalCommission: validRevenueBookings.reduce(
         (sum, booking) => sum + (booking.commission || 0),
         0

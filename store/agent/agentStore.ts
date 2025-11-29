@@ -146,7 +146,7 @@ interface AgentState {
   // Local booking utility methods
   getLocalActiveBookings: () => Booking[];
   getLocalInactiveBookings: () => Booking[];
-  getLocalStats: () => AgentStats;
+  getLocalStats: () => Promise<AgentStats>;
 
   // State management
   clearError: () => void;
@@ -458,7 +458,7 @@ export const useAgentStore = create<AgentState>()(
         useAgentBookingsStore.getState().reset();
         useAgentStatsStore.getState().reset();
         useAgentCreditStore.getState().reset();
-         // Clear any active payment session tied to this device
+        // Clear any active payment session tied to this device
         usePaymentSessionStore.getState().clearSession();
         get().syncFromSubStores();
       },
@@ -895,9 +895,11 @@ export const useAgentStore = create<AgentState>()(
        * Get calculated local stats from current data
        * @returns Calculated agent statistics
        */
-      getLocalStats: () => {
+      getLocalStats: async () => {
         const { bookings, clients } = get();
-        return useAgentStatsStore.getState().getLocalStats(bookings, clients);
+        return await useAgentStatsStore
+          .getState()
+          .getLocalStats(bookings, clients);
       },
 
       // ========================================

@@ -18,8 +18,9 @@ import {
   Filter,
   CheckCircle,
   AlertCircle,
+  X,
 } from 'lucide-react-native';
-import { useFocusEffect, router } from 'expo-router';
+import { useFocusEffect, router, useLocalSearchParams } from 'expo-router';
 
 import { useCaptainStore } from '@/store/captainStore';
 import { CaptainTrip } from '@/types/captain';
@@ -35,6 +36,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth > 768;
 
 export default function CaptainTripsScreen() {
+  const params = useLocalSearchParams<{ status?: string }>();
   const {
     trips,
     loading,
@@ -52,6 +54,25 @@ export default function CaptainTripsScreen() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Set status filter from route params when screen loads
+  useEffect(() => {
+    if (params.status) {
+      // Map dashboard status to trips status filter
+      const statusMap: Record<string, string> = {
+        upcoming: 'scheduled',
+        boarding: 'boarding',
+        'en route': 'departed',
+        departed: 'departed',
+        completed: 'completed',
+      };
+      const mappedStatus =
+        statusMap[params.status.toLowerCase()] || params.status;
+      setStatusFilter(mappedStatus);
+      // Auto-show filters when navigating with a status param
+      setShowFilters(true);
+    }
+  }, [params.status, setStatusFilter]);
 
   // Auto-refresh when screen is focused
   useFocusEffect(
@@ -76,6 +97,21 @@ export default function CaptainTripsScreen() {
   const handleDateChange = (date: string) => {
     setDateFilter(date);
     fetchTripsByDate(date);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters =
+    statusFilter !== 'all' ||
+    searchQuery.length > 0 ||
+    dateFilter !== new Date().toISOString().split('T')[0];
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setStatusFilter('all');
+    setSearchQuery('');
+    const today = new Date().toISOString().split('T')[0];
+    setDateFilter(today);
+    fetchTripsByDate(today);
   };
 
   const handleTripPress = (trip: CaptainTrip) => {
@@ -152,17 +188,45 @@ export default function CaptainTripsScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
+          {searchQuery.length > 0 && (
+            <Pressable
+              style={styles.clearSearchButton}
+              onPress={() => setSearchQuery('')}
+            >
+              <X size={16} color={Colors.textSecondary} />
+            </Pressable>
+          )}
         </View>
         <Pressable
-          style={styles.filterButton}
+          style={[
+            styles.filterButton,
+            hasActiveFilters && styles.filterButtonActive,
+          ]}
           onPress={() => setShowFilters(!showFilters)}
         >
-          <Filter size={20} color={Colors.primary} />
+          <Filter
+            size={20}
+            color={hasActiveFilters ? Colors.error : Colors.primary}
+          />
+          {hasActiveFilters && <View style={styles.filterBadge} />}
         </Pressable>
       </View>
 
       {showFilters && (
         <View style={styles.filtersContainer}>
+          <View style={styles.filtersHeader}>
+            <Text style={styles.filtersTitle}>Filters</Text>
+            {hasActiveFilters && (
+              <Pressable
+                style={styles.clearFiltersButton}
+                onPress={handleClearFilters}
+              >
+                <X size={16} color={Colors.error} />
+                <Text style={styles.clearFiltersText}>Clear All</Text>
+              </Pressable>
+            )}
+          </View>
+
           <CalendarDatePicker
             label='Filter by Date'
             value={dateFilter}
@@ -474,16 +538,58 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginLeft: 8,
   },
+  clearSearchButton: {
+    padding: 4,
+    marginLeft: 4,
+  },
   filterButton: {
     padding: 8,
     borderRadius: 8,
     backgroundColor: Colors.background,
+    position: 'relative',
+  },
+  filterButtonActive: {
+    backgroundColor: `${Colors.error}10`,
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.error,
   },
   filtersContainer: {
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+  },
+  filtersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  filtersTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  clearFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: `${Colors.error}10`,
+  },
+  clearFiltersText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.error,
   },
   filterRow: {
     marginBottom: 12,

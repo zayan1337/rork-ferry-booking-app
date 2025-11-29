@@ -1,7 +1,8 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useAgentStore } from '@/store/agent/agentStore';
 import { useAuthStore } from '@/store/authStore';
 import { calculateLocalAgentStats } from '@/utils/agentUtils';
+import type { AgentStats } from '@/types/agent';
 
 /**
  * Custom hook for managing agent data
@@ -52,6 +53,9 @@ export const useAgentData = () => {
     isInitialized,
   } = useAgentStore();
 
+  const [localStats, setLocalStats] = useState<AgentStats | null>(null);
+  const [isLoadingLocalStats, setIsLoadingLocalStats] = useState(false);
+
   /**
    * Initialize agent data when user changes
    * Automatically triggered when the authenticated user changes
@@ -89,12 +93,32 @@ export const useAgentData = () => {
   }, [refreshAllData]);
 
   /**
-   * Get local calculated stats from current data
-   * Provides real-time stats calculation without database queries
+   * Calculate and update local stats when bookings or clients change
+   * Includes partial refunds from cancelled bookings in revenue
    */
-  const localStats = useCallback(() => {
-    if (!bookings || !clients) return null;
-    return calculateLocalAgentStats(bookings, clients);
+  useEffect(() => {
+    const calculateStats = async () => {
+      if (!bookings || !clients || bookings.length === 0) {
+        setLocalStats(null);
+        return;
+      }
+
+      setIsLoadingLocalStats(true);
+      try {
+        const calculatedStats = await calculateLocalAgentStats(
+          bookings,
+          clients
+        );
+        setLocalStats(calculatedStats);
+      } catch (error) {
+        console.error('Error calculating local stats:', error);
+        setLocalStats(null);
+      } finally {
+        setIsLoadingLocalStats(false);
+      }
+    };
+
+    calculateStats();
   }, [bookings, clients]);
 
   /**
@@ -123,7 +147,7 @@ export const useAgentData = () => {
     bookings,
     clients,
     creditTransactions,
-    localStats: localStats(),
+    localStats,
 
     // State
     isLoading, // Legacy - use specific loading states below
@@ -133,6 +157,7 @@ export const useAgentData = () => {
     isLoadingCredit,
     isLoadingStats,
     isLoadingProfile,
+    isLoadingLocalStats,
     error,
     isInitialized: isInitialized(),
 

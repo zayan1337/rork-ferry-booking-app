@@ -575,6 +575,7 @@ export default function BookingDetailsScreen() {
     );
     setPaymentSession({
       bookingId: booking.id,
+      userId: agent?.id || '',
       bookingDetails: details,
       context: 'booking',
       tripInfo,
@@ -594,6 +595,7 @@ export default function BookingDetailsScreen() {
     paymentSession,
     setPaymentSession,
     showInfo,
+    agent?.id,
   ]);
 
   // Resume payment handler
