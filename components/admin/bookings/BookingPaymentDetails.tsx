@@ -16,6 +16,7 @@ interface BookingPaymentDetailsProps {
   } | null;
   originalPaymentAmount?: number | null; // Original payment amount before refund
   paymentRefundStatus?: string | null; // Payment status: 'refunded' or 'partially_refunded'
+  receiptNumber?: string | null; // Receipt number from payments table
 }
 
 export default function BookingPaymentDetails({
@@ -24,6 +25,7 @@ export default function BookingPaymentDetails({
   cancellationData,
   originalPaymentAmount,
   paymentRefundStatus,
+  receiptNumber,
 }: BookingPaymentDetailsProps) {
   const isCancelled = booking.status === 'cancelled';
   const totalFare = booking.total_fare || 0;
@@ -181,6 +183,18 @@ export default function BookingPaymentDetails({
             </View>
           </View>
         </View>
+
+        {receiptNumber && (
+          <View style={styles.row}>
+            <View style={styles.iconContainer}>
+              <Receipt size={20} color={colors.primary} />
+            </View>
+            <View style={styles.content}>
+              <Text style={styles.label}>Receipt Number</Text>
+              <Text style={styles.value}>{receiptNumber}</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Additional Info */}
@@ -332,15 +346,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    flexWrap: 'wrap',
   },
   infoLabel: {
     fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '500',
+    flexShrink: 1,
+    marginRight: 8,
   },
   infoValue: {
     fontSize: 14,
     color: colors.text,
     fontWeight: '600',
+    flexShrink: 1,
+    flex: 1,
+    textAlign: 'right',
   },
 });

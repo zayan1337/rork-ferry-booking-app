@@ -198,6 +198,7 @@ export default function FreeTicketsModal({
               showsVerticalScrollIndicator={true}
               keyboardShouldPersistTaps='handled'
               nestedScrollEnabled={true}
+              bounces={false}
             >
               {/* Current Status Card */}
               <View style={styles.statusCard}>

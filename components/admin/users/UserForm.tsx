@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors } from '@/constants/adminColors';
 import { UserProfile } from '@/types/userManagement';
 import { useUserForm } from '@/hooks/useUserForm';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import {
   User as UserIcon,
   Shield,
@@ -20,6 +21,7 @@ import TextInput from '@/components/admin/TextInput';
 import Dropdown from '@/components/admin/Dropdown';
 import LoadingSpinner from '@/components/admin/LoadingSpinner';
 import CalendarDatePicker from '@/components/CalendarDatePicker';
+import Switch from '@/components/admin/Switch';
 
 interface UserFormProps {
   userId?: string;
@@ -59,6 +61,7 @@ export default function UserForm({
     canSubmit,
     isDirty,
   } = useUserForm(userId);
+  const { isSuperAdmin: currentUserIsSuperAdmin } = useAdminPermissions();
 
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
     {}
@@ -66,12 +69,53 @@ export default function UserForm({
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showPasswordFields, setShowPasswordFields] = useState(!userId);
+  const [originalRole, setOriginalRole] = useState<string | null>(null);
+  const [creditCeiling, setCreditCeiling] = useState<string>('');
+  const [freeTicketsAllocation, setFreeTicketsAllocation] =
+    useState<string>('');
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
 
-  // Track form changes
+  // Fetch user data to get original role and agent fields
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (userId) {
+        try {
+          const { supabase } = await import('@/utils/supabase');
+          const { data, error } = await supabase
+            .from('user_profiles')
+            .select(
+              'role, credit_ceiling, free_tickets_allocation, is_super_admin'
+            )
+            .eq('id', userId)
+            .single();
+
+          if (!error && data) {
+            setOriginalRole(data.role);
+            setIsSuperAdmin(data.is_super_admin || false);
+            if (data.credit_ceiling) {
+              setCreditCeiling(data.credit_ceiling.toString());
+            }
+            if (data.free_tickets_allocation) {
+              setFreeTicketsAllocation(data.free_tickets_allocation.toString());
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+      }
+    };
+
+    fetchUserData();
+  }, [userId]);
+
+  // Track form changes and initialize role
   useEffect(() => {
     const hasFormChanges = isDirty;
     setHasChanges(hasFormChanges);
-  }, [isDirty]);
+    if (formData.role && !originalRole) {
+      setOriginalRole(formData.role);
+    }
+  }, [isDirty, formData.role, originalRole]);
 
   const validateForm = (): boolean => {
     const errors: ValidationErrors = {};
@@ -103,8 +147,12 @@ export default function UserForm({
       errors.mobile_number = 'Please enter a valid phone number';
     }
 
-    // Role validation
-    if (!formData.role) {
+    // Role validation (only required if role field is visible)
+    if (
+      currentUserIsSuperAdmin &&
+      (originalRole === 'customer' || formData.role === 'customer') &&
+      !formData.role
+    ) {
       errors.role = 'User role is required';
     }
 
@@ -154,6 +202,52 @@ export default function UserForm({
     setValidationErrors({});
 
     try {
+      // If changing from customer to agent, update agent-specific fields
+      if (originalRole === 'customer' && formData.role === 'agent' && userId) {
+        const { supabase } = await import('@/utils/supabase');
+        const updateData: any = {
+          role: formData.role,
+        };
+
+        if (creditCeiling) {
+          updateData.credit_ceiling = parseFloat(creditCeiling) || 0;
+        }
+
+        if (freeTicketsAllocation) {
+          updateData.free_tickets_allocation =
+            parseInt(freeTicketsAllocation, 10) || 0;
+          // Set remaining to same as allocation initially
+          updateData.free_tickets_remaining =
+            parseInt(freeTicketsAllocation, 10) || 0;
+        }
+
+        const { error: updateError } = await supabase
+          .from('user_profiles')
+          .update(updateData)
+          .eq('id', userId);
+
+        if (updateError) {
+          throw updateError;
+        }
+      }
+
+      // Update super admin status if user is admin and super admin is editing
+      if (
+        currentUserIsSuperAdmin &&
+        ((formData.role as string) === 'admin' || originalRole === 'admin') &&
+        userId
+      ) {
+        const { supabase } = await import('@/utils/supabase');
+        const { error: updateError } = await supabase
+          .from('user_profiles')
+          .update({ is_super_admin: isSuperAdmin })
+          .eq('id', userId);
+
+        if (updateError) {
+          throw updateError;
+        }
+      }
+
       const result = await handleSubmit();
       if (result) {
         setHasChanges(false);
@@ -213,13 +307,24 @@ export default function UserForm({
     }
   };
 
-  const roleOptions = [
-    { label: 'Admin', value: 'admin' },
-    { label: 'Agent', value: 'agent' },
-    { label: 'Customer', value: 'customer' },
-    { label: 'Passenger', value: 'passenger' },
-    { label: 'Captain', value: 'captain' },
-  ];
+  // Filter role options based on current role
+  const getRoleOptions = () => {
+    const allRoles = [
+      { label: 'Admin', value: 'admin' },
+      { label: 'Agent', value: 'agent' },
+      { label: 'Customer', value: 'customer' },
+      { label: 'Captain', value: 'captain' },
+    ];
+
+    // If current role is customer, only show agent, captain, and admin
+    if (originalRole === 'customer' || formData.role === 'customer') {
+      return allRoles.filter(role => role.value !== 'customer');
+    }
+
+    return allRoles;
+  };
+
+  const roleOptions = getRoleOptions();
 
   const statusOptions = [
     { label: 'Active', value: 'active' },
@@ -281,44 +386,41 @@ export default function UserForm({
             />
           </View>
 
-          <View style={styles.formRow}>
-            <View style={styles.formHalf}>
-              <TextInput
-                label='Email Address'
-                value={formData.email || ''}
-                onChangeText={text => {
-                  setFieldValue('email', text);
-                  clearFieldError('email');
-                }}
-                placeholder='Enter email address'
-                keyboardType='email-address'
-                autoCapitalize='none'
-                error={validationErrors.email || getFieldError('email')}
-                required
-                editable={!userId}
-                description={
-                  userId ? 'Email cannot be changed after creation' : undefined
-                }
-              />
-            </View>
+          <View style={styles.formGroup}>
+            <TextInput
+              label='Email Address'
+              value={formData.email || ''}
+              onChangeText={text => {
+                setFieldValue('email', text);
+                clearFieldError('email');
+              }}
+              placeholder='Enter email address'
+              keyboardType='email-address'
+              autoCapitalize='none'
+              error={validationErrors.email || getFieldError('email')}
+              required
+              editable={!userId}
+              description={
+                userId ? 'Email cannot be changed after creation' : undefined
+              }
+            />
+          </View>
 
-            <View style={styles.formHalf}>
-              <TextInput
-                label='Phone Number'
-                value={formData.mobile_number || ''}
-                onChangeText={text => {
-                  setFieldValue('mobile_number', text);
-                  clearFieldError('mobile_number');
-                }}
-                placeholder='Enter phone number'
-                keyboardType='phone-pad'
-                error={
-                  validationErrors.mobile_number ||
-                  getFieldError('mobile_number')
-                }
-                required
-              />
-            </View>
+          <View style={styles.formGroup}>
+            <TextInput
+              label='Phone Number'
+              value={formData.mobile_number || ''}
+              onChangeText={text => {
+                setFieldValue('mobile_number', text);
+                clearFieldError('mobile_number');
+              }}
+              placeholder='Enter phone number'
+              keyboardType='phone-pad'
+              error={
+                validationErrors.mobile_number || getFieldError('mobile_number')
+              }
+              required
+            />
           </View>
 
           <View style={styles.formGroup}>
@@ -347,20 +449,116 @@ export default function UserForm({
             <Text style={styles.sectionTitle}>Account Settings</Text>
           </View>
 
-          <View style={styles.formGroup}>
-            <Dropdown
-              label='User Role'
-              value={formData.role || ''}
-              onValueChange={value => {
-                setFieldValue('role', value);
-                clearFieldError('role');
-              }}
-              options={roleOptions}
-              placeholder='Select user role'
-              error={validationErrors.role || getFieldError('role')}
-              required
-            />
-          </View>
+          {/* Only show role selection if super admin and user is customer */}
+          {currentUserIsSuperAdmin &&
+            (originalRole === 'customer' || formData.role === 'customer') && (
+              <View style={styles.formGroup}>
+                <Dropdown
+                  label='User Role'
+                  value={formData.role || ''}
+                  onValueChange={value => {
+                    setFieldValue('role', value);
+                    clearFieldError('role');
+                  }}
+                  options={roleOptions}
+                  placeholder='Select user role'
+                  error={validationErrors.role || getFieldError('role')}
+                  required
+                />
+                {originalRole && originalRole !== formData.role && (
+                  <View style={styles.roleChangeWarning}>
+                    <View style={styles.roleChangeIcon}>
+                      <AlertCircle size={16} color={colors.warning} />
+                    </View>
+                    <Text style={styles.roleChangeText}>
+                      Changing user role from {originalRole} to {formData.role}.
+                      This action may affect user permissions and access.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+          {/* Show current role as read-only if not super admin or user is not customer */}
+          {(!currentUserIsSuperAdmin ||
+            (originalRole !== 'customer' && formData.role !== 'customer')) && (
+            <View style={styles.formGroup}>
+              <TextInput
+                label='User Role'
+                value={
+                  formData.role
+                    ? formData.role.charAt(0).toUpperCase() +
+                      formData.role.slice(1)
+                    : ''
+                }
+                placeholder='User role'
+                editable={false}
+                description='Role cannot be changed'
+              />
+            </View>
+          )}
+
+          {/* Super Admin Toggle - Only visible when super admin is editing an admin user or changing customer to admin */}
+          {currentUserIsSuperAdmin &&
+            ((formData.role as string) === 'admin' ||
+              originalRole === 'admin' ||
+              (originalRole === 'customer' &&
+                (formData.role as string) === 'admin')) && (
+              <View style={styles.formGroup}>
+                <Switch
+                  label='Super Admin Access'
+                  value={isSuperAdmin}
+                  onValueChange={setIsSuperAdmin}
+                  description='Grant full access to all admin portal features and permissions. Super admins can manage all system settings and user permissions.'
+                  disabled={(formData.role as string) !== 'admin'}
+                />
+                {(formData.role as string) !== 'admin' && (
+                  <Text style={styles.switchHelperText}>
+                    User must be an admin to enable super admin access
+                  </Text>
+                )}
+              </View>
+            )}
+
+          {/* Agent-specific fields when role is agent */}
+          {formData.role === 'agent' && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderIcon}>
+                  <Settings size={20} color={colors.primary} />
+                </View>
+                <Text style={styles.sectionTitle}>Agent Settings</Text>
+              </View>
+
+              <View style={styles.formGroup}>
+                <TextInput
+                  label='Credit Ceiling (MVR)'
+                  value={creditCeiling}
+                  onChangeText={text => {
+                    const num = text.replace(/[^0-9.]/g, '');
+                    setCreditCeiling(num);
+                  }}
+                  placeholder='Enter credit limit'
+                  keyboardType='decimal-pad'
+                  description='Maximum credit amount this agent can use'
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <TextInput
+                  label='Free Tickets Allocation'
+                  value={freeTicketsAllocation}
+                  onChangeText={text => {
+                    const num = text.replace(/[^0-9]/g, '');
+                    setFreeTicketsAllocation(num);
+                  }}
+                  placeholder='Enter number of free tickets'
+                  keyboardType='number-pad'
+                  description='Number of free tickets allocated to this agent'
+                />
+              </View>
+            </View>
+          )}
 
           <View style={styles.formGroup}>
             <Dropdown
@@ -666,6 +864,63 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.warning,
     fontWeight: '600',
+  },
+  roleChangeWarning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: `${colors.warning}15`,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.warning,
+  },
+  roleChangeIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: `${colors.warning}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  roleChangeText: {
+    fontSize: 13,
+    color: colors.warning,
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 18,
+  },
+  // switchContainer: {
+  //   marginTop: 8,
+  // },
+  // switchLabelContainer: {
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   gap: 6,
+  //   marginBottom: 8,
+  // },
+  // switchLabel: {
+  //   fontSize: 15,
+  //   fontWeight: '600',
+  //   color: colors.text,
+  // },
+  // infoIcon: {
+  //   opacity: 0.6,
+  // },
+  // switchDescription: {
+  //   fontSize: 13,
+  //   color: colors.textSecondary,
+  //   marginBottom: 12,
+  //   lineHeight: 18,
+  // },
+  switchHelperText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   loadingContainer: {
     flex: 1,

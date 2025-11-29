@@ -21,7 +21,6 @@ import {
 // Dashboard Components
 import WelcomeCard from '@/components/admin/dashboard/WelcomeCard';
 import DashboardStats from '@/components/admin/dashboard/DashboardStats';
-import SystemHealthDashboard from '@/components/admin/dashboard/SystemHealthDashboard';
 import QuickActions from '@/components/admin/dashboard/QuickActions';
 
 // Existing Components
@@ -194,7 +193,7 @@ export default function DashboardScreen() {
       />
 
       {/* System Health Dashboard */}
-      <SystemHealthDashboard dashboardStats={dashboardStats} />
+      {/* <SystemHealthDashboard dashboardStats={dashboardStats} /> */}
 
       {/* Quick Actions */}
       <QuickActions

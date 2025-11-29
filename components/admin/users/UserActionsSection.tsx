@@ -73,7 +73,7 @@ export default function UserActionsSection({
           style={styles.agentActionButton}
         />
         <Button
-          title='View Transactions'
+          title='Transactions'
           variant='outline'
           onPress={onViewTransactions || (() => {})}
           icon={<CreditCard size={16} color={colors.primary} />}

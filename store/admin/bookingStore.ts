@@ -232,6 +232,7 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
             .select(
               `
               booking_id,
+              fare_amount,
               boarding_stop:route_stops!booking_segments_boarding_stop_id_fkey(
                 id,
                 stop_sequence,
@@ -256,14 +257,20 @@ export const useAdminBookingStore = create<AdminBookingState>((set, get) => ({
               segmentsMap.get(segment.booking_id)!.push(segment);
             });
 
-            // Enrich bookings with segment data
+            // Enrich bookings with segment data and segment fare
             transformedBookings = transformedBookings.map(booking => {
               const segments = segmentsMap.get(booking.id);
               if (segments && segments.length > 0) {
+                // Get the segment fare from the first segment (there should be only one per booking)
+                const segmentFare = segments[0]?.fare_amount || 0;
                 return {
                   ...booking,
                   booking_segments: segments,
-                } as AdminBooking & { booking_segments?: any[] };
+                  segment_fare: segmentFare, // Add segment_fare to booking object
+                } as AdminBooking & {
+                  booking_segments?: any[];
+                  segment_fare?: number;
+                };
               }
               return booking;
             });

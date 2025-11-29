@@ -1,13 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { router } from 'expo-router';
 import { colors } from '@/constants/adminColors';
 import { AdminBooking, BookingStatus } from '@/types/admin/management';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { useAlertContext } from '@/components/AlertProvider';
 import {
   CheckCircle,
-  RefreshCw,
   Eye,
   User,
   CreditCard,
@@ -25,6 +23,10 @@ interface BookingActionsSectionProps {
   onStatusUpdate?: (status: BookingStatus) => Promise<void>;
   onPaymentStatusUpdate?: (status: string) => Promise<void>;
   onViewCustomer?: () => void;
+  onContactCustomer?: () => void;
+  onPrintTicket?: () => void;
+  onGenerateReceipt?: () => void;
+  onCancelBooking?: () => void;
   canUpdateBookings?: boolean;
   loading?: boolean;
 }
@@ -34,6 +36,10 @@ export default function BookingActionsSection({
   onStatusUpdate,
   onPaymentStatusUpdate,
   onViewCustomer,
+  onContactCustomer,
+  onPrintTicket,
+  onGenerateReceipt,
+  onCancelBooking,
   canUpdateBookings = false,
   loading = false,
 }: BookingActionsSectionProps) {
@@ -140,21 +146,7 @@ export default function BookingActionsSection({
           </Pressable>
         );
         break;
-      case 'completed':
-        actions.push(
-          <Pressable
-            key='refund'
-            style={[styles.actionButton, styles.outlineAction]}
-            onPress={() => handlePaymentStatusUpdate('refunded')}
-            disabled={loading || !canUpdateBookings}
-          >
-            <RefreshCw size={18} color={colors.primary} />
-            <Text style={[styles.actionButtonText, { color: colors.primary }]}>
-              Process Refund
-            </Text>
-          </Pressable>
-        );
-        break;
+      // Removed Process Refund button - refunds are handled in cancel booking modal
     }
 
     return actions;
@@ -227,12 +219,7 @@ export default function BookingActionsSection({
           )}
           <Pressable
             style={[styles.actionButton, styles.outlineAction]}
-            onPress={() =>
-              showInfo(
-                'Feature Coming Soon',
-                'Contact customer functionality will be available soon.'
-              )
-            }
+            onPress={onContactCustomer || (() => {})}
           >
             <MessageSquare size={18} color={colors.primary} />
             <Text style={[styles.actionButtonText, { color: colors.primary }]}>
@@ -268,10 +255,8 @@ export default function BookingActionsSection({
             </Pressable> */}
             <Pressable
               style={[styles.actionButton, styles.dangerAction]}
-              onPress={() =>
-                router.push(`/(admin)/booking/${booking.id}/cancel` as any)
-              }
-              disabled={!canUpdateBookings}
+              onPress={onCancelBooking || (() => {})}
+              disabled={!canUpdateBookings || loading}
             >
               <Trash2 size={18} color='#FFFFFF' />
               <Text style={styles.actionButtonText}>Cancel Booking</Text>
@@ -289,12 +274,7 @@ export default function BookingActionsSection({
         <View style={styles.actionButtons}>
           <Pressable
             style={[styles.actionButton, styles.outlineAction]}
-            onPress={() =>
-              showInfo(
-                'Feature Coming Soon',
-                'Print ticket functionality will be available soon.'
-              )
-            }
+            onPress={onPrintTicket || (() => {})}
           >
             <Printer size={18} color={colors.primary} />
             <Text style={[styles.actionButtonText, { color: colors.primary }]}>
@@ -303,12 +283,7 @@ export default function BookingActionsSection({
           </Pressable>
           <Pressable
             style={[styles.actionButton, styles.outlineAction]}
-            onPress={() =>
-              showInfo(
-                'Feature Coming Soon',
-                'Generate receipt functionality will be available soon.'
-              )
-            }
+            onPress={onGenerateReceipt || (() => {})}
           >
             <Receipt size={18} color={colors.primary} />
             <Text style={[styles.actionButtonText, { color: colors.primary }]}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,6 +8,9 @@ import {
   Text,
   Pressable,
   ActivityIndicator,
+  Modal,
+  Linking,
+  Alert,
 } from 'react-native';
 import {
   Stack,
@@ -38,16 +41,32 @@ import {
   User,
   Phone,
   Mail,
+  X,
+  Share2,
+  Receipt,
+  DollarSign,
+  Percent,
+  TrendingUp,
 } from 'lucide-react-native';
-import { formatDateTime } from '@/utils/admin/bookingManagementUtils';
+import {
+  formatDateTime,
+  formatCurrency,
+} from '@/utils/admin/bookingManagementUtils';
 import { formatBookingDate, formatTimeAMPM } from '@/utils/dateUtils';
 import { supabase } from '@/utils/supabase';
 import { getRouteStops } from '@/utils/segmentUtils';
 import { getBookingSegment } from '@/utils/segmentBookingUtils';
 import type { RouteStop } from '@/types/multiStopRoute';
 import { useAlertContext } from '@/components/AlertProvider';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import TicketDesign from '@/components/TicketDesign';
+import { shareBookingTicket } from '@/utils/shareUtils';
+import Card from '@/components/Card';
+import Button from '@/components/Button';
+import Input from '@/components/Input';
+import { calculateRefundAmount } from '@/utils/paymentUtils';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function BookingDetailsPage() {
   const { id } = useLocalSearchParams();
@@ -88,6 +107,36 @@ export default function BookingDetailsPage() {
   const [paymentRefundStatus, setPaymentRefundStatus] = useState<string | null>(
     null
   );
+
+  // Modal states
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  // Cancel booking modal state
+  const [cancelReason, setCancelReason] = useState('');
+  const [refundType, setRefundType] = useState<'full' | 'half' | 'none'>(
+    'half'
+  );
+  const [refundMethod, setRefundMethod] = useState<'mib' | 'bank_transfer'>(
+    'mib'
+  );
+  const [bankDetails, setBankDetails] = useState({
+    accountNumber: '',
+    accountName: '',
+    bankName: '',
+  });
+
+  // Ticket refs
+  const ticketDesignRef = useRef<any>(null);
+  const imageGenerationTicketRef = useRef<any>(null);
+
+  // Receipt data
+  const [receiptNumber, setReceiptNumber] = useState<string | null>(null);
+  const [bookingPassengers, setBookingPassengers] = useState<any[]>([]);
+  const [bookingSeats, setBookingSeats] = useState<any[]>([]);
 
   // Auto-refresh when page is focused
   useFocusEffect(
@@ -305,6 +354,91 @@ export default function BookingDetailsPage() {
     await loadBooking(true);
   };
 
+  // Fetch receipt number from payments table
+  const loadReceiptNumber = useCallback(async (bookingId: string) => {
+    try {
+      const { data: payment, error } = await supabase
+        .from('payments')
+        .select('receipt_number')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && payment?.receipt_number) {
+        setReceiptNumber(payment.receipt_number);
+      } else {
+        setReceiptNumber(null);
+      }
+    } catch (err) {
+      console.error('Error loading receipt number:', err);
+      setReceiptNumber(null);
+    }
+  }, []);
+
+  // Fetch booking data for ticket generation
+  const loadBookingDataForTicket = useCallback(
+    async (booking: AdminBooking) => {
+      try {
+        // Fetch passengers
+        const { data: passengersData, error: passengersError } = await supabase
+          .from('passengers')
+          .select(
+            `
+          id,
+          passenger_name,
+          passenger_contact_number,
+          seat_id,
+          seats (
+            seat_number,
+            row_number,
+            position_x
+          )
+        `
+          )
+          .eq('booking_id', booking.id);
+
+        if (!passengersError && passengersData) {
+          const transformedPassengers = passengersData.map((p: any) => ({
+            id: p.id,
+            fullName: p.passenger_name,
+            phoneNumber: p.passenger_contact_number || '',
+            seat: p.seats
+              ? {
+                  id: p.seat_id,
+                  number: p.seats.seat_number || '',
+                  rowNumber: p.seats.row_number || 0,
+                }
+              : null,
+          }));
+
+          setBookingPassengers(transformedPassengers);
+
+          // Extract seats
+          const seats = passengersData
+            .filter((p: any) => p.seats)
+            .map((p: any) => ({
+              id: p.seat_id,
+              number: p.seats.seat_number || '',
+              rowNumber: p.seats.row_number || 0,
+            }));
+          setBookingSeats(seats);
+        }
+      } catch (err) {
+        console.error('Error loading booking data for ticket:', err);
+      }
+    },
+    []
+  );
+
+  // Load receipt number when booking is loaded
+  useEffect(() => {
+    if (booking?.id) {
+      loadReceiptNumber(booking.id);
+      loadBookingDataForTicket(booking);
+    }
+  }, [booking?.id, loadReceiptNumber, loadBookingDataForTicket]);
+
   const handleStatusUpdate = async (newStatus: BookingStatus) => {
     if (!booking) return;
 
@@ -373,6 +507,337 @@ export default function BookingDetailsPage() {
       'Download QR Code',
       'QR code download functionality will be implemented here.'
     );
+  };
+
+  // Contact customer handler
+  const handleContactCustomer = () => {
+    if (!booking) return;
+
+    Alert.alert(
+      'Contact Customer',
+      'Choose how you want to contact the customer',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        ...(booking.user_mobile
+          ? [
+              {
+                text: 'Call',
+                onPress: () => {
+                  Linking.openURL(`tel:${booking.user_mobile}`);
+                },
+              },
+            ]
+          : []),
+        ...(booking.user_email
+          ? [
+              {
+                text: 'Email',
+                onPress: () => {
+                  Linking.openURL(`mailto:${booking.user_email}`);
+                },
+              },
+            ]
+          : []),
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // Print ticket handler
+  const handlePrintTicket = () => {
+    if (!booking) return;
+    setShowTicketModal(true);
+  };
+
+  // Share ticket handler
+  const handleShareTicket = async () => {
+    if (!booking) return;
+
+    try {
+      setIsSharing(true);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Convert AdminBooking to Booking format for TicketDesign
+      const bookingForTicket = convertAdminBookingToBooking(booking);
+      if (bookingForTicket) {
+        await shareBookingTicket(
+          bookingForTicket,
+          imageGenerationTicketRef,
+          showError
+        );
+      }
+    } catch (error) {
+      showError('Sharing Error', 'Failed to share ticket. Please try again.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  // Generate receipt handler
+  const handleGenerateReceipt = () => {
+    if (!booking) return;
+
+    if (!receiptNumber) {
+      showInfo(
+        'No Receipt Available',
+        'Receipt number is not available for this booking.'
+      );
+      return;
+    }
+
+    setShowReceiptModal(true);
+  };
+
+  // Cancel booking handler
+  const handleCancelBooking = () => {
+    if (!booking) return;
+    if (!canUpdateBookings()) {
+      showError(
+        'Access Denied',
+        'You do not have permission to cancel bookings.'
+      );
+      return;
+    }
+    // Initialize refund method based on payment type
+    const isMibPayment =
+      booking.payment_method_type === 'mib' || booking.payment_method === 'mib';
+    setRefundMethod(isMibPayment ? 'mib' : 'bank_transfer');
+    setShowCancelModal(true);
+  };
+
+  // Confirm cancel booking with refund options
+  const handleConfirmCancelBooking = async () => {
+    if (!booking || !cancelReason.trim()) {
+      showError('Validation Error', 'Please provide a cancellation reason.');
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      // Calculate refund amount based on refund type
+      let refundAmount = 0;
+      if (refundType === 'full') {
+        refundAmount = booking.total_fare || 0;
+      } else if (refundType === 'half') {
+        refundAmount = calculateRefundAmount(booking.total_fare || 0);
+      }
+
+      // 1. Update booking status to cancelled
+      await updateBooking(booking.id, { status: 'cancelled' });
+
+      // 2. Release seat reservations
+      const { error: seatError } = await supabase
+        .from('seat_reservations')
+        .update({
+          is_available: true,
+          booking_id: null,
+          is_reserved: false,
+        })
+        .eq('booking_id', booking.id);
+
+      if (seatError) {
+        console.error('Error releasing seats:', seatError);
+      }
+
+      // 3. Create cancellation record
+      const cancellationData = {
+        booking_id: booking.id,
+        reason: cancelReason,
+        refund_amount: refundAmount,
+        cancellation_fee: booking.total_fare - refundAmount,
+        status: refundAmount > 0 ? 'pending' : 'no_payment',
+        cancelled_by: 'admin', // Admin cancellation
+        created_at: new Date().toISOString(),
+      };
+
+      const { error: cancellationError } = await supabase
+        .from('cancellations')
+        .insert(cancellationData);
+
+      if (cancellationError) {
+        console.error('Error creating cancellation record:', cancellationError);
+      }
+
+      // 4. Process refund if applicable
+      if (refundAmount > 0) {
+        // Check if payment was made via MIB
+        const { data: payment } = await supabase
+          .from('payments')
+          .select('id, payment_method, receipt_number, status')
+          .eq('booking_id', booking.id)
+          .eq('status', 'completed')
+          .maybeSingle();
+
+        const isMibPayment =
+          payment?.payment_method === 'mib' ||
+          booking.payment_method_type === 'mib';
+
+        // Process refund based on selected refund method
+        if (refundMethod === 'mib' && isMibPayment && payment?.receipt_number) {
+          // Process MIB refund via edge function
+          try {
+            const { data: refundResult, error: refundError } =
+              await supabase.functions.invoke('mib-payment', {
+                body: {
+                  action: 'process-refund',
+                  bookingId: booking.id,
+                  refundAmount: refundAmount,
+                  currency: 'MVR',
+                },
+              });
+
+            if (refundError || !refundResult?.success) {
+              console.error(
+                'Refund processing error:',
+                refundError || refundResult
+              );
+              // Update cancellation status to indicate refund failure
+              await supabase
+                .from('cancellations')
+                .update({ status: 'refund_failed' })
+                .eq('booking_id', booking.id);
+            }
+          } catch (refundErr) {
+            console.error('Error processing refund:', refundErr);
+          }
+        } else if (refundMethod === 'bank_transfer') {
+          // Bank transfer refund - update cancellation with bank details
+          await supabase
+            .from('cancellations')
+            .update({
+              bank_account_number: bankDetails.accountNumber,
+              bank_account_name: bankDetails.accountName,
+              bank_name: bankDetails.bankName,
+            })
+            .eq('booking_id', booking.id);
+        }
+      }
+
+      // 5. Update payment status if refund was processed
+      if (refundAmount > 0) {
+        await supabase
+          .from('payments')
+          .update({
+            status:
+              refundAmount === booking.total_fare
+                ? 'refunded'
+                : 'partially_refunded',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('booking_id', booking.id)
+          .eq('status', 'completed');
+      }
+
+      // Refresh booking data
+      await loadBooking();
+
+      showSuccess(
+        'Booking Cancelled',
+        `Booking #${booking.booking_number} has been cancelled${
+          refundAmount > 0
+            ? ` and a refund of MVR ${refundAmount.toFixed(2)} has been initiated.`
+            : '.'
+        }`
+      );
+
+      setShowCancelModal(false);
+      setCancelReason('');
+      setRefundType('half');
+      // Reset refund method based on payment type
+      const isMibPayment =
+        booking?.payment_method_type === 'mib' ||
+        booking?.payment_method === 'mib';
+      setRefundMethod(isMibPayment ? 'mib' : 'bank_transfer');
+      setBankDetails({ accountNumber: '', accountName: '', bankName: '' });
+    } catch (error: any) {
+      showError(
+        'Cancellation Failed',
+        error?.message || 'Failed to cancel booking. Please try again.'
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  // Convert AdminBooking to Booking type for TicketDesign
+  const convertAdminBookingToBooking = (
+    adminBooking: AdminBooking | null
+  ): any => {
+    if (!adminBooking) return null;
+
+    // Calculate original fare (before discount) for ticket display
+    // For agent bookings, we want to show the original fare, not the discounted total_fare
+    const passengerCount = adminBooking.passenger_count || 1;
+    const segmentFare =
+      bookingSegment?.fare_amount ||
+      (adminBooking as any).segment_fare ||
+      ((adminBooking as any).booking_segments?.[0]?.fare_amount as
+        | number
+        | undefined) ||
+      0;
+    const baseFare = adminBooking.trip_base_fare || 0;
+    const farePerPassenger = segmentFare > 0 ? segmentFare : baseFare;
+    const originalFare = farePerPassenger * passengerCount;
+    // Use original fare for display on ticket (before discount)
+    // This shows the fare the customer would see, not the discounted agent price
+    const displayFare =
+      originalFare > 0 ? originalFare : adminBooking.total_fare;
+
+    return {
+      id: adminBooking.id,
+      bookingNumber: adminBooking.booking_number,
+      totalFare: displayFare, // Show original fare on ticket (before discount)
+      displayFare: displayFare, // Show original fare on ticket (before discount)
+      departureDate: adminBooking.trip_travel_date || adminBooking.created_at,
+      departureTime: adminBooking.trip_departure_time || '00:00',
+      createdAt: adminBooking.created_at,
+      status: adminBooking.status,
+      passengers:
+        bookingPassengers.length > 0
+          ? bookingPassengers
+          : [
+              {
+                id: 'temp',
+                fullName: 'Passenger',
+                phoneNumber: '',
+              },
+            ],
+      seats: bookingSeats.length > 0 ? bookingSeats : [],
+      route: {
+        id: 'route-id',
+        fromIsland: {
+          id: 'from',
+          name: boardingStopName || adminBooking.from_island_name || 'Unknown',
+          zone: 'A',
+        },
+        toIsland: {
+          id: 'to',
+          name: destinationStopName || adminBooking.to_island_name || 'Unknown',
+          zone: 'A',
+        },
+        baseFare: adminBooking.trip_base_fare || adminBooking.total_fare,
+      },
+      vessel: adminBooking.vessel_name
+        ? {
+            id: 'vessel-id',
+            name: adminBooking.vessel_name,
+          }
+        : undefined,
+      qrCodeUrl: adminBooking.qr_code_url || '',
+      payment: receiptNumber
+        ? {
+            receiptNumber: receiptNumber,
+            status: adminBooking.payment_status || 'completed',
+            method:
+              adminBooking.payment_method ||
+              adminBooking.payment_method_type ||
+              'gateway',
+          }
+        : undefined,
+    };
   };
 
   const getBookingStatusInfo = (booking: AdminBooking) => {
@@ -805,7 +1270,129 @@ export default function BookingDetailsPage() {
           cancellationData={cancellationData}
           originalPaymentAmount={originalPaymentAmount}
           paymentRefundStatus={paymentRefundStatus}
+          receiptNumber={receiptNumber}
         />
+
+        {/* Agent Booking Financial Details */}
+        {booking.agent_id && (
+          <View style={styles.agentFinancialCard}>
+            <View style={styles.agentFinancialHeader}>
+              <DollarSign size={20} color={colors.primary} />
+              <Text style={styles.agentFinancialTitle}>
+                Agent Booking Financial Details
+              </Text>
+            </View>
+            {(() => {
+              const passengerCount = booking.passenger_count || 1;
+              const totalFare = booking.total_fare || 0;
+
+              // Use segment fare from booking_segments if available, otherwise fall back to base fare
+              // bookingSegment comes from booking_segments table which has fare_amount field
+              const segmentFare = bookingSegment?.fare_amount || 0;
+              const baseFare = booking.trip_base_fare || 0;
+
+              // Use segment fare if available, otherwise calculate from base fare
+              const farePerPassenger = segmentFare > 0 ? segmentFare : baseFare;
+
+              // Calculate original fare: segment/base fare per passenger × number of passengers
+              const originalFare = farePerPassenger * passengerCount;
+              const discountAmount = Math.max(0, originalFare - totalFare);
+              const commission = discountAmount; // Commission is the discount amount
+              const totalPaidByAgent = totalFare;
+
+              return (
+                <View style={styles.agentFinancialContent}>
+                  <View style={styles.agentFinancialRow}>
+                    <View style={styles.agentFinancialLabelContainer}>
+                      <DollarSign size={16} color={colors.textSecondary} />
+                      <Text style={styles.agentFinancialLabel}>
+                        Booking Fare (Total{' '}
+                        {passengerCount > 1 && `- ${passengerCount} passengers`}
+                        ):
+                      </Text>
+                    </View>
+                    <Text style={styles.agentFinancialValue}>
+                      {formatCurrency(originalFare)}
+                    </Text>
+                  </View>
+                  {passengerCount > 1 && (
+                    <View style={styles.agentFinancialSubRow}>
+                      <Text style={styles.agentFinancialSubText}>
+                        ({formatCurrency(farePerPassenger)} per passenger ×{' '}
+                        {passengerCount} passengers)
+                      </Text>
+                    </View>
+                  )}
+
+                  {discountAmount > 0 && (
+                    <View style={styles.agentFinancialRow}>
+                      <View style={styles.agentFinancialLabelContainer}>
+                        <Percent size={16} color={colors.success} />
+                        <Text style={styles.agentFinancialLabel}>
+                          Discount:
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.agentFinancialValue,
+                          styles.agentDiscountValue,
+                        ]}
+                      >
+                        -{formatCurrency(discountAmount)}
+                      </Text>
+                    </View>
+                  )}
+
+                  {commission > 0 && (
+                    <View style={styles.agentFinancialRow}>
+                      <View style={styles.agentFinancialLabelContainer}>
+                        <TrendingUp size={16} color={colors.primary} />
+                        <Text style={styles.agentFinancialLabel}>
+                          Agent Commission:
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.agentFinancialValue,
+                          styles.agentCommissionValue,
+                        ]}
+                      >
+                        {formatCurrency(commission)}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View
+                    style={[
+                      styles.agentFinancialRow,
+                      styles.agentFinancialRowTotal,
+                    ]}
+                  >
+                    <View style={styles.agentFinancialLabelContainer}>
+                      <DollarSign size={18} color={colors.primary} />
+                      <Text
+                        style={[
+                          styles.agentFinancialLabel,
+                          styles.agentTotalLabel,
+                        ]}
+                      >
+                        Total Paid by Agent:
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.agentFinancialValue,
+                        styles.agentTotalValue,
+                      ]}
+                    >
+                      {formatCurrency(totalPaidByAgent)}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })()}
+          </View>
+        )}
 
         {/* Passenger Details Section */}
         <BookingPassengerDetails booking={booking} />
@@ -816,6 +1403,10 @@ export default function BookingDetailsPage() {
           onStatusUpdate={handleStatusUpdate}
           onPaymentStatusUpdate={handlePaymentStatusUpdate}
           onViewCustomer={handleViewCustomer}
+          onContactCustomer={handleContactCustomer}
+          onPrintTicket={handlePrintTicket}
+          onGenerateReceipt={handleGenerateReceipt}
+          onCancelBooking={handleCancelBooking}
           canUpdateBookings={canUpdateBookings()}
           loading={updating}
         />
@@ -825,7 +1416,13 @@ export default function BookingDetailsPage() {
           <Text style={styles.sectionTitle}>Booking Information</Text>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Booking ID:</Text>
-            <Text style={styles.infoValue}>#{booking.id}</Text>
+            <Text
+              style={styles.infoValue}
+              numberOfLines={1}
+              ellipsizeMode='middle'
+            >
+              #{booking.id}
+            </Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Created:</Text>
@@ -851,6 +1448,393 @@ export default function BookingDetailsPage() {
           )}
         </View>
       </ScrollView>
+
+      {/* Ticket Print Modal */}
+      <Modal
+        visible={showTicketModal}
+        animationType='slide'
+        presentationStyle='pageSheet'
+        onRequestClose={() => setShowTicketModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Pressable
+              style={styles.modalCloseButton}
+              onPress={() => setShowTicketModal(false)}
+            >
+              <X size={24} color={colors.text} />
+            </Pressable>
+            <Text style={styles.modalTitle}>Ticket Details</Text>
+            <Pressable
+              style={[
+                styles.modalShareButton,
+                isSharing && styles.shareIconButtonDisabled,
+              ]}
+              onPress={handleShareTicket}
+              disabled={isSharing}
+            >
+              <Share2
+                size={24}
+                color={isSharing ? colors.textSecondary : colors.primary}
+              />
+            </Pressable>
+          </View>
+          <ScrollView
+            style={styles.modalScrollView}
+            contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.modalTicketContainer}
+              bounces={false}
+            >
+              <TicketDesign
+                booking={convertAdminBookingToBooking(booking)}
+                size='large'
+                ref={ticketDesignRef}
+              />
+            </ScrollView>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Cancel Booking Modal */}
+      <Modal
+        visible={showCancelModal}
+        transparent={true}
+        animationType='slide'
+        onRequestClose={() => !isCancelling && setShowCancelModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalOverlayContent}>
+            <Card variant='elevated' style={styles.cancelModalCard}>
+              <View style={styles.cancelModalHeader}>
+                <AlertTriangle size={24} color={colors.danger} />
+                <Text style={styles.cancelModalTitle}>Cancel Booking</Text>
+              </View>
+
+              <ScrollView
+                style={styles.cancelModalScrollView}
+                contentContainerStyle={styles.cancelModalScrollContent}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps='handled'
+                nestedScrollEnabled={true}
+              >
+                <Text style={styles.cancelModalText}>
+                  Are you sure you want to cancel booking #
+                  {booking?.booking_number}? This action will release the
+                  reserved seats.
+                </Text>
+
+                <View style={styles.refundSection}>
+                  <Text style={styles.refundSectionTitle}>Refund Options</Text>
+
+                  <Pressable
+                    style={[
+                      styles.refundOption,
+                      refundType === 'full' && styles.refundOptionSelected,
+                    ]}
+                    onPress={() => setRefundType('full')}
+                  >
+                    <Text
+                      style={[
+                        styles.refundOptionText,
+                        refundType === 'full' &&
+                          styles.refundOptionTextSelected,
+                      ]}
+                    >
+                      Full Refund (100%)
+                    </Text>
+                    <Text style={styles.refundOptionAmount}>
+                      MVR {(booking?.total_fare || 0).toFixed(2)}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[
+                      styles.refundOption,
+                      refundType === 'half' && styles.refundOptionSelected,
+                    ]}
+                    onPress={() => setRefundType('half')}
+                  >
+                    <Text
+                      style={[
+                        styles.refundOptionText,
+                        refundType === 'half' &&
+                          styles.refundOptionTextSelected,
+                      ]}
+                    >
+                      Half Refund (50%)
+                    </Text>
+                    <Text style={styles.refundOptionAmount}>
+                      MVR{' '}
+                      {calculateRefundAmount(booking?.total_fare || 0).toFixed(
+                        2
+                      )}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[
+                      styles.refundOption,
+                      refundType === 'none' && styles.refundOptionSelected,
+                    ]}
+                    onPress={() => setRefundType('none')}
+                  >
+                    <Text
+                      style={[
+                        styles.refundOptionText,
+                        refundType === 'none' &&
+                          styles.refundOptionTextSelected,
+                      ]}
+                    >
+                      No Refund (0%)
+                    </Text>
+                    <Text style={styles.refundOptionAmount}>MVR 0.00</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.inputSection}>
+                  <Text style={styles.inputLabel}>Cancellation Reason *</Text>
+                  <Input
+                    placeholder='Enter reason for cancellation'
+                    value={cancelReason}
+                    onChangeText={setCancelReason}
+                    multiline
+                    numberOfLines={3}
+                    style={styles.reasonInput}
+                  />
+                </View>
+
+                {refundType !== 'none' &&
+                  (() => {
+                    // Check if payment was made via MIB
+                    const isMibPayment =
+                      booking?.payment_method_type === 'mib' ||
+                      booking?.payment_method === 'mib';
+
+                    return (
+                      <View style={styles.refundMethodSection}>
+                        <Text style={styles.inputLabel}>Refund Method</Text>
+
+                        {isMibPayment && (
+                          <Pressable
+                            style={[
+                              styles.refundMethodOption,
+                              refundMethod === 'mib' &&
+                                styles.refundMethodOptionSelected,
+                            ]}
+                            onPress={() => setRefundMethod('mib')}
+                          >
+                            <Text
+                              style={[
+                                styles.refundMethodText,
+                                refundMethod === 'mib' &&
+                                  styles.refundMethodTextSelected,
+                              ]}
+                            >
+                              MIB Refund
+                            </Text>
+                            <Text style={styles.refundMethodDescription}>
+                              Refund will be automatically processed to the
+                              original payment method
+                            </Text>
+                          </Pressable>
+                        )}
+
+                        <Pressable
+                          style={[
+                            styles.refundMethodOption,
+                            refundMethod === 'bank_transfer' &&
+                              styles.refundMethodOptionSelected,
+                          ]}
+                          onPress={() => setRefundMethod('bank_transfer')}
+                        >
+                          <Text
+                            style={[
+                              styles.refundMethodText,
+                              refundMethod === 'bank_transfer' &&
+                                styles.refundMethodTextSelected,
+                            ]}
+                          >
+                            Bank Transfer
+                          </Text>
+                          <Text style={styles.refundMethodDescription}>
+                            Refund will be processed via bank transfer
+                          </Text>
+                        </Pressable>
+
+                        {(refundMethod === 'bank_transfer' ||
+                          (refundMethod === 'mib' && isMibPayment)) && (
+                          <View style={styles.bankDetailsSection}>
+                            {refundMethod === 'mib' && isMibPayment && (
+                              <Text style={styles.infoText}>
+                                Bank details are required as a backup option for
+                                MIB refunds.
+                              </Text>
+                            )}
+                            <Input
+                              label='Account Number'
+                              placeholder='Enter account number'
+                              value={bankDetails.accountNumber}
+                              onChangeText={text =>
+                                setBankDetails(prev => ({
+                                  ...prev,
+                                  accountNumber: text,
+                                }))
+                              }
+                            />
+                            <Input
+                              label='Account Holder Name'
+                              placeholder='Enter account holder name'
+                              value={bankDetails.accountName}
+                              onChangeText={text =>
+                                setBankDetails(prev => ({
+                                  ...prev,
+                                  accountName: text,
+                                }))
+                              }
+                            />
+                            <Input
+                              label='Bank Name'
+                              placeholder='Enter bank name'
+                              value={bankDetails.bankName}
+                              onChangeText={text =>
+                                setBankDetails(prev => ({
+                                  ...prev,
+                                  bankName: text,
+                                }))
+                              }
+                            />
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })()}
+              </ScrollView>
+
+              <View style={styles.modalActions}>
+                <Button
+                  title='Cancel'
+                  onPress={() => {
+                    setShowCancelModal(false);
+                    setCancelReason('');
+                    setRefundType('half');
+                    // Reset refund method based on payment type
+                    const isMibPayment =
+                      booking?.payment_method_type === 'mib' ||
+                      booking?.payment_method === 'mib';
+                    setRefundMethod(isMibPayment ? 'mib' : 'bank_transfer');
+                    setBankDetails({
+                      accountNumber: '',
+                      accountName: '',
+                      bankName: '',
+                    });
+                  }}
+                  variant='outline'
+                  style={styles.modalButton}
+                  disabled={isCancelling}
+                  textStyle={styles.modalCancelText}
+                />
+                <Button
+                  title={isCancelling ? 'Cancelling...' : 'Confirm'}
+                  onPress={handleConfirmCancelBooking}
+                  style={{
+                    ...styles.modalButton,
+                    ...styles.modalDangerButton,
+                  }}
+                  disabled={isCancelling || !cancelReason.trim()}
+                  textStyle={styles.modalConfirmText}
+                />
+              </View>
+            </Card>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Receipt Modal */}
+      <Modal
+        visible={showReceiptModal}
+        transparent={true}
+        animationType='slide'
+        onRequestClose={() => setShowReceiptModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Card variant='elevated' style={styles.receiptModalCard}>
+            <View style={styles.receiptModalHeader}>
+              <Receipt size={24} color={colors.primary} />
+              <Text style={styles.receiptModalTitle}>Receipt</Text>
+              <Pressable
+                style={styles.modalCloseButton}
+                onPress={() => setShowReceiptModal(false)}
+              >
+                <X size={24} color={colors.text} />
+              </Pressable>
+            </View>
+            <ScrollView style={styles.receiptContent}>
+              {receiptNumber ? (
+                <View style={styles.receiptDetails}>
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Receipt Number:</Text>
+                    <Text style={styles.receiptValue}>{receiptNumber}</Text>
+                  </View>
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Booking Number:</Text>
+                    <Text style={styles.receiptValue}>
+                      {booking?.booking_number}
+                    </Text>
+                  </View>
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Amount Paid:</Text>
+                    <Text style={styles.receiptValue}>
+                      MVR {booking?.total_fare?.toFixed(2) || '0.00'}
+                    </Text>
+                  </View>
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Payment Method:</Text>
+                    <Text style={styles.receiptValue}>
+                      {booking?.payment_method ||
+                        booking?.payment_method_type ||
+                        'N/A'}
+                    </Text>
+                  </View>
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Date:</Text>
+                    <Text style={styles.receiptValue}>
+                      {formatDateTime(booking?.created_at || '')}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.noReceiptText}>
+                  Receipt number is not available for this booking.
+                </Text>
+              )}
+            </ScrollView>
+            <View style={styles.receiptActions}>
+              <Button
+                title='Close'
+                onPress={() => setShowReceiptModal(false)}
+                style={styles.receiptCloseButton}
+              />
+            </View>
+          </Card>
+        </View>
+      </Modal>
+
+      {/* Hidden TicketDesign for image generation */}
+      <View style={styles.hiddenTicketContainer}>
+        <TicketDesign
+          booking={booking ? convertAdminBookingToBooking(booking) : null}
+          size='large'
+          forImageGeneration={true}
+          ref={imageGenerationTicketRef}
+        />
+      </View>
     </View>
   );
 }
@@ -1081,16 +2065,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    flexWrap: 'wrap',
   },
   infoLabel: {
     fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '500',
+    flexShrink: 1,
+    marginRight: 8,
   },
   infoValue: {
     fontSize: 14,
     color: colors.text,
     fontWeight: '600',
+    flexShrink: 1,
+    flex: 1,
+    textAlign: 'right',
   },
 
   sectionTitle: {
@@ -1109,5 +2099,363 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 1,
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border || '#E5E5E5',
+    backgroundColor: colors.card,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+    textAlign: 'center',
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.backgroundSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalShareButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.backgroundSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareIconButtonDisabled: {
+    opacity: 0.5,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  modalTicketContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '100%',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalOverlayContent: {
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '85%',
+    height: '85%',
+  },
+  cancelModalCard: {
+    width: '100%',
+    height: '100%',
+    padding: 0,
+    overflow: 'hidden',
+    flexDirection: 'column',
+  },
+  cancelModalScrollView: {
+    flex: 1,
+  },
+  cancelModalScrollContent: {
+    padding: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  cancelModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border || '#E5E5E5',
+  },
+  cancelModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cancelModalText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  refundSection: {
+    marginBottom: 20,
+  },
+  refundSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  refundOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.border || '#E5E5E5',
+    marginBottom: 10,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  refundOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}10`,
+  },
+  refundOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  refundOptionTextSelected: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  refundOptionAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  inputSection: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  reasonInput: {
+    minHeight: 80,
+  },
+  refundMethodSection: {
+    marginBottom: 20,
+  },
+  refundMethodOption: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.border || '#E5E5E5',
+    marginBottom: 10,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  refundMethodOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}10`,
+  },
+  refundMethodText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  refundMethodTextSelected: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  refundMethodDescription: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  bankDetailsSection: {
+    marginTop: 12,
+    gap: 12,
+  },
+  infoText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 16,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border || '#E5E5E5',
+    backgroundColor: colors.card,
+    flexShrink: 0,
+  },
+  modalButton: {
+    flex: 1,
+  },
+  modalDangerButton: {
+    backgroundColor: colors.danger,
+  },
+  modalCancelText: {
+    color: colors.textSecondary,
+  },
+  modalConfirmText: {
+    color: '#FFFFFF',
+  },
+  receiptModalCard: {
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '90%',
+    padding: 20,
+  },
+  receiptModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  receiptModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    flex: 1,
+    textAlign: 'center',
+  },
+  receiptContent: {
+    maxHeight: 400,
+  },
+  receiptDetails: {
+    gap: 16,
+  },
+  receiptRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border || '#E5E5E5',
+  },
+  receiptLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  receiptValue: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  noReceiptText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    padding: 20,
+  },
+  receiptActions: {
+    marginTop: 20,
+  },
+  receiptCloseButton: {
+    width: '100%',
+  },
+  hiddenTicketContainer: {
+    position: 'absolute',
+    left: -10000,
+    top: -10000,
+    opacity: 0,
+    pointerEvents: 'none',
+  },
+  agentFinancialCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: `${colors.primary}20`,
+  },
+  agentFinancialHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  agentFinancialTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  agentFinancialContent: {
+    gap: 12,
+  },
+  agentFinancialRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  agentFinancialRowTotal: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border || '#E5E5E5',
+  },
+  agentFinancialLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  agentFinancialLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    flex: 1,
+  },
+  agentTotalLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  agentFinancialValue: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  agentDiscountValue: {
+    color: colors.success,
+  },
+  agentCommissionValue: {
+    color: colors.primary,
+  },
+  agentTotalValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  agentFinancialSubRow: {
+    marginTop: 4,
+    marginBottom: 4,
+    paddingLeft: 22,
+  },
+  agentFinancialSubText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
 });

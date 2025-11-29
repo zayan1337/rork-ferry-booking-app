@@ -19,6 +19,9 @@ import {
   Mail,
   Ship,
   QrCode,
+  DollarSign,
+  Percent,
+  TrendingUp,
 } from 'lucide-react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -88,6 +91,93 @@ function AdminBookingItem({
               </Text>
             </View>
           )}
+
+          {/* Agent Booking Financial Details - Compact */}
+          {booking.agent_id && (
+            <View style={styles.compactFinancialSection}>
+              {(() => {
+                const passengerCount = booking.passenger_count || 1;
+                const totalFare = booking.total_fare || 0;
+                // Get segment fare from booking (added by bookingStore when fetching)
+                // Otherwise fall back to base fare
+                const segmentFare =
+                  (booking as any).segment_fare ||
+                  ((booking as any).booking_segments?.[0]?.fare_amount as
+                    | number
+                    | undefined) ||
+                  0;
+                const baseFare = booking.trip_base_fare || 0;
+                // Use segment fare if available, otherwise use base fare
+                const farePerPassenger =
+                  segmentFare > 0 ? segmentFare : baseFare;
+                // Calculate original fare: segment/base fare per passenger × number of passengers
+                const originalFare = farePerPassenger * passengerCount;
+                const discountAmount = Math.max(0, originalFare - totalFare);
+                const commission = discountAmount;
+                const totalPaidByAgent = totalFare;
+
+                return (
+                  <>
+                    <View style={styles.compactFinancialRow}>
+                      <Text style={styles.compactFinancialLabel}>Fare:</Text>
+                      <Text style={styles.compactFinancialValue}>
+                        {formatCurrency(originalFare)}
+                      </Text>
+                    </View>
+                    {discountAmount > 0 && (
+                      <View style={styles.compactFinancialRow}>
+                        <Text style={styles.compactFinancialLabel}>Disc:</Text>
+                        <Text
+                          style={[
+                            styles.compactFinancialValue,
+                            styles.compactDiscountValue,
+                          ]}
+                        >
+                          -{formatCurrency(discountAmount)}
+                        </Text>
+                      </View>
+                    )}
+                    {commission > 0 && (
+                      <View style={styles.compactFinancialRow}>
+                        <Text style={styles.compactFinancialLabel}>Comm:</Text>
+                        <Text
+                          style={[
+                            styles.compactFinancialValue,
+                            styles.compactCommissionValue,
+                          ]}
+                        >
+                          {formatCurrency(commission)}
+                        </Text>
+                      </View>
+                    )}
+                    <View
+                      style={[
+                        styles.compactFinancialRow,
+                        styles.compactFinancialRowTotal,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.compactFinancialLabel,
+                          styles.compactTotalLabel,
+                        ]}
+                      >
+                        Paid:
+                      </Text>
+                      <Text
+                        style={[
+                          styles.compactFinancialValue,
+                          styles.compactTotalValue,
+                        ]}
+                      >
+                        {formatCurrency(totalPaidByAgent)}
+                      </Text>
+                    </View>
+                  </>
+                );
+              })()}
+            </View>
+          )}
         </View>
       </Pressable>
     );
@@ -150,6 +240,104 @@ function AdminBookingItem({
                 )}
               </View>
             )}
+
+            {/* Agent Booking Financial Details */}
+            <View style={styles.agentFinancialSection}>
+              <View style={styles.sectionHeaderRow}>
+                <DollarSign size={14} color={colors.primary} />
+                <Text style={styles.financialSectionTitle}>
+                  Agent Booking Details
+                </Text>
+              </View>
+              {(() => {
+                const passengerCount = booking.passenger_count || 1;
+                const totalFare = booking.total_fare || 0;
+                // Get segment fare from booking (added by bookingStore when fetching)
+                // Otherwise fall back to base fare
+                const segmentFare =
+                  (booking as any).segment_fare ||
+                  ((booking as any).booking_segments?.[0]?.fare_amount as
+                    | number
+                    | undefined) ||
+                  0;
+                const baseFare = booking.trip_base_fare || 0;
+                // Use segment fare if available, otherwise use base fare
+                const farePerPassenger =
+                  segmentFare > 0 ? segmentFare : baseFare;
+                // Calculate original fare: segment/base fare per passenger × number of passengers
+                const originalFare = farePerPassenger * passengerCount;
+                const discountAmount = Math.max(0, originalFare - totalFare);
+                const commission = discountAmount; // Commission is the discount amount
+                const totalPaidByAgent = totalFare;
+
+                return (
+                  <View style={styles.financialDetails}>
+                    <View style={styles.financialRow}>
+                      <Text style={styles.financialLabel}>Booking Fare:</Text>
+                      <Text style={styles.financialValue}>
+                        {formatCurrency(originalFare)}
+                      </Text>
+                    </View>
+                    {discountAmount > 0 && (
+                      <View style={styles.financialRow}>
+                        <View style={styles.financialLabelContainer}>
+                          <Percent size={12} color={colors.success} />
+                          <Text
+                            style={[styles.financialLabel, { marginLeft: 4 }]}
+                          >
+                            Discount:
+                          </Text>
+                        </View>
+                        <Text
+                          style={[styles.financialValue, styles.discountValue]}
+                        >
+                          -{formatCurrency(discountAmount)}
+                        </Text>
+                      </View>
+                    )}
+                    {commission > 0 && (
+                      <View style={styles.financialRow}>
+                        <View style={styles.financialLabelContainer}>
+                          <TrendingUp size={12} color={colors.primary} />
+                          <Text
+                            style={[styles.financialLabel, { marginLeft: 4 }]}
+                          >
+                            Commission:
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.financialValue,
+                            styles.commissionValue,
+                          ]}
+                        >
+                          {formatCurrency(commission)}
+                        </Text>
+                      </View>
+                    )}
+                    <View
+                      style={[styles.financialRow, styles.financialRowTotal]}
+                    >
+                      <View style={styles.financialLabelContainer}>
+                        <DollarSign size={14} color={colors.primary} />
+                        <Text
+                          style={[
+                            styles.financialLabel,
+                            styles.totalLabel,
+                            { marginLeft: 4 },
+                          ]}
+                        >
+                          Total Paid by Agent:
+                        </Text>
+                      </View>
+                      <Text style={[styles.financialValue, styles.totalValue]}>
+                        {formatCurrency(totalPaidByAgent)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })()}
+            </View>
           </View>
         ) : (
           <View style={styles.customerSection}>
@@ -465,5 +653,114 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
     fontWeight: '500',
+  },
+  agentFinancialSection: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: `${colors.primary}08`,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: `${colors.primary}20`,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  financialSectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  financialDetails: {
+    gap: 6,
+  },
+  financialRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  financialRowTotal: {
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: `${colors.border}40`,
+  },
+  financialLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  financialLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  totalLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  financialValue: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  discountValue: {
+    color: colors.success,
+  },
+  commissionValue: {
+    color: colors.primary,
+  },
+  totalValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  compactFinancialSection: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: `${colors.primary}08`,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: `${colors.primary}20`,
+    gap: 4,
+  },
+  compactFinancialRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  compactFinancialRowTotal: {
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: `${colors.border}40`,
+  },
+  compactFinancialLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  compactTotalLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  compactFinancialValue: {
+    fontSize: 11,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  compactDiscountValue: {
+    color: colors.success,
+  },
+  compactCommissionValue: {
+    color: colors.primary,
+  },
+  compactTotalValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
   },
 });
