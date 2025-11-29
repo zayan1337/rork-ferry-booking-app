@@ -598,6 +598,8 @@ export const fetchPayments = async (
 
 /**
  * Fetch finance statistics
+ * Total revenue is calculated from bookings (matching dashboard logic)
+ * to ensure consistency across the application
  */
 export const fetchFinanceStats = async (): Promise<FinanceStats> => {
   try {
@@ -619,15 +621,6 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
       console.error('Error fetching payment stats:', paymentError);
     }
 
-    // Fetch transaction statistics
-    const { data: transactionStats, error: transactionError } = await supabase
-      .from('wallet_transactions')
-      .select('amount, created_at');
-
-    if (transactionError) {
-      console.error('Error fetching transaction stats:', transactionError);
-    }
-
     // Calculate statistics
     const totalWalletBalance = (walletStats || []).reduce(
       (sum, w) => sum + Number(w.balance),
@@ -635,11 +628,6 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
     );
     const activeWallets = (walletStats || []).filter(
       w => Number(w.balance) > 0
-    ).length;
-
-    const today = new Date().toISOString().split('T')[0];
-    const todayTransactions = (transactionStats || []).filter(t =>
-      t.created_at.startsWith(today)
     ).length;
 
     const completedPayments = (paymentStats || []).filter(
@@ -652,10 +640,82 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
       p => p.status === 'failed'
     );
 
-    const totalRevenue = completedPayments.reduce(
-      (sum, p) => sum + Number(p.amount),
-      0
-    );
+    // Calculate total revenue from bookings (matching dashboard logic)
+    // This includes confirmed, checked_in, completed bookings and cancelled with partial refunds
+    const revenueStatuses = ['confirmed', 'checked_in', 'completed'];
+
+    // Fetch all bookings for total revenue calculation
+    const { data: allBookingsData, error: allBookingsError } = await supabase
+      .from('bookings')
+      .select('id, total_fare, status');
+
+    // Fetch cancellations data for partial refund calculation
+    // Match the exact query structure used in bookings store for consistency
+    const { data: allCancellations, error: cancellationsError } = await supabase
+      .from('cancellations')
+      .select('booking_id, refund_amount, status');
+
+    // Create a map with full cancellation details (matching bookings store structure)
+    const cancellationDetailsMap = new Map<
+      string,
+      {
+        refund_amount: number;
+        status: string;
+      }
+    >();
+
+    if (!cancellationsError && allCancellations) {
+      allCancellations.forEach(cancellation => {
+        cancellationDetailsMap.set(cancellation.booking_id, {
+          refund_amount: Number(cancellation.refund_amount || 0),
+          status: cancellation.status,
+        });
+      });
+    }
+
+    // Helper function to calculate net revenue accounting for refunds
+    // This matches the exact logic used in dashboardService.ts and bookingStore.ts
+    // Business Logic:
+    // - Confirmed/checked_in/completed bookings: Full total_fare as revenue
+    // - Cancelled bookings with refund: Net revenue = total_fare - refund_amount (remaining amount kept)
+    // - Cancelled bookings without payment: 0 revenue (no payment was made)
+    // - Other statuses (reserved, pending_payment): 0 revenue (payment not completed)
+    const calculateNetRevenue = (booking: any): number => {
+      const totalFare = Number(booking.total_fare || 0);
+
+      if (booking.status === 'cancelled') {
+        const cancellation = cancellationDetailsMap.get(booking.id);
+        if (!cancellation) {
+          // No cancellation record - no payment was made, no revenue
+          return 0;
+        }
+
+        // If refund_amount is 0, no refund was given (no payment was made), so no revenue
+        if (cancellation.refund_amount === 0) {
+          return 0;
+        }
+
+        // Calculate net revenue = total_fare - refund_amount (amount kept after partial refund)
+        // Example: Booking MVR 1000, refund MVR 500 → Revenue = MVR 500 (amount kept)
+        return Math.max(0, totalFare - cancellation.refund_amount);
+      } else if (revenueStatuses.includes(booking.status)) {
+        // For confirmed/checked_in/completed: full revenue
+        return totalFare;
+      }
+      // For other statuses (reserved, pending_payment): no revenue
+      return 0;
+    };
+
+    // Calculate total revenue from bookings (matching dashboard)
+    let totalRevenue = 0;
+    if (!allBookingsError && allBookingsData) {
+      totalRevenue = allBookingsData.reduce(
+        (sum, b) => sum + calculateNetRevenue(b),
+        0
+      );
+    }
+
+    const today = new Date().toISOString().split('T')[0];
     const todayRevenue = completedPayments
       .filter(p => p.created_at.startsWith(today))
       .reduce((sum, p) => sum + Number(p.amount), 0);
@@ -664,6 +724,11 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
       paymentStats && paymentStats.length > 0
         ? (completedPayments.length / paymentStats.length) * 100
         : 0;
+
+    // Calculate average transaction amount from wallet transactions (for reference)
+    const { data: transactionStats, error: transactionError } = await supabase
+      .from('wallet_transactions')
+      .select('amount');
 
     const averageTransactionAmount =
       transactionStats && transactionStats.length > 0
@@ -674,7 +739,6 @@ export const fetchFinanceStats = async (): Promise<FinanceStats> => {
     return {
       totalWalletBalance,
       activeWallets,
-      todayTransactions,
       weeklyRevenue: todayRevenue * 7, // Simplified calculation
       monthlyRevenue: todayRevenue * 30, // Simplified calculation
       paymentSuccessRate,

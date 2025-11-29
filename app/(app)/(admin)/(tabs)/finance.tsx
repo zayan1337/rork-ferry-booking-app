@@ -159,7 +159,6 @@ function FinanceScreen() {
         totalWalletBalance={stats.totalWalletBalance || 0}
         activeWallets={stats.activeWallets || 0}
         totalWallets={wallets?.length || 0}
-        todayTransactions={stats.todayTransactions || 0}
         totalRevenue={stats.totalRevenue || 0}
         completedPayments={stats.completedPayments || 0}
         pendingPayments={stats.pendingPayments || 0}

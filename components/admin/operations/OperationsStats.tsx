@@ -1,6 +1,6 @@
 import React from 'react';
 import { colors } from '@/constants/adminColors';
-import { MapPin, Ship, Calendar, DollarSign } from 'lucide-react-native';
+import { MapPin, Ship, Calendar, Users } from 'lucide-react-native';
 import { StatsSection } from '@/components/admin/common';
 import { OperationsStatsData } from '@/types/admin/dashboard';
 
@@ -35,10 +35,10 @@ export default function OperationsStats({
       color: '#34C759',
     },
     {
-      title: 'Revenue (30d)',
-      value: `MVR ${stats.totalRevenue30d.toLocaleString()}`,
-      subtitle: 'total revenue',
-      icon: <DollarSign size={isTablet ? 20 : 18} color='#FF9500' />,
+      title: 'Operation Team',
+      value: stats.operationTeamMembers.toString(),
+      subtitle: 'active members',
+      icon: <Users size={isTablet ? 20 : 18} color='#FF9500' />,
       color: '#FF9500',
     },
   ];

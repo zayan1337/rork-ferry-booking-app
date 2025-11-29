@@ -170,7 +170,6 @@ const initialFilters = {
 const initialStats: FinanceStats = {
   totalWalletBalance: 0,
   activeWallets: 0,
-  todayTransactions: 0,
   weeklyRevenue: 0,
   monthlyRevenue: 0,
   paymentSuccessRate: 0,

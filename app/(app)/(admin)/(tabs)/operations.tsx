@@ -200,10 +200,8 @@ export default function OperationsScreen() {
           activeVessels: stats.activeVessels || safeVesselStats.active,
           totalVessels: stats.totalVessels || safeVesselStats.total,
           todayTrips: stats.todayTrips || tripStats.todayTrips,
-          // Combine revenue from all sources or use operations store total
-          totalRevenue30d:
-            (routeStats.totalRevenue30d || 0) +
-            (safeVesselStats.totalRevenue30d || 0),
+          // Use operation team members count from operations store
+          operationTeamMembers: stats.operationTeamMembers || 0,
         }}
         isTablet={isTablet}
       />

@@ -5,7 +5,6 @@ import {
   Wallet,
   TrendingUp,
   CreditCard,
-  Activity,
   DollarSign,
   Users,
 } from 'lucide-react-native';
@@ -15,7 +14,6 @@ interface FinanceStatsProps {
   totalWalletBalance: number;
   activeWallets: number;
   totalWallets: number;
-  todayTransactions: number;
   totalRevenue: number;
   completedPayments: number;
   pendingPayments: number;
@@ -30,7 +28,6 @@ function FinanceStats({
   totalWalletBalance,
   activeWallets,
   totalWallets,
-  todayTransactions,
   totalRevenue,
   completedPayments,
   pendingPayments,
@@ -47,21 +44,34 @@ function FinanceStats({
       totalWallets > 0 ? (activeWallets / totalWallets) * 100 : 0;
 
     const formatCurrency = (amount: number) => {
+      // Show exact value with decimals if they exist
+      const hasDecimals = amount % 1 !== 0;
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'MVR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
+        minimumFractionDigits: hasDecimals ? 2 : 0,
+        maximumFractionDigits: hasDecimals ? 2 : 0,
       }).format(amount);
     };
 
     const formatNumber = (num: number) => {
+      // Show exact value without rounding
       if (num >= 1000000) {
-        return (num / 1000000).toFixed(1) + 'M';
+        const millions = num / 1000000;
+        const hasDecimals = millions % 1 !== 0;
+        return millions.toFixed(hasDecimals ? 2 : 0) + 'M';
       } else if (num >= 1000) {
-        return (num / 1000).toFixed(1) + 'K';
+        const thousands = num / 1000;
+        const hasDecimals = thousands % 1 !== 0;
+        return thousands.toFixed(hasDecimals ? 2 : 0) + 'K';
       }
       return num.toString();
+    };
+
+    const formatPercentage = (value: number) => {
+      // Show exact percentage value with decimals if they exist
+      const hasDecimals = value % 1 !== 0;
+      return hasDecimals ? value.toFixed(2) : value.toString();
     };
 
     return {
@@ -69,6 +79,7 @@ function FinanceStats({
       activeWalletPercentage,
       formatCurrency,
       formatNumber,
+      formatPercentage,
     };
   }, [totalPayments, completedPayments, totalWallets, activeWallets]);
 
@@ -126,7 +137,7 @@ function FinanceStats({
           />
         </View>
 
-        {/* Row 2: Payments & Transactions */}
+        {/* Row 2: Payments & Success Rate */}
         <View style={styles.statsRow}>
           <StatCard
             icon={<CreditCard size={isTablet ? 24 : 20} color={colors.info} />}
@@ -137,33 +148,25 @@ function FinanceStats({
             size={isTablet ? 'large' : 'medium'}
           />
           <StatCard
-            icon={<Activity size={isTablet ? 24 : 20} color={colors.warning} />}
-            title='Transactions'
-            value={stats.formatNumber(todayTransactions)}
-            color={colors.warning}
-            subtitle='Today'
-            size={isTablet ? 'large' : 'medium'}
-          />
-        </View>
-
-        {/* Row 3: Success Rate & Active Wallets */}
-        <View style={styles.statsRow}>
-          <StatCard
             icon={
               <TrendingUp size={isTablet ? 24 : 20} color={colors.success} />
             }
             title='Success Rate'
-            value={`${stats.paymentSuccessRate.toFixed(1)}%`}
+            value={`${stats.formatPercentage(stats.paymentSuccessRate)}%`}
             color={colors.success}
             subtitle='Payment success'
             size={isTablet ? 'large' : 'medium'}
           />
+        </View>
+
+        {/* Row 3: Active Wallets */}
+        <View style={[styles.statsRow, styles.singleCardRow]}>
           <StatCard
             icon={<Users size={isTablet ? 24 : 20} color={colors.primary} />}
             title='Active Wallets'
             value={stats.formatNumber(activeWallets)}
             color={colors.primary}
-            subtitle={`${stats.activeWalletPercentage.toFixed(1)}% of total`}
+            subtitle={`${stats.formatPercentage(stats.activeWalletPercentage)}% of total`}
             size={isTablet ? 'large' : 'medium'}
           />
         </View>
@@ -225,6 +228,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     justifyContent: 'space-between',
+  },
+  singleCardRow: {
+    justifyContent: 'flex-start',
   },
   paymentSummary: {
     marginTop: 20,

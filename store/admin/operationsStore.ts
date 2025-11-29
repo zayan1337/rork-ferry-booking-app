@@ -50,7 +50,7 @@ interface OperationsStats {
   activeVessels: number;
   totalVessels: number;
   todayTrips: number;
-  totalCapacity: number;
+  operationTeamMembers: number;
 }
 
 interface OperationsStore {
@@ -202,7 +202,7 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
     activeVessels: 0,
     totalVessels: 0,
     todayTrips: 0,
-    totalCapacity: 0,
+    operationTeamMembers: 0,
   },
 
   // Actions
@@ -570,6 +570,12 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
         .single();
 
       if (!statsError && enhancedStats) {
+        // Fetch operation team count
+        const { count: teamCount } = await supabase
+          .from('operation_team_emails')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_active', true);
+
         set(state => ({
           stats: {
             activeRoutes: enhancedStats.active_routes || 0,
@@ -577,7 +583,7 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
             activeVessels: enhancedStats.active_vessels || 0,
             totalVessels: enhancedStats.total_vessels || 0,
             todayTrips: enhancedStats.today_trips || 0,
-            totalCapacity: enhancedStats.today_total_capacity || 0,
+            operationTeamMembers: teamCount || 0,
           },
         }));
       } else {
@@ -628,6 +634,12 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
         0
       );
 
+      // Fetch operation team count for basic stats
+      const { count: teamCount } = await supabase
+        .from('operation_team_emails')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+
       set(state => ({
         stats: {
           activeRoutes,
@@ -635,7 +647,7 @@ export const useOperationsStore = create<OperationsStore>((set, get) => ({
           activeVessels,
           totalVessels,
           todayTrips,
-          totalCapacity,
+          operationTeamMembers: teamCount || 0,
         },
       }));
     } catch (error) {

@@ -12,7 +12,7 @@ export interface OperationsStatsData {
   activeVessels: number;
   totalVessels: number;
   todayTrips: number;
-  totalRevenue30d: number;
+  operationTeamMembers: number;
 }
 
 // Booking filter and sort types

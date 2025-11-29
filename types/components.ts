@@ -35,6 +35,7 @@ export type InputProps = {
   labelStyle?: TextStyle;
   required?: boolean;
   onFocus?: () => void;
+  onBlur?: () => void;
   leftIcon?: React.ReactNode;
 };
 

@@ -79,7 +79,7 @@ export const useOperationsData = () => {
       activeVessels: stats.activeVessels,
       totalVessels: stats.totalVessels,
       todayTrips: stats.todayTrips,
-      totalCapacity: stats.totalCapacity,
+      operationTeamMembers: stats.operationTeamMembers,
     }),
     [stats]
   );

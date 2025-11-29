@@ -91,7 +91,6 @@ export interface PaymentReport {
 export interface FinanceStats {
   totalWalletBalance: number;
   activeWallets: number;
-  todayTransactions: number;
   weeklyRevenue: number;
   monthlyRevenue: number;
   paymentSuccessRate: number;

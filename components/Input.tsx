@@ -28,6 +28,7 @@ const Input: React.FC<InputProps> = ({
   labelStyle,
   required = false,
   onFocus,
+  onBlur,
   leftIcon,
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -90,6 +91,7 @@ const Input: React.FC<InputProps> = ({
           value={value}
           onChangeText={onChangeText}
           onFocus={onFocus}
+          onBlur={onBlur}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
